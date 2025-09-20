@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" class="h-screen font-system-body">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>GospelPresenter</title>
+    <base href="/" />
+    <link rel="stylesheet" href="_content/GospelPresenter.Shared/tailwind-output.css" />
+    <link rel="stylesheet" href="_content/GospelPresenter.Shared/app.css" />
+    <link rel="stylesheet" href="_content/Community.Blazor.MapLibre/maplibre-gl/dist/maplibre-gl.css" /> <!-- Had to manually put this here https://github.com/dotnet/maui/issues/19822 -->
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="GospelPresenter.styles.css" />
+    <link rel="icon" href="data:,">
+</head>
+
+<body class="flex flex-col h-full">
+    <div id="app" class="flex flex-col h-full"></div>
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script src="_content/Community.Blazor.MapLibre/turf/turf.min.js"></script>
+</body>
+
+</html>

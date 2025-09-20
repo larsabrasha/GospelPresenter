@@ -1,0 +1,33 @@
+/* 
+ https://dev.to/mhrastegari/net-maui-blazor-best-practices-for-mobile-ui-4def */
+
+*:not(input) {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* */
+
+.status-bar-safe-area {
+    display: none;
+}
+
+@supports (-webkit-touch-callout: none) {
+    .status-bar-safe-area {
+        display: flex;
+        position: sticky;
+        top: 0;
+        height: env(safe-area-inset-top);
+        background-color: #f7f7f7;
+        width: 100%;
+        z-index: 1;
+    }
+
+    .flex-column, .navbar-brand {
+        padding-left: env(safe-area-inset-left);
+    }
+}

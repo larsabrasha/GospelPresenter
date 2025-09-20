@@ -1,0 +1,17 @@
+<Modal OnClose="OnClose" Class="max-w-lg bg-white dark:bg-neutral-800">
+    <Title>
+        Logga ut
+    </Title>
+    <Body>
+    <div class="space-y-6 text-center">
+        <div class="text-neutral-500 text-sm">All nerladdad data kommer att raderas från den här enheten</div>
+        <button class="bg-green-500 hover:bg-green-600 rounded-full text-white text-sm py-4 px-24 cursor-pointer"
+                @onclick="@OnConfirmLogout">Logga ut</button>
+    </div>
+    </Body>
+</Modal>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnConfirmLogout { get; set; }
+}

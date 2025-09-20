@@ -1,0 +1,8 @@
+<button class="cursor-pointer w-full py-4 px-6 rounded-full text-green-500 hover:bg-green-500-tinted dark:hover:bg-neutral-600 font-semibold" @onclick="OnClick">
+    @ChildContent
+</button>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+}

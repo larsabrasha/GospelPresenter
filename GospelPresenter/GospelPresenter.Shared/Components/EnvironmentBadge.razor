@@ -1,0 +1,21 @@
+@using GospelPresenter.Shared.Services
+@inject IBuildInfoService BuildInfoService
+
+@switch (BuildInfo?.EnvironmentName)
+{
+    case "Test":
+        <span class="px-3 py-1 rounded-full bg-red-500 text-white">Test</span>
+        break;
+    case "Beta":
+        <span class="px-3 py-1 rounded-full bg-blue-500 text-white">Beta</span>
+        break;
+}
+
+@code {
+    private BuildInfo? BuildInfo { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        BuildInfo = await BuildInfoService.GetBuildInfoAsync();
+    }
+}

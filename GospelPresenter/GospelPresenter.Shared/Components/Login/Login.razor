@@ -1,0 +1,103 @@
+@using System.ComponentModel
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.Services.Auth
+@using GospelPresenter.Shared.State
+
+@implements IDisposable
+
+@inject AppState AppState
+@inject IAuthService AuthService
+@inject IBuildInfoService BuildInfoService
+
+<div class="grid grid-cols-1 justify-items-center items-center w-full">
+    <div class="grid grid-cols-1 justify-items-center h-[600px]">
+        <div class="space-y-10">
+            <div class="">
+                <img src="_content/GospelPresenter.Shared/logo/logo.svg"
+                     alt="Logo"
+                     class="max-w-[300px] block dark:hidden mx-auto">
+                <img src="_content/GospelPresenter.Shared/logo/logo-white.svg"
+                     alt="Logo"
+                     class="max-w-[300px] hidden dark:block mx-auto">
+                <div class="text-center mt-2">
+                    Miljö: <EnvironmentBadge/>
+                </div>
+            </div>
+
+            <div class="flex flex-col justify-center space-y-6 p-4">
+                @switch (AppState.AuthProgress)
+                {
+                    case ProgressEnum.NotStarted or ProgressEnum.Failed:
+                        <div class="mx-auto p-3 mt-4 text-sm">
+                            <button
+                                class="px-5 py-3 bg-green-500 text-white rounded-full text-sm cursor-pointer"
+                                @onclick="() => LoginAsDemoUserAsync()">
+                                Logga in
+                            </button>
+                        </div>
+
+                        break;
+                    case ProgressEnum.InProgress:
+                        <div class="flex flex-col justify-center space-y-4">
+                            <LoadingIndicator/>
+
+                            <div class="mx-auto">
+                                <button
+                                    class="bg-neutral-600 hover:bg-neutral-800 rounded-full text-white text-sm py-2 px-6 items-center flex cursor-pointer"
+                                    @onclick="CancelLogin">
+                                    Avbryt inloggning
+                                </button>
+                            </div>
+                        </div>
+                        break;
+                }
+
+                @if (AppState.AuthMessage is not null)
+                {
+                    <div class="text-center text-sm max-w-lg pt-2">
+                        @AppState.AuthMessage
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string SelectedDemoUser { get; set; } = "Demo";
+    private BuildInfo? BuildInfo { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        AppState.PropertyChanged += OnPropertyChanged;
+        
+        BuildInfo = await BuildInfoService.GetBuildInfoAsync();
+    }
+
+    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is
+                 nameof(AppState.AuthMessage) or
+                 nameof(AppState.LoggedInUser) or
+                 nameof(AppState.AuthProgress))
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        AppState.PropertyChanged -= OnPropertyChanged;
+    }
+
+    private async Task LoginAsDemoUserAsync()
+    {
+        await AuthService.LoginAsDemoUserAsync();
+    }
+    
+    private async Task CancelLogin()
+    {
+        await AuthService.CancelLoginAsync();
+    }
+
+}

@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="GospelPresenter.Web: Hot reload" type="CompoundRunConfigurationType">
+    <toRun name="GospelPresenter.Web: dotnet-watch" type="LaunchSettings" />
+    <toRun name="Hot Reload Helper" type="RunNativeExe" />
+    <toRun name="Tailwindcss watch" type="RunNativeExe" />
+    <method v="2" />
+  </configuration>
+</component>

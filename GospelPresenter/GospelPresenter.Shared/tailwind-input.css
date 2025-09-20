@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@source "../GospelPresenter";
+@source "../GospelPresenter.Web";
+
+@theme {
+    --animate-delayed-pulse: delayed-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 1s infinite;
+
+    @keyframes delayed-pulse {
+        0% {
+            opacity: 0;
+        }
+        50% {
+            opacity: 1;
+        }
+        100% {
+            opacity: 0;
+        }
+    }
+}
+
+@layer base {
+    h1 {
+        @apply text-3xl/16;
+    }
+    h2 {
+        @apply text-2xl/12;
+    }
+    h3 {
+        @apply text-xl/10;
+    }
+    h4 {
+        @apply text-lg/8;
+    }
+    h5 {
+        @apply text-base/6;
+    }
+    h6 {
+        @apply text-sm/4;
+    }
+
+    .font-system-body {
+    }
+    
+    @supports (font: -apple-system-body) {
+        .font-system-body {
+            font: -apple-system-body;
+        }
+    }
+}
+
+:root {
+    --navmenu-width: 300px;
+    --detail-panel-sidebar-width: 300px;
+    --detail-panel-sidebar-min-height: 100px;
+    --detail-panel-sidebar-max-height: 700px;
+    --detail-panel-modal-width: 500px;
+    --detail-panel-modal-height: 500px;
+}

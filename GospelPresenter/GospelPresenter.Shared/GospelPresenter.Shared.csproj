@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <PropertyGroup>
+<!-- Attempt to fix publish error on TeamCity (https://github.com/dotnet/aspnetcore/issues/59291) -->
+        <CompressionEnabled>false</CompressionEnabled>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <SupportedPlatform Include="browser"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.8" />
+        <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="9.0.8" />
+        <PackageReference Include="Microsoft.Maui.Essentials" Version="9.0.100" />
+        <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Update="wwwroot\**">
+            <PublishFolderType>Content</PublishFolderType>
+        </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <UpToDateCheckInput Remove="Components\Map\Map.razor" />
+      <UpToDateCheckInput Remove="Components\Map\MapFeatureSelector.razor" />
+    </ItemGroup>
+
+    <Import Project="TailwindCssCli.targets" />
+
+</Project>

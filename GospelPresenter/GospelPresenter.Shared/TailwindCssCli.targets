@@ -1,0 +1,57 @@
+<Project>
+    <PropertyGroup>
+        <TailwindVersion>4.1.4</TailwindVersion>
+        <TailwindExecutableName>tailwindcss-$(TailwindVersion)</TailwindExecutableName>
+        <TailwindCliWindowsUrl>https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/tailwindcss-windows-x64.exe</TailwindCliWindowsUrl>
+        <TailwindCliLinuxX64Url>https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/tailwindcss-linux-x64</TailwindCliLinuxX64Url>
+        <TailwindCliLinuxArmUrl>https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/tailwindcss-linux-arm64</TailwindCliLinuxArmUrl>
+        <TailwindCliMacX64Url>https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/tailwindcss-macos-x64</TailwindCliMacX64Url>
+        <TailwindCliMacArmUrl>https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/tailwindcss-macos-arm64</TailwindCliMacArmUrl>
+    </PropertyGroup>
+
+    <Target Name="DetectSystem">
+        <Message Importance="high" Text="Fetching Arch"/>
+        <Exec Command="uname -m" ConsoleToMSBuild="true" EchoOff="true" Condition="'$(OS)' != 'Windows_NT'">
+            <Output TaskParameter="ConsoleOutput" PropertyName="Arch"/>
+        </Exec>
+
+        <Message Importance="high" Text="Fetching OperatingSystem"/>
+        <Exec Command="uname -s" ConsoleToMSBuild="true" EchoOff="true" Condition="'$(OS)' != 'Windows_NT'">
+            <Output TaskParameter="ConsoleOutput" PropertyName="OperatingSystem"/>
+        </Exec>
+    </Target>
+
+    <Target Name="DownloadTailwindCLI" DependsOnTargets="DetectSystem">
+        <Exec Condition=" '$(OS)' == 'Windows_NT' AND !Exists('$(TailwindExecutableName).exe')"
+              Command="powershell -Command &quot;Invoke-WebRequest -Uri '$(TailwindCliWindowsUrl)' -OutFile '$(TailwindExecutableName).exe'&quot;"/>
+
+        <Exec Condition=" '$(OperatingSystem)' == 'Linux' AND '$(Arch)' == 'x86_64' AND !Exists('$(TailwindExecutableName)')"
+              Command="curl -L -o $(TailwindExecutableName) '$(TailwindCliLinuxX64Url)'"/>
+
+        <Exec Condition=" '$(OperatingSystem)' == 'Linux' AND '$(Arch)' == 'aarch64' AND !Exists('$(TailwindExecutableName)')"
+              Command="curl -L -o $(TailwindExecutableName) '$(TailwindCliLinuxArmUrl)'"/>
+
+        <Exec Condition=" '$(OperatingSystem)' == 'Darwin' AND '$(Arch)' == 'x86_64' AND !Exists('$(TailwindExecutableName)')"
+              Command="curl -L -o $(TailwindExecutableName) '$(TailwindCliMacX64Url)'"/>
+
+        <Exec Condition=" '$(OperatingSystem)' == 'Darwin' AND '$(Arch)' == 'arm64' AND !Exists('$(TailwindExecutableName)')"
+              Command="curl -L -o $(TailwindExecutableName) '$(TailwindCliMacArmUrl)'"/>
+
+        <Exec Condition=" '$(OS)' != 'Windows_NT'" Command="chmod +x $(TailwindExecutableName)"/>
+    </Target>
+
+    <!-- Run Tailwind CLI -->
+    <Target Name="RunTailwind" DependsOnTargets="DownloadTailwindCLI" BeforeTargets="BeforeBuild">
+        <!-- Windows -->
+        <Exec Condition=" '$(OS)' == 'Windows_NT' AND '$(Configuration)' == 'Debug'"
+              Command="$(TailwindExecutableName).exe -i tailwind-input.css -o wwwroot/tailwind-output.css"/>
+        <Exec Condition=" '$(OS)' == 'Windows_NT' AND '$(Configuration)' == 'Release'"
+              Command="$(TailwindExecutableName).exe -i tailwind-input.css -o wwwroot/tailwind-output.css --minify"/>
+
+        <!-- Linux/macOS -->
+        <Exec Condition=" '$(OS)' != 'Windows_NT' AND '$(Configuration)' == 'Debug'"
+              Command="./$(TailwindExecutableName) -i tailwind-input.css -o wwwroot/tailwind-output.css"/>
+        <Exec Condition=" '$(OS)' != 'Windows_NT' AND '$(Configuration)' == 'Release'"
+              Command="./$(TailwindExecutableName) -i tailwind-input.css -o wwwroot/tailwind-output.css --minify"/>
+    </Target>
+</Project>

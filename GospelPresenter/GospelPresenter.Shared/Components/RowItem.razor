@@ -1,0 +1,19 @@
+<div class="flex flex-wrap items-center justify-between p-3 gap-x-3 gap-y-1">
+    @if (Icon is not null || TitleContent is not null)
+    {
+        <div class="flex items-center gap-3">
+            @if (Icon is not null)
+            {
+                <div class="shrink-0">@Icon</div>
+            }
+            <div>@TitleContent</div>
+        </div>
+    }
+    <div class="text-neutral-500 dark:text-neutral-400">@ValueContent</div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public RenderFragment? TitleContent { get; set; }
+    [Parameter] public RenderFragment? ValueContent { get; set; }
+}

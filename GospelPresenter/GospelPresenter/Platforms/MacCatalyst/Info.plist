@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <!-- The Mac App Store requires you specify if the app uses encryption. -->
+        <!-- Please consult https://developer.apple.com/documentation/bundleresources/information_property_list/itsappusesnonexemptencryption -->
+        <!-- <key>ITSAppUsesNonExemptEncryption</key> -->
+        <!-- Please indicate <true/> or <false/> here. -->
+
+        <!-- Specify the category for your app here. -->
+        <!-- Please consult https://developer.apple.com/documentation/bundleresources/information_property_list/lsapplicationcategorytype -->
+        <!-- <key>LSApplicationCategoryType</key> -->
+        <!-- <string>public.app-category.YOUR-CATEGORY-HERE</string> -->
+        <key>UIDeviceFamily</key>
+        <array>
+            <integer>2</integer>
+        </array>
+        <key>UIRequiredDeviceCapabilities</key>
+        <array>
+            <string>arm64</string>
+        </array>
+        <key>UISupportedInterfaceOrientations</key>
+        <array>
+            <string>UIInterfaceOrientationPortrait</string>
+            <string>UIInterfaceOrientationLandscapeLeft</string>
+            <string>UIInterfaceOrientationLandscapeRight</string>
+        </array>
+        <key>UISupportedInterfaceOrientations~ipad</key>
+        <array>
+            <string>UIInterfaceOrientationPortrait</string>
+            <string>UIInterfaceOrientationPortraitUpsideDown</string>
+            <string>UIInterfaceOrientationLandscapeLeft</string>
+            <string>UIInterfaceOrientationLandscapeRight</string>
+        </array>
+        <key>XSAppIconAssets</key>
+        <string>Assets.xcassets/appicon.appiconset</string>
+        <key>UIBackgroundModes</key>
+        <array>
+            <string>fetch</string>
+            <string>location</string>
+        </array>
+        <key>CFBundleName</key>
+        <string>GospelPresenter</string>
+        <key>UIBackgroundModes</key>
+        <array>
+            <string>fetch</string>
+        </array>
+        <key>ITSAppUsesNonExemptEncryption</key>
+        <false/>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>Visa din position med en blå prick på kartan</string>
+        <key>NSLocationTemporaryUsageDescriptionDictionary</key>
+        <dict>
+            <key>TemporaryFullAccuracyUsageDescription</key>
+            <string>Visa din exakta position med en blå prick på kartan</string>
+        </dict>
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>billerudskogsagare</string>
+                </array>
+            </dict>
+        </array>
+    </dict>
+</plist>

@@ -1,0 +1,10 @@
+@using GospelPresenter.Shared.Components.Symbols
+
+<button @onclick="OnClick" class="size-13 rounded-2xl cursor-pointer bg-white shadow hover:bg-neutral-100 active:bg-neutral-300 grid items-center justify-items-center">
+    @ChildContent
+</button>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+}

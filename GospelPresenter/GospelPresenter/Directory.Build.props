@@ -1,0 +1,10 @@
+<Project>
+    <PropertyGroup>
+        <Scheme Condition=" '$(Scheme)' == '' ">$(SCHEME)</Scheme>
+        <Scheme Condition=" '$(Scheme)' == '' ">GospelPresenterTest</Scheme>
+    </PropertyGroup>
+    
+    <Target Name="PrintScheme" BeforeTargets="Build">
+        <Message Importance="high" Text="Scheme: $(Scheme)"/>
+    </Target>
+</Project>

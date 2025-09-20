@@ -1,0 +1,57 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 @backdropAnimationClass" @onclick="HandleOnCloseAsync">
+    <div class="rounded-3xl shadow-lg max-h-full w-full m-3 relative @Class @contentAnimationClass" @onclick:stopPropagation="true">
+        <CloseButton Class="absolute top-3 right-3" OnClose="HandleOnCloseAsync"/>
+        <div class="p-4 text-center">
+            <h5>@Title</h5>
+        </div>
+
+        <div class="px-4 overflow-y-auto" style="max-height: calc(100svh - 12rem);">
+            @Body
+        </div>
+
+        <div class="px-4 py-3">
+            @Footer
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Title { get; set; }
+    [Parameter] public RenderFragment? Body { get; set; }
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private const string StartBackdropAnimationClass = "transition duration-200 opacity-0";
+    private const string EndBackdropAnimationClass = "transition duration-200 opacity-100";
+
+    private const string StartContentAnimationClass = "transition duration-200 translate-y-[10px]";
+    private const string EndContentAnimationClass = "transition duration-200 translate-y-0";
+
+    private string? backdropAnimationClass = StartBackdropAnimationClass;
+    private string? contentAnimationClass = StartContentAnimationClass;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(50); // Giving the view some time to render before starting the animation
+
+            backdropAnimationClass = EndBackdropAnimationClass;
+            contentAnimationClass = EndContentAnimationClass;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandleOnCloseAsync()
+    {
+        backdropAnimationClass = StartBackdropAnimationClass;
+        contentAnimationClass = StartContentAnimationClass;
+        await InvokeAsync(StateHasChanged);
+
+        await Task.Delay(200); // Waiting to close the modal until the animation has finished
+        await OnClose.InvokeAsync();
+    }
+}

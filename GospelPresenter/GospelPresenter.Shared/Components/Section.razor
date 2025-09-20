@@ -1,0 +1,14 @@
+<div>
+    @if (Title is not null)
+    {
+        <div class="px-3 py-2 text-neutral-500 dark:text-neutral-400">@Title</div>
+    }
+    <div class="rounded-xl overflow-hidden bg-white dark:bg-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-700/50">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public required RenderFragment ChildContent { get; set; }
+}
