@@ -17,21 +17,21 @@
         <div class="flex flex-wrap gap-3 p-1 overflow-auto ">
             @for (var i = 0; i < SelectedSong.Parts.Count; i++)
             {
-                var part = SelectedSong.Parts[i];
+                var part = SelectedSong.Parts[i].Replace("\n", "<br>");
 
                 var isLiveSlide = AppState.LiveSlide.ProjectItemId == SelectedSong.Id && AppState.LiveSlide.ItemPartIndex == i;
                 var partClass = isLiveSlide ? "bg-blue-50 dark:bg-sky-950 ring-sky-500 dark:ring-sky-900" : "bg-white dark:bg-neutral-800 ring-transparent";
 
                 var partIndex = i;
                 <button
-                    class="rounded-2xl p-3 w-80 h-60 ring-2 overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 hover:bg-blue-50 dark:hover:bg-sky-950 @partClass"
-                    @onclick="() => AppState.SetSelectedLiveSlide(SelectedSong.Id, partIndex)">@part</button>
+                    class="rounded-2xl p-2 w-80 h-60 ring-2 text-sm overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 hover:bg-blue-50 dark:hover:bg-sky-950 @partClass"
+                    @onclick="() => AppState.SetSelectedLiveSlide(SelectedSong.Id, partIndex)">@((MarkupString)part)</button>
             }
         </div>
         
         <div class="grow"></div>
 
-        <div class="flex shrink-0 px-1 pt-3 gap-3 bg-neutral-100 overflow-auto">
+        <div class="flex shrink-0 p-1 pt-3 gap-3 bg-neutral-100 dark:bg-neutral-900 overflow-auto">
             @{
                 var blackScreenClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen ? "bg-sky-950 ring-sky-500 dark:ring-sky-900" : "bg-black ring-transparent";
             }
