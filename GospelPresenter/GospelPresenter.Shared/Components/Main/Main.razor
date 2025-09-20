@@ -25,7 +25,7 @@
 
                 var partIndex = i;
                 <button
-                    class="rounded-2xl p-2 w-80 h-50 ring-2 text-sm overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 hover:bg-blue-50 dark:hover:bg-sky-950 @partClass"
+                    class="rounded-2xl p-2 w-120 h-75 text-lg ring-2 overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 hover:bg-blue-50 dark:hover:bg-sky-950 @partClass"
                     @onclick="() => AppState.SetSelectedLiveSlide(SelectedSong.Id, partIndex)">@((MarkupString)part)</button>
             }
         }
@@ -35,7 +35,7 @@
             var partClass = isLiveSlide ? "bg-blue-50 dark:bg-sky-950 ring-sky-500 dark:ring-sky-900" : "bg-white dark:bg-neutral-800 ring-transparent";
 
             <button
-                class="rounded-2xl p-2 w-80 h-50 ring-2 text-sm overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 hover:bg-blue-50 dark:hover:bg-sky-950 @partClass"
+                class="rounded-2xl p-2 w-96 h-60 ring-2 overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 hover:bg-blue-50 dark:hover:bg-sky-950 @partClass"
                 @onclick="() => AppState.SetSelectedLiveSlide(SelectedImage.Id, 0)">
                 <img src="@SelectedImage.Url" alt="" class="w-fill rounded-lg">
             </button>
@@ -49,7 +49,7 @@
             var blackScreenClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen ? "bg-sky-950 ring-sky-500 dark:ring-sky-900" : "bg-black ring-transparent";
         }
         <button
-            class="rounded-2xl p-3 w-80 h-50 ring-2 overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 dark:hover:bg-sky-950 text-white @blackScreenClass"
+            class="rounded-2xl p-3 w-48 h-30 ring-2 overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 dark:hover:bg-sky-950 text-white @blackScreenClass"
             @onclick="AppState.ToggleBlackScreen">
 
             <div class="flex justify-center space-x-2">
