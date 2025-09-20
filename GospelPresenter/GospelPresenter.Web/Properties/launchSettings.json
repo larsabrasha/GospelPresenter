@@ -15,7 +15,7 @@
         "workingDirectory": "$(ProjectDir)",
         "hotReloadEnabled": true,
         "hotReloadProfile" : "aspnetcore",
-        "commandLineArgs": "watch run --non-interactive --no-launch-profile --urls=http://localhost:5253",
+        "commandLineArgs": "watch run --non-interactive --no-launch-profile --urls=http://0.0.0.0:5253",
         "launchBrowser": false,
         "environmentVariables": {
           "ASPNETCORE_ENVIRONMENT": "Development"

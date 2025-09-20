@@ -10,5 +10,6 @@ public static class SharedServicesSetup
     {
         services.AddSingleton<AppState>();
         services.AddSingleton<ISongService, SongService>();
+        services.AddSingleton<IImageService, ImageService>();
     }
 }

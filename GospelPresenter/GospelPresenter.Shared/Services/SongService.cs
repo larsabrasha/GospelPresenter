@@ -9,37 +9,80 @@ public interface ISongService
 
 public class SongService : ISongService
 {
-    private readonly IDictionary<string, Song> allSongs = new Dictionary<string, Song>
+    private readonly Dictionary<string, Song> allSongs = new()
     {
         {
             "9d2ae22f-de51-42a9-9615-f9647e0cd47a", new Song(
                 "9d2ae22f-de51-42a9-9615-f9647e0cd47a",
-                "O Store Gud",
+                "Herren är vår Gud",
                 [
-                    "O store Gud, när jag den värld beskådar,\nSom du har skapat med ditt allmaktsord,\nHur där din visdom leder livets trådar,\nOch alla väsen mättas vid ditt bord.",
-                    "Då brister själen ut i lovsångsljud:\nO store Gud! O store Gud!\nDå brister själen ut i lovsångsljud:\nO store Gud! O store Gud!",
-                    "När jag hör åskans röst och stormar brusa\noch blixtens klingor springa fram ur skyn\nnär regnets kalla friska skurar susa\noch löftets båge glänser för min sky",
-                    "När sommarvinden susar över fälten\nNär blommor dofta invid källans rand\nNär trastar drilla i de gröna tälten\nVid furuskogens tysta, dunkla rand",
-                    "När jag i Bibeln skådar alla under\nSom Herren gjort sen förste Adams tid\nHur nådefull Han varit alla stunder\nOch hjälpt sitt folk ur livets synd och strid",
-                    "När tryckt av synd och skuld jag faller neder\nvid Herrens fot och ber om nåd och frid\noch han min själ på rätta vägen leder\noch frälsar mig från all min synd och strid",
-                    "När en gång alla tidens höljen falla\noch jag får skåda det jag nu får tro\noch evighetens klara klockor kalla\nmin frälsta ande till dess sabbatsro"
+                    "Herren vår Gud är en konung \ni makt och i ära.\nKom, alla folk, att vårt eviga \nlov honom bära!\nHimmel och jord \nbärs av hans kraftiga ord.\nallt han sitt hägn vill beskära.",
+                    "Pris vare Herren, som allting \nså härligt bereder,\nsom oss har skapat och blickar \ni nåd till oss neder,\nsom i vår nöd\nskänker oss välfärd och bröd\noch sitt beskydd kring oss breder.",
+                    "Herren, vår Gud, vare lov \nsom en Far för oss blivit,\nsom för vår synd har sin Son \nuppå korset utgivit,\nsom på vår jord\nleder med Ande och ord\ndem som åt Kristus sig givit.",
+                    "Herren, vår salighets Gud, \nmå vi prisa och tjäna.\nKraften är hans och all vishet \noch ära allena.\nPris ske hans namn,\natt han oss vill i sin famn\nalla med Kristus förena."
                 ])
         },
         {
             "9d2ae22f-de51-42a9-9615-f9647e0cd47b", new Song(
                 "9d2ae22f-de51-42a9-9615-f9647e0cd47b",
-                "Helig, helig, helig",
+                "I tid och rum",
                 [
-                    "Helig, helig, helig, Herre Gud allsmäktig\nNär den nya dagen gryr vår lovsång till dig går\nHelig, helig, helig, nådefull och mäktig\nDig vi vill tillbedja, Gud och Fader vår",
-                    "Helig, helig, helig, sjunga helgon alla,\nsänka sina gyllne kronor för din härlighet.\nNed för dig keruber och serafer falla.\nDu var och är och blir i evighet.",
-                    "Helig, helig, helig, hög och otillgänglig\när din glans din klara som ej syndigt öga ser.\nEvig är din nåd din kärlek oförgänglig.\nAllgod till stoftets barn Du skådar ner.",
-                    "Helig, helig, helig, Herre Gud allsmäktig!\nÖver himlar, jord och hav ditt herravälde når.\nHelig, helig, helig nådefull och mäktig\nDig vi tillbedja Gud och Fader vår."
+                    "Guds dyra lamm av evighet\nÄr värd vårt lov vår tacksamhet\nEtt kors blev rest i tid och rum \nVår tro Guds evangelium",
+                    "Det glada budet till oss når \nDet genom alla tider går \nAtt Gud har gjort det vi ej kan \nOch burit världens skuld och skam",
+                    "Ur gravens mörka kalla famn \nPå tredje dagen uppstod han\nSom är vårt hopp i evighet \nVår frälsare vår helighet\nVår frälsare vår helighet",
+                    "På Faderns bud i Andens kraft\nDu kommer åter som du sagt\nNär himlens morgon gryr en gång \nVi sjunger Lammets nya sång \nNär himlens morgon gryr en gång \nVi sjunger Lammets nya sång"
+                ])
+        },
+        {
+            "9d2ae22f-de51-42a9-9615-f9647e0cd47c", new Song(
+                "9d2ae22f-de51-42a9-9615-f9647e0cd47c",
+                "Majestät, konung i evighet",
+                [
+                    "Majestät, Konung i evighet.\nJord och hav och himmel,\n är skapat utav Dig.\nMajestät, Konung i evighet\nDu min frälsningsklippa \nen säker tillflyktsplats.",
+                    "Vi vill upphöja Dig kung Jesus\nvarje knä ska böjas inför Dig.\nVi vill upphöja Dig kung Jesus\nIngen är som Du, \nnej ingen är som Du."
+                ])
+        },
+        {
+            "9d2ae22f-de51-42a9-9615-f9647e0cd47d", new Song(
+                "9d2ae22f-de51-42a9-9615-f9647e0cd47d",
+                "Högst av allt",
+                [
+                    "Högt över världen och mänsklig makt \nÖver allt skapat och hela jordens prakt \nHögt över visdom och allt vad männskor lär \nInnan något fanns var Du här \nHögt över riken och rikedom \növer de under som världen talar om \nHögt över välstånd och skatter jorden ger \ninför dig ska allting falla ner",
+                    "Men du dog ensam och fördömd \nen korsfäst Gud och i gravens mörker gömd \nsom en ros bryts och trampas ner \nDu tog min plats älskade mig högst av allt."
+                ])
+        },
+        {
+            "9d2ae22f-de51-42a9-9615-f9647e0cd47e", new Song(
+                "9d2ae22f-de51-42a9-9615-f9647e0cd47e",
+                "Mer av dig",
+                [
+                    "Jesus jag är törstig \nBer dig kom och fyll mig\nMät mig Herre i min nöd \nBara du är livet bröd\nAllt jag ber är mer av Dig \nLängtar efter mer av Dig\nHerre allt jag ber om är mer av Dig\nLängtar efter mer av Dig"
+                ])
+        },
+        {
+            "9d2ae22f-de51-42a9-9615-f9647e0cd47f", new Song(
+                "9d2ae22f-de51-42a9-9615-f9647e0cd47f",
+                "Det är saligt (Psalm 263?)",
+                [
+                    "Det är saligt på Jesus få tro\noch att vara Guds barn blott av nåd.\nDet blir härligt hos Jesus få bo\noch där prisa hans trofasta råd",
+                    "Gud ske lov, Gud ske tack\natt hans salighet även är min.\nGud ske lov, Gud ske tack,\natt hans salighet även är min.",
+                    "Det är saligt att samlas i tro\nomkring ordet till bön och till sång.\nO hur härligt det blir vid Guds tron\natt få stå bland de frälsta en gång.",
+                    "Det är saligt att tro fast vi än\nej fått skåda vår Frälsare kär.\nMen en dag skall han komma igen,\nvi får se honom såsom han är."
+                ])
+        },
+        {
+            "9d2ae22f-de51-42a9-9615-f9647e0cd47g", new Song(
+                "9d2ae22f-de51-42a9-9615-f9647e0cd47g",
+                "Vi vill se Gud",
+                [
+                    "Glödhet är Guds närhet,\nHans härlighet brinner över oss\nHan vill låta elden falla ner\növer dem som ropar och ber",
+                    "Vi vill se Gud, vi vill se Gud i detta land\nHerre kom nu! Sätt vart hjärta i brand\nIfrån norr till söder, en förväntan som glöder\nifrån väster till öster, hörs ett rop från tusen röster\noch man ber\nVi vill se Gud \nVi vill se Gud"
                 ])
         }
     };
 
     public Song? GetSongById(string id)
     {
-        return allSongs.TryGetValue(id, out var song) ? song : null;
+        return allSongs.GetValueOrDefault(id);
     }
 }

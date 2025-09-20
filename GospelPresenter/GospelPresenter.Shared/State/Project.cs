@@ -16,5 +16,7 @@ public class ProjectItem
 
 public enum ProjectItemType
 {
-    Song
+    Song,
+    BibleText,
+    Image
 }

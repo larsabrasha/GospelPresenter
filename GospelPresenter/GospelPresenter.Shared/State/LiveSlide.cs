@@ -4,7 +4,8 @@ public record LiveSlide(
     LiveSlideStatus Status,
     string? ProjectItemId,
     int? ItemPartIndex,
-    string? Text
+    string? Text,
+    string? ImageUrl
 );
 
 public enum LiveSlideStatus
