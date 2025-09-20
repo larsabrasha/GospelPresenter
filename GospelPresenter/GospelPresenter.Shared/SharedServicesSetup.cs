@@ -1,3 +1,4 @@
+using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,5 +9,6 @@ public static class SharedServicesSetup
     public static void AddSharedGospelPresenterServices(this IServiceCollection services)
     {
         services.AddSingleton<AppState>();
+        services.AddSingleton<ISongService, SongService>();
     }
 }

@@ -1,5 +1,16 @@
 @page "/"
+@using GospelPresenter.Shared.Components.Sidebar
+@using GospelPresenter.Shared.Components.Main
+@using GospelPresenter.Shared.State
+
+@inject AppState AppState
 
 <div class="flex flex-col h-full">
-Home
+    @* <div class="px-6 pt-3 pb-1"> *@
+    @*     <span class="font-semibold text-xl">Gospel Presenter</span> *@
+    @* </div> *@
+    <div class="flex grow overflow-hidden">
+        <Sidebar></Sidebar>
+        <Main></Main>
+    </div>
 </div>

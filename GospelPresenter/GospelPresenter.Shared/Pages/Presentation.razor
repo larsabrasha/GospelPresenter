@@ -1,0 +1,38 @@
+@page "/presentation"
+
+@inject AppState AppState
+
+@using System.ComponentModel
+@using GospelPresenter.Shared.State
+@implements IDisposable
+
+<div class="flex h-full bg-black text-white text-2xl items-center justify-items-center p-5">
+    
+    @{
+        var asdfClass = AppState.LiveSlide is { Status: LiveSlideStatus.ShowingPresentation, Text: not null } ? "opacity-100" : "opacity-0";
+    }
+        <div class="text-[57px] w-full text-center transition-opacity duration-1000 ease-in-out @asdfClass">@((MarkupString)AppState.LiveSlide.Text)</div>
+    
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        AppState.PropertyChanged += OnPropertyChanged;
+    }
+
+    public void Dispose()
+    {
+        AppState.PropertyChanged -= OnPropertyChanged;
+    }
+
+    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is
+            nameof(AppState.LiveSlide))
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+}

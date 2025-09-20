@@ -1,0 +1,89 @@
+@using System.ComponentModel
+@using GospelPresenter.Shared.State
+
+@inject AppState AppState
+
+@implements IDisposable
+
+<div class="shrink-0 w-[360px] overflow-hidden flex p-3">
+    <div class="p-3 space-y-2 bg-white dark:bg-neutral-800 rounded-3xl shadow-lg overflow-auto w-full">
+        @if (AppState.SelectedProject is null)
+        {
+            <div class="text-sm text-center text-neutral-500 pt-10">No Project selected</div>
+        }
+        else
+        {
+            <button
+                class="mb-8 font-bold py-3 flex items-center w-full bg-neutral-50 dark:bg-neutral-700 hover:cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-600 p-3 rounded-xl group">
+                <div class="grow text-left">@AppState.SelectedProject.Name</div>
+                <div class="shrink-0 opacity-40 group-hover:opacity-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                         stroke="currentColor" class="size-6">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"/>
+                    </svg>
+                </div>
+            </button>
+
+            @foreach (var item in AppState.SelectedProject.Items)
+            {
+                var itemClass = AppState.SelectedProjectItemId == item.Id ? "bg-sky-50 dark:bg-sky-950 ring-sky-500 dark:ring-sky-900" : "bg-white dark:bg-neutral-800 ring-transparent";
+                <button @key="item.Id"
+                        class="rounded-xl flex w-full space-x-5 px-3 py-2 items-center hover:cursor-pointer hover:bg-blue-50 dark:hover:bg-sky-950 hover:ring-sky-500 dark:hover:ring-sky-900 ring-2 @itemClass"
+                        @onclick="() => SelectItem(item.Id)">
+                    <div class="size-3">
+                        @switch (item.Type)
+                        {
+                            case ProjectItemType.Song:
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                                     class="size-4 fill-neutral-400">
+                                    <path fill-rule="evenodd"
+                                          d="M19.952 1.651a.75.75 0 0 1 .298.599V16.303a3 3 0 0 1-2.176 2.884l-1.32.377a2.553 2.553 0 1 1-1.403-4.909l2.311-.66a1.5 1.5 0 0 0 1.088-1.442V6.994l-9 2.572v9.737a3 3 0 0 1-2.176 2.884l-1.32.377a2.553 2.553 0 1 1-1.402-4.909l2.31-.66a1.5 1.5 0 0 0 1.088-1.442V5.25a.75.75 0 0 1 .544-.721l10.5-3a.75.75 0 0 1 .658.122Z"
+                                          clip-rule="evenodd"/>
+                                </svg>
+
+                                break;
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+                    </div>
+                    <div class="text-left">@item.Title </div>
+                </button>
+            }
+
+            <button
+                class="mt-8 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-600 hover:cursor-pointer">
+                + Lägg till
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        AppState.PropertyChanged += OnPropertyChanged;
+    }
+
+    public void Dispose()
+    {
+        AppState.PropertyChanged -= OnPropertyChanged;
+    }
+
+    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is
+            nameof(AppState.SelectedProject) or
+            nameof(AppState.SelectedProjectItemId))
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void SelectItem(string itemId)
+    {
+        AppState.SelectedProjectItemId = itemId;
+    }
+
+}
