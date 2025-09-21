@@ -6,14 +6,14 @@
 @using GospelPresenter.Shared.State
 @implements IDisposable
 
-<div class="flex h-full bg-black text-white text-2xl items-center justify-items-center p-5">
+<div class="flex h-full bg-black text-white items-center justify-items-center font-[Tahoma] font-semibold">
 
     @{
         var slideClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation ? "opacity-100" : "opacity-0";
     }
     
     <div
-        class="text-[60px] w-full text-center transition-opacity duration-500 ease-in-out @slideClass">
+        class="text-[70px] w-full text-center transition-opacity duration-500 ease-in-out @slideClass">
 
         @if (AppState.LiveSlide.Text is not null)
         {
