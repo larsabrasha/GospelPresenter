@@ -5,8 +5,8 @@
 
 @implements IDisposable
 
-<div class="shrink-0 w-[300px] overflow-hidden flex">
-    <div class="p-4 space-y-2 bg-white dark:bg-neutral-800 shadow-lg overflow-auto w-full">
+<div class="shrink-0 w-[300px] overflow-hidden flex p-2">
+    <div class="p-4 space-y-2 bg-white dark:bg-neutral-800 shadow-lg overflow-auto w-full rounded-3xl">
         @if (AppState.SelectedProject is null)
         {
             <div class="text-sm text-center text-neutral-500 pt-10">No Project selected</div>
