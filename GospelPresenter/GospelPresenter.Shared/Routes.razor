@@ -1,29 +1,16 @@
-﻿@using System.ComponentModel
-@using System.Globalization
+﻿@using System.Globalization
 @using GospelPresenter.Shared.Layout
-@using GospelPresenter.Shared.Services.Auth
-@using GospelPresenter.Shared.Services.InitialData
-@using GospelPresenter.Shared.State
-@using Microsoft.Extensions.Logging
-
-@implements IDisposable
-
-@inject IAuthService AuthService
-@inject IInitialDataService InitialDataService
-@inject AppState AppState
-@inject ILogger<Routes> Logger
 
 <Router AppAssembly="typeof(MainLayout).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="SelectLayout()"/>
+        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)"/>
         <FocusOnNavigate RouteData="routeData" Selector="h1"/>
     </Found>
 </Router>
 
 @code {
-    private bool HasDeterminedIfUserIsLoggedIn { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
 #if DEBUG
         // Work around for bug where current culture is set to "en" on hot reload
@@ -31,63 +18,5 @@
         CultureInfo.DefaultThreadCurrentCulture = culture;
         CultureInfo.DefaultThreadCurrentUICulture = culture;
 #endif
-
-        AppState.PropertyChanged += OnPropertyChanged;
-
-        try
-        {
-            var authToken = await AuthService.GetAccessTokenFromSecureStorageAsync();
-            AuthService.SetLoggedInUserFromAccessToken(authToken);
-            HasDeterminedIfUserIsLoggedIn = true;
-        }
-        catch (Exception e)
-        {
-            Logger.LogError(e, "Error fetching auth token from secure storage");
-            HasDeterminedIfUserIsLoggedIn = true;
-        }
     }
-
-    public void Dispose()
-    {
-        AppState.PropertyChanged -= OnPropertyChanged;
-    }
-
-    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(AppState.IsWebViewVersionInsufficient) or nameof(AppState.InitialDataProgress))
-        {
-            _ = InvokeAsync(StateHasChanged);
-        }
-        else if (e.PropertyName == nameof(AppState.LoggedInUser))
-        {
-            if (AppState.LoggedInUser is not null && AppState.InitialDataProgress == ProgressEnum.NotStarted)
-            {
-                AppState.InitialDataProgress = ProgressEnum.InProgress;
-                _ = InvokeAsync(StateHasChanged);
-
-                _ = InitialDataService.DownloadInitialDataAsync();
-            }
-        }
-    }
-
-    private Type SelectLayout()
-    {
-        if (!HasDeterminedIfUserIsLoggedIn)
-        {
-            return typeof(LoadingLayout);
-        }
-
-        if (AppState.LoggedInUser?.Token is null)
-        {
-            return typeof(LoginLayout);
-        }
-
-        if (AppState.InitialDataProgress == ProgressEnum.Success)
-        {
-            return typeof(MainLayout);
-        }
-
-        return typeof(LoadingLayout);
-    }
-
 }

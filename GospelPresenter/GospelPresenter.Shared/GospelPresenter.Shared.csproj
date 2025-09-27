@@ -32,6 +32,11 @@
     <ItemGroup>
       <UpToDateCheckInput Remove="Components\Map\Map.razor" />
       <UpToDateCheckInput Remove="Components\Map\MapFeatureSelector.razor" />
+      <UpToDateCheckInput Remove="Components\Login\Login.razor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="HttpClients\" />
     </ItemGroup>
 
     <Import Project="TailwindCssCli.targets" />

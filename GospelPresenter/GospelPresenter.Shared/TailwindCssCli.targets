@@ -1,6 +1,6 @@
 <Project>
     <PropertyGroup>
-        <TailwindVersion>4.1.4</TailwindVersion>
+        <TailwindVersion>4.1.13</TailwindVersion>
         <TailwindExecutableName>tailwindcss-$(TailwindVersion)</TailwindExecutableName>
         <TailwindCliWindowsUrl>https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/tailwindcss-windows-x64.exe</TailwindCliWindowsUrl>
         <TailwindCliLinuxX64Url>https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/tailwindcss-linux-x64</TailwindCliLinuxX64Url>

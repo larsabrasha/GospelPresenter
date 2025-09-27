@@ -32,21 +32,5 @@
         </array>
         <key>ITSAppUsesNonExemptEncryption</key>
         <false/>
-        <key>NSLocationWhenInUseUsageDescription</key>
-        <string>Visa din position med en blå prick på kartan</string>
-        <key>NSLocationTemporaryUsageDescriptionDictionary</key>
-        <dict>
-            <key>TemporaryFullAccuracyUsageDescription</key>
-            <string>Visa din exakta position med en blå prick på kartan</string>
-        </dict>
-        <key>CFBundleURLTypes</key>
-        <array>
-            <dict>
-                <key>CFBundleURLSchemes</key>
-                <array>
-                    <string>billerudskogsagare</string>
-                </array>
-            </dict>
-        </array>
     </dict>
 </plist>

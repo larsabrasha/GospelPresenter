@@ -1,6 +1,4 @@
-﻿using GospelPresenter.Services;
-using GospelPresenter.Shared.State;
-using Serilog;
+﻿using Serilog;
 
 namespace GospelPresenter;
 
@@ -30,15 +28,6 @@ public partial class App : Application
 
 #if DEBUG
             Log.Information("{Key}: {Value}", "App Data Directory", FileSystem.Current.AppDataDirectory);
-#endif
-
-#if ANDROID
-            // Checking version of WebView on older Android versions, as they didn't come with a new enough WebView
-            if (!OperatingSystem.IsAndroidVersionAtLeast(34))
-            {
-                var appState = IPlatformApplication.Current!.Services.GetRequiredService<AppState>();
-                appState.IsWebViewVersionInsufficient = WebViewUtil.GetMajorVersion() is null or < 111;
-            }
 #endif
         };
 

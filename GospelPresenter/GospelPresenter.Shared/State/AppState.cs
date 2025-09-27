@@ -8,17 +8,6 @@ public partial class AppState(
     IImageService imageService
 ) : ObservableObject
 {
-    [ObservableProperty] private bool? isWebViewVersionInsufficient;
-
-    [ObservableProperty] private bool isAboutModalVisible;
-    [ObservableProperty] private bool isLogoutModalVisible;
-    [ObservableProperty] private bool isAcknowledgementsModalVisible;
-
-    [ObservableProperty] private ProgressEnum authProgress;
-    [ObservableProperty] private string? authMessage;
-    [ObservableProperty] private LoggedInUser? loggedInUser;
-    [ObservableProperty] private ProgressEnum initialDataProgress;
-
     [ObservableProperty] private Project? selectedProject = new()
     {
         Id = "841fbdf8-4df1-4f11-ad20-b3b708cf4980",
@@ -90,13 +79,7 @@ public partial class AppState(
 
     public void Reset()
     {
-        IsAboutModalVisible = false;
-        IsLogoutModalVisible = false;
-        IsAcknowledgementsModalVisible = false;
-
-        AuthProgress = ProgressEnum.NotStarted;
-        LoggedInUser = null;
-        InitialDataProgress = ProgressEnum.NotStarted;
+        SelectedProject = null;
     }
 
     public void SetSelectedLiveSlide(string selectedItemId, int partIndex)
@@ -167,14 +150,4 @@ public partial class AppState(
                 : LiveSlideStatus.ShowingPresentation
         };
     }
-}
-
-public record LoggedInUser(string Token, string UserId);
-
-public enum ProgressEnum
-{
-    NotStarted,
-    InProgress,
-    Success,
-    Failed
 }

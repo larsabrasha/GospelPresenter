@@ -1,17 +1,8 @@
-﻿@using System.ComponentModel
-@using GospelPresenter.Shared.Services
-@using GospelPresenter.Shared.State
-@using GospelPresenter.Shared.Components.About
-@using GospelPresenter.Shared.Components.Logout
-@using GospelPresenter.Shared.Services.Auth
+﻿@using GospelPresenter.Shared.Services
 
 @inherits LayoutComponentBase
-@implements IDisposable
 
 @inject IStatusBarService StatusBarService
-@inject AppState AppState
-@inject NavigationManager NavigationManager
-@inject IAuthService AuthService
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -21,22 +12,6 @@
     <div class="bg-neutral-100 dark:bg-neutral-900 grow relative">
         @Body
     </div>
-
-    @if (AppState.IsAboutModalVisible)
-    {
-        <AboutModal OnClose="HandleOnCloseAboutModal"/>
-    }
-
-    @if (AppState.IsAcknowledgementsModalVisible)
-    {
-        <AcknowledgementsModal OnClose="HandleOnCloseAcknowledgementsModal"/>
-    }
-
-    @if (AppState.IsLogoutModalVisible)
-    {
-        <LogoutModal OnClose="HandleOnCloseLogoutModal"
-                     OnConfirmLogout="HandleOnConfirmLogout"/>
-    }
 </div>
 
 <div id="blazor-error-ui" data-nosnippet
@@ -52,49 +27,3 @@ p-3">
     Ett oväntat fel har inträffat.
     <a href="." class="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl">Ladda om</a>
 </div>
-
-@code {
-    protected override void OnInitialized()
-    {
-        AppState.PropertyChanged += OnPropertyChanged;
-    }
-
-    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        switch (e.PropertyName)
-        {
-            case nameof(AppState.IsAboutModalVisible) or
-                nameof(AppState.IsAcknowledgementsModalVisible) or
-                nameof(AppState.IsLogoutModalVisible):
-                _ = InvokeAsync(StateHasChanged);
-                break;
-        }
-    }
-
-    public void Dispose()
-    {
-        AppState.PropertyChanged -= OnPropertyChanged;
-    }
-
-    private void HandleOnCloseAboutModal()
-    {
-        AppState.IsAboutModalVisible = false;
-    }
-
-    private void HandleOnCloseAcknowledgementsModal()
-    {
-        AppState.IsAcknowledgementsModalVisible = false;
-    }
-
-    private void HandleOnCloseLogoutModal()
-    {
-        AppState.IsLogoutModalVisible = false;
-    }
-
-    private void HandleOnConfirmLogout()
-    {
-        AuthService.Logout();
-        NavigationManager.NavigateTo("/", replace: true);
-    }
-
-}
