@@ -6,22 +6,29 @@
 @using GospelPresenter.Shared.State
 @implements IDisposable
 
-<div class="flex h-full bg-black text-white items-center justify-items-center font-[Tahoma] font-semibold">
+<div class="flex h-full bg-black text-white items-center justify-items-center relative">
 
     @{
         var slideClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation ? "opacity-100" : "opacity-0";
     }
-    
+
     <div
-        class="text-[70px] w-full text-center transition-opacity duration-500 ease-in-out @slideClass">
+        class="w-full transition-opacity duration-500 ease-in-out @slideClass">
 
         @if (AppState.LiveSlide.Text is not null)
         {
-            @((MarkupString)AppState.LiveSlide.Text)
+            <div class="text-[70px] text-center font-[Tahoma] font-semibold">
+                @((MarkupString)AppState.LiveSlide.Text)
+            </div>
+            <div class="absolute bottom-0 left-0 p-10 text-2xl text-neutral-400">
+                 @AppState.LiveSlide.Credits 
+            </div>
         }
         else if (AppState.LiveSlide.ImageUrl is not null)
         {
-            <img src="@AppState.LiveSlide.ImageUrl" class="w-full h-full object-contain" alt="">
+            <div class="w-full text-center">
+                <img src="@AppState.LiveSlide.ImageUrl" class="w-full h-full object-contain" alt="">
+            </div>
         }
     </div>
 

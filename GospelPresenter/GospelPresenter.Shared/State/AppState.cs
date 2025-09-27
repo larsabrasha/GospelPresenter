@@ -33,6 +33,12 @@ public partial class AppState(
             },
             new ProjectItem
             {
+                Id = "9d2ae22f-de51-42a9-9615-f9647e0cd47g",
+                Type = ProjectItemType.Song,
+                Title = "Vi vill se Gud"
+            },
+            new ProjectItem
+            {
                 Id = "9d2ae22f-de51-42a9-9615-f9647e0cd47b",
                 Type = ProjectItemType.Song,
                 Title = "I tid och rum"
@@ -41,7 +47,13 @@ public partial class AppState(
             {
                 Id = "9d2ae22f-de51-42a9-9615-f9647e0cd47c",
                 Type = ProjectItemType.Song,
-                Title = "Majestät, konung i evighet"
+                Title = "Majestät"
+            },
+            new ProjectItem
+            {
+                Id = "9d2ae22f-de51-42a9-9615-f9647e0cd47e",
+                Type = ProjectItemType.Song,
+                Title = "Mer av dig, Jesus"
             },
             new ProjectItem
             {
@@ -51,21 +63,9 @@ public partial class AppState(
             },
             new ProjectItem
             {
-                Id = "9d2ae22f-de51-42a9-9615-f9647e0cd47e",
-                Type = ProjectItemType.Song,
-                Title = "Mer av dig"
-            },
-            new ProjectItem
-            {
                 Id = "9d2ae22f-de51-42a9-9615-f9647e0cd47f",
                 Type = ProjectItemType.Song,
-                Title = "Det är saligt (Psalm 263?)"
-            },
-            new ProjectItem
-            {
-                Id = "9d2ae22f-de51-42a9-9615-f9647e0cd47g",
-                Type = ProjectItemType.Song,
-                Title = "Vi vill se Gud"
+                Title = "Det är saligt"
             },
             new ProjectItem
             {
@@ -81,6 +81,7 @@ public partial class AppState(
 
     [ObservableProperty] private LiveSlide liveSlide = new(
         LiveSlideStatus.ShowingPresentation,
+        null,
         null,
         null,
         null,
@@ -104,6 +105,7 @@ public partial class AppState(
         if (projectItem is null) return;
 
         string? text = null;
+        string? credits = null;
         string? imageUrl = null;
 
         switch (projectItem.Type)
@@ -114,6 +116,18 @@ public partial class AppState(
                 if (song is not null && partIndex < song.Parts.Count)
                 {
                     text = song.Parts[partIndex].Replace("\n", "<br>");
+
+                    var creditParts = new List<string?>
+                        {
+                            song.Author,
+                            string.IsNullOrEmpty(song.Publisher)
+                                ? null
+                                : $"© {song.Publisher}",
+                            $"{song.Year}"
+                        }
+                        .OfType<string>()
+                        .ToList();
+                    credits = string.Join(" · ", creditParts);
                 }
 
                 break;
@@ -139,6 +153,7 @@ public partial class AppState(
             ProjectItemId = selectedItemId,
             ItemPartIndex = partIndex,
             Text = text,
+            Credits = credits,
             ImageUrl = imageUrl
         };
     }

@@ -5,6 +5,7 @@ public record LiveSlide(
     string? ProjectItemId,
     int? ItemPartIndex,
     string? Text,
+    string? Credits,
     string? ImageUrl
 );
 
