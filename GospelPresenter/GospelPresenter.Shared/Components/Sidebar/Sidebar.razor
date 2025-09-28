@@ -5,8 +5,8 @@
 
 @implements IDisposable
 
-<div class="shrink-0 w-[300px] overflow-hidden flex p-2">
-    <div class="p-4 space-y-2 bg-white dark:bg-neutral-800 shadow-lg overflow-auto w-full rounded-3xl">
+<div class="shrink-0 w-[300px] overflow-hidden flex">
+    <div class="p-4 space-y-2 bg-white dark:bg-neutral-800 overflow-auto w-full">
         @if (AppState.SelectedProject is null)
         {
             <div class="text-sm text-center text-neutral-500 pt-10">No Project selected</div>
@@ -68,10 +68,10 @@
                 </button>
             }
 
-            <button
-                class="mt-8 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-600 hover:cursor-pointer">
-                + Lägg till
-            </button>
+            @* <button *@
+            @*     class="mt-8 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-600 hover:cursor-pointer"> *@
+            @*     + Lägg till *@
+            @* </button> *@
         }
     </div>
 </div>
@@ -101,6 +101,7 @@
     private void SelectItem(ProjectItem item)
     {
         AppState.SelectedProjectItem = item;
+        AppState.IsMenuVisible = false;
     }
 
 }

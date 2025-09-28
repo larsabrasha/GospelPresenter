@@ -8,6 +8,8 @@ public partial class AppState(
     IImageService imageService
 ) : ObservableObject
 {
+    [ObservableProperty] private bool isMenuVisible;
+    
     [ObservableProperty] private Project? selectedProject = new()
     {
         Id = "841fbdf8-4df1-4f11-ad20-b3b708cf4980",
