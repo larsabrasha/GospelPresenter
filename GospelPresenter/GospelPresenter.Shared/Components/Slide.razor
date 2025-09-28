@@ -1,0 +1,29 @@
+@{
+    var partClass = IsLiveSlide ? "bg-blue-50 dark:bg-sky-950 border-sky-500 dark:border-sky-900" : "bg-white dark:bg-neutral-800 border-transparent";
+}
+
+<button
+    class="
+h-[calc(var(--slide-thumbnail-scale)*var(--slide-original-height))]
+w-[calc(var(--slide-thumbnail-scale)*var(--slide-original-width))]
+rounded-2xl
+overflow-hidden
+border-2
+hover:cursor-pointer @partClass"
+    @onclick="OnClick">
+    <div
+        class="h-[var(--slide-original-height)] w-[var(--slide-original-width)] origin-top-left transform-[scale(var(--slide-thumbnail-scale))] text-[80px] flex items-center justify-center group-2">
+        @ChildContent
+    </div>
+</button>
+
+@* <button *@
+@*     class="rounded-2xl p-2 w-120 h-75 text-lg ring-2 overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 hover:bg-blue-50 dark:hover:bg-sky-950 @partClass" *@
+@*     @onclick="() => AppState.SetSelectedLiveSlide(SelectedSong.Id, partIndex)">@((MarkupString)part)</button> *@
+
+
+@code {
+    [Parameter] public bool IsLiveSlide { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+}
