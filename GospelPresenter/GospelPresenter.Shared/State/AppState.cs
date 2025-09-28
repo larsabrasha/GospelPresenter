@@ -133,6 +133,7 @@ public partial class AppState(
 
         LiveSlide = LiveSlide with
         {
+            Status = LiveSlideStatus.ShowingPresentation,
             ProjectItemId = selectedItemId,
             ItemPartIndex = partIndex,
             Text = text,
@@ -141,13 +142,15 @@ public partial class AppState(
         };
     }
 
-    public void ToggleBlackScreen()
+    public void SelectBlackScreen()
     {
         LiveSlide = LiveSlide with
         {
-            Status = LiveSlide.Status == LiveSlideStatus.ShowingPresentation
-                ? LiveSlideStatus.ShowingBlackScreen
-                : LiveSlideStatus.ShowingPresentation
+            Status = LiveSlideStatus.ShowingBlackScreen,
+            ItemPartIndex = null,
+            Text = null,
+            Credits = null,
+            ImageUrl = null
         };
     }
 }
