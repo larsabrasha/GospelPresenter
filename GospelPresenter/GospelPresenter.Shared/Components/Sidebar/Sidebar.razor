@@ -27,9 +27,9 @@
 
             @foreach (var item in AppState.SelectedProject.Items)
             {
-                var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-50 dark:bg-sky-950 ring-sky-500 dark:ring-sky-900" : "bg-white dark:bg-neutral-800 ring-transparent";
+                var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-50 dark:bg-sky-950 outline-sky-500 dark:outline-sky-900" : "bg-white dark:bg-neutral-800 outline-transparent";
                 <button @key="item.Id"
-                        class="rounded-xl flex w-full space-x-5 px-3 py-2 items-center hover:cursor-pointer hover:bg-blue-50 dark:hover:bg-sky-950 hover:ring-sky-500 dark:hover:ring-sky-900 ring-2 @itemClass"
+                        class="rounded-xl flex w-full space-x-5 px-3 py-2 items-center hover:cursor-pointer hover:bg-blue-50 dark:hover:bg-sky-950 hover:outline-sky-500 dark:hover:outline-sky-900 outline-2 @itemClass"
                         @onclick="() => SelectItem(item)">
                     <div class="size-3">
                         @switch (item.Type)

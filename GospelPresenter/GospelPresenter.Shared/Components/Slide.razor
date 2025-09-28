@@ -1,28 +1,34 @@
 @{
-    var partClass = IsLiveSlide ? "bg-blue-50 dark:bg-sky-950 border-sky-500 dark:border-sky-900" : "bg-white dark:bg-neutral-800 border-transparent";
+    var scale = FormattableString.Invariant($"{Scale}");
+    var baseWidth = FormattableString.Invariant($"{BaseWidth}px");
+    var baseHeight = FormattableString.Invariant($"{BaseHeight}px");
+    var width = FormattableString.Invariant($"{Scale * BaseWidth}px");
+    var height = FormattableString.Invariant($"{Scale * BaseHeight}px");
+    
+    var partClass = IsLiveSlide ? "bg-sky-950 outline-sky-500 dark:outline-sky-900" : "bg-black dark:outline-neutral-800";
 }
 
 <button
     class="
-h-[calc(var(--slide-thumbnail-scale)*var(--slide-original-height))]
-w-[calc(var(--slide-thumbnail-scale)*var(--slide-original-width))]
 rounded-2xl
 overflow-hidden
-border-2
+outline-4
+m-1
+text-white
 hover:cursor-pointer @partClass"
+    style="width: @width; height: @height"
     @onclick="OnClick">
     <div
-        class="h-[var(--slide-original-height)] w-[var(--slide-original-width)] origin-top-left transform-[scale(var(--slide-thumbnail-scale))] text-[80px] flex items-center justify-center group-2">
+        class="origin-top-left text-[85px] flex items-center justify-center group-2"
+        style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
         @ChildContent
     </div>
 </button>
 
-@* <button *@
-@*     class="rounded-2xl p-2 w-120 h-75 text-lg ring-2 overflow-hidden hover:cursor-pointer hover:ring-sky-500 dark:hover:ring-sky-900 hover:bg-blue-50 dark:hover:bg-sky-950 @partClass" *@
-@*     @onclick="() => AppState.SetSelectedLiveSlide(SelectedSong.Id, partIndex)">@((MarkupString)part)</button> *@
-
-
 @code {
+    [Parameter] public required double Scale { get; set; }
+    [Parameter] public required int BaseWidth { get; set; }
+    [Parameter] public required int BaseHeight { get; set; }
     [Parameter] public bool IsLiveSlide { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
