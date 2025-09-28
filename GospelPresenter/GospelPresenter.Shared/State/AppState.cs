@@ -8,6 +8,8 @@ public partial class AppState(
     IImageService imageService
 ) : ObservableObject
 {
+    [ObservableProperty] private bool isMenuVisible;
+    
     [ObservableProperty] private Project? selectedProject = new()
     {
         Id = "841fbdf8-4df1-4f11-ad20-b3b708cf4980",
@@ -133,6 +135,7 @@ public partial class AppState(
 
         LiveSlide = LiveSlide with
         {
+            Status = LiveSlideStatus.ShowingPresentation,
             ProjectItemId = selectedItemId,
             ItemPartIndex = partIndex,
             Text = text,
@@ -141,13 +144,15 @@ public partial class AppState(
         };
     }
 
-    public void ToggleBlackScreen()
+    public void SelectBlackScreen()
     {
         LiveSlide = LiveSlide with
         {
-            Status = LiveSlide.Status == LiveSlideStatus.ShowingPresentation
-                ? LiveSlideStatus.ShowingBlackScreen
-                : LiveSlideStatus.ShowingPresentation
+            Status = LiveSlideStatus.ShowingBlackScreen,
+            ItemPartIndex = null,
+            Text = null,
+            Credits = null,
+            ImageUrl = null
         };
     }
 }

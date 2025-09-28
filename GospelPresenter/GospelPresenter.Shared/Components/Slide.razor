@@ -1,0 +1,35 @@
+@{
+    var scale = FormattableString.Invariant($"{Scale}");
+    var baseWidth = FormattableString.Invariant($"{BaseWidth}px");
+    var baseHeight = FormattableString.Invariant($"{BaseHeight}px");
+    var width = FormattableString.Invariant($"{Scale * BaseWidth}px");
+    var height = FormattableString.Invariant($"{Scale * BaseHeight}px");
+    
+    var partClass = IsLiveSlide ? "bg-sky-950 outline-sky-500 dark:outline-sky-900" : "bg-black dark:outline-neutral-800";
+}
+
+<button
+    class="
+rounded-2xl
+overflow-hidden
+outline-4
+m-1
+text-white
+hover:cursor-pointer @partClass"
+    style="width: @width; height: @height"
+    @onclick="OnClick">
+    <div
+        class="origin-top-left text-[85px] flex items-center justify-center group-2"
+        style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
+        @ChildContent
+    </div>
+</button>
+
+@code {
+    [Parameter] public required double Scale { get; set; }
+    [Parameter] public required int BaseWidth { get; set; }
+    [Parameter] public required int BaseHeight { get; set; }
+    [Parameter] public bool IsLiveSlide { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+}

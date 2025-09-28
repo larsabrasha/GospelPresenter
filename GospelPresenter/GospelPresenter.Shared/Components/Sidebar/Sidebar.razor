@@ -6,7 +6,7 @@
 @implements IDisposable
 
 <div class="shrink-0 w-[300px] overflow-hidden flex">
-    <div class="p-4 space-y-2 bg-white dark:bg-neutral-800 shadow-lg overflow-auto w-full">
+    <div class="p-4 space-y-2 bg-white dark:bg-neutral-800 overflow-auto w-full">
         @if (AppState.SelectedProject is null)
         {
             <div class="text-sm text-center text-neutral-500 pt-10">No Project selected</div>
@@ -27,9 +27,9 @@
 
             @foreach (var item in AppState.SelectedProject.Items)
             {
-                var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-50 dark:bg-sky-950 ring-sky-500 dark:ring-sky-900" : "bg-white dark:bg-neutral-800 ring-transparent";
+                var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-50 dark:bg-sky-950 outline-sky-500 dark:outline-sky-900" : "bg-white dark:bg-neutral-800 outline-transparent";
                 <button @key="item.Id"
-                        class="rounded-xl flex w-full space-x-5 px-3 py-2 items-center hover:cursor-pointer hover:bg-blue-50 dark:hover:bg-sky-950 hover:ring-sky-500 dark:hover:ring-sky-900 ring-2 @itemClass"
+                        class="rounded-xl flex w-full space-x-5 px-3 py-2 items-center hover:cursor-pointer hover:bg-blue-50 dark:hover:bg-sky-950 hover:outline-sky-500 dark:hover:outline-sky-900 outline-2 @itemClass"
                         @onclick="() => SelectItem(item)">
                     <div class="size-3">
                         @switch (item.Type)
@@ -68,10 +68,10 @@
                 </button>
             }
 
-            <button
-                class="mt-8 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-600 hover:cursor-pointer">
-                + Lägg till
-            </button>
+            @* <button *@
+            @*     class="mt-8 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-600 hover:cursor-pointer"> *@
+            @*     + Lägg till *@
+            @* </button> *@
         }
     </div>
 </div>
@@ -101,6 +101,7 @@
     private void SelectItem(ProjectItem item)
     {
         AppState.SelectedProjectItem = item;
+        AppState.IsMenuVisible = false;
     }
 
 }

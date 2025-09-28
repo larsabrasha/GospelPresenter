@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Tailwindcss watch" type="RunNativeExe" factoryName="Native Executable">
-    <option name="EXE_PATH" value="$PROJECT_DIR$/GospelPresenter.Shared/tailwindcss-4.1.4" />
+    <option name="EXE_PATH" value="$PROJECT_DIR$/GospelPresenter.Shared/tailwindcss-4.1.13" />
     <option name="PROGRAM_PARAMETERS" value="-i tailwind-input.css -o wwwroot/tailwind-output.css -w" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/GospelPresenter.Shared" />
     <option name="PASS_PARENT_ENVS" value="1" />
