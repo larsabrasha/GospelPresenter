@@ -152,11 +152,7 @@ public partial class AppState(
     {
         LiveSlide = LiveSlide with
         {
-            Status = LiveSlideStatus.ShowingBlackScreen,
-            ItemPartIndex = null,
-            Text = null,
-            Credits = null,
-            ImageUrl = null
+            Status = LiveSlideStatus.ShowingBlackScreen
         };
     }
 }
