@@ -57,9 +57,12 @@
         }
         else if (SelectedImage is not null)
         {
-            var partClass = AppState.LiveSlide.ProjectItemId == SelectedImage.Id && AppState.LiveSlide.ItemPartIndex == 0
-                ? $"{DefaultClass} {SelectedClass}"
-                : $"{DefaultClass} {NotSelectedClass}";
+            var partClass =
+                AppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                AppState.LiveSlide.ProjectItemId == SelectedImage.Id &&
+                AppState.LiveSlide.ItemPartIndex == 0
+                    ? $"{DefaultClass} {SelectedClass}"
+                    : $"{DefaultClass} {NotSelectedClass}";
 
             <button @onclick="() => AppState.SetSelectedLiveSlide(SelectedImage.Id, 0)">
                 <Slide
