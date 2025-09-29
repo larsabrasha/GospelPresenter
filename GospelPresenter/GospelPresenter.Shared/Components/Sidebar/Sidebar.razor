@@ -2,6 +2,7 @@
 @using GospelPresenter.Shared.State
 
 @inject AppState AppState
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 
@@ -30,7 +31,7 @@
                 var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-50 dark:bg-sky-950 outline-sky-500 dark:outline-sky-900" : "bg-white dark:bg-neutral-800 outline-transparent";
                 <button @key="item.Id"
                         class="rounded-xl flex w-full space-x-5 px-3 py-2 items-center hover:cursor-pointer hover:bg-blue-50 dark:hover:bg-sky-950 hover:outline-sky-500 dark:hover:outline-sky-900 outline-2 @itemClass"
-                        @onclick="() => SelectItem(item)">
+                        @onclick="() => SelectItemAsync(item)">
                     <div class="size-3">
                         @switch (item.Type)
                         {
@@ -98,10 +99,12 @@
         }
     }
 
-    private void SelectItem(ProjectItem item)
+    private async Task SelectItemAsync(ProjectItem item)
     {
         AppState.SelectedProjectItem = item;
         AppState.IsMenuVisible = false;
+
+        await JsRuntime.InvokeVoidAsync("scrollElementToTop", "main");
     }
 
 }

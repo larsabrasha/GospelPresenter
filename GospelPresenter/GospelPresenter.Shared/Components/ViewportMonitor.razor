@@ -1,0 +1,42 @@
+@using GospelPresenter.Shared.Models
+@using Microsoft.Extensions.Logging
+@inject IJSRuntime JsRuntime
+@inject ILogger<ViewportMonitor> Logger
+
+@code {
+    [Parameter] public required EventCallback<Viewport> OnViewportChanged { get; set; }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JsRuntime.InvokeVoidAsync("viewportMonitor.init", DotNetObjectReference.Create(this));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unable to initialise viewportMonitor");
+            }
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    [JSInvokable]
+    public async Task InitViewportMonitorAsync(Viewport viewport)
+    {
+        await OnViewportChanged.InvokeAsync(viewport);
+        
+        Logger.LogInformation("UI State initialised. Width: {Width}, Height: {Height}", viewport.Width, viewport.Height);
+    }
+
+    [JSInvokable]
+    public async Task HandleViewportSizeChangeAsync(Viewport viewport)
+    {
+        await OnViewportChanged.InvokeAsync(viewport);
+
+        Logger.LogInformation("UI State updated. Width: {Width}, Height: {Height}", viewport.Width, viewport.Height);
+    }
+
+}

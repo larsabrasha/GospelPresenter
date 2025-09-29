@@ -1,10 +1,23 @@
 @page "/presentation"
+@layout PresentationLayout
 
 @inject AppState AppState
 
 @using System.ComponentModel
+@using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.State
 @implements IDisposable
+
+@{
+    var viewportWidth = AppState.PresentationViewport?.Width ?? 0;
+    var viewportHeight = AppState.PresentationViewport?.Height ?? 0;
+
+    var widthScale = (double)viewportWidth / AppState.BaseSlideWidth;
+    var heightScale = (double)viewportHeight / AppState.BaseSlideHeight;
+
+    var scale = Math.Min(widthScale, heightScale);
+}
 
 <div class="flex h-full bg-black text-white items-center justify-items-center relative">
 
@@ -17,22 +30,27 @@
 
         @if (AppState.LiveSlide.Text is not null)
         {
-            <div class="text-[70px] text-center font-[Tahoma] font-semibold">
+            <Slide
+                Class=""
+                BaseWidth="@AppState.BaseSlideWidth"
+                BaseHeight="@AppState.BaseSlideHeight"
+                Scale="@scale">
                 @((MarkupString)AppState.LiveSlide.Text)
-            </div>
-            <div class="absolute bottom-0 left-0 p-10 text-2xl text-neutral-400">
-                 @AppState.LiveSlide.Credits 
-            </div>
+            </Slide>
         }
         else if (AppState.LiveSlide.ImageUrl is not null)
         {
-            <div class="w-full text-center">
-                <img src="@AppState.LiveSlide.ImageUrl" class="w-full h-full object-contain" alt="">
-            </div>
+            <Slide
+                Class=""
+                BaseWidth="@AppState.BaseSlideWidth"
+                BaseHeight="@AppState.BaseSlideHeight"
+                Scale="@scale">
+                <div class="w-full text-center">
+                    <img src="@AppState.LiveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
+                </div>
+            </Slide>
         }
     </div>
-
-
 </div>
 
 @code {
@@ -50,7 +68,8 @@
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is
-            nameof(AppState.LiveSlide))
+            nameof(AppState.LiveSlide) or
+            nameof(AppState.PresentationViewport))
         {
             _ = InvokeAsync(StateHasChanged);
         }

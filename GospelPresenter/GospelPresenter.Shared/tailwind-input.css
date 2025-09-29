@@ -49,6 +49,14 @@
     }
 }
 
+@utility drag-none {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+    user-select: none;
+}
+
 :root {
     --navmenu-width: 300px;
     --detail-panel-sidebar-width: 300px;

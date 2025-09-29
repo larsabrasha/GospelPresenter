@@ -9,11 +9,27 @@
 @implements IDisposable
 
 <div class="flex flex-col grow overflow-hidden p-3 relative">
-    <div class="p-3">
-        <h3>@AppState.SelectedProjectItem?.Title</h3>
+    <div class="flex flex- justify-between">
+        <div class="p-3">
+            <h3>@AppState.SelectedProjectItem?.Title</h3>
+        </div>
+
+        <div>
+            <a href="/presentation" target="_blank"
+               class="bg-black border-1 border-neutral-500 text-neutral-200 px-3 p-2 rounded-lg flex space-x-3">
+                <div class="shrink-0">Visa presentation</div>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                     stroke="currentColor" class="size-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25"/>
+                </svg>
+
+            </a>
+        </div>
     </div>
 
-    <div class="flex flex-wrap gap-4 overflow-auto ">
+    <div class="flex flex-wrap gap-4 overflow-auto" id="main">
+
+
         @if (SelectedSong is not null)
         {
             @for (var i = 0; i < SelectedSong.Parts.Count; i++)
@@ -21,26 +37,39 @@
                 var part = SelectedSong.Parts[i].Replace("\n", "<br>");
                 var partIndex = i;
 
-                <Slide
-                    IsLiveSlide="AppState.LiveSlide.ProjectItemId == SelectedSong.Id && AppState.LiveSlide.ItemPartIndex == i"
-                    OnClick="() => AppState.SetSelectedLiveSlide(SelectedSong.Id, partIndex)"
-                    BaseWidth="1920"
-                    BaseHeight="1080"
-                    Scale="0.2">
-                    @((MarkupString)part)
-                </Slide>
+                var partClass =
+                    AppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                    AppState.LiveSlide.ProjectItemId == SelectedSong.Id &&
+                    AppState.LiveSlide.ItemPartIndex == i
+                        ? $"{DefaultClass} {SelectedClass}"
+                        : $"{DefaultClass} {NotSelectedClass}";
+
+                <button @onclick="() => AppState.SetSelectedLiveSlide(SelectedSong.Id, partIndex)">
+                    <Slide
+                        Class="@partClass"
+                        BaseWidth="@AppState.BaseSlideWidth"
+                        BaseHeight="@AppState.BaseSlideHeight"
+                        Scale="0.2">
+                        @((MarkupString)part)
+                    </Slide>
+                </button>
             }
         }
         else if (SelectedImage is not null)
         {
-            <Slide
-                IsLiveSlide="AppState.LiveSlide.ProjectItemId == SelectedImage.Id && AppState.LiveSlide.ItemPartIndex == 0"
-                OnClick="() => AppState.SetSelectedLiveSlide(SelectedImage.Id, 0)"
-                BaseWidth="1920"
-                BaseHeight="1080"
-                Scale="0.2">
-                <img src="@SelectedImage.Url" alt="" class="w-fill rounded-lg">
-            </Slide>
+            var partClass = AppState.LiveSlide.ProjectItemId == SelectedImage.Id && AppState.LiveSlide.ItemPartIndex == 0
+                ? $"{DefaultClass} {SelectedClass}"
+                : $"{DefaultClass} {NotSelectedClass}";
+
+            <button @onclick="() => AppState.SetSelectedLiveSlide(SelectedImage.Id, 0)">
+                <Slide
+                    Class="@partClass"
+                    BaseWidth="@AppState.BaseSlideWidth"
+                    BaseHeight="@AppState.BaseSlideHeight"
+                    Scale="0.2">
+                    <img src="@SelectedImage.Url" alt="" class="w-fill rounded-lg drag-none">
+                </Slide>
+            </button>
         }
     </div>
 
@@ -48,43 +77,52 @@
 
     <div class="flex shrink-0 py-3 gap-3 bg-neutral-100 dark:bg-neutral-900 overflow-auto justify-between">
         <div class="flex items-end lg:hidden">
-            <button class="cursor-pointer p-4 bg-neutral-200 dark:bg-neutral-800 rounded-full" @onclick="() => AppState.IsMenuVisible = true">
+            <button class="cursor-pointer p-4 bg-neutral-200 dark:bg-neutral-800 rounded-full"
+                    @onclick="() => AppState.IsMenuVisible = true">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                      stroke="currentColor" class="size-8">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
                 </svg>
             </button>
         </div>
-        <Slide IsLiveSlide="AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen"
-               OnClick="AppState.SelectBlackScreen"
-               BaseWidth="1920"
-               BaseHeight="1080"
-               Scale="0.1">
-            <div class="flex justify-center space-x-20 text-neutral-300">
-                @{
-                    var blankScreenClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen ? "text-sky-500" : "";
-                }
-                @if (AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen)
-                {
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
-                         class="size-60 @blankScreenClass">
-                        <path fill-rule="evenodd"
-                              d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z"
-                              clip-rule="evenodd"/>
-                    </svg>
-                }
-                else
-                {
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                         stroke="currentColor"
-                         class="size-60 @blankScreenClass">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
-                    </svg>
-                }
-                <div class="text-[170px] @blankScreenClass">Tom bild</div>
-            </div>
-        </Slide>
+
+        @{
+            var emptySlideClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen
+                ? $"{DefaultClass} {SelectedClass}"
+                : $"{DefaultClass} {NotSelectedClass}";
+        }
+        <button @onclick="AppState.SelectBlackScreen">
+            <Slide Class="@emptySlideClass"
+                   BaseWidth="@AppState.BaseSlideWidth"
+                   BaseHeight="@AppState.BaseSlideHeight"
+                   Scale="0.1">
+                <div class="flex justify-center space-x-20 text-neutral-300">
+                    @{
+                        var blankScreenClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen ? "text-sky-500" : "";
+                    }
+                    @if (AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen)
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                             class="size-60 @blankScreenClass">
+                            <path fill-rule="evenodd"
+                                  d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z"
+                                  clip-rule="evenodd"/>
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                             stroke="currentColor"
+                             class="size-60 @blankScreenClass">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                        </svg>
+                    }
+                    <div class="text-[170px] @blankScreenClass">Tom bild</div>
+                </div>
+            </Slide>
+        </button>
     </div>
 
 </div>
@@ -93,6 +131,10 @@
 @code {
     private Song? SelectedSong { get; set; }
     private Image? SelectedImage { get; set; }
+
+    private const string DefaultClass = "rounded-2xl overflow-hidden outline-4 m-1 text-white hover:cursor-pointer";
+    private const string SelectedClass = "bg-sky-950 outline-sky-500 dark:outline-sky-900";
+    private const string NotSelectedClass = "bg-black dark:outline-neutral-800";
 
     protected override void OnInitialized()
     {
