@@ -9,8 +9,20 @@
 @implements IDisposable
 
 <div class="flex flex-col grow overflow-hidden p-3 relative">
-    <div class="p-3">
-        <h3>@AppState.SelectedProjectItem?.Title</h3>
+    <div class="flex flex- justify-between">
+        <div class="p-3">
+            <h3>@AppState.SelectedProjectItem?.Title</h3>
+        </div>
+
+        <div>
+            <a href="/presentation" target="_blank" class="bg-black border-1 border-neutral-500 text-neutral-200 px-3 p-2 rounded-lg flex space-x-3">
+                <div class="shrink-0">Visa presentation</div>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25" />
+                </svg>
+
+            </a>
+        </div>
     </div>
 
     <div class="flex flex-wrap gap-4 overflow-auto ">
