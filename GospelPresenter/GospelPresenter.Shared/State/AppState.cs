@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
 
 namespace GospelPresenter.Shared.State;
@@ -8,6 +9,9 @@ public partial class AppState(
     IImageService imageService
 ) : ObservableObject
 {
+    [ObservableProperty] private Viewport? presentationViewport;
+    [ObservableProperty] private int baseSlideWidth = 1920;
+    [ObservableProperty] private int baseSlideHeight = 1080;
     [ObservableProperty] private bool isMenuVisible;
     
     [ObservableProperty] private Project? selectedProject = new()

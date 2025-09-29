@@ -1,0 +1,33 @@
+﻿@using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+
+@inherits LayoutComponentBase
+
+@inject IStatusBarService StatusBarService
+@inject AppState AppState
+
+<ViewportMonitor OnViewportChanged="viewport => AppState.PresentationViewport = viewport"/>
+
+@{
+    var statusBarHeight = StatusBarService.GetStatusBarHeight();
+    var statusBarStyle = $"padding-top: {statusBarHeight}px";
+}
+<div class="flex h-full relative dark:text-neutral-200 bg-black" style="@statusBarStyle">
+    @Body
+</div>
+
+<div id="blazor-error-ui" data-nosnippet
+     class="
+hidden
+bg-yellow-50
+fixed
+left-0
+bottom-0
+w-full
+z-1000
+p-3">
+    Ett oväntat fel har inträffat.
+    <a href="." class="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl">Ladda om</a>
+</div>
+
