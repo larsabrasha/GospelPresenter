@@ -28,7 +28,7 @@
     {
         await OnViewportChanged.InvokeAsync(viewport);
         
-        Logger.LogInformation("UI State initialised. Width: {Width}, Height: {Height}", viewport.Width, viewport.Height);
+        Logger.LogDebug("UI State initialised. Width: {Width}, Height: {Height}", viewport.Width, viewport.Height);
     }
 
     [JSInvokable]
@@ -36,7 +36,7 @@
     {
         await OnViewportChanged.InvokeAsync(viewport);
 
-        Logger.LogInformation("UI State updated. Width: {Width}, Height: {Height}", viewport.Width, viewport.Height);
+        Logger.LogDebug("UI State updated. Width: {Width}, Height: {Height}", viewport.Width, viewport.Height);
     }
 
 }
