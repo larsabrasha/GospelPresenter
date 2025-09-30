@@ -1,8 +1,9 @@
 @using System.ComponentModel
 @using GospelPresenter.Shared.Services
-@using GospelPresenter.Shared.State
+@using GospelPresenter.Shared.State 
 
 @inject AppState AppState
+@inject SharedAppState SharedAppState
 @inject ISongService SongService
 @inject IImageService ImageService
 
@@ -27,9 +28,13 @@
         </div>
     </div>
 
+    @{
+        const int thresholdWidth = 1024;
+        var slideScale = AppState.MainViewport?.Width <= thresholdWidth ? 0.15 : 0.2;
+        var miscSlideScale = AppState.MainViewport?.Width <= thresholdWidth ? 0.075 : 0.1;
+    }
+
     <div class="flex flex-wrap gap-4 overflow-auto" id="main">
-
-
         @if (SelectedSong is not null)
         {
             @for (var i = 0; i < SelectedSong.Parts.Count; i++)
@@ -38,18 +43,18 @@
                 var partIndex = i;
 
                 var partClass =
-                    AppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
-                    AppState.LiveSlide.ProjectItemId == SelectedSong.Id &&
-                    AppState.LiveSlide.ItemPartIndex == i
+                    SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                    SharedAppState.LiveSlide.ProjectItemId == SelectedSong.Id &&
+                    SharedAppState.LiveSlide.ItemPartIndex == i
                         ? $"{DefaultClass} {SelectedClass}"
                         : $"{DefaultClass} {NotSelectedClass}";
 
-                <button @onclick="() => AppState.SetSelectedLiveSlide(SelectedSong.Id, partIndex)">
+                <button @onclick="() => SetSelectedLiveSlide(SelectedSong.Id, partIndex)">
                     <Slide
                         Class="@partClass"
                         BaseWidth="@AppState.BaseSlideWidth"
                         BaseHeight="@AppState.BaseSlideHeight"
-                        Scale="0.2">
+                        Scale="@slideScale">
                         @((MarkupString)part)
                     </Slide>
                 </button>
@@ -58,18 +63,18 @@
         else if (SelectedImage is not null)
         {
             var partClass =
-                AppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
-                AppState.LiveSlide.ProjectItemId == SelectedImage.Id &&
-                AppState.LiveSlide.ItemPartIndex == 0
+                SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                SharedAppState.LiveSlide.ProjectItemId == SelectedImage.Id &&
+                SharedAppState.LiveSlide.ItemPartIndex == 0
                     ? $"{DefaultClass} {SelectedClass}"
                     : $"{DefaultClass} {NotSelectedClass}";
 
-            <button @onclick="() => AppState.SetSelectedLiveSlide(SelectedImage.Id, 0)">
+            <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, 0)">
                 <Slide
                     Class="@partClass"
                     BaseWidth="@AppState.BaseSlideWidth"
                     BaseHeight="@AppState.BaseSlideHeight"
-                    Scale="0.2">
+                    Scale="@slideScale">
                     <img src="@SelectedImage.Url" alt="" class="w-fill rounded-lg drag-none">
                 </Slide>
             </button>
@@ -78,7 +83,7 @@
 
     <div class="grow"></div>
 
-    <div class="flex shrink-0 py-3 gap-3 bg-neutral-100 dark:bg-neutral-900 overflow-auto justify-between">
+    <div class="flex shrink-0 pt-3 gap-3 bg-neutral-100 dark:bg-neutral-900 overflow-auto justify-between border-t border-neutral-200 dark:border-black">
         <div class="flex items-end lg:hidden">
             <button class="cursor-pointer p-4 bg-neutral-200 dark:bg-neutral-800 rounded-full"
                     @onclick="() => AppState.IsMenuVisible = true">
@@ -91,20 +96,20 @@
         </div>
 
         @{
-            var emptySlideClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen
+            var emptySlideClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen
                 ? $"{DefaultClass} {SelectedClass}"
                 : $"{DefaultClass} {NotSelectedClass}";
         }
-        <button @onclick="AppState.SelectBlackScreen">
+        <button @onclick="SharedAppState.SelectBlackScreen">
             <Slide Class="@emptySlideClass"
                    BaseWidth="@AppState.BaseSlideWidth"
                    BaseHeight="@AppState.BaseSlideHeight"
-                   Scale="0.1">
+                   Scale="@miscSlideScale">
                 <div class="flex justify-center space-x-20 text-neutral-300">
                     @{
-                        var blankScreenClass = AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen ? "text-sky-500" : "";
+                        var blankScreenClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen ? "text-sky-500" : "";
                     }
-                    @if (AppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen)
+                    @if (SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen)
                     {
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
                              class="size-60 @blankScreenClass">
@@ -144,20 +149,26 @@
         GetDataForSelectedItem();
 
         AppState.PropertyChanged += OnPropertyChanged;
+        SharedAppState.PropertyChanged += OnPropertyChanged;
     }
 
     public void Dispose()
     {
         AppState.PropertyChanged -= OnPropertyChanged;
+        SharedAppState.PropertyChanged += OnPropertyChanged;
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is
-            nameof(AppState.SelectedProjectItem))
+        if (e.PropertyName is nameof(AppState.SelectedProjectItem))
         {
             GetDataForSelectedItem();
-
+            _ = InvokeAsync(StateHasChanged);
+        }
+        else if (e.PropertyName is
+                 nameof(AppState.MainViewport) or
+                 nameof(SharedAppState.LiveSlide))
+        {
             _ = InvokeAsync(StateHasChanged);
         }
     }
@@ -178,6 +189,66 @@
                 SelectedImage = ImageService.GetImageById(AppState.SelectedProjectItem.Id);
                 break;
         }
+    }
+
+    private void SetSelectedLiveSlide(string selectedItemId, int partIndex)
+    {
+        var projectItem = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == selectedItemId);
+        if (projectItem is null) return;
+
+        string? text = null;
+        string? credits = null;
+        string? imageUrl = null;
+
+        switch (projectItem.Type)
+        {
+            case ProjectItemType.Song:
+            {
+                var song = SongService.GetSongById(projectItem.Id);
+                if (song is not null && partIndex < song.Parts.Count)
+                {
+                    text = song.Parts[partIndex].Replace("\n", "<br>");
+
+                    var creditParts = new List<string?>
+                        {
+                            song.Author,
+                            string.IsNullOrEmpty(song.Publisher)
+                                ? null
+                                : $"© {song.Publisher}",
+                            $"{song.Year}"
+                        }
+                        .OfType<string>()
+                        .ToList();
+                    credits = string.Join(" · ", creditParts);
+                }
+
+                break;
+            }
+            case ProjectItemType.Image:
+            {
+                var image = ImageService.GetImageById(projectItem.Id);
+                if (image is not null)
+                {
+                    imageUrl = image.Url;
+                }
+
+                break;
+            }
+            case ProjectItemType.BibleText:
+                break;
+            default:
+                return;
+        }
+
+        SharedAppState.LiveSlide = SharedAppState.LiveSlide with
+        {
+            Status = LiveSlideStatus.ShowingPresentation,
+            ProjectItemId = selectedItemId,
+            ItemPartIndex = partIndex,
+            Text = text,
+            Credits = credits,
+            ImageUrl = imageUrl
+        };
     }
 
 }

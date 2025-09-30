@@ -8,7 +8,8 @@ public static class SharedServicesSetup
 {
     public static void AddSharedGospelPresenterServices(this IServiceCollection services)
     {
-        services.AddSingleton<AppState>();
+        services.AddScoped<AppState>();
+        services.AddSingleton<SharedAppState>();
         services.AddSingleton<ISongService, SongService>();
         services.AddSingleton<IImageService, ImageService>();
     }

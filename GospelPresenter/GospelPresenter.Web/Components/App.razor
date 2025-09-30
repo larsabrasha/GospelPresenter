@@ -1,10 +1,11 @@
 ﻿@using System.Globalization
+
 <!DOCTYPE html>
-<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" class="h-dvh overscroll-none overflow-hidden">
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" class="h-dvh overscroll-none overflow-hidden bg-white dark:bg-neutral-800">
 
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <base href="/" />
     <link rel="stylesheet" href="@Assets["_content/GospelPresenter.Shared/tailwind-output.css"]" />
     <link rel="stylesheet" href="@Assets["_content/GospelPresenter.Shared/app.css"]" />
@@ -16,13 +17,15 @@
     <link rel="apple-touch-icon" type="image/png" href="/images/favicon-152.png" sizes="152x152">
     <link rel="apple-touch-icon" type="image/png" href="/images/favicon-180.png" sizes="180x180">
     <link rel="icon" type="image/png" href="/images/favicon-196.png" sizes="196x196">
-    <meta name="apple-mobile-web-app-title" content="GospelPresenter">
-    <title>GospelPresenter</title>
+    <meta name="apple-mobile-web-app-title" content="Gospel Presenter">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Gospel Presenter</title>
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body class="flex flex-col h-dvh overscroll-none">
-<Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="InteractiveServer" />
     <script src="_content/GospelPresenter.Shared/viewport-monitor.js"></script>
     <script src="_content/GospelPresenter.Shared/utils.js"></script>
     <script src="_framework/blazor.web.js"></script>

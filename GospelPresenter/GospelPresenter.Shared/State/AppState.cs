@@ -1,14 +1,11 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using GospelPresenter.Shared.Models;
-using GospelPresenter.Shared.Services;
 
 namespace GospelPresenter.Shared.State;
 
-public partial class AppState(
-    ISongService songService,
-    IImageService imageService
-) : ObservableObject
+public partial class AppState : ObservableObject
 {
+    [ObservableProperty] private Viewport? mainViewport;
     [ObservableProperty] private Viewport? presentationViewport;
     [ObservableProperty] private int baseSlideWidth = 1920;
     [ObservableProperty] private int baseSlideHeight = 1080;
@@ -74,85 +71,8 @@ public partial class AppState(
     [ObservableProperty] private ProjectItem? selectedProjectItem;
     [ObservableProperty] private int? selectedItemPartIndex;
 
-    [ObservableProperty] private LiveSlide liveSlide = new(
-        LiveSlideStatus.ShowingPresentation,
-        null,
-        null,
-        null,
-        null,
-        null
-    );
-
     public void Reset()
     {
         SelectedProject = null;
-    }
-
-    public void SetSelectedLiveSlide(string selectedItemId, int partIndex)
-    {
-        var projectItem = SelectedProject?.Items.FirstOrDefault(x => x.Id == selectedItemId);
-        if (projectItem is null) return;
-
-        string? text = null;
-        string? credits = null;
-        string? imageUrl = null;
-
-        switch (projectItem.Type)
-        {
-            case ProjectItemType.Song:
-            {
-                var song = songService.GetSongById(projectItem.Id);
-                if (song is not null && partIndex < song.Parts.Count)
-                {
-                    text = song.Parts[partIndex].Replace("\n", "<br>");
-
-                    var creditParts = new List<string?>
-                        {
-                            song.Author,
-                            string.IsNullOrEmpty(song.Publisher)
-                                ? null
-                                : $"© {song.Publisher}",
-                            $"{song.Year}"
-                        }
-                        .OfType<string>()
-                        .ToList();
-                    credits = string.Join(" · ", creditParts);
-                }
-
-                break;
-            }
-            case ProjectItemType.Image:
-            {
-                var image = imageService.GetImageById(projectItem.Id);
-                if (image is not null)
-                {
-                    imageUrl = image.Url;
-                }
-
-                break;
-            }
-            case ProjectItemType.BibleText:
-                break;
-            default:
-                return;
-        }
-
-        LiveSlide = LiveSlide with
-        {
-            Status = LiveSlideStatus.ShowingPresentation,
-            ProjectItemId = selectedItemId,
-            ItemPartIndex = partIndex,
-            Text = text,
-            Credits = credits,
-            ImageUrl = imageUrl
-        };
-    }
-
-    public void SelectBlackScreen()
-    {
-        LiveSlide = LiveSlide with
-        {
-            Status = LiveSlideStatus.ShowingBlackScreen
-        };
     }
 }
