@@ -9,7 +9,7 @@ public partial class AppState : ObservableObject
     [ObservableProperty] private Viewport? presentationViewport;
     [ObservableProperty] private int baseSlideWidth = 1920;
     [ObservableProperty] private int baseSlideHeight = 1080;
-    [ObservableProperty] private bool isMenuVisible;
+    [ObservableProperty] private bool isMenuVisible = true;
     
     [ObservableProperty] private Project? selectedProject = new()
     {
