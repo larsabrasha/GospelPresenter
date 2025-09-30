@@ -3,6 +3,7 @@
 
 @inject AppState AppState
 @inject SharedAppState SharedAppState
+@inject IJSRuntime JsRuntime
 
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components
@@ -56,6 +57,8 @@
 
     protected override void OnInitialized()
     {
+        JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
+            
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
     }

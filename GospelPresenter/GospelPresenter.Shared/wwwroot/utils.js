@@ -5,3 +5,7 @@ window.scrollElementToTop = function (elementId) {
         element.scrollTop = 0;
     }
 }
+
+window.setRootElementBackgroundColor = function(color) {
+    document.documentElement.style.backgroundColor = color;    
+}
