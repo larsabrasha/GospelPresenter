@@ -1,6 +1,6 @@
 @using System.ComponentModel
 @using GospelPresenter.Shared.Services
-@using GospelPresenter.Shared.State 
+@using GospelPresenter.Shared.State
 
 @inject AppState AppState
 @inject SharedAppState SharedAppState
@@ -9,8 +9,9 @@
 
 @implements IDisposable
 
-<div class="flex flex-col grow overflow-auto relative">
-    <div class="flex justify-between sticky top-0 bg-linear-to-b from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none min-h-18">
+<div class="flex flex-col grow overflow-hidden h-full relative">
+    <div
+        class="flex justify-between absolute top-0 left-0 right-0 bg-linear-to-b from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none h-16">
         <div class="px-5 py-3 pointer-events-auto">
             <span class="text-xl font-semibold">@AppState.SelectedProjectItem?.Title</span>
         </div>
@@ -18,8 +19,10 @@
         <div class="p-3 pointer-events-auto">
             <a href="/live" target="_blank"
                class="bg-teal-500 text-white px-4 py-2 rounded-3xl space-x-2 flex items-center hover:scale-110 transition ease-in-out">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                     stroke="currentColor" class="size-5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z"/>
                 </svg>
                 <div class="shrink-0">Visa</div>
             </a>
@@ -32,7 +35,7 @@
         var miscSlideScale = AppState.MainViewport?.Width <= thresholdWidth ? 0.075 : 0.1;
     }
 
-    <div class="flex flex-wrap gap-3 p-3" id="main">
+    <div class="flex flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36" id="main">
         @if (SelectedSong is not null)
         {
             @for (var i = 0; i < SelectedSong.Parts.Count; i++)
@@ -79,11 +82,10 @@
         }
     </div>
 
-    <div class="grow"></div>
-
-    <div class="flex shrink-0 pt-3 gap-3 overflow-auto justify-between sticky bottom-0 p-3 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none">
-        <div class="flex items-end lg:hidden pointer-events-auto">
-            <button class="cursor-pointer p-4 bg-neutral-200 dark:bg-neutral-800 rounded-full"
+    <div
+        class="flex absolute bottom-0 left-0 right-0 h-28 justify-between p-3 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none">
+        <div class="flex items-center lg:hidden pointer-events-auto">
+            <button class="cursor-pointer p-4 bg-white dark:bg-neutral-800 rounded-full shadow-2xl"
                     @onclick="() => AppState.IsMenuVisible = true">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                      stroke="currentColor" class="size-8">
@@ -93,42 +95,44 @@
             </button>
         </div>
 
-        @{
-            var emptySlideClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen
-                ? $"{DefaultClass} {SelectedClass}"
-                : $"{DefaultClass} {NotSelectedClass}";
-        }
-        <button @onclick="SharedAppState.SelectBlackScreen" class="pointer-events-auto">
-            <Slide Class="@emptySlideClass"
-                   BaseWidth="@AppState.BaseSlideWidth"
-                   BaseHeight="@AppState.BaseSlideHeight"
-                   Scale="@miscSlideScale">
-                <div class="flex justify-center space-x-20 text-neutral-300">
-                    @{
-                        var blankScreenClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen ? "text-sky-500" : "";
-                    }
-                    @if (SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen)
-                    {
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
-                             class="size-60 @blankScreenClass">
-                            <path fill-rule="evenodd"
-                                  d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z"
-                                  clip-rule="evenodd"/>
-                        </svg>
-                    }
-                    else
-                    {
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                             stroke="currentColor"
-                             class="size-60 @blankScreenClass">
-                            <path stroke-linecap="round" stroke-linejoin="round"
-                                  d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
-                        </svg>
-                    }
-                    <div class="text-[170px] @blankScreenClass">Tom bild</div>
-                </div>
-            </Slide>
-        </button>
+        <div class="flex items-center">
+            @{
+                var emptySlideClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen
+                    ? $"{DefaultClass} {SelectedClass}"
+                    : $"{DefaultClass} {NotSelectedClass}";
+            }
+            <button @onclick="SharedAppState.SelectBlackScreen" class="pointer-events-auto">
+                <Slide Class="@emptySlideClass"
+                       BaseWidth="@AppState.BaseSlideWidth"
+                       BaseHeight="@AppState.BaseSlideHeight"
+                       Scale="@miscSlideScale">
+                    <div class="flex justify-center space-x-20 text-neutral-300">
+                        @{
+                            var blankScreenClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen ? "text-sky-500" : "";
+                        }
+                        @if (SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen)
+                        {
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                                 class="size-60 @blankScreenClass">
+                                <path fill-rule="evenodd"
+                                      d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm13.36-1.814a.75.75 0 1 0-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 0 0-1.06 1.06l2.25 2.25a.75.75 0 0 0 1.14-.094l3.75-5.25Z"
+                                      clip-rule="evenodd"/>
+                            </svg>
+                        }
+                        else
+                        {
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                 stroke="currentColor"
+                                 class="size-60 @blankScreenClass">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                            </svg>
+                        }
+                        <div class="text-[170px] @blankScreenClass">Tom bild</div>
+                    </div>
+                </Slide>
+            </button>
+        </div>
     </div>
 
 </div>
