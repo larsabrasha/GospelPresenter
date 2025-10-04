@@ -41,7 +41,7 @@
             : 0.1;
     }
 
-    <div class="text-center lg:text-left lg:flex lg:flex-wrap lg:gap-3 p-3 overflow-auto pt-16 pb-36" id="main">
+    <div class="mx-auto grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36" id="main">
         @if (SelectedSong is not null)
         {
             @for (var i = 0; i < SelectedSong.Parts.Count; i++)

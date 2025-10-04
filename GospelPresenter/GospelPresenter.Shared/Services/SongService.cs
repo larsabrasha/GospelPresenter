@@ -23,6 +23,7 @@ public class SongService : ISongService
                     "Herren vår Gud är en konung \ni makt och i ära.\nKom, alla folk, att vårt eviga \nlov honom bära!\nHimmel och jord \nbärs av hans kraftiga ord.\nallt han sitt hägn vill beskära.",
                     "Pris vare Herren, som allting \nså härligt bereder,\nsom oss har skapat och blickar \ni nåd till oss neder,\nsom i vår nöd\nskänker oss välfärd och bröd\noch sitt beskydd kring oss breder.",
                     "Herren, vår Gud, vare lov \nsom en Far för oss blivit,\nsom för vår synd har sin Son \nuppå korset utgivit,\nsom på vår jord\nleder med Ande och ord\ndem som åt Kristus sig givit.",
+                    "Herren, vår salighets Gud, \nmå vi prisa och tjäna.\nKraften är hans och all vishet \noch ära allena.\nPris ske hans namn,\natt han oss vill i sin famn\nalla med Kristus förena.",
                     "Herren, vår salighets Gud, \nmå vi prisa och tjäna.\nKraften är hans och all vishet \noch ära allena.\nPris ske hans namn,\natt han oss vill i sin famn\nalla med Kristus förena."
                 ])
         },
