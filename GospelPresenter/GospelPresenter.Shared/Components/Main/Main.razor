@@ -30,15 +30,19 @@
     </div>
 
     @{
-        var slideScale = AppState.MainViewport?.Width < 768 
-            ? AppState.MainViewport?.Width / (double)AppState.BaseSlideWidth * 0.9 ?? 0.15
-            : AppState.MainViewport?.Width <= 1024 
-                ? AppState.MainViewport?.Width / (double)AppState.BaseSlideWidth / 3 * 0.98 ?? 0.15 
-                :0.2;
-        
-        var miscSlideScale = AppState.MainViewport?.Width < 1024 
-            ? 0.075
-            : 0.1;
+        var slideScale = AppState.MainViewport is null
+            ? 0.0
+            : AppState.MainViewport.Width < 768
+                ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth * 0.9 ?? 0.15
+                : AppState.MainViewport.Width <= 1024
+                    ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth / 3 * 0.98 ?? 0.15
+                    : 0.2;
+
+        var miscSlideScale = AppState.MainViewport is null
+            ? 0.0
+            : AppState.MainViewport.Width < 1024
+                ? 0.075
+                : 0.1;
     }
 
     <div class="mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36" id="main">
@@ -133,8 +137,8 @@
     private Song? SelectedSong { get; set; }
     private Image? SelectedImage { get; set; }
 
-    private string DefaultClass = "border-t border-neutral-800/80 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white hover:cursor-pointer hover:outline-sky-500 hover:drop-shadow-lg hover:drop-shadow-sky-500/40";
-    private string SelectedClass = "outline-sky-500 drop-shadow-lg drop-shadow-sky-500/40";
+    private string DefaultClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white hover:cursor-pointer hover:outline-sky-500 hover:drop-shadow-lg hover:drop-shadow-sky-500/40";
+    private string SelectedClass = "outline-sky-500";
     private string NotSelectedClass = "outline-transparent";
 
     protected override void OnInitialized()
