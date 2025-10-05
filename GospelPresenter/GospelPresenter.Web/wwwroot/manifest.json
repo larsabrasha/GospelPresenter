@@ -1,0 +1,7 @@
+{
+  "name": "Gospel Presenter",
+  "short_name": "Presenter",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/"
+}
