@@ -7,7 +7,7 @@
 @implements IDisposable
 
 <div class="shrink-0 w-[300px] overflow-hidden flex">
-    <div class="p-4 space-y-2 overflow-auto w-full">
+    <div class="p-4 overflow-auto w-full">
         @if (AppState.SelectedProject is null)
         {
             <div class="text-sm text-center text-neutral-500 pt-10">No Project selected</div>
@@ -30,7 +30,7 @@
             {
                 var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-500 text-white" : "";
                 <button @key="item.Id"
-                        class="rounded-3xl flex w-full space-x-5 px-3 py-2 items-center hover:cursor-pointer hover:bg-sky-500 hover:text-white @itemClass"
+                        class="rounded-3xl flex w-full space-x-5 px-3 py-3 border-1 border-white dark:border-neutral-800 items-center hover:cursor-pointer hover:bg-sky-500 hover:text-white @itemClass"
                         @onclick="() => SelectItemAsync(item)">
                     <div class="size-3">
                         @switch (item.Type)
