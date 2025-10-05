@@ -1,0 +1,101 @@
+@using System.ComponentModel
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.State
+
+@inject AppState AppState
+@inject IJSRuntime JsRuntime
+
+@implements IDisposable
+
+<div class="shrink-0 w-[300px] overflow-hidden flex">
+    <div class="p-4 overflow-auto w-full">
+        <a href="/">
+            <div class="flex flex-col -m-1">
+                <div class="flex items-center pb-3">
+                    <LogoSymbol Class="size-10 text-sky-500"/>
+                    <div class="text-xl uppercase">
+                        <div><span class="text-sky-500 font-semibold">Gospel</span>
+                            <span
+                                class="text-sky-400">Presenter</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+
+        @if (AppState.SelectedProject is null)
+        {
+            <div class="text-sm text-center text-neutral-500 pt-10">Presentationen hittades inte</div>
+        }
+        else
+        {
+            <div class="my-4 font-semibold text-lg px-1">@AppState.SelectedProject.Name</div>
+
+            @foreach (var item in AppState.SelectedProject.Items)
+            {
+                var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-500 text-white" : "";
+                <button @key="item.Id"
+                        class="rounded-3xl flex w-full space-x-5 px-3 py-3 border-1 border-white dark:border-neutral-800 items-center cursor-pointer hover:bg-sky-500 hover:text-white @itemClass"
+                        @onclick="() => SelectItemAsync(item)">
+                    <div class="size-3">
+                        @switch (item.Type)
+                        {
+                            case ProjectItemType.Song:
+                                <MusicalNoteSymbol Class="size-4"/>
+
+                                break;
+                            case ProjectItemType.BibleText:
+                                <BookOpenSymbol Class="size-4"/>
+
+                                break;
+                            case ProjectItemType.Image:
+                                <PhotoSymbol Class="size-4"/>
+                                break;
+                            default:
+                                <span></span>
+                                break;
+                        }
+                    </div>
+                    <div class="text-left">@item.Title </div>
+                </button>
+            }
+
+            @* <button *@
+            @*     class="mt-8 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"> *@
+            @*     + Lägg till *@
+            @* </button> *@
+        }
+    </div>
+</div>
+
+@code {
+
+    protected override void OnInitialized()
+    {
+        AppState.PropertyChanged += OnPropertyChanged;
+    }
+
+    public void Dispose()
+    {
+        AppState.PropertyChanged -= OnPropertyChanged;
+    }
+
+    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is
+            nameof(AppState.SelectedProject) or
+            nameof(AppState.SelectedProjectItem))
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task SelectItemAsync(ProjectItem item)
+    {
+        AppState.SelectedProjectItem = item;
+        AppState.IsMenuVisible = false;
+
+        await JsRuntime.InvokeVoidAsync("scrollElementToTop", "main");
+    }
+
+}

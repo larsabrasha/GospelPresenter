@@ -1,64 +1,176 @@
-@page "/live"
-@layout PresentationLayout
-
-@inject AppState AppState
-@inject SharedAppState SharedAppState
-@inject IJSRuntime JsRuntime
+@page "/presentations/{presentationId}"
 
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components
-@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Components.Presentations
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
+
+@inject AppState AppState
+@inject SharedAppState SharedAppState
+@inject ISongService SongService
+@inject IImageService ImageService
+
 @implements IDisposable
+@inject IStatusBarService StatusBarService
 
 @{
-    var viewportWidth = AppState.PresentationViewport?.Width ?? 0;
-    var viewportHeight = AppState.PresentationViewport?.Height ?? 0;
-
-    var widthScale = (double)viewportWidth / AppState.BaseSlideWidth;
-    var heightScale = (double)viewportHeight / AppState.BaseSlideHeight;
-
-    var scale = Math.Min(widthScale, heightScale);
+    var statusBarHeight = StatusBarService.GetStatusBarHeight();
+    var statusBarStyle = $"padding-top: {statusBarHeight}px";
 }
-
-<div class="flex h-full bg-black text-white items-center justify-items-center relative">
-
+<div class="flex h-full relative dark:text-neutral-200 dark:bg-neutral-800" style="@statusBarStyle">
     @{
-        var slideClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation ? "opacity-100" : "opacity-0";
+        var menuBackdropVisibilityClass = AppState.IsMenuVisible ? "visible opacity-100" : "invisible opacity-0";
+        var menuVisibilityClass = AppState.IsMenuVisible ? "visible translate-x-0" : "invisible -translate-x-full";
     }
-
     <div
-        class="w-full transition-opacity duration-500 ease-in-out @slideClass">
+        class="bg-black/30 z-100 absolute top-0 bottom-0 left-0 right-0 transition-opacity lg:invisible @menuBackdropVisibilityClass"
+        @onclick="() => AppState.IsMenuVisible = false">
+    </div>
+    <div
+        class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 @menuVisibilityClass">
+        <Sidebar/>
+    </div>
 
-        @if (SharedAppState.LiveSlide.Text is not null)
-        {
-            <Slide
-                Class=""
-                BaseWidth="@AppState.BaseSlideWidth"
-                BaseHeight="@AppState.BaseSlideHeight"
-                Scale="@scale">
-                @((MarkupString)SharedAppState.LiveSlide.Text)
-            </Slide>
-        }
-        else if (SharedAppState.LiveSlide.ImageUrl is not null)
-        {
-            <Slide
-                Class=""
-                BaseWidth="@AppState.BaseSlideWidth"
-                BaseHeight="@AppState.BaseSlideHeight"
-                Scale="@scale">
-                <img src="@SharedAppState.LiveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
-            </Slide>
-        }
+    <div class="bg-neutral-100 dark:bg-neutral-900 grow relative">
+        <div class="flex flex-col h-full">
+            <div class="flex flex-col grow overflow-hidden h-full relative">
+                <div
+                    class="flex justify-between absolute top-0 left-0 right-0 bg-linear-to-b from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none h-16">
+                    <div class="px-5 py-3 pointer-events-auto">
+                        <span class="text-xl font-semibold">@AppState.SelectedProjectItem?.Title</span>
+                    </div>
+
+                    <div class="p-3 pointer-events-auto">
+                        <a href="/live" target="_blank"
+                           class="bg-sky-500 text-white px-4 py-3 rounded-3xl space-x-2 flex items-center hover:bg-sky-600">
+                            <TvSymbol Class="size-5"/>
+                            <div class="shrink-0 text-sm">Presentera</div>
+                        </a>
+                    </div>
+                </div>
+
+                @{
+                    var slideScale = AppState.MainViewport is null
+                        ? 0.0
+                        : AppState.MainViewport.Width < 768
+                            ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth * 0.9 ?? 0.15
+                            : AppState.MainViewport.Width <= 1024
+                                ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth / 3 * 0.98 ?? 0.15
+                                : 0.2;
+
+                    var miscSlideScale = AppState.MainViewport is null
+                        ? 0.0
+                        : AppState.MainViewport.Width < 1024
+                            ? 0.075
+                            : 0.1;
+                }
+
+                <div class="mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
+                     id="main">
+                    @if (SelectedSong is not null)
+                    {
+                        @for (var i = 0; i < SelectedSong.Parts.Count; i++)
+                        {
+                            var part = SelectedSong.Parts[i].Replace("\n", "<br>");
+                            var partIndex = i;
+
+                            var partClass =
+                                SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                                SharedAppState.LiveSlide.ProjectItemId == SelectedSong.Id &&
+                                SharedAppState.LiveSlide.ItemPartIndex == i
+                                    ? $"{DefaultClass} {SelectedClass}"
+                                    : $"{DefaultClass} {NotSelectedClass}";
+
+                            <button @onclick="() => SetSelectedLiveSlide(SelectedSong.Id, partIndex)" class="p-3-">
+                                <Slide
+                                    Class="@partClass"
+                                    BaseWidth="@AppState.BaseSlideWidth"
+                                    BaseHeight="@AppState.BaseSlideHeight"
+                                    Scale="@slideScale">
+                                    @((MarkupString)part)
+                                </Slide>
+                            </button>
+                        }
+                    }
+                    else if (SelectedImage is not null)
+                    {
+                        var partClass =
+                            SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                            SharedAppState.LiveSlide.ProjectItemId == SelectedImage.Id &&
+                            SharedAppState.LiveSlide.ItemPartIndex == 0
+                                ? $"{DefaultClass} {SelectedClass}"
+                                : $"{DefaultClass} {NotSelectedClass}";
+
+                        <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, 0)">
+                            <Slide
+                                Class="@partClass"
+                                BaseWidth="@AppState.BaseSlideWidth"
+                                BaseHeight="@AppState.BaseSlideHeight"
+                                Scale="@slideScale">
+                                <img src="@SelectedImage.Url" alt="" class="w-fill rounded-lg drag-none">
+                            </Slide>
+                        </button>
+                    }
+                </div>
+
+                <div
+                    class="flex absolute bottom-0 left-0 right-0 h-28 lg:h-36 justify-between lg:justify-end p-3 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none">
+                    <div class="flex items-center lg:hidden pointer-events-auto">
+                        <button class="cursor-pointer p-4 bg-white dark:bg-neutral-800 rounded-full shadow-2xl"
+                                @onclick="() => AppState.IsMenuVisible = true">
+                            <Bars3Symbol Class="size-8"/>
+                        </button>
+                    </div>
+
+                    <div class="flex items-center">
+                        @{
+                            var emptySlideClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen
+                                ? $"{DefaultClass} {SelectedClass}"
+                                : $"{DefaultClass} {NotSelectedClass}";
+                        }
+                        <button @onclick="SharedAppState.SelectBlackScreen" class="pointer-events-auto">
+                            <Slide Class="@emptySlideClass" BaseWidth="@AppState.BaseSlideWidth"
+                                   BaseHeight="@AppState.BaseSlideHeight" Scale="@miscSlideScale">
+                                <div class="flex justify-center space-x-20 text-neutral-600">
+                                    @{
+                                        const string pauseDefaultClass = "size-130 p-25 rounded-full";
+                                        var extraPauseClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen
+                                            ? "text-sky-500 bg-sky-950"
+                                            : "bg-neutral-800 group-hover:bg-sky-950 group-hover:text-sky-500";
+                                        var pauseClass = $"{pauseDefaultClass} {extraPauseClass}";
+                                    }
+                                    <PauseSymbol Class="@pauseClass"/>
+                                </div>
+                            </Slide>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
     </div>
 </div>
 
+
+
+
+
 @code {
+    [Parameter] public string? PresentationId { get; set; }
+
+    private Song? SelectedSong { get; set; }
+    private Image? SelectedImage { get; set; }
+
+    private const string DefaultClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer hover:outline-sky-500 hover:drop-shadow-lg hover:drop-shadow-sky-500/40";
+    private const string SelectedClass = "outline-sky-500";
+    private const string NotSelectedClass = "outline-transparent";
 
     protected override void OnInitialized()
     {
-        JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
-            
+        GetDataForSelectedItem();
+
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
     }
@@ -66,17 +178,101 @@
     public void Dispose()
     {
         AppState.PropertyChanged -= OnPropertyChanged;
-        SharedAppState.PropertyChanged -= OnPropertyChanged;
+        SharedAppState.PropertyChanged += OnPropertyChanged;
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is
-            nameof(SharedAppState.LiveSlide) or
-            nameof(AppState.PresentationViewport))
+        if (e.PropertyName is nameof(AppState.SelectedProjectItem))
+        {
+            GetDataForSelectedItem();
+            _ = InvokeAsync(StateHasChanged);
+        }
+        else if (e.PropertyName is
+                 nameof(AppState.MainViewport) or
+                 nameof(SharedAppState.LiveSlide) or 
+                 nameof(AppState.IsMenuVisible))
         {
             _ = InvokeAsync(StateHasChanged);
         }
+    }
+
+    private void GetDataForSelectedItem()
+    {
+        SelectedSong = null;
+        SelectedImage = null;
+
+        switch (AppState.SelectedProjectItem?.Type)
+        {
+            case ProjectItemType.Song:
+                SelectedSong = SongService.GetSongById(AppState.SelectedProjectItem.Id);
+                break;
+            case ProjectItemType.BibleText:
+                break;
+            case ProjectItemType.Image:
+                SelectedImage = ImageService.GetImageById(AppState.SelectedProjectItem.Id);
+                break;
+        }
+    }
+
+    private void SetSelectedLiveSlide(string selectedItemId, int partIndex)
+    {
+        var projectItem = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == selectedItemId);
+        if (projectItem is null) return;
+
+        string? text = null;
+        string? credits = null;
+        string? imageUrl = null;
+
+        switch (projectItem.Type)
+        {
+            case ProjectItemType.Song:
+            {
+                var song = SongService.GetSongById(projectItem.Id);
+                if (song is not null && partIndex < song.Parts.Count)
+                {
+                    text = song.Parts[partIndex].Replace("\n", "<br>");
+
+                    var creditParts = new List<string?>
+                        {
+                            song.Author,
+                            string.IsNullOrEmpty(song.Publisher)
+                                ? null
+                                : $"© {song.Publisher}",
+                            $"{song.Year}"
+                        }
+                        .OfType<string>()
+                        .ToList();
+                    credits = string.Join(" · ", creditParts);
+                }
+
+                break;
+            }
+            case ProjectItemType.Image:
+            {
+                var image = ImageService.GetImageById(projectItem.Id);
+                if (image is not null)
+                {
+                    imageUrl = image.Url;
+                }
+
+                break;
+            }
+            case ProjectItemType.BibleText:
+                break;
+            default:
+                return;
+        }
+
+        SharedAppState.LiveSlide = SharedAppState.LiveSlide with
+        {
+            Status = LiveSlideStatus.ShowingPresentation,
+            ProjectItemId = selectedItemId,
+            ItemPartIndex = partIndex,
+            Text = text,
+            Credits = credits,
+            ImageUrl = imageUrl
+        };
     }
 
 }
