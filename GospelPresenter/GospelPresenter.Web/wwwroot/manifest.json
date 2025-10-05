@@ -1,6 +1,6 @@
 {
   "name": "Gospel Presenter",
-  "short_name": "GospelPresenter",
+  "short_name": "Presenter",
   "display": "standalone",
   "scope": "/",
   "start_url": "/"
