@@ -27,6 +27,9 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./docs
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -37,17 +40,15 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-        working-directory: './docs'
       - name: Build
         run: npm run build
-        working-directory: './docs'
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
           # Upload dist folder
-          path: './docs/dist'
+          path: dist
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
