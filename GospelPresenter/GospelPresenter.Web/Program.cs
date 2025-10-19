@@ -1,9 +1,11 @@
 using GospelPresenter.Shared;
+using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Web.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using Prometheus;
 using Serilog;
 
@@ -16,6 +18,8 @@ Log.Information("Starting up");
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+
+    builder.AddServiceDefaults();
 
     builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration) => loggerConfiguration
         .ReadFrom.Configuration(hostBuilderContext.Configuration)
@@ -49,6 +53,9 @@ try
     });
     builder.Services.AddLocalization();
 
+    builder.Services.AddDbContextFactory<PresentationContext>(opt =>
+        opt.UseNpgsql(builder.Configuration.GetConnectionString("postgresdb")));
+
 #if !DEBUG
 builder.Services.AddMetricServer(options =>
 {
@@ -57,6 +64,8 @@ builder.Services.AddMetricServer(options =>
 #endif
 
     var app = builder.Build();
+
+    app.MapDefaultEndpoints();
 
     app.UseSerilogRequestLogging();
 
@@ -89,7 +98,7 @@ builder.Services.AddMetricServer(options =>
 
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
-    
+
     // Capture metrics about all received HTTP requests.
     app.UseHttpMetrics();
 
