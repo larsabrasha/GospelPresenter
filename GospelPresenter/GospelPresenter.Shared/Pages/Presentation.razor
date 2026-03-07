@@ -30,7 +30,7 @@
     </div>
     <div
         class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 @menuVisibilityClass">
-        <Sidebar/>
+        <Sidebar OnAddRequested="OpenAddModal"/>
     </div>
 
     <div class="bg-neutral-100 dark:bg-neutral-900 grow relative">
@@ -153,8 +153,10 @@
     </div>
 </div>
 
-
-
+@if (showAddModal)
+{
+    <AddItemModal OnClose="CloseAddModal" OnAddBibleText="HandleBibleVersesAdded"/>
+}
 
 
 @code {
@@ -162,6 +164,7 @@
 
     private Song? SelectedSong { get; set; }
     private Image? SelectedImage { get; set; }
+    private bool showAddModal;
 
     private const string DefaultClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer hover:outline-sky-500 hover:drop-shadow-lg hover:drop-shadow-sky-500/40";
     private const string SelectedClass = "outline-sky-500";
@@ -273,6 +276,22 @@
             Credits = credits,
             ImageUrl = imageUrl
         };
+    }
+
+    private void OpenAddModal()
+    {
+        showAddModal = true;
+    }
+
+    private void CloseAddModal()
+    {
+        showAddModal = false;
+    }
+
+    private void HandleBibleVersesAdded(List<Verse> verses)
+    {
+        showAddModal = false;
+        // TODO: Add bible text item to project
     }
 
 }

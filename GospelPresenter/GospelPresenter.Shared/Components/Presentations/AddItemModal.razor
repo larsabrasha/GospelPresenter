@@ -1,0 +1,157 @@
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Services
+
+@inject IBibleService BibleService
+
+<Modal Class="bg-white dark:bg-neutral-800 max-w-2xl" OnClose="OnClose">
+    <Title>
+        <span>Lägg till</span>
+    </Title>
+    <Body>
+        <div class="flex flex-col gap-3">
+            <div class="flex gap-1 bg-neutral-100 dark:bg-neutral-700 rounded-xl p-1">
+                <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors @TabClass(Tab.Song)"
+                        @onclick="() => activeTab = Tab.Song">
+                    <MusicalNoteSymbol Class="size-4"/>
+                    Sång
+                </button>
+                <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors @TabClass(Tab.BibleText)"
+                        @onclick="() => SelectTab(Tab.BibleText)">
+                    <BookOpenSymbol Class="size-4"/>
+                    Bibeltext
+                </button>
+                <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors @TabClass(Tab.Image)"
+                        @onclick="() => activeTab = Tab.Image">
+                    <PhotoSymbol Class="size-4"/>
+                    Bild
+                </button>
+            </div>
+
+            @switch (activeTab)
+            {
+                case Tab.Song:
+                    <div class="text-center text-neutral-400 text-sm py-8">
+                        Sångsök kommer snart
+                    </div>
+                    break;
+
+                case Tab.BibleText:
+                    <input type="text"
+                           @ref="bibleSearchInput"
+                           class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                           placeholder="T.ex. Matt 3:15-17 eller Joh 3:16"
+                           @oninput="OnBibleSearchInput"/>
+
+                    @if (bibleResults.Count > 0)
+                    {
+                        <div class="flex flex-col gap-1 text-sm">
+                            @foreach (var verse in bibleResults)
+                            {
+                                <div class="px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-700/50">
+                                    <span class="text-sky-500 font-semibold whitespace-nowrap">@verse.BookId @verse.Chapter:@verse.VerseNumber</span>
+                                    <span class="text-neutral-700 dark:text-neutral-300 ml-1">@Truncate(verse.Text, 120)</span>
+                                </div>
+                            }
+                            @if (bibleTotalCount > MaxBibleResults)
+                            {
+                                <div class="text-center text-neutral-400 text-xs py-1">
+                                    Visar @MaxBibleResults av @bibleTotalCount verser
+                                </div>
+                            }
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(bibleQuery))
+                    {
+                        <div class="text-center text-neutral-400 text-sm py-2">
+                            Inga verser hittades
+                        </div>
+                    }
+                    break;
+
+                case Tab.Image:
+                    <div class="text-center text-neutral-400 text-sm py-8">
+                        Bildval kommer snart
+                    </div>
+                    break;
+            }
+        </div>
+    </Body>
+    <Footer>
+        <div class="flex justify-end">
+            @if (activeTab == Tab.BibleText && bibleResults.Count > 0)
+            {
+                <button class="px-4 py-2 rounded-xl text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                        @onclick="HandleAddBibleText">
+                    Lägg till
+                </button>
+            }
+        </div>
+    </Footer>
+</Modal>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<List<Verse>> OnAddBibleText { get; set; }
+
+    private enum Tab { Song, BibleText, Image }
+
+    private const int MaxBibleResults = 20;
+
+    private Tab activeTab = Tab.BibleText;
+    private ElementReference bibleSearchInput;
+
+    private string bibleQuery = "";
+    private List<Verse> bibleResults = [];
+    private int bibleTotalCount;
+
+    private void SelectTab(Tab tab)
+    {
+        activeTab = tab;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && activeTab == Tab.BibleText)
+        {
+            await FocusBibleSearch();
+        }
+    }
+
+    private async Task FocusBibleSearch()
+    {
+        try { await bibleSearchInput.FocusAsync(); } catch { /* element may not be rendered yet */ }
+    }
+
+    private void OnBibleSearchInput(ChangeEventArgs e)
+    {
+        bibleQuery = e.Value?.ToString() ?? "";
+
+        if (string.IsNullOrWhiteSpace(bibleQuery))
+        {
+            bibleResults = [];
+            bibleTotalCount = 0;
+            return;
+        }
+
+        var allResults = BibleService.Search(bibleQuery).ToList();
+        bibleTotalCount = allResults.Count;
+        bibleResults = allResults.Take(MaxBibleResults).ToList();
+    }
+
+    private async Task HandleAddBibleText()
+    {
+        await OnAddBibleText.InvokeAsync(bibleResults);
+    }
+
+    private string TabClass(Tab tab)
+    {
+        return activeTab == tab
+            ? "bg-white dark:bg-neutral-600 shadow-sm font-semibold"
+            : "hover:bg-neutral-200 dark:hover:bg-neutral-600";
+    }
+
+    private static string Truncate(string text, int maxLength)
+    {
+        return text.Length <= maxLength ? text : text[..maxLength] + "…";
+    }
+}

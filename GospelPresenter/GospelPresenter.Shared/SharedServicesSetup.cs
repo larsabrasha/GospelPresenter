@@ -12,5 +12,6 @@ public static class SharedServicesSetup
         services.AddSingleton<SharedAppState>();
         services.AddSingleton<ISongService, SongService>();
         services.AddSingleton<IImageService, ImageService>();
+        services.AddSingleton<IBibleService, BibleService>();
     }
 }
