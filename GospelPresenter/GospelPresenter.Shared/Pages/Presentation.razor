@@ -12,6 +12,7 @@
 @inject SharedAppState SharedAppState
 @inject ISongService SongService
 @inject IImageService ImageService
+@inject IBibleTextService BibleTextService
 
 @implements IDisposable
 @inject IStatusBarService StatusBarService
@@ -95,6 +96,31 @@
                             </button>
                         }
                     }
+                    else if (SelectedBibleText is not null)
+                    {
+                        @for (var i = 0; i < SelectedBibleText.Parts.Count; i++)
+                        {
+                            var part = SelectedBibleText.Parts[i];
+                            var partIndex = i;
+
+                            var partClass =
+                                SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                                SharedAppState.LiveSlide.ProjectItemId == SelectedBibleText.Id &&
+                                SharedAppState.LiveSlide.ItemPartIndex == i
+                                    ? $"{DefaultClass} {SelectedClass}"
+                                    : $"{DefaultClass} {NotSelectedClass}";
+
+                            <button @onclick="() => SetSelectedLiveSlide(SelectedBibleText.Id, partIndex)" class="p-3-">
+                                <Slide
+                                    Class="@partClass"
+                                    BaseWidth="@AppState.BaseSlideWidth"
+                                    BaseHeight="@AppState.BaseSlideHeight"
+                                    Scale="@slideScale">
+                                    @((MarkupString)part)
+                                </Slide>
+                            </button>
+                        }
+                    }
                     else if (SelectedImage is not null)
                     {
                         var partClass =
@@ -164,6 +190,7 @@
     [Parameter] public string? PresentationId { get; set; }
 
     private Song? SelectedSong { get; set; }
+    private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
     private bool showAddModal;
 
@@ -204,6 +231,7 @@
     private void GetDataForSelectedItem()
     {
         SelectedSong = null;
+        SelectedBibleText = null;
         SelectedImage = null;
 
         switch (AppState.SelectedProjectItem?.Type)
@@ -212,6 +240,7 @@
                 SelectedSong = SongService.GetSongById(AppState.SelectedProjectItem.Id);
                 break;
             case ProjectItemType.BibleText:
+                SelectedBibleText = BibleTextService.GetById(AppState.SelectedProjectItem.Id);
                 break;
             case ProjectItemType.Image:
                 SelectedImage = ImageService.GetImageById(AppState.SelectedProjectItem.Id);
@@ -263,7 +292,16 @@
                 break;
             }
             case ProjectItemType.BibleText:
+            {
+                var bibleText = BibleTextService.GetById(projectItem.Id);
+                if (bibleText is not null && partIndex < bibleText.Parts.Count)
+                {
+                    text = bibleText.Parts[partIndex];
+                    credits = bibleText.Title;
+                }
+
                 break;
+            }
             default:
                 return;
         }
@@ -292,7 +330,17 @@
     private void HandleBibleVersesAdded(List<Verse> verses)
     {
         showAddModal = false;
-        // TODO: Add bible text item to project
+
+        var bibleText = BibleTextService.Create(verses);
+        var projectItem = new ProjectItem
+        {
+            Id = bibleText.Id,
+            Type = ProjectItemType.BibleText,
+            Title = bibleText.Title
+        };
+
+        AppState.SelectedProject?.Items.Add(projectItem);
+        AppState.SelectedProjectItem = projectItem;
     }
 
 }

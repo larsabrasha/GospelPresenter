@@ -13,5 +13,6 @@ public static class SharedServicesSetup
         services.AddSingleton<ISongService, SongService>();
         services.AddSingleton<IImageService, ImageService>();
         services.AddSingleton<IBibleService, BibleService>();
+        services.AddSingleton<IBibleTextService, BibleTextService>();
     }
 }
