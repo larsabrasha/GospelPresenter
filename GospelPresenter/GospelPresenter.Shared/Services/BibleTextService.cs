@@ -48,7 +48,7 @@ public class BibleTextService : IBibleTextService
     private static List<string> BuildSlides(List<Verse> verses)
     {
         var fullText = string.Join(" ", verses.Select(v =>
-            $"<sup>{v.VerseNumber}</sup>\u00a0{v.Text}"));
+            $"<sup class=\"opacity-40\">{v.VerseNumber}</sup>\u00a0{v.Text}"));
 
         var totalPlainLength = PlainTextLength(fullText);
         var slideCount = Math.Max(1, (int)Math.Ceiling((double)totalPlainLength / MaxCharsPerSlide));
@@ -65,7 +65,7 @@ public class BibleTextService : IBibleTextService
 
             if (plainLength > targetPerSlide && current.Length > 0 && slides.Count < slideCount - 1)
             {
-                slides.Add($"<div>{current}</div>");
+                slides.Add($"<div class=\"text-left\">{current}</div>");
                 current = word;
             }
             else
@@ -75,7 +75,7 @@ public class BibleTextService : IBibleTextService
         }
 
         if (current.Length > 0)
-            slides.Add($"<div>{current}</div>");
+            slides.Add($"<div class=\"text-left\">{current}</div>");
 
         return slides;
     }
