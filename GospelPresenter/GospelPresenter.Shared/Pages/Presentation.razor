@@ -5,6 +5,7 @@
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Components.Presentations.AddItem
 @using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 
@@ -13,6 +14,7 @@
 @inject ISongService SongService
 @inject IImageService ImageService
 @inject IBibleTextService BibleTextService
+@inject IPresentationService PresentationService
 @inject IJSRuntime JsRuntime
 
 @implements IDisposable
@@ -225,6 +227,8 @@
 @code {
     [Parameter] public string? PresentationId { get; set; }
 
+    private string? loadedPresentationId;
+    private Models.Presentation? loadedPresentation;
     private Song? SelectedSong { get; set; }
     private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
@@ -256,10 +260,50 @@
 
     protected override void OnInitialized()
     {
-        GetDataForSelectedItem();
-
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (PresentationId == loadedPresentationId) return;
+        loadedPresentationId = PresentationId;
+
+        await LoadPresentationAsync();
+        GetDataForSelectedItem();
+    }
+
+    private async Task LoadPresentationAsync()
+    {
+        if (PresentationId is null) return;
+
+        loadedPresentation = await PresentationService.GetPresentationByIdAsync(PresentationId);
+        if (loadedPresentation is null)
+        {
+            AppState.SelectedProject = null;
+            AppState.SelectedProjectItem = null;
+            return;
+        }
+
+        AppState.SelectedProject = new Project
+        {
+            Id = loadedPresentation.Id,
+            Name = loadedPresentation.Name,
+            Items = loadedPresentation.Items.Select(item => new ProjectItem
+            {
+                Id = item.Id,
+                Type = item.Type switch
+                {
+                    PresentationItemType.Song => ProjectItemType.Song,
+                    PresentationItemType.BibleText => ProjectItemType.BibleText,
+                    PresentationItemType.Image => ProjectItemType.Image,
+                    _ => ProjectItemType.Song
+                },
+                Title = item.Title
+            }).ToList()
+        };
+
+        AppState.SelectedProjectItem = null;
     }
 
     public void Dispose()
@@ -299,7 +343,15 @@
                 SongCredits = FormatSongCredits(SelectedSong);
                 break;
             case ProjectItemType.BibleText:
-                SelectedBibleText = BibleTextService.GetById(AppState.SelectedProjectItem.Id);
+                var dbItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                if (dbItem is not null)
+                {
+                    SelectedBibleText = new BibleText(
+                        dbItem.Id,
+                        dbItem.Title,
+                        dbItem.Parts.Select(p => p.Content).ToList()
+                    );
+                }
                 break;
             case ProjectItemType.Image:
                 SelectedImage = ImageService.GetImageById(AppState.SelectedProjectItem.Id);
@@ -341,11 +393,11 @@
             }
             case ProjectItemType.BibleText:
             {
-                var bibleText = BibleTextService.GetById(projectItem.Id);
-                if (bibleText is not null && partIndex < bibleText.Parts.Count)
+                var bibleItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
+                if (bibleItem is not null && partIndex < bibleItem.Parts.Count)
                 {
-                    text = bibleText.Parts[partIndex];
-                    credits = bibleText.Title;
+                    text = bibleItem.Parts[partIndex].Content;
+                    credits = bibleItem.Title;
                 }
 
                 break;
@@ -389,7 +441,7 @@
         return parts.Count > 0 ? string.Join(" · ", parts) : null;
     }
 
-    private void HandleBibleVersesAdded(List<Verse> verses)
+    private async Task HandleBibleVersesAdded(List<Verse> verses)
     {
         showAddModal = false;
 
@@ -401,8 +453,30 @@
             Title = bibleText.Title
         };
 
+        var presentationItem = new PresentationItem
+        {
+            Id = bibleText.Id,
+            Type = PresentationItemType.BibleText,
+            Title = bibleText.Title
+        };
+
+        foreach (var (part, index) in bibleText.Parts.Select((p, i) => (p, i)))
+        {
+            presentationItem.Parts.Add(new PresentationItemPart
+            {
+                Content = part,
+                SortOrder = index
+            });
+        }
+
+        loadedPresentation?.Items.Add(presentationItem);
         AppState.SelectedProject?.Items.Add(projectItem);
         AppState.SelectedProjectItem = projectItem;
+
+        if (PresentationId is not null)
+        {
+            await PresentationService.AddItemAsync(PresentationId, presentationItem);
+        }
     }
 
 }

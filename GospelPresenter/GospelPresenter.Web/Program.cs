@@ -59,6 +59,8 @@ try
     builder.Services.AddDbContextFactory<PresentationContext>(opt =>
         opt.UseNpgsql(builder.Configuration.GetConnectionString("postgresdb")));
 
+    builder.Services.AddScoped<IPresentationService, PresentationService>();
+
 #if !DEBUG
 builder.Services.AddMetricServer(options =>
 {

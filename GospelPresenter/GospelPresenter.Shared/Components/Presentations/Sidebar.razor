@@ -1,9 +1,11 @@
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 
 @inject AppState AppState
 @inject IJSRuntime JsRuntime
+@inject IPresentationService PresentationService
 
 @implements IDisposable
 
@@ -29,7 +31,25 @@
         }
         else
         {
-            <div class="my-4 font-semibold text-lg px-1">@AppState.SelectedProject.Name</div>
+            @if (isEditingName)
+            {
+                <div class="my-4 px-1">
+                    <input @ref="nameInput"
+                           type="text"
+                           class="w-full px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-lg"
+                           @bind="editName"
+                           @onblur="SaveNameAsync"
+                           @onkeydown="OnNameKeyDown"/>
+                </div>
+            }
+            else
+            {
+                <button class="my-4 font-semibold text-lg px-1 cursor-pointer hover:text-sky-500 text-left"
+                        @onclick="StartEditingName"
+                        title="Klicka för att byta namn">
+                    @AppState.SelectedProject.Name
+                </button>
+            }
 
             @foreach (var item in AppState.SelectedProject.Items)
             {
@@ -74,6 +94,10 @@
 
     [Parameter] public EventCallback OnAddRequested { get; set; }
 
+    private bool isEditingName;
+    private string editName = "";
+    private ElementReference nameInput;
+
     protected override void OnInitialized()
     {
         AppState.PropertyChanged += OnPropertyChanged;
@@ -105,6 +129,44 @@
     private async Task OnAddClicked()
     {
         await OnAddRequested.InvokeAsync();
+    }
+
+    private void StartEditingName()
+    {
+        editName = AppState.SelectedProject?.Name ?? "";
+        isEditingName = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (isEditingName)
+        {
+            try { await nameInput.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveNameAsync();
+        }
+        else if (e.Key == "Escape")
+        {
+            isEditingName = false;
+        }
+    }
+
+    private async Task SaveNameAsync()
+    {
+        isEditingName = false;
+        var trimmed = editName.Trim();
+
+        if (AppState.SelectedProject is null || string.IsNullOrWhiteSpace(trimmed) || trimmed == AppState.SelectedProject.Name)
+            return;
+
+        AppState.SelectedProject.Name = trimmed;
+        await PresentationService.RenamePresentationAsync(AppState.SelectedProject.Id, trimmed);
     }
 
 }
