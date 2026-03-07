@@ -167,6 +167,10 @@
                             {
                                 @((MarkupString)SharedAppState.LiveSlide.Text)
                             }
+                            else if (isLiveActive && SharedAppState.LiveSlide.ImageUrl is not null)
+                            {
+                                <img src="@SharedAppState.LiveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
+                            }
                         </Slide>
 
                         @{
