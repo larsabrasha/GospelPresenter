@@ -1,0 +1,22 @@
+@using GospelPresenter.Shared.Services
+
+<div class="flex flex-col gap-1.5 text-sm flex-1 min-h-0 overflow-y-auto">
+    @foreach (var verse in Results)
+    {
+        <div class="px-3 py-2 rounded-lg text-left bg-neutral-50 dark:bg-neutral-700/50">
+            <span class="text-sky-500 font-semibold whitespace-nowrap">@BibleBookNames.GetSwedishName(verse.BookId) @verse.Chapter:@verse.VerseNumber</span>
+            <span class="text-neutral-700 dark:text-neutral-300 ml-1">@verse.Text</span>
+        </div>
+    }
+    @if (TotalCount > Results.Count)
+    {
+        <div class="text-center text-neutral-400 text-xs py-1">
+            Visar @Results.Count av @TotalCount verser
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<Verse> Results { get; set; } = [];
+    [Parameter] public int TotalCount { get; set; }
+}

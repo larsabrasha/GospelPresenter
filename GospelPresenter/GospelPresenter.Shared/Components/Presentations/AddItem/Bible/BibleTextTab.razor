@@ -57,7 +57,7 @@ else
             @if (results.Count > 0)
             {
                 <div class="mt-3 flex-1 min-h-0 flex flex-col">
-                    <BibleSearchResults Results="results" TotalCount="totalCount" OnSelectionChanged="OnSearchSelectionChanged"/>
+                    <BibleSearchResults Results="results" TotalCount="totalCount"/>
                 </div>
             }
             else if (!string.IsNullOrWhiteSpace(query))
@@ -109,8 +109,6 @@ else
     private string query = "";
     private List<Verse> results = [];
     private int totalCount;
-    private string searchSelectionLabel = "";
-    private List<Verse> searchSelectedVerses = [];
 
     // Browse state
     private string? browseBook;
@@ -121,7 +119,7 @@ else
 
     private string AddLabel => browseSelectedVerses.Count > 0
         ? browseSelectionLabel
-        : searchSelectionLabel;
+        : FormatSearchLabel();
 
     protected override void OnInitialized()
     {
@@ -172,8 +170,6 @@ else
         query = "";
         results = [];
         totalCount = 0;
-        searchSelectionLabel = "";
-        searchSelectedVerses = [];
     }
 
     private void PerformSearch()
@@ -182,8 +178,6 @@ else
         {
             results = [];
             totalCount = 0;
-            searchSelectionLabel = "";
-            searchSelectedVerses = [];
             return;
         }
 
@@ -192,10 +186,17 @@ else
         results = allResults.Count > MaxResults ? allResults.Take(MaxResults).ToList() : allResults;
     }
 
-    private void OnSearchSelectionChanged(BibleSearchResults.SelectionState state)
+    private string FormatSearchLabel()
     {
-        searchSelectionLabel = state.Label;
-        searchSelectedVerses = state.Verses;
+        if (results.Count == 0) return "";
+        var first = results[0];
+        var last = results[^1];
+        var bookName = BibleBookNames.GetSwedishName(first.BookId);
+        if (first.Chapter == last.Chapter && first.VerseNumber == last.VerseNumber)
+            return $"{bookName} {first.Chapter}:{first.VerseNumber}";
+        if (first.Chapter == last.Chapter)
+            return $"{bookName} {first.Chapter}:{first.VerseNumber}-{last.VerseNumber}";
+        return $"{bookName} {first.Chapter}:{first.VerseNumber} - {last.Chapter}:{last.VerseNumber}";
     }
 
     private void StartBrowse(string bookId)
@@ -223,10 +224,6 @@ else
         if (browseSelectedVerses.Count > 0)
         {
             await OnAdd.InvokeAsync(browseSelectedVerses);
-        }
-        else if (searchSelectedVerses.Count > 0)
-        {
-            await OnAdd.InvokeAsync(searchSelectedVerses);
         }
         else if (results.Count > 0)
         {
