@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Prometheus;
+using GospelPresenter.Web.Configuration;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -24,6 +25,8 @@ try
     builder.Host.UseSerilog((hostBuilderContext, loggerConfiguration) => loggerConfiguration
         .ReadFrom.Configuration(hostBuilderContext.Configuration)
     );
+
+    builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
 
     if (builder.Environment.IsProduction())
     {
@@ -64,6 +67,13 @@ builder.Services.AddMetricServer(options =>
 #endif
 
     var app = builder.Build();
+
+    var biblesPath = app.Configuration.GetSection("Settings:BiblesPath").Value;
+    if (!string.IsNullOrEmpty(biblesPath))
+    {
+        var bibleService = app.Services.GetRequiredService<IBibleService>();
+        bibleService.LoadBibles(biblesPath);
+    }
 
     app.MapDefaultEndpoints();
 

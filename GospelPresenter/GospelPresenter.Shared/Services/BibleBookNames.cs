@@ -151,6 +151,71 @@ public static class BibleBookNames
         ["uppenbarelseboken"] = "REV", ["upp"] = "REV", ["upb"] = "REV",
     }.ToFrozenDictionary();
 
+    private static readonly FrozenDictionary<string, string> SwedishNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["GEN"] = "1 Moseboken", ["EXO"] = "2 Moseboken", ["LEV"] = "3 Moseboken",
+        ["NUM"] = "4 Moseboken", ["DEU"] = "5 Moseboken", ["JOS"] = "Josua",
+        ["JDG"] = "Domarboken", ["RUT"] = "Rut", ["1SA"] = "1 Samuel",
+        ["2SA"] = "2 Samuel", ["1KI"] = "1 Kungaboken", ["2KI"] = "2 Kungaboken",
+        ["1CH"] = "1 Krönikeboken", ["2CH"] = "2 Krönikeboken", ["EZR"] = "Esra",
+        ["NEH"] = "Nehemja", ["EST"] = "Ester", ["JOB"] = "Job",
+        ["PSA"] = "Psaltaren", ["PRO"] = "Ordspråksboken", ["ECC"] = "Predikaren",
+        ["SNG"] = "Höga visan", ["ISA"] = "Jesaja", ["JER"] = "Jeremia",
+        ["LAM"] = "Klagovisorna", ["EZK"] = "Hesekiel", ["DAN"] = "Daniel",
+        ["HOS"] = "Hosea", ["JOL"] = "Joel", ["AMO"] = "Amos",
+        ["OBA"] = "Obadja", ["JON"] = "Jona", ["MIC"] = "Mika",
+        ["NAM"] = "Nahum", ["HAB"] = "Habackuk", ["ZEP"] = "Sefanja",
+        ["HAG"] = "Haggaj", ["ZEC"] = "Sakarja", ["MAL"] = "Malaki",
+        ["MAT"] = "Matteus", ["MRK"] = "Markus", ["LUK"] = "Lukas",
+        ["JHN"] = "Johannes", ["ACT"] = "Apostlagärningarna", ["ROM"] = "Romarbrevet",
+        ["1CO"] = "1 Korintierbrevet", ["2CO"] = "2 Korintierbrevet",
+        ["GAL"] = "Galaterbrevet", ["EPH"] = "Efesierbrevet",
+        ["PHP"] = "Filipperbrevet", ["COL"] = "Kolosserbrevet",
+        ["1TH"] = "1 Thessalonikerbrevet", ["2TH"] = "2 Thessalonikerbrevet",
+        ["1TI"] = "1 Timoteusbrevet", ["2TI"] = "2 Timoteusbrevet",
+        ["TIT"] = "Titus", ["PHM"] = "Filemon", ["HEB"] = "Hebreerbrevet",
+        ["JAS"] = "Jakobsbrevet", ["1PE"] = "1 Petrusbrevet", ["2PE"] = "2 Petrusbrevet",
+        ["1JN"] = "1 Johannesbrevet", ["2JN"] = "2 Johannesbrevet",
+        ["3JN"] = "3 Johannesbrevet", ["JUD"] = "Judasbrevet",
+        ["REV"] = "Uppenbarelseboken",
+    }.ToFrozenDictionary();
+
+    private static readonly FrozenDictionary<string, int> BookOrder = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["GEN"] = 1, ["EXO"] = 2, ["LEV"] = 3, ["NUM"] = 4, ["DEU"] = 5,
+        ["JOS"] = 6, ["JDG"] = 7, ["RUT"] = 8, ["1SA"] = 9, ["2SA"] = 10,
+        ["1KI"] = 11, ["2KI"] = 12, ["1CH"] = 13, ["2CH"] = 14, ["EZR"] = 15,
+        ["NEH"] = 16, ["EST"] = 17, ["JOB"] = 18, ["PSA"] = 19, ["PRO"] = 20,
+        ["ECC"] = 21, ["SNG"] = 22, ["ISA"] = 23, ["JER"] = 24, ["LAM"] = 25,
+        ["EZK"] = 26, ["DAN"] = 27, ["HOS"] = 28, ["JOL"] = 29, ["AMO"] = 30,
+        ["OBA"] = 31, ["JON"] = 32, ["MIC"] = 33, ["NAM"] = 34, ["HAB"] = 35,
+        ["ZEP"] = 36, ["HAG"] = 37, ["ZEC"] = 38, ["MAL"] = 39,
+        ["MAT"] = 40, ["MRK"] = 41, ["LUK"] = 42, ["JHN"] = 43, ["ACT"] = 44,
+        ["ROM"] = 45, ["1CO"] = 46, ["2CO"] = 47, ["GAL"] = 48, ["EPH"] = 49,
+        ["PHP"] = 50, ["COL"] = 51, ["1TH"] = 52, ["2TH"] = 53, ["1TI"] = 54,
+        ["2TI"] = 55, ["TIT"] = 56, ["PHM"] = 57, ["HEB"] = 58, ["JAS"] = 59,
+        ["1PE"] = 60, ["2PE"] = 61, ["1JN"] = 62, ["2JN"] = 63, ["3JN"] = 64,
+        ["JUD"] = 65, ["REV"] = 66,
+    }.ToFrozenDictionary();
+
+    public static int GetOrder(string bookCode) =>
+        BookOrder.GetValueOrDefault(bookCode, int.MaxValue);
+
+    private static readonly FrozenSet<string> OldTestamentBooks = ((string[])
+    [
+        "GEN", "EXO", "LEV", "NUM", "DEU", "JOS", "JDG", "RUT",
+        "1SA", "2SA", "1KI", "2KI", "1CH", "2CH", "EZR", "NEH", "EST",
+        "JOB", "PSA", "PRO", "ECC", "SNG",
+        "ISA", "JER", "LAM", "EZK", "DAN",
+        "HOS", "JOL", "AMO", "OBA", "JON", "MIC", "NAM", "HAB", "ZEP", "HAG", "ZEC", "MAL",
+    ]).ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+    public static string GetSwedishName(string bookCode) =>
+        SwedishNames.GetValueOrDefault(bookCode.ToUpperInvariant()) ?? bookCode;
+
+    public static bool IsOldTestament(string bookCode) =>
+        OldTestamentBooks.Contains(bookCode);
+
     /// <summary>
     /// Resolves a book name, abbreviation, or code to a USX book code.
     /// Tries exact match first, then prefix match on aliases, then prefix match on book codes.

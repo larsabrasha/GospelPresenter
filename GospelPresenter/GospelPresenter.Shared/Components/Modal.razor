@@ -1,9 +1,9 @@
 <dialog @ref="dialogRef"
-        class="animated top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-3xl shadow-lg w-full relative backdrop:bg-black/30 p-0 overflow-hidden @Class"
+        class="animated top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-3xl shadow-lg w-full relative backdrop:bg-black/30 p-0 overflow-hidden text-neutral-900 dark:text-neutral-100 @Class"
         @oncancel="HandleOnCloseAsync"
         @oncancel:preventDefault="true"
-        @onclick="HandleOnCloseAsync">
-    <div class="rounded-3xl" @onclick:stopPropagation="true">
+        @onmousedown="HandleOnCloseAsync">
+    <div class="rounded-3xl" @onmousedown:stopPropagation="true">
         <button class="absolute top-3 right-3 z-10 size-8 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer text-neutral-500"
                 @onclick="HandleOnCloseAsync">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
@@ -14,7 +14,7 @@
             <h5>@Title</h5>
         </div>
 
-        <div class="px-4 overflow-y-auto h-[40svh]">
+        <div class="px-4 h-[40svh] flex flex-col">
             @Body
         </div>
 

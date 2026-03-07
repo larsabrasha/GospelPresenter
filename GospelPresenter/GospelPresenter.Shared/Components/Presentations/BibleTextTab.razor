@@ -2,44 +2,216 @@
 
 @inject IBibleService BibleService
 
-<input type="text"
-       @ref="searchInput"
-       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
-       placeholder="T.ex. Matt 3:15-17 eller Joh 3:16"
-       @oninput="OnSearchInput"/>
-
-@if (results.Count > 0)
+@if (BibleService.Bibles.Count == 0)
 {
-    <div class="flex flex-col gap-1 text-sm">
-        @foreach (var verse in results)
-        {
-            <div class="px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-700/50">
-                <span class="text-sky-500 font-semibold whitespace-nowrap">@verse.BookId @verse.Chapter:@verse.VerseNumber</span>
-                <span class="text-neutral-700 dark:text-neutral-300 ml-1">@Truncate(verse.Text, 120)</span>
-            </div>
-        }
-        @if (totalCount > MaxResults)
-        {
-            <div class="text-center text-neutral-400 text-xs py-1">
-                Visar @MaxResults av @totalCount verser
-            </div>
-        }
+    <div class="text-center text-neutral-400 text-sm py-8">
+        Ingen bibel laddad
     </div>
 }
-else if (!string.IsNullOrWhiteSpace(query))
+else
 {
-    <div class="text-center text-neutral-400 text-sm py-2">
-        Inga verser hittades
-    </div>
-}
+    <div class="flex flex-col h-full">
+        @* Fixed top: search or back + reference bar + instructions *@
+        <div class="shrink-0">
+            @if (browseBook is null)
+            {
+                <div class="flex gap-2">
+                    <div class="flex-1 relative">
+                        <input type="text"
+                               @ref="searchInput"
+                               class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "pr-9")"
+                               placeholder="Sök bibeltext..."
+                               value="@query"
+                               @oninput="OnSearchInput"/>
+                        @if (!string.IsNullOrEmpty(query))
+                        {
+                            <button class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
+                                    @onclick="ClearSearch">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        }
+                    </div>
 
-@if (results.Count > 0)
-{
-    <div class="flex justify-end mt-4">
-        <button class="px-4 py-2 rounded-xl text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
-                @onclick="HandleAdd">
-            Lägg till
-        </button>
+                    <select class="px-3 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm"
+                            @onchange="OnBibleChanged">
+                        @foreach (var bible in BibleService.Bibles)
+                        {
+                            <option value="@bible.Id" selected="@(bible.Id == selectedBibleId)">@bible.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="text-xs text-neutral-400 mt-1 px-3">
+                    T.ex. <span class="text-neutral-500 dark:text-neutral-400">Matt 3:16</span>,
+                    <span class="text-neutral-500 dark:text-neutral-400">Joh 3:15-17</span> eller
+                    <span class="text-neutral-500 dark:text-neutral-400">Ps 23</span>
+                </div>
+            }
+            else
+            {
+                <button class="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer px-3 py-2 mb-2 -ml-1 rounded-lg"
+                        @onclick="GoBack">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+                    </svg>
+                    Tillbaka
+                </button>
+
+                <div class="flex items-center gap-x-0.5 ml-1">
+                    @{
+                        string PartStyle(EditPart part) => "px-2 py-1 rounded-md cursor-pointer " + (editing == part
+                            ? "text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10"
+                            : "text-sky-500 hover:text-sky-600 hover:bg-sky-500/10");
+                    }
+
+                    <button class="@PartStyle(EditPart.Book)"
+                            @onclick="() => SetEditing(EditPart.Book)">
+                        @BibleBookNames.GetSwedishName(browseBook)
+                    </button>
+
+                    @if (startChapter is not null)
+                    {
+                        <button class="@PartStyle(EditPart.StartChapter)"
+                                @onclick="() => SetEditing(EditPart.StartChapter)">@startChapter</button>
+                        <span class="text-neutral-400">:</span>
+                        @if (startVerse is not null)
+                        {
+                            <button class="@PartStyle(EditPart.StartVerse)"
+                                    @onclick="() => SetEditing(EditPart.StartVerse)">@startVerse</button>
+                            <span class="text-neutral-400 mx-0.5">&mdash;</span>
+                            @if (endChapter is not null)
+                            {
+                                <button class="@PartStyle(EditPart.EndChapter)"
+                                        @onclick="() => SetEditing(EditPart.EndChapter)">@endChapter</button>
+                                <span class="text-neutral-400">:</span>
+                                @if (endVerse is not null)
+                                {
+                                    <button class="@PartStyle(EditPart.EndVerse)"
+                                            @onclick="() => SetEditing(EditPart.EndVerse)">@endVerse</button>
+                                }
+                                else
+                                {
+                                    <span class="text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10 px-2 py-1 rounded-md">_</span>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <span class="text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10 px-2 py-1 rounded-md">_</span>
+                        }
+                    }
+                </div>
+
+                @if (editing == EditPart.Book)
+                {
+                    <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">V&auml;lj bok</div>
+                }
+                else if (editing is EditPart.StartChapter or EditPart.EndChapter)
+                {
+                    <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">
+                        @(editing == EditPart.StartChapter ? "V\u00e4lj startkapitel" : "V\u00e4lj slutkapitel")
+                    </div>
+                }
+                else if (editing is EditPart.StartVerse or EditPart.EndVerse)
+                {
+                    <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">
+                        @(editing == EditPart.StartVerse ? "V\u00e4lj startvers" : "V\u00e4lj slutvers")
+                    </div>
+                }
+            }
+        </div>
+
+        @* Scrollable middle: picker area *@
+        <div class="flex-1 min-h-0 overflow-y-auto mt-3">
+            @if (results.Count > 0)
+            {
+                <div class="flex flex-col gap-1.5 text-sm">
+                    @foreach (var verse in results)
+                    {
+                        <div class="px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-700/50">
+                            <span class="text-sky-500 font-semibold whitespace-nowrap">@BibleBookNames.GetSwedishName(verse.BookId) @verse.Chapter:@verse.VerseNumber</span>
+                            <span class="text-neutral-700 dark:text-neutral-300 ml-1">@Truncate(verse.Text, 120)</span>
+                        </div>
+                    }
+                    @if (totalCount > MaxResults)
+                    {
+                        <div class="text-center text-neutral-400 text-xs py-1">
+                            Visar @MaxResults av @totalCount verser
+                        </div>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(query))
+            {
+                <div class="text-center text-neutral-400 text-sm py-2">
+                    Inga verser hittades
+                </div>
+            }
+
+            @if (string.IsNullOrWhiteSpace(query))
+            {
+                @if (editing == EditPart.Book)
+                {
+                    <div class="grid grid-cols-2 gap-4 text-sm mt-2">
+                        @foreach (var (label, bookIds) in GetGroupedBooks())
+                        {
+                            <div class="flex flex-col gap-1">
+                                <div class="text-xs font-semibold text-neutral-400 uppercase tracking-wide px-3 mb-1">@label</div>
+                                @foreach (var bookId in bookIds)
+                                {
+                                    <button class="px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer text-left"
+                                            @onclick="() => PickBook(bookId)">
+                                        @BibleBookNames.GetSwedishName(bookId)
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else if (editing is EditPart.StartChapter or EditPart.EndChapter)
+                {
+                    <div class="flex flex-wrap gap-1.5 text-sm">
+                        @foreach (var chapter in BibleService.GetChapters(selectedBibleId, browseBook!))
+                        {
+                            <button class="size-10 flex items-center justify-center rounded-lg bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer"
+                                    @onclick="() => PickChapter(chapter)">
+                                @chapter
+                            </button>
+                        }
+                    </div>
+                }
+                else if (editing is EditPart.StartVerse or EditPart.EndVerse)
+                {
+                    <div class="flex flex-col gap-1.5 text-sm">
+                        @foreach (var verse in chapterVerses)
+                        {
+                            var isSelected = IsVerseSelected(verse.VerseNumber);
+                            var bgClass = isSelected
+                                ? "bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-sky-500/30"
+                                : "bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600";
+
+                            <button class="px-3 py-2 rounded-lg text-left cursor-pointer @bgClass"
+                                    @onclick="() => OnVerseClicked(verse.VerseNumber)">
+                                <span class="font-semibold whitespace-nowrap text-sky-500">@verse.VerseNumber</span>
+                                <span class="ml-1 text-neutral-700 dark:text-neutral-300">@Truncate(verse.Text, 120)</span>
+                            </button>
+                        }
+                    </div>
+                }
+            }
+        </div>
+
+        @* Fixed bottom: add button *@
+        @if (HasCompleteSelection || results.Count > 0)
+        {
+            <div class="shrink-0 flex justify-end pt-4">
+                <button class="px-4 py-2 rounded-xl text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                        @onclick="@(HasCompleteSelection ? HandleBrowseAdd : HandleAdd)">
+                    L&auml;gg till @(HasCompleteSelection ? SelectionLabel : SearchResultLabel)
+                </button>
+            </div>
+        }
     </div>
 }
 
@@ -48,10 +220,70 @@ else if (!string.IsNullOrWhiteSpace(query))
 
     private const int MaxResults = 20;
 
+    private enum EditPart { Book, StartChapter, StartVerse, EndChapter, EndVerse }
+
     private ElementReference searchInput;
+    private string selectedBibleId = "";
+
+    // Search state
     private string query = "";
     private List<Verse> results = [];
     private int totalCount;
+
+    // Browse/selection state
+    private string? browseBook;
+    private int? startChapter;
+    private int? startVerse;
+    private int? endChapter;
+    private int? endVerse;
+    private EditPart editing = EditPart.Book;
+    private List<Verse> chapterVerses = [];
+
+    private bool HasCompleteSelection => startVerse is not null && endVerse is not null;
+
+    private string SearchResultLabel
+    {
+        get
+        {
+            if (results.Count == 0) return "";
+            var first = results[0];
+            var last = results[^1];
+            var bookName = BibleBookNames.GetSwedishName(first.BookId);
+            if (first.Chapter == last.Chapter && first.VerseNumber == last.VerseNumber)
+                return $"{bookName} {first.Chapter}:{first.VerseNumber}";
+            if (first.Chapter == last.Chapter)
+                return $"{bookName} {first.Chapter}:{first.VerseNumber}-{last.VerseNumber}";
+            return $"{bookName} {first.Chapter}:{first.VerseNumber} - {last.Chapter}:{last.VerseNumber}";
+        }
+    }
+
+    private int? ViewingChapter => editing switch
+    {
+        EditPart.StartVerse => startChapter,
+        EditPart.EndVerse => endChapter,
+        _ => null
+    };
+
+    private string SelectionLabel
+    {
+        get
+        {
+            if (browseBook is null || startChapter is null || startVerse is null) return "";
+            var bookName = BibleBookNames.GetSwedishName(browseBook);
+            var ec = endChapter ?? startChapter.Value;
+            var ev = endVerse ?? startVerse.Value;
+            if (ec == startChapter && ev == startVerse)
+                return $"{bookName} {startChapter}:{startVerse}";
+            if (ec == startChapter)
+                return $"{bookName} {startChapter}:{startVerse}-{ev}";
+            return $"{bookName} {startChapter}:{startVerse} - {ec}:{ev}";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        selectedBibleId = BibleService.Bibles.FirstOrDefault()?.Id ?? "";
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -61,10 +293,30 @@ else if (!string.IsNullOrWhiteSpace(query))
         }
     }
 
+    private void OnBibleChanged(ChangeEventArgs e)
+    {
+        selectedBibleId = e.Value?.ToString() ?? "";
+        PerformSearch();
+        ResetAll();
+    }
+
+    // --- Search ---
+
     private void OnSearchInput(ChangeEventArgs e)
     {
         query = e.Value?.ToString() ?? "";
+        PerformSearch();
+    }
 
+    private void ClearSearch()
+    {
+        query = "";
+        results = [];
+        totalCount = 0;
+    }
+
+    private void PerformSearch()
+    {
         if (string.IsNullOrWhiteSpace(query))
         {
             results = [];
@@ -72,7 +324,7 @@ else if (!string.IsNullOrWhiteSpace(query))
             return;
         }
 
-        var allResults = BibleService.Search(query).ToList();
+        var allResults = BibleService.Search(selectedBibleId, query).ToList();
         totalCount = allResults.Count;
         results = allResults.Take(MaxResults).ToList();
     }
@@ -82,8 +334,154 @@ else if (!string.IsNullOrWhiteSpace(query))
         await OnAdd.InvokeAsync(results);
     }
 
+    // --- Browse ---
+
+    private void GoBack()
+    {
+        ResetAll();
+    }
+
+    private void ResetAll()
+    {
+        browseBook = null;
+        startChapter = null;
+        startVerse = null;
+        endChapter = null;
+        endVerse = null;
+        chapterVerses = [];
+        editing = EditPart.Book;
+    }
+
+    private void SetEditing(EditPart part)
+    {
+        editing = part;
+        if (part == EditPart.StartVerse && browseBook is not null && startChapter is not null)
+            chapterVerses = BibleService.GetVerses(selectedBibleId, browseBook, startChapter.Value).ToList();
+        else if (part == EditPart.EndVerse && browseBook is not null && endChapter is not null)
+            chapterVerses = BibleService.GetVerses(selectedBibleId, browseBook, endChapter.Value).ToList();
+    }
+
+    private void PickBook(string bookId)
+    {
+        browseBook = bookId;
+        startChapter = null;
+        startVerse = null;
+        endChapter = null;
+        endVerse = null;
+        editing = EditPart.StartChapter;
+    }
+
+    private void PickChapter(int chapter)
+    {
+        if (editing == EditPart.StartChapter)
+        {
+            startChapter = chapter;
+            startVerse = null;
+            endChapter = null;
+            endVerse = null;
+            chapterVerses = BibleService.GetVerses(selectedBibleId, browseBook!, chapter).ToList();
+            editing = EditPart.StartVerse;
+        }
+        else if (editing == EditPart.EndChapter)
+        {
+            endChapter = chapter;
+            endVerse = null;
+            chapterVerses = BibleService.GetVerses(selectedBibleId, browseBook!, chapter).ToList();
+            editing = EditPart.EndVerse;
+        }
+    }
+
+    private void OnVerseClicked(int verseNumber)
+    {
+        if (editing == EditPart.StartVerse)
+        {
+            startVerse = verseNumber;
+            endChapter = startChapter;
+            endVerse = null;
+            editing = EditPart.EndVerse;
+        }
+        else if (editing == EditPart.EndVerse)
+        {
+            endVerse = verseNumber;
+            EnsureStartBeforeEnd();
+        }
+    }
+
+    private void EnsureStartBeforeEnd()
+    {
+        if (startChapter is null || startVerse is null || endChapter is null || endVerse is null) return;
+        var sc = startChapter.Value;
+        var sv = startVerse.Value;
+        var ec = endChapter.Value;
+        var ev = endVerse.Value;
+        if (ec < sc || (ec == sc && ev < sv))
+        {
+            startChapter = ec;
+            startVerse = ev;
+            endChapter = sc;
+            endVerse = sv;
+        }
+    }
+
+    private bool IsVerseSelected(int verseNumber)
+    {
+        if (startChapter is null || startVerse is null) return false;
+        var ch = ViewingChapter;
+        if (ch is null) return false;
+
+        if (endChapter is null || endVerse is null)
+            return ch == startChapter && verseNumber == startVerse;
+
+        var sc = startChapter.Value;
+        var ec = endChapter.Value;
+
+        if (ch < sc || ch > ec) return false;
+        if (ch == sc && ch == ec) return verseNumber >= startVerse && verseNumber <= endVerse;
+        if (ch == sc) return verseNumber >= startVerse;
+        if (ch == ec) return verseNumber <= endVerse;
+        return true;
+    }
+
+    private List<Verse> GetSelectedVerses()
+    {
+        if (browseBook is null || startChapter is null || startVerse is null) return [];
+
+        var sc = startChapter.Value;
+        var sv = startVerse.Value;
+        var ec = endChapter ?? sc;
+        var ev = endVerse ?? sv;
+
+        var verses = new List<Verse>();
+        for (var ch = sc; ch <= ec; ch++)
+        {
+            var chapterVs = BibleService.GetVerses(selectedBibleId, browseBook, ch);
+            foreach (var v in chapterVs)
+            {
+                if (ch == sc && v.VerseNumber < sv) continue;
+                if (ch == ec && v.VerseNumber > ev) continue;
+                verses.Add(v);
+            }
+        }
+        return verses;
+    }
+
+    private async Task HandleBrowseAdd()
+    {
+        await OnAdd.InvokeAsync(GetSelectedVerses());
+    }
+
+    private IEnumerable<(string Label, List<string> BookIds)> GetGroupedBooks()
+    {
+        var books = BibleService.GetBooks(selectedBibleId);
+        var ot = books.Where(BibleBookNames.IsOldTestament).ToList();
+        var nt = books.Where(b => !BibleBookNames.IsOldTestament(b)).ToList();
+
+        if (ot.Count > 0) yield return ("Gamla testamentet", ot);
+        if (nt.Count > 0) yield return ("Nya testamentet", nt);
+    }
+
     private static string Truncate(string text, int maxLength)
     {
-        return text.Length <= maxLength ? text : text[..maxLength] + "…";
+        return text.Length <= maxLength ? text : text[..maxLength] + "...";
     }
 }

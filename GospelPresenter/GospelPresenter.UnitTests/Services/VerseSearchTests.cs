@@ -158,7 +158,13 @@ public class VerseSearchTests
     public void InvalidQuery_ReturnsEmpty()
     {
         VerseSearch.Search(Verses, "").ShouldBeEmpty();
-        VerseSearch.Search(Verses, "MAT").ShouldBeEmpty();
         VerseSearch.Search(Verses, "MAT abc").ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void BookOnly_ReturnsAllVersesForBook()
+    {
+        var result = VerseSearch.Search(Verses, "MAT").ToList();
+        result.Count.ShouldBe(8);
     }
 }

@@ -16,8 +16,13 @@ namespace GospelPresenter.Shared.Services;
 public static partial class VerseSearch
 {
     // Captures: (book) (fromChapter) (fromVerse)? (toChapterOrVerse)? (toVerse)?
-    [GeneratedRegex(@"^(.+)\s+(\d+)(?::(\d+))?(?:-(\d+)(?::(\d+))?)?$")]
+    // Trailing colon or dash is allowed (e.g. "matt 1:" or "matt 1:2-")
+    [GeneratedRegex(@"^(.+)\s+(\d+)(?::(\d+))?(?:-(\d+)(?::(\d+))?)?[-:]?$")]
     private static partial Regex ReferencePattern();
+
+    // Book-only query (e.g. "ma", "matt")
+    [GeneratedRegex(@"^([a-zA-ZåäöÅÄÖ0-9: ]+?)$")]
+    private static partial Regex BookOnlyPattern();
 
     // Normalizes spaces around ":" and "-" so the main regex doesn't need to handle them
     [GeneratedRegex(@"\s*([:\-])\s*")]
@@ -57,7 +62,20 @@ public static partial class VerseSearch
 
         var match = ReferencePattern().Match(query);
         if (!match.Success)
-            return false;
+        {
+            // Book-only query: return all verses for the matched book
+            var bookOnly = BookOnlyPattern().Match(query);
+            if (!bookOnly.Success)
+                return false;
+
+            bookPrefix = bookOnly.Groups[1].Value.Trim();
+            if (BibleBookNames.Resolve(bookPrefix) is null)
+                return false;
+
+            from = (0, 0);
+            to = (int.MaxValue, int.MaxValue);
+            return true;
+        }
 
         bookPrefix = match.Groups[1].Value.Trim();
         var fromChapter = int.Parse(match.Groups[2].Value);
@@ -69,7 +87,11 @@ public static partial class VerseSearch
         if (toNum is null)
         {
             from = (fromChapter, fromVerse ?? 0);
-            to = (fromChapter, fromVerse ?? int.MaxValue);
+            // Trailing dash (e.g. "Matt 3:1-") means from verse to end of chapter
+            if (fromVerse.HasValue && query.EndsWith('-'))
+                to = (fromChapter, int.MaxValue);
+            else
+                to = (fromChapter, fromVerse ?? int.MaxValue);
             return true;
         }
 
