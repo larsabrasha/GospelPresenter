@@ -88,6 +88,7 @@
                             <button @onclick="() => SetSelectedLiveSlide(SelectedSong.Id, partIndex)" class="p-3-">
                                 <Slide
                                     Class="@partClass"
+                                    Credits="@SongCredits"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
                                     Scale="@slideScale">
@@ -113,6 +114,7 @@
                             <button @onclick="() => SetSelectedLiveSlide(SelectedBibleText.Id, partIndex)" class="p-3-">
                                 <Slide
                                     Class="@partClass"
+                                    Credits="@SelectedBibleText.Title"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
                                     Scale="@slideScale">
@@ -190,6 +192,7 @@
     [Parameter] public string? PresentationId { get; set; }
 
     private Song? SelectedSong { get; set; }
+    private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
     private bool showAddModal;
@@ -231,6 +234,7 @@
     private void GetDataForSelectedItem()
     {
         SelectedSong = null;
+        SongCredits = null;
         SelectedBibleText = null;
         SelectedImage = null;
 
@@ -238,6 +242,7 @@
         {
             case ProjectItemType.Song:
                 SelectedSong = SongService.GetSongById(AppState.SelectedProjectItem.Id);
+                SongCredits = FormatSongCredits(SelectedSong);
                 break;
             case ProjectItemType.BibleText:
                 SelectedBibleText = BibleTextService.GetById(AppState.SelectedProjectItem.Id);
@@ -265,18 +270,7 @@
                 if (song is not null && partIndex < song.Parts.Count)
                 {
                     text = song.Parts[partIndex].Replace("\n", "<br>");
-
-                    var creditParts = new List<string?>
-                        {
-                            song.Author,
-                            string.IsNullOrEmpty(song.Publisher)
-                                ? null
-                                : $"© {song.Publisher}",
-                            $"{song.Year}"
-                        }
-                        .OfType<string>()
-                        .ToList();
-                    credits = string.Join(" · ", creditParts);
+                    credits = FormatSongCredits(song);
                 }
 
                 break;
@@ -325,6 +319,20 @@
     private void CloseAddModal()
     {
         showAddModal = false;
+    }
+
+    private static string? FormatSongCredits(Song? song)
+    {
+        if (song is null) return null;
+        var parts = new[]
+            {
+                song.Author,
+                string.IsNullOrEmpty(song.Publisher) ? null : $"© {song.Publisher}",
+                song.Year?.ToString()
+            }
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToList();
+        return parts.Count > 0 ? string.Join(" · ", parts) : null;
     }
 
     private void HandleBibleVersesAdded(List<Verse> verses)

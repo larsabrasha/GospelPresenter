@@ -10,9 +10,15 @@
     class="select-none text-center group @Class"
     style="width: @width; height: @height">
     <div
-        class="origin-top-left text-[85px] flex items-center justify-center p-20"
+        class="origin-top-left text-[85px] flex items-center justify-center px-20 pt-20 pb-36 relative"
         style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
         @ChildContent
+        @if (!string.IsNullOrEmpty(Credits))
+        {
+            <div class="absolute bottom-8 left-10 text-[40px] text-white/40 text-left">
+                @Credits
+            </div>
+        }
     </div>
 </div>
 
@@ -22,4 +28,5 @@
     [Parameter] public required int BaseHeight { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Credits { get; set; }
 }
