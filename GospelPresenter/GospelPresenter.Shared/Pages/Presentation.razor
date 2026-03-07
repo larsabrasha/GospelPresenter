@@ -13,6 +13,7 @@
 @inject ISongService SongService
 @inject IImageService ImageService
 @inject IBibleTextService BibleTextService
+@inject IJSRuntime JsRuntime
 
 @implements IDisposable
 @inject IStatusBarService StatusBarService
@@ -44,12 +45,33 @@
                         <span class="text-xl font-semibold">@AppState.SelectedProjectItem?.Title</span>
                     </div>
 
-                    <div class="p-3 pointer-events-auto">
-                        <a href="/live" target="_blank"
-                           class="bg-sky-500 text-white px-4 py-3 rounded-3xl space-x-2 flex items-center hover:bg-sky-600">
-                            <TvSymbol Class="size-5"/>
-                            <div class="shrink-0 text-sm">Presentera</div>
-                        </a>
+                    <div id="live-view-container" class="p-3 pointer-events-auto flex items-center gap-2">
+                        @if (isPresentationActive)
+                        {
+                            <div class="flex items-center gap-2 text-sm font-medium text-red-500">
+                                <span class="size-2 rounded-full bg-red-500 animate-pulse"></span>
+                                Live
+                            </div>
+                            <a href="/live" target="_blank"
+                               class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
+                               title="Stoppa visning">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
+                                    <path fill-rule="evenodd" d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="text-sm font-medium">Stoppa visning</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <a href="/live" target="_blank"
+                               class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
+                               title="Starta visning">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
+                                    <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="text-sm font-medium">Starta visning</span>
+                            </a>
+                        }
                     </div>
                 </div>
 
@@ -208,10 +230,29 @@
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
     private bool showAddModal;
+    private bool isPresentationActive;
 
     private const string DefaultClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer hover:outline-sky-500 hover:drop-shadow-lg hover:drop-shadow-sky-500/40";
     private const string SelectedClass = "outline-sky-500";
     private const string NotSelectedClass = "outline-transparent";
+
+    private DotNetObjectReference<Presentation>? dotNetRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef);
+        }
+    }
+
+    [JSInvokable]
+    public void OnPresentationStateChanged(bool active)
+    {
+        isPresentationActive = active;
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     protected override void OnInitialized()
     {
@@ -225,6 +266,7 @@
     {
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
+        dotNetRef?.Dispose();
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)

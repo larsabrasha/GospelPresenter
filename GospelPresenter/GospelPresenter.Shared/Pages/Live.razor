@@ -21,7 +21,7 @@
     var scale = Math.Min(widthScale, heightScale);
 }
 
-<div class="flex h-full bg-black text-white items-center justify-items-center relative">
+<div class="flex h-full bg-black text-white items-center justify-items-center relative" @onclick="RequestFullscreen">
 
     @{
         var slideClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation ? "opacity-100" : "opacity-0";
@@ -56,12 +56,22 @@
 
 @code {
 
+    private bool fullscreenRequested;
+
     protected override void OnInitialized()
     {
         JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
-            
+        JsRuntime.InvokeVoidAsync("initLiveViewListener");
+
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
+    }
+
+    private async Task RequestFullscreen()
+    {
+        if (fullscreenRequested) return;
+        fullscreenRequested = true;
+        await JsRuntime.InvokeVoidAsync("eval", "document.documentElement.requestFullscreen?.() || document.documentElement.webkitRequestFullscreen?.()");
     }
 
     public void Dispose()
