@@ -209,7 +209,7 @@
     public void Dispose()
     {
         AppState.PropertyChanged -= OnPropertyChanged;
-        SharedAppState.PropertyChanged += OnPropertyChanged;
+        SharedAppState.PropertyChanged -= OnPropertyChanged;
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
