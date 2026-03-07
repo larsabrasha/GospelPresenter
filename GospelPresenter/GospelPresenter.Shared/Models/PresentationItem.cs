@@ -1,0 +1,22 @@
+namespace GospelPresenter.Shared.Models;
+
+public class PresentationItem
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public PresentationItemType Type { get; set; }
+    public string Title { get; set; } = "";
+    public int SortOrder { get; set; }
+    public byte[]? ImageData { get; set; }
+
+    public string PresentationId { get; set; } = "";
+    public Presentation Presentation { get; set; } = null!;
+
+    public List<PresentationItemPart> Parts { get; set; } = [];
+}
+
+public enum PresentationItemType
+{
+    Song,
+    BibleText,
+    Image
+}
