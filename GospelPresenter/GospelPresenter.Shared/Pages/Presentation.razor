@@ -30,7 +30,7 @@
     </div>
     <div
         class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 @menuVisibilityClass">
-        <Sidebar OnAddRequested="OpenAddModal"/>
+        <Sidebar OnAddRequested="@OpenAddModal"/>
     </div>
 
     <div class="bg-neutral-100 dark:bg-neutral-900 grow relative">
@@ -155,7 +155,7 @@
 
 @if (showAddModal)
 {
-    <AddItemModal OnClose="CloseAddModal" OnAddBibleText="HandleBibleVersesAdded"/>
+    <AddItemModal OnClose="@CloseAddModal" OnAddBibleText="@HandleBibleVersesAdded"/>
 }
 
 
