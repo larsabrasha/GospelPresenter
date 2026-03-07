@@ -1,3 +1,37 @@
+window.initSortableList = function (elementId, dotNetRef) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    if (el._sortable) el._sortable.destroy();
+    el._sortable = new Sortable(el, {
+        animation: 150,
+        handle: '.drag-handle',
+        delay: 150,
+        delayOnTouchOnly: true,
+        touchStartThreshold: 5,
+        ghostClass: 'opacity-30',
+        onEnd: function (evt) {
+            if (evt.oldIndex !== evt.newIndex) {
+                // Revert the DOM change — let Blazor handle the reorder via its own rendering
+                var parent = evt.from;
+                if (evt.oldIndex < evt.newIndex) {
+                    parent.insertBefore(evt.item, parent.children[evt.oldIndex]);
+                } else {
+                    parent.insertBefore(evt.item, parent.children[evt.oldIndex + 1]);
+                }
+                dotNetRef.invokeMethodAsync('OnItemReordered', evt.oldIndex, evt.newIndex);
+            }
+        }
+    });
+}
+
+window.destroySortableList = function (elementId) {
+    const el = document.getElementById(elementId);
+    if (el && el._sortable) {
+        el._sortable.destroy();
+        el._sortable = null;
+    }
+}
+
 window.scrollElementToTop = function (elementId) {
     const element = document.getElementById(elementId);
     

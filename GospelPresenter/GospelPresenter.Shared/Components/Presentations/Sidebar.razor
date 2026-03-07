@@ -51,34 +51,50 @@
                 </button>
             }
 
-            @foreach (var item in AppState.SelectedProject.Items)
-            {
-                var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-500 text-white" : "";
-                <button @key="item.Id"
-                        class="rounded-3xl flex w-full space-x-5 px-3 py-3 border-1 border-white dark:border-neutral-800 items-center cursor-pointer hover:bg-sky-500 hover:text-white @itemClass"
-                        @onclick="() => SelectItemAsync(item)">
-                    <div class="size-3">
-                        @switch (item.Type)
-                        {
-                            case ProjectItemType.Song:
-                                <MusicalNoteSymbol Class="size-4"/>
-
-                                break;
-                            case ProjectItemType.BibleText:
-                                <BookOpenSymbol Class="size-4"/>
-
-                                break;
-                            case ProjectItemType.Image:
-                                <PhotoSymbol Class="size-4"/>
-                                break;
-                            default:
-                                <span></span>
-                                break;
-                        }
+            <div id="sidebar-item-list">
+                @foreach (var item in AppState.SelectedProject.Items)
+                {
+                    var isSelected = AppState.SelectedProjectItem?.Id == item.Id;
+                    var itemClass = isSelected ? "bg-sky-500 text-white" : "";
+                    <div @key="item.Id" data-id="@item.Id"
+                         class="rounded-3xl flex w-full px-1 py-1 border-1 border-white dark:border-neutral-800 items-center hover:bg-sky-500 hover:text-white group @itemClass">
+                        <div class="drag-handle cursor-grab active:cursor-grabbing p-2 opacity-30 group-hover:opacity-70 touch-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5"/>
+                            </svg>
+                        </div>
+                        <button class="flex items-center space-x-3 grow cursor-pointer py-2 min-w-0"
+                                @onclick="() => SelectItemAsync(item)">
+                            <div class="size-3 shrink-0">
+                                @switch (item.Type)
+                                {
+                                    case ProjectItemType.Song:
+                                        <MusicalNoteSymbol Class="size-4"/>
+                                        break;
+                                    case ProjectItemType.BibleText:
+                                        <BookOpenSymbol Class="size-4"/>
+                                        break;
+                                    case ProjectItemType.Image:
+                                        <PhotoSymbol Class="size-4"/>
+                                        break;
+                                    default:
+                                        <span></span>
+                                        break;
+                                }
+                            </div>
+                            <div class="text-left truncate">@item.Title</div>
+                        </button>
+                        <button class="p-2 opacity-30 hover:opacity-100 cursor-pointer shrink-0"
+                                title="Ta bort"
+                                @onclick="() => RequestRemoveItem(item)"
+                                @onclick:stopPropagation="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
                     </div>
-                    <div class="text-left">@item.Title </div>
-                </button>
-            }
+                }
+            </div>
 
             <button
                 class="mt-4 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
@@ -90,13 +106,18 @@
     </div>
 </div>
 
+
 @code {
 
     [Parameter] public EventCallback OnAddRequested { get; set; }
+    [Parameter] public EventCallback<ProjectItem> OnRemoveRequested { get; set; }
+    [Parameter] public EventCallback<List<string>> OnItemsReordered { get; set; }
 
     private bool isEditingName;
     private string editName = "";
     private ElementReference nameInput;
+    private DotNetObjectReference<Sidebar>? dotNetRef;
+    private bool sortableInitialized;
 
     protected override void OnInitialized()
     {
@@ -106,6 +127,44 @@
     public void Dispose()
     {
         AppState.PropertyChanged -= OnPropertyChanged;
+        if (sortableInitialized)
+        {
+            _ = JsRuntime.InvokeVoidAsync("destroySortableList", "sidebar-item-list");
+        }
+        dotNetRef?.Dispose();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (isEditingName)
+        {
+            try { await nameInput.FocusAsync(); } catch { }
+        }
+
+        if (AppState.SelectedProject is not null && !sortableInitialized)
+        {
+            dotNetRef ??= DotNetObjectReference.Create(this);
+            await JsRuntime.InvokeVoidAsync("initSortableList", "sidebar-item-list", dotNetRef);
+            sortableInitialized = true;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnItemReordered(int oldIndex, int newIndex)
+    {
+        if (AppState.SelectedProject is null) return;
+
+        var items = AppState.SelectedProject.Items;
+        if (oldIndex < 0 || oldIndex >= items.Count || newIndex < 0 || newIndex >= items.Count) return;
+
+        var item = items[oldIndex];
+        items.RemoveAt(oldIndex);
+        items.Insert(newIndex, item);
+
+        var itemIds = items.Select(x => x.Id).ToList();
+        await OnItemsReordered.InvokeAsync(itemIds);
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -114,6 +173,10 @@
             nameof(AppState.SelectedProject) or
             nameof(AppState.SelectedProjectItem))
         {
+            if (e.PropertyName is nameof(AppState.SelectedProject))
+            {
+                sortableInitialized = false;
+            }
             _ = InvokeAsync(StateHasChanged);
         }
     }
@@ -135,14 +198,6 @@
     {
         editName = AppState.SelectedProject?.Name ?? "";
         isEditingName = true;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (isEditingName)
-        {
-            try { await nameInput.FocusAsync(); } catch { }
-        }
     }
 
     private async Task OnNameKeyDown(KeyboardEventArgs e)
@@ -167,6 +222,11 @@
 
         AppState.SelectedProject.Name = trimmed;
         await PresentationService.RenamePresentationAsync(AppState.SelectedProject.Id, trimmed);
+    }
+
+    private async Task RequestRemoveItem(ProjectItem item)
+    {
+        await OnRemoveRequested.InvokeAsync(item);
     }
 
 }

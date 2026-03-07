@@ -55,7 +55,7 @@ public class BibleTextService : IBibleTextService
         var targetPerSlide = (int)Math.Ceiling((double)totalPlainLength / slideCount);
 
         var slides = new List<string>();
-        var words = fullText.Split(' ');
+        var words = SplitOutsideTags(fullText);
         var current = "";
 
         foreach (var word in words)
@@ -78,6 +78,34 @@ public class BibleTextService : IBibleTextService
             slides.Add($"<div class=\"text-left\">{current}</div>");
 
         return slides;
+    }
+
+    private static List<string> SplitOutsideTags(string html)
+    {
+        var words = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var inTag = false;
+
+        foreach (var c in html)
+        {
+            if (c == '<') inTag = true;
+            else if (c == '>') inTag = false;
+
+            if (c == ' ' && !inTag && current.Length > 0)
+            {
+                words.Add(current.ToString());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+
+        if (current.Length > 0)
+            words.Add(current.ToString());
+
+        return words;
     }
 
     private static int PlainTextLength(string html)

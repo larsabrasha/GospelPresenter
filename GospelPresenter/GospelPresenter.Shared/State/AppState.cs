@@ -16,6 +16,11 @@ public partial class AppState : ObservableObject
     [ObservableProperty] private ProjectItem? selectedProjectItem;
     [ObservableProperty] private int? selectedItemPartIndex;
 
+    public void NotifyProjectChanged()
+    {
+        OnPropertyChanged(nameof(SelectedProject));
+    }
+
     public void Reset()
     {
         SelectedProject = null;

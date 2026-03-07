@@ -35,7 +35,9 @@
     </div>
     <div
         class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 @menuVisibilityClass">
-        <Sidebar OnAddRequested="@OpenAddModal"/>
+        <Sidebar OnAddRequested="@OpenAddModal"
+                 OnRemoveRequested="@ConfirmRemoveItem"
+                 OnItemsReordered="@HandleItemsReordered"/>
     </div>
 
     <div class="bg-neutral-100 dark:bg-neutral-900 grow relative">
@@ -223,12 +225,33 @@
     <AddItemModal OnClose="@CloseAddModal" OnAddBibleText="@HandleBibleVersesAdded"/>
 }
 
+@if (itemToRemove is not null)
+{
+    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelRemove">
+        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4"
+             @onclick:stopPropagation="true">
+            <div class="font-semibold text-lg">Ta bort</div>
+            <div>Vill du ta bort <strong>@itemToRemove.Title</strong>?</div>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CancelRemove">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
+                        @onclick="RemoveItemAsync">
+                    Ta bort
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @code {
     [Parameter] public string? PresentationId { get; set; }
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
+    private ProjectItem? itemToRemove;
     private Song? SelectedSong { get; set; }
     private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
@@ -303,7 +326,11 @@
             }).ToList()
         };
 
-        AppState.SelectedProjectItem = null;
+        var liveItemId = SharedAppState.LiveSlide.ProjectItemId;
+        var activeItem = liveItemId is not null
+            ? AppState.SelectedProject.Items.FirstOrDefault(x => x.Id == liveItemId)
+            : null;
+        AppState.SelectedProjectItem = activeItem;
     }
 
     public void Dispose()
@@ -415,6 +442,54 @@
             Credits = credits,
             ImageUrl = imageUrl
         };
+    }
+
+    private void ConfirmRemoveItem(ProjectItem item)
+    {
+        itemToRemove = item;
+    }
+
+    private void CancelRemove()
+    {
+        itemToRemove = null;
+    }
+
+    private async Task RemoveItemAsync()
+    {
+        if (itemToRemove is null || AppState.SelectedProject is null) return;
+
+        var removedItem = itemToRemove;
+        itemToRemove = null;
+
+        AppState.SelectedProject.Items.Remove(removedItem);
+        loadedPresentation?.Items.RemoveAll(x => x.Id == removedItem.Id);
+
+        if (AppState.SelectedProjectItem?.Id == removedItem.Id)
+        {
+            AppState.SelectedProjectItem = null;
+        }
+
+        AppState.NotifyProjectChanged();
+
+        if (PresentationId is not null)
+        {
+            await PresentationService.RemoveItemAsync(PresentationId, removedItem.Id);
+        }
+    }
+
+    private async Task HandleItemsReordered(List<string> itemIds)
+    {
+        if (loadedPresentation is not null)
+        {
+            loadedPresentation.Items = loadedPresentation.Items
+                .OrderBy(x => itemIds.IndexOf(x.Id))
+                .ToList();
+        }
+
+        if (PresentationId is not null)
+        {
+            await PresentationService.ReorderItemsAsync(PresentationId, itemIds);
+        }
     }
 
     private void OpenAddModal()

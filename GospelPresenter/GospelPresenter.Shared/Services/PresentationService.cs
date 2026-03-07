@@ -11,6 +11,8 @@ public interface IPresentationService
     Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CancellationToken cancellationToken = default);
     Task AddItemAsync(string presentationId, PresentationItem item, CancellationToken cancellationToken = default);
     Task RenamePresentationAsync(string id, string name, CancellationToken cancellationToken = default);
+    Task ReorderItemsAsync(string presentationId, List<string> itemIds, CancellationToken cancellationToken = default);
+    Task RemoveItemAsync(string presentationId, string itemId, CancellationToken cancellationToken = default);
     Task SaveAsync(Presentation presentation, CancellationToken cancellationToken = default);
 }
 
@@ -100,6 +102,33 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.Name, name)
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+    }
+
+    public async Task ReorderItemsAsync(string presentationId, List<string> itemIds, CancellationToken cancellationToken = default)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var items = await context.PresentationItems
+            .Where(x => x.PresentationId == presentationId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in items)
+        {
+            var newIndex = itemIds.IndexOf(item.Id);
+            if (newIndex >= 0)
+                item.SortOrder = newIndex;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveItemAsync(string presentationId, string itemId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        await context.PresentationItems
+            .Where(x => x.PresentationId == presentationId && x.Id == itemId)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     public async Task SaveAsync(Presentation presentation, CancellationToken cancellationToken = default)
