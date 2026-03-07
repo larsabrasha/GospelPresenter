@@ -114,13 +114,12 @@ else
 
     // Browse state
     private string? browseBook;
-    private bool browseHasSelection;
     private string browseSelectionLabel = "";
     private List<Verse> browseSelectedVerses = [];
 
-    private bool ShowAddButton => browseHasSelection || results.Count > 0;
+    private bool ShowAddButton => browseSelectedVerses.Count > 0 || results.Count > 0;
 
-    private string AddLabel => browseHasSelection
+    private string AddLabel => browseSelectedVerses.Count > 0
         ? browseSelectionLabel
         : searchSelectionLabel;
 
@@ -158,7 +157,6 @@ else
         selectedBibleId = e.Value?.ToString() ?? "";
         PerformSearch();
         browseBook = null;
-        browseHasSelection = false;
         browseSelectionLabel = "";
         browseSelectedVerses = [];
     }
@@ -203,7 +201,6 @@ else
     private void StartBrowse(string bookId)
     {
         browseBook = bookId;
-        browseHasSelection = false;
         browseSelectionLabel = "";
         browseSelectedVerses = [];
     }
@@ -211,21 +208,19 @@ else
     private void OnBrowseBack()
     {
         browseBook = null;
-        browseHasSelection = false;
         browseSelectionLabel = "";
         browseSelectedVerses = [];
     }
 
     private void OnBrowseSelectionChanged(BibleBrowsePicker.SelectionState state)
     {
-        browseHasSelection = state.IsComplete;
         browseSelectionLabel = state.Label;
         browseSelectedVerses = state.Verses;
     }
 
     private async Task HandleAdd()
     {
-        if (browseHasSelection && browseSelectedVerses.Count > 0)
+        if (browseSelectedVerses.Count > 0)
         {
             await OnAdd.InvokeAsync(browseSelectedVerses);
         }

@@ -101,7 +101,7 @@
     [Parameter] public EventCallback OnBackClicked { get; set; }
     [Parameter] public EventCallback<SelectionState> OnSelectionChanged { get; set; }
 
-    public record SelectionState(bool IsComplete, string Label, List<Verse> Verses);
+    public record SelectionState(string Label, List<Verse> Verses);
 
     private enum EditPart { Book, StartChapter, StartVerse, EndChapter, EndVerse }
 
@@ -137,8 +137,8 @@
 
     private void NotifySelectionChanged()
     {
-        var state = new SelectionState(HasCompleteSelection, SelectionLabel, HasCompleteSelection ? GetSelectedVerses() : []);
-        OnSelectionChanged.InvokeAsync(state);
+        var verses = HasCompleteSelection ? GetSelectedVerses() : [];
+        OnSelectionChanged.InvokeAsync(new SelectionState(SelectionLabel, verses));
     }
 
     private List<Verse> GetSelectedVerses()
