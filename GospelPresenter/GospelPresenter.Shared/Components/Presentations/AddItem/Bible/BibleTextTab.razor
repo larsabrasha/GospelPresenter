@@ -133,15 +133,6 @@ else
             isMac = await JsRuntime.InvokeAsync<bool>("eval", "navigator.platform.toUpperCase().indexOf('MAC') >= 0");
             StateHasChanged();
         }
-
-        try
-        {
-            if (browseBook is null)
-                await searchInput.FocusAsync();
-            else
-                await container.FocusAsync();
-        }
-        catch { }
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
