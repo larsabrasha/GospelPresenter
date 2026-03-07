@@ -1,0 +1,95 @@
+@using GospelPresenter.Shared.Services
+
+<div class="flex flex-col gap-1.5 text-sm flex-1 min-h-0 overflow-y-auto">
+    @for (var i = 0; i < Results.Count; i++)
+    {
+        var index = i;
+        var verse = Results[index];
+        var isSelected = IsSelected(index);
+        var bgClass = isSelected
+            ? "bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30"
+            : "bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600";
+
+        <button class="px-3 py-2 rounded-lg text-left cursor-pointer @bgClass"
+                @onclick="() => OnClicked(index)">
+            <span class="text-sky-500 font-semibold whitespace-nowrap">@BibleBookNames.GetSwedishName(verse.BookId) @verse.Chapter:@verse.VerseNumber</span>
+            <span class="text-neutral-700 dark:text-neutral-300 ml-1">@verse.Text</span>
+        </button>
+    }
+    @if (TotalCount > Results.Count)
+    {
+        <div class="text-center text-neutral-400 text-xs py-1">
+            Visar @Results.Count av @TotalCount verser
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public List<Verse> Results { get; set; } = [];
+    [Parameter] public int TotalCount { get; set; }
+    [Parameter] public EventCallback<SelectionState> OnSelectionChanged { get; set; }
+
+    public record SelectionState(string Label, List<Verse> Verses);
+
+    private List<Verse> previousResults = [];
+    private int? rangeStart;
+    private int? rangeEnd;
+
+    protected override void OnParametersSet()
+    {
+        if (Results != previousResults)
+        {
+            previousResults = Results;
+            rangeStart = null;
+            rangeEnd = null;
+            NotifySelectionChanged();
+        }
+    }
+
+    private List<Verse> SelectedVerses =>
+        rangeStart is null
+            ? Results
+            : Results.GetRange(rangeStart.Value, (rangeEnd ?? rangeStart.Value) - rangeStart.Value + 1);
+
+    private static string FormatLabel(List<Verse> selected)
+    {
+        if (selected.Count == 0) return "";
+        var first = selected[0];
+        var last = selected[^1];
+        var bookName = BibleBookNames.GetSwedishName(first.BookId);
+        if (first.Chapter == last.Chapter && first.VerseNumber == last.VerseNumber)
+            return $"{bookName} {first.Chapter}:{first.VerseNumber}";
+        if (first.Chapter == last.Chapter)
+            return $"{bookName} {first.Chapter}:{first.VerseNumber}-{last.VerseNumber}";
+        return $"{bookName} {first.Chapter}:{first.VerseNumber} - {last.Chapter}:{last.VerseNumber}";
+    }
+
+    private void NotifySelectionChanged()
+    {
+        var selected = SelectedVerses;
+        OnSelectionChanged.InvokeAsync(new SelectionState(FormatLabel(selected), selected));
+    }
+
+    private void OnClicked(int index)
+    {
+        if (rangeStart is null || rangeEnd is not null)
+        {
+            rangeStart = index;
+            rangeEnd = null;
+        }
+        else
+        {
+            rangeEnd = index;
+            if (rangeEnd < rangeStart)
+                (rangeStart, rangeEnd) = (rangeEnd, rangeStart);
+        }
+        NotifySelectionChanged();
+    }
+
+    private bool IsSelected(int index)
+    {
+        if (rangeStart is null) return false;
+        if (rangeEnd is null) return index == rangeStart;
+        return index >= rangeStart && index <= rangeEnd;
+    }
+}

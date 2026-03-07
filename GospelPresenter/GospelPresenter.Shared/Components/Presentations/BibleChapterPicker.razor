@@ -1,0 +1,21 @@
+@using GospelPresenter.Shared.Services
+
+@inject IBibleService BibleService
+
+<div class="flex-1 min-h-0 overflow-y-auto">
+    <div class="flex flex-wrap gap-1.5 text-sm">
+        @foreach (var chapter in BibleService.GetChapters(BibleId, BookId))
+        {
+            <button class="size-10 flex items-center justify-center rounded-lg bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer"
+                    @onclick="() => OnPicked.InvokeAsync(chapter)">
+                @chapter
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string BibleId { get; set; } = "";
+    [Parameter, EditorRequired] public string BookId { get; set; } = "";
+    [Parameter] public EventCallback<int> OnPicked { get; set; }
+}
