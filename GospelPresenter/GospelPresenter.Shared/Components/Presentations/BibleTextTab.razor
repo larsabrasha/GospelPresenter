@@ -199,7 +199,7 @@ else
                             <button class="px-3 py-2 rounded-lg text-left cursor-pointer @bgClass"
                                     @onclick="() => OnVerseClicked(verse.VerseNumber)">
                                 <span class="font-semibold whitespace-nowrap text-sky-500">@verse.VerseNumber</span>
-                                <span class="ml-1 text-neutral-700 dark:text-neutral-300">@Truncate(verse.Text, 120)</span>
+                                <span class="ml-1 text-neutral-700 dark:text-neutral-300">@verse.Text</span>
                             </button>
                         }
                     </div>
@@ -483,10 +483,5 @@ else
 
         if (ot.Count > 0) yield return ("Gamla testamentet", ot);
         if (nt.Count > 0) yield return ("Nya testamentet", nt);
-    }
-
-    private static string Truncate(string text, int maxLength)
-    {
-        return text.Length <= maxLength ? text : text[..maxLength] + "...";
     }
 }
