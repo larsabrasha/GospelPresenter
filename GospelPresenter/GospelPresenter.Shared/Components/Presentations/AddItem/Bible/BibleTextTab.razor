@@ -17,10 +17,13 @@ else
             <div class="shrink-0">
                 <div class="flex gap-2">
                     <div class="flex-1 relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                        </svg>
                         <input type="text"
                                @ref="searchInput"
-                               class="w-full h-[46px] px-4 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "pr-9")"
-                               placeholder="Sök bibeltext..."
+                               class="w-full h-[46px] pl-10 pr-4 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "!pr-9")"
+                               placeholder="Sök..."
                                value="@query"
                                @oninput="OnSearchInput"/>
                         @if (!string.IsNullOrEmpty(query))
@@ -47,11 +50,8 @@ else
                         </svg>
                     </div>
                 </div>
-                <div class="text-xs text-neutral-400 mt-1 px-3">
-                    T.ex. <span class="text-neutral-500 dark:text-neutral-400">Joh 3:16</span>,
-                    <span class="text-neutral-500 dark:text-neutral-400">Ps 23</span> eller
-                    <span class="text-neutral-500 dark:text-neutral-400">Rom 8:28-30</span>
-                </div>
+
+
             </div>
 
             @if (results.Count > 0)
@@ -63,7 +63,11 @@ else
             else if (!string.IsNullOrWhiteSpace(query))
             {
                 <div class="text-center text-neutral-400 text-sm py-2 mt-3">
-                    Inga verser hittades
+                    <div>Inga verser hittades</div>
+                    <div class="text-xs mt-6">
+                        <div>Sök på bibelställe:</div>
+                        <div class="mt-1 text-neutral-500 dark:text-neutral-400">Joh 3:16 · Ps 23 · Rom 8:28-30</div>
+                    </div>
                 </div>
             }
             else
