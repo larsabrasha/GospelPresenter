@@ -56,10 +56,18 @@ try
     });
     builder.Services.AddLocalization();
 
-    builder.Services.AddDbContextFactory<PresentationContext>(opt =>
-        opt.UseNpgsql(builder.Configuration.GetConnectionString("postgresdb")));
-
-    builder.Services.AddScoped<IPresentationService, PresentationService>();
+    var connectionString = builder.Configuration.GetConnectionString("postgresdb");
+    if (!string.IsNullOrEmpty(connectionString))
+    {
+        builder.Services.AddDbContextFactory<PresentationContext>(opt =>
+            opt.UseNpgsql(connectionString));
+        builder.Services.AddScoped<IPresentationService, PresentationService>();
+    }
+    else
+    {
+        Log.Warning("No database connection string found — using mock presentation service");
+        builder.Services.AddSingleton<IPresentationService, MockPresentationService>();
+    }
 
 #if !DEBUG
 builder.Services.AddMetricServer(options =>
