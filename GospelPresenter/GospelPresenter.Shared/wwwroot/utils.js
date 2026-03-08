@@ -53,7 +53,11 @@ window.setRootElementBackgroundColor = function(color) {
     document.documentElement.style.backgroundColor = color;
 }
 
-window.showModal = function(element) {
+window.showModal = function(element, dotNetRef) {
+    element.addEventListener('cancel', function(e) {
+        e.preventDefault();
+        if (dotNetRef) dotNetRef.invokeMethodAsync('OnCancelFromJs');
+    });
     element.showModal();
 }
 

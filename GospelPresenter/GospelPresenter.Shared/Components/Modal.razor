@@ -1,7 +1,7 @@
+@implements IDisposable
+
 <dialog @ref="dialogRef"
         class="animated top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-3xl shadow-lg w-full relative backdrop:bg-black/30 p-0 overflow-hidden text-neutral-900 dark:text-neutral-100 @Class"
-        @oncancel="HandleOnCloseAsync"
-        @oncancel:preventDefault="true"
         @onmousedown="HandleOnCloseAsync">
     <div class="rounded-3xl" @onmousedown:stopPropagation="true">
         <button class="absolute top-3 right-3 z-10 size-8 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer text-neutral-500"
@@ -36,18 +36,32 @@
     [Inject] private IJSRuntime JsRuntime { get; set; } = default!;
 
     private ElementReference dialogRef;
+    private DotNetObjectReference<Modal>? selfRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await JsRuntime.InvokeVoidAsync("showModal", dialogRef);
+            selfRef = DotNetObjectReference.Create(this);
+            await JsRuntime.InvokeVoidAsync("showModal", dialogRef, selfRef);
         }
+    }
+
+    [JSInvokable]
+    public async Task OnCancelFromJs()
+    {
+        await HandleOnCloseAsync();
+        StateHasChanged();
     }
 
     private async Task HandleOnCloseAsync()
     {
         await JsRuntime.InvokeVoidAsync("closeModal", dialogRef);
         await OnClose.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        selfRef?.Dispose();
     }
 }
