@@ -72,7 +72,7 @@
         }
 
         JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
-        JsRuntime.InvokeVoidAsync("initLiveViewListener");
+        JsRuntime.InvokeVoidAsync("initLiveViewListener", sessionId);
 
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;

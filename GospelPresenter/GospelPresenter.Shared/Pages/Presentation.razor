@@ -288,7 +288,7 @@
         {
             dotNetRef = DotNetObjectReference.Create(this);
             var isActive = SharedAppState.IsPresentationActive(AppState.SessionId);
-            await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef, isActive);
+            await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef, isActive, AppState.SessionId);
         }
     }
 

@@ -89,10 +89,11 @@ window.setupPresentationConnection = function(state, connection, dotNetRef) {
     connection.addEventListener('terminate', onDisconnect);
 }
 
-window.initLiveViewButton = function(containerId, dotNetRef, isActive) {
+window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId) {
     const state = window.presentationState;
     state.dotNetRef = dotNetRef;
     state.isLiveOpen = isActive;
+    state.sessionId = sessionId;
 
     // Try to reconnect to an existing Presentation API session after reload
     const savedPresentationId = sessionStorage.getItem('presentation-id');
@@ -112,10 +113,12 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive) {
     }
 
     window.liveViewChannel.addEventListener('message', function(e) {
-        if (e.data === 'live-opened') {
+        if (e.data?.sessionId !== sessionId) return;
+
+        if (e.data.type === 'live-opened') {
             state.isLiveOpen = true;
             dotNetRef.invokeMethodAsync('OnPresentationStateChanged', true);
-        } else if (e.data === 'live-closed') {
+        } else if (e.data.type === 'live-closed') {
             state.isLiveOpen = false;
             dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
         }
@@ -133,7 +136,7 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive) {
 
         if (state.isLiveOpen) {
             e.preventDefault();
-            window.liveViewChannel.postMessage('close');
+            window.liveViewChannel.postMessage({ type: 'close', sessionId });
             return;
         }
 
@@ -152,19 +155,17 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive) {
     });
 }
 
-window.closeLiveView = function() {
-    window.liveViewChannel.postMessage('close');
-}
-
-window.initLiveViewListener = function() {
-    window.liveViewChannel.postMessage('live-opened');
+window.initLiveViewListener = function(sessionId) {
+    window.liveViewChannel.postMessage({ type: 'live-opened', sessionId });
     window.liveViewChannel.addEventListener('message', function(e) {
-        if (e.data === 'close') {
-            window.liveViewChannel.postMessage('live-closed');
+        if (e.data?.sessionId !== sessionId) return;
+
+        if (e.data.type === 'close') {
+            window.liveViewChannel.postMessage({ type: 'live-closed', sessionId });
             window.close();
         }
     });
     window.addEventListener('beforeunload', function() {
-        window.liveViewChannel.postMessage('live-closed');
+        window.liveViewChannel.postMessage({ type: 'live-closed', sessionId });
     });
 }
