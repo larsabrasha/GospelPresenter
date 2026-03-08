@@ -214,22 +214,51 @@ else
     {
         if (searchTerms.Length == 0) return System.Net.WebUtility.HtmlEncode(text);
 
-        var encoded = System.Net.WebUtility.HtmlEncode(text);
+        var lower = text.ToLowerInvariant();
+
+        // Find all match ranges on the original text
+        var matches = new List<(int Start, int Length)>();
         foreach (var term in searchTerms)
         {
+            var termLower = term.ToLowerInvariant();
             var idx = 0;
-            var encodedTerm = System.Net.WebUtility.HtmlEncode(term);
-            while (idx < encoded.Length)
+            while (idx <= lower.Length - termLower.Length)
             {
-                var match = encoded.IndexOf(encodedTerm, idx, StringComparison.OrdinalIgnoreCase);
+                var match = lower.IndexOf(termLower, idx, StringComparison.Ordinal);
                 if (match < 0) break;
-                var matched = encoded.Substring(match, encodedTerm.Length);
-                var replacement = $"<mark class=\"bg-yellow-300/60 dark:bg-yellow-500/40 text-inherit rounded-sm\">{matched}</mark>";
-                encoded = string.Concat(encoded.AsSpan(0, match), replacement, encoded.AsSpan(match + encodedTerm.Length));
-                idx = match + replacement.Length;
+                matches.Add((match, termLower.Length));
+                idx = match + termLower.Length;
             }
         }
-        return encoded;
+
+        if (matches.Count == 0) return System.Net.WebUtility.HtmlEncode(text);
+
+        // Merge overlapping ranges
+        matches.Sort((a, b) => a.Start.CompareTo(b.Start));
+        var merged = new List<(int Start, int End)> { (matches[0].Start, matches[0].Start + matches[0].Length) };
+        for (var i = 1; i < matches.Count; i++)
+        {
+            var (start, length) = matches[i];
+            var last = merged[^1];
+            if (start <= last.End)
+                merged[^1] = (last.Start, Math.Max(last.End, start + length));
+            else
+                merged.Add((start, start + length));
+        }
+
+        // Build result with mark tags
+        var sb = new System.Text.StringBuilder();
+        var pos = 0;
+        foreach (var (start, end) in merged)
+        {
+            sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..start]));
+            sb.Append("<mark class=\"bg-yellow-300/60 dark:bg-yellow-500/40 text-inherit rounded-sm\">");
+            sb.Append(System.Net.WebUtility.HtmlEncode(text[start..end]));
+            sb.Append("</mark>");
+            pos = end;
+        }
+        sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..]));
+        return sb.ToString();
     }
 
 }
