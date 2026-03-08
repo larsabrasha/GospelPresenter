@@ -1,3 +1,170 @@
-<div class="text-center text-neutral-400 text-sm py-8">
-    Sångsök kommer snart
-</div>
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+
+@inject ISongService SongService
+@inject AppState AppState
+@inject IJSRuntime JsRuntime
+
+@if (SongService.Songs.Count == 0)
+{
+    <div class="text-center text-neutral-400 text-sm py-8">
+        Inga sånger laddade
+    </div>
+}
+else
+{
+    <div class="flex flex-col h-full" @onkeydown="OnKeyDown" tabindex="-1">
+        <div class="shrink-0">
+            <div class="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                </svg>
+                <input type="text"
+                       class="w-full h-[46px] pl-10 pr-4 rounded-xl border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "!pr-9")"
+                       placeholder="Sök..."
+                       value="@query"
+                       @oninput="OnSearchInput"/>
+                @if (!string.IsNullOrEmpty(query))
+                {
+                    <button class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
+                            @onclick="ClearSearch">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="mt-3 flex-1 min-h-0 flex">
+            <div class="w-[40%] min-w-0 overflow-y-auto pr-3">
+                @if (results.Count > 0)
+                {
+                    <Virtualize Items="results" Context="song" ItemSize="56" OverscanCount="5">
+                        @{
+                            var isSelected = selectedSong?.Id == song.Id;
+                        }
+                        <button class="w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm @(isSelected ? "bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30" : "bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600")"
+                                @onclick="() => SelectSong(song)">
+                            <div class="truncate w-full">@song.Name</div>
+                            <div class="text-xs text-neutral-400 truncate w-full">@(string.IsNullOrEmpty(song.Author) ? "\u00a0" : song.Author)</div>
+                        </button>
+                    </Virtualize>
+                }
+                else if (!string.IsNullOrWhiteSpace(query))
+                {
+                    <div class="text-center text-neutral-400 text-sm py-8">
+                        Inga sånger hittades
+                    </div>
+                }
+            </div>
+
+            <div class="w-[60%] min-w-0 overflow-y-scroll overflow-x-hidden pl-3" data-song-preview>
+                @if (selectedSong is not null && previewWidth > 0)
+                {
+                    var previewScale = previewWidth / AppState.BaseSlideWidth;
+                    <div class="mb-2 px-1">
+                        <div class="font-semibold text-sm">@selectedSong.Name</div>
+                        @if (!string.IsNullOrEmpty(selectedSong.Author))
+                        {
+                            <div class="text-xs text-neutral-400">@selectedSong.Author</div>
+                        }
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        @foreach (var part in selectedSong.Parts)
+                        {
+                            var html = part.Replace("\n", "<br>");
+                            <Slide
+                                Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                BaseWidth="@AppState.BaseSlideWidth"
+                                BaseHeight="@AppState.BaseSlideHeight"
+                                Scale="@previewScale">
+                                @((MarkupString)html)
+                            </Slide>
+                        }
+                    </div>
+                }
+                else if (selectedSong is null)
+                {
+                    <div class="flex items-center justify-center h-full text-neutral-400 text-sm">
+                        Välj en sång för att se slides
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (selectedSong is not null)
+        {
+            <div class="shrink-0 flex items-center justify-end gap-3 pt-4">
+                <div class="flex items-center gap-1 text-xs text-neutral-400">
+                    <kbd class="px-1.5 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 font-medium">@(isMac ? "⌘" : "Ctrl")</kbd>
+                    <span>+</span>
+                    <kbd class="px-1.5 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 font-medium">↵</kbd>
+                </div>
+                <button class="px-4 py-2 rounded-xl text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                        @onclick="HandleAdd">
+                    L&auml;gg till @selectedSong.Name
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback<Song> OnAdd { get; set; }
+
+    private string query = "";
+    private List<Song> results = [];
+    private Song? selectedSong;
+    private bool isMac;
+    private double previewWidth;
+
+    protected override void OnInitialized()
+    {
+        results = SongService.Songs.ToList();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isMac = await JsRuntime.InvokeAsync<bool>("eval", "navigator.platform.toUpperCase().indexOf('MAC') >= 0");
+            // Measure available content width: clientWidth minus padding and scrollbar
+            previewWidth = await JsRuntime.InvokeAsync<double>("eval",
+                "((el) => { if(!el) return 0; var s=getComputedStyle(el); return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - 2; })(document.querySelector('[data-song-preview]'))");
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedSong is not null)
+            await HandleAdd();
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        query = e.Value?.ToString() ?? "";
+        results = SongService.Search(query).ToList();
+        selectedSong = null;
+    }
+
+    private void ClearSearch()
+    {
+        query = "";
+        results = SongService.Songs.ToList();
+        selectedSong = null;
+    }
+
+    private void SelectSong(Song song)
+    {
+        selectedSong = selectedSong?.Id == song.Id ? null : song;
+    }
+
+    private async Task HandleAdd()
+    {
+        if (selectedSong is not null)
+            await OnAdd.InvokeAsync(selectedSong);
+    }
+
+}

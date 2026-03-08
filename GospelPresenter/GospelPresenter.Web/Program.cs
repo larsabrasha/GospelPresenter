@@ -85,6 +85,13 @@ builder.Services.AddMetricServer(options =>
         bibleService.LoadBibles(biblesPath);
     }
 
+    var songsPath = app.Configuration.GetSection("Settings:SongsPath").Value;
+    if (!string.IsNullOrEmpty(songsPath))
+    {
+        var songService = app.Services.GetRequiredService<ISongService>();
+        songService.LoadSongs(songsPath);
+    }
+
     app.MapDefaultEndpoints();
 
     app.UseSerilogRequestLogging();

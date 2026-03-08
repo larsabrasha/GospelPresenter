@@ -3,6 +3,7 @@
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Song
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Image
 @using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
 
 <Modal Class="bg-white dark:bg-neutral-800 max-w-2xl" OnClose="@OnClose">
     <Title>
@@ -31,7 +32,7 @@
             @switch (activeTab)
             {
                 case Tab.Song:
-                    <SongTab/>
+                    <SongTab OnAdd="@OnAddSong"/>
                     break;
 
                 case Tab.BibleText:
@@ -49,10 +50,11 @@
 @code {
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<List<Verse>> OnAddBibleText { get; set; }
+    [Parameter] public EventCallback<State.Song> OnAddSong { get; set; }
 
     private enum Tab { Song, BibleText, Image }
 
-    private Tab activeTab = Tab.BibleText;
+    private Tab activeTab = Tab.Song;
 
     private string TabClass(Tab tab)
     {

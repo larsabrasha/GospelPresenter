@@ -236,7 +236,7 @@
 
 @if (showAddModal)
 {
-    <AddItemModal OnClose="@CloseAddModal" OnAddBibleText="@HandleBibleVersesAdded"/>
+    <AddItemModal OnClose="@CloseAddModal" OnAddBibleText="@HandleBibleVersesAdded" OnAddSong="@HandleSongAdded"/>
 }
 
 @if (itemToRemove is not null)
@@ -390,6 +390,19 @@
         {
             case ProjectItemType.Song:
                 SelectedSong = SongService.GetSongById(AppState.SelectedProjectItem.Id);
+                if (SelectedSong is null)
+                {
+                    var songItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                    if (songItem is not null)
+                    {
+                        SelectedSong = new Song(
+                            songItem.Id,
+                            songItem.Title,
+                            null, null, null, null,
+                            songItem.Parts.Select(p => p.Content).ToList()
+                        );
+                    }
+                }
                 SongCredits = FormatSongCredits(SelectedSong);
                 break;
             case ProjectItemType.BibleText:
@@ -423,6 +436,15 @@
             case ProjectItemType.Song:
             {
                 var song = SongService.GetSongById(projectItem.Id);
+                if (song is null)
+                {
+                    var songItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
+                    if (songItem is not null)
+                    {
+                        song = new Song(songItem.Id, songItem.Title, null, null, null, null,
+                            songItem.Parts.Select(p => p.Content).ToList());
+                    }
+                }
                 if (song is not null && partIndex < song.Parts.Count)
                 {
                     text = song.Parts[partIndex].Replace("\n", "<br>");
@@ -564,6 +586,43 @@
         };
 
         foreach (var (part, index) in bibleText.Parts.Select((p, i) => (p, i)))
+        {
+            presentationItem.Parts.Add(new PresentationItemPart
+            {
+                Content = part,
+                SortOrder = index
+            });
+        }
+
+        loadedPresentation?.Items.Add(presentationItem);
+        AppState.SelectedProject?.Items.Add(projectItem);
+        AppState.SelectedProjectItem = projectItem;
+
+        if (PresentationId is not null)
+        {
+            await PresentationService.AddItemAsync(PresentationId, presentationItem);
+        }
+    }
+
+    private async Task HandleSongAdded(Song song)
+    {
+        showAddModal = false;
+
+        var projectItem = new ProjectItem
+        {
+            Id = song.Id,
+            Type = ProjectItemType.Song,
+            Title = song.Name
+        };
+
+        var presentationItem = new PresentationItem
+        {
+            Id = song.Id,
+            Type = PresentationItemType.Song,
+            Title = song.Name
+        };
+
+        foreach (var (part, index) in song.Parts.Select((p, i) => (p, i)))
         {
             presentationItem.Parts.Add(new PresentationItemPart
             {
