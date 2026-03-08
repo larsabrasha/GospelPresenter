@@ -12,7 +12,7 @@
     <div
         class="origin-top-left text-[85px] flex items-center justify-center px-20 pt-20 pb-36 relative"
         style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
-        @ChildContent
+        <div>@ChildContent</div>
         @if (!string.IsNullOrEmpty(Credits))
         {
             <div class="absolute bottom-8 left-20 text-[40px] text-white/40 text-left">

@@ -37,7 +37,7 @@ else
         </div>
 
         <div class="mt-3 flex-1 min-h-0 flex">
-            <div class="w-[40%] min-w-0 overflow-y-auto pr-3">
+            <div class="w-[40%] min-w-0 overflow-y-auto pr-3" data-song-list>
                 @if (results.Count > 0)
                 {
                     <Virtualize Items="results" Context="song" ItemSize="56" OverscanCount="5">
@@ -46,8 +46,8 @@ else
                         }
                         <button class="w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm @(isSelected ? "bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30" : "bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600")"
                                 @onclick="() => SelectSong(song)">
-                            <div class="truncate w-full">@song.Name</div>
-                            <div class="text-xs text-neutral-400 truncate w-full">@(string.IsNullOrEmpty(song.Author) ? "\u00a0" : song.Author)</div>
+                            <div class="truncate w-full">@((MarkupString)Highlight(song.Name))</div>
+                            <div class="text-xs text-neutral-400 truncate w-full">@(string.IsNullOrEmpty(song.Author) ? (MarkupString)"\u00a0" : (MarkupString)Highlight(song.Author))</div>
                         </button>
                     </Virtualize>
                 }
@@ -64,16 +64,16 @@ else
                 {
                     var previewScale = previewWidth / AppState.BaseSlideWidth;
                     <div class="mb-2 px-1">
-                        <div class="font-semibold text-sm">@selectedSong.Name</div>
+                        <div class="font-semibold text-sm">@((MarkupString)Highlight(selectedSong.Name))</div>
                         @if (!string.IsNullOrEmpty(selectedSong.Author))
                         {
-                            <div class="text-xs text-neutral-400">@selectedSong.Author</div>
+                            <div class="text-xs text-neutral-400">@((MarkupString)Highlight(selectedSong.Author))</div>
                         }
                     </div>
                     <div class="flex flex-col gap-2">
                         @foreach (var part in selectedSong.Parts)
                         {
-                            var html = part.Replace("\n", "<br>");
+                            var html = Highlight(part).Replace("\n", "<br>");
                             <Slide
                                 Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
                                 BaseWidth="@AppState.BaseSlideWidth"
@@ -114,6 +114,7 @@ else
     [Parameter] public EventCallback<Song> OnAdd { get; set; }
 
     private string query = "";
+    private string[] searchTerms = [];
     private List<Song> results = [];
     private Song? selectedSong;
     private bool isMac;
@@ -139,32 +140,96 @@ else
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedSong is not null)
+        {
             await HandleAdd();
+        }
+        else if (e.Key == "ArrowDown" && results.Count > 0)
+        {
+            var idx = selectedSong is not null ? results.IndexOf(selectedSong) : -1;
+            if (idx < results.Count - 1)
+            {
+                selectedSong = results[idx + 1];
+                await ScrollSelectedIntoView(idx + 1);
+            }
+        }
+        else if (e.Key == "ArrowUp" && results.Count > 0)
+        {
+            var idx = selectedSong is not null ? results.IndexOf(selectedSong) : results.Count;
+            if (idx > 0)
+            {
+                selectedSong = results[idx - 1];
+                await ScrollSelectedIntoView(idx - 1);
+            }
+        }
     }
 
-    private void OnSearchInput(ChangeEventArgs e)
+    private async Task ScrollSelectedIntoView(int index)
+    {
+        // Scroll song list to keep selected item visible
+        await JsRuntime.InvokeVoidAsync("eval",
+            $"((el,i)=>{{if(!el)return;var top=i*56;if(top<el.scrollTop)el.scrollTop=top;else if(top+56>el.scrollTop+el.clientHeight)el.scrollTop=top+56-el.clientHeight}})(document.querySelector('[data-song-list]'),{index})");
+        // Scroll preview to top when changing selection
+        await JsRuntime.InvokeVoidAsync("eval",
+            "document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
     {
         query = e.Value?.ToString() ?? "";
+        searchTerms = string.IsNullOrWhiteSpace(query)
+            ? []
+            : query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         results = SongService.Search(query).ToList();
-        selectedSong = null;
+        selectedSong = results.Count > 0 ? results[0] : null;
+        await ScrollListsToTop();
     }
 
-    private void ClearSearch()
+    private async Task ClearSearch()
     {
         query = "";
+        searchTerms = [];
         results = SongService.Songs.ToList();
-        selectedSong = null;
+        selectedSong = results.Count > 0 ? results[0] : null;
+        await ScrollListsToTop();
+    }
+
+    private async Task ScrollListsToTop()
+    {
+        await JsRuntime.InvokeVoidAsync("eval",
+            "document.querySelector('[data-song-list]')?.scrollTo(0,0);document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
     }
 
     private void SelectSong(Song song)
     {
-        selectedSong = selectedSong?.Id == song.Id ? null : song;
+        selectedSong = song;
     }
 
     private async Task HandleAdd()
     {
         if (selectedSong is not null)
             await OnAdd.InvokeAsync(selectedSong);
+    }
+
+    private string Highlight(string text)
+    {
+        if (searchTerms.Length == 0) return System.Net.WebUtility.HtmlEncode(text);
+
+        var encoded = System.Net.WebUtility.HtmlEncode(text);
+        foreach (var term in searchTerms)
+        {
+            var idx = 0;
+            var encodedTerm = System.Net.WebUtility.HtmlEncode(term);
+            while (idx < encoded.Length)
+            {
+                var match = encoded.IndexOf(encodedTerm, idx, StringComparison.OrdinalIgnoreCase);
+                if (match < 0) break;
+                var matched = encoded.Substring(match, encodedTerm.Length);
+                var replacement = $"<mark class=\"bg-yellow-300/60 dark:bg-yellow-500/40 text-inherit rounded-sm\">{matched}</mark>";
+                encoded = string.Concat(encoded.AsSpan(0, match), replacement, encoded.AsSpan(match + encodedTerm.Length));
+                idx = match + replacement.Length;
+            }
+        }
+        return encoded;
     }
 
 }
