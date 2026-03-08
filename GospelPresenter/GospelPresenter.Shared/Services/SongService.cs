@@ -70,20 +70,20 @@ public class SongService : ISongService
 
         foreach (var term in terms)
         {
-            if (entry.Name.Contains(term))
+            if (entry.Name.Contains(term, StringComparison.Ordinal))
             {
                 score += 10;
                 matchedTerms++;
                 // Bonus if title starts with the term
-                if (entry.Name.StartsWith(term))
+                if (entry.Name.StartsWith(term, StringComparison.Ordinal))
                     score += 5;
             }
-            else if (entry.FirstPart.Contains(term))
+            else if (entry.FirstPart.Contains(term, StringComparison.Ordinal))
             {
                 score += 3;
                 matchedTerms++;
             }
-            else if (entry.AllText.Contains(term))
+            else if (entry.AllText.Contains(term, StringComparison.Ordinal))
             {
                 score += 1;
                 matchedTerms++;

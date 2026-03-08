@@ -114,6 +114,7 @@ else
     private List<Song> results = [];
     private Song? selectedSong;
     private double previewWidth;
+    private CancellationTokenSource? debounceToken;
 
     protected override void OnInitialized()
     {
@@ -177,9 +178,19 @@ else
         searchTerms = string.IsNullOrWhiteSpace(query)
             ? []
             : query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        results = SongService.Search(query).ToList();
-        selectedSong = results.Count > 0 ? results[0] : null;
-        await ScrollListsToTop();
+
+        debounceToken?.Cancel();
+        debounceToken = new CancellationTokenSource();
+        var token = debounceToken.Token;
+
+        try
+        {
+            await Task.Delay(150, token);
+            results = SongService.Search(query).ToList();
+            selectedSong = results.Count > 0 ? results[0] : null;
+            await ScrollListsToTop();
+        }
+        catch (TaskCanceledException) { }
     }
 
     private async Task ClearSearch()
