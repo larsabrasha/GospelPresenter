@@ -3,6 +3,7 @@ namespace GospelPresenter.Shared.Models;
 public class PresentationItem
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string? SourceId { get; set; }
     public PresentationItemType Type { get; set; }
     public string Title { get; set; } = "";
     public int SortOrder { get; set; }

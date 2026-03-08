@@ -106,12 +106,12 @@
                             var partIndex = i;
 
                             var partClass =
-                                liveSlide.ProjectItemId == SelectedSong.Id &&
+                                liveSlide.ProjectItemId == AppState.SelectedProjectItem?.Id &&
                                 liveSlide.ItemPartIndex == i
                                     ? $"{DefaultClass} {SelectedClass}"
                                     : $"{DefaultClass} {NotSelectedClass}";
 
-                            <button @onclick="() => SetSelectedLiveSlide(SelectedSong.Id, partIndex)" class="p-3-">
+                            <button @onclick="() => SetSelectedLiveSlide(AppState.SelectedProjectItem!.Id, partIndex)" class="p-3-">
                                 <Slide
                                     Class="@partClass"
                                     Credits="@SongCredits"
@@ -331,6 +331,7 @@
             Items = loadedPresentation.Items.Select(item => new ProjectItem
             {
                 Id = item.Id,
+                SourceId = item.SourceId,
                 Type = item.Type switch
                 {
                     PresentationItemType.Song => ProjectItemType.Song,
@@ -391,14 +392,17 @@
         switch (AppState.SelectedProjectItem?.Type)
         {
             case ProjectItemType.Song:
-                SelectedSong = SongService.GetSongById(AppState.SelectedProjectItem.Id);
+                var songSourceId = AppState.SelectedProjectItem.SourceId;
+                if (songSourceId is not null)
+                    SelectedSong = SongService.GetSongById(songSourceId);
                 if (SelectedSong is null)
                 {
+                    // Fallback: reconstruct from saved parts (legacy data)
                     var songItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
-                    if (songItem is not null)
+                    if (songItem is not null && songItem.Parts.Count > 0)
                     {
                         SelectedSong = new Song(
-                            songItem.Id,
+                            songItem.SourceId ?? songItem.Id,
                             songItem.Title,
                             null, null, null, null,
                             songItem.Parts.Select(p => p.Content).ToList()
@@ -437,13 +441,16 @@
         {
             case ProjectItemType.Song:
             {
-                var song = SongService.GetSongById(projectItem.Id);
+                Song? song = null;
+                if (projectItem.SourceId is not null)
+                    song = SongService.GetSongById(projectItem.SourceId);
                 if (song is null)
                 {
+                    // Fallback: reconstruct from saved parts (legacy data)
                     var songItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                    if (songItem is not null)
+                    if (songItem is not null && songItem.Parts.Count > 0)
                     {
-                        song = new Song(songItem.Id, songItem.Title, null, null, null, null,
+                        song = new Song(songItem.SourceId ?? songItem.Id, songItem.Title, null, null, null, null,
                             songItem.Parts.Select(p => p.Content).ToList());
                     }
                 }
@@ -633,6 +640,7 @@
         var projectItem = new ProjectItem
         {
             Id = itemId,
+            SourceId = song.Id,
             Type = ProjectItemType.Song,
             Title = song.Name
         };
@@ -640,18 +648,10 @@
         var presentationItem = new PresentationItem
         {
             Id = itemId,
+            SourceId = song.Id,
             Type = PresentationItemType.Song,
             Title = song.Name
         };
-
-        foreach (var (part, index) in song.Parts.Select((p, i) => (p, i)))
-        {
-            presentationItem.Parts.Add(new PresentationItemPart
-            {
-                Content = part,
-                SortOrder = index
-            });
-        }
 
         loadedPresentation?.Items.Add(presentationItem);
         AppState.SelectedProject?.Items.Add(projectItem);

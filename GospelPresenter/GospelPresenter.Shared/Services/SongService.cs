@@ -46,7 +46,7 @@ public class SongService : ISongService
         if (string.IsNullOrWhiteSpace(query))
             return songsSorted;
 
-        var terms = query.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var terms = query.Normalize().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         var scored = new List<(Song Song, double Score)>();
 
@@ -119,9 +119,9 @@ public class SongService : ISongService
 
         searchIndex = songsSorted.Select(song => new SongSearchEntry(
             song,
-            song.Name.ToLowerInvariant(),
-            song.Parts.Count > 0 ? song.Parts[0].ToLowerInvariant() : "",
-            $"{song.Name} {song.Author} {string.Join(" ", song.Parts)}".ToLowerInvariant()
+            song.Name.Normalize().ToLowerInvariant(),
+            song.Parts.Count > 0 ? song.Parts[0].Normalize().ToLowerInvariant() : "",
+            $"{song.Name} {song.Author} {string.Join(" ", song.Parts)}".Normalize().ToLowerInvariant()
         )).ToList();
     }
 

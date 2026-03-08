@@ -93,7 +93,7 @@ public static partial class ProPresenterParser
 
         if (parts.Count == 0) return null;
 
-        var id = Guid.NewGuid().ToString();
+        var id = Path.GetFileNameWithoutExtension(filePath);
         return new Song(id, title, author, publisher, null, ccli?.ToString(), parts);
     }
 

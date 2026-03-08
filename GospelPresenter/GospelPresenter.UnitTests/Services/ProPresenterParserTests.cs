@@ -48,4 +48,18 @@ public class ProPresenterParserTests
         var results = service.Search("förkunnar");
         results.Count.ShouldBeGreaterThan(0);
     }
+
+    [Fact]
+    public void Search_NfdNormalizedTitle_MatchesNfcQuery()
+    {
+        if (SongsPath is null) return;
+
+        var service = new SongService();
+        service.LoadSongs(SongsPath);
+
+        // "välsignel" (NFC) should match "Välsignelsen" even if stored as NFD
+        var results = service.Search("välsignel");
+        results.Count.ShouldBeGreaterThan(0);
+        results.ShouldContain(s => s.Name.Contains("lsignelse"));
+    }
 }
