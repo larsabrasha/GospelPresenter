@@ -192,13 +192,15 @@ public static partial class ProPresenterParser
         }
     }
 
+    private static readonly Encoding Windows1252 = Encoding.GetEncoding(1252);
+
     private static string RtfToPlainText(string rtf)
     {
         // Decode \' hex escapes (Windows-1252)
         var text = HexEscapeRegex().Replace(rtf, m =>
         {
             var b = Convert.ToByte(m.Groups[1].Value, 16);
-            return Encoding.GetEncoding(1252).GetString([b]);
+            return Windows1252.GetString([b]);
         });
 
         // Find content after \pard line
