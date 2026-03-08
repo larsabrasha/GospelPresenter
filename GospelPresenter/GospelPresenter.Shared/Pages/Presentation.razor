@@ -92,8 +92,8 @@
                     var miscSlideScale = AppState.MainViewport is null
                         ? 0.0
                         : AppState.MainViewport.Width < 1024
-                            ? 0.075
-                            : 0.1;
+                            ? 0.1
+                            : 0.14;
                 }
 
                 <div class="mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
@@ -106,7 +106,6 @@
                             var partIndex = i;
 
                             var partClass =
-                                liveSlide.Status == LiveSlideStatus.ShowingPresentation &&
                                 liveSlide.ProjectItemId == SelectedSong.Id &&
                                 liveSlide.ItemPartIndex == i
                                     ? $"{DefaultClass} {SelectedClass}"
@@ -132,7 +131,6 @@
                             var partIndex = i;
 
                             var partClass =
-                                liveSlide.Status == LiveSlideStatus.ShowingPresentation &&
                                 liveSlide.ProjectItemId == SelectedBibleText.Id &&
                                 liveSlide.ItemPartIndex == i
                                     ? $"{DefaultClass} {SelectedClass}"
@@ -153,7 +151,6 @@
                     else if (SelectedImage is not null)
                     {
                         var partClass =
-                            liveSlide.Status == LiveSlideStatus.ShowingPresentation &&
                             liveSlide.ProjectItemId == SelectedImage.Id &&
                             liveSlide.ItemPartIndex == 0
                                 ? $"{DefaultClass} {SelectedClass}"
@@ -180,40 +177,40 @@
                         </button>
                     </div>
 
-                    <div class="flex items-center gap-3 pointer-events-auto ml-auto">
-                        @{
-                            var isLiveActive = liveSlide.Status == LiveSlideStatus.ShowingPresentation;
-                            const string nowPlayingClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 outline-transparent text-white";
-                        }
-                        <Slide Class="@nowPlayingClass"
-                               Credits="@(isLiveActive ? liveSlide.Credits : null)"
-                               BaseWidth="@AppState.BaseSlideWidth"
-                               BaseHeight="@AppState.BaseSlideHeight"
-                               Scale="@miscSlideScale">
-                            @if (isLiveActive && liveSlide.Text is not null)
-                            {
-                                @((MarkupString)liveSlide.Text)
-                            }
-                            else if (isLiveActive && liveSlide.ImageUrl is not null)
-                            {
-                                <img src="@liveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
-                            }
-                        </Slide>
+                    @if (SharedAppState.IsPresentationActive(AppState.SessionId))
+                    {
+                        var isBlackScreen = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
+                        const string previewClass = "bg-black rounded-lg overflow-hidden text-white";
 
-                        @{
-                            var blackScreenActive = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
-                            var blackBtnClass = blackScreenActive
-                                ? "bg-sky-500 text-white"
-                                : "bg-white dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-600";
-                        }
-                        <button @onclick="() => SharedAppState.SelectBlackScreen(AppState.SessionId)"
-                                class="cursor-pointer p-4 rounded-full shadow-lg @blackBtnClass"
-                                title="Svart skärm">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/>
-                            </svg>
-                        </button>
-                    </div>
+                        <div class="pointer-events-auto ml-auto bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 flex flex-col gap-3">
+                            <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">Nu visas</div>
+                            <div class="relative">
+                                <Slide Class="@previewClass"
+                                       Credits="@liveSlide.Credits"
+                                       BaseWidth="@AppState.BaseSlideWidth"
+                                       BaseHeight="@AppState.BaseSlideHeight"
+                                       Scale="@miscSlideScale">
+                                    @if (liveSlide.Text is not null)
+                                    {
+                                        @((MarkupString)liveSlide.Text)
+                                    }
+                                    else if (liveSlide.ImageUrl is not null)
+                                    {
+                                        <img src="@liveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
+                                    }
+                                </Slide>
+                                <div class="absolute inset-0 bg-black rounded-lg transition-opacity duration-500 ease-in-out @(isBlackScreen ? "opacity-100" : "opacity-0 pointer-events-none")"></div>
+                            </div>
+                            <button @onclick="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
+                                    class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-sm text-neutral-600 dark:text-neutral-300"
+                                    title="Visa svart bild">
+                                <span>Visa svart bild</span>
+                                <div class="relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 @(isBlackScreen ? "bg-sky-500" : "bg-neutral-300 dark:bg-neutral-500")">
+                                    <div class="absolute top-0.5 size-4 rounded-full bg-white shadow transition-all duration-200 @(isBlackScreen ? "left-4.5" : "left-0.5")"></div>
+                                </div>
+                            </button>
+                        </div>
+                    }
                 </div>
 
             </div>

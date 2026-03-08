@@ -39,12 +39,14 @@ public partial class SharedAppState : ObservableObject
         OnPropertyChanged(sessionId);
     }
 
-    public void SelectBlackScreen(string sessionId)
+    public void ToggleBlackScreen(string sessionId)
     {
         var current = GetLiveSlide(sessionId);
         SetLiveSlide(sessionId, current with
         {
-            Status = LiveSlideStatus.ShowingBlackScreen
+            Status = current.Status == LiveSlideStatus.ShowingBlackScreen
+                ? LiveSlideStatus.ShowingPresentation
+                : LiveSlideStatus.ShowingBlackScreen
         });
     }
 
