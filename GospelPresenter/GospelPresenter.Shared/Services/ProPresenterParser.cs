@@ -192,17 +192,13 @@ public static partial class ProPresenterParser
         }
     }
 
-    // Windows-1252 bytes 0x80-0x9F that differ from Unicode
-    private static readonly char[] Cp1252Special =
-    [
-        '\u20AC', '\u0081', '\u201A', '\u0192', '\u201E', '\u2026', '\u2020', '\u2021', // 80-87
-        '\u02C6', '\u2030', '\u0160', '\u2039', '\u0152', '\u008D', '\u017D', '\u008F', // 88-8F
-        '\u0090', '\u2018', '\u2019', '\u201C', '\u201D', '\u2022', '\u2013', '\u2014', // 90-97
-        '\u02DC', '\u2122', '\u0161', '\u203A', '\u0153', '\u009D', '\u017E', '\u0178', // 98-9F
-    ];
+    private static readonly Encoding Windows1252 = InitWindows1252();
 
-    private static char DecodeWindows1252(byte b) =>
-        b is >= 0x80 and <= 0x9F ? Cp1252Special[b - 0x80] : (char)b;
+    private static Encoding InitWindows1252()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        return Encoding.GetEncoding(1252);
+    }
 
     private static string RtfToPlainText(string rtf)
     {
@@ -210,7 +206,7 @@ public static partial class ProPresenterParser
         var text = HexEscapeRegex().Replace(rtf, m =>
         {
             var b = Convert.ToByte(m.Groups[1].Value, 16);
-            return DecodeWindows1252(b).ToString();
+            return Windows1252.GetString([b]);
         });
 
         // Find content after \pard line
