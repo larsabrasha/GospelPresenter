@@ -5,6 +5,8 @@ namespace GospelPresenter.Shared.State;
 
 public partial class AppState : ObservableObject
 {
+    [ObservableProperty] private string sessionId = "";
+
     [ObservableProperty] private Viewport? mainViewport;
     [ObservableProperty] private Viewport? presentationViewport;
     [ObservableProperty] private int baseSlideWidth = 1920;

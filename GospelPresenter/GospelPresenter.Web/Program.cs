@@ -39,7 +39,7 @@ try
     builder.Services.AddRazorComponents(options => options.DetailedErrors = builder.Environment.IsDevelopment())
         .AddInteractiveServerComponents();
 
-    builder.Services.AddSharedGospelPresenterServices();
+    builder.Services.AddSharedGospelPresenterServices(builder.Configuration);
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
 
     builder.Services.AddHealthChecks()

@@ -1,3 +1,12 @@
+window.getOrCreateSessionId = function () {
+    let id = sessionStorage.getItem('session-id');
+    if (!id) {
+        id = crypto.randomUUID().replace(/-/g, '').substring(0, 8);
+        sessionStorage.setItem('session-id', id);
+    }
+    return id;
+}
+
 window.initSortableList = function (elementId, dotNetRef) {
     const el = document.getElementById(elementId);
     if (!el) return;
@@ -62,13 +71,52 @@ window.liveViewChannel = new BroadcastChannel('gospel-live');
 
 window.presentationState = { connection: null, dotNetRef: null };
 
-window.initLiveViewButton = function(containerId, dotNetRef) {
-    window.presentationState.dotNetRef = dotNetRef;
+window.setupPresentationConnection = function(state, connection, dotNetRef) {
+    state.connection = connection;
+    state.isLiveOpen = true;
+    sessionStorage.setItem('presentation-id', connection.id);
+    dotNetRef.invokeMethodAsync('OnPresentationStateChanged', true);
+
+    function onDisconnect() {
+        state.connection = null;
+        state.isLiveOpen = false;
+        sessionStorage.removeItem('presentation-id');
+        sessionStorage.removeItem('presentation-url');
+        dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
+    }
+
+    connection.addEventListener('close', onDisconnect);
+    connection.addEventListener('terminate', onDisconnect);
+}
+
+window.initLiveViewButton = function(containerId, dotNetRef, isActive) {
+    const state = window.presentationState;
+    state.dotNetRef = dotNetRef;
+    state.isLiveOpen = isActive;
+
+    // Try to reconnect to an existing Presentation API session after reload
+    const savedPresentationId = sessionStorage.getItem('presentation-id');
+    const savedPresentationUrl = sessionStorage.getItem('presentation-url');
+    if (savedPresentationId && savedPresentationUrl && 'PresentationRequest' in window) {
+        const request = new PresentationRequest(savedPresentationUrl);
+        request.reconnect(savedPresentationId).then(connection => {
+            window.setupPresentationConnection(state, connection, dotNetRef);
+        }).catch(() => {
+            sessionStorage.removeItem('presentation-id');
+            sessionStorage.removeItem('presentation-url');
+            if (isActive) {
+                state.isLiveOpen = false;
+                dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
+            }
+        });
+    }
 
     window.liveViewChannel.addEventListener('message', function(e) {
         if (e.data === 'live-opened') {
+            state.isLiveOpen = true;
             dotNetRef.invokeMethodAsync('OnPresentationStateChanged', true);
         } else if (e.data === 'live-closed') {
+            state.isLiveOpen = false;
             dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
         }
     });
@@ -77,37 +125,30 @@ window.initLiveViewButton = function(containerId, dotNetRef) {
         const link = e.target.closest('a');
         if (!link) return;
 
-        const state = window.presentationState;
+        if (state.connection) {
+            e.preventDefault();
+            state.connection.terminate();
+            return;
+        }
+
+        if (state.isLiveOpen) {
+            e.preventDefault();
+            window.liveViewChannel.postMessage('close');
+            return;
+        }
 
         if ('PresentationRequest' in window) {
             e.preventDefault();
 
-            if (state.connection) {
-                state.connection.terminate();
-                return;
-            }
-
-            const request = new PresentationRequest(link.href);
+            const url = link.href;
+            const request = new PresentationRequest(url);
             request.start().then(connection => {
-                state.connection = connection;
-                dotNetRef.invokeMethodAsync('OnPresentationStateChanged', true);
-                connection.addEventListener('close', () => {
-                    state.connection = null;
-                    dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
-                });
-                connection.addEventListener('terminate', () => {
-                    state.connection = null;
-                    dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
-                });
+                sessionStorage.setItem('presentation-url', url);
+                window.setupPresentationConnection(state, connection, dotNetRef);
             }).catch(() => {
                 // Fallback: let the link open normally
             });
-        } else if (state.isLiveOpen) {
-            e.preventDefault();
-            window.liveViewChannel.postMessage('close');
         }
-
-        state.isLiveOpen = !state.isLiveOpen;
     });
 }
 

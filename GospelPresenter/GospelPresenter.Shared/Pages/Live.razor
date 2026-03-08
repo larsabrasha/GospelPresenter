@@ -4,11 +4,13 @@
 @inject AppState AppState
 @inject SharedAppState SharedAppState
 @inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
 
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.WebUtilities
 @implements IDisposable
 
 @{
@@ -19,36 +21,38 @@
     var heightScale = (double)viewportHeight / AppState.BaseSlideHeight;
 
     var scale = Math.Min(widthScale, heightScale);
+
+    var liveSlide = SharedAppState.GetLiveSlide(sessionId);
 }
 
 <div class="flex h-full bg-black text-white items-center justify-items-center relative" @onclick="RequestFullscreen">
 
     @{
-        var slideClass = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation ? "opacity-100" : "opacity-0";
+        var slideClass = liveSlide.Status == LiveSlideStatus.ShowingPresentation ? "opacity-100" : "opacity-0";
     }
 
     <div
         class="w-full transition-opacity duration-500 ease-in-out @slideClass">
 
-        @if (SharedAppState.LiveSlide.Text is not null)
+        @if (liveSlide.Text is not null)
         {
             <Slide
                 Class=""
-                Credits="@SharedAppState.LiveSlide.Credits"
+                Credits="@liveSlide.Credits"
                 BaseWidth="@AppState.BaseSlideWidth"
                 BaseHeight="@AppState.BaseSlideHeight"
                 Scale="@scale">
-                @((MarkupString)SharedAppState.LiveSlide.Text)
+                @((MarkupString)liveSlide.Text)
             </Slide>
         }
-        else if (SharedAppState.LiveSlide.ImageUrl is not null)
+        else if (liveSlide.ImageUrl is not null)
         {
             <Slide
                 Class=""
                 BaseWidth="@AppState.BaseSlideWidth"
                 BaseHeight="@AppState.BaseSlideHeight"
                 Scale="@scale">
-                <img src="@SharedAppState.LiveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
+                <img src="@liveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
             </Slide>
         }
     </div>
@@ -57,9 +61,16 @@
 @code {
 
     private bool fullscreenRequested;
+    private string sessionId = "";
 
     protected override void OnInitialized()
     {
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("session", out var session))
+        {
+            sessionId = session.ToString();
+        }
+
         JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
         JsRuntime.InvokeVoidAsync("initLiveViewListener");
 
@@ -82,9 +93,20 @@
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is
-            nameof(SharedAppState.LiveSlide) or
-            nameof(AppState.PresentationViewport))
+        if (sender is SharedAppState && e.PropertyName == sessionId)
+        {
+            if (SharedAppState.IsSessionExpired(sessionId))
+            {
+                _ = InvokeAsync(async () =>
+                {
+                    await JsRuntime.InvokeVoidAsync("eval", "window.close()");
+                });
+                return;
+            }
+
+            _ = InvokeAsync(StateHasChanged);
+        }
+        else if (e.PropertyName is nameof(AppState.PresentationViewport))
         {
             _ = InvokeAsync(StateHasChanged);
         }

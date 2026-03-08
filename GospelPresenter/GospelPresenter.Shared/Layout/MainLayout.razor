@@ -4,10 +4,29 @@
 @inherits LayoutComponentBase
 
 @inject AppState AppState
+@inject IJSRuntime JsRuntime
 
 <ViewportMonitor OnViewportChanged="viewport => AppState.MainViewport = viewport"/>
 
-@Body
+@if (string.IsNullOrEmpty(AppState.SessionId))
+{
+    <div></div>
+}
+else
+{
+    @Body
+}
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            AppState.SessionId = await JsRuntime.InvokeAsync<string>("getOrCreateSessionId");
+            StateHasChanged();
+        }
+    }
+}
 
 <div id="blazor-error-ui" data-nosnippet
      class="

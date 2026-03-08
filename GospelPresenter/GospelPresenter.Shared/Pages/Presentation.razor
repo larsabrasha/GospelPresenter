@@ -23,6 +23,7 @@
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
     var statusBarStyle = $"padding-top: {statusBarHeight}px";
+    var liveSlide = SharedAppState.GetLiveSlide(AppState.SessionId);
 }
 <div class="flex h-full relative dark:text-neutral-200 dark:bg-neutral-800" style="@statusBarStyle">
     @{
@@ -50,13 +51,13 @@
                     </div>
 
                     <div id="live-view-container" class="p-3 pointer-events-auto flex items-center gap-2">
-                        @if (isPresentationActive)
+                        @if (SharedAppState.IsPresentationActive(AppState.SessionId))
                         {
                             <div class="flex items-center gap-2 text-sm font-medium text-red-500">
                                 <span class="size-2 rounded-full bg-red-500 animate-pulse"></span>
                                 Live
                             </div>
-                            <a href="/live" target="_blank"
+                            <a href="/live?session=@AppState.SessionId" target="_blank"
                                class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
                                title="Stoppa visning">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
@@ -67,7 +68,7 @@
                         }
                         else
                         {
-                            <a href="/live" target="_blank"
+                            <a href="/live?session=@AppState.SessionId" target="_blank"
                                class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
                                title="Starta visning">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
@@ -105,9 +106,9 @@
                             var partIndex = i;
 
                             var partClass =
-                                SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
-                                SharedAppState.LiveSlide.ProjectItemId == SelectedSong.Id &&
-                                SharedAppState.LiveSlide.ItemPartIndex == i
+                                liveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                                liveSlide.ProjectItemId == SelectedSong.Id &&
+                                liveSlide.ItemPartIndex == i
                                     ? $"{DefaultClass} {SelectedClass}"
                                     : $"{DefaultClass} {NotSelectedClass}";
 
@@ -131,9 +132,9 @@
                             var partIndex = i;
 
                             var partClass =
-                                SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
-                                SharedAppState.LiveSlide.ProjectItemId == SelectedBibleText.Id &&
-                                SharedAppState.LiveSlide.ItemPartIndex == i
+                                liveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                                liveSlide.ProjectItemId == SelectedBibleText.Id &&
+                                liveSlide.ItemPartIndex == i
                                     ? $"{DefaultClass} {SelectedClass}"
                                     : $"{DefaultClass} {NotSelectedClass}";
 
@@ -152,9 +153,9 @@
                     else if (SelectedImage is not null)
                     {
                         var partClass =
-                            SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation &&
-                            SharedAppState.LiveSlide.ProjectItemId == SelectedImage.Id &&
-                            SharedAppState.LiveSlide.ItemPartIndex == 0
+                            liveSlide.Status == LiveSlideStatus.ShowingPresentation &&
+                            liveSlide.ProjectItemId == SelectedImage.Id &&
+                            liveSlide.ItemPartIndex == 0
                                 ? $"{DefaultClass} {SelectedClass}"
                                 : $"{DefaultClass} {NotSelectedClass}";
 
@@ -181,31 +182,31 @@
 
                     <div class="flex items-center gap-3 pointer-events-auto ml-auto">
                         @{
-                            var isLiveActive = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingPresentation;
+                            var isLiveActive = liveSlide.Status == LiveSlideStatus.ShowingPresentation;
                             const string nowPlayingClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 outline-transparent text-white";
                         }
                         <Slide Class="@nowPlayingClass"
-                               Credits="@(isLiveActive ? SharedAppState.LiveSlide.Credits : null)"
+                               Credits="@(isLiveActive ? liveSlide.Credits : null)"
                                BaseWidth="@AppState.BaseSlideWidth"
                                BaseHeight="@AppState.BaseSlideHeight"
                                Scale="@miscSlideScale">
-                            @if (isLiveActive && SharedAppState.LiveSlide.Text is not null)
+                            @if (isLiveActive && liveSlide.Text is not null)
                             {
-                                @((MarkupString)SharedAppState.LiveSlide.Text)
+                                @((MarkupString)liveSlide.Text)
                             }
-                            else if (isLiveActive && SharedAppState.LiveSlide.ImageUrl is not null)
+                            else if (isLiveActive && liveSlide.ImageUrl is not null)
                             {
-                                <img src="@SharedAppState.LiveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
+                                <img src="@liveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
                             }
                         </Slide>
 
                         @{
-                            var blackScreenActive = SharedAppState.LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
+                            var blackScreenActive = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
                             var blackBtnClass = blackScreenActive
                                 ? "bg-sky-500 text-white"
                                 : "bg-white dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-600";
                         }
-                        <button @onclick="SharedAppState.SelectBlackScreen"
+                        <button @onclick="() => SharedAppState.SelectBlackScreen(AppState.SessionId)"
                                 class="cursor-pointer p-4 rounded-full shadow-lg @blackBtnClass"
                                 title="Svart skärm">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
@@ -219,6 +220,22 @@
         </div>
     </div>
 </div>
+
+@if (showSessionExpired)
+{
+    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4">
+            <div class="font-semibold text-lg">Visningen avslutades</div>
+            <div>Presentationen stängdes automatiskt på grund av inaktivitet.</div>
+            <div class="flex justify-end">
+                <button class="px-4 py-2 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                        @onclick="DismissSessionExpired">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 @if (showAddModal)
 {
@@ -257,7 +274,7 @@
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
     private bool showAddModal;
-    private bool isPresentationActive;
+    private bool showSessionExpired;
 
     private const string DefaultClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer hover:outline-sky-500 hover:drop-shadow-lg hover:drop-shadow-sky-500/40";
     private const string SelectedClass = "outline-sky-500";
@@ -270,15 +287,15 @@
         if (firstRender)
         {
             dotNetRef = DotNetObjectReference.Create(this);
-            await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef);
+            var isActive = SharedAppState.IsPresentationActive(AppState.SessionId);
+            await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef, isActive);
         }
     }
 
     [JSInvokable]
     public void OnPresentationStateChanged(bool active)
     {
-        isPresentationActive = active;
-        _ = InvokeAsync(StateHasChanged);
+        SharedAppState.SetPresentationActive(AppState.SessionId, active);
     }
 
     protected override void OnInitialized()
@@ -326,7 +343,7 @@
             }).ToList()
         };
 
-        var liveItemId = SharedAppState.LiveSlide.ProjectItemId;
+        var liveItemId = SharedAppState.GetLiveSlide(AppState.SessionId).ProjectItemId;
         var activeItem = liveItemId is not null
             ? AppState.SelectedProject.Items.FirstOrDefault(x => x.Id == liveItemId)
             : null;
@@ -349,9 +366,18 @@
         }
         else if (e.PropertyName is
                  nameof(AppState.MainViewport) or
-                 nameof(SharedAppState.LiveSlide) or 
                  nameof(AppState.IsMenuVisible))
         {
+            _ = InvokeAsync(StateHasChanged);
+        }
+        else if (sender is SharedAppState && e.PropertyName == AppState.SessionId)
+        {
+            if (SharedAppState.IsSessionExpired(AppState.SessionId))
+            {
+                showSessionExpired = true;
+                SharedAppState.ClearSessionExpired(AppState.SessionId);
+            }
+
             _ = InvokeAsync(StateHasChanged);
         }
     }
@@ -433,7 +459,7 @@
                 return;
         }
 
-        SharedAppState.LiveSlide = SharedAppState.LiveSlide with
+        SharedAppState.SetLiveSlide(AppState.SessionId, SharedAppState.GetLiveSlide(AppState.SessionId) with
         {
             Status = LiveSlideStatus.ShowingPresentation,
             ProjectItemId = selectedItemId,
@@ -441,12 +467,17 @@
             Text = text,
             Credits = credits,
             ImageUrl = imageUrl
-        };
+        });
     }
 
     private void ConfirmRemoveItem(ProjectItem item)
     {
         itemToRemove = item;
+    }
+
+    private void DismissSessionExpired()
+    {
+        showSessionExpired = false;
     }
 
     private void CancelRemove()
