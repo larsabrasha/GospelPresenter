@@ -32,11 +32,11 @@
             @switch (activeTab)
             {
                 case Tab.Song:
-                    <SongTab OnAdd="@OnAddSong"/>
+                    <SongTab OnAdd="@OnAddSong" OnAddKeepOpen="@OnAddSongKeepOpen"/>
                     break;
 
                 case Tab.BibleText:
-                    <BibleTextTab OnAdd="@OnAddBibleText"/>
+                    <BibleTextTab OnAdd="@OnAddBibleText" OnAddKeepOpen="@OnAddBibleTextKeepOpen"/>
                     break;
 
                 case Tab.Image:
@@ -50,7 +50,9 @@
 @code {
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<List<Verse>> OnAddBibleText { get; set; }
+    [Parameter] public EventCallback<List<Verse>> OnAddBibleTextKeepOpen { get; set; }
     [Parameter] public EventCallback<State.Song> OnAddSong { get; set; }
+    [Parameter] public EventCallback<State.Song> OnAddSongKeepOpen { get; set; }
 
     private enum Tab { Song, BibleText, Image }
 

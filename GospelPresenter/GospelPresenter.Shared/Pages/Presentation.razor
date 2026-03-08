@@ -236,7 +236,9 @@
 
 @if (showAddModal)
 {
-    <AddItemModal OnClose="@CloseAddModal" OnAddBibleText="@HandleBibleVersesAdded" OnAddSong="@HandleSongAdded"/>
+    <AddItemModal OnClose="@CloseAddModal"
+                  OnAddBibleText="@HandleBibleVersesAdded" OnAddBibleTextKeepOpen="@HandleBibleVersesAddedKeepOpen"
+                  OnAddSong="@HandleSongAdded" OnAddSongKeepOpen="@HandleSongAddedKeepOpen"/>
 }
 
 @if (itemToRemove is not null)
@@ -569,18 +571,28 @@
     private async Task HandleBibleVersesAdded(List<Verse> verses)
     {
         showAddModal = false;
+        await AddBibleVerses(verses);
+    }
 
+    private async Task HandleBibleVersesAddedKeepOpen(List<Verse> verses)
+    {
+        await AddBibleVerses(verses);
+    }
+
+    private async Task AddBibleVerses(List<Verse> verses)
+    {
         var bibleText = BibleTextService.Create(verses);
+        var itemId = Guid.NewGuid().ToString();
         var projectItem = new ProjectItem
         {
-            Id = bibleText.Id,
+            Id = itemId,
             Type = ProjectItemType.BibleText,
             Title = bibleText.Title
         };
 
         var presentationItem = new PresentationItem
         {
-            Id = bibleText.Id,
+            Id = itemId,
             Type = PresentationItemType.BibleText,
             Title = bibleText.Title
         };
@@ -607,17 +619,27 @@
     private async Task HandleSongAdded(Song song)
     {
         showAddModal = false;
+        await AddSong(song);
+    }
 
+    private async Task HandleSongAddedKeepOpen(Song song)
+    {
+        await AddSong(song);
+    }
+
+    private async Task AddSong(Song song)
+    {
+        var itemId = Guid.NewGuid().ToString();
         var projectItem = new ProjectItem
         {
-            Id = song.Id,
+            Id = itemId,
             Type = ProjectItemType.Song,
             Title = song.Name
         };
 
         var presentationItem = new PresentationItem
         {
-            Id = song.Id,
+            Id = itemId,
             Type = PresentationItemType.Song,
             Title = song.Name
         };

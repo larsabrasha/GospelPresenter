@@ -107,6 +107,7 @@ else
 
 @code {
     [Parameter] public EventCallback<Song> OnAdd { get; set; }
+    [Parameter] public EventCallback<Song> OnAddKeepOpen { get; set; }
 
     private string query = "";
     private string[] searchTerms = [];
@@ -132,7 +133,11 @@ else
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedSong is not null)
+        if (e.Key == "Enter" && e.ShiftKey && selectedSong is not null)
+        {
+            await OnAddKeepOpen.InvokeAsync(selectedSong);
+        }
+        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedSong is not null)
         {
             await HandleAdd();
         }

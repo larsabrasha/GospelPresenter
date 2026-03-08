@@ -96,6 +96,7 @@ else
 
 @code {
     [Parameter] public EventCallback<List<Verse>> OnAdd { get; set; }
+    [Parameter] public EventCallback<List<Verse>> OnAddKeepOpen { get; set; }
 
     private const int MaxResults = 500;
 
@@ -125,7 +126,9 @@ else
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && ShowAddButton)
+        if (e.Key == "Enter" && e.ShiftKey && ShowAddButton)
+            await OnAddKeepOpen.InvokeAsync(VersesToAdd);
+        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && ShowAddButton)
             await HandleAdd();
     }
 
@@ -198,15 +201,12 @@ else
         browseSelectedVerses = state.Verses;
     }
 
+    private List<Verse> VersesToAdd =>
+        browseSelectedVerses.Count > 0 ? browseSelectedVerses : results;
+
     private async Task HandleAdd()
     {
-        if (browseSelectedVerses.Count > 0)
-        {
-            await OnAdd.InvokeAsync(browseSelectedVerses);
-        }
-        else if (results.Count > 0)
-        {
-            await OnAdd.InvokeAsync(results);
-        }
+        if (ShowAddButton)
+            await OnAdd.InvokeAsync(VersesToAdd);
     }
 }
