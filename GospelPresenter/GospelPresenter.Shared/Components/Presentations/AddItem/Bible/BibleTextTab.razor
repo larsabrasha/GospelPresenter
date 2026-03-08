@@ -84,15 +84,10 @@ else
 
         @if (ShowAddButton)
         {
-            <div class="shrink-0 flex items-center justify-end gap-3 pt-4">
-                <div class="flex items-center gap-1 text-xs text-neutral-400">
-                    <kbd class="px-1.5 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 font-medium">@(isMac ? "⌘" : "Ctrl")</kbd>
-                    <span>+</span>
-                    <kbd class="px-1.5 py-0.5 rounded-md bg-neutral-100 dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 font-medium">↵</kbd>
-                </div>
+            <div class="shrink-0 flex items-center justify-end pt-4">
                 <button class="px-4 py-2 rounded-xl text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
-                    L&auml;gg till @AddLabel
+                    L&auml;gg till <span class="font-bold">@AddLabel</span>
                 </button>
             </div>
         }
@@ -107,8 +102,6 @@ else
     private ElementReference container;
     private ElementReference searchInput;
     private string selectedBibleId = "";
-    private bool isMac;
-
     // Search state
     private string query = "";
     private List<Verse> results = [];
@@ -128,15 +121,6 @@ else
     protected override void OnInitialized()
     {
         selectedBibleId = BibleService.Bibles.FirstOrDefault()?.Id ?? "";
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            isMac = await JsRuntime.InvokeAsync<bool>("eval", "navigator.platform.toUpperCase().indexOf('MAC') >= 0");
-            StateHasChanged();
-        }
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
