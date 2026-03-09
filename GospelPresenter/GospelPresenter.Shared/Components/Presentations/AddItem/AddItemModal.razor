@@ -10,18 +10,18 @@
         <span>Lägg till</span>
     </Title>
     <Body>
-        <div class="flex gap-1 bg-neutral-100 dark:bg-neutral-700 rounded-xl p-1 shrink-0">
-            <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors @TabClass(Tab.Song)"
+        <div class="flex gap-1 bg-neutral-100 dark:bg-neutral-700 rounded-full p-1 shrink-0">
+            <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-full text-sm cursor-pointer transition-colors @TabClass(Tab.Song)"
                     @onclick="() => activeTab = Tab.Song">
                 <MusicalNoteSymbol Class="size-4"/>
                 Sång
             </button>
-            <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors @TabClass(Tab.BibleText)"
+            <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-full text-sm cursor-pointer transition-colors @TabClass(Tab.BibleText)"
                     @onclick="() => activeTab = Tab.BibleText">
                 <BookOpenSymbol Class="size-4"/>
                 Bibeltext
             </button>
-            <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors @TabClass(Tab.Image)"
+            <button class="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-full text-sm cursor-pointer transition-colors @TabClass(Tab.Image)"
                     @onclick="() => activeTab = Tab.Image">
                 <PhotoSymbol Class="size-4"/>
                 Bild

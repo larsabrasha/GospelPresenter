@@ -23,7 +23,7 @@
                 @foreach (var presentation in recentPresentations)
                 {
                     <a href="/presentations/@presentation.Id"
-                       class="rounded-3xl hover:bg-sky-500 hover:text-white block px-4 py-3">
+                       class="rounded-full hover:bg-sky-500 hover:text-white block px-4 py-2.5">
                         @presentation.Name
                     </a>
                 }
@@ -31,8 +31,8 @@
         </div>
     </div>
 
-    <div>
-        <button class="px-4 py-2 rounded-full bg-sky-500 text-white cursor-pointer flex items-center hover:bg-sky-600"
+    <div class="px-3">
+        <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer flex items-center hover:bg-sky-600"
                 @onclick="ShowCreateDialog">
             <PlusSymbol Class="size-4 mr-2"/>Skapa ny
         </button>
@@ -52,11 +52,11 @@
                    @bind="newPresentationName"
                    @onkeydown="OnCreateKeyDown"/>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                         @onclick="CancelCreate">
                     Avbryt
                 </button>
-                <button class="px-4 py-2 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
                         disabled="@(isCreating || string.IsNullOrWhiteSpace(newPresentationName))"
                         @onclick="CreatePresentationAsync">
                     @(isCreating ? "Skapar..." : "Skapa")

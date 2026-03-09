@@ -194,7 +194,7 @@
             <div class="font-semibold text-lg">Visningen avslutades</div>
             <div>Presentationen stängdes automatiskt på grund av inaktivitet.</div>
             <div class="flex justify-end">
-                <button class="px-4 py-2 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
                         @onclick="DismissSessionExpired">
                     OK
                 </button>
@@ -218,11 +218,11 @@
             <div class="font-semibold text-lg">Ta bort</div>
             <div>Vill du ta bort <strong>@itemToRemove.Title</strong>?</div>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                         @onclick="CancelRemove">
                     Avbryt
                 </button>
-                <button class="px-4 py-2 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
+                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
                         @onclick="RemoveItemAsync">
                     Ta bort
                 </button>
