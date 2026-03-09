@@ -1,11 +1,13 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using GospelPresenter.Shared.Proto;
 using GospelPresenter.Shared.State;
+using Google.Protobuf;
 
 namespace GospelPresenter.Shared.Services;
 
 /// <summary>
-/// Parses ProPresenter 7 (.pro) files which use a protobuf-based binary format.
+/// Parses ProPresenter 7 (.pro) files using the protobuf schema.
 /// Extracts song title, metadata (author, publisher, CCLI), and slide text from RTF.
 /// </summary>
 public static partial class ProPresenterParser
@@ -25,171 +27,50 @@ public static partial class ProPresenterParser
 
     private static Song? Parse(byte[] data, string filePath)
     {
-        var title = "";
+        var presentation = Presentation.Parser.ParseFrom(data);
+
+        var title = presentation.Name;
+        if (string.IsNullOrWhiteSpace(title))
+            title = Path.GetFileNameWithoutExtension(filePath);
+
         string? author = null;
         string? publisher = null;
         int? ccli = null;
-        var parts = new List<string>();
 
-        // Parse top-level fields
-        var pos = 0;
-        while (pos < data.Length)
+        if (presentation.Ccli is { } ccliData)
         {
-            if (!TryDecodeVarint(data, ref pos, out var tagVal)) break;
-            var field = (int)(tagVal >> 3);
-            var wire = (int)(tagVal & 0x7);
+            author = string.IsNullOrWhiteSpace(ccliData.Author) ? null : ccliData.Author;
+            publisher = string.IsNullOrWhiteSpace(ccliData.Publisher) ? null : ccliData.Publisher;
+            if (ccliData.SongNumber != 0) ccli = (int)ccliData.SongNumber;
+        }
 
-            switch (wire)
+        var parts = new List<string>();
+        foreach (var cue in presentation.Cues)
+        {
+            foreach (var action in cue.Actions)
             {
-                case 0: // varint
-                    TryDecodeVarint(data, ref pos, out _);
-                    break;
-                case 2: // length-delimited
+                var slide = action.Slide?.Presentation?.BaseSlide;
+                if (slide is null) continue;
+
+                foreach (var element in slide.Elements)
                 {
-                    if (!TryDecodeVarint(data, ref pos, out var length)) goto done;
-                    var len = (int)length;
-                    if (pos + len > data.Length) goto done;
-                    var chunk = data.AsSpan(pos, len);
+                    var rtfData = element.Element_?.Text?.RtfData;
+                    if (rtfData is null || rtfData.IsEmpty) continue;
 
-                    if (field == 3)
-                    {
-                        title = Encoding.UTF8.GetString(chunk);
-                    }
-                    else if (field == 13)
-                    {
-                        // Slide — extract RTF text
-                        var rtfs = new List<string>();
-                        ExtractRtfStrings(chunk.ToArray(), rtfs);
-                        foreach (var rtf in rtfs)
-                        {
-                            var plain = RtfToPlainText(rtf);
-                            if (!string.IsNullOrWhiteSpace(plain))
-                                parts.Add(plain);
-                        }
-                    }
-                    else if (field == 14)
-                    {
-                        // Metadata
-                        ParseMetadata(chunk.ToArray(), out author, out publisher, out ccli);
-                    }
+                    var rtf = Encoding.UTF8.GetString(rtfData.Span);
+                    if (!rtf.StartsWith("{\\rtf")) continue;
 
-                    pos += len;
-                    break;
+                    var plain = RtfToPlainText(rtf);
+                    if (!string.IsNullOrWhiteSpace(plain))
+                        parts.Add(plain);
                 }
-                case 5: // 32-bit
-                    pos += 4;
-                    break;
-                case 1: // 64-bit
-                    pos += 8;
-                    break;
-                default:
-                    goto done;
             }
         }
-        done:
-
-        if (string.IsNullOrWhiteSpace(title))
-            title = Path.GetFileNameWithoutExtension(filePath);
 
         if (parts.Count == 0) return null;
 
         var id = Path.GetFileNameWithoutExtension(filePath);
         return new Song(id, title, author, publisher, null, ccli?.ToString(), parts);
-    }
-
-    private static void ParseMetadata(byte[] data, out string? author, out string? publisher, out int? ccli)
-    {
-        author = null;
-        publisher = null;
-        ccli = null;
-
-        var pos = 0;
-        while (pos < data.Length)
-        {
-            if (!TryDecodeVarint(data, ref pos, out var tagVal)) break;
-            var field = (int)(tagVal >> 3);
-            var wire = (int)(tagVal & 0x7);
-
-            switch (wire)
-            {
-                case 0:
-                {
-                    TryDecodeVarint(data, ref pos, out var val);
-                    if (field == 6) ccli = (int)val;
-                    break;
-                }
-                case 2:
-                {
-                    if (!TryDecodeVarint(data, ref pos, out var length)) return;
-                    var len = (int)length;
-                    if (pos + len > data.Length) return;
-                    try
-                    {
-                        var s = Encoding.UTF8.GetString(data, pos, len);
-                        if (field == 1) author = string.IsNullOrWhiteSpace(s) ? null : s;
-                        else if (field == 4) publisher = string.IsNullOrWhiteSpace(s) ? null : s;
-                    }
-                    catch { /* ignore */ }
-                    pos += len;
-                    break;
-                }
-                case 5:
-                    pos += 4;
-                    break;
-                case 1:
-                    pos += 8;
-                    break;
-                default:
-                    return;
-            }
-        }
-    }
-
-    private static void ExtractRtfStrings(byte[] data, List<string> results)
-    {
-        var pos = 0;
-        while (pos < data.Length)
-        {
-            if (!TryDecodeVarint(data, ref pos, out var tagVal)) break;
-            var wire = (int)(tagVal & 0x7);
-
-            switch (wire)
-            {
-                case 0:
-                    TryDecodeVarint(data, ref pos, out _);
-                    break;
-                case 2:
-                {
-                    if (!TryDecodeVarint(data, ref pos, out var length)) return;
-                    var len = (int)length;
-                    if (pos + len > data.Length) return;
-                    var chunk = data.AsSpan(pos, len).ToArray();
-                    pos += len;
-
-                    try
-                    {
-                        var s = Encoding.UTF8.GetString(chunk);
-                        if (s.StartsWith("{\\rtf"))
-                            results.Add(s);
-                        else
-                            ExtractRtfStrings(chunk, results);
-                    }
-                    catch
-                    {
-                        ExtractRtfStrings(chunk, results);
-                    }
-                    break;
-                }
-                case 5:
-                    pos += 4;
-                    break;
-                case 1:
-                    pos += 8;
-                    break;
-                default:
-                    return;
-            }
-        }
     }
 
     private static readonly Encoding Windows1252 = InitWindows1252();
@@ -237,21 +118,6 @@ public static partial class ProPresenterParser
         text = RtfNewlineRegex().Replace(text, "\n");
 
         return text.Trim();
-    }
-
-    private static bool TryDecodeVarint(byte[] data, ref int pos, out ulong result)
-    {
-        result = 0;
-        var shift = 0;
-        while (pos < data.Length)
-        {
-            var b = data[pos++];
-            result |= (ulong)(b & 0x7f) << shift;
-            if ((b & 0x80) == 0) return true;
-            shift += 7;
-            if (shift >= 64) break;
-        }
-        return false;
     }
 
     [GeneratedRegex(@"\\'([0-9a-fA-F]{2})")]
