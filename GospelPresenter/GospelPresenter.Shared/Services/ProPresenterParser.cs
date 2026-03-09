@@ -149,21 +149,18 @@ public static partial class ProPresenterParser
             return Windows1252.GetString([b]);
         });
 
-        // Find content after \pard line
+        // Find content after last \pard line (earlier \pard blocks are formatting preamble)
         var lines = text.Split('\n');
-        var sb = new StringBuilder();
-        var foundPard = false;
-
-        foreach (var line in lines)
+        var lastPardIndex = -1;
+        for (var i = 0; i < lines.Length; i++)
         {
-            if (line.Contains("\\pard"))
-            {
-                foundPard = true;
-                continue;
-            }
-            if (foundPard)
-                sb.AppendLine(line);
+            if (lines[i].Contains("\\pard"))
+                lastPardIndex = i;
         }
+
+        var sb = new StringBuilder();
+        for (var i = lastPardIndex + 1; i < lines.Length; i++)
+            sb.AppendLine(lines[i]);
 
         text = sb.ToString();
 
@@ -176,6 +173,9 @@ public static partial class ProPresenterParser
         // RTF line continuation (backslash at end of line)
         text = RtfNewlineRegex().Replace(text, "\n");
 
+        // Collapse runs of 2+ blank lines (from RTF formatting artifacts) into a single newline
+        text = MultipleNewlinesRegex().Replace(text, "\n");
+
         return text.Trim();
     }
 
@@ -187,4 +187,8 @@ public static partial class ProPresenterParser
 
     [GeneratedRegex(@"\\\r?\n")]
     private static partial Regex RtfNewlineRegex();
+
+    [GeneratedRegex(@"\n{2,}")]
+    private static partial Regex MultipleNewlinesRegex();
+
 }
