@@ -102,27 +102,17 @@
                     {
                         @for (var i = 0; i < SelectedSong.Parts.Count; i++)
                         {
-                            var songPart = SelectedSong.Parts[i];
-                            var part = songPart.Content.Replace("\n", "<br>");
                             var partIndex = i;
-
-                            var partClass =
-                                liveSlide.ProjectItemId == AppState.SelectedProjectItem?.Id &&
-                                liveSlide.ItemPartIndex == i
-                                    ? $"{DefaultClass} {SelectedClass}"
-                                    : $"{DefaultClass} {NotSelectedClass}";
-
-                            <button @onclick="() => SetSelectedLiveSlide(AppState.SelectedProjectItem!.Id, partIndex)" class="p-3-">
-                                <Slide
-                                    Class="@partClass"
-                                    Label="@songPart.Label"
-                                    LabelColor="@songPart.LabelColor"
+                            <button @onclick="() => SetSelectedLiveSlide(AppState.SelectedProjectItem!.Id, partIndex)">
+                                <SongSlide
+                                    Content="@SelectedSong.Parts[i].Content"
+                                    Label="@SelectedSong.Parts[i].Label"
+                                    LabelColor="@SelectedSong.Parts[i].LabelColor"
                                     Credits="@SongCredits"
+                                    IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
-                                    Scale="@slideScale">
-                                    @((MarkupString)part)
-                                </Slide>
+                                    Scale="@slideScale"/>
                             </button>
                         }
                     }
@@ -130,43 +120,27 @@
                     {
                         @for (var i = 0; i < SelectedBibleText.Parts.Count; i++)
                         {
-                            var part = SelectedBibleText.Parts[i];
                             var partIndex = i;
-
-                            var partClass =
-                                liveSlide.ProjectItemId == SelectedBibleText.Id &&
-                                liveSlide.ItemPartIndex == i
-                                    ? $"{DefaultClass} {SelectedClass}"
-                                    : $"{DefaultClass} {NotSelectedClass}";
-
-                            <button @onclick="() => SetSelectedLiveSlide(SelectedBibleText.Id, partIndex)" class="p-3-">
-                                <Slide
-                                    Class="@partClass"
+                            <button @onclick="() => SetSelectedLiveSlide(SelectedBibleText.Id, partIndex)">
+                                <BibleTextSlide
+                                    Content="@SelectedBibleText.Parts[i]"
                                     Credits="@SelectedBibleText.Title"
+                                    IsSelected="@(liveSlide.ProjectItemId == SelectedBibleText.Id && liveSlide.ItemPartIndex == i)"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
-                                    Scale="@slideScale">
-                                    @((MarkupString)part)
-                                </Slide>
+                                    Scale="@slideScale"/>
                             </button>
                         }
                     }
                     else if (SelectedImage is not null)
                     {
-                        var partClass =
-                            liveSlide.ProjectItemId == SelectedImage.Id &&
-                            liveSlide.ItemPartIndex == 0
-                                ? $"{DefaultClass} {SelectedClass}"
-                                : $"{DefaultClass} {NotSelectedClass}";
-
                         <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, 0)">
-                            <Slide
-                                Class="@partClass"
+                            <ImageSlide
+                                Url="@SelectedImage.Url"
+                                IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == 0)"
                                 BaseWidth="@AppState.BaseSlideWidth"
                                 BaseHeight="@AppState.BaseSlideHeight"
-                                Scale="@slideScale">
-                                <img src="@SelectedImage.Url" alt="" class="w-fill rounded-lg drag-none">
-                            </Slide>
+                                Scale="@slideScale"/>
                         </button>
                     }
                 </div>
@@ -183,25 +157,16 @@
                     @if (SharedAppState.IsPresentationActive(AppState.SessionId))
                     {
                         var isBlackScreen = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
-                        const string previewClass = "bg-black rounded-lg overflow-hidden text-white";
 
                         <div class="pointer-events-auto ml-auto bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 flex flex-col gap-3">
                             <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">Nu visas</div>
                             <div class="relative">
-                                <Slide Class="@previewClass"
-                                       Credits="@liveSlide.Credits"
-                                       BaseWidth="@AppState.BaseSlideWidth"
-                                       BaseHeight="@AppState.BaseSlideHeight"
-                                       Scale="@miscSlideScale">
-                                    @if (liveSlide.Text is not null)
-                                    {
-                                        @((MarkupString)liveSlide.Text)
-                                    }
-                                    else if (liveSlide.ImageUrl is not null)
-                                    {
-                                        <img src="@liveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
-                                    }
-                                </Slide>
+                                <LiveSlideView
+                                    LiveSlide="@liveSlide"
+                                    Class="bg-black rounded-lg overflow-hidden text-white"
+                                    BaseWidth="@AppState.BaseSlideWidth"
+                                    BaseHeight="@AppState.BaseSlideHeight"
+                                    Scale="@miscSlideScale"/>
                                 <div class="absolute inset-0 bg-black rounded-lg transition-opacity duration-500 ease-in-out @(isBlackScreen ? "opacity-100" : "opacity-0 pointer-events-none")"></div>
                             </div>
                             <button @onclick="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
@@ -277,10 +242,6 @@
     private Image? SelectedImage { get; set; }
     private bool showAddModal;
     private bool showSessionExpired;
-
-    private const string DefaultClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer hover:outline-sky-500 hover:drop-shadow-lg hover:drop-shadow-sky-500/40";
-    private const string SelectedClass = "outline-sky-500";
-    private const string NotSelectedClass = "outline-transparent";
 
     private DotNetObjectReference<Presentation>? dotNetRef;
 
@@ -439,6 +400,7 @@
         string? text = null;
         string? credits = null;
         string? imageUrl = null;
+        SongPart? songPart = null;
 
         switch (projectItem.Type)
         {
@@ -459,7 +421,8 @@
                 }
                 if (song is not null && partIndex < song.Parts.Count)
                 {
-                    text = song.Parts[partIndex].Content.Replace("\n", "<br>");
+                    songPart = song.Parts[partIndex];
+                    text = songPart.Content.Replace("\n", "<br>");
                     credits = FormatSongCredits(song);
                 }
 
@@ -493,11 +456,13 @@
         SharedAppState.SetLiveSlide(AppState.SessionId, SharedAppState.GetLiveSlide(AppState.SessionId) with
         {
             Status = LiveSlideStatus.ShowingPresentation,
+            ItemType = projectItem.Type,
             ProjectItemId = selectedItemId,
             ItemPartIndex = partIndex,
             Text = text,
             Credits = credits,
-            ImageUrl = imageUrl
+            ImageUrl = imageUrl,
+            SongPart = songPart
         });
     }
 

@@ -1,0 +1,41 @@
+@using GospelPresenter.Shared.State
+
+@if (LiveSlide.ItemType == ProjectItemType.Song && LiveSlide.SongPart is not null)
+{
+    <SongSlide
+        Content="@LiveSlide.SongPart.Content"
+        Label="@LiveSlide.SongPart.Label"
+        LabelColor="@LiveSlide.SongPart.LabelColor"
+        Credits="@LiveSlide.Credits"
+        Class="@Class"
+        BaseWidth="@BaseWidth"
+        BaseHeight="@BaseHeight"
+        Scale="@Scale"/>
+}
+else if (LiveSlide.ItemType == ProjectItemType.BibleText && LiveSlide.Text is not null)
+{
+    <BibleTextSlide
+        Content="@LiveSlide.Text"
+        Credits="@LiveSlide.Credits"
+        Class="@Class"
+        BaseWidth="@BaseWidth"
+        BaseHeight="@BaseHeight"
+        Scale="@Scale"/>
+}
+else if (LiveSlide.ItemType == ProjectItemType.Image && LiveSlide.ImageUrl is not null)
+{
+    <ImageSlide
+        Url="@LiveSlide.ImageUrl"
+        Class="@Class"
+        BaseWidth="@BaseWidth"
+        BaseHeight="@BaseHeight"
+        Scale="@Scale"/>
+}
+
+@code {
+    [Parameter] public required LiveSlide LiveSlide { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public required int BaseWidth { get; set; }
+    [Parameter] public required int BaseHeight { get; set; }
+    [Parameter] public required double Scale { get; set; }
+}

@@ -23,6 +23,8 @@ public partial class SharedAppState : ObservableObject
         null,
         null,
         null,
+        null,
+        null,
         null
     );
 

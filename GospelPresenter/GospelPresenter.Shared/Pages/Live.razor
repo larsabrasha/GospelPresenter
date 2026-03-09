@@ -8,6 +8,7 @@
 
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.WebUtilities
@@ -34,27 +35,11 @@
     <div
         class="w-full transition-opacity duration-500 ease-in-out @slideClass">
 
-        @if (liveSlide.Text is not null)
-        {
-            <Slide
-                Class=""
-                Credits="@liveSlide.Credits"
-                BaseWidth="@AppState.BaseSlideWidth"
-                BaseHeight="@AppState.BaseSlideHeight"
-                Scale="@scale">
-                @((MarkupString)liveSlide.Text)
-            </Slide>
-        }
-        else if (liveSlide.ImageUrl is not null)
-        {
-            <Slide
-                Class=""
-                BaseWidth="@AppState.BaseSlideWidth"
-                BaseHeight="@AppState.BaseSlideHeight"
-                Scale="@scale">
-                <img src="@liveSlide.ImageUrl" class="w-full h-full object-contain drag-none" alt="">
-            </Slide>
-        }
+        <LiveSlideView
+            LiveSlide="@liveSlide"
+            BaseWidth="@AppState.BaseSlideWidth"
+            BaseHeight="@AppState.BaseSlideHeight"
+            Scale="@scale"/>
     </div>
 </div>
 

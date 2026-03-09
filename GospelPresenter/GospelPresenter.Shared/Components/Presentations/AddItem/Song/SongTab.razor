@@ -66,16 +66,14 @@ else
                         <div class="flex flex-col gap-2">
                             @foreach (var part in selectedSong.Parts)
                             {
-                                var html = Highlight(part.Content).Replace("\n", "<br>");
-                                <Slide
-                                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                <SongSlide
+                                    ContentHtml="@(Highlight(part.Content).Replace("\n", "<br>"))"
                                     Label="@part.Label"
                                     LabelColor="@part.LabelColor"
+                                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
-                                    Scale="@previewScale">
-                                    @((MarkupString)html)
-                                </Slide>
+                                    Scale="@previewScale"/>
                             }
                         </div>
                     }

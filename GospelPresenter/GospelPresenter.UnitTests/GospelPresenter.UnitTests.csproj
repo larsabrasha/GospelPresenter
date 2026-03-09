@@ -29,11 +29,6 @@
       <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Reference Include="StanForDClassic">
-        <HintPath>..\GospelPresenter.Shared\StanForDClassic.dll</HintPath>
-      </Reference>
-    </ItemGroup>
 
     <ItemGroup>
       <None Remove="Resources\TST.usx" />
