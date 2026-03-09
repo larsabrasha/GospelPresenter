@@ -102,7 +102,8 @@
                     {
                         @for (var i = 0; i < SelectedSong.Parts.Count; i++)
                         {
-                            var part = SelectedSong.Parts[i].Replace("\n", "<br>");
+                            var songPart = SelectedSong.Parts[i];
+                            var part = songPart.Content.Replace("\n", "<br>");
                             var partIndex = i;
 
                             var partClass =
@@ -114,6 +115,8 @@
                             <button @onclick="() => SetSelectedLiveSlide(AppState.SelectedProjectItem!.Id, partIndex)" class="p-3-">
                                 <Slide
                                     Class="@partClass"
+                                    Label="@songPart.Label"
+                                    LabelColor="@songPart.LabelColor"
                                     Credits="@SongCredits"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
@@ -405,7 +408,7 @@
                             songItem.SourceId ?? songItem.Id,
                             songItem.Title,
                             null, null, null, null,
-                            songItem.Parts.Select(p => p.Content).ToList()
+                            songItem.Parts.Select(p => new SongPart(null, p.Content)).ToList()
                         );
                     }
                 }
@@ -451,12 +454,12 @@
                     if (songItem is not null && songItem.Parts.Count > 0)
                     {
                         song = new Song(songItem.SourceId ?? songItem.Id, songItem.Title, null, null, null, null,
-                            songItem.Parts.Select(p => p.Content).ToList());
+                            songItem.Parts.Select(p => new SongPart(null, p.Content)).ToList());
                     }
                 }
                 if (song is not null && partIndex < song.Parts.Count)
                 {
-                    text = song.Parts[partIndex].Replace("\n", "<br>");
+                    text = song.Parts[partIndex].Content.Replace("\n", "<br>");
                     credits = FormatSongCredits(song);
                 }
 

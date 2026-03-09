@@ -13,6 +13,13 @@
         class="origin-top-left text-[85px] flex items-center justify-center px-20 pt-20 pb-36 relative"
         style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
         <div>@ChildContent</div>
+        @if (!string.IsNullOrEmpty(Label))
+        {
+            <div class="absolute top-6 left-10 text-[70px] font-semibold opacity-80"
+                 style="color: @LabelColor">
+                @Label
+            </div>
+        }
         @if (!string.IsNullOrEmpty(Credits))
         {
             <div class="absolute bottom-8 left-20 text-[40px] text-white/40 text-left">
@@ -28,5 +35,7 @@
     [Parameter] public required int BaseHeight { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? LabelColor { get; set; }
     [Parameter] public string? Credits { get; set; }
 }

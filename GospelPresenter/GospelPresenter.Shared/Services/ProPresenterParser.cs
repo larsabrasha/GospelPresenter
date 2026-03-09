@@ -44,26 +44,37 @@ public static partial class ProPresenterParser
             if (ccliData.SongNumber != 0) ccli = (int)ccliData.SongNumber;
         }
 
-        var parts = new List<string>();
+        // Index cues by UUID
+        var cuesById = new Dictionary<string, Cue>();
         foreach (var cue in presentation.Cues)
         {
-            foreach (var action in cue.Actions)
+            var cueId = cue.Uuid?.String;
+            if (!string.IsNullOrEmpty(cueId))
+                cuesById[cueId] = cue;
+        }
+
+        // Index cue groups by group UUID
+        var cueGroupsByGroupId = new Dictionary<string, Presentation.Types.CueGroup>();
+        foreach (var cueGroup in presentation.CueGroups)
+        {
+            var groupId = cueGroup.Group?.Uuid?.String;
+            if (!string.IsNullOrEmpty(groupId))
+                cueGroupsByGroupId[groupId] = cueGroup;
+        }
+
+        // Determine group order from selected arrangement, fallback to cue_groups order
+        var orderedGroups = GetOrderedGroups(presentation, cueGroupsByGroupId);
+
+        var parts = new List<SongPart>();
+        foreach (var cueGroup in orderedGroups)
+        {
+            var label = cueGroup.Group?.Name;
+            if (string.IsNullOrWhiteSpace(label)) label = null;
+
+            foreach (var cueId in cueGroup.CueIdentifiers)
             {
-                var slide = action.Slide?.Presentation?.BaseSlide;
-                if (slide is null) continue;
-
-                foreach (var element in slide.Elements)
-                {
-                    var rtfData = element.Element_?.Text?.RtfData;
-                    if (rtfData is null || rtfData.IsEmpty) continue;
-
-                    var rtf = Encoding.UTF8.GetString(rtfData.Span);
-                    if (!rtf.StartsWith("{\\rtf")) continue;
-
-                    var plain = RtfToPlainText(rtf);
-                    if (!string.IsNullOrWhiteSpace(plain))
-                        parts.Add(plain);
-                }
+                if (!cuesById.TryGetValue(cueId.String, out var cue)) continue;
+                ExtractSlideParts(cue, label, parts);
             }
         }
 
@@ -71,6 +82,54 @@ public static partial class ProPresenterParser
 
         var id = Path.GetFileNameWithoutExtension(filePath);
         return new Song(id, title, author, publisher, null, ccli?.ToString(), parts);
+    }
+
+    private static List<Presentation.Types.CueGroup> GetOrderedGroups(
+        Presentation presentation,
+        Dictionary<string, Presentation.Types.CueGroup> cueGroupsByGroupId)
+    {
+        // If there's a selected arrangement, use its group order
+        var selectedId = presentation.SelectedArrangement?.String;
+        if (!string.IsNullOrEmpty(selectedId))
+        {
+            var arrangement = presentation.Arrangements
+                .FirstOrDefault(a => a.Uuid?.String == selectedId);
+            if (arrangement is not null)
+            {
+                var ordered = new List<Presentation.Types.CueGroup>();
+                foreach (var groupId in arrangement.GroupIdentifiers)
+                {
+                    if (cueGroupsByGroupId.TryGetValue(groupId.String, out var cg))
+                        ordered.Add(cg);
+                }
+                if (ordered.Count > 0) return ordered;
+            }
+        }
+
+        // Fallback: cue_groups in file order
+        return presentation.CueGroups.ToList();
+    }
+
+    private static void ExtractSlideParts(Cue cue, string? label, List<SongPart> parts)
+    {
+        foreach (var action in cue.Actions)
+        {
+            var slide = action.Slide?.Presentation?.BaseSlide;
+            if (slide is null) continue;
+
+            foreach (var element in slide.Elements)
+            {
+                var rtfData = element.Element_?.Text?.RtfData;
+                if (rtfData is null || rtfData.IsEmpty) continue;
+
+                var rtf = Encoding.UTF8.GetString(rtfData.Span);
+                if (!rtf.StartsWith("{\\rtf")) continue;
+
+                var plain = RtfToPlainText(rtf);
+                if (!string.IsNullOrWhiteSpace(plain))
+                    parts.Add(new SongPart(label, plain));
+            }
+        }
     }
 
     private static readonly Encoding Windows1252 = InitWindows1252();

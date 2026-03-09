@@ -7,7 +7,8 @@ namespace GospelPresenter.UnitTests.Services;
 public class SongSearchTests
 {
     private static Song MakeSong(string name, string? author, params string[] parts) =>
-        new(Guid.NewGuid().ToString(), name, author, null, null, null, parts);
+        new(Guid.NewGuid().ToString(), name, author, null, null, null,
+            parts.Select(p => new SongPart(null, p)).ToList());
 
     private static ISongService CreateService(params Song[] songs)
     {

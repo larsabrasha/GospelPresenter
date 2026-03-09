@@ -120,8 +120,8 @@ public class SongService : ISongService
         searchIndex = songsSorted.Select(song => new SongSearchEntry(
             song,
             song.Name.Normalize().ToLowerInvariant(),
-            song.Parts.Count > 0 ? song.Parts[0].Normalize().ToLowerInvariant() : "",
-            $"{song.Name} {song.Author} {string.Join(" ", song.Parts)}".Normalize().ToLowerInvariant()
+            song.Parts.Count > 0 ? song.Parts[0].Content.Normalize().ToLowerInvariant() : "",
+            $"{song.Name} {song.Author} {string.Join(" ", song.Parts.Select(p => p.Content))}".Normalize().ToLowerInvariant()
         )).ToList();
     }
 

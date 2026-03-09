@@ -31,7 +31,7 @@ public class ProPresenterParserTests
         var song = ProPresenterParser.ParseFile(songFile);
 
         song.ShouldNotBeNull();
-        var allText = string.Join(" ", song.Parts);
+        var allText = string.Join(" ", song.Parts.Select(p => p.Content));
         allText.ShouldContain("förkunnar", Case.Insensitive);
     }
 
