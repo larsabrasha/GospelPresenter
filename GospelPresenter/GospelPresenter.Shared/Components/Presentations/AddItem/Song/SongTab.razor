@@ -39,7 +39,7 @@ else
         <div class="mt-3 flex-1 min-h-0 flex">
             @if (results.Count > 0)
             {
-                <div class="w-[40%] min-w-0 overflow-y-auto pr-3" data-song-list>
+                <div class="w-[50%] min-w-0 overflow-y-auto pr-3" data-song-list>
                     <Virtualize Items="results" Context="song" ItemSize="56" OverscanCount="5">
                         @{
                             var isSelected = selectedSong?.Id == song.Id;
@@ -52,7 +52,7 @@ else
                     </Virtualize>
                 </div>
 
-                <div class="w-[60%] min-w-0 overflow-y-scroll overflow-x-hidden pl-3" data-song-preview>
+                <div class="w-[50%] min-w-0 overflow-y-scroll overflow-x-hidden pl-3" data-song-preview>
                     @if (selectedSong is not null && previewWidth > 0)
                     {
                         var previewScale = previewWidth / AppState.BaseSlideWidth;

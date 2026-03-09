@@ -3,11 +3,16 @@ using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Web.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Prometheus;
 using GospelPresenter.Web.Configuration;
+using GospelPresenter.Web.Services;
+using Microsoft.AspNetCore.Components.Authorization;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -34,6 +39,63 @@ try
         builder.Services.AddDataProtection()
             .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionDirectory));
     }
+
+    var sessionTimeoutMinutes = builder.Configuration.GetValue("Settings:SessionTimeoutMinutes", 240);
+
+    builder.Services.AddAuthentication(options =>
+        {
+            options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+        })
+        .AddCookie(options =>
+        {
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(sessionTimeoutMinutes);
+            options.SlidingExpiration = false;
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+        })
+        .AddOpenIdConnect(options =>
+        {
+            options.Authority = builder.Configuration["OpenIdConnect:Authority"];
+            options.ClientId = builder.Configuration["OpenIdConnect:ClientId"];
+            options.ClientSecret = builder.Configuration["OpenIdConnect:ClientSecret"];
+            options.ResponseType = "code";
+            options.SaveTokens = true;
+            options.GetClaimsFromUserInfoEndpoint = true;
+            options.CallbackPath = "/signin-oidc";
+            options.SignedOutCallbackPath = "/signout-callback-oidc";
+            options.Scope.Add("openid");
+            options.Scope.Add("profile");
+            options.Scope.Add("email");
+
+            options.Events.OnRedirectToIdentityProvider = context =>
+            {
+                context.ProtocolMessage.Prompt = "login";
+                return Task.CompletedTask;
+            };
+
+            options.Events.OnTokenValidated = context =>
+            {
+                var identity = context.Principal?.Identity as System.Security.Claims.ClaimsIdentity;
+                identity?.AddClaim(new System.Security.Claims.Claim(
+                    "auth_time",
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
+                return Task.CompletedTask;
+            };
+
+            options.Events.OnRemoteFailure = context =>
+            {
+                context.Response.Redirect("/authentication-error");
+                context.HandleResponse();
+                return Task.CompletedTask;
+            };
+        });
+
+    builder.Services.AddAuthorization();
+
+    builder.Services.AddCascadingAuthenticationState();
+    builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingAuthStateProvider>();
 
 // Add services to the container.
     builder.Services.AddRazorComponents(options => options.DetailedErrors = builder.Environment.IsDevelopment())
@@ -114,14 +176,27 @@ builder.Services.AddMetricServer(options =>
 
     app.UseHttpsRedirection();
 
-    app.MapStaticAssets();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
     app.UseAntiforgery();
 
     app.UseRequestLocalization(supportedCultures);
 
+    app.MapStaticAssets();
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode()
         .AddAdditionalAssemblies(typeof(GospelPresenter.Shared._Imports).Assembly);
+
+    app.MapGet("/signin", (string? returnUrl) =>
+        Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" },
+            [OpenIdConnectDefaults.AuthenticationScheme])).AllowAnonymous();
+
+    app.MapPost("/signout", async (HttpContext context) =>
+    {
+        await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        context.Response.Redirect("/");
+    }).RequireAuthorization();
 
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

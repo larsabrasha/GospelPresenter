@@ -1,0 +1,40 @@
+<AuthorizeView>
+    <Authorized>
+        @if (showDropdown)
+        {
+            <div class="fixed inset-0 z-40" @onclick="CloseDropdown"></div>
+        }
+        <div class="relative flex items-center">
+            <button @onclick="ToggleDropdown" @onclick:stopPropagation="true"
+                    class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7">
+                    <path fill-rule="evenodd" d="M18.685 19.097A9.723 9.723 0 0 0 21.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 0 0 3.065 7.097A9.716 9.716 0 0 0 12 21.75a9.716 9.716 0 0 0 6.685-2.653Zm-2.54-1.106a7.5 7.5 0 0 0-8.29 0 8.23 8.23 0 0 0 4.145 1.11 8.23 8.23 0 0 0 4.145-1.11ZM12 13.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clip-rule="evenodd"/>
+                </svg>
+            </button>
+            @if (showDropdown)
+            {
+                <div class="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-neutral-700 rounded-lg shadow-lg py-2 z-50">
+                    <div class="px-4 py-2 border-b border-neutral-200 dark:border-neutral-600">
+                        <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100">@context.User.FindFirst("name")?.Value</div>
+                        <div class="text-xs text-neutral-500 dark:text-neutral-400">@context.User.FindFirst("email")?.Value</div>
+                    </div>
+                    <form method="post" action="/signout">
+                        <AntiforgeryToken/>
+                        <button type="submit"
+                                class="w-full text-left px-4 py-2 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer">
+                            Sign out
+                        </button>
+                    </form>
+                </div>
+            }
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private bool showDropdown;
+
+    private void ToggleDropdown() => showDropdown = !showDropdown;
+
+    private void CloseDropdown() => showDropdown = false;
+}

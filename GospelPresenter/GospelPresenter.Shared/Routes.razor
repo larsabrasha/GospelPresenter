@@ -1,9 +1,14 @@
 ﻿@using System.Globalization
 @using GospelPresenter.Shared.Layout
+@using Microsoft.AspNetCore.Components.Authorization
 
 <Router AppAssembly="typeof(MainLayout).Assembly">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)"/>
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)">
+            <NotAuthorized>
+                <RedirectToLogin/>
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1"/>
     </Found>
 </Router>
