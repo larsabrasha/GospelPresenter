@@ -275,12 +275,14 @@ try
         builder.Services.AddDbContextFactory<PresentationContext>(opt =>
             opt.UseNpgsql(connectionString));
         builder.Services.AddScoped<IPresentationService, PresentationService>();
+        builder.Services.AddSingleton<ISongService, SongService>();
         builder.Services.AddScoped<IUserService, UserService>();
     }
     else
     {
         Log.Warning("No database connection string found — using mock services");
         builder.Services.AddSingleton<IPresentationService, MockPresentationService>();
+        builder.Services.AddSingleton<ISongService, MockSongService>();
         builder.Services.AddSingleton<IUserService, MockUserService>();
     }
 
