@@ -96,9 +96,55 @@ else
             }
         </div>
 
+        @if (mobilePreviewSong is not null)
+        {
+            <div class="md:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800">
+                <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+                    <button class="size-8 flex items-center justify-center rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer"
+                            @onclick="CloseMobilePreview">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-sm truncate">@mobilePreviewSong.Name</div>
+                        @if (!string.IsNullOrEmpty(mobilePreviewSong.Author))
+                        {
+                            <div class="text-xs text-neutral-400 truncate">@mobilePreviewSong.Author</div>
+                        }
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4" data-mobile-song-preview>
+                    @if (mobilePreviewWidth > 0)
+                    {
+                        var mobileScale = mobilePreviewWidth / AppState.BaseSlideWidth;
+                        <div class="flex flex-col gap-2">
+                            @foreach (var part in mobilePreviewSong.Parts)
+                            {
+                                <SongSlide
+                                    ContentHtml="@(part.Content.Replace("\n", "<br>"))"
+                                    Label="@part.Label"
+                                    LabelColor="@part.LabelColor"
+                                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                    BaseWidth="@AppState.BaseSlideWidth"
+                                    BaseHeight="@AppState.BaseSlideHeight"
+                                    Scale="@mobileScale"/>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="shrink-0 flex items-center justify-end px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
+                    <button class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                            @onclick="MobileAdd">
+                        Lägg till <span class="font-bold">@mobilePreviewSong.Name</span>
+                    </button>
+                </div>
+            </div>
+        }
+
         @if (selectedSong is not null)
         {
-            <div class="shrink-0 flex items-center justify-end pt-4">
+            <div class="shrink-0 hidden md:flex items-center justify-end pt-4">
                 <button class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
                     L&auml;gg till <span class="font-bold">@selectedSong.Name</span>
@@ -117,6 +163,8 @@ else
     private List<Song> results = [];
     private Song? selectedSong;
     private double previewWidth;
+    private double mobilePreviewWidth;
+    private Song? mobilePreviewSong;
     private CancellationTokenSource? debounceToken;
 
     protected override void OnInitialized()
@@ -211,10 +259,36 @@ else
             "document.querySelector('[data-song-list]')?.scrollTo(0,0);document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
     }
 
-    private void SelectSong(Song song)
+    private async Task SelectSong(Song song)
     {
         selectedSong = song;
+        // On mobile, open full-screen preview
+        var isMobile = await JsRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
+        if (isMobile)
+        {
+            mobilePreviewSong = song;
+            StateHasChanged();
+            await Task.Yield();
+            mobilePreviewWidth = await JsRuntime.InvokeAsync<double>("eval",
+                "((el) => { if(!el) return 0; var s=getComputedStyle(el); return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - 2; })(document.querySelector('[data-mobile-song-preview]'))");
+        }
     }
+
+    private void CloseMobilePreview()
+    {
+        mobilePreviewSong = null;
+    }
+
+    private async Task MobileAdd()
+    {
+        if (mobilePreviewSong is not null)
+        {
+            selectedSong = mobilePreviewSong;
+            mobilePreviewSong = null;
+            await OnAdd.InvokeAsync(selectedSong);
+        }
+    }
+
 
     private async Task HandleAdd()
     {
