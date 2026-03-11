@@ -19,7 +19,7 @@ public interface ISongService
     Task PermanentlyDeleteSongAsync(string id);
     Task EmptyTrashAsync();
     Task RestoreAllFromTrashAsync();
-    Task UpdateSongAsync(string id, string name, string? author);
+    Task UpdateSongAsync(string id, string name, string? author, string? publisher, int? year, string? ccli);
     Task UpdateSongPartAsync(string songId, int partIndex, string? label, string content);
     Task AddSongPartAsync(string songId, string? label, string content);
     Task DeleteSongPartAsync(string songId, int partIndex);
@@ -27,6 +27,7 @@ public interface ISongService
     Task<List<SongVersionSummary>> GetVersionsAsync(string songId);
     Task<SongVersionDetail?> GetVersionAsync(string versionId);
     Task RestoreVersionAsync(string songId, string versionId);
+    Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId);
 }
 
 public class SongService(IDbContextFactory<PresentationContext> dbContextFactory) : ISongService
@@ -244,7 +245,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         }
     }
 
-    public async Task UpdateSongAsync(string id, string name, string? author)
+    public async Task UpdateSongAsync(string id, string name, string? author, string? publisher, int? year, string? ccli)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id);
@@ -255,12 +256,15 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
         song.Name = name;
         song.Author = author;
+        song.Publisher = publisher;
+        song.Year = year;
+        song.Ccli = ccli;
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
 
         if (songsById.TryGetValue(id, out var existing))
         {
-            songsById[id] = existing with { Name = name, Author = author };
+            songsById[id] = existing with { Name = name, Author = author, Publisher = publisher, Year = year, Ccli = ccli };
             RebuildIndex();
         }
     }
@@ -404,6 +408,43 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
+    }
+
+    public async Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        var dbSong = new Models.DbSong
+        {
+            Name = name,
+            Author = author,
+            Publisher = publisher,
+            Year = year,
+            Ccli = ccli,
+            OrganizationId = organizationId
+        };
+
+        for (var i = 0; i < parts.Count; i++)
+        {
+            dbSong.Parts.Add(new Models.DbSongPart
+            {
+                Label = parts[i].Label,
+                Content = parts[i].Content,
+                SortOrder = i
+            });
+        }
+
+        db.Songs.Add(dbSong);
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+
+        var song = ToStateSong(dbSong);
+        songsById[song.Id] = song;
+        RebuildIndex();
+
+        return song;
     }
 
     private static readonly TimeSpan SessionWindow = TimeSpan.FromMinutes(30);

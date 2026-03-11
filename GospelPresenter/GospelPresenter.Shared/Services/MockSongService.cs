@@ -59,7 +59,7 @@ public class MockSongService : ISongService
 
     public Task RestoreAllFromTrashAsync() => Task.CompletedTask;
 
-    public Task UpdateSongAsync(string id, string name, string? author) => Task.CompletedTask;
+    public Task UpdateSongAsync(string id, string name, string? author, string? publisher, int? year, string? ccli) => Task.CompletedTask;
 
     public Task UpdateSongPartAsync(string songId, int partIndex, string? label, string content) => Task.CompletedTask;
 
@@ -76,4 +76,12 @@ public class MockSongService : ISongService
         Task.FromResult<SongVersionDetail?>(null);
 
     public Task RestoreVersionAsync(string songId, string versionId) => Task.CompletedTask;
+
+    public Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId)
+    {
+        var song = new Song(Guid.NewGuid().ToString(), name, author, publisher, year, ccli, parts.ToList<SongPart>());
+        songsById[song.Id] = song;
+        songsSorted = songsById.Values.OrderBy(s => s.Name).ToList();
+        return Task.FromResult(song);
+    }
 }
