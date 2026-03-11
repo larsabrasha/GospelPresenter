@@ -22,6 +22,38 @@ namespace GospelPresenter.Shared.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("GospelPresenter.Shared.Models.Invite", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Used")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Invites");
+                });
+
             modelBuilder.Entity("GospelPresenter.Shared.Models.Organization", b =>
                 {
                     b.Property<string>("Id")
@@ -130,7 +162,7 @@ namespace GospelPresenter.Shared.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<string>("ExternalId")
+                    b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -142,11 +174,59 @@ namespace GospelPresenter.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ProfileImage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("GospelPresenter.Shared.Models.UserLogin", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderSubjectId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Provider", "ProviderSubjectId")
+                        .IsUnique();
+
+                    b.ToTable("UserLogins");
+                });
+
+            modelBuilder.Entity("GospelPresenter.Shared.Models.Invite", b =>
+                {
+                    b.HasOne("GospelPresenter.Shared.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("GospelPresenter.Shared.Models.Presentation", b =>
@@ -193,6 +273,17 @@ namespace GospelPresenter.Shared.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("GospelPresenter.Shared.Models.UserLogin", b =>
+                {
+                    b.HasOne("GospelPresenter.Shared.Models.User", "User")
+                        .WithMany("Logins")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("GospelPresenter.Shared.Models.Organization", b =>
                 {
                     b.Navigation("Presentations");
@@ -208,6 +299,11 @@ namespace GospelPresenter.Shared.Migrations
             modelBuilder.Entity("GospelPresenter.Shared.Models.PresentationItem", b =>
                 {
                     b.Navigation("Parts");
+                });
+
+            modelBuilder.Entity("GospelPresenter.Shared.Models.User", b =>
+                {
+                    b.Navigation("Logins");
                 });
 #pragma warning restore 612, 618
         }

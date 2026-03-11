@@ -7,7 +7,28 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
 {
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<User> Users { get; set; }
+    public DbSet<UserLogin> UserLogins { get; set; }
+    public DbSet<Invite> Invites { get; set; }
     public DbSet<Presentation> Presentations { get; set; }
     public DbSet<PresentationItem> PresentationItems { get; set; }
     public DbSet<PresentationItemPart> PresentationItemParts { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<User>()
+            .Property(u => u.Role)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
+
+        modelBuilder.Entity<UserLogin>()
+            .HasIndex(ul => new { ul.Provider, ul.ProviderSubjectId })
+            .IsUnique();
+
+        modelBuilder.Entity<Invite>()
+            .HasIndex(i => i.Token)
+            .IsUnique();
+    }
 }

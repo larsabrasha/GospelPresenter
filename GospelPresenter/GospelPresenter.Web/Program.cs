@@ -1,10 +1,12 @@
 using GospelPresenter.Shared;
 using GospelPresenter.Shared.Contexts;
+using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -13,6 +15,7 @@ using Prometheus;
 using GospelPresenter.Web.Configuration;
 using GospelPresenter.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using System.Security.Claims;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -75,13 +78,141 @@ try
                 return Task.CompletedTask;
             };
 
-            options.Events.OnTokenValidated = context =>
+            options.Events.OnTokenValidated = async context =>
             {
-                var identity = context.Principal?.Identity as System.Security.Claims.ClaimsIdentity;
-                identity?.AddClaim(new System.Security.Claims.Claim(
-                    "auth_time",
-                    DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
+                var subject = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(subject))
+                {
+                    context.Fail("No subject claim found");
+                    return;
+                }
+
+                var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
+                string? inviteToken = null;
+                context.Properties?.Items.TryGetValue("invite_token", out inviteToken);
+
+                User? user;
+                if (!string.IsNullOrEmpty(inviteToken))
+                {
+                    var invite = await userService.GetInviteByTokenAsync(inviteToken);
+                    if (invite == null)
+                    {
+                        context.Fail("Invalid invite");
+                        return;
+                    }
+                    await userService.LinkLoginAsync(invite.UserId, "oidc", subject);
+                    await userService.MarkInviteUsedAsync(invite.Id);
+                    user = invite.User;
+                }
+                else
+                {
+                    user = await userService.GetByLoginAsync("oidc", subject);
+                    if (user == null)
+                    {
+                        context.Fail("User not found");
+                        return;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(user.Email))
+                {
+                    var email = context.Principal?.FindFirstValue(ClaimTypes.Email);
+                    if (!string.IsNullOrEmpty(email))
+                        await userService.UpdateEmailIfEmptyAsync(user.Id, email);
+                }
+
+                if (string.IsNullOrEmpty(user.ProfileImage))
+                {
+                    var pictureUrl = context.Principal?.FindFirstValue("picture");
+                    if (!string.IsNullOrEmpty(pictureUrl))
+                        await userService.UpdateProfileImageAsync(user.Id, pictureUrl);
+                }
+
+                var identity = context.Principal?.Identity as ClaimsIdentity;
+                identity?.AddClaim(new Claim("user_id", user.Id));
+                identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
+                identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
+                identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
+            };
+
+            options.Events.OnRemoteFailure = context =>
+            {
+                context.Response.Redirect("/authentication-error");
+                context.HandleResponse();
                 return Task.CompletedTask;
+            };
+        })
+        .AddGoogle(options =>
+        {
+            options.ClientId = builder.Configuration["Google:ClientId"] ?? "";
+            options.ClientSecret = builder.Configuration["Google:ClientSecret"] ?? "";
+            options.CallbackPath = "/signin-google";
+
+            options.Scope.Add("profile");
+            options.Scope.Add("email");
+
+            options.ClaimActions.MapJsonKey(System.Security.Claims.ClaimTypes.Name, "name");
+            options.ClaimActions.MapJsonKey(System.Security.Claims.ClaimTypes.Email, "email");
+            options.ClaimActions.MapJsonKey("picture", "picture");
+
+            options.Events.OnTicketReceived = async context =>
+            {
+                var subject = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(subject))
+                {
+                    context.Response.Redirect("/authentication-error");
+                    context.HandleResponse();
+                    return;
+                }
+
+                var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
+                string? inviteToken = null;
+                context.Properties?.Items.TryGetValue("invite_token", out inviteToken);
+
+                User? user;
+                if (!string.IsNullOrEmpty(inviteToken))
+                {
+                    var invite = await userService.GetInviteByTokenAsync(inviteToken);
+                    if (invite == null)
+                    {
+                        context.Response.Redirect("/authentication-error");
+                        context.HandleResponse();
+                        return;
+                    }
+                    await userService.LinkLoginAsync(invite.UserId, "google", subject);
+                    await userService.MarkInviteUsedAsync(invite.Id);
+                    user = invite.User;
+                }
+                else
+                {
+                    user = await userService.GetByLoginAsync("google", subject);
+                    if (user == null)
+                    {
+                        context.Response.Redirect("/authentication-error");
+                        context.HandleResponse();
+                        return;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(user.Email))
+                {
+                    var email = context.Principal?.FindFirstValue(ClaimTypes.Email);
+                    if (!string.IsNullOrEmpty(email))
+                        await userService.UpdateEmailIfEmptyAsync(user.Id, email);
+                }
+
+                if (string.IsNullOrEmpty(user.ProfileImage))
+                {
+                    var pictureUrl = context.Principal?.FindFirstValue("picture");
+                    if (!string.IsNullOrEmpty(pictureUrl))
+                        await userService.UpdateProfileImageAsync(user.Id, pictureUrl);
+                }
+
+                var identity = context.Principal?.Identity as ClaimsIdentity;
+                identity?.AddClaim(new Claim("user_id", user.Id));
+                identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
+                identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
+                identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
             };
 
             options.Events.OnRemoteFailure = context =>
@@ -124,11 +255,13 @@ try
         builder.Services.AddDbContextFactory<PresentationContext>(opt =>
             opt.UseNpgsql(connectionString));
         builder.Services.AddScoped<IPresentationService, PresentationService>();
+        builder.Services.AddScoped<IUserService, UserService>();
     }
     else
     {
-        Log.Warning("No database connection string found — using mock presentation service");
+        Log.Warning("No database connection string found — using mock services");
         builder.Services.AddSingleton<IPresentationService, MockPresentationService>();
+        builder.Services.AddSingleton<IUserService, MockUserService>();
     }
 
 #if !DEBUG
@@ -152,6 +285,25 @@ builder.Services.AddMetricServer(options =>
     {
         var songService = app.Services.GetRequiredService<ISongService>();
         songService.LoadSongs(songsPath);
+    }
+
+    // Seed admin user if no users exist
+    if (!string.IsNullOrEmpty(connectionString))
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PresentationContext>>();
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        if (!await db.Users.AnyAsync())
+        {
+            var org = new Organization { Name = "Default" };
+            var admin = new User { Name = "Admin", Role = UserRole.Admin, Organization = org };
+            var invite = new Invite { User = admin };
+            db.Organizations.Add(org);
+            db.Users.Add(admin);
+            db.Invites.Add(invite);
+            await db.SaveChangesAsync();
+            Log.Warning("No users found — created admin user with invite link: /invite/{Token}", invite.Token);
+        }
     }
 
     app.MapDefaultEndpoints();
@@ -188,9 +340,29 @@ builder.Services.AddMetricServer(options =>
         .AddInteractiveServerRenderMode()
         .AddAdditionalAssemblies(typeof(GospelPresenter.Shared._Imports).Assembly);
 
-    app.MapGet("/signin", (string? returnUrl) =>
-        Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" },
-            [OpenIdConnectDefaults.AuthenticationScheme])).AllowAnonymous();
+    app.MapGet("/signin", (string? returnUrl, string? provider) =>
+    {
+        var scheme = provider == "google"
+            ? GoogleDefaults.AuthenticationScheme
+            : OpenIdConnectDefaults.AuthenticationScheme;
+        return Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }, [scheme]);
+    }).AllowAnonymous();
+
+    app.MapGet("/invite/{token}/signin", async (string token, string provider, IUserService userService) =>
+    {
+        var invite = await userService.GetInviteByTokenAsync(token);
+        if (invite == null)
+            return Results.Redirect("/authentication-error");
+
+        var scheme = provider == "google"
+            ? GoogleDefaults.AuthenticationScheme
+            : OpenIdConnectDefaults.AuthenticationScheme;
+
+        var properties = new AuthenticationProperties { RedirectUri = "/" };
+        properties.Items["invite_token"] = token;
+
+        return Results.Challenge(properties, [scheme]);
+    }).AllowAnonymous();
 
     app.MapPost("/signout", async (HttpContext context) =>
     {

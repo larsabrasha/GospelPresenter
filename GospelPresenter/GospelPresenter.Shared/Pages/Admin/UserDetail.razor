@@ -1,0 +1,456 @@
+@page "/admin/users/{UserId}"
+@attribute [Authorize(Roles = "Admin")]
+
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using CommunityToolkit.Mvvm.Messaging
+@using GospelPresenter.Shared.State
+
+@implements IDisposable
+
+@inject IUserService UserService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div class="flex flex-col p-3 w-full sm:w-180 mx-auto space-y-5">
+    <div class="flex items-center gap-3 px-7">
+        <button class="px-3 py-1.5 rounded-full cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 dark:text-neutral-100"
+                @onclick="GoBack">
+            &larr; Tillbaka
+        </button>
+        <div class="text-xl font-bold dark:text-neutral-100">
+            @user?.Name
+        </div>
+    </div>
+
+    @if (user is null)
+    {
+        <div class="px-7 text-neutral-400">Laddar...</div>
+    }
+    else
+    {
+        <!-- Uppgifter -->
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-lg border-t border-white dark:border-neutral-700 p-5 space-y-4">
+            <div class="font-semibold">Uppgifter</div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Profilbild</label>
+                <div class="flex items-center gap-4">
+                    <label class="cursor-pointer group relative">
+                        @if (!string.IsNullOrEmpty(user.ProfileImage))
+                        {
+                            <img src="@user.ProfileImage" alt="@user.Name" class="w-16 h-16 rounded-full object-cover group-hover:brightness-75 transition"/>
+                        }
+                        else
+                        {
+                            <div class="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-600 flex items-center justify-center text-neutral-400 group-hover:bg-neutral-300 dark:group-hover:bg-neutral-500 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-10 h-10">
+                                    <path fill-rule="evenodd" d="M18.685 19.097A9.723 9.723 0 0 0 21.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 0 0 3.065 7.097A9.716 9.716 0 0 0 12 21.75a9.716 9.716 0 0 0 6.685-2.653Zm-2.54-1.106a7.5 7.5 0 0 0-8.29 0 8.23 8.23 0 0 0 4.145 1.11 8.23 8.23 0 0 0 4.145-1.11ZM12 13.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                        }
+                        <InputFile OnChange="OnProfileImageSelected" accept="image/*"
+                                   class="hidden"/>
+                    </label>
+                    <div class="flex flex-col gap-2">
+                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                            Byt bild
+                            <InputFile OnChange="OnProfileImageSelected" accept="image/*"
+                                       class="hidden"/>
+                        </label>
+                        @if (!string.IsNullOrEmpty(user.ProfileImage))
+                        {
+                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
+                                    @onclick="ConfirmRemoveProfileImage">
+                                Ta bort bild
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Namn</label>
+                <input type="text"
+                       @bind="editName"
+                       @bind:after="SaveUser"
+                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">E-post</label>
+                <input type="email"
+                       @bind="editEmail"
+                       @bind:after="SaveUser"
+                       class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                @if (emailError is not null)
+                {
+                    <div class="text-sm text-red-500 mt-1">@emailError</div>
+                }
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Roll</label>
+                <select @bind="editRole"
+                        @bind:after="SaveUser"
+                        class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                    @foreach (var role in Enum.GetValues<UserRole>())
+                    {
+                        <option value="@role">@RoleDisplayName(role)</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <button class="px-4 py-2.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
+                        @onclick="ConfirmDeleteUser">
+                    Ta bort användare
+                </button>
+            </div>
+        </div>
+
+        <!-- Kopplade konton -->
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-lg border-t border-white dark:border-neutral-700 p-5 space-y-4">
+            <div class="font-semibold">Kopplade konton</div>
+
+            @if (logins is null)
+            {
+                <div class="text-neutral-400">Laddar...</div>
+            }
+            else if (logins.Count == 0)
+            {
+                <div class="text-neutral-400 text-sm">Inga konton kopplade. Skapa en inbjudningslänk så att användaren kan koppla sitt konto.</div>
+
+                @if (invite is not null)
+                {
+                    var inviteUrl = GetInviteUrl(invite.Token);
+                    <div class="p-4 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-2 @(invite.IsExpired ? "opacity-60" : "")">
+                        <div class="flex items-center justify-between">
+                            @if (invite.IsExpired)
+                            {
+                                <div class="text-xs text-red-500">Utgången</div>
+                            }
+                            else
+                            {
+                                <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                                    Skapad @invite.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), giltig i @FormatTimeLeft(invite.ExpiresAt)
+                                </div>
+                            }
+                            <button class="px-3 py-1.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
+                                    @onclick="ConfirmDeleteInvite">
+                                Ta bort
+                            </button>
+                        </div>
+                        @if (!invite.IsExpired)
+                        {
+                            <div class="flex items-center gap-2">
+                                <input type="text" readonly value="@inviteUrl"
+                                       class="flex-1 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-sm border border-neutral-200 dark:border-neutral-500 select-all"/>
+                                <button class="px-3 py-2 rounded-lg text-sm bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
+                                        @onclick="() => CopyToClipboard(inviteUrl)">
+                                    Kopiera
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (invite is null || invite.IsExpired)
+                {
+                    <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                            @onclick="CreateInvite">
+                        Skapa inbjudningslänk
+                    </button>
+                }
+            }
+            else
+            {
+                @foreach (var login in logins)
+                {
+                    <div class="flex items-center justify-between p-3 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600">
+                        <div>
+                            <div class="font-medium text-sm">@ProviderDisplayName(login.Provider)</div>
+                            <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono">@login.ProviderSubjectId</div>
+                        </div>
+                        @{ var loginToDelete = login; }
+                        <button class="px-3 py-1.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
+                                @onclick="() => ConfirmDeleteLogin(loginToDelete)">
+                            Ta bort
+                        </button>
+                    </div>
+                }
+
+                @if (showAddLogin)
+                {
+                    <div class="p-3 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Provider</label>
+                            <select @bind="newLoginProvider"
+                                    class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-600 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="google">Google</option>
+                                <option value="oidc">Pocket ID</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Subject ID</label>
+                            <input type="text"
+                                   @bind="newLoginSubjectId"
+                                   class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-600 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button class="px-3 py-1.5 rounded-full text-sm cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-600"
+                                    @onclick="() => showAddLogin = false">
+                                Avbryt
+                            </button>
+                            <button class="px-3 py-1.5 rounded-full text-sm bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
+                                    disabled="@string.IsNullOrWhiteSpace(newLoginSubjectId)"
+                                    @onclick="AddLogin">
+                                Lägg till
+                            </button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-sm text-neutral-500 dark:text-neutral-400">
+                        <button class="text-sky-500 hover:text-sky-600 cursor-pointer underline"
+                                @onclick="() => showAddLogin = true">
+                            Lägg till konto manuellt</button>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@if (confirmAction is not null)
+{
+    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CloseConfirmDialog">
+        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-lg space-y-4"
+             @onclick:stopPropagation="true">
+            <div class="font-semibold text-lg">@confirmTitle</div>
+            <p>@confirmMessage</p>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseConfirmDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
+                        @onclick="ExecuteConfirmAction">
+                    @confirmButtonText
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string UserId { get; set; } = "";
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private string? currentUserId;
+    private User? user;
+    private List<UserLogin>? logins;
+    private Invite? invite;
+    private string editName = "";
+    private string editEmail = "";
+    private string? emailError;
+    private UserRole editRole;
+    private Func<Task>? confirmAction;
+    private string confirmTitle = "";
+    private string confirmMessage = "";
+    private string confirmButtonText = "Ta bort";
+    private bool showAddLogin;
+    private string newLoginProvider = "google";
+    private string newLoginSubjectId = "";
+    private Timer? countdownTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            currentUserId = state.User.FindFirst("user_id")?.Value;
+        }
+
+        user = await UserService.GetByIdAsync(UserId);
+        if (user == null)
+        {
+            NavigationManager.NavigateTo("/admin/users");
+            return;
+        }
+        editName = user.Name;
+        editEmail = user.Email;
+        editRole = user.Role;
+        await Task.WhenAll(LoadLogins(), LoadInvite());
+        StartCountdownTimer();
+    }
+
+    private void StartCountdownTimer()
+    {
+        countdownTimer?.Dispose();
+        if (invite is { IsExpired: false })
+            countdownTimer = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+    }
+
+    private async Task SaveUser()
+    {
+        if (string.IsNullOrWhiteSpace(editName)) return;
+        emailError = null;
+
+        if (!string.IsNullOrWhiteSpace(editEmail) && await UserService.IsEmailTakenAsync(editEmail.Trim(), UserId))
+        {
+            emailError = "E-postadressen används redan av en annan användare";
+            return;
+        }
+
+        await UserService.UpdateUserAsync(UserId, editName.Trim(), editEmail.Trim(), editRole);
+    }
+
+    private void ShowConfirm(string title, string message, Func<Task> action, string buttonText = "Ta bort")
+    {
+        confirmTitle = title;
+        confirmMessage = message;
+        confirmButtonText = buttonText;
+        confirmAction = action;
+    }
+
+    private void CloseConfirmDialog() => confirmAction = null;
+
+    private async Task ExecuteConfirmAction()
+    {
+        if (confirmAction is not null)
+            await confirmAction();
+        confirmAction = null;
+    }
+
+    private void ConfirmDeleteUser() => ShowConfirm(
+        "Ta bort användare",
+        $"Är du säker på att du vill ta bort {user?.Name}?",
+        async () => { await UserService.DeleteUserAsync(UserId); NavigationManager.NavigateTo("/admin/users"); });
+
+    private void ConfirmRemoveProfileImage() => ShowConfirm(
+        "Ta bort profilbild",
+        "Är du säker på att du vill ta bort profilbilden?",
+        RemoveProfileImage);
+
+    private void ConfirmDeleteInvite() => ShowConfirm(
+        "Ta bort inbjudan",
+        "Är du säker på att du vill ta bort inbjudningslänken?",
+        DeleteInvite);
+
+    private void ConfirmDeleteLogin(UserLogin login) => ShowConfirm(
+        "Ta bort kopplat konto",
+        $"Är du säker på att du vill ta bort kopplingen till {ProviderDisplayName(login.Provider)}?",
+        async () => { await UserService.DeleteLoginAsync(login.Id); await LoadLogins(); });
+
+    private async Task LoadLogins()
+    {
+        logins = await UserService.GetLoginsForUserAsync(UserId);
+    }
+
+    private async Task LoadInvite()
+    {
+        var invites = await UserService.GetInvitesForUserAsync(UserId);
+        invite = invites.FirstOrDefault();
+    }
+
+    private async Task AddLogin()
+    {
+        if (string.IsNullOrWhiteSpace(newLoginSubjectId)) return;
+        await UserService.LinkLoginAsync(UserId, newLoginProvider, newLoginSubjectId.Trim());
+        newLoginSubjectId = "";
+        showAddLogin = false;
+        await LoadLogins();
+    }
+
+    private async Task CreateInvite()
+    {
+        invite = await UserService.CreateInviteAsync(UserId);
+        StartCountdownTimer();
+    }
+
+    private async Task DeleteInvite()
+    {
+        if (invite is null) return;
+        await UserService.DeleteInviteAsync(invite.Id);
+        invite = null;
+        countdownTimer?.Dispose();
+    }
+
+    private string GetInviteUrl(string token)
+    {
+        var baseUrl = NavigationManager.BaseUri.TrimEnd('/');
+        return $"{baseUrl}/invite/{token}";
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        try { await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text); }
+        catch { }
+    }
+
+    private static string ProviderDisplayName(string provider) => provider switch
+    {
+        "google" => "Google",
+        "oidc" => "Pocket ID",
+        _ => provider
+    };
+
+    private static string RoleDisplayName(UserRole role) => role switch
+    {
+        UserRole.Admin => "Admin",
+        UserRole.User => "Användare",
+        _ => role.ToString()
+    };
+
+    private async Task OnProfileImageSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > 512 * 1024) return;
+
+        var resized = await file.RequestImageFileAsync(file.ContentType, 256, 256);
+        using var stream = resized.OpenReadStream(512 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        var dataUri = $"data:{file.ContentType};base64,{base64}";
+
+        await UserService.UpdateProfileImageAsync(UserId, dataUri);
+        user = await UserService.GetByIdAsync(UserId);
+        SyncNavbarProfileImage();
+    }
+
+    private async Task RemoveProfileImage()
+    {
+        await UserService.UpdateProfileImageAsync(UserId, null);
+        user = await UserService.GetByIdAsync(UserId);
+        SyncNavbarProfileImage();
+    }
+
+    private void SyncNavbarProfileImage()
+    {
+        if (UserId == currentUserId)
+            WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
+    }
+
+    private static string FormatTimeLeft(DateTime expiresAt)
+    {
+        var left = expiresAt - DateTime.UtcNow;
+        if (left <= TimeSpan.Zero) return "0 minuter";
+
+        var parts = new List<string>();
+        if (left.Days > 0)
+            parts.Add($"{left.Days} {(left.Days == 1 ? "dag" : "dagar")}");
+        if (left.Hours > 0)
+            parts.Add($"{left.Hours} {(left.Hours == 1 ? "timme" : "timmar")}");
+        if (left.Days == 0)
+            parts.Add($"{left.Minutes} {(left.Minutes == 1 ? "minut" : "minuter")}");
+
+        return string.Join(", ", parts);
+    }
+
+    private void GoBack() => NavigationManager.NavigateTo("/admin/users");
+
+    public void Dispose()
+    {
+        countdownTimer?.Dispose();
+    }
+}
