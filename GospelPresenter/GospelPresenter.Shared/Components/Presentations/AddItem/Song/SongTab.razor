@@ -134,9 +134,9 @@ else
                     }
                 </div>
                 <div class="shrink-0 flex items-center justify-end px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
-                    <button class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                    <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                             @onclick="MobileAdd">
-                        Lägg till <span class="font-bold">@mobilePreviewSong.Name</span>
+                        <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@mobilePreviewSong.Name</span>
                     </button>
                 </div>
             </div>
@@ -145,9 +145,9 @@ else
         @if (selectedSong is not null)
         {
             <div class="shrink-0 hidden md:flex items-center justify-end pt-4">
-                <button class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
-                    L&auml;gg till <span class="font-bold">@selectedSong.Name</span>
+                    <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@selectedSong.Name</span>
                 </button>
             </div>
         }

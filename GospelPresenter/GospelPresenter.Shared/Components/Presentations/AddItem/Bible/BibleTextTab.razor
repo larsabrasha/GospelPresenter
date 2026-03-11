@@ -85,9 +85,9 @@ else
         @if (ShowAddButton)
         {
             <div class="shrink-0 flex items-center justify-end pt-4">
-                <button class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
-                    L&auml;gg till <span class="font-bold">@AddLabel</span>
+                    <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@AddLabel</span>
                 </button>
             </div>
         }
