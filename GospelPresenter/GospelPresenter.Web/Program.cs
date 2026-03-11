@@ -313,6 +313,7 @@ builder.Services.AddMetricServer(options =>
         await using var db = await dbContextFactory.CreateDbContextAsync();
         if (!await db.Users.AnyAsync())
         {
+            await using var transaction = await db.Database.BeginTransactionAsync();
             var org = new Organization { Name = "Default" };
             var admin = new User { Name = "Admin", Role = UserRole.Admin, Organization = org };
             var invite = new Invite { User = admin };
@@ -320,6 +321,7 @@ builder.Services.AddMetricServer(options =>
             db.Users.Add(admin);
             db.Invites.Add(invite);
             await db.SaveChangesAsync();
+            await transaction.CommitAsync();
             Log.Warning("No users found — created admin user with invite link: /invite/{Token}", invite.Token);
         }
     }

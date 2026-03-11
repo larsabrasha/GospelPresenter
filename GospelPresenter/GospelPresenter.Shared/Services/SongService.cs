@@ -156,7 +156,9 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
         if (imported > 0 || replaced > 0)
         {
+            await using var transaction = await db.Database.BeginTransactionAsync();
             await db.SaveChangesAsync();
+            await transaction.CommitAsync();
             await LoadSongsAsync();
         }
 
@@ -248,11 +250,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id);
         if (song is null) return;
 
+        await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
 
         song.Name = name;
         song.Author = author;
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         if (songsById.TryGetValue(id, out var existing))
         {
@@ -270,11 +274,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var parts = song.Parts;
         if (partIndex < 0 || partIndex >= parts.Count) return;
 
+        await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
 
         parts[partIndex].Label = label;
         parts[partIndex].Content = content;
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         await ReloadSong(songId);
     }
 
@@ -284,6 +290,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
         if (song is null) return;
 
+        await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
 
         var maxOrder = song.Parts.Count > 0 ? song.Parts.Max(p => p.SortOrder) : -1;
@@ -295,6 +302,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             SortOrder = maxOrder + 1
         });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         await ReloadSong(songId);
     }
 
@@ -307,6 +315,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var parts = song.Parts;
         if (partIndex < 0 || partIndex >= parts.Count) return;
 
+        await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
 
         db.SongParts.Remove(parts[partIndex]);
@@ -315,6 +324,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             parts[i].SortOrder = i;
 
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         await ReloadSong(songId);
     }
 
@@ -327,6 +337,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var parts = song.Parts;
         if (fromIndex < 0 || fromIndex >= parts.Count || toIndex < 0 || toIndex >= parts.Count || fromIndex == toIndex) return;
 
+        await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
 
         var item = parts[fromIndex];
@@ -337,6 +348,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             parts[i].SortOrder = i;
 
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         await ReloadSong(songId);
     }
 
@@ -369,6 +381,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var song = await db.Songs.Include(s => s.Parts).FirstOrDefaultAsync(s => s.Id == songId);
         if (song is null) return;
 
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
         // Save current state as a version before restoring
         await SaveVersionSnapshotAsync(db, song, forceNew: true);
 
@@ -388,6 +402,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         }
 
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         await ReloadSong(songId);
     }
 
