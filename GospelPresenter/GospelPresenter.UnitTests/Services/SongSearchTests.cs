@@ -18,7 +18,7 @@ public class SongSearchTests
 
     private class TestSongService : SongService
     {
-        public TestSongService(Song[] songs)
+        public TestSongService(Song[] songs) : base(null!)
         {
             LoadTestSongs(songs);
         }

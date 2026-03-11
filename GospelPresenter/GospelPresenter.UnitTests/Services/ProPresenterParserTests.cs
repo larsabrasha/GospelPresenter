@@ -1,4 +1,5 @@
 using GospelPresenter.Shared.Services;
+using GospelPresenter.Shared.State;
 using Shouldly;
 
 namespace GospelPresenter.UnitTests.Services;
@@ -40,11 +41,10 @@ public class ProPresenterParserTests
     {
         if (SongsPath is null) return;
 
-        var service = new SongService();
-        service.LoadSongs(SongsPath);
+        var songs = LoadSongsFromDisk();
+        songs.Count.ShouldBeGreaterThan(100, $"Only {songs.Count} songs loaded");
 
-        service.Songs.Count.ShouldBeGreaterThan(100, $"Only {service.Songs.Count} songs loaded");
-
+        var service = new TestSongService(songs.ToArray());
         var results = service.Search("förkunnar");
         results.Count.ShouldBeGreaterThan(0);
     }
@@ -54,12 +54,36 @@ public class ProPresenterParserTests
     {
         if (SongsPath is null) return;
 
-        var service = new SongService();
-        service.LoadSongs(SongsPath);
+        var songs = LoadSongsFromDisk();
+        var service = new TestSongService(songs.ToArray());
 
-        // "välsignel" (NFC) should match "Välsignelsen" even if stored as NFD
         var results = service.Search("välsignel");
         results.Count.ShouldBeGreaterThan(0);
         results.ShouldContain(s => s.Name.Contains("lsignelse"));
+    }
+
+    private static List<Song> LoadSongsFromDisk()
+    {
+        var files = Directory.GetFiles(SongsPath!, "*.pro", SearchOption.AllDirectories);
+        var songs = new List<Song>();
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var file in files)
+        {
+            var song = ProPresenterParser.ParseFile(file);
+            if (song is null) continue;
+            if (!seenNames.Add(song.Name)) continue;
+            songs.Add(song);
+        }
+
+        return songs;
+    }
+
+    private class TestSongService : SongService
+    {
+        public TestSongService(Song[] songs) : base(null!)
+        {
+            LoadTestSongs(songs);
+        }
     }
 }

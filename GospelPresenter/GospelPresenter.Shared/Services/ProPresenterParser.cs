@@ -17,7 +17,8 @@ public static partial class ProPresenterParser
         try
         {
             var data = File.ReadAllBytes(filePath);
-            return Parse(data, filePath);
+            var fileName = Path.GetFileNameWithoutExtension(filePath);
+            return Parse(data, fileName);
         }
         catch
         {
@@ -25,13 +26,13 @@ public static partial class ProPresenterParser
         }
     }
 
-    private static Song? Parse(byte[] data, string filePath)
+    public static Song? Parse(byte[] data, string? fallbackTitle = null)
     {
         var presentation = Presentation.Parser.ParseFrom(data);
 
         var title = presentation.Name;
         if (string.IsNullOrWhiteSpace(title))
-            title = Path.GetFileNameWithoutExtension(filePath);
+            title = fallbackTitle ?? "Untitled";
 
         string? author = null;
         string? publisher = null;
@@ -80,7 +81,7 @@ public static partial class ProPresenterParser
 
         if (parts.Count == 0) return null;
 
-        var id = Path.GetFileNameWithoutExtension(filePath);
+        var id = Guid.NewGuid().ToString();
         return new Song(id, title, author, publisher, null, ccli?.ToString(), parts);
     }
 

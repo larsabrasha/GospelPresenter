@@ -1,0 +1,240 @@
+@page "/admin/songs"
+@attribute [Authorize(Roles = "Admin")]
+
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject ISongService SongService
+@inject IUserService UserService
+@inject IJSRuntime JsRuntime
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="relative flex items-center justify-center px-7">
+        <a href="/"
+           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            Tillbaka
+        </a>
+        <div class="text-xl font-bold dark:text-neutral-100">Sånger</div>
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden p-5 space-y-4">
+        <div class="font-semibold">Importera ProPresenter-sånger</div>
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            Välj en eller flera <code>.pro</code>-filer att importera.
+        </p>
+
+        <label class="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
+            </svg>
+            @(isImporting ? "Importerar..." : "Välj filer...")
+            <InputFile OnChange="OnFilesSelected" multiple accept=".pro" class="hidden" disabled="@isImporting"/>
+        </label>
+
+        @if (importMessage is not null)
+        {
+            <div class="text-sm @(importError ? "text-red-500" : "text-green-600 dark:text-green-400")">
+                @importMessage
+            </div>
+        }
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        <div class="font-semibold px-5 pt-4 pb-2">
+            Alla sånger (@SongService.Songs.Count)
+        </div>
+
+        @if (SongService.Songs.Count == 0)
+        {
+            <div class="px-5 py-4 text-neutral-400 text-sm">Inga sånger importerade ännu.</div>
+        }
+        else
+        {
+            <div>
+                @foreach (var song in SongService.Songs)
+                {
+                    <a href="/admin/songs/@song.Id"
+                       class="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">@song.Name</div>
+                            <div class="text-xs text-neutral-400 truncate">
+                                @(string.IsNullOrEmpty(song.Author) ? "\u00a0" : song.Author)
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+
+@if (duplicateNames is not null)
+{
+    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelImport">
+        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-lg space-y-4"
+             @onclick:stopPropagation="true">
+            <div class="font-semibold text-lg">Dubbletter hittades</div>
+            <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                @duplicateNames.Count av @pendingFiles!.Count sånger finns redan:
+            </p>
+            <div class="max-h-48 overflow-y-auto text-sm space-y-1">
+                @foreach (var name in duplicateNames)
+                {
+                    <div class="px-3 py-1.5 bg-neutral-100 dark:bg-neutral-700 rounded-lg truncate">@name</div>
+                }
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CancelImport">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-neutral-200 dark:bg-neutral-600 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-500"
+                        @onclick="() => FinishImport(false)">
+                    Hoppa över dubbletter
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                        @onclick="() => FinishImport(true)">
+                    Ersätt dubbletter
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isImporting;
+    private string? importMessage;
+    private bool importError;
+    private string? organizationId;
+    private List<(string FileName, byte[] Data)>? pendingFiles;
+    private List<string>? duplicateNames;
+
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            var userId = state.User.FindFirst("user_id")?.Value;
+            if (userId != null)
+            {
+                var user = await UserService.GetByIdAsync(userId);
+                organizationId = user?.OrganizationId;
+            }
+        }
+    }
+
+    private async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        if (isImporting || organizationId is null) return;
+        isImporting = true;
+        importMessage = null;
+        importError = false;
+
+        try
+        {
+            var files = new List<(string FileName, byte[] Data)>();
+            foreach (var file in e.GetMultipleFiles(1000))
+            {
+                if (!file.Name.EndsWith(".pro", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                files.Add((file.Name, ms.ToArray()));
+            }
+
+            if (files.Count == 0)
+            {
+                importMessage = "Inga .pro-filer hittades.";
+                importError = true;
+                return;
+            }
+
+            // Parse to get names and check for duplicates
+            var parsedNames = files
+                .Select(f => ProPresenterParser.Parse(f.Data, Path.GetFileNameWithoutExtension(f.FileName)))
+                .Where(s => s is not null)
+                .Select(s => s!.Name)
+                .ToList();
+
+            var duplicates = await SongService.FindDuplicateNamesAsync(parsedNames, organizationId);
+
+            if (duplicates.Count > 0)
+            {
+                pendingFiles = files;
+                duplicateNames = duplicates;
+                isImporting = false;
+                return;
+            }
+
+            var result = await SongService.ImportProPresenterFilesAsync(files, organizationId);
+            importMessage = FormatImportResult(result);
+        }
+        catch (Exception ex)
+        {
+            importMessage = $"Fel vid import: {ex.Message}";
+            importError = true;
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private void CancelImport()
+    {
+        pendingFiles = null;
+        duplicateNames = null;
+    }
+
+    private async Task FinishImport(bool replaceExisting)
+    {
+        if (pendingFiles is null || organizationId is null) return;
+
+        var files = pendingFiles;
+        pendingFiles = null;
+        duplicateNames = null;
+        isImporting = true;
+
+        try
+        {
+            var result = await SongService.ImportProPresenterFilesAsync(files, organizationId, replaceExisting);
+            importMessage = FormatImportResult(result);
+        }
+        catch (Exception ex)
+        {
+            importMessage = $"Fel vid import: {ex.Message}";
+            importError = true;
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private static string FormatImportResult(ImportResult result)
+    {
+        var parts = new List<string>();
+        if (result.Imported > 0)
+            parts.Add($"{result.Imported} ny{(result.Imported != 1 ? "a" : "")}");
+        if (result.Replaced > 0)
+            parts.Add($"{result.Replaced} ersatt{(result.Replaced != 1 ? "a" : "")}");
+        if (result.Skipped > 0)
+            parts.Add($"{result.Skipped} överhoppad{(result.Skipped != 1 ? "e" : "")} (fanns redan)");
+
+        if (parts.Count == 0)
+            return "Inga sånger kunde importeras.";
+
+        return string.Join(", ", parts) + ".";
+    }
+}
