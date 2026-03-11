@@ -9,8 +9,6 @@
 @using CommunityToolkit.Mvvm.Messaging
 @using GospelPresenter.Shared.State
 
-@implements IDisposable
-
 @inject IUserService UserService
 @inject IProfileImageService ProfileImageService
 @inject NavigationManager NavigationManager
@@ -154,16 +152,20 @@
                     var inviteUrl = GetInviteUrl(invite.Token);
                     <div class="p-4 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-2 @(invite.IsExpired ? "opacity-60" : "")">
                         <div class="flex items-center justify-between">
-                            @if (invite.IsExpired)
-                            {
-                                <div class="text-xs text-red-500">Utgången</div>
-                            }
-                            else
-                            {
-                                <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                                    Skapad @invite.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"), giltig i @FormatTimeLeft(invite.ExpiresAt)
-                                </div>
-                            }
+                            <div class="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-neutral-400">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+                                </svg>
+                                <span class="text-sm font-medium">Inbjudningslänk</span>
+                                @if (invite.IsExpired)
+                                {
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">Utgången</span>
+                                }
+                                else
+                                {
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Aktiv</span>
+                                }
+                            </div>
                             <button class="px-3 py-1.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
                                     @onclick="ConfirmDeleteInvite">
                                 Ta bort
@@ -171,6 +173,9 @@
                         </div>
                         @if (!invite.IsExpired)
                         {
+                            <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                                Går ut om @FormatTimeLeft(invite.ExpiresAt)
+                            </div>
                             <div class="flex items-center gap-2">
                                 <input type="text" readonly value="@inviteUrl"
                                        class="flex-1 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-sm border border-neutral-200 dark:border-neutral-500 select-all"/>
@@ -280,7 +285,6 @@
     private string confirmTitle = "";
     private string confirmMessage = "";
     private string confirmButtonText = "Ta bort";
-    private Timer? countdownTimer;
 
     private bool IsCurrentUser => currentUserId is not null && currentUserId == UserId;
 
@@ -302,14 +306,6 @@
         editEmail = user.Email;
         editRole = user.Role;
         await Task.WhenAll(LoadLogins(), LoadInvite());
-        StartCountdownTimer();
-    }
-
-    private void StartCountdownTimer()
-    {
-        countdownTimer?.Dispose();
-        if (invite is { IsExpired: false })
-            countdownTimer = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
     }
 
     private async Task SaveUser()
@@ -381,7 +377,6 @@
 private async Task CreateInvite()
     {
         invite = await UserService.CreateInviteAsync(UserId);
-        StartCountdownTimer();
     }
 
     private async Task DeleteInvite()
@@ -389,7 +384,6 @@ private async Task CreateInvite()
         if (invite is null) return;
         await UserService.DeleteInviteAsync(invite.Id);
         invite = null;
-        countdownTimer?.Dispose();
     }
 
     private string GetInviteUrl(string token)
@@ -488,24 +482,11 @@ private async Task CreateInvite()
 
     private static string FormatTimeLeft(DateTime expiresAt)
     {
-        var left = expiresAt - DateTime.UtcNow;
-        if (left <= TimeSpan.Zero) return "0 minuter";
-
-        var parts = new List<string>();
-        if (left.Days > 0)
-            parts.Add($"{left.Days} {(left.Days == 1 ? "dag" : "dagar")}");
-        if (left.Hours > 0)
-            parts.Add($"{left.Hours} {(left.Hours == 1 ? "timme" : "timmar")}");
-        if (left.Days == 0)
-            parts.Add($"{left.Minutes} {(left.Minutes == 1 ? "minut" : "minuter")}");
-
-        return string.Join(", ", parts);
+        var days = (int)Math.Ceiling((expiresAt - DateTime.UtcNow).TotalDays);
+        if (days <= 0) return "mindre än en dag";
+        return $"{days} {(days == 1 ? "dag" : "dagar")}";
     }
 
     private void GoBack() => NavigationManager.NavigateTo("/admin/users");
 
-    public void Dispose()
-    {
-        countdownTimer?.Dispose();
-    }
 }
