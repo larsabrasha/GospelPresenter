@@ -92,7 +92,7 @@
                         <div class="flex-1 min-w-0">
                             <div class="font-medium truncate">@((MarkupString)Highlight(song.Name))</div>
                             <div class="text-xs text-neutral-400 truncate">
-                                @(string.IsNullOrEmpty(song.Author) ? "\u00a0" : (MarkupString)Highlight(song.Author))
+                                @(string.IsNullOrEmpty(song.Author) ? (MarkupString)"\u00a0" : (MarkupString)Highlight(song.Author))
                             </div>
                         </div>
                     </a>
