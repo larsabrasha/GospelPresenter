@@ -62,12 +62,11 @@
         </div>
 
         <div class="mx-auto py-20">
-          <a href="#get-started">
-            <div
-              class="bg-sky-500 rounded-full px-12 py-3 text-white uppercase font-bold hover:bg-sky-600"
-            >
-              Get Started
-            </div>
+          <a
+            href="https://app.gospelpresenter.com"
+            class="bg-sky-500 rounded-full px-12 py-3 text-white uppercase font-bold hover:bg-sky-600"
+          >
+            Open App
           </a>
         </div>
 
@@ -101,40 +100,30 @@
       class="bg-neutral-50 dark:bg-neutral-800 p-3 border-t border-neutral-100 dark:border-neutral-700"
     >
       <div id="get-started" class="max-w-5xl mx-auto flex flex-col p-3 pb-100">
-        <h1 class="text-xl font-bold py-8">Get Started</h1>
+        <h1 class="text-xl font-bold py-8">About</h1>
 
-        <div>
-          <p class="pb-6">
-            Get a feel for Gospel Presenter by running the demo
-          </p>
+        <p class="pb-4 max-w-prose text-neutral-700 dark:text-neutral-300">
+          Gospel Presenter is a free and open-source presentation tool built for
+          churches. It makes it easy to display song lyrics and Bible verses on a
+          second screen during services.
+        </p>
 
-          <div class="pb-20">
-            <a
-              href="https://app.gospelpresenter.com"
-              class="bg-sky-500 rounded-full px-7 py-3 text-white uppercase font-bold hover:bg-sky-600"
-            >
-              Demo
-            </a>
-          </div>
-        </div>
+        <p class="pb-12 max-w-prose text-neutral-700 dark:text-neutral-300">
+          The project is open source. Visit the GitHub repository for
+          instructions on how to self-host.
+        </p>
 
-        <div>
-          <p class="pb-6">Or self host with Docker</p>
-
-          <div class="text-neutral-500 px-3 py-1">docker-compose.yaml</div>
-          <pre
-            class="bg-neutral-100 dark:bg-neutral-700 p-3 rounded-xl text-sm border-1 border-neutral-200 dark:border-neutral-600"
-          >
-services:
-  gospelpresenter:
-    image: ghcr.io/larsabrasha/gospelpresenter:release
-    container_name: gospelpresenter
-    restart: always
-    ports:
-      - 8080:8080
-      </pre
-          >
-        </div>
+        <a
+          href="https://github.com/larsabrasha/GospelPresenter"
+          class="inline-flex items-center gap-2 bg-neutral-800 dark:bg-neutral-600 rounded-full px-7 py-3 text-white font-bold hover:bg-neutral-700 dark:hover:bg-neutral-500 w-fit"
+        >
+          <img
+            src="github-mark.svg"
+            class="w-5 h-5 invert"
+            alt="GitHub logo"
+          />
+          View on GitHub
+        </a>
       </div>
 
       <div class="text-center text-xs text-neutral-400">Larsabrasha 2025</div>
