@@ -112,6 +112,12 @@ public class MockPresentationService : IPresentationService
         return Task.CompletedTask;
     }
 
+    public Task DeletePresentationAsync(string id, CancellationToken cancellationToken = default)
+    {
+        presentations.RemoveAll(x => x.Id == id);
+        return Task.CompletedTask;
+    }
+
     public Task SaveAsync(Presentation presentation, CancellationToken cancellationToken = default)
     {
         var existing = presentations.FirstOrDefault(x => x.Id == presentation.Id);

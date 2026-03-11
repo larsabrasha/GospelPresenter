@@ -22,6 +22,7 @@
 
 @implements IDisposable
 @inject IStatusBarService StatusBarService
+@inject NavigationManager NavigationManager
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -41,7 +42,8 @@
         class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 @menuVisibilityClass">
         <Sidebar OnAddRequested="@OpenAddModal"
                  OnRemoveRequested="@ConfirmRemoveItem"
-                 OnItemsReordered="@HandleItemsReordered"/>
+                 OnItemsReordered="@HandleItemsReordered"
+                 OnDeleteRequested="@ConfirmDeletePresentation"/>
 
     </div>
 
@@ -285,12 +287,34 @@ else if (addModalType == "image")
     </div>
 }
 
+@if (showDeleteConfirmation)
+{
+    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelDeletePresentation">
+        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4"
+             @onclick:stopPropagation="true">
+            <div class="font-semibold text-lg">Radera presentation</div>
+            <div>Vill du radera <strong>@AppState.SelectedProject?.Name</strong>? Detta kan inte ångras.</div>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CancelDeletePresentation">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
+                        @onclick="DeletePresentationAsync">
+                    Radera
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public string? PresentationId { get; set; }
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
     private ProjectItem? itemToRemove;
+    private bool showDeleteConfirmation;
     private Song? SelectedSong { get; set; }
     private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
@@ -534,6 +558,28 @@ else if (addModalType == "image")
     private void CancelRemove()
     {
         itemToRemove = null;
+    }
+
+    private void ConfirmDeletePresentation()
+    {
+        showDeleteConfirmation = true;
+    }
+
+    private void CancelDeletePresentation()
+    {
+        showDeleteConfirmation = false;
+    }
+
+    private async Task DeletePresentationAsync()
+    {
+        if (PresentationId is null) return;
+
+        showDeleteConfirmation = false;
+        await PresentationService.DeletePresentationAsync(PresentationId);
+
+        AppState.SelectedProject = null;
+        AppState.SelectedProjectItem = null;
+        NavigationManager.NavigateTo("/");
     }
 
     private async Task RemoveItemAsync()

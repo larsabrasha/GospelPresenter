@@ -14,6 +14,7 @@ public interface IPresentationService
     Task ReorderItemsAsync(string presentationId, List<string> itemIds, CancellationToken cancellationToken = default);
     Task RemoveItemAsync(string presentationId, string itemId, CancellationToken cancellationToken = default);
     Task SaveAsync(Presentation presentation, CancellationToken cancellationToken = default);
+    Task DeletePresentationAsync(string id, CancellationToken cancellationToken = default);
 }
 
 public class PresentationService(IDbContextFactory<PresentationContext> dbContextFactory) : IPresentationService
@@ -138,5 +139,25 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
         presentation.UpdatedAt = DateTimeOffset.UtcNow;
         context.Presentations.Update(presentation);
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeletePresentationAsync(string id, CancellationToken cancellationToken = default)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        await context.PresentationItemParts
+            .Where(p => p.PresentationItem.PresentationId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await context.PresentationItems
+            .Where(x => x.PresentationId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await context.Presentations
+            .Where(x => x.Id == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
     }
 }
