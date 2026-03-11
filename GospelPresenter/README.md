@@ -101,8 +101,4 @@ The primary target is the web app. MAUI support may be added later.
 For Rider:
 * Verify that the same .NET version is used in terminal `which dotnet` (eg. when restoring workloads) and in Rider -> Settings -> Build, Execution, Deployment -> Toolset and Build.
 
-## Build
-
-Read more:
-<https://learn.microsoft.com/en-us/aspnet/core/blazor/hybrid/publish/?view=aspnetcore-9.0>
 
