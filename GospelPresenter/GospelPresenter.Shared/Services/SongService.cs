@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.State;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +19,9 @@ public interface ISongService
     Task AddSongPartAsync(string songId, string? label, string content);
     Task DeleteSongPartAsync(string songId, int partIndex);
     Task MoveSongPartAsync(string songId, int fromIndex, int toIndex);
+    Task<List<SongVersionSummary>> GetVersionsAsync(string songId);
+    Task<SongVersionDetail?> GetVersionAsync(string versionId);
+    Task RestoreVersionAsync(string songId, string versionId);
 }
 
 public class SongService(IDbContextFactory<PresentationContext> dbContextFactory) : ISongService
@@ -159,8 +163,10 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task UpdateSongAsync(string id, string name, string? author)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.FindAsync(id);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id);
         if (song is null) return;
+
+        await SaveVersionSnapshotAsync(db, song);
 
         song.Name = name;
         song.Author = author;
@@ -176,12 +182,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task UpdateSongPartAsync(string songId, int partIndex, string? label, string content)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var parts = await db.SongParts
-            .Where(p => p.SongId == songId)
-            .OrderBy(p => p.SortOrder)
-            .ToListAsync();
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
+        if (song is null) return;
 
+        var parts = song.Parts;
         if (partIndex < 0 || partIndex >= parts.Count) return;
+
+        await SaveVersionSnapshotAsync(db, song);
 
         parts[partIndex].Label = label;
         parts[partIndex].Content = content;
@@ -192,11 +199,12 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task AddSongPartAsync(string songId, string? label, string content)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var maxOrder = await db.SongParts
-            .Where(p => p.SongId == songId)
-            .Select(p => (int?)p.SortOrder)
-            .MaxAsync() ?? -1;
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
+        if (song is null) return;
 
+        await SaveVersionSnapshotAsync(db, song);
+
+        var maxOrder = song.Parts.Count > 0 ? song.Parts.Max(p => p.SortOrder) : -1;
         db.SongParts.Add(new Models.DbSongPart
         {
             SongId = songId,
@@ -211,12 +219,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task DeleteSongPartAsync(string songId, int partIndex)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var parts = await db.SongParts
-            .Where(p => p.SongId == songId)
-            .OrderBy(p => p.SortOrder)
-            .ToListAsync();
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
+        if (song is null) return;
 
+        var parts = song.Parts;
         if (partIndex < 0 || partIndex >= parts.Count) return;
+
+        await SaveVersionSnapshotAsync(db, song);
 
         db.SongParts.Remove(parts[partIndex]);
         parts.RemoveAt(partIndex);
@@ -230,12 +239,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task MoveSongPartAsync(string songId, int fromIndex, int toIndex)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var parts = await db.SongParts
-            .Where(p => p.SongId == songId)
-            .OrderBy(p => p.SortOrder)
-            .ToListAsync();
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
+        if (song is null) return;
 
+        var parts = song.Parts;
         if (fromIndex < 0 || fromIndex >= parts.Count || toIndex < 0 || toIndex >= parts.Count || fromIndex == toIndex) return;
+
+        await SaveVersionSnapshotAsync(db, song);
 
         var item = parts[fromIndex];
         parts.RemoveAt(fromIndex);
@@ -246,6 +256,101 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
         await db.SaveChangesAsync();
         await ReloadSong(songId);
+    }
+
+    public async Task<List<SongVersionSummary>> GetVersionsAsync(string songId)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        return await db.SongVersions
+            .Where(v => v.SongId == songId)
+            .OrderByDescending(v => v.CreatedAt)
+            .Select(v => new SongVersionSummary(v.Id, v.Name, v.CreatedAt))
+            .ToListAsync();
+    }
+
+    public async Task<SongVersionDetail?> GetVersionAsync(string versionId)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var v = await db.SongVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == versionId);
+        if (v is null) return null;
+
+        var parts = JsonSerializer.Deserialize<List<SongPart>>(v.PartsJson) ?? [];
+        return new SongVersionDetail(v.Id, v.SongId, v.Name, v.Author, v.CreatedAt, parts);
+    }
+
+    public async Task RestoreVersionAsync(string songId, string versionId)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var version = await db.SongVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == versionId && x.SongId == songId);
+        if (version is null) return;
+
+        var song = await db.Songs.Include(s => s.Parts).FirstOrDefaultAsync(s => s.Id == songId);
+        if (song is null) return;
+
+        // Save current state as a version before restoring
+        await SaveVersionSnapshotAsync(db, song, forceNew: true);
+
+        var parts = JsonSerializer.Deserialize<List<SongPart>>(version.PartsJson) ?? [];
+
+        song.Name = version.Name;
+        song.Author = version.Author;
+        song.Parts.Clear();
+        for (var i = 0; i < parts.Count; i++)
+        {
+            song.Parts.Add(new Models.DbSongPart
+            {
+                Label = parts[i].Label,
+                Content = parts[i].Content,
+                SortOrder = i
+            });
+        }
+
+        await db.SaveChangesAsync();
+        await ReloadSong(songId);
+    }
+
+    private static readonly TimeSpan SessionWindow = TimeSpan.FromMinutes(30);
+    private const int MaxVersionsPerSong = 50;
+
+    private async Task SaveVersionSnapshotAsync(PresentationContext db, Models.DbSong song, bool forceNew = false)
+    {
+        var partsJson = JsonSerializer.Serialize(
+            song.Parts.Select(p => new SongPart(p.Label, p.Content)).ToList());
+
+        if (!forceNew)
+        {
+            // Check if there's a recent version within the session window
+            var recent = await db.SongVersions
+                .Where(v => v.SongId == song.Id)
+                .OrderByDescending(v => v.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (recent is not null && DateTime.UtcNow - recent.CreatedAt < SessionWindow)
+            {
+                // Update the existing version's timestamp (the snapshot stays as-is from the session start)
+                recent.CreatedAt = DateTime.UtcNow;
+                return;
+            }
+        }
+
+        db.SongVersions.Add(new Models.DbSongVersion
+        {
+            SongId = song.Id,
+            Name = song.Name,
+            Author = song.Author,
+            PartsJson = partsJson,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        // Prune old versions beyond the limit
+        var oldVersions = await db.SongVersions
+            .Where(v => v.SongId == song.Id)
+            .OrderByDescending(v => v.CreatedAt)
+            .Skip(MaxVersionsPerSong)
+            .ToListAsync();
+
+        if (oldVersions.Count > 0)
+            db.SongVersions.RemoveRange(oldVersions);
     }
 
     public Song? GetSongById(string id)
@@ -365,3 +470,14 @@ public record ImportResult(int Imported, int Replaced, int Skipped)
 {
     public int Total => Imported + Replaced + Skipped;
 }
+
+public record SongVersionSummary(string Id, string Name, DateTime CreatedAt);
+
+public record SongVersionDetail(
+    string Id,
+    string SongId,
+    string Name,
+    string? Author,
+    DateTime CreatedAt,
+    List<SongPart> Parts
+);
