@@ -7,8 +7,8 @@
     <div>@((MarkupString)ResolvedHtml)</div>
     @if (!string.IsNullOrEmpty(Label))
     {
-        <div class="absolute top-6 left-10 text-[70px] font-semibold opacity-80"
-             style="color: @LabelColor">
+        <div class="absolute top-6 right-10 text-[48px] font-semibold rounded-full px-8 py-1"
+             style="background-color: @LabelColor; color: white;">
             @Label
         </div>
     }
