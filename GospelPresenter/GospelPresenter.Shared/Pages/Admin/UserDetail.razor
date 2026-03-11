@@ -244,6 +244,34 @@
     </div>
 }
 
+@if (showCropDialog)
+{
+    <div class="fixed inset-0 bg-black/60 z-200 flex items-center justify-center p-4" @onclick="CloseCropDialog">
+        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4"
+             @onclick:stopPropagation="true">
+            <div class="font-semibold text-lg text-center">Beskär bild</div>
+            <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
+                 id="image-cropper"
+                 style="background: #000;">
+                <img alt="" class="absolute top-0 left-0 origin-top-left pointer-events-none max-w-none" />
+            </div>
+            <input type="range" min="0" max="100" value="0"
+                   @oninput="OnZoomSliderChanged"
+                   class="w-full accent-sky-500" />
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseCropDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                        @onclick="ConfirmCrop">
+                    Bekräfta
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     [Parameter] public string UserId { get; set; } = "";
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
@@ -412,6 +440,7 @@
     };
 
     private const long MaxImageSize = 5 * 1024 * 1024;
+    private bool showCropDialog;
 
     private async Task OnProfileImageSelected(InputFileChangeEventArgs e)
     {
@@ -426,7 +455,38 @@
         using var stream = file.OpenReadStream(MaxImageSize);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
-        var (fullDataUri, smallDataUri) = ProfileImageService.Resize(ms.ToArray(), file.ContentType);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        var dataUrl = $"data:{file.ContentType};base64,{base64}";
+
+        showCropDialog = true;
+        StateHasChanged();
+        await Task.Delay(50);
+        await JSRuntime.InvokeVoidAsync("initImageCropper", "image-cropper", dataUrl);
+    }
+
+    private async Task OnZoomSliderChanged(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var value))
+            await JSRuntime.InvokeVoidAsync("setImageCropperZoom", "image-cropper", value);
+    }
+
+    private async Task CloseCropDialog()
+    {
+        showCropDialog = false;
+        await JSRuntime.InvokeVoidAsync("destroyImageCropper", "image-cropper");
+    }
+
+    private async Task ConfirmCrop()
+    {
+        var croppedDataUrl = await JSRuntime.InvokeAsync<string>("getImageCropResult", "image-cropper");
+        showCropDialog = false;
+        await JSRuntime.InvokeVoidAsync("destroyImageCropper", "image-cropper");
+
+        if (string.IsNullOrEmpty(croppedDataUrl)) return;
+
+        var base64Data = croppedDataUrl.Substring(croppedDataUrl.IndexOf(',') + 1);
+        var imageBytes = Convert.FromBase64String(base64Data);
+        var (fullDataUri, smallDataUri) = ProfileImageService.Resize(imageBytes, "image/webp");
 
         await UserService.UpdateProfileImageAsync(UserId, fullDataUri, smallDataUri);
         user = await UserService.GetByIdAsync(UserId);

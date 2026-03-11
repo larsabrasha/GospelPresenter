@@ -249,7 +249,8 @@ try
 
 // Add services to the container.
     builder.Services.AddRazorComponents(options => options.DetailedErrors = builder.Environment.IsDevelopment())
-        .AddInteractiveServerComponents();
+        .AddInteractiveServerComponents()
+        .AddHubOptions(options => options.MaximumReceiveMessageSize = 512 * 1024);
 
     builder.Services.AddSharedGospelPresenterServices(builder.Configuration);
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
