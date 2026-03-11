@@ -300,20 +300,18 @@ else
     {
         if (searchTerms.Length == 0) return System.Net.WebUtility.HtmlEncode(text);
 
-        var lower = text.ToLowerInvariant();
-
-        // Find all match ranges on the original text
+        text = text.Normalize();
         var matches = new List<(int Start, int Length)>();
         foreach (var term in searchTerms)
         {
-            var termLower = term.ToLowerInvariant();
+            var normalized = term.Normalize();
             var idx = 0;
-            while (idx <= lower.Length - termLower.Length)
+            while (idx <= text.Length - normalized.Length)
             {
-                var match = lower.IndexOf(termLower, idx, StringComparison.Ordinal);
+                var match = text.IndexOf(normalized, idx, StringComparison.OrdinalIgnoreCase);
                 if (match < 0) break;
-                matches.Add((match, termLower.Length));
-                idx = match + termLower.Length;
+                matches.Add((match, normalized.Length));
+                idx = match + normalized.Length;
             }
         }
 
