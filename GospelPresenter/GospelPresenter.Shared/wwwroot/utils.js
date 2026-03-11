@@ -55,6 +55,7 @@ window.setRootElementBackgroundColor = function(color) {
 
 window.showModal = function(element, dotNetRef) {
     element.addEventListener('cancel', function(e) {
+        if (e.target !== element) return;
         e.preventDefault();
         if (dotNetRef) dotNetRef.invokeMethodAsync('OnCancelFromJs');
     });

@@ -131,4 +131,33 @@ public class MockPresentationService : IPresentationService
 
         return Task.CompletedTask;
     }
+
+    private readonly List<OverlaySlide> overlays = [];
+
+    public Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CancellationToken cancellationToken = default)
+    {
+        var result = overlays.Where(x => x.OrganizationId == organizationId).OrderBy(x => x.SortOrder).ToList();
+        return Task.FromResult(result);
+    }
+
+    public Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CancellationToken cancellationToken = default)
+    {
+        overlay.OrganizationId = organizationId;
+        overlay.SortOrder = overlays.Count(x => x.OrganizationId == organizationId);
+        overlays.Add(overlay);
+        return Task.CompletedTask;
+    }
+
+    public Task UpdateOverlayAsync(OverlaySlide overlay, CancellationToken cancellationToken = default)
+    {
+        var index = overlays.FindIndex(x => x.Id == overlay.Id);
+        if (index >= 0) overlays[index] = overlay;
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveOverlayAsync(string organizationId, string overlayId, CancellationToken cancellationToken = default)
+    {
+        overlays.RemoveAll(x => x.OrganizationId == organizationId && x.Id == overlayId);
+        return Task.CompletedTask;
+    }
 }

@@ -1,0 +1,34 @@
+@using GospelPresenter.Shared.State
+
+@{
+    var isBlackScreen = LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
+    var scaleStr = FormattableString.Invariant($"{Scale}");
+    var w = FormattableString.Invariant($"{Scale * BaseWidth}px");
+    var h = FormattableString.Invariant($"{Scale * BaseHeight}px");
+}
+
+<div class="relative bg-black overflow-hidden @Class" style="width: @w; height: @h;">
+    <LiveSlideView
+        LiveSlide="@LiveSlide"
+        Class="bg-black overflow-hidden text-white"
+        BaseWidth="@BaseWidth"
+        BaseHeight="@BaseHeight"
+        Scale="@Scale"/>
+
+    <OverlayView
+        Overlay="@Overlay"
+        Scale="@Scale"
+        BaseWidth="@BaseWidth"
+        BaseHeight="@BaseHeight"/>
+
+    <div class="absolute inset-0 bg-black transition-opacity duration-500 ease-in-out @(isBlackScreen ? "opacity-100" : "opacity-0 pointer-events-none")" style="z-index: 60"></div>
+</div>
+
+@code {
+    [Parameter] public required LiveSlide LiveSlide { get; set; }
+    [Parameter] public ActiveOverlay? Overlay { get; set; }
+    [Parameter] public required double Scale { get; set; }
+    [Parameter] public int BaseWidth { get; set; } = 1920;
+    [Parameter] public int BaseHeight { get; set; } = 1080;
+    [Parameter] public string? Class { get; set; }
+}

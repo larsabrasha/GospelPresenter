@@ -15,6 +15,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<DbSong> Songs { get; set; }
     public DbSet<DbSongPart> SongParts { get; set; }
     public DbSet<DbSongVersion> SongVersions { get; set; }
+    public DbSet<OverlaySlide> OverlaySlides { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

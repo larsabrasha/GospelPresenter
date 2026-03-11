@@ -13,6 +13,7 @@ public partial class SharedAppState : ObservableObject
     }
 
     private readonly ConcurrentDictionary<string, LiveSlide> liveSlides = new();
+    private readonly ConcurrentDictionary<string, ActiveOverlay> activeOverlays = new();
     private readonly ConcurrentDictionary<string, bool> presentationActive = new();
     private readonly ConcurrentDictionary<string, DateTime> lastAccessed = new();
     private readonly ConcurrentDictionary<string, DateTime> expiredSessions = new();
@@ -38,6 +39,25 @@ public partial class SharedAppState : ObservableObject
     {
         TouchSession(sessionId);
         liveSlides[sessionId] = slide;
+        OnPropertyChanged(sessionId);
+    }
+
+    public ActiveOverlay? GetActiveOverlay(string sessionId)
+    {
+        return activeOverlays.GetValueOrDefault(sessionId);
+    }
+
+    public void SetOverlay(string sessionId, string? text, string? imageUrl)
+    {
+        TouchSession(sessionId);
+        activeOverlays[sessionId] = new ActiveOverlay(text, imageUrl);
+        OnPropertyChanged(sessionId);
+    }
+
+    public void ClearOverlay(string sessionId)
+    {
+        TouchSession(sessionId);
+        activeOverlays.TryRemove(sessionId, out _);
         OnPropertyChanged(sessionId);
     }
 
@@ -84,6 +104,7 @@ public partial class SharedAppState : ObservableObject
             var wasActive = presentationActive.GetValueOrDefault(sessionId, false);
 
             liveSlides.TryRemove(sessionId, out _);
+            activeOverlays.TryRemove(sessionId, out _);
             presentationActive.TryRemove(sessionId, out _);
             lastAccessed.TryRemove(sessionId, out _);
 

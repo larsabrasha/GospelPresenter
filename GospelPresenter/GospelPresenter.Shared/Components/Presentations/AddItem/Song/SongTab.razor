@@ -15,7 +15,7 @@ else if (SongService.Songs.Count == 0)
 {
     <div class="flex flex-col items-center justify-center text-center text-neutral-400 text-sm py-8 gap-3">
         <div>Inga sånger laddade</div>
-        <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
+        <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5 self-start"
                 @onclick="EnterCreateMode">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
@@ -65,13 +65,15 @@ else
                             </button>
                         </Virtualize>
                     </div>
-                    <button class="shrink-0 w-full text-left px-3 h-[44px] flex items-center gap-2 rounded-lg cursor-pointer text-sm text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30"
-                            @onclick="EnterCreateMode">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                        </svg>
-                        Skapa ny sång
-                    </button>
+                    <div class="shrink-0">
+                        <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
+                                @onclick="EnterCreateMode">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                            </svg>
+                            Skapa ny sång
+                        </button>
+                    </div>
                 </div>
 
                 <div class="hidden md:block md:w-[50%] min-w-0 overflow-y-scroll overflow-x-hidden md:pl-3" data-song-preview>
@@ -114,7 +116,7 @@ else
             {
                 <div class="flex flex-col items-center justify-center w-full text-neutral-400 text-sm gap-3">
                     <div>Inga sånger hittades</div>
-                    <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
+                    <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5 self-start"
                             @onclick="EnterCreateMode">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>

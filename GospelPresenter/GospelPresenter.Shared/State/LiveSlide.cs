@@ -11,6 +11,8 @@ public record LiveSlide(
     SongPart? SongPart
 );
 
+public record ActiveOverlay(string? Text, string? ImageUrl);
+
 public enum LiveSlideStatus
 {
     ShowingPresentation,

@@ -24,23 +24,16 @@
     var scale = Math.Min(widthScale, heightScale);
 
     var liveSlide = SharedAppState.GetLiveSlide(sessionId);
+    var activeOverlay = SharedAppState.GetActiveOverlay(sessionId);
 }
 
-<div class="flex h-full bg-black text-white items-center justify-items-center relative" @onclick="RequestFullscreen">
-
-    @{
-        var slideClass = liveSlide.Status == LiveSlideStatus.ShowingPresentation ? "opacity-100" : "opacity-0";
-    }
-
-    <div
-        class="w-full transition-opacity duration-500 ease-in-out @slideClass">
-
-        <LiveSlideView
-            LiveSlide="@liveSlide"
-            BaseWidth="@AppState.BaseSlideWidth"
-            BaseHeight="@AppState.BaseSlideHeight"
-            Scale="@scale"/>
-    </div>
+<div class="flex h-full bg-black text-white items-center justify-center" @onclick="RequestFullscreen">
+    <LiveDisplay
+        LiveSlide="@liveSlide"
+        Overlay="@activeOverlay"
+        Scale="@scale"
+        BaseWidth="@AppState.BaseSlideWidth"
+        BaseHeight="@AppState.BaseSlideHeight"/>
 </div>
 
 @code {

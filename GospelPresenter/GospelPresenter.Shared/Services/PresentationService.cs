@@ -15,6 +15,10 @@ public interface IPresentationService
     Task RemoveItemAsync(string presentationId, string itemId, CancellationToken cancellationToken = default);
     Task SaveAsync(Presentation presentation, CancellationToken cancellationToken = default);
     Task DeletePresentationAsync(string id, CancellationToken cancellationToken = default);
+    Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CancellationToken cancellationToken = default);
+    Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CancellationToken cancellationToken = default);
+    Task UpdateOverlayAsync(OverlaySlide overlay, CancellationToken cancellationToken = default);
+    Task RemoveOverlayAsync(string organizationId, string overlayId, CancellationToken cancellationToken = default);
 }
 
 public class PresentationService(IDbContextFactory<PresentationContext> dbContextFactory) : IPresentationService
@@ -159,5 +163,48 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
             .ExecuteDeleteAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await context.OverlaySlides
+            .Where(x => x.OrganizationId == organizationId)
+            .OrderBy(x => x.SortOrder)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CancellationToken cancellationToken = default)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        overlay.OrganizationId = organizationId;
+
+        var maxSortOrder = await context.OverlaySlides
+            .Where(x => x.OrganizationId == organizationId)
+            .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1;
+
+        overlay.SortOrder = maxSortOrder + 1;
+
+        context.OverlaySlides.Add(overlay);
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateOverlayAsync(OverlaySlide overlay, CancellationToken cancellationToken = default)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        context.OverlaySlides.Update(overlay);
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveOverlayAsync(string organizationId, string overlayId, CancellationToken cancellationToken = default)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        await context.OverlaySlides
+            .Where(x => x.OrganizationId == organizationId && x.Id == overlayId)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 }
