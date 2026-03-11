@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GospelPresenter.Shared.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    [Migration("20260311000036_InitialCreate")]
+    [Migration("20260311090629_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -178,6 +178,9 @@ namespace GospelPresenter.Shared.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("ProfileImage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProfileImageSmall")
                         .HasColumnType("text");
 
                     b.Property<string>("Role")

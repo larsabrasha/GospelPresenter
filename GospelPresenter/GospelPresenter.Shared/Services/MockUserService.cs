@@ -49,7 +49,7 @@ public class MockUserService : IUserService
     public Task UpdateEmailIfEmptyAsync(string id, string email)
         => Task.CompletedTask;
 
-    public Task UpdateProfileImageAsync(string id, string? profileImage)
+    public Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall)
         => Task.CompletedTask;
 
     public Task DeleteUserAsync(string id)

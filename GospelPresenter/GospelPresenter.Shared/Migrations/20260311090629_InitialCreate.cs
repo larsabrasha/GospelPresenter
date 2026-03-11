@@ -54,6 +54,7 @@ namespace GospelPresenter.Shared.Migrations
                     Name = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "text", nullable: false),
                     ProfileImage = table.Column<string>(type: "text", nullable: true),
+                    ProfileImageSmall = table.Column<string>(type: "text", nullable: true),
                     Role = table.Column<string>(type: "text", nullable: false),
                     OrganizationId = table.Column<string>(type: "text", nullable: false)
                 },

@@ -15,6 +15,7 @@ public static class SharedServicesSetup
         services.AddSingleton(new SharedAppState(TimeSpan.FromMinutes(timeoutMinutes)));
         services.AddSingleton<ISongService, SongService>();
         services.AddSingleton<IImageService, ImageService>();
+        services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IBibleService, BibleService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
     }

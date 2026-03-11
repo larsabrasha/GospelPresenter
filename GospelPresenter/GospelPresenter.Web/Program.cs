@@ -127,9 +127,13 @@ try
                     if (!string.IsNullOrEmpty(pictureUrl))
                     {
                         var httpClientFactory = context.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
-                        var dataUri = await DownloadImageAsDataUri(httpClientFactory, pictureUrl);
-                        if (dataUri != null)
-                            await userService.UpdateProfileImageAsync(user.Id, dataUri);
+                        var profileImageService = context.HttpContext.RequestServices.GetRequiredService<IProfileImageService>();
+                        var imageBytes = await DownloadImage(httpClientFactory, pictureUrl);
+                        if (imageBytes != null)
+                        {
+                            var (full, small) = profileImageService.Resize(imageBytes, "image/jpeg");
+                            await userService.UpdateProfileImageAsync(user.Id, full, small);
+                        }
                     }
                 }
 
@@ -212,9 +216,13 @@ try
                     if (!string.IsNullOrEmpty(pictureUrl))
                     {
                         var httpClientFactory = context.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
-                        var dataUri = await DownloadImageAsDataUri(httpClientFactory, pictureUrl);
-                        if (dataUri != null)
-                            await userService.UpdateProfileImageAsync(user.Id, dataUri);
+                        var profileImageService = context.HttpContext.RequestServices.GetRequiredService<IProfileImageService>();
+                        var imageBytes = await DownloadImage(httpClientFactory, pictureUrl);
+                        if (imageBytes != null)
+                        {
+                            var (full, small) = profileImageService.Resize(imageBytes, "image/jpeg");
+                            await userService.UpdateProfileImageAsync(user.Id, full, small);
+                        }
                     }
                 }
 
@@ -399,16 +407,14 @@ finally
     Log.CloseAndFlush();
 }
 
-static async Task<string?> DownloadImageAsDataUri(IHttpClientFactory httpClientFactory, string url)
+static async Task<byte[]?> DownloadImage(IHttpClientFactory httpClientFactory, string url)
 {
     try
     {
         using var http = httpClientFactory.CreateClient();
         using var response = await http.GetAsync(url);
         if (!response.IsSuccessStatusCode) return null;
-        var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
-        var bytes = await response.Content.ReadAsByteArrayAsync();
-        return $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+        return await response.Content.ReadAsByteArrayAsync();
     }
     catch
     {

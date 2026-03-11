@@ -18,7 +18,7 @@ public interface IUserService
     Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role);
     Task UpdateUserAsync(string id, string name, string email, UserRole role);
     Task UpdateEmailIfEmptyAsync(string id, string email);
-    Task UpdateProfileImageAsync(string id, string? profileImage);
+    Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall);
     Task DeleteUserAsync(string id);
 
     Task<List<UserLogin>> GetLoginsForUserAsync(string userId);
@@ -145,12 +145,14 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
             .ExecuteUpdateAsync(s => s.SetProperty(u => u.Email, email));
     }
 
-    public async Task UpdateProfileImageAsync(string id, string? profileImage)
+    public async Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await context.Users
             .Where(u => u.Id == id)
-            .ExecuteUpdateAsync(s => s.SetProperty(u => u.ProfileImage, profileImage));
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.ProfileImage, profileImage)
+                .SetProperty(u => u.ProfileImageSmall, profileImageSmall));
     }
 
     public async Task DeleteUserAsync(string id)

@@ -12,12 +12,13 @@
 @implements IDisposable
 
 @inject IUserService UserService
+@inject IProfileImageService ProfileImageService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
 <div class="flex flex-col p-3 w-full sm:w-180 mx-auto space-y-5">
-    <div class="flex items-center gap-3 px-7">
-        <button class="px-3 py-1.5 rounded-full cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 dark:text-neutral-100"
+    <div class="relative flex items-center justify-center px-7">
+        <button class="absolute left-0 px-3 py-1.5 rounded-full cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 dark:text-neutral-100"
                 @onclick="GoBack">
             &larr; Tillbaka
         </button>
@@ -39,33 +40,27 @@
                 <label class="block text-sm font-medium mb-1">Profilbild</label>
                 <div class="flex items-center gap-4">
                     <label class="cursor-pointer group relative">
-                        @if (!string.IsNullOrEmpty(user.ProfileImage))
-                        {
-                            <img src="@user.ProfileImage" alt="@user.Name" class="w-16 h-16 rounded-full object-cover group-hover:brightness-75 transition"/>
-                        }
-                        else
-                        {
-                            <div class="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-600 flex items-center justify-center text-neutral-400 group-hover:bg-neutral-300 dark:group-hover:bg-neutral-500 transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-10 h-10">
-                                    <path fill-rule="evenodd" d="M18.685 19.097A9.723 9.723 0 0 0 21.75 12c0-5.385-4.365-9.75-9.75-9.75S2.25 6.615 2.25 12a9.723 9.723 0 0 0 3.065 7.097A9.716 9.716 0 0 0 12 21.75a9.716 9.716 0 0 0 6.685-2.653Zm-2.54-1.106a7.5 7.5 0 0 0-8.29 0 8.23 8.23 0 0 0 4.145 1.11 8.23 8.23 0 0 0 4.145-1.11ZM12 13.5a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clip-rule="evenodd"/>
-                                </svg>
-                            </div>
-                        }
+                        <ProfileAvatar ImageUrl="@(user.ProfileImage ?? user.ProfileImageSmall)" Name="@user.Name"
+                                       Size="lg" Class="group-hover:brightness-75 transition"/>
                         <InputFile OnChange="OnProfileImageSelected" accept="image/*"
                                    class="hidden"/>
                     </label>
-                    <div class="flex flex-col gap-2">
+                    <div class="flex flex-col gap-1">
                         <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
-                            Byt bild
+                            @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? "Välj bild" : "Byt bild")
                             <InputFile OnChange="OnProfileImageSelected" accept="image/*"
                                        class="hidden"/>
                         </label>
-                        @if (!string.IsNullOrEmpty(user.ProfileImage))
+                        @if (!string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall))
                         {
                             <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
                                     @onclick="ConfirmRemoveProfileImage">
                                 Ta bort bild
                             </button>
+                        }
+                        @if (imageError is not null)
+                        {
+                            <div class="text-sm text-red-500">@imageError</div>
                         }
                     </div>
                 </div>
@@ -252,6 +247,7 @@
     private string editName = "";
     private string editEmail = "";
     private string? emailError;
+    private string? imageError;
     private UserRole editRole;
     private Func<Task>? confirmAction;
     private string confirmTitle = "";
@@ -302,6 +298,7 @@
         }
 
         await UserService.UpdateUserAsync(UserId, editName.Trim(), editEmail.Trim(), editRole);
+        SyncNavbar();
     }
 
     private void ShowConfirm(string title, string message, Func<Task> action, string buttonText = "Ta bort")
@@ -401,31 +398,37 @@
         _ => role.ToString()
     };
 
+    private const long MaxImageSize = 5 * 1024 * 1024;
+
     private async Task OnProfileImageSelected(InputFileChangeEventArgs e)
     {
+        imageError = null;
         var file = e.File;
-        if (file.Size > 512 * 1024) return;
+        if (file.Size > MaxImageSize)
+        {
+            imageError = "Bilden är för stor (max 5 MB)";
+            return;
+        }
 
-        var resized = await file.RequestImageFileAsync(file.ContentType, 256, 256);
-        using var stream = resized.OpenReadStream(512 * 1024);
+        using var stream = file.OpenReadStream(MaxImageSize);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
-        var base64 = Convert.ToBase64String(ms.ToArray());
-        var dataUri = $"data:{file.ContentType};base64,{base64}";
+        var (fullDataUri, smallDataUri) = ProfileImageService.Resize(ms.ToArray(), file.ContentType);
 
-        await UserService.UpdateProfileImageAsync(UserId, dataUri);
+        await UserService.UpdateProfileImageAsync(UserId, fullDataUri, smallDataUri);
         user = await UserService.GetByIdAsync(UserId);
-        SyncNavbarProfileImage();
+        SyncNavbar();
     }
 
     private async Task RemoveProfileImage()
     {
-        await UserService.UpdateProfileImageAsync(UserId, null);
+        imageError = null;
+        await UserService.UpdateProfileImageAsync(UserId, null, null);
         user = await UserService.GetByIdAsync(UserId);
-        SyncNavbarProfileImage();
+        SyncNavbar();
     }
 
-    private void SyncNavbarProfileImage()
+    private void SyncNavbar()
     {
         if (UserId == currentUserId)
             WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
