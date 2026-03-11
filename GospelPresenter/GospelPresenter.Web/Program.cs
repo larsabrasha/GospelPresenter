@@ -125,7 +125,12 @@ try
                 {
                     var pictureUrl = context.Principal?.FindFirstValue("picture");
                     if (!string.IsNullOrEmpty(pictureUrl))
-                        await userService.UpdateProfileImageAsync(user.Id, pictureUrl);
+                    {
+                        var httpClientFactory = context.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+                        var dataUri = await DownloadImageAsDataUri(httpClientFactory, pictureUrl);
+                        if (dataUri != null)
+                            await userService.UpdateProfileImageAsync(user.Id, dataUri);
+                    }
                 }
 
                 var identity = context.Principal?.Identity as ClaimsIdentity;
@@ -205,7 +210,12 @@ try
                 {
                     var pictureUrl = context.Principal?.FindFirstValue("picture");
                     if (!string.IsNullOrEmpty(pictureUrl))
-                        await userService.UpdateProfileImageAsync(user.Id, pictureUrl);
+                    {
+                        var httpClientFactory = context.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+                        var dataUri = await DownloadImageAsDataUri(httpClientFactory, pictureUrl);
+                        if (dataUri != null)
+                            await userService.UpdateProfileImageAsync(user.Id, dataUri);
+                    }
                 }
 
                 var identity = context.Principal?.Identity as ClaimsIdentity;
@@ -223,6 +233,7 @@ try
             };
         });
 
+    builder.Services.AddHttpClient();
     builder.Services.AddAuthorization();
 
     builder.Services.AddCascadingAuthenticationState();
@@ -386,4 +397,21 @@ finally
 {
     Log.Information("Shut down complete");
     Log.CloseAndFlush();
+}
+
+static async Task<string?> DownloadImageAsDataUri(IHttpClientFactory httpClientFactory, string url)
+{
+    try
+    {
+        using var http = httpClientFactory.CreateClient();
+        using var response = await http.GetAsync(url);
+        if (!response.IsSuccessStatusCode) return null;
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        return $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+    }
+    catch
+    {
+        return null;
+    }
 }
