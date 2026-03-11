@@ -97,8 +97,13 @@
                             : 0.14;
                 }
 
-                <div class="mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
-                     id="main">
+                @{
+                    var hasSlides = SelectedSong is not null || SelectedBibleText is not null || SelectedImage is not null;
+                    var mainClass = hasSlides
+                        ? "mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
+                        : "flex items-center justify-center h-full overflow-auto";
+                }
+                <div class="@mainClass" id="main">
                     @if (SelectedSong is not null)
                     {
                         @for (var i = 0; i < SelectedSong.Parts.Count; i++)
@@ -143,6 +148,31 @@
                                 BaseHeight="@AppState.BaseSlideHeight"
                                 Scale="@slideScale"/>
                         </button>
+                    }
+                    else if (AppState.SelectedProject is not null && AppState.SelectedProject.Items.Count == 0)
+                    {
+                        <div class="flex flex-col items-center text-center px-6 select-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                                <!-- Back slide -->
+                                <rect x="50" y="10" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                                <!-- Middle slide -->
+                                <rect x="35" y="25" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.7"/>
+                                <!-- Front slide -->
+                                <rect x="20" y="40" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                                <!-- Lines on front slide -->
+                                <line x1="40" y1="65" x2="120" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                                <line x1="40" y1="78" x2="100" y2="78" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                                <line x1="40" y1="91" x2="110" y2="91" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+                                <!-- Plus circle -->
+                                <circle cx="160" cy="130" r="20" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                                <line x1="160" y1="120" x2="160" y2="140" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                                <line x1="150" y1="130" x2="170" y2="130" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                            </svg>
+                            <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">Presentationen är tom</h2>
+                            <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">
+                                Tryck på <strong>Lägg till</strong> i sidomenyn för att lägga till sånger, bibeltexter eller bilder.
+                            </p>
+                        </div>
                     }
                 </div>
 
