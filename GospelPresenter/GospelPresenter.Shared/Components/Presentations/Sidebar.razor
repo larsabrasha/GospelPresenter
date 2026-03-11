@@ -9,7 +9,7 @@
 
 @implements IDisposable
 
-<div class="shrink-0 overflow-hidden flex">
+<div class="shrink-0 overflow-hidden flex h-full">
     <div class="p-4 overflow-auto w-full">
         <a href="/"
            class="flex items-center gap-2 px-4 py-2.5 -mx-1 mb-2 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
@@ -90,12 +90,34 @@
                 }
             </div>
 
-            <button
-                class="mt-4 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
-                @onclick="OnAddClicked">
-                <PlusSymbol Class="size-4"/>
-                Lägg till
-            </button>
+            <div class="relative mt-4" @onfocusout="OnDropdownFocusOut">
+                <button
+                    class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
+                    @onclick="ToggleDropdown">
+                    <PlusSymbol Class="size-4"/>
+                    Lägg till
+                </button>
+                @if (showDropdown)
+                {
+                    <div class="absolute left-0 right-0 mt-1 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden z-50">
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="@(() => AddItem("song"))">
+                            <MusicalNoteSymbol Class="size-4 text-neutral-400"/>
+                            Sång
+                        </button>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="@(() => AddItem("bible"))">
+                            <BookOpenSymbol Class="size-4 text-neutral-400"/>
+                            Bibeltext
+                        </button>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="@(() => AddItem("image"))">
+                            <PhotoSymbol Class="size-4 text-neutral-400"/>
+                            Bild
+                        </button>
+                    </div>
+                }
+            </div>
         }
     </div>
 </div>
@@ -103,10 +125,11 @@
 
 @code {
 
-    [Parameter] public EventCallback OnAddRequested { get; set; }
+    [Parameter] public EventCallback<string> OnAddRequested { get; set; }
     [Parameter] public EventCallback<ProjectItem> OnRemoveRequested { get; set; }
     [Parameter] public EventCallback<List<string>> OnItemsReordered { get; set; }
 
+    private bool showDropdown;
     private bool isEditingName;
     private string editName = "";
     private ElementReference nameInput;
@@ -183,9 +206,21 @@
         await JsRuntime.InvokeVoidAsync("scrollElementToTop", "main");
     }
 
-    private async Task OnAddClicked()
+    private void ToggleDropdown()
     {
-        await OnAddRequested.InvokeAsync();
+        showDropdown = !showDropdown;
+    }
+
+    private async Task OnDropdownFocusOut()
+    {
+        await Task.Delay(150);
+        showDropdown = false;
+    }
+
+    private async Task AddItem(string type)
+    {
+        showDropdown = false;
+        await OnAddRequested.InvokeAsync(type);
     }
 
     private void StartEditingName()
