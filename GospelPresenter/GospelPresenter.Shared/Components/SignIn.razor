@@ -8,7 +8,21 @@
         </svg>
         Sign in with Google
     </a>
-    <a href="/signin" class="flex items-center justify-center gap-2 w-64 px-6 py-3 rounded-full bg-sky-500 text-white text-lg cursor-pointer hover:bg-sky-600">
-        Sign in with Pocket ID
-    </a>
+    @if (showMore)
+    {
+        <a href="/signin" class="flex items-center justify-center gap-2 w-64 px-6 py-3 rounded-full bg-sky-500 text-white text-lg cursor-pointer hover:bg-sky-600">
+            Sign in with Pocket ID
+        </a>
+    }
+    else
+    {
+        <button class="text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
+                @onclick="() => showMore = true">
+            Fler alternativ
+        </button>
+    }
 </div>
+
+@code {
+    private bool showMore;
+}
