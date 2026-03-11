@@ -9,6 +9,8 @@ public class DbSong
     public int? Year { get; set; }
     public string? Ccli { get; set; }
 
+    public DateTime? DeletedAt { get; set; }
+
     public string OrganizationId { get; set; } = "";
     public Organization Organization { get; set; } = null!;
 

@@ -14,6 +14,11 @@ public interface ISongService
     Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId);
     Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, bool replaceExisting = false);
     Task DeleteSongAsync(string id);
+    Task<List<TrashedSong>> GetTrashedSongsAsync();
+    Task RestoreFromTrashAsync(string id);
+    Task PermanentlyDeleteSongAsync(string id);
+    Task EmptyTrashAsync();
+    Task RestoreAllFromTrashAsync();
     Task UpdateSongAsync(string id, string name, string? author);
     Task UpdateSongPartAsync(string songId, int partIndex, string? label, string content);
     Task AddSongPartAsync(string songId, string? label, string content);
@@ -35,7 +40,18 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task LoadSongsAsync()
     {
         await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        // Auto-delete songs that have been in trash for more than 30 days
+        var cutoff = DateTime.UtcNow.AddDays(-30);
+        var expired = await db.Songs.Where(s => s.DeletedAt != null && s.DeletedAt < cutoff).ToListAsync();
+        if (expired.Count > 0)
+        {
+            db.Songs.RemoveRange(expired);
+            await db.SaveChangesAsync();
+        }
+
         var dbSongs = await db.Songs
+            .Where(s => s.DeletedAt == null)
             .Include(s => s.Parts.OrderBy(p => p.SortOrder))
             .OrderBy(s => s.Name)
             .AsNoTracking()
@@ -56,7 +72,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var nameList = names.ToList();
         var existingNames = await db.Songs
-            .Where(s => s.OrganizationId == organizationId)
+            .Where(s => s.OrganizationId == organizationId && s.DeletedAt == null)
             .Select(s => s.Name)
             .ToListAsync();
 
@@ -69,7 +85,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await using var db = await dbContextFactory.CreateDbContextAsync();
 
         var existingSongs = await db.Songs
-            .Where(s => s.OrganizationId == organizationId)
+            .Where(s => s.OrganizationId == organizationId && s.DeletedAt == null)
             .Include(s => s.Parts)
             .ToListAsync();
 
@@ -153,9 +169,75 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var song = await db.Songs.FindAsync(id);
         if (song is not null)
         {
-            db.Songs.Remove(song);
+            song.DeletedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
             songsById.Remove(id);
+            RebuildIndex();
+        }
+    }
+
+    public async Task<List<TrashedSong>> GetTrashedSongsAsync()
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        return await db.Songs
+            .Where(s => s.DeletedAt != null)
+            .OrderByDescending(s => s.DeletedAt)
+            .Select(s => new TrashedSong(s.Id, s.Name, s.Author, s.DeletedAt!.Value))
+            .ToListAsync();
+    }
+
+    public async Task RestoreFromTrashAsync(string id)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.DeletedAt != null);
+        if (song is not null)
+        {
+            song.DeletedAt = null;
+            await db.SaveChangesAsync();
+            songsById[id] = ToStateSong(song);
+            RebuildIndex();
+        }
+    }
+
+    public async Task PermanentlyDeleteSongAsync(string id)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var song = await db.Songs.FirstOrDefaultAsync(s => s.Id == id && s.DeletedAt != null);
+        if (song is not null)
+        {
+            db.Songs.Remove(song);
+            await db.SaveChangesAsync();
+        }
+    }
+
+    public async Task EmptyTrashAsync()
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var trashed = await db.Songs.Where(s => s.DeletedAt != null).ToListAsync();
+        if (trashed.Count > 0)
+        {
+            db.Songs.RemoveRange(trashed);
+            await db.SaveChangesAsync();
+        }
+    }
+
+    public async Task RestoreAllFromTrashAsync()
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var trashed = await db.Songs
+            .Where(s => s.DeletedAt != null)
+            .Include(s => s.Parts.OrderBy(p => p.SortOrder))
+            .ToListAsync();
+
+        foreach (var song in trashed)
+        {
+            song.DeletedAt = null;
+            songsById[song.Id] = ToStateSong(song);
+        }
+
+        if (trashed.Count > 0)
+        {
+            await db.SaveChangesAsync();
             RebuildIndex();
         }
     }
@@ -469,6 +551,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 public record ImportResult(int Imported, int Replaced, int Skipped)
 {
     public int Total => Imported + Replaced + Skipped;
+}
+
+public record TrashedSong(string Id, string Name, string? Author, DateTime DeletedAt)
+{
+    public int DaysRemaining => Math.Max(0, 30 - (int)(DateTime.UtcNow - DeletedAt).TotalDays);
 }
 
 public record SongVersionSummary(string Id, string Name, DateTime CreatedAt);

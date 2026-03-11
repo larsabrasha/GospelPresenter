@@ -3,6 +3,7 @@ using System;
 using GospelPresenter.Shared.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GospelPresenter.Shared.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20260311155719_AddSongSoftDelete")]
+    partial class AddSongSoftDelete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

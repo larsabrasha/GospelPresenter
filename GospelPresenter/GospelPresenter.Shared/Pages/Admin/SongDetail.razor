@@ -216,7 +216,7 @@
 
     private void ConfirmDelete()
     {
-        deleteConfirmMessage = new MarkupString($"Vill du ta bort <strong>{System.Net.WebUtility.HtmlEncode(song?.Name)}</strong>? Detta kan inte ångras.");
+        deleteConfirmMessage = new MarkupString($"Vill du flytta <strong>{System.Net.WebUtility.HtmlEncode(song?.Name)}</strong> till papperskorgen? Sången raderas permanent efter 30 dagar.");
         deleteAction = async () =>
         {
             await SongService.DeleteSongAsync(song!.Id);
