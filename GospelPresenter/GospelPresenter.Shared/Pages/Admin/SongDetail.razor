@@ -1,15 +1,12 @@
 @page "/admin/songs/{SongId}"
 @attribute [Authorize(Roles = "Admin")]
 
-@using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
 
 @inject ISongService SongService
 @inject NavigationManager NavigationManager
-@inject AppState AppState
-@inject IJSRuntime JsRuntime
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="relative flex items-center justify-center px-7">
@@ -54,49 +51,73 @@
             </div>
         </div>
 
-        @if (song.Parts.Count > 0)
+        @for (var i = 0; i < song.Parts.Count; i++)
         {
-            <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-3">
-                <div class="font-semibold">Delar (@song.Parts.Count)</div>
-                <div class="flex flex-col gap-2" data-song-detail-preview>
-                    @if (previewWidth > 0)
-                    {
-                        var scale = previewWidth / AppState.BaseSlideWidth;
-                        @foreach (var part in song.Parts)
-                        {
-                            <SongSlide
-                                ContentHtml="@(part.Content.Replace("\n", "<br>"))"
-                                Label="@part.Label"
-                                LabelColor="@part.LabelColor"
-                                Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
-                                BaseWidth="@AppState.BaseSlideWidth"
-                                BaseHeight="@AppState.BaseSlideHeight"
-                                Scale="@scale"/>
-                        }
-                    }
+            var index = i;
+            var part = song.Parts[i];
+            <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-4 space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1">
+                        <button class="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                                disabled="@(index == 0)"
+                                @onclick="() => MovePartUp(index)">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/>
+                            </svg>
+                        </button>
+                        <button class="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                                disabled="@(index == song.Parts.Count - 1)"
+                                @onclick="() => MovePartDown(index)">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <input type="text"
+                           value="@part.Label"
+                           placeholder="Etikett (t.ex. Vers 1)"
+                           @onchange="(e) => SavePartLabel(index, e.Value?.ToString())"
+                           class="flex-1 px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-500 dark:bg-neutral-600 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                    <button class="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 cursor-pointer"
+                            @onclick="() => ConfirmDeletePart(index)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                        </svg>
+                    </button>
                 </div>
+                <textarea @onchange="(e) => SavePartContent(index, e.Value?.ToString() ?? string.Empty)"
+                          rows="4"
+                          class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-500 dark:bg-neutral-600 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 resize-y">@part.Content</textarea>
             </div>
         }
+
+        <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
+                @onclick="AddPart">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+            Lägg till del
+        </button>
     }
 </div>
 
-@if (showDeleteConfirm)
+@if (deleteConfirmMessage is not null)
 {
-    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="() => showDeleteConfirm = false">
+    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelDelete">
         <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
              @onclick:stopPropagation="true">
-            <div class="font-semibold text-lg">Ta bort sång</div>
+            <div class="font-semibold text-lg">Ta bort</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                Vill du ta bort <strong>@song?.Name</strong>? Detta kan inte ångras.
+                @deleteConfirmMessage
             </p>
             <div class="flex justify-end gap-3">
                 <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="() => showDeleteConfirm = false">
+                        @onclick="CancelDelete">
                     Avbryt
                 </button>
                 <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 disabled:opacity-50"
                         disabled="@isDeleting"
-                        @onclick="DeleteSong">
+                        @onclick="ExecuteDelete">
                     @(isDeleting ? "Tar bort..." : "Ta bort")
                 </button>
             </div>
@@ -110,9 +131,9 @@
     private Song? song;
     private string editName = "";
     private string? editAuthor;
-    private bool showDeleteConfirm;
+    private MarkupString? deleteConfirmMessage;
+    private Func<Task>? deleteAction;
     private bool isDeleting;
-    private double previewWidth;
 
     protected override void OnInitialized()
     {
@@ -126,16 +147,6 @@
         editAuthor = song.Author;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            previewWidth = await JsRuntime.InvokeAsync<double>("eval",
-                "((el) => { if(!el) return 0; var s=getComputedStyle(el); return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - 2; })(document.querySelector('[data-song-detail-preview]'))");
-            StateHasChanged();
-        }
-    }
-
     private async Task SaveSong()
     {
         if (song is null || string.IsNullOrWhiteSpace(editName)) return;
@@ -144,17 +155,79 @@
         song = SongService.GetSongById(SongId);
     }
 
-    private void ConfirmDelete()
+    private async Task SavePartLabel(int index, string? label)
     {
-        showDeleteConfirm = true;
+        if (song is null) return;
+        var part = song.Parts[index];
+        var trimmedLabel = string.IsNullOrWhiteSpace(label) ? null : label.Trim();
+        await SongService.UpdateSongPartAsync(song.Id, index, trimmedLabel, part.Content);
+        song = SongService.GetSongById(SongId);
     }
 
-    private async Task DeleteSong()
+    private async Task SavePartContent(int index, string content)
     {
-        if (song is null || isDeleting) return;
-        isDeleting = true;
+        if (song is null) return;
+        var part = song.Parts[index];
+        await SongService.UpdateSongPartAsync(song.Id, index, part.Label, content);
+        song = SongService.GetSongById(SongId);
+    }
 
-        await SongService.DeleteSongAsync(song.Id);
-        NavigationManager.NavigateTo("/admin/songs");
+    private async Task AddPart()
+    {
+        if (song is null) return;
+        await SongService.AddSongPartAsync(song.Id, null, "");
+        song = SongService.GetSongById(SongId);
+    }
+
+    private void ConfirmDeletePart(int index)
+    {
+        if (song is null) return;
+        var label = song.Parts[index].Label ?? $"del {index + 1}";
+        deleteConfirmMessage = new MarkupString($"Vill du ta bort <strong>{System.Net.WebUtility.HtmlEncode(label)}</strong>?");
+        deleteAction = async () =>
+        {
+            await SongService.DeleteSongPartAsync(song.Id, index);
+            song = SongService.GetSongById(SongId);
+        };
+    }
+
+    private async Task MovePartUp(int index)
+    {
+        if (song is null || index <= 0) return;
+        await SongService.MoveSongPartAsync(song.Id, index, index - 1);
+        song = SongService.GetSongById(SongId);
+    }
+
+    private async Task MovePartDown(int index)
+    {
+        if (song is null || index >= song.Parts.Count - 1) return;
+        await SongService.MoveSongPartAsync(song.Id, index, index + 1);
+        song = SongService.GetSongById(SongId);
+    }
+
+    private void ConfirmDelete()
+    {
+        deleteConfirmMessage = new MarkupString($"Vill du ta bort <strong>{System.Net.WebUtility.HtmlEncode(song?.Name)}</strong>? Detta kan inte ångras.");
+        deleteAction = async () =>
+        {
+            await SongService.DeleteSongAsync(song!.Id);
+            NavigationManager.NavigateTo("/admin/songs");
+        };
+    }
+
+    private void CancelDelete()
+    {
+        deleteConfirmMessage = null;
+        deleteAction = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (isDeleting || deleteAction is null) return;
+        isDeleting = true;
+        await deleteAction();
+        isDeleting = false;
+        deleteConfirmMessage = null;
+        deleteAction = null;
     }
 }

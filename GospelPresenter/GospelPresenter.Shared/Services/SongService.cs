@@ -14,6 +14,10 @@ public interface ISongService
     Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, bool replaceExisting = false);
     Task DeleteSongAsync(string id);
     Task UpdateSongAsync(string id, string name, string? author);
+    Task UpdateSongPartAsync(string songId, int partIndex, string? label, string content);
+    Task AddSongPartAsync(string songId, string? label, string content);
+    Task DeleteSongPartAsync(string songId, int partIndex);
+    Task MoveSongPartAsync(string songId, int fromIndex, int toIndex);
 }
 
 public class SongService(IDbContextFactory<PresentationContext> dbContextFactory) : ISongService
@@ -169,6 +173,81 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         }
     }
 
+    public async Task UpdateSongPartAsync(string songId, int partIndex, string? label, string content)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var parts = await db.SongParts
+            .Where(p => p.SongId == songId)
+            .OrderBy(p => p.SortOrder)
+            .ToListAsync();
+
+        if (partIndex < 0 || partIndex >= parts.Count) return;
+
+        parts[partIndex].Label = label;
+        parts[partIndex].Content = content;
+        await db.SaveChangesAsync();
+        await ReloadSong(songId);
+    }
+
+    public async Task AddSongPartAsync(string songId, string? label, string content)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var maxOrder = await db.SongParts
+            .Where(p => p.SongId == songId)
+            .Select(p => (int?)p.SortOrder)
+            .MaxAsync() ?? -1;
+
+        db.SongParts.Add(new Models.DbSongPart
+        {
+            SongId = songId,
+            Label = label,
+            Content = content,
+            SortOrder = maxOrder + 1
+        });
+        await db.SaveChangesAsync();
+        await ReloadSong(songId);
+    }
+
+    public async Task DeleteSongPartAsync(string songId, int partIndex)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var parts = await db.SongParts
+            .Where(p => p.SongId == songId)
+            .OrderBy(p => p.SortOrder)
+            .ToListAsync();
+
+        if (partIndex < 0 || partIndex >= parts.Count) return;
+
+        db.SongParts.Remove(parts[partIndex]);
+        parts.RemoveAt(partIndex);
+        for (var i = 0; i < parts.Count; i++)
+            parts[i].SortOrder = i;
+
+        await db.SaveChangesAsync();
+        await ReloadSong(songId);
+    }
+
+    public async Task MoveSongPartAsync(string songId, int fromIndex, int toIndex)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var parts = await db.SongParts
+            .Where(p => p.SongId == songId)
+            .OrderBy(p => p.SortOrder)
+            .ToListAsync();
+
+        if (fromIndex < 0 || fromIndex >= parts.Count || toIndex < 0 || toIndex >= parts.Count || fromIndex == toIndex) return;
+
+        var item = parts[fromIndex];
+        parts.RemoveAt(fromIndex);
+        parts.Insert(toIndex, item);
+
+        for (var i = 0; i < parts.Count; i++)
+            parts[i].SortOrder = i;
+
+        await db.SaveChangesAsync();
+        await ReloadSong(songId);
+    }
+
     public Song? GetSongById(string id)
     {
         return songsById.GetValueOrDefault(id);
@@ -253,6 +332,21 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             song.Parts.Count > 0 ? song.Parts[0].Content.Normalize().ToLowerInvariant() : "",
             $"{song.Name} {song.Author} {string.Join(" ", song.Parts.Select(p => p.Content))}".Normalize().ToLowerInvariant()
         )).ToList();
+    }
+
+    private async Task ReloadSong(string songId)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var dbSong = await db.Songs
+            .Include(s => s.Parts.OrderBy(p => p.SortOrder))
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Id == songId);
+
+        if (dbSong is not null)
+        {
+            songsById[songId] = ToStateSong(dbSong);
+            RebuildIndex();
+        }
     }
 
     private static Song ToStateSong(Models.DbSong dbSong)
