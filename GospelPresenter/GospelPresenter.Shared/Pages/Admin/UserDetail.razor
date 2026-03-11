@@ -308,6 +308,9 @@
         }
 
         await UserService.UpdateUserAsync(UserId, editName.Trim(), editEmail.Trim(), editRole);
+        user!.Name = editName.Trim();
+        user.Email = editEmail.Trim();
+        user.Role = editRole;
         SyncNavbar();
     }
 
