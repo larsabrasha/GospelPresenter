@@ -118,9 +118,9 @@
             }
         </div>
 
-        <!-- Kopplade konton -->
+        <!-- Inloggningsmetoder -->
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
-            <div class="font-semibold">Kopplade konton</div>
+            <div class="font-semibold">Inloggningsmetoder</div>
 
             @if (logins is null)
             {
@@ -128,7 +128,26 @@
             }
             else if (logins.Count == 0)
             {
-                <div class="text-neutral-400 text-sm">Inga konton kopplade. Skapa en inbjudningslänk så att användaren kan koppla sitt konto.</div>
+                @if (invite is null)
+                {
+                    <div class="flex flex-col items-center text-center py-4 select-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-32 h-auto mb-3 text-neutral-300 dark:text-neutral-600">
+                            <!-- Key shape -->
+                            <circle cx="80" cy="70" r="24" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                            <circle cx="80" cy="70" r="10" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+                            <!-- Key shaft -->
+                            <line x1="104" y1="70" x2="155" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <!-- Key teeth -->
+                            <line x1="140" y1="70" x2="140" y2="82" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="150" y1="70" x2="150" y2="78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <!-- Plus circle -->
+                            <circle cx="155" cy="120" r="16" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                            <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                            <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        </svg>
+                        <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">Inga inloggningsmetoder tillagda.<br/>Skapa en inbjudningslänk för att lägga till ett konto.</p>
+                    </div>
+                }
 
                 @if (invite is not null)
                 {
@@ -165,10 +184,12 @@
                 }
                 @if (invite is null || invite.IsExpired)
                 {
-                    <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
-                            @onclick="CreateInvite">
-                        Skapa inbjudningslänk
-                    </button>
+                    <div class="flex justify-center">
+                        <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                                @onclick="CreateInvite">
+                            Skapa inbjudningslänk
+                        </button>
+                    </div>
                 }
             }
             else
