@@ -144,7 +144,7 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
             return;
         }
 
-        if ('PresentationRequest' in window) {
+        if ('PresentationRequest' in window && window.screen.isExtended) {
             e.preventDefault();
 
             const url = link.href;
@@ -153,7 +153,7 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
                 sessionStorage.setItem('presentation-url', url);
                 window.setupPresentationConnection(state, connection, dotNetRef);
             }).catch(() => {
-                // Fallback: let the link open normally
+                // User cancelled or Presentation API failed — do nothing
             });
         }
     });
