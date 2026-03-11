@@ -42,7 +42,7 @@ public class ProfileImageService : IProfileImageService
         using var resized = source.Resize(info, sampling);
 
         using var image = SKImage.FromBitmap(resized);
-        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-        return $"data:image/png;base64,{Convert.ToBase64String(data.ToArray())}";
+        using var data = image.Encode(SKEncodedImageFormat.Webp, 80);
+        return $"data:image/webp;base64,{Convert.ToBase64String(data.ToArray())}";
     }
 }
