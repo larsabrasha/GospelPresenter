@@ -160,6 +160,30 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
     });
 }
 
+window.gospelPresenter = window.gospelPresenter || {};
+
+window.gospelPresenter.resizeImage = function(base64, maxWidth, maxHeight, quality) {
+    return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+            var w = img.width, h = img.height;
+            if (w > maxWidth || h > maxHeight) {
+                var ratio = Math.min(maxWidth / w, maxHeight / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+            }
+            var canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            var dataUrl = canvas.toDataURL('image/jpeg', quality);
+            resolve(dataUrl.split(',')[1]);
+        };
+        img.onerror = function() { reject('Failed to load image'); };
+        img.src = 'data:image/png;base64,' + base64;
+    });
+};
+
 window.imageCropperState = {};
 
 window.initImageCropper = function(containerId, imageDataUrl) {

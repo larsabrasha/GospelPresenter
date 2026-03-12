@@ -15,7 +15,6 @@
 @inject AppState AppState
 @inject SharedAppState SharedAppState
 @inject ISongService SongService
-@inject IImageService ImageService
 @inject IBibleTextService BibleTextService
 @inject IPresentationService PresentationService
 @inject IJSRuntime JsRuntime
@@ -309,7 +308,7 @@ else if (addModalType == "image")
     <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
         <Title><span>Lägg till bild</span></Title>
         <Body>
-            <ImageTab/>
+            <ImageTab OnAdd="@HandleImageAdded"/>
         </Body>
     </Modal>
 }
@@ -601,7 +600,12 @@ else if (addModalType == "image")
                 }
                 break;
             case ProjectItemType.Image:
-                SelectedImage = ImageService.GetImageById(AppState.SelectedProjectItem.Id);
+                var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                if (imageItem?.ImageData is not null)
+                {
+                    var dataUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(imageItem.ImageData)}";
+                    SelectedImage = new Image(imageItem.Id, dataUrl);
+                }
                 break;
         }
     }
@@ -644,10 +648,10 @@ else if (addModalType == "image")
             }
             case ProjectItemType.Image:
             {
-                var image = ImageService.GetImageById(projectItem.Id);
-                if (image is not null)
+                var imgItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
+                if (imgItem?.ImageData is not null)
                 {
-                    imageUrl = image.Url;
+                    imageUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(imgItem.ImageData)}";
                 }
 
                 break;
@@ -892,6 +896,36 @@ else if (addModalType == "image")
             SourceId = song.Id,
             Type = PresentationItemType.Song,
             Title = song.Name
+        };
+
+        loadedPresentation?.Items.Add(presentationItem);
+        AppState.SelectedProject?.Items.Add(projectItem);
+        AppState.SelectedProjectItem = projectItem;
+
+        if (PresentationId is not null)
+        {
+            await PresentationService.AddItemAsync(PresentationId, presentationItem);
+        }
+    }
+
+    private async Task HandleImageAdded(OrganizationImage image)
+    {
+        var itemId = Guid.NewGuid().ToString();
+        var projectItem = new ProjectItem
+        {
+            Id = itemId,
+            SourceId = image.Id,
+            Type = ProjectItemType.Image,
+            Title = image.FileName
+        };
+
+        var presentationItem = new PresentationItem
+        {
+            Id = itemId,
+            SourceId = image.Id,
+            Type = PresentationItemType.Image,
+            Title = image.FileName,
+            ImageData = image.FullData
         };
 
         loadedPresentation?.Items.Add(presentationItem);
