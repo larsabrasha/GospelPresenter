@@ -19,5 +19,6 @@ public enum PresentationItemType
 {
     Song,
     BibleText,
-    Image
+    Image,
+    Video
 }

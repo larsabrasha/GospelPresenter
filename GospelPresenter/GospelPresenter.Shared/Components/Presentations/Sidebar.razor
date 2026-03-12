@@ -97,6 +97,9 @@
                                     case ProjectItemType.Image:
                                         <PhotoSymbol Class="size-4"/>
                                         break;
+                                    case ProjectItemType.Video:
+                                        <PlayCircleSymbol Class="size-4"/>
+                                        break;
                                     default:
                                         <span></span>
                                         break;
@@ -140,6 +143,11 @@
                                 @onclick="@(() => AddItem("image"))">
                             <PhotoSymbol Class="size-4 text-neutral-400"/>
                             Bild
+                        </button>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="@(() => AddItem("video"))">
+                            <PlayCircleSymbol Class="size-4 text-neutral-400"/>
+                            YouTube-video
                         </button>
                     </div>
                 }

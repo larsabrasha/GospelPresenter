@@ -7,6 +7,7 @@
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Song
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Bible
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Image
+@using GospelPresenter.Shared.Components.Presentations.AddItem.Video
 @using GospelPresenter.Shared.Components.Symbols
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
@@ -102,7 +103,7 @@
                 }
 
                 @{
-                    var hasSlides = SelectedSong is not null || SelectedBibleText is not null || SelectedImage is not null;
+                    var hasSlides = SelectedSong is not null || SelectedBibleText is not null || SelectedImage is not null || SelectedVideoId is not null;
                     var mainClass = hasSlides
                         ? "mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
                         : "flex items-center justify-center h-full overflow-auto";
@@ -148,6 +149,17 @@
                             <ImageSlide
                                 Url="@SelectedImage.Url"
                                 IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == 0)"
+                                BaseWidth="@AppState.BaseSlideWidth"
+                                BaseHeight="@AppState.BaseSlideHeight"
+                                Scale="@slideScale"/>
+                        </button>
+                    }
+                    else if (SelectedVideoId is not null)
+                    {
+                        <button @onclick="() => SetSelectedLiveSlide(AppState.SelectedProjectItem!.Id, 0)">
+                            <VideoSlide
+                                VideoId="@SelectedVideoId"
+                                IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == 0)"
                                 BaseWidth="@AppState.BaseSlideWidth"
                                 BaseHeight="@AppState.BaseSlideHeight"
                                 Scale="@slideScale"/>
@@ -312,6 +324,15 @@ else if (addModalType == "image")
         </Body>
     </Modal>
 }
+else if (addModalType == "video")
+{
+    <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
+        <Title><span>Lägg till YouTube-video</span></Title>
+        <Body>
+            <VideoTab OnAdd="@HandleVideoAdded"/>
+        </Body>
+    </Modal>
+}
 
 @if (itemToRemove is not null)
 {
@@ -376,6 +397,7 @@ else if (addModalType == "image")
     private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
+    private string? SelectedVideoId { get; set; }
     private string? addModalType;
     private bool showSessionExpired;
     private bool showOverlayManager;
@@ -510,6 +532,7 @@ else if (addModalType == "image")
                     PresentationItemType.Song => ProjectItemType.Song,
                     PresentationItemType.BibleText => ProjectItemType.BibleText,
                     PresentationItemType.Image => ProjectItemType.Image,
+                    PresentationItemType.Video => ProjectItemType.Video,
                     _ => ProjectItemType.Song
                 },
                 Title = item.Title
@@ -565,6 +588,7 @@ else if (addModalType == "image")
         SongCredits = null;
         SelectedBibleText = null;
         SelectedImage = null;
+        SelectedVideoId = null;
 
         switch (AppState.SelectedProjectItem?.Type)
         {
@@ -607,6 +631,9 @@ else if (addModalType == "image")
                     SelectedImage = new Image(imageItem.Id, dataUrl);
                 }
                 break;
+            case ProjectItemType.Video:
+                SelectedVideoId = AppState.SelectedProjectItem.SourceId;
+                break;
         }
     }
 
@@ -619,6 +646,7 @@ else if (addModalType == "image")
         string? credits = null;
         string? imageUrl = null;
         SongPart? songPart = null;
+        string? videoId = null;
 
         switch (projectItem.Type)
         {
@@ -667,6 +695,11 @@ else if (addModalType == "image")
 
                 break;
             }
+            case ProjectItemType.Video:
+            {
+                videoId = projectItem.SourceId;
+                break;
+            }
             default:
                 return;
         }
@@ -680,7 +713,8 @@ else if (addModalType == "image")
             Text = text,
             Credits = credits,
             ImageUrl = imageUrl,
-            SongPart = songPart
+            SongPart = songPart,
+            VideoId = videoId
         });
     }
 
@@ -926,6 +960,35 @@ else if (addModalType == "image")
             Type = PresentationItemType.Image,
             Title = image.FileName,
             ImageData = image.FullData
+        };
+
+        loadedPresentation?.Items.Add(presentationItem);
+        AppState.SelectedProject?.Items.Add(projectItem);
+        AppState.SelectedProjectItem = projectItem;
+
+        if (PresentationId is not null)
+        {
+            await PresentationService.AddItemAsync(PresentationId, presentationItem);
+        }
+    }
+
+    private async Task HandleVideoAdded(OrganizationVideo video)
+    {
+        var itemId = Guid.NewGuid().ToString();
+        var projectItem = new ProjectItem
+        {
+            Id = itemId,
+            SourceId = video.YoutubeVideoId,
+            Type = ProjectItemType.Video,
+            Title = video.Title
+        };
+
+        var presentationItem = new PresentationItem
+        {
+            Id = itemId,
+            SourceId = video.YoutubeVideoId,
+            Type = PresentationItemType.Video,
+            Title = video.Title
         };
 
         loadedPresentation?.Items.Add(presentationItem);

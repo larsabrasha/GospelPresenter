@@ -29,6 +29,16 @@ else if (LiveSlide.ItemType == ProjectItemType.Image && LiveSlide.ImageUrl is no
         BaseHeight="@BaseHeight"
         Scale="@Scale"/>
 }
+else if (LiveSlide.ItemType == ProjectItemType.Video && LiveSlide.VideoId is not null)
+{
+    <VideoSlide
+        VideoId="@LiveSlide.VideoId"
+        Embed="true"
+        Class="@Class"
+        BaseWidth="@BaseWidth"
+        BaseHeight="@BaseHeight"
+        Scale="@Scale"/>
+}
 
 @code {
     [Parameter] public required LiveSlide LiveSlide { get; set; }
