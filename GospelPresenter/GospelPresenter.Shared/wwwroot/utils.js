@@ -235,16 +235,9 @@ window.initImageCropper = function(containerId, imageDataUrl) {
         const containerSize = s.container.offsetWidth;
         const w = s.img.naturalWidth * s.scale;
         const h = s.img.naturalHeight * s.scale;
-        if (w <= containerSize) {
-            s.translateX = (containerSize - w) / 2;
-        } else {
-            s.translateX = Math.min(0, Math.max(containerSize - w, s.translateX));
-        }
-        if (h <= containerSize) {
-            s.translateY = (containerSize - h) / 2;
-        } else {
-            s.translateY = Math.min(0, Math.max(containerSize - h, s.translateY));
-        }
+        // Allow dragging until an edge reaches the opposite side of the container
+        s.translateX = Math.max(-w, Math.min(containerSize, s.translateX));
+        s.translateY = Math.max(-h, Math.min(containerSize, s.translateY));
     }
 
     function getPointerPos(e) {
@@ -363,19 +356,11 @@ window.setImageCropperZoom = function(containerId, value) {
     state.translateX = centerX - (centerX - state.translateX) * (state.scale / oldScale);
     state.translateY = centerY - (centerY - state.translateY) * (state.scale / oldScale);
 
-    // Clamp
+    // Clamp — allow dragging until an edge reaches the opposite side
     const w = state.img.naturalWidth * state.scale;
     const h = state.img.naturalHeight * state.scale;
-    if (w <= containerSize) {
-        state.translateX = (containerSize - w) / 2;
-    } else {
-        state.translateX = Math.min(0, Math.max(containerSize - w, state.translateX));
-    }
-    if (h <= containerSize) {
-        state.translateY = (containerSize - h) / 2;
-    } else {
-        state.translateY = Math.min(0, Math.max(containerSize - h, state.translateY));
-    }
+    state.translateX = Math.max(-w, Math.min(containerSize, state.translateX));
+    state.translateY = Math.max(-h, Math.min(containerSize, state.translateY));
 
     state.img.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.scale})`;
 };
