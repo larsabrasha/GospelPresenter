@@ -194,33 +194,6 @@ namespace GospelPresenter.Shared.Migrations
                     b.ToTable("OrganizationImages");
                 });
 
-            modelBuilder.Entity("GospelPresenter.Shared.Models.OrganizationVideo", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("OrganizationId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("YoutubeVideoId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrganizationId");
-
-                    b.ToTable("OrganizationVideos");
-                });
-
             modelBuilder.Entity("GospelPresenter.Shared.Models.OverlaySlide", b =>
                 {
                     b.Property<string>("Id")
@@ -448,17 +421,6 @@ namespace GospelPresenter.Shared.Migrations
                 });
 
             modelBuilder.Entity("GospelPresenter.Shared.Models.OrganizationImage", b =>
-                {
-                    b.HasOne("GospelPresenter.Shared.Models.Organization", "Organization")
-                        .WithMany()
-                        .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("GospelPresenter.Shared.Models.OrganizationVideo", b =>
                 {
                     b.HasOne("GospelPresenter.Shared.Models.Organization", "Organization")
                         .WithMany()

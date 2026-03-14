@@ -8,8 +8,7 @@ public record LiveSlide(
     string? Text,
     string? Credits,
     string? ImageUrl,
-    SongPart? SongPart,
-    string? VideoId = null
+    SongPart? SongPart
 );
 
 public record ActiveOverlay(string? Text, string? ImageUrl);

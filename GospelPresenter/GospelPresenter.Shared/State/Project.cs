@@ -19,6 +19,5 @@ public enum ProjectItemType
 {
     Song,
     BibleText,
-    Image,
-    Video
+    Image
 }
