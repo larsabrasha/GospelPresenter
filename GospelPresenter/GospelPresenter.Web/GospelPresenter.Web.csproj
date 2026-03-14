@@ -16,10 +16,14 @@
 
     <ItemGroup>
         <ProjectReference Include="..\GospelPresenter.ServiceDefaults\GospelPresenter.ServiceDefaults.csproj" />
-        <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj"/>
+        <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
       <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
       <PackageReference Include="prometheus-net.AspNetCore.HealthChecks" Version="8.2.1" />
       <PackageReference Include="Serilog" Version="4.3.1" />

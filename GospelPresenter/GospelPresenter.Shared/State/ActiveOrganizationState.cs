@@ -1,4 +1,5 @@
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Services;
 
 namespace GospelPresenter.Shared.State;
 
@@ -14,15 +15,24 @@ public class ActiveOrganizationState
 
     public string? ActiveOrganizationId => IsSuperAdmin ? SelectedOrganizationId : UserOrganizationId;
 
-    public bool HasActiveOrganization => ActiveOrganizationId is not null;
+public bool IsInitialized { get; private set; }
+
+    public CallerContext ToCallerContext() => new(UserId!, UserRole, ActiveOrganizationId);
 
     public event Action? OnChange;
+    public event Action? OnOrganizationsChanged;
 
     public void Initialize(string userId, UserRole role, string? organizationId)
     {
         UserId = userId;
         UserRole = role;
         UserOrganizationId = organizationId;
+    }
+
+    public void MarkInitialized()
+    {
+        IsInitialized = true;
+        OnChange?.Invoke();
     }
 
     public void SwitchOrganization(string organizationId, string organizationName)
@@ -32,10 +42,9 @@ public class ActiveOrganizationState
         OnChange?.Invoke();
     }
 
-    public void ClearOrganization()
+    public void NotifyOrganizationsChanged()
     {
-        SelectedOrganizationId = null;
-        SelectedOrganizationName = null;
-        OnChange?.Invoke();
+        OnOrganizationsChanged?.Invoke();
     }
+
 }

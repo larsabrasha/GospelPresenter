@@ -8,19 +8,8 @@
 
 @inject IUserService UserService
 @inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
 
-@if (OrgState is not null && OrgState.IsSuperAdmin && !OrgState.HasActiveOrganization)
-{
-    <div class="flex flex-col items-center text-center py-16 px-4 select-none">
-        <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed mb-4">Välj en organisation i org-väljaren för att hantera användare</p>
-        <a href="/superadmin/organizations"
-           class="px-4 py-2.5 rounded-full bg-sky-500 text-white hover:bg-sky-600 text-sm no-underline">
-            Hantera organisationer
-        </a>
-    </div>
-}
-else
-{
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="relative flex items-center justify-center px-7">
         <a href="/"
@@ -60,7 +49,6 @@ else
         }
     </div>
 </div>
-}
 
 @if (showCreateDialog)
 {
@@ -91,7 +79,7 @@ else
                 <div class="relative">
                     <select @bind="editRole"
                             class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        @foreach (var role in Enum.GetValues<UserRole>())
+                        @foreach (var role in AllowedRoles)
                         {
                             <option value="@role">@RoleDisplayName(role)</option>
                         }
@@ -126,15 +114,20 @@ else
     private UserRole editRole = UserRole.User;
     private ElementReference nameInput;
     private bool shouldFocusName;
-    [CascadingParameter] private ActiveOrganizationState? OrgState { get; set; }
+
+    private IEnumerable<UserRole> AllowedRoles => OrgState.IsSuperAdmin
+        ? Enum.GetValues<UserRole>()
+        : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin);
 
     protected override async Task OnInitializedAsync()
     {
-        var orgId = OrgState?.ActiveOrganizationId;
+        var orgId = OrgState.ActiveOrganizationId;
         if (orgId is not null)
-            users = await UserService.GetUsersByOrganizationAsync(orgId);
+            users = await UserService.GetUsersByOrganizationAsync(orgId, OrgState.ToCallerContext());
+        else if (OrgState.IsSuperAdmin)
+            users = await UserService.GetAllUsersAsync(OrgState.ToCallerContext());
         else
-            users = await UserService.GetAllUsersAsync();
+            users = [];
     }
 
     private void ShowCreateDialog()
@@ -176,11 +169,11 @@ else
             return;
         }
 
-        var orgId = OrgState?.ActiveOrganizationId;
+        var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
         isSaving = true;
-        var user = await UserService.CreateUserAsync(editName.Trim(), editEmail.Trim(), orgId, editRole);
+        var user = await UserService.CreateUserAsync(editName.Trim(), editEmail.Trim(), orgId, editRole, OrgState.ToCallerContext());
 
         isSaving = false;
         showCreateDialog = false;

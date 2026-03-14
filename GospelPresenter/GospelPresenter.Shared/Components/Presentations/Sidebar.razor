@@ -6,6 +6,7 @@
 @inject AppState AppState
 @inject IJSRuntime JsRuntime
 @inject IPresentationService PresentationService
+@inject ActiveOrganizationState OrgState
 
 @implements IDisposable
 
@@ -156,6 +157,7 @@
     [Parameter] public EventCallback<List<string>> OnItemsReordered { get; set; }
     [Parameter] public EventCallback OnDeleteRequested { get; set; }
 
+
     private bool showDropdown;
     private bool showPresentationMenu;
     private bool isEditingName;
@@ -295,7 +297,9 @@
             return;
 
         AppState.SelectedProject.Name = trimmed;
-        await PresentationService.RenamePresentationAsync(AppState.SelectedProject.Id, trimmed);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is not null)
+            await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, trimmed, OrgState.ToCallerContext());
     }
 
     private async Task RequestRemoveItem(ProjectItem item)

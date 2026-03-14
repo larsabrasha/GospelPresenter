@@ -1,7 +1,9 @@
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
 
 @inject IPresentationService PresentationService
+@inject ActiveOrganizationState OrgState
 
 @if (editingOverlay is not null)
 {
@@ -86,7 +88,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        overlays = await PresentationService.GetOverlaysAsync(OrganizationId);
+        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
     }
 
     private void AddNew()
@@ -108,22 +110,22 @@ else
     {
         if (string.IsNullOrWhiteSpace(overlay.OrganizationId))
         {
-            await PresentationService.AddOverlayAsync(OrganizationId, overlay);
+            await PresentationService.AddOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
         }
         else
         {
-            await PresentationService.UpdateOverlayAsync(overlay);
+            await PresentationService.UpdateOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
         }
 
-        overlays = await PresentationService.GetOverlaysAsync(OrganizationId);
+        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
         editingOverlay = null;
         await OnOverlaysChanged.InvokeAsync();
     }
 
     private async Task HandleDeleted(OverlaySlide overlay)
     {
-        await PresentationService.RemoveOverlayAsync(OrganizationId, overlay.Id);
-        overlays = await PresentationService.GetOverlaysAsync(OrganizationId);
+        await PresentationService.RemoveOverlayAsync(OrganizationId, overlay.Id, OrgState.ToCallerContext());
+        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
         editingOverlay = null;
         await OnOverlaysChanged.InvokeAsync();
     }

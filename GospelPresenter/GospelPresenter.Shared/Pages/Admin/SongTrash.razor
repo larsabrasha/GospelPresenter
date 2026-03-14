@@ -2,9 +2,11 @@
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
 
 @using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
 
 @inject ISongService SongService
+@inject ActiveOrganizationState OrgState
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="relative flex items-center justify-center px-7">
@@ -111,6 +113,7 @@
 }
 
 @code {
+
     private List<TrashedSong>? trashedSongs;
     private MarkupString? confirmMessage;
     private string confirmTitle = "";
@@ -119,10 +122,13 @@
     private bool confirmIsDestructive;
     private Func<Task>? confirmAction;
     private bool isProcessing;
+    private string? organizationId;
 
     protected override async Task OnInitializedAsync()
     {
-        trashedSongs = await SongService.GetTrashedSongsAsync();
+        organizationId = OrgState.ActiveOrganizationId;
+        if (organizationId is null) return;
+        trashedSongs = await SongService.GetTrashedSongsAsync(organizationId, OrgState.ToCallerContext());
     }
 
     private void ConfirmRestore(TrashedSong song)
@@ -134,8 +140,8 @@
         confirmIsDestructive = false;
         confirmAction = async () =>
         {
-            await SongService.RestoreFromTrashAsync(song.Id);
-            trashedSongs = await SongService.GetTrashedSongsAsync();
+            await SongService.RestoreFromTrashAsync(song.Id, organizationId!, OrgState.ToCallerContext());
+            trashedSongs = await SongService.GetTrashedSongsAsync(organizationId!, OrgState.ToCallerContext());
         };
     }
 
@@ -148,8 +154,8 @@
         confirmIsDestructive = false;
         confirmAction = async () =>
         {
-            await SongService.RestoreAllFromTrashAsync();
-            trashedSongs = await SongService.GetTrashedSongsAsync();
+            await SongService.RestoreAllFromTrashAsync(organizationId!, OrgState.ToCallerContext());
+            trashedSongs = await SongService.GetTrashedSongsAsync(organizationId!, OrgState.ToCallerContext());
         };
     }
 
@@ -162,8 +168,8 @@
         confirmIsDestructive = true;
         confirmAction = async () =>
         {
-            await SongService.PermanentlyDeleteSongAsync(song.Id);
-            trashedSongs = await SongService.GetTrashedSongsAsync();
+            await SongService.PermanentlyDeleteSongAsync(song.Id, organizationId!, OrgState.ToCallerContext());
+            trashedSongs = await SongService.GetTrashedSongsAsync(organizationId!, OrgState.ToCallerContext());
         };
     }
 
@@ -176,8 +182,8 @@
         confirmIsDestructive = true;
         confirmAction = async () =>
         {
-            await SongService.EmptyTrashAsync();
-            trashedSongs = await SongService.GetTrashedSongsAsync();
+            await SongService.EmptyTrashAsync(organizationId!, OrgState.ToCallerContext());
+            trashedSongs = await SongService.GetTrashedSongsAsync(organizationId!, OrgState.ToCallerContext());
         };
     }
 

@@ -1,0 +1,35 @@
+@if (!string.IsNullOrEmpty(LogoUrl))
+{
+    <img src="@LogoUrl" alt="" class="@SizeClass rounded-full object-cover shrink-0 @Class"/>
+}
+else
+{
+    <div class="@SizeClass rounded-full bg-neutral-200 dark:bg-neutral-500 shrink-0 flex items-center justify-center @TextClass font-medium text-neutral-500 dark:text-neutral-300 @Class">
+        @Initial(Name)
+    </div>
+}
+
+@code {
+    [Parameter] public string? LogoUrl { get; set; }
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string Size { get; set; } = "sm";
+    [Parameter] public string? Class { get; set; }
+
+    private string SizeClass => Size switch
+    {
+        "lg" => "w-16 h-16",
+        _ => "size-6"
+    };
+
+    private string TextClass => Size switch
+    {
+        "lg" => "text-2xl",
+        _ => "text-xs"
+    };
+
+    private static string Initial(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        return name.Trim()[0].ToString().ToUpper();
+    }
+}

@@ -335,6 +335,28 @@ builder.Services.AddMetricServer(options =>
     app.UseAuthentication();
     app.UseAuthorization();
 
+    app.Use(async (context, next) =>
+    {
+        var path = context.Request.Path.Value ?? "";
+        var isSetupPath = path.Equals("/setup", StringComparison.OrdinalIgnoreCase);
+        var isStaticOrInternal = path.StartsWith("/_", StringComparison.OrdinalIgnoreCase)
+                                 || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase);
+
+        if (!isSetupPath && !isStaticOrInternal)
+        {
+            var setupStatus = context.RequestServices.GetRequiredService<SetupStatusService>();
+            var userService = context.RequestServices.GetRequiredService<IUserService>();
+
+            if (!await setupStatus.IsSetupCompleteAsync(userService))
+            {
+                context.Response.Redirect("/setup");
+                return;
+            }
+        }
+
+        await next(context);
+    });
+
     app.UseAntiforgery();
 
     app.UseRequestLocalization(supportedCultures);

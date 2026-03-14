@@ -8,6 +8,7 @@
 
 @inject ISongService SongService
 @inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
 
 <div class="flex flex-col p-3 pt-8 w-full mx-auto space-y-5" style="max-width: 1200px;">
     <div class="relative flex items-center justify-center px-7">
@@ -122,14 +123,16 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var song = SongService.GetSongById(SongId);
+        var song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
         if (song is null)
         {
             NavigationManager.NavigateTo("/admin/songs");
             return;
         }
 
-        versions = await SongService.GetVersionsAsync(SongId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        versions = await SongService.GetVersionsAsync(SongId, orgId, OrgState.ToCallerContext());
         if (versions.Count > 0)
             await SelectVersion(versions[0].Id);
     }
@@ -137,7 +140,9 @@
     private async Task SelectVersion(string versionId)
     {
         selectedVersionId = versionId;
-        selectedVersion = await SongService.GetVersionAsync(versionId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        selectedVersion = await SongService.GetVersionAsync(versionId, orgId, OrgState.ToCallerContext());
     }
 
     private void ConfirmRestore()
@@ -156,7 +161,9 @@
         if (isRestoring || selectedVersion is null) return;
         isRestoring = true;
 
-        await SongService.RestoreVersionAsync(SongId, selectedVersion.Id);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.RestoreVersionAsync(SongId, orgId, selectedVersion.Id, OrgState.ToCallerContext());
 
         isRestoring = false;
         restoreConfirm = false;

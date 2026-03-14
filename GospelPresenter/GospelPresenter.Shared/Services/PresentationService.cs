@@ -6,28 +6,30 @@ namespace GospelPresenter.Shared.Services;
 
 public interface IPresentationService
 {
-    Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(CancellationToken cancellationToken = default);
-    Task<Presentation?> GetPresentationByIdAsync(string id, CancellationToken cancellationToken = default);
-    Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CancellationToken cancellationToken = default);
-    Task AddItemAsync(string presentationId, PresentationItem item, CancellationToken cancellationToken = default);
-    Task RenamePresentationAsync(string id, string name, CancellationToken cancellationToken = default);
-    Task ReorderItemsAsync(string presentationId, List<string> itemIds, CancellationToken cancellationToken = default);
-    Task RemoveItemAsync(string presentationId, string itemId, CancellationToken cancellationToken = default);
-    Task SaveAsync(Presentation presentation, CancellationToken cancellationToken = default);
-    Task DeletePresentationAsync(string id, CancellationToken cancellationToken = default);
-    Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CancellationToken cancellationToken = default);
-    Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CancellationToken cancellationToken = default);
-    Task UpdateOverlayAsync(OverlaySlide overlay, CancellationToken cancellationToken = default);
-    Task RemoveOverlayAsync(string organizationId, string overlayId, CancellationToken cancellationToken = default);
+    Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default);
+    Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default);
+    Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default);
+    Task RemoveItemAsync(string organizationId, string presentationId, string itemId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default);
+    Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default);
+    Task UpdateOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default);
+    Task RemoveOverlayAsync(string organizationId, string overlayId, CallerContext caller, CancellationToken cancellationToken = default);
 }
 
 public class PresentationService(IDbContextFactory<PresentationContext> dbContextFactory) : IPresentationService
 {
-    public async Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(CancellationToken cancellationToken = default)
+    public async Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var presentations = await context.Presentations
+            .Where(x => x.OrganizationId == organizationId)
             .OrderByDescending(x => x.UpdatedAt)
             .Take(20)
             .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt))
@@ -36,20 +38,22 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
         return presentations;
     }
 
-    public async Task<Presentation?> GetPresentationByIdAsync(string id, CancellationToken cancellationToken = default)
+    public async Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var presentation = await context.Presentations
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
                 .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder))
-            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
 
         return presentation;
     }
 
-    public async Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CancellationToken cancellationToken = default)
+    public async Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var organization = await context.Organizations.FindAsync([organizationId], cancellationToken);
@@ -77,8 +81,9 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
         return presentation;
     }
 
-    public async Task AddItemAsync(string presentationId, PresentationItem item, CancellationToken cancellationToken = default)
+    public async Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         item.PresentationId = presentationId;
@@ -92,29 +97,31 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
         context.PresentationItems.Add(item);
 
         await context.Presentations
-            .Where(x => x.Id == presentationId)
+            .Where(x => x.Id == presentationId && x.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x.SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
 
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task RenamePresentationAsync(string id, string name, CancellationToken cancellationToken = default)
+    public async Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.Presentations
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.Name, name)
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 
-    public async Task ReorderItemsAsync(string presentationId, List<string> itemIds, CancellationToken cancellationToken = default)
+    public async Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var items = await context.PresentationItems
-            .Where(x => x.PresentationId == presentationId)
+            .Where(x => x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
             .ToListAsync(cancellationToken);
 
         foreach (var item in items)
@@ -127,26 +134,33 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task RemoveItemAsync(string presentationId, string itemId, CancellationToken cancellationToken = default)
+    public async Task RemoveItemAsync(string organizationId, string presentationId, string itemId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.PresentationItems
-            .Where(x => x.PresentationId == presentationId && x.Id == itemId)
+            .Where(x => x.PresentationId == presentationId && x.Id == itemId && x.Presentation.OrganizationId == organizationId)
             .ExecuteDeleteAsync(cancellationToken);
     }
 
-    public async Task SaveAsync(Presentation presentation, CancellationToken cancellationToken = default)
+    public async Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        presentation.UpdatedAt = DateTimeOffset.UtcNow;
-        context.Presentations.Update(presentation);
+        var existing = await context.Presentations
+            .FirstOrDefaultAsync(x => x.Id == presentation.Id && x.OrganizationId == organizationId, cancellationToken);
+        if (existing is null) return;
+
+        existing.Name = presentation.Name;
+        existing.UpdatedAt = DateTimeOffset.UtcNow;
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task DeletePresentationAsync(string id, CancellationToken cancellationToken = default)
+    public async Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -159,14 +173,15 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
             .ExecuteDeleteAsync(cancellationToken);
 
         await context.Presentations
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.OrganizationId == organizationId)
             .ExecuteDeleteAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
     }
 
-    public async Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CancellationToken cancellationToken = default)
+    public async Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         return await context.OverlaySlides
@@ -175,8 +190,9 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
             .ToListAsync(cancellationToken);
     }
 
-    public async Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CancellationToken cancellationToken = default)
+    public async Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         overlay.OrganizationId = organizationId;
@@ -191,16 +207,22 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateOverlayAsync(OverlaySlide overlay, CancellationToken cancellationToken = default)
+    public async Task UpdateOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        context.OverlaySlides.Update(overlay);
+        var existing = await context.OverlaySlides
+            .FirstOrDefaultAsync(x => x.Id == overlay.Id && x.OrganizationId == organizationId, cancellationToken);
+        if (existing is null) return;
+
+        context.Entry(existing).CurrentValues.SetValues(overlay);
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task RemoveOverlayAsync(string organizationId, string overlayId, CancellationToken cancellationToken = default)
+    public async Task RemoveOverlayAsync(string organizationId, string overlayId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.OverlaySlides

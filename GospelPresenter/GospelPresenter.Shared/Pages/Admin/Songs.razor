@@ -8,19 +8,8 @@
 
 @inject ISongService SongService
 @inject IJSRuntime JsRuntime
+@inject ActiveOrganizationState OrgState
 
-@if (OrgState is not null && OrgState.IsSuperAdmin && !OrgState.HasActiveOrganization)
-{
-    <div class="flex flex-col items-center text-center py-16 px-4 select-none">
-        <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed mb-4">Välj en organisation i org-väljaren för att hantera sånger</p>
-        <a href="/superadmin/organizations"
-           class="px-4 py-2.5 rounded-full bg-sky-500 text-white hover:bg-sky-600 text-sm no-underline">
-            Hantera organisationer
-        </a>
-    </div>
-}
-else
-{
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="relative flex items-center justify-center px-7">
         <a href="/"
@@ -59,7 +48,7 @@ else
         <div class="px-5 pt-4 pb-2 space-y-3">
             <div class="flex items-center justify-between">
                 <div class="font-semibold">
-                    Alla sånger (@SongService.Songs.Count)
+                    Alla sånger (@OrgSongs.Count)
                 </div>
                 <a href="/admin/songs/trash"
                    class="flex items-center gap-1.5 text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
@@ -69,7 +58,7 @@ else
                     Papperskorg
                 </a>
             </div>
-            @if (SongService.Songs.Count > 0)
+            @if (OrgSongs.Count > 0)
             {
                 <div class="relative">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
@@ -93,7 +82,7 @@ else
             }
         </div>
 
-        @if (SongService.Songs.Count == 0)
+        @if (OrgSongs.Count == 0)
         {
             <div class="px-5 py-4 text-neutral-400 text-sm">Inga sånger importerade ännu.</div>
         }
@@ -167,12 +156,15 @@ else
     private List<Song> displayedSongs = [];
     private CancellationTokenSource? debounceToken;
 
-    [CascadingParameter] private ActiveOrganizationState? OrgState { get; set; }
+
+    private IReadOnlyList<Song> OrgSongs => organizationId is not null
+        ? SongService.GetSongsByOrganization(organizationId, OrgState.ToCallerContext())
+        : [];
 
     protected override void OnInitialized()
     {
-        organizationId = OrgState?.ActiveOrganizationId;
-        displayedSongs = SongService.Songs.ToList();
+        organizationId = OrgState.ActiveOrganizationId;
+        displayedSongs = OrgSongs.ToList();
     }
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
@@ -210,7 +202,7 @@ else
                 .Select(s => s!.Name)
                 .ToList();
 
-            var duplicates = await SongService.FindDuplicateNamesAsync(parsedNames, organizationId);
+            var duplicates = await SongService.FindDuplicateNamesAsync(parsedNames, organizationId, OrgState.ToCallerContext());
 
             if (duplicates.Count > 0)
             {
@@ -220,7 +212,7 @@ else
                 return;
             }
 
-            var result = await SongService.ImportProPresenterFilesAsync(files, organizationId);
+            var result = await SongService.ImportProPresenterFilesAsync(files, organizationId, OrgState.ToCallerContext());
             importMessage = FormatImportResult(result);
             RefreshDisplayedSongs();
         }
@@ -252,7 +244,7 @@ else
 
         try
         {
-            var result = await SongService.ImportProPresenterFilesAsync(files, organizationId, replaceExisting);
+            var result = await SongService.ImportProPresenterFilesAsync(files, organizationId, OrgState.ToCallerContext(), replaceExisting);
             importMessage = FormatImportResult(result);
             RefreshDisplayedSongs();
         }
@@ -286,8 +278,8 @@ else
     private void RefreshDisplayedSongs()
     {
         displayedSongs = string.IsNullOrWhiteSpace(searchQuery)
-            ? SongService.Songs.ToList()
-            : SongService.Search(searchQuery).ToList();
+            ? OrgSongs.ToList()
+            : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
     }
 
     private async Task OnSearchInput(ChangeEventArgs e)
@@ -305,8 +297,8 @@ else
         {
             await Task.Delay(150, token);
             displayedSongs = string.IsNullOrWhiteSpace(searchQuery)
-                ? SongService.Songs.ToList()
-                : SongService.Search(searchQuery).ToList();
+                ? OrgSongs.ToList()
+                : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
         }
         catch (TaskCanceledException) { }
     }
@@ -315,7 +307,7 @@ else
     {
         searchQuery = "";
         searchTerms = [];
-        displayedSongs = SongService.Songs.ToList();
+        displayedSongs = OrgSongs.ToList();
     }
 
     private string Highlight(string text)

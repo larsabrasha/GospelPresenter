@@ -2,11 +2,6 @@
 
 @using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Components.Symbols
-@using GospelPresenter.Shared.Services
-
-@inject IUserService UserService
-@inject SetupStatusService SetupStatus
-@inject NavigationManager Navigation
 
 <div class="flex flex-col h-full items-center">
     <AuthorizeView>
@@ -14,32 +9,15 @@
             <Dashboard/>
         </Authorized>
         <NotAuthorized>
-            @if (setupChecked)
-            {
-                <div class="flex flex-col items-center py-20">
-                    <LogoSymbol Class="size-20 text-sky-500"/>
-                    <div class="text-2xl uppercase">
-                        <div><span class="text-sky-500 font-semibold">Gospel</span> <span class="text-sky-400">Presenter</span>
-                        </div>
+            <div class="flex flex-col items-center py-20">
+                <LogoSymbol Class="size-20 text-sky-500"/>
+                <div class="text-2xl uppercase">
+                    <div><span class="text-sky-500 font-semibold">Gospel</span> <span class="text-sky-400">Presenter</span>
                     </div>
                 </div>
+            </div>
 
-                <SignIn/>
-            }
+            <SignIn/>
         </NotAuthorized>
     </AuthorizeView>
 </div>
-
-@code {
-    private bool setupChecked;
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (!await SetupStatus.IsSetupCompleteAsync(UserService))
-        {
-            Navigation.NavigateTo("/setup", replace: true);
-            return;
-        }
-        setupChecked = true;
-    }
-}

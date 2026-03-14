@@ -17,9 +17,15 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<DbSongVersion> SongVersions { get; set; }
     public DbSet<OverlaySlide> OverlaySlides { get; set; }
     public DbSet<OrganizationImage> OrganizationImages { get; set; }
+    public DbSet<UserSetting> UserSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<UserSetting>()
+            .HasIndex(us => new { us.UserId, us.Key })
+            .IsUnique();
+
+
         modelBuilder.Entity<User>()
             .Property(u => u.Role)
             .HasConversion<string>();

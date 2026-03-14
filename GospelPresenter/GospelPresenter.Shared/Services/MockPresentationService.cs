@@ -22,9 +22,11 @@ public class MockPresentationService : IPresentationService
         });
     }
 
-    public Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(CancellationToken cancellationToken = default)
+    public Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         var summaries = presentations
+            .Where(x => x.OrganizationId == organizationId)
             .OrderByDescending(x => x.UpdatedAt)
             .Take(20)
             .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt))
@@ -33,14 +35,16 @@ public class MockPresentationService : IPresentationService
         return Task.FromResult<IList<PresentationSummary>>(summaries);
     }
 
-    public Task<Presentation?> GetPresentationByIdAsync(string id, CancellationToken cancellationToken = default)
+    public Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        var presentation = presentations.FirstOrDefault(x => x.Id == id);
+        caller.RequireOrganizationAccess(organizationId);
+        var presentation = presentations.FirstOrDefault(x => x.Id == id && x.OrganizationId == organizationId);
         return Task.FromResult(presentation);
     }
 
-    public Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CancellationToken cancellationToken = default)
+    public Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         var now = DateTimeOffset.UtcNow;
         var presentation = new Presentation
         {
@@ -58,9 +62,10 @@ public class MockPresentationService : IPresentationService
         return Task.FromResult(presentation);
     }
 
-    public Task AddItemAsync(string presentationId, PresentationItem item, CancellationToken cancellationToken = default)
+    public Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        var presentation = presentations.FirstOrDefault(x => x.Id == presentationId);
+        caller.RequireOrganizationAccess(organizationId);
+        var presentation = presentations.FirstOrDefault(x => x.Id == presentationId && x.OrganizationId == organizationId);
         if (presentation is null) return Task.CompletedTask;
 
         item.PresentationId = presentationId;
@@ -75,9 +80,10 @@ public class MockPresentationService : IPresentationService
         return Task.CompletedTask;
     }
 
-    public Task RenamePresentationAsync(string id, string name, CancellationToken cancellationToken = default)
+    public Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        var presentation = presentations.FirstOrDefault(x => x.Id == id);
+        caller.RequireOrganizationAccess(organizationId);
+        var presentation = presentations.FirstOrDefault(x => x.Id == id && x.OrganizationId == organizationId);
         if (presentation is not null)
         {
             presentation.Name = name;
@@ -87,9 +93,10 @@ public class MockPresentationService : IPresentationService
         return Task.CompletedTask;
     }
 
-    public Task ReorderItemsAsync(string presentationId, List<string> itemIds, CancellationToken cancellationToken = default)
+    public Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        var presentation = presentations.FirstOrDefault(x => x.Id == presentationId);
+        caller.RequireOrganizationAccess(organizationId);
+        var presentation = presentations.FirstOrDefault(x => x.Id == presentationId && x.OrganizationId == organizationId);
         if (presentation is null) return Task.CompletedTask;
 
         foreach (var item in presentation.Items)
@@ -104,23 +111,26 @@ public class MockPresentationService : IPresentationService
         return Task.CompletedTask;
     }
 
-    public Task RemoveItemAsync(string presentationId, string itemId, CancellationToken cancellationToken = default)
+    public Task RemoveItemAsync(string organizationId, string presentationId, string itemId, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        var presentation = presentations.FirstOrDefault(x => x.Id == presentationId);
+        caller.RequireOrganizationAccess(organizationId);
+        var presentation = presentations.FirstOrDefault(x => x.Id == presentationId && x.OrganizationId == organizationId);
         presentation?.Items.RemoveAll(x => x.Id == itemId);
 
         return Task.CompletedTask;
     }
 
-    public Task DeletePresentationAsync(string id, CancellationToken cancellationToken = default)
+    public Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        presentations.RemoveAll(x => x.Id == id);
+        caller.RequireOrganizationAccess(organizationId);
+        presentations.RemoveAll(x => x.Id == id && x.OrganizationId == organizationId);
         return Task.CompletedTask;
     }
 
-    public Task SaveAsync(Presentation presentation, CancellationToken cancellationToken = default)
+    public Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        var existing = presentations.FirstOrDefault(x => x.Id == presentation.Id);
+        caller.RequireOrganizationAccess(organizationId);
+        var existing = presentations.FirstOrDefault(x => x.Id == presentation.Id && x.OrganizationId == organizationId);
         if (existing is not null)
         {
             presentations.Remove(existing);
@@ -134,29 +144,33 @@ public class MockPresentationService : IPresentationService
 
     private readonly List<OverlaySlide> overlays = [];
 
-    public Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CancellationToken cancellationToken = default)
+    public Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         var result = overlays.Where(x => x.OrganizationId == organizationId).OrderBy(x => x.SortOrder).ToList();
         return Task.FromResult(result);
     }
 
-    public Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CancellationToken cancellationToken = default)
+    public Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         overlay.OrganizationId = organizationId;
         overlay.SortOrder = overlays.Count(x => x.OrganizationId == organizationId);
         overlays.Add(overlay);
         return Task.CompletedTask;
     }
 
-    public Task UpdateOverlayAsync(OverlaySlide overlay, CancellationToken cancellationToken = default)
+    public Task UpdateOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        var index = overlays.FindIndex(x => x.Id == overlay.Id);
+        caller.RequireOrganizationAccess(organizationId);
+        var index = overlays.FindIndex(x => x.Id == overlay.Id && x.OrganizationId == organizationId);
         if (index >= 0) overlays[index] = overlay;
         return Task.CompletedTask;
     }
 
-    public Task RemoveOverlayAsync(string organizationId, string overlayId, CancellationToken cancellationToken = default)
+    public Task RemoveOverlayAsync(string organizationId, string overlayId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequireOrganizationAccess(organizationId);
         overlays.RemoveAll(x => x.OrganizationId == organizationId && x.Id == overlayId);
         return Task.CompletedTask;
     }

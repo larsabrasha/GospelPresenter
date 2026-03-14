@@ -1,3 +1,4 @@
+using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using Shouldly;
@@ -6,9 +7,12 @@ namespace GospelPresenter.UnitTests.Services;
 
 public class SongSearchTests
 {
+    private const string TestOrgId = "test-org";
+    private static readonly CallerContext TestCaller = new("test-user", UserRole.Admin, TestOrgId);
+
     private static Song MakeSong(string name, string? author, params string[] parts) =>
         new(Guid.NewGuid().ToString(), name, author, null, null, null,
-            parts.Select(p => new SongPart(null, p)).ToList());
+            parts.Select(p => new SongPart(null, p)).ToList(), TestOrgId);
 
     private static ISongService CreateService(params Song[] songs)
     {
@@ -47,7 +51,7 @@ public class SongSearchTests
     {
         var service = CreateService(AllSongs);
 
-        var result = service.Search("");
+        var result = service.SearchByOrganization("", TestOrgId, TestCaller);
 
         result.Count.ShouldBe(4);
     }
@@ -57,7 +61,7 @@ public class SongSearchTests
     {
         var service = CreateService(AllSongs);
 
-        var result = service.Search("   ");
+        var result = service.SearchByOrganization("   ", TestOrgId, TestCaller);
 
         result.Count.ShouldBe(4);
     }
@@ -67,7 +71,7 @@ public class SongSearchTests
     {
         var service = CreateService(AllSongs);
 
-        var result = service.Search("Majestät");
+        var result = service.SearchByOrganization("Majestät", TestOrgId, TestCaller);
 
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
@@ -79,7 +83,7 @@ public class SongSearchTests
         var service = CreateService(AllSongs);
 
         // "Gud" appears in title of "Vi vill se Gud" and in text of others
-        var result = service.Search("Gud");
+        var result = service.SearchByOrganization("Gud", TestOrgId, TestCaller);
 
         result[0].Name.ShouldBe("Vi vill se Gud");
     }
@@ -89,7 +93,7 @@ public class SongSearchTests
     {
         var service = CreateService(AllSongs);
 
-        var result = service.Search("Maj");
+        var result = service.SearchByOrganization("Maj", TestOrgId, TestCaller);
 
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
@@ -101,7 +105,7 @@ public class SongSearchTests
         var service = CreateService(AllSongs);
 
         // "saligt" is in first part of "Det är saligt" and not in title
-        var result = service.Search("saligt");
+        var result = service.SearchByOrganization("saligt", TestOrgId, TestCaller);
 
         result[0].Name.ShouldBe("Det är saligt");
     }
@@ -112,7 +116,7 @@ public class SongSearchTests
         var service = CreateService(AllSongs);
 
         // "knä" only in second part of Majestät
-        var result = service.Search("knä");
+        var result = service.SearchByOrganization("knä", TestOrgId, TestCaller);
 
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
@@ -123,7 +127,7 @@ public class SongSearchTests
     {
         var service = CreateService(AllSongs);
 
-        var result = service.Search("kung Jesus");
+        var result = service.SearchByOrganization("kung Jesus", TestOrgId, TestCaller);
 
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
@@ -135,7 +139,7 @@ public class SongSearchTests
         var service = CreateService(AllSongs);
 
         // "Majestät" matches title, "nonexistent" matches nothing
-        var result = service.Search("Majestät nonexistent");
+        var result = service.SearchByOrganization("Majestät nonexistent", TestOrgId, TestCaller);
 
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
@@ -148,7 +152,7 @@ public class SongSearchTests
 
         // "Gud" + "saligt" both match "Det är saligt"
         // "Gud" alone matches several songs
-        var result = service.Search("Gud saligt");
+        var result = service.SearchByOrganization("Gud saligt", TestOrgId, TestCaller);
 
         result[0].Name.ShouldBe("Det är saligt");
     }
@@ -158,7 +162,7 @@ public class SongSearchTests
     {
         var service = CreateService(AllSongs);
 
-        var result = service.Search("majestät");
+        var result = service.SearchByOrganization("majestät", TestOrgId, TestCaller);
 
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
@@ -169,7 +173,7 @@ public class SongSearchTests
     {
         var service = CreateService(AllSongs);
 
-        var result = service.Search("xyznonexistent");
+        var result = service.SearchByOrganization("xyznonexistent", TestOrgId, TestCaller);
 
         result.Count.ShouldBe(0);
     }
@@ -181,7 +185,7 @@ public class SongSearchTests
 
         // Both "Det är saligt" and "Vi vill se Gud" have "vill" in text,
         // but "Vi vill se Gud" starts with "vi"
-        var result = service.Search("vi vill");
+        var result = service.SearchByOrganization("vi vill", TestOrgId, TestCaller);
 
         result[0].Name.ShouldBe("Vi vill se Gud");
     }
@@ -191,7 +195,7 @@ public class SongSearchTests
     {
         var service = CreateService(AllSongs);
 
-        var result = service.Search("Honningdal");
+        var result = service.SearchByOrganization("Honningdal", TestOrgId, TestCaller);
 
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");

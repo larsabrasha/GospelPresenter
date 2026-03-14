@@ -6,8 +6,10 @@
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 
 @inject IUserService UserService
+@inject IProfileImageService ProfileImageService
 @inject ActiveOrganizationState OrgState
 @inject NavigationManager NavigationManager
 
@@ -30,6 +32,32 @@
     else
     {
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden p-5 space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Logga</label>
+                <div class="flex items-center gap-4">
+                    <label class="cursor-pointer group relative">
+                        <OrganizationAvatar LogoUrl="@organization.LogoSmall" Name="@organization.Name" Size="lg" Class="group-hover:brightness-75 transition"/>
+                        <InputFile OnChange="OnLogoSelected" accept="image/*" class="hidden"/>
+                    </label>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                            @(string.IsNullOrEmpty(organization.LogoSmall) ? "Välj logga" : "Byt logga")
+                            <InputFile OnChange="OnLogoSelected" accept="image/*" class="hidden"/>
+                        </label>
+                        @if (!string.IsNullOrEmpty(organization.LogoSmall))
+                        {
+                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
+                                    @onclick="RemoveLogo">
+                                Ta bort logga
+                            </button>
+                        }
+                        @if (logoError is not null)
+                        {
+                            <div class="text-sm text-red-500">@logoError</div>
+                        }
+                    </div>
+                </div>
+            </div>
             <div class="font-semibold">Organisationsnamn</div>
             <div class="flex gap-3">
                 <input type="text"
@@ -44,13 +72,6 @@
         </div>
 
         <div class="flex gap-3">
-            <button @onclick="SwitchToOrganization"
-                    class="px-4 py-2.5 rounded-full text-sm cursor-pointer
-                           @(OrgState.SelectedOrganizationId == OrganizationId
-                               ? "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300"
-                               : "bg-sky-500 text-white hover:bg-sky-600")">
-                @(OrgState.SelectedOrganizationId == OrganizationId ? "Aktiv organisation" : "Byt till denna organisation")
-            </button>
             <button @onclick="ShowDeleteConfirmation"
                     class="px-4 py-2.5 rounded-full text-sm text-red-600 dark:text-red-400 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20">
                 Ta bort organisation
@@ -93,15 +114,32 @@
             <div class="font-semibold text-lg">Ta bort organisation</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
                 Är du säker på att du vill ta bort <strong>@organization?.Name</strong>? Detta kan inte ångras.
-                Alla användare och data som tillhör organisationen kommer att tas bort.
             </p>
+            <div class="text-sm text-neutral-600 dark:text-neutral-300 space-y-1">
+                <p class="font-medium">Följande kommer att tas bort permanent:</p>
+                <ul class="list-disc list-inside space-y-0.5 ml-1">
+                    <li>Organisationen och alla dess inställningar</li>
+                    <li>Alla medlemmar (@members.Count st)</li>
+                    <li>Alla sånger och sånghistorik</li>
+                    <li>Alla presentationer</li>
+                    <li>Alla uppladdade bilder</li>
+                </ul>
+            </div>
+            <div class="space-y-1">
+                <label class="text-sm text-neutral-600 dark:text-neutral-300">
+                    Skriv <strong>@organization?.Name</strong> för att bekräfta:
+                </label>
+                <input @bind="deleteConfirmText" @bind:event="oninput"
+                       class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                       placeholder="@organization?.Name" />
+            </div>
             <div class="flex justify-end gap-3">
                 <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="() => showDeleteDialog = false">
+                        @onclick="() => { showDeleteDialog = false; deleteConfirmText = string.Empty; }">
                     Avbryt
                 </button>
                 <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 disabled:opacity-50"
-                        disabled="@isDeleting"
+                        disabled="@(isDeleting || deleteConfirmText != organization?.Name)"
                         @onclick="DeleteOrganization">
                     @(isDeleting ? "Tar bort..." : "Ta bort")
                 </button>
@@ -119,14 +157,16 @@
     private bool isSaving;
     private bool showDeleteDialog;
     private bool isDeleting;
+    private string deleteConfirmText = "";
+    private string? logoError;
 
     protected override async Task OnInitializedAsync()
     {
-        organization = await UserService.GetOrganizationByIdAsync(OrganizationId);
+        organization = await UserService.GetOrganizationByIdAsync(OrganizationId, OrgState.ToCallerContext());
         if (organization is not null)
         {
             editName = organization.Name;
-            members = await UserService.GetUsersByOrganizationAsync(OrganizationId);
+            members = await UserService.GetUsersByOrganizationAsync(OrganizationId, OrgState.ToCallerContext());
         }
     }
 
@@ -135,34 +175,41 @@
         if (isSaving || string.IsNullOrWhiteSpace(editName) || organization is null) return;
         isSaving = true;
 
-        await UserService.UpdateOrganizationAsync(OrganizationId, editName.Trim());
+        await UserService.UpdateOrganizationAsync(OrganizationId, editName.Trim(), OrgState.ToCallerContext());
         organization.Name = editName.Trim();
 
         if (OrgState.SelectedOrganizationId == OrganizationId)
             OrgState.SwitchOrganization(OrganizationId, editName.Trim());
 
+        OrgState.NotifyOrganizationsChanged();
         isSaving = false;
     }
 
-    private void SwitchToOrganization()
+    private void ShowDeleteConfirmation()
     {
-        if (organization is null) return;
-        OrgState.SwitchOrganization(organization.Id, organization.Name);
-        NavigationManager.NavigateTo("/");
+        deleteConfirmText = "";
+        showDeleteDialog = true;
     }
-
-    private void ShowDeleteConfirmation() => showDeleteDialog = true;
 
     private async Task DeleteOrganization()
     {
         if (isDeleting) return;
         isDeleting = true;
 
+        await UserService.DeleteOrganizationAsync(OrganizationId, OrgState.ToCallerContext());
+
         if (OrgState.SelectedOrganizationId == OrganizationId)
-            OrgState.ClearOrganization();
+        {
+            var allOrgs = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
+            var next = allOrgs.FirstOrDefault();
+            if (next is not null)
+            {
+                OrgState.SwitchOrganization(next.Id, next.Name);
+                await UserService.SetUserSettingAsync(OrgState.UserId!, UserSetting.LastSelectedOrganizationId, next.Id, OrgState.ToCallerContext());
+            }
+        }
 
-        await UserService.DeleteOrganizationAsync(OrganizationId);
-
+        OrgState.NotifyOrganizationsChanged();
         NavigationManager.NavigateTo("/superadmin/organizations");
     }
 
@@ -173,6 +220,42 @@
         UserRole.User => "Användare",
         _ => role.ToString()
     };
+
+    private const long MaxLogoSize = 5 * 1024 * 1024;
+
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        logoError = null;
+        var file = e.File;
+        if (file.Size > MaxLogoSize)
+        {
+            logoError = "Bilden får vara max 5 MB.";
+            return;
+        }
+        if (!file.ContentType.StartsWith("image/"))
+        {
+            logoError = "Filen måste vara en bild.";
+            return;
+        }
+
+        using var stream = file.OpenReadStream(MaxLogoSize);
+        using var ms = new System.IO.MemoryStream();
+        await stream.CopyToAsync(ms);
+        var imageBytes = ms.ToArray();
+
+        var (_, smallDataUri) = ProfileImageService.Resize(imageBytes, file.ContentType);
+        await UserService.UpdateOrganizationLogoAsync(OrganizationId, smallDataUri, OrgState.ToCallerContext());
+        organization!.LogoSmall = smallDataUri;
+        OrgState.NotifyOrganizationsChanged();
+    }
+
+    private async Task RemoveLogo()
+    {
+        logoError = null;
+        await UserService.UpdateOrganizationLogoAsync(OrganizationId, null, OrgState.ToCallerContext());
+        organization!.LogoSmall = null;
+        OrgState.NotifyOrganizationsChanged();
+    }
 
     private static string RoleBadgeClass(UserRole role) => role switch
     {

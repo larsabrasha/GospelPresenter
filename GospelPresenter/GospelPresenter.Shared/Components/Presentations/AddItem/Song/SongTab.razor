@@ -4,12 +4,13 @@
 @inject ISongService SongService
 @inject AppState AppState
 @inject IJSRuntime JsRuntime
+@inject ActiveOrganizationState OrgState
 
 @if (isCreating)
 {
     <CreateSong InitialName="@query" OnBack="ExitCreateMode" OnCreated="HandleSongCreated"/>
 }
-else if (SongService.Songs.Count == 0)
+else if (OrgSongs.Count == 0)
 {
     <div class="flex flex-col items-center justify-center text-center text-neutral-400 text-sm py-8 gap-3">
         <div>Inga sånger laddade</div>
@@ -186,7 +187,6 @@ else
 @code {
     [Parameter] public EventCallback<Song> OnAdd { get; set; }
     [Parameter] public EventCallback<Song> OnAddKeepOpen { get; set; }
-    [CascadingParameter] private ActiveOrganizationState? OrgState { get; set; }
 
     private string query = "";
     private string[] searchTerms = [];
@@ -200,10 +200,14 @@ else
     private string? organizationId;
     private int? pendingScrollIndex;
 
+    private IReadOnlyList<Song> OrgSongs => organizationId is not null
+        ? SongService.GetSongsByOrganization(organizationId, OrgState.ToCallerContext())
+        : [];
+
     protected override Task OnInitializedAsync()
     {
-        results = SongService.Songs.ToList();
-        organizationId = OrgState?.ActiveOrganizationId;
+        organizationId = OrgState.ActiveOrganizationId;
+        results = OrgSongs.ToList();
         return Task.CompletedTask;
     }
 
@@ -278,7 +282,7 @@ else
         try
         {
             await Task.Delay(150, token);
-            results = SongService.Search(query).ToList();
+            results = SongService.SearchByOrganization(query, organizationId!, OrgState.ToCallerContext()).ToList();
             selectedSong = results.Count > 0 ? results[0] : null;
             await ScrollListsToTop();
         }
@@ -289,7 +293,7 @@ else
     {
         query = "";
         searchTerms = [];
-        results = SongService.Songs.ToList();
+        results = OrgSongs.ToList();
         selectedSong = results.Count > 0 ? results[0] : null;
         await ScrollListsToTop();
     }
@@ -358,13 +362,14 @@ else
             songData.Year,
             songData.Ccli,
             songData.Parts.ToList(),
-            organizationId
+            organizationId,
+            OrgState.ToCallerContext()
         );
 
         isCreating = false;
         query = "";
         searchTerms = [];
-        results = SongService.Songs.ToList();
+        results = OrgSongs.ToList();
         selectedSong = created;
         pendingScrollIndex = results.IndexOf(created);
     }

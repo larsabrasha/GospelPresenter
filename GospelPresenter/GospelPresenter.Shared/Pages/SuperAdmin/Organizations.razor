@@ -110,7 +110,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        organizations = await UserService.GetAllOrganizationsAsync();
+        organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
     }
 
     private void ShowCreateDialog()
@@ -144,11 +144,12 @@
         if (isCreating || string.IsNullOrWhiteSpace(newOrgName)) return;
         isCreating = true;
 
-        var org = await UserService.CreateOrganizationAsync(newOrgName.Trim());
+        var org = await UserService.CreateOrganizationAsync(newOrgName.Trim(), OrgState.ToCallerContext());
 
         isCreating = false;
         showCreateDialog = false;
-        organizations = await UserService.GetAllOrganizationsAsync();
+        organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
+        OrgState.NotifyOrganizationsChanged();
     }
 
     private void SwitchToOrganization(Organization org)
@@ -156,4 +157,5 @@
         OrgState.SwitchOrganization(org.Id, org.Name);
         NavigationManager.NavigateTo("/");
     }
+
 }

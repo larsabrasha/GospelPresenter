@@ -22,5 +22,6 @@ public record Song(
     string? Publisher,
     int? Year,
     string? Ccli,
-    IList<SongPart> Parts
+    IList<SongPart> Parts,
+    string OrganizationId = ""
 );

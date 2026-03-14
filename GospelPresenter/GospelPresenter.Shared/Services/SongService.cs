@@ -7,36 +7,48 @@ namespace GospelPresenter.Shared.Services;
 
 public interface ISongService
 {
-    IReadOnlyList<Song> Songs { get; }
-    Song? GetSongById(string id);
-    IReadOnlyList<Song> Search(string query);
+    IReadOnlyList<Song> GetSongsByOrganization(string organizationId, CallerContext caller);
+    Song? GetSongById(string id, string organizationId, CallerContext caller);
+    IReadOnlyList<Song> SearchByOrganization(string query, string organizationId, CallerContext caller);
     Task LoadSongsAsync();
-    Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId);
-    Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, bool replaceExisting = false);
-    Task DeleteSongAsync(string id);
-    Task<List<TrashedSong>> GetTrashedSongsAsync();
-    Task RestoreFromTrashAsync(string id);
-    Task PermanentlyDeleteSongAsync(string id);
-    Task EmptyTrashAsync();
-    Task RestoreAllFromTrashAsync();
-    Task UpdateSongAsync(string id, string name, string? author, string? publisher, int? year, string? ccli);
-    Task UpdateSongPartAsync(string songId, int partIndex, string? label, string content);
-    Task AddSongPartAsync(string songId, string? label, string content);
-    Task DeleteSongPartAsync(string songId, int partIndex);
-    Task MoveSongPartAsync(string songId, int fromIndex, int toIndex);
-    Task<List<SongVersionSummary>> GetVersionsAsync(string songId);
-    Task<SongVersionDetail?> GetVersionAsync(string versionId);
-    Task RestoreVersionAsync(string songId, string versionId);
-    Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId);
+    Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId, CallerContext caller);
+    Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, CallerContext caller, bool replaceExisting = false);
+    Task DeleteSongAsync(string id, string organizationId, CallerContext caller);
+    Task<List<TrashedSong>> GetTrashedSongsAsync(string organizationId, CallerContext caller);
+    Task RestoreFromTrashAsync(string id, string organizationId, CallerContext caller);
+    Task PermanentlyDeleteSongAsync(string id, string organizationId, CallerContext caller);
+    Task EmptyTrashAsync(string organizationId, CallerContext caller);
+    Task RestoreAllFromTrashAsync(string organizationId, CallerContext caller);
+    Task UpdateSongAsync(string id, string organizationId, string name, string? author, string? publisher, int? year, string? ccli, CallerContext caller);
+    Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? label, string content, CallerContext caller);
+    Task AddSongPartAsync(string songId, string organizationId, string? label, string content, CallerContext caller);
+    Task DeleteSongPartAsync(string songId, string organizationId, int partIndex, CallerContext caller);
+    Task MoveSongPartAsync(string songId, string organizationId, int fromIndex, int toIndex, CallerContext caller);
+    Task<List<SongVersionSummary>> GetVersionsAsync(string songId, string organizationId, CallerContext caller);
+    Task<SongVersionDetail?> GetVersionAsync(string versionId, string organizationId, CallerContext caller);
+    Task RestoreVersionAsync(string songId, string organizationId, string versionId, CallerContext caller);
+    Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId, CallerContext caller);
 }
 
 public class SongService(IDbContextFactory<PresentationContext> dbContextFactory) : ISongService
 {
-    private readonly Dictionary<string, Song> songsById = new();
-    private List<Song> songsSorted = [];
-    private List<SongSearchEntry> searchIndex = [];
+    private readonly Dictionary<string, OrgSongCache> cacheByOrg = new();
 
-    public IReadOnlyList<Song> Songs => songsSorted;
+    private OrgSongCache GetOrCreateCache(string organizationId)
+    {
+        if (!cacheByOrg.TryGetValue(organizationId, out var cache))
+        {
+            cache = new OrgSongCache();
+            cacheByOrg[organizationId] = cache;
+        }
+        return cache;
+    }
+
+    public IReadOnlyList<Song> GetSongsByOrganization(string organizationId, CallerContext caller)
+    {
+        caller.RequireOrganizationAccess(organizationId);
+        return cacheByOrg.TryGetValue(organizationId, out var cache) ? cache.SongsSorted : [];
+    }
 
     public async Task LoadSongsAsync()
     {
@@ -58,18 +70,21 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             .AsNoTracking()
             .ToListAsync();
 
-        songsById.Clear();
+        cacheByOrg.Clear();
         foreach (var dbSong in dbSongs)
         {
             var song = ToStateSong(dbSong);
-            songsById[song.Id] = song;
+            var cache = GetOrCreateCache(song.OrganizationId);
+            cache.SongsById[song.Id] = song;
         }
 
-        RebuildIndex();
+        foreach (var cache in cacheByOrg.Values)
+            cache.RebuildIndex();
     }
 
-    public async Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId)
+    public async Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var nameList = names.ToList();
         var existingNames = await db.Songs
@@ -81,8 +96,9 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         return nameList.Where(n => existingSet.Contains(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    public async Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, bool replaceExisting = false)
+    public async Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, CallerContext caller, bool replaceExisting = false)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
 
         var existingSongs = await db.Songs
@@ -166,46 +182,54 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         return new ImportResult(imported, replaced, skipped);
     }
 
-    public async Task DeleteSongAsync(string id)
+    public async Task DeleteSongAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.FindAsync(id);
+        var song = await db.Songs.FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId);
         if (song is not null)
         {
             song.DeletedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
-            songsById.Remove(id);
-            RebuildIndex();
+            if (cacheByOrg.TryGetValue(organizationId, out var cache))
+            {
+                cache.SongsById.Remove(id);
+                cache.RebuildIndex();
+            }
         }
     }
 
-    public async Task<List<TrashedSong>> GetTrashedSongsAsync()
+    public async Task<List<TrashedSong>> GetTrashedSongsAsync(string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         return await db.Songs
-            .Where(s => s.DeletedAt != null)
+            .Where(s => s.DeletedAt != null && s.OrganizationId == organizationId)
             .OrderByDescending(s => s.DeletedAt)
             .Select(s => new TrashedSong(s.Id, s.Name, s.Author, s.DeletedAt!.Value))
             .ToListAsync();
     }
 
-    public async Task RestoreFromTrashAsync(string id)
+    public async Task RestoreFromTrashAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.DeletedAt != null);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId && s.DeletedAt != null);
         if (song is not null)
         {
             song.DeletedAt = null;
             await db.SaveChangesAsync();
-            songsById[id] = ToStateSong(song);
-            RebuildIndex();
+            var cache = GetOrCreateCache(organizationId);
+            cache.SongsById[id] = ToStateSong(song);
+            cache.RebuildIndex();
         }
     }
 
-    public async Task PermanentlyDeleteSongAsync(string id)
+    public async Task PermanentlyDeleteSongAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.FirstOrDefaultAsync(s => s.Id == id && s.DeletedAt != null);
+        var song = await db.Songs.FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId && s.DeletedAt != null);
         if (song is not null)
         {
             db.Songs.Remove(song);
@@ -213,10 +237,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         }
     }
 
-    public async Task EmptyTrashAsync()
+    public async Task EmptyTrashAsync(string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var trashed = await db.Songs.Where(s => s.DeletedAt != null).ToListAsync();
+        var trashed = await db.Songs.Where(s => s.DeletedAt != null && s.OrganizationId == organizationId).ToListAsync();
         if (trashed.Count > 0)
         {
             db.Songs.RemoveRange(trashed);
@@ -224,31 +249,35 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         }
     }
 
-    public async Task RestoreAllFromTrashAsync()
+    public async Task RestoreAllFromTrashAsync(string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var trashed = await db.Songs
-            .Where(s => s.DeletedAt != null)
+            .Where(s => s.DeletedAt != null && s.OrganizationId == organizationId)
             .Include(s => s.Parts.OrderBy(p => p.SortOrder))
             .ToListAsync();
 
         foreach (var song in trashed)
         {
             song.DeletedAt = null;
-            songsById[song.Id] = ToStateSong(song);
         }
 
         if (trashed.Count > 0)
         {
             await db.SaveChangesAsync();
-            RebuildIndex();
+            var cache = GetOrCreateCache(organizationId);
+            foreach (var song in trashed)
+                cache.SongsById[song.Id] = ToStateSong(song);
+            cache.RebuildIndex();
         }
     }
 
-    public async Task UpdateSongAsync(string id, string name, string? author, string? publisher, int? year, string? ccli)
+    public async Task UpdateSongAsync(string id, string organizationId, string name, string? author, string? publisher, int? year, string? ccli, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId);
         if (song is null) return;
 
         await using var transaction = await db.Database.BeginTransactionAsync();
@@ -262,17 +291,18 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        if (songsById.TryGetValue(id, out var existing))
+        if (cacheByOrg.TryGetValue(organizationId, out var cache) && cache.SongsById.TryGetValue(id, out var existing))
         {
-            songsById[id] = existing with { Name = name, Author = author, Publisher = publisher, Year = year, Ccli = ccli };
-            RebuildIndex();
+            cache.SongsById[id] = existing with { Name = name, Author = author, Publisher = publisher, Year = year, Ccli = ccli };
+            cache.RebuildIndex();
         }
     }
 
-    public async Task UpdateSongPartAsync(string songId, int partIndex, string? label, string content)
+    public async Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? label, string content, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         var parts = song.Parts;
@@ -288,10 +318,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await ReloadSong(songId);
     }
 
-    public async Task AddSongPartAsync(string songId, string? label, string content)
+    public async Task AddSongPartAsync(string songId, string organizationId, string? label, string content, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         await using var transaction = await db.Database.BeginTransactionAsync();
@@ -310,10 +341,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await ReloadSong(songId);
     }
 
-    public async Task DeleteSongPartAsync(string songId, int partIndex)
+    public async Task DeleteSongPartAsync(string songId, string organizationId, int partIndex, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         var parts = song.Parts;
@@ -332,10 +364,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await ReloadSong(songId);
     }
 
-    public async Task MoveSongPartAsync(string songId, int fromIndex, int toIndex)
+    public async Task MoveSongPartAsync(string songId, string organizationId, int fromIndex, int toIndex, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         var parts = song.Parts;
@@ -356,9 +389,14 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await ReloadSong(songId);
     }
 
-    public async Task<List<SongVersionSummary>> GetVersionsAsync(string songId)
+    public async Task<List<SongVersionSummary>> GetVersionsAsync(string songId, string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        if (!await db.Songs.AnyAsync(s => s.Id == songId && s.OrganizationId == organizationId))
+            return [];
+
         return await db.SongVersions
             .Where(v => v.SongId == songId)
             .OrderByDescending(v => v.CreatedAt)
@@ -366,23 +404,27 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             .ToListAsync();
     }
 
-    public async Task<SongVersionDetail?> GetVersionAsync(string versionId)
+    public async Task<SongVersionDetail?> GetVersionAsync(string versionId, string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var v = await db.SongVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == versionId);
+        var v = await db.SongVersions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == versionId && x.Song.OrganizationId == organizationId);
         if (v is null) return null;
 
         var parts = JsonSerializer.Deserialize<List<SongPart>>(v.PartsJson) ?? [];
         return new SongVersionDetail(v.Id, v.SongId, v.Name, v.Author, v.CreatedAt, parts);
     }
 
-    public async Task RestoreVersionAsync(string songId, string versionId)
+    public async Task RestoreVersionAsync(string songId, string organizationId, string versionId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var version = await db.SongVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == versionId && x.SongId == songId);
         if (version is null) return;
 
-        var song = await db.Songs.Include(s => s.Parts).FirstOrDefaultAsync(s => s.Id == songId);
+        var song = await db.Songs.Include(s => s.Parts).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         await using var transaction = await db.Database.BeginTransactionAsync();
@@ -410,8 +452,9 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await ReloadSong(songId);
     }
 
-    public async Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId)
+    public async Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
 
         var dbSong = new Models.DbSong
@@ -441,8 +484,9 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await transaction.CommitAsync();
 
         var song = ToStateSong(dbSong);
-        songsById[song.Id] = song;
-        RebuildIndex();
+        var cache = GetOrCreateCache(organizationId);
+        cache.SongsById[song.Id] = song;
+        cache.RebuildIndex();
 
         return song;
     }
@@ -491,21 +535,28 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             db.SongVersions.RemoveRange(oldVersions);
     }
 
-    public Song? GetSongById(string id)
+    public Song? GetSongById(string id, string organizationId, CallerContext caller)
     {
-        return songsById.GetValueOrDefault(id);
+        caller.RequireOrganizationAccess(organizationId);
+        return cacheByOrg.TryGetValue(organizationId, out var cache)
+            ? cache.SongsById.GetValueOrDefault(id)
+            : null;
     }
 
-    public IReadOnlyList<Song> Search(string query)
+    public IReadOnlyList<Song> SearchByOrganization(string query, string organizationId, CallerContext caller)
     {
+        caller.RequireOrganizationAccess(organizationId);
         if (string.IsNullOrWhiteSpace(query))
-            return songsSorted;
+            return GetSongsByOrganization(organizationId, caller);
+
+        if (!cacheByOrg.TryGetValue(organizationId, out var cache))
+            return [];
 
         var terms = query.Normalize().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
         var scored = new List<(Song Song, double Score)>();
 
-        foreach (var entry in searchIndex)
+        foreach (var entry in cache.SearchIndex)
         {
             var score = ScoreMatch(entry, terms);
             if (score > 0)
@@ -557,24 +608,14 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     protected void LoadTestSongs(Song[] songs)
     {
+        cacheByOrg.Clear();
         foreach (var song in songs)
-            songsById[song.Id] = song;
-
-        RebuildIndex();
-    }
-
-    private void RebuildIndex()
-    {
-        songsSorted = songsById.Values
-            .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
-            .ToList();
-
-        searchIndex = songsSorted.Select(song => new SongSearchEntry(
-            song,
-            song.Name.Normalize().ToLowerInvariant(),
-            song.Parts.Count > 0 ? song.Parts[0].Content.Normalize().ToLowerInvariant() : "",
-            $"{song.Name} {song.Author} {string.Join(" ", song.Parts.Select(p => p.Content))}".Normalize().ToLowerInvariant()
-        )).ToList();
+        {
+            var cache = GetOrCreateCache(song.OrganizationId);
+            cache.SongsById[song.Id] = song;
+        }
+        foreach (var cache in cacheByOrg.Values)
+            cache.RebuildIndex();
     }
 
     private async Task ReloadSong(string songId)
@@ -587,8 +628,10 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
         if (dbSong is not null)
         {
-            songsById[songId] = ToStateSong(dbSong);
-            RebuildIndex();
+            var song = ToStateSong(dbSong);
+            var cache = GetOrCreateCache(song.OrganizationId);
+            cache.SongsById[songId] = song;
+            cache.RebuildIndex();
         }
     }
 
@@ -598,10 +641,31 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             .Select(p => new SongPart(p.Label, p.Content))
             .ToList();
 
-        return new Song(dbSong.Id, dbSong.Name, dbSong.Author, dbSong.Publisher, dbSong.Year, dbSong.Ccli, parts);
+        return new Song(dbSong.Id, dbSong.Name, dbSong.Author, dbSong.Publisher, dbSong.Year, dbSong.Ccli, parts, dbSong.OrganizationId);
     }
 
     private record SongSearchEntry(Song Song, string Name, string FirstPart, string AllText);
+
+    private class OrgSongCache
+    {
+        public Dictionary<string, Song> SongsById { get; } = new();
+        public List<Song> SongsSorted { get; private set; } = [];
+        public List<SongSearchEntry> SearchIndex { get; private set; } = [];
+
+        public void RebuildIndex()
+        {
+            SongsSorted = SongsById.Values
+                .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+
+            SearchIndex = SongsSorted.Select(song => new SongSearchEntry(
+                song,
+                song.Name.Normalize().ToLowerInvariant(),
+                song.Parts.Count > 0 ? song.Parts[0].Content.Normalize().ToLowerInvariant() : "",
+                string.Concat(song.Name, " ", song.Author, " ", string.Join(" ", song.Parts.Select(p => p.Content))).Normalize().ToLowerInvariant()
+            )).ToList();
+        }
+    }
 }
 
 public record ImportResult(int Imported, int Replaced, int Skipped)

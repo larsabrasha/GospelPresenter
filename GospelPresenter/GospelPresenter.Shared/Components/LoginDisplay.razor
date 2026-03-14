@@ -8,6 +8,7 @@
 @implements IDisposable
 
 @inject IUserService UserService
+@inject ActiveOrganizationState OrgState
 
 <AuthorizeView>
     <Authorized>
@@ -89,15 +90,22 @@
         if (AuthState is null) return;
         var state = await AuthState;
         userId = state.User.FindFirst("user_id")?.Value;
-        if (userId != null)
-            user = await UserService.GetByIdAsync(userId);
+        if (userId is null || OrgState.UserId is null) return;
+        user = await UserService.GetByIdAsync(userId, OrgState.ToCallerContext());
     }
 
     public async void Receive(CurrentUserChangedMessage message)
     {
-        if (userId != null)
-            user = await UserService.GetByIdAsync(userId);
-        await InvokeAsync(StateHasChanged);
+        try
+        {
+            if (userId is null || OrgState.UserId is null) return;
+            user = await UserService.GetByIdAsync(userId, OrgState.ToCallerContext());
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception)
+        {
+            // Fire-and-forget event handler; swallow to prevent crash
+        }
     }
 
     private void ToggleDropdown() => showDropdown = !showDropdown;

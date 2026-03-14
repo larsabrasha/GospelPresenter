@@ -13,6 +13,7 @@
 @inject IProfileImageService ProfileImageService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject ActiveOrganizationState OrgState
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="relative flex items-center justify-center px-7">
@@ -89,7 +90,7 @@
                             @bind:after="SaveUser"
                             disabled="@IsCurrentUser"
                             class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-50">
-                        @foreach (var role in Enum.GetValues<UserRole>())
+                        @foreach (var role in AllowedRoles)
                         {
                             <option value="@role">@RoleDisplayName(role)</option>
                         }
@@ -286,6 +287,10 @@
 
     private bool IsCurrentUser => currentUserId is not null && currentUserId == UserId;
 
+    private IEnumerable<UserRole> AllowedRoles => OrgState.IsSuperAdmin
+        ? Enum.GetValues<UserRole>()
+        : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin);
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthState is not null)
@@ -294,7 +299,16 @@
             currentUserId = state.User.FindFirst("user_id")?.Value;
         }
 
-        user = await UserService.GetByIdAsync(UserId);
+        try
+        {
+            user = await UserService.GetByIdAsync(UserId, OrgState.ToCallerContext());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/admin/users");
+            return;
+        }
+
         if (user == null)
         {
             NavigationManager.NavigateTo("/admin/users");
@@ -317,7 +331,7 @@
             return;
         }
 
-        await UserService.UpdateUserAsync(UserId, editName.Trim(), editEmail.Trim(), editRole);
+        await UserService.UpdateUserAsync(UserId, editName.Trim(), editEmail.Trim(), editRole, OrgState.ToCallerContext());
         user!.Name = editName.Trim();
         user.Email = editEmail.Trim();
         user.Role = editRole;
@@ -344,7 +358,7 @@
     private void ConfirmDeleteUser() => ShowConfirm(
         "Ta bort användare",
         $"Är du säker på att du vill ta bort {user?.Name}?",
-        async () => { await UserService.DeleteUserAsync(UserId); NavigationManager.NavigateTo("/admin/users"); });
+        async () => { await UserService.DeleteUserAsync(UserId, OrgState.ToCallerContext()); NavigationManager.NavigateTo("/admin/users"); });
 
     private void ConfirmRemoveProfileImage() => ShowConfirm(
         "Ta bort profilbild",
@@ -359,28 +373,28 @@
     private void ConfirmDeleteLogin(UserLogin login) => ShowConfirm(
         "Ta bort kopplat konto",
         $"Är du säker på att du vill ta bort kopplingen till {ProviderDisplayName(login.Provider)}?",
-        async () => { await UserService.DeleteLoginAsync(login.Id); await LoadLogins(); });
+        async () => { await UserService.DeleteLoginAsync(login.Id, OrgState.ToCallerContext()); await LoadLogins(); });
 
     private async Task LoadLogins()
     {
-        logins = await UserService.GetLoginsForUserAsync(UserId);
+        logins = await UserService.GetLoginsForUserAsync(UserId, OrgState.ToCallerContext());
     }
 
     private async Task LoadInvite()
     {
-        var invites = await UserService.GetInvitesForUserAsync(UserId);
+        var invites = await UserService.GetInvitesForUserAsync(UserId, OrgState.ToCallerContext());
         invite = invites.FirstOrDefault();
     }
 
 private async Task CreateInvite()
     {
-        invite = await UserService.CreateInviteAsync(UserId);
+        invite = await UserService.CreateInviteAsync(UserId, OrgState.ToCallerContext());
     }
 
     private async Task DeleteInvite()
     {
         if (invite is null) return;
-        await UserService.DeleteInviteAsync(invite.Id);
+        await UserService.DeleteInviteAsync(invite.Id, OrgState.ToCallerContext());
         invite = null;
     }
 
@@ -460,16 +474,16 @@ private async Task CreateInvite()
         var imageBytes = Convert.FromBase64String(base64Data);
         var (fullDataUri, smallDataUri) = ProfileImageService.Resize(imageBytes, "image/webp");
 
-        await UserService.UpdateProfileImageAsync(UserId, fullDataUri, smallDataUri);
-        user = await UserService.GetByIdAsync(UserId);
+        await UserService.UpdateProfileImageAsync(UserId, fullDataUri, smallDataUri, OrgState.ToCallerContext());
+        user = await UserService.GetByIdAsync(UserId, OrgState.ToCallerContext());
         SyncNavbar();
     }
 
     private async Task RemoveProfileImage()
     {
         imageError = null;
-        await UserService.UpdateProfileImageAsync(UserId, null, null);
-        user = await UserService.GetByIdAsync(UserId);
+        await UserService.UpdateProfileImageAsync(UserId, null, null, OrgState.ToCallerContext());
+        user = await UserService.GetByIdAsync(UserId, OrgState.ToCallerContext());
         SyncNavbar();
     }
 

@@ -8,6 +8,11 @@
 
 @implements IDisposable
 
+@if (organizations is null || organizations.Count <= 1)
+{
+    return;
+}
+
 @if (showDropdown)
 {
     <div class="fixed inset-0 z-40" @onclick="CloseDropdown"></div>
@@ -17,9 +22,17 @@
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer
                    bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300
                    hover:bg-neutral-200 dark:hover:bg-neutral-600">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5">
-            <path fill-rule="evenodd" d="M4.25 2A2.25 2.25 0 0 0 2 4.25v2.5A2.25 2.25 0 0 0 4.25 9h2.5A2.25 2.25 0 0 0 9 6.75v-2.5A2.25 2.25 0 0 0 6.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 2 13.25v2.5A2.25 2.25 0 0 0 4.25 18h2.5A2.25 2.25 0 0 0 9 15.75v-2.5A2.25 2.25 0 0 0 6.75 11h-2.5Zm9-9A2.25 2.25 0 0 0 11 4.25v2.5A2.25 2.25 0 0 0 13.25 9h2.5A2.25 2.25 0 0 0 18 6.75v-2.5A2.25 2.25 0 0 0 15.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 11 13.25v2.5A2.25 2.25 0 0 0 13.25 18h2.5A2.25 2.25 0 0 0 18 15.75v-2.5A2.25 2.25 0 0 0 15.75 11h-2.5Z" clip-rule="evenodd"/>
-        </svg>
+        @{ var activeOrg = organizations.FirstOrDefault(o => o.Id == OrgState.SelectedOrganizationId); }
+        @if (activeOrg?.LogoSmall is not null)
+        {
+            <img src="@activeOrg.LogoSmall" alt="" class="size-4 rounded-full object-cover shrink-0"/>
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5">
+                <path fill-rule="evenodd" d="M4.25 2A2.25 2.25 0 0 0 2 4.25v2.5A2.25 2.25 0 0 0 4.25 9h2.5A2.25 2.25 0 0 0 9 6.75v-2.5A2.25 2.25 0 0 0 6.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 2 13.25v2.5A2.25 2.25 0 0 0 4.25 18h2.5A2.25 2.25 0 0 0 9 15.75v-2.5A2.25 2.25 0 0 0 6.75 11h-2.5Zm9-9A2.25 2.25 0 0 0 11 4.25v2.5A2.25 2.25 0 0 0 13.25 9h2.5A2.25 2.25 0 0 0 18 6.75v-2.5A2.25 2.25 0 0 0 15.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 11 13.25v2.5A2.25 2.25 0 0 0 13.25 18h2.5A2.25 2.25 0 0 0 18 15.75v-2.5A2.25 2.25 0 0 0 15.75 11h-2.5Z" clip-rule="evenodd"/>
+            </svg>
+        }
         @(OrgState.SelectedOrganizationName ?? "Ingen organisation vald")
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3">
             <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
@@ -28,47 +41,28 @@
 
     @if (showDropdown)
     {
-        <div class="absolute left-0 top-full mt-2 w-64 bg-white dark:bg-neutral-700 rounded-lg shadow-lg py-1 z-50">
-            @if (organizations is null)
-            {
-                <div class="px-4 py-3 text-sm text-neutral-400">Laddar...</div>
-            }
-            else
-            {
-                @if (organizations.Count > 0)
+        <div class="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-neutral-700 rounded-lg shadow-lg py-1 z-50">
+            <div class="max-h-64 overflow-y-auto">
+                @foreach (var org in organizations)
                 {
-                    <div class="max-h-64 overflow-y-auto">
-                        @foreach (var org in organizations)
+                    var isActive = OrgState.SelectedOrganizationId == org.Id;
+                    <button @onclick="() => SelectOrganization(org)"
+                            class="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm cursor-pointer
+                                   @(isActive ? "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300" : "text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600")">
+                        <OrganizationAvatar LogoUrl="@org.LogoSmall" Name="@org.Name"/>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">@org.Name</div>
+                            <div class="text-xs text-neutral-400">@org.Users.Count @(org.Users.Count == 1 ? "användare" : "användare")</div>
+                        </div>
+                        @if (isActive)
                         {
-                            var isActive = OrgState.SelectedOrganizationId == org.Id;
-                            <button @onclick="() => SelectOrganization(org)"
-                                    class="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm cursor-pointer
-                                           @(isActive ? "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300" : "text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600")">
-                                <div class="flex-1 min-w-0">
-                                    <div class="font-medium truncate">@org.Name</div>
-                                    <div class="text-xs text-neutral-400">@org.Users.Count @(org.Users.Count == 1 ? "användare" : "användare")</div>
-                                </div>
-                                @if (isActive)
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4 shrink-0">
-                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
-                                    </svg>
-                                }
-                            </button>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4 shrink-0">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
+                            </svg>
                         }
-                    </div>
-                }
-                <div class="border-t border-neutral-200 dark:border-neutral-600 py-1">
-                    <button @onclick="GoToSystemView"
-                            class="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.559.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.894.149c-.424.07-.764.383-.929.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.204-.107-.397.165-.71.505-.78.929l-.15.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.272-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894Z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-                        </svg>
-                        Systemvy (organisationer)
                     </button>
-                </div>
-            }
+                }
+            </div>
         </div>
     }
 </div>
@@ -77,40 +71,39 @@
     private List<Organization>? organizations;
     private bool showDropdown;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         OrgState.OnChange += OnOrgStateChanged;
+        OrgState.OnOrganizationsChanged += OnOrganizationsChanged;
+        organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
     }
 
-    private async Task LoadOrganizations()
-    {
-        organizations = await UserService.GetAllOrganizationsAsync();
-    }
-
-    private async void ToggleDropdown()
+    private void ToggleDropdown()
     {
         showDropdown = !showDropdown;
-        if (showDropdown)
-        {
-            await LoadOrganizations();
-            StateHasChanged();
-        }
     }
 
     private void CloseDropdown() => showDropdown = false;
 
-    private void SelectOrganization(Organization org)
+    private async Task SelectOrganization(Organization org)
     {
         OrgState.SwitchOrganization(org.Id, org.Name);
+        await UserService.SetUserSettingAsync(OrgState.UserId!, UserSetting.LastSelectedOrganizationId, org.Id, OrgState.ToCallerContext());
         showDropdown = false;
-        NavigationManager.NavigateTo("/");
+        NavigationManager.NavigateTo("/", forceLoad: true);
     }
 
-    private void GoToSystemView()
+    private async void OnOrganizationsChanged()
     {
-        OrgState.ClearOrganization();
-        showDropdown = false;
-        NavigationManager.NavigateTo("/superadmin/organizations");
+        try
+        {
+            organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception)
+        {
+            // Fire-and-forget event handler; swallow to prevent crash
+        }
     }
 
     private void OnOrgStateChanged()
@@ -121,5 +114,6 @@
     public void Dispose()
     {
         OrgState.OnChange -= OnOrgStateChanged;
+        OrgState.OnOrganizationsChanged -= OnOrganizationsChanged;
     }
 }

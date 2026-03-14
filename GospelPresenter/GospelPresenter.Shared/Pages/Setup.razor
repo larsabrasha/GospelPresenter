@@ -2,6 +2,7 @@
 @attribute [AllowAnonymous]
 
 @using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using Microsoft.AspNetCore.Authorization
 
@@ -92,7 +93,8 @@
         }
 
         var user = await UserService.CreateSuperUserAsync(adminName.Trim());
-        var invite = await UserService.CreateInviteAsync(user.Id);
+        var caller = new CallerContext(user.Id, UserRole.SuperAdmin, null);
+        var invite = await UserService.CreateInviteAsync(user.Id, caller);
 
         SetupStatus.MarkSetupComplete();
         Navigation.NavigateTo($"/invite/{invite.Token}", forceLoad: true);

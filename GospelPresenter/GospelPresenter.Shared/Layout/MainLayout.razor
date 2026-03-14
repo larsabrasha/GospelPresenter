@@ -11,6 +11,7 @@
 @inject ActiveOrganizationState OrgState
 @inject IUserService UserService
 @inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
 
 <ViewportMonitor OnViewportChanged="viewport => AppState.MainViewport = viewport"/>
 
@@ -24,25 +25,22 @@
                         <span class="text-sky-500">Gospel</span> <span class="text-sky-400">Presenter</span>
                     </span>
                 </a>
-                @if (OrgState.IsSuperAdmin)
-                {
-                    <OrganizationSwitcher/>
-                }
             </div>
-            <LoginDisplay/>
+            <div class="flex items-center gap-3">
+                <OrganizationSwitcher/>
+                <LoginDisplay/>
+            </div>
         </nav>
-        <CascadingValue Value="OrgState">
-            <div class="flex-1 min-h-0 overflow-auto">
-                @if (string.IsNullOrEmpty(AppState.SessionId))
-                {
-                    <div></div>
-                }
-                else
-                {
-                    @Body
-                }
-            </div>
-        </CascadingValue>
+        <div class="flex-1 min-h-0 overflow-auto">
+            @if (string.IsNullOrEmpty(AppState.SessionId) || !OrgState.IsInitialized)
+            {
+                <div></div>
+            }
+            else
+            {
+                @Body
+            }
+        </div>
     </Authorized>
     <NotAuthorized>
         @Body
@@ -64,6 +62,37 @@
         var orgId = state.User.FindFirst("organization_id")?.Value;
 
         OrgState.Initialize(userId, role, orgId);
+
+        if (OrgState.IsSuperAdmin && OrgState.SelectedOrganizationId is null)
+        {
+            var callerContext = new CallerContext(userId, role, orgId);
+            Organization? org = null;
+
+            var savedOrgId = await UserService.GetUserSettingAsync(userId, UserSetting.LastSelectedOrganizationId, callerContext);
+            if (savedOrgId is not null)
+            {
+                org = await UserService.GetOrganizationByIdAsync(savedOrgId, callerContext);
+            }
+
+            if (org is null)
+            {
+                var allOrgs = await UserService.GetAllOrganizationsAsync(callerContext);
+                org = allOrgs.FirstOrDefault();
+            }
+
+            if (org is not null)
+            {
+                OrgState.SwitchOrganization(org.Id, org.Name);
+            }
+            else
+            {
+                OrgState.MarkInitialized();
+                NavigationManager.NavigateTo("/superadmin/organizations");
+                return;
+            }
+        }
+
+        OrgState.MarkInitialized();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

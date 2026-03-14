@@ -7,6 +7,7 @@
 
 @inject ISongService SongService
 @inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="relative flex items-center justify-center px-7">
@@ -100,7 +101,7 @@
 
     protected override void OnInitialized()
     {
-        song = SongService.GetSongById(SongId);
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
         if (song is null)
         {
             NavigationManager.NavigateTo("/admin/songs");
@@ -147,12 +148,14 @@
     {
         if (song is null || string.IsNullOrWhiteSpace(editName)) return;
 
-        await SongService.UpdateSongAsync(song.Id, editName.Trim(),
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.UpdateSongAsync(song.Id, orgId, editName.Trim(),
             string.IsNullOrWhiteSpace(editAuthor) ? null : editAuthor.Trim(),
             string.IsNullOrWhiteSpace(editPublisher) ? null : editPublisher.Trim(),
             editYear,
-            string.IsNullOrWhiteSpace(editCcli) ? null : editCcli.Trim());
-        song = SongService.GetSongById(SongId);
+            string.IsNullOrWhiteSpace(editCcli) ? null : editCcli.Trim(), OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
     }
 
     private async Task HandleLabelChanged(SongPartsEditor.PartLabelChange change)
@@ -160,22 +163,28 @@
         if (song is null) return;
         var part = song.Parts[change.Index];
         var trimmedLabel = string.IsNullOrWhiteSpace(change.Label) ? null : change.Label.Trim();
-        await SongService.UpdateSongPartAsync(song.Id, change.Index, trimmedLabel, part.Content);
-        song = SongService.GetSongById(SongId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.UpdateSongPartAsync(song.Id, orgId, change.Index, trimmedLabel, part.Content, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
     }
 
     private async Task HandleContentChanged(SongPartsEditor.PartContentChange change)
     {
         if (song is null) return;
-        await SongService.UpdateSongPartAsync(song.Id, change.Index, song.Parts[change.Index].Label, change.Content);
-        song = SongService.GetSongById(SongId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.UpdateSongPartAsync(song.Id, orgId, change.Index, song.Parts[change.Index].Label, change.Content, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
     }
 
     private async Task AddPart()
     {
         if (song is null) return;
-        await SongService.AddSongPartAsync(song.Id, null, "");
-        song = SongService.GetSongById(SongId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.AddSongPartAsync(song.Id, orgId, null, "", OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
     }
 
     private void ConfirmDeletePart(int index)
@@ -185,23 +194,29 @@
         deleteConfirmMessage = new MarkupString($"Vill du ta bort <strong>{System.Net.WebUtility.HtmlEncode(label)}</strong>?");
         deleteAction = async () =>
         {
-            await SongService.DeleteSongPartAsync(song.Id, index);
-            song = SongService.GetSongById(SongId);
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is null) return;
+            await SongService.DeleteSongPartAsync(song.Id, orgId, index, OrgState.ToCallerContext());
+            song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
         };
     }
 
     private async Task MovePartUp(int index)
     {
         if (song is null || index <= 0) return;
-        await SongService.MoveSongPartAsync(song.Id, index, index - 1);
-        song = SongService.GetSongById(SongId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.MoveSongPartAsync(song.Id, orgId, index, index - 1, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
     }
 
     private async Task MovePartDown(int index)
     {
         if (song is null || index >= song.Parts.Count - 1) return;
-        await SongService.MoveSongPartAsync(song.Id, index, index + 1);
-        song = SongService.GetSongById(SongId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.MoveSongPartAsync(song.Id, orgId, index, index + 1, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
     }
 
     private void ConfirmDelete()
@@ -209,7 +224,9 @@
         deleteConfirmMessage = new MarkupString($"Vill du flytta <strong>{System.Net.WebUtility.HtmlEncode(song?.Name)}</strong> till papperskorgen? Sången raderas permanent efter 30 dagar.");
         deleteAction = async () =>
         {
-            await SongService.DeleteSongAsync(song!.Id);
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is null) return;
+            await SongService.DeleteSongAsync(song!.Id, orgId, OrgState.ToCallerContext());
             NavigationManager.NavigateTo("/admin/songs");
         };
     }

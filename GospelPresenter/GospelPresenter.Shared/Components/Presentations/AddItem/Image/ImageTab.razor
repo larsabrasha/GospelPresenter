@@ -5,6 +5,7 @@
 
 @inject IOrganizationImageService OrganizationImageService
 @inject IJSRuntime JsRuntime
+@inject ActiveOrganizationState OrgState
 
 <div @onkeydown="OnKeyDown" tabindex="-1">
 @if (isLoading)
@@ -115,7 +116,6 @@ else
 @code {
     [Parameter] public EventCallback<OrganizationImage> OnAdd { get; set; }
     [Parameter] public EventCallback<OrganizationImage> OnAddKeepOpen { get; set; }
-    [CascadingParameter] private ActiveOrganizationState? OrgState { get; set; }
 
     private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
     private const int FullMaxWidth = 1920;
@@ -133,11 +133,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        organizationId = OrgState?.ActiveOrganizationId;
+        organizationId = OrgState.ActiveOrganizationId;
 
         if (organizationId is not null)
         {
-            images = await OrganizationImageService.GetImagesAsync(organizationId);
+            images = await OrganizationImageService.GetImagesAsync(organizationId, OrgState.ToCallerContext());
         }
 
         isLoading = false;
@@ -176,7 +176,8 @@ else
                 file.Name,
                 "image/jpeg",
                 thumbData,
-                fullData);
+                fullData,
+                OrgState.ToCallerContext());
 
             images.Insert(0, image);
         }
@@ -198,7 +199,7 @@ else
     private async Task HandleAdd()
     {
         if (selectedImage is null) return;
-        var fullImage = await OrganizationImageService.GetImageByIdAsync(selectedImage.Id);
+        var fullImage = await OrganizationImageService.GetImageByIdAsync(selectedImage.Id, organizationId!, OrgState.ToCallerContext());
         if (fullImage is not null)
         {
             await OnAdd.InvokeAsync(fullImage);
@@ -208,7 +209,7 @@ else
     private async Task HandleAddKeepOpen()
     {
         if (selectedImage is null) return;
-        var fullImage = await OrganizationImageService.GetImageByIdAsync(selectedImage.Id);
+        var fullImage = await OrganizationImageService.GetImageByIdAsync(selectedImage.Id, organizationId!, OrgState.ToCallerContext());
         if (fullImage is not null)
         {
             await OnAddKeepOpen.InvokeAsync(fullImage);
@@ -241,7 +242,7 @@ else
     {
         if (imageToDelete is null) return;
 
-        await OrganizationImageService.DeleteImageAsync(imageToDelete.Id);
+        await OrganizationImageService.DeleteImageAsync(imageToDelete.Id, organizationId!, OrgState.ToCallerContext());
         images.Remove(imageToDelete);
         imageToDelete = null;
     }

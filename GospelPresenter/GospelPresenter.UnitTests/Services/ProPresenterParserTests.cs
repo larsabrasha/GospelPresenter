@@ -1,3 +1,4 @@
+using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using Shouldly;
@@ -6,6 +7,7 @@ namespace GospelPresenter.UnitTests.Services;
 
 public class ProPresenterParserTests
 {
+    private static readonly CallerContext TestCaller = new("test-user", UserRole.Admin, "");
     private static readonly string? SongsPath = FindSongsPath();
 
     private static string? FindSongsPath()
@@ -45,7 +47,7 @@ public class ProPresenterParserTests
         songs.Count.ShouldBeGreaterThan(100, $"Only {songs.Count} songs loaded");
 
         var service = new TestSongService(songs.ToArray());
-        var results = service.Search("förkunnar");
+        var results = service.SearchByOrganization("förkunnar", "", TestCaller);
         results.Count.ShouldBeGreaterThan(0);
     }
 
@@ -57,7 +59,7 @@ public class ProPresenterParserTests
         var songs = LoadSongsFromDisk();
         var service = new TestSongService(songs.ToArray());
 
-        var results = service.Search("välsignel");
+        var results = service.SearchByOrganization("välsignel", "", TestCaller);
         results.Count.ShouldBeGreaterThan(0);
         results.ShouldContain(s => s.Name.Contains("lsignelse"));
     }

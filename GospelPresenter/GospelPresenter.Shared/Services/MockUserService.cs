@@ -34,19 +34,22 @@ public class MockUserService : IUserService
     public Task<bool> IsEmailTakenAsync(string email, string? excludeUserId = null)
         => Task.FromResult(false);
 
-    public Task<List<User>> GetAllUsersAsync()
-        => Task.FromResult(new List<User> { mockUser });
+    public Task<List<User>> GetAllUsersAsync(CallerContext caller)
+    {
+        caller.RequireSuperAdmin();
+        return Task.FromResult(new List<User> { mockUser });
+    }
 
-    public Task<User?> GetByIdAsync(string id)
+    public Task<User?> GetByIdAsync(string id, CallerContext caller)
         => Task.FromResult<User?>(mockUser);
 
-    public Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role)
+    public Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role, CallerContext caller)
         => Task.FromResult(new User { Name = name, Email = email, OrganizationId = organizationId, Role = role, Organization = defaultOrg });
 
     public Task<User> CreateSuperUserAsync(string name)
         => Task.FromResult(new User { Name = name, Role = UserRole.SuperAdmin });
 
-    public Task UpdateUserAsync(string id, string name, string email, UserRole role)
+    public Task UpdateUserAsync(string id, string name, string email, UserRole role, CallerContext caller)
         => Task.CompletedTask;
 
     public Task UpdateEmailIfEmptyAsync(string id, string email)
@@ -55,42 +58,87 @@ public class MockUserService : IUserService
     public Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall)
         => Task.CompletedTask;
 
-    public Task DeleteUserAsync(string id)
+    public Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall, CallerContext caller)
         => Task.CompletedTask;
 
-    public Task<List<UserLogin>> GetLoginsForUserAsync(string userId)
+    public Task DeleteUserAsync(string id, CallerContext caller)
+        => Task.CompletedTask;
+
+    public Task<List<UserLogin>> GetLoginsForUserAsync(string userId, CallerContext caller)
         => Task.FromResult(new List<UserLogin>());
 
-    public Task DeleteLoginAsync(string loginId)
+    public Task DeleteLoginAsync(string loginId, CallerContext caller)
         => Task.CompletedTask;
 
-    public Task<List<Invite>> GetInvitesForUserAsync(string userId)
+    public Task<List<Invite>> GetInvitesForUserAsync(string userId, CallerContext caller)
         => Task.FromResult(new List<Invite>());
 
-    public Task<Invite> CreateInviteAsync(string userId)
+    public Task<Invite> CreateInviteAsync(string userId, CallerContext caller)
         => Task.FromResult(new Invite { UserId = userId });
 
-    public Task DeleteInviteAsync(string inviteId)
+    public Task DeleteInviteAsync(string inviteId, CallerContext caller)
         => Task.CompletedTask;
 
     public Task<bool> HasAnyUsersAsync()
         => Task.FromResult(true);
 
-    public Task<Organization> CreateOrganizationAsync(string name)
-        => Task.FromResult(new Organization { Name = name });
+    public Task<Organization> CreateOrganizationAsync(string name, CallerContext caller)
+    {
+        caller.RequireSuperAdmin();
+        return Task.FromResult(new Organization { Name = name });
+    }
 
-    public Task<List<Organization>> GetAllOrganizationsAsync()
-        => Task.FromResult(new List<Organization> { defaultOrg });
+    public Task<List<Organization>> GetAllOrganizationsAsync(CallerContext caller)
+    {
+        caller.RequireSuperAdmin();
+        return Task.FromResult(new List<Organization> { defaultOrg });
+    }
 
-    public Task<Organization?> GetOrganizationByIdAsync(string id)
-        => Task.FromResult<Organization?>(defaultOrg);
+    public Task<Organization?> GetOrganizationByIdAsync(string id, CallerContext caller)
+    {
+        caller.RequireSuperAdmin();
+        return Task.FromResult<Organization?>(defaultOrg);
+    }
 
-    public Task UpdateOrganizationAsync(string id, string name)
-        => Task.CompletedTask;
+    public Task UpdateOrganizationAsync(string id, string name, CallerContext caller)
+    {
+        caller.RequireSuperAdmin();
+        return Task.CompletedTask;
+    }
 
-    public Task DeleteOrganizationAsync(string id)
-        => Task.CompletedTask;
+    public Task DeleteOrganizationAsync(string id, CallerContext caller)
+    {
+        caller.RequireSuperAdmin();
+        return Task.CompletedTask;
+    }
 
-    public Task<List<User>> GetUsersByOrganizationAsync(string organizationId)
-        => Task.FromResult(new List<User> { mockUser });
+    public Task UpdateOrganizationLogoAsync(string id, string? logoSmall, CallerContext caller)
+    {
+        caller.RequireSuperAdmin();
+        return Task.CompletedTask;
+    }
+
+    public Task<List<User>> GetUsersByOrganizationAsync(string organizationId, CallerContext caller)
+    {
+        caller.RequireOrganizationAccess(organizationId);
+        return Task.FromResult(new List<User> { mockUser });
+    }
+
+    public Task<string?> GetUserSettingAsync(string userId, string key, CallerContext caller)
+    {
+        caller.RequireUserAccess(userId);
+        return Task.FromResult<string?>(null);
+    }
+
+    public Task SetUserSettingAsync(string userId, string key, string value, CallerContext caller)
+    {
+        caller.RequireUserAccess(userId);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteUserSettingAsync(string userId, string key, CallerContext caller)
+    {
+        caller.RequireUserAccess(userId);
+        return Task.CompletedTask;
+    }
 }

@@ -22,6 +22,7 @@
 @implements IDisposable
 @inject IStatusBarService StatusBarService
 @inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -489,7 +490,9 @@ else if (addModalType == "image")
     {
         if (PresentationId is null) return;
 
-        loadedPresentation = await PresentationService.GetPresentationByIdAsync(PresentationId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        loadedPresentation = await PresentationService.GetPresentationByIdAsync(PresentationId, orgId, OrgState.ToCallerContext());
         if (loadedPresentation is null)
         {
             AppState.SelectedProject = null;
@@ -516,7 +519,7 @@ else if (addModalType == "image")
             }).ToList()
         };
 
-        overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId);
+        overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
 
         var liveItemId = SharedAppState.GetLiveSlide(AppState.SessionId).ProjectItemId;
         var activeItem = liveItemId is not null
@@ -571,7 +574,7 @@ else if (addModalType == "image")
             case ProjectItemType.Song:
                 var songSourceId = AppState.SelectedProjectItem.SourceId;
                 if (songSourceId is not null)
-                    SelectedSong = SongService.GetSongById(songSourceId);
+                    SelectedSong = SongService.GetSongById(songSourceId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
                 if (SelectedSong is null)
                 {
                     // Fallback: reconstruct from saved parts (legacy data)
@@ -626,7 +629,7 @@ else if (addModalType == "image")
             {
                 Song? song = null;
                 if (projectItem.SourceId is not null)
-                    song = SongService.GetSongById(projectItem.SourceId);
+                    song = SongService.GetSongById(projectItem.SourceId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
                 if (song is null)
                 {
                     // Fallback: reconstruct from saved parts (legacy data)
@@ -716,7 +719,7 @@ else if (addModalType == "image")
     private async Task ReloadOverlays()
     {
         if (loadedPresentation is null) return;
-        overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId);
+        overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
 
         // If the active overlay was deleted, clear it
         if (activeOverlayId is not null && overlaySlides.All(o => o.Id != activeOverlayId))
@@ -751,7 +754,9 @@ else if (addModalType == "image")
         if (PresentationId is null) return;
 
         showDeleteConfirmation = false;
-        await PresentationService.DeletePresentationAsync(PresentationId);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await PresentationService.DeletePresentationAsync(orgId, PresentationId, OrgState.ToCallerContext());
 
         AppState.SelectedProject = null;
         AppState.SelectedProjectItem = null;
@@ -777,7 +782,9 @@ else if (addModalType == "image")
 
         if (PresentationId is not null)
         {
-            await PresentationService.RemoveItemAsync(PresentationId, removedItem.Id);
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.RemoveItemAsync(orgId, PresentationId, removedItem.Id, OrgState.ToCallerContext());
         }
     }
 
@@ -792,7 +799,9 @@ else if (addModalType == "image")
 
         if (PresentationId is not null)
         {
-            await PresentationService.ReorderItemsAsync(PresentationId, itemIds);
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.ReorderItemsAsync(orgId, PresentationId, itemIds, OrgState.ToCallerContext());
         }
     }
 
@@ -864,7 +873,9 @@ else if (addModalType == "image")
 
         if (PresentationId is not null)
         {
-            await PresentationService.AddItemAsync(PresentationId, presentationItem);
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
         }
     }
 
@@ -904,7 +915,9 @@ else if (addModalType == "image")
 
         if (PresentationId is not null)
         {
-            await PresentationService.AddItemAsync(PresentationId, presentationItem);
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
         }
     }
 
@@ -945,7 +958,9 @@ else if (addModalType == "image")
 
         if (PresentationId is not null)
         {
-            await PresentationService.AddItemAsync(PresentationId, presentationItem);
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
         }
     }
 
