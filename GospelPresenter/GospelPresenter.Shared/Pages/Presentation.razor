@@ -308,7 +308,7 @@ else if (addModalType == "image")
     <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
         <Title><span>Lägg till bild</span></Title>
         <Body>
-            <ImageTab OnAdd="@HandleImageAdded"/>
+            <ImageTab OnAdd="@HandleImageAdded" OnAddKeepOpen="@HandleImageAddedKeepOpen"/>
         </Body>
     </Modal>
 }
@@ -909,6 +909,17 @@ else if (addModalType == "image")
     }
 
     private async Task HandleImageAdded(OrganizationImage image)
+    {
+        addModalType = null;
+        await AddImage(image);
+    }
+
+    private async Task HandleImageAddedKeepOpen(OrganizationImage image)
+    {
+        await AddImage(image);
+    }
+
+    private async Task AddImage(OrganizationImage image)
     {
         var itemId = Guid.NewGuid().ToString();
         var projectItem = new ProjectItem
