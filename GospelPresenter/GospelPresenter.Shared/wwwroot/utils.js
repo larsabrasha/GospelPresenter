@@ -219,7 +219,7 @@ window.initImageCropper = function(containerId, imageDataUrl) {
 
     img.onload = function() {
         const containerSize = container.offsetWidth;
-        const fitScale = containerSize / Math.min(img.naturalWidth, img.naturalHeight);
+        const fitScale = containerSize / Math.max(img.naturalWidth, img.naturalHeight);
         state.minScale = fitScale;
         state.scale = fitScale;
         state.translateX = (containerSize - img.naturalWidth * fitScale) / 2;
@@ -235,8 +235,16 @@ window.initImageCropper = function(containerId, imageDataUrl) {
         const containerSize = s.container.offsetWidth;
         const w = s.img.naturalWidth * s.scale;
         const h = s.img.naturalHeight * s.scale;
-        s.translateX = Math.min(0, Math.max(containerSize - w, s.translateX));
-        s.translateY = Math.min(0, Math.max(containerSize - h, s.translateY));
+        if (w <= containerSize) {
+            s.translateX = (containerSize - w) / 2;
+        } else {
+            s.translateX = Math.min(0, Math.max(containerSize - w, s.translateX));
+        }
+        if (h <= containerSize) {
+            s.translateY = (containerSize - h) / 2;
+        } else {
+            s.translateY = Math.min(0, Math.max(containerSize - h, s.translateY));
+        }
     }
 
     function getPointerPos(e) {
@@ -276,7 +284,7 @@ window.initImageCropper = function(containerId, imageDataUrl) {
         const pos = getPointerPos(e);
         const oldScale = state.scale;
         const delta = e.deltaY > 0 ? 0.95 : 1.05;
-        state.scale = Math.max(state.minScale, Math.min(state.minScale * 5, state.scale * delta));
+        state.scale = Math.max(state.minScale * 0.5, Math.min(state.minScale * 10, state.scale * delta));
 
         // Zoom toward cursor
         state.translateX = pos.x - (pos.x - state.translateX) * (state.scale / oldScale);
@@ -311,7 +319,7 @@ window.initImageCropper = function(containerId, imageDataUrl) {
             const cy = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
 
             const oldScale = state.scale;
-            state.scale = Math.max(state.minScale, Math.min(state.minScale * 5, state.scale * ratio));
+            state.scale = Math.max(state.minScale * 0.5, Math.min(state.minScale * 10, state.scale * ratio));
             state.translateX = cx - (cx - state.translateX) * (state.scale / oldScale);
             state.translateY = cy - (cy - state.translateY) * (state.scale / oldScale);
             clampPosition(state);
@@ -349,8 +357,8 @@ window.setImageCropperZoom = function(containerId, value) {
     const centerY = containerSize / 2;
 
     const oldScale = state.scale;
-    // value is 0-100, map to minScale..minScale*5
-    state.scale = state.minScale + (value / 100) * (state.minScale * 4);
+    // value is 0-100, map to minScale*0.5..minScale*10
+    state.scale = state.minScale * 0.5 + (value / 100) * (state.minScale * 9.5);
 
     state.translateX = centerX - (centerX - state.translateX) * (state.scale / oldScale);
     state.translateY = centerY - (centerY - state.translateY) * (state.scale / oldScale);
@@ -358,8 +366,16 @@ window.setImageCropperZoom = function(containerId, value) {
     // Clamp
     const w = state.img.naturalWidth * state.scale;
     const h = state.img.naturalHeight * state.scale;
-    state.translateX = Math.min(0, Math.max(containerSize - w, state.translateX));
-    state.translateY = Math.min(0, Math.max(containerSize - h, state.translateY));
+    if (w <= containerSize) {
+        state.translateX = (containerSize - w) / 2;
+    } else {
+        state.translateX = Math.min(0, Math.max(containerSize - w, state.translateX));
+    }
+    if (h <= containerSize) {
+        state.translateY = (containerSize - h) / 2;
+    } else {
+        state.translateY = Math.min(0, Math.max(containerSize - h, state.translateY));
+    }
 
     state.img.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.scale})`;
 };
@@ -375,8 +391,11 @@ window.getImageCropResult = function(containerId) {
     canvas.height = exportSize;
     const ctx = canvas.getContext('2d');
 
+    // Fill background for areas not covered by the image
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, exportSize, exportSize);
+
     // Calculate source rectangle in natural image coordinates
-    const scaleRatio = exportSize / containerSize;
     const sx = -state.translateX / state.scale;
     const sy = -state.translateY / state.scale;
     const sSize = containerSize / state.scale;
