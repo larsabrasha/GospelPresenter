@@ -151,6 +151,13 @@ public class MockPresentationService : IPresentationService
         return Task.FromResult(result);
     }
 
+    public Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequireOrganizationAccess(organizationId);
+        var result = overlays.FirstOrDefault(x => x.Id == id && x.OrganizationId == organizationId);
+        return Task.FromResult(result);
+    }
+
     public Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)
     {
         caller.RequireOrganizationAccess(organizationId);

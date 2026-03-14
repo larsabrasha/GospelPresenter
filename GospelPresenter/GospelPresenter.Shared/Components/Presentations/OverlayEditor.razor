@@ -1,38 +1,45 @@
 @using GospelPresenter.Shared.Models
+@using Microsoft.AspNetCore.Components.Forms
 
 <div class="flex flex-col h-full">
-    <div class="shrink-0">
-        <button class="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200 cursor-pointer px-4 py-2.5 mb-2 -ml-1 rounded-full"
-                @onclick="OnBack">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            Tillbaka
-        </button>
-    </div>
+    @if (OnBack.HasDelegate)
+    {
+        <div class="shrink-0">
+            <button class="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200 cursor-pointer px-4 py-2.5 mb-2 -ml-1 rounded-full"
+                    @onclick="OnBack">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+                </svg>
+                Tillbaka
+            </button>
+        </div>
+    }
 
     <div class="flex-1 min-h-0 overflow-y-auto space-y-4">
         <div>
             <label class="block text-sm font-medium mb-1">Titel</label>
-            <input type="text" @bind="title" @bind:event="oninput" placeholder="Namn"
+            <input type="text" value="@Overlay.Title" @onchange="HandleTitleChanged" placeholder="Namn"
                    class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm w-full"/>
         </div>
         <div>
             <label class="block text-sm font-medium mb-1">Textinnehåll</label>
-            <textarea @bind="content" @bind:event="oninput" placeholder="Text som visas i overlayen (valfritt)" rows="4"
+            <textarea value="@Overlay.Content" @onchange="HandleContentChanged" placeholder="Text som visas i overlayen (valfritt)" rows="4"
                       class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm w-full resize-none"/>
         </div>
         <div>
             <label class="block text-sm font-medium mb-1">Bild (valfritt)</label>
-            @if (imageData is not null || (Overlay.ImageData is not null && !clearImage))
+            @if (Overlay.ImageData is not null)
             {
-                <div class="flex items-center gap-2">
-                    <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
-                        Byt bild
-                        <InputFile OnChange="HandleImageUpload" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
-                    </label>
-                    <button class="text-sm text-red-500 hover:text-red-600 cursor-pointer"
-                            @onclick="RemoveImage">Ta bort bild</button>
+                <div class="flex items-center gap-3">
+                    <img src="data:image/png;base64,@Convert.ToBase64String(Overlay.ImageData)" alt="Förhandsgranskning" class="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600"/>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                            Byt bild
+                            <InputFile OnChange="HandleImageUpload" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                        </label>
+                        <button class="text-sm text-red-500 hover:text-red-600 cursor-pointer text-left"
+                                @onclick="RemoveImage">Ta bort bild</button>
+                    </div>
                 </div>
             }
             else
@@ -57,53 +64,36 @@
         {
             <div></div>
         }
-        <div class="flex gap-2">
-            <button class="px-4 py-2.5 rounded-full text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
-                    @onclick="OnBack">
-                Avbryt
-            </button>
-            <button class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer disabled:opacity-50"
-                    disabled="@string.IsNullOrWhiteSpace(title)"
-                    @onclick="HandleSave">
-                Spara
-            </button>
-        </div>
     </div>
 </div>
 
 @code {
     [Parameter] public required OverlaySlide Overlay { get; set; }
     [Parameter] public EventCallback OnBack { get; set; }
-    [Parameter] public EventCallback<OverlaySlide> OnSaved { get; set; }
+    [Parameter] public EventCallback<OverlaySlide> OnChanged { get; set; }
     [Parameter] public EventCallback<OverlaySlide> OnDeleted { get; set; }
 
-    private string title = "";
-    private string content = "";
-    private byte[]? imageData;
-    private bool clearImage;
     private bool showDeleteConfirm;
     private bool isExisting;
 
     protected override void OnInitialized()
     {
         isExisting = !string.IsNullOrWhiteSpace(Overlay.OrganizationId);
-        title = Overlay.Title;
-        content = Overlay.Content ?? "";
     }
 
-    private async Task HandleSave()
+    private async Task HandleTitleChanged(ChangeEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(title)) return;
+        var value = e.Value?.ToString()?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(value)) return;
+        Overlay.Title = value;
+        await OnChanged.InvokeAsync(Overlay);
+    }
 
-        Overlay.Title = title.Trim();
-        Overlay.Content = string.IsNullOrWhiteSpace(content) ? null : content.Trim();
-
-        if (imageData is not null)
-            Overlay.ImageData = imageData;
-        else if (clearImage)
-            Overlay.ImageData = null;
-
-        await OnSaved.InvokeAsync(Overlay);
+    private async Task HandleContentChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        Overlay.Content = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        await OnChanged.InvokeAsync(Overlay);
     }
 
     private async Task HandleDelete()
@@ -117,10 +107,10 @@
         await OnDeleted.InvokeAsync(Overlay);
     }
 
-    private void RemoveImage()
+    private async Task RemoveImage()
     {
-        imageData = null;
-        clearImage = true;
+        Overlay.ImageData = null;
+        await OnChanged.InvokeAsync(Overlay);
     }
 
     private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -134,7 +124,7 @@
         using var stream = file.OpenReadStream(10 * 1024 * 1024);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
-        imageData = ms.ToArray();
-        clearImage = false;
+        Overlay.ImageData = ms.ToArray();
+        await OnChanged.InvokeAsync(Overlay);
     }
 }

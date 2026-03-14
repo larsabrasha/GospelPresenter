@@ -36,6 +36,14 @@
                     </svg>
                     Sånger
                 </a>
+                <a href="/admin/overlays"
+                   @onclick="() => menuVisible = false"
+                   class="@NavClass("/admin/overlays") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
+                        <path fill-rule="evenodd" d="M2 4.25A2.25 2.25 0 0 1 4.25 2h6.5A2.25 2.25 0 0 1 13 4.25v1.5h2.75A2.25 2.25 0 0 1 18 8v7.75A2.25 2.25 0 0 1 15.75 18H9.25A2.25 2.25 0 0 1 7 15.75v-1.5H4.25A2.25 2.25 0 0 1 2 12V4.25Zm5 9.25v2.25c0 .414.336.75.75.75h6.5a.75.75 0 0 0 .75-.75V8a.75.75 0 0 0-.75-.75H13v4.75A2.25 2.25 0 0 1 10.75 14.25h-3.75Z" clip-rule="evenodd"/>
+                    </svg>
+                    Overlays
+                </a>
             }
             else
             {
@@ -82,7 +90,8 @@
     private bool menuVisible;
 
     private bool IsContentSection =>
-        currentPath.StartsWith("/admin/songs", StringComparison.OrdinalIgnoreCase);
+        currentPath.StartsWith("/admin/songs", StringComparison.OrdinalIgnoreCase) ||
+        currentPath.StartsWith("/admin/overlays", StringComparison.OrdinalIgnoreCase);
 
     protected override void OnInitialized()
     {

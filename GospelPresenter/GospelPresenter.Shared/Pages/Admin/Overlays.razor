@@ -1,0 +1,104 @@
+@page "/admin/overlays"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject IPresentationService PresentationService
+@inject ActiveOrganizationState OrgState
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="px-7 flex items-center justify-between">
+        <div class="text-xl font-bold dark:text-neutral-100">Overlays</div>
+        @if (overlays is not null && overlays.Count > 0)
+        {
+            <a href="/admin/overlays/new"
+               class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                </svg>
+                Ny overlay
+            </a>
+        }
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        @if (overlays is null)
+        {
+            <div class="px-5 py-4 text-neutral-400 text-sm">Laddar...</div>
+        }
+        else if (overlays.Count == 0)
+        {
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <rect x="30" y="20" width="140" height="90" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <line x1="50" y1="50" x2="150" y2="50" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                    <line x1="50" y1="65" x2="130" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+                    <rect x="55" y="45" width="100" height="60" rx="6" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3" fill="none" opacity="0.7"/>
+                    <line x1="75" y1="70" x2="135" y2="70" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+                    <line x1="85" y1="82" x2="125" y2="82" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+                </svg>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">Inga overlays</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                    Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.
+                </p>
+                <a href="/admin/overlays/new"
+                   class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    Lägg till overlay
+                </a>
+            </div>
+        }
+        else
+        {
+            <div>
+                @foreach (var overlay in overlays)
+                {
+                    <a href="/admin/overlays/@overlay.Id"
+                       class="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+                        @if (overlay.ImageData is not null)
+                        {
+                            <img src="data:image/png;base64,@Convert.ToBase64String(overlay.ImageData)"
+                                 alt="" class="w-16 h-9 object-cover rounded border border-neutral-200 dark:border-neutral-600 shrink-0"/>
+                        }
+                        else
+                        {
+                            <div class="w-16 h-9 rounded border border-neutral-200 dark:border-neutral-600 bg-neutral-200 dark:bg-neutral-700 shrink-0 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-neutral-400">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z"/>
+                                </svg>
+                            </div>
+                        }
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">@overlay.Title</div>
+                            @if (!string.IsNullOrWhiteSpace(overlay.Content))
+                            {
+                                <div class="text-xs text-neutral-400 truncate">@overlay.Content</div>
+                            }
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<OverlaySlide>? overlays;
+    private string? organizationId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        organizationId = OrgState.ActiveOrganizationId;
+        if (organizationId is null) return;
+
+        overlays = await PresentationService.GetOverlaysAsync(organizationId, OrgState.ToCallerContext());
+    }
+}

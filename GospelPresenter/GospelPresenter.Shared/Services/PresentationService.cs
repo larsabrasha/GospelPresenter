@@ -16,6 +16,7 @@ public interface IPresentationService
     Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default);
     Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
     Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default);
     Task UpdateOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default);
     Task RemoveOverlayAsync(string organizationId, string overlayId, CallerContext caller, CancellationToken cancellationToken = default);
@@ -188,6 +189,15 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
             .Where(x => x.OrganizationId == organizationId)
             .OrderBy(x => x.SortOrder)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await context.OverlaySlides
+            .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
     }
 
     public async Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)

@@ -9,16 +9,16 @@
     var h = FormattableString.Invariant($"{Scale * BaseHeight}px");
 
     <div class="absolute inset-0 pointer-events-none" style="z-index: 50; width: @w; height: @h">
-        <div class="origin-top-left text-[85px] flex flex-col items-center justify-center px-20 pt-20 pb-36"
+        <div class="origin-top-left relative"
              style="width: @baseW; height: @baseH; transform: scale(@scaleStr);">
             @if (Overlay.ImageUrl is not null)
             {
-                <img src="@Overlay.ImageUrl" class="max-w-full max-h-full object-contain" alt=""/>
+                <img src="@Overlay.ImageUrl" class="absolute inset-0 w-full h-full object-contain" alt=""/>
             }
             @if (Overlay.Text is not null)
             {
-                <div class="text-white text-center whitespace-pre-line"
-                     style="text-shadow: 0 2px 8px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6)">
+                <div class="absolute top-8 left-20 text-[40px] text-white/60 text-left whitespace-pre-line"
+                     style="text-shadow: 0 1px 4px rgba(0,0,0,0.6)">
                     @Overlay.Text
                 </div>
             }
