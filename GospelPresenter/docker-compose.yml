@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: gospelpresenter-db
+    restart: always
+    environment:
+      POSTGRES_USER: gospelpresenter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: gospelpresenter
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gospelpresenter"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrations:
+    image: ghcr.io/larsabrasha/gospelpresenter-migrations:release
+    container_name: gospelpresenter-migrations
+    environment:
+      ConnectionStrings__postgresdb: "Host=postgres;Database=gospelpresenter;Username=gospelpresenter;Password=${POSTGRES_PASSWORD}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/larsabrasha/gospelpresenter:release
+    container_name: gospelpresenter-web
+    restart: always
+    ports:
+      - "${WEB_PORT:-8082}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__postgresdb: "Host=postgres;Database=gospelpresenter;Username=gospelpresenter;Password=${POSTGRES_PASSWORD}"
+      Settings__DataProtectionKeysDirectory: /app/data-protection-keys
+      Settings__BiblesPath: /app/data/bibles
+      Settings__SongsPath: /app/data/songs
+      OpenIdConnect__Authority: ${OIDC_AUTHORITY:-}
+      OpenIdConnect__ClientId: ${OIDC_CLIENT_ID:-}
+      OpenIdConnect__ClientSecret: ${OIDC_CLIENT_SECRET:-}
+      Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+    volumes:
+      - data-protection-keys:/app/data-protection-keys
+      - ./bibles:/app/data/bibles:ro
+      - ./songs:/app/data/songs:ro
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  data-protection-keys:
