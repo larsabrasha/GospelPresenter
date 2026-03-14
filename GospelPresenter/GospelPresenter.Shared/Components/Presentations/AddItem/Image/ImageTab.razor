@@ -1,11 +1,9 @@
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
-@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 
 @inject IOrganizationImageService OrganizationImageService
-@inject IUserService UserService
 @inject IJSRuntime JsRuntime
 
 <div @onkeydown="OnKeyDown" tabindex="-1">
@@ -117,7 +115,7 @@ else
 @code {
     [Parameter] public EventCallback<OrganizationImage> OnAdd { get; set; }
     [Parameter] public EventCallback<OrganizationImage> OnAddKeepOpen { get; set; }
-    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [CascadingParameter] private ActiveOrganizationState? OrgState { get; set; }
 
     private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
     private const int FullMaxWidth = 1920;
@@ -135,16 +133,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthState is not null)
-        {
-            var state = await AuthState;
-            var userId = state.User.FindFirst("user_id")?.Value;
-            if (userId != null)
-            {
-                var user = await UserService.GetByIdAsync(userId);
-                organizationId = user?.OrganizationId;
-            }
-        }
+        organizationId = OrgState?.ActiveOrganizationId;
 
         if (organizationId is not null)
         {

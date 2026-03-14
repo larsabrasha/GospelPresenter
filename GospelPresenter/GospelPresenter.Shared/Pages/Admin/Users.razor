@@ -1,14 +1,26 @@
 @page "/admin/users"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
 
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 
 @inject IUserService UserService
 @inject NavigationManager NavigationManager
 
+@if (OrgState is not null && OrgState.IsSuperAdmin && !OrgState.HasActiveOrganization)
+{
+    <div class="flex flex-col items-center text-center py-16 px-4 select-none">
+        <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed mb-4">Välj en organisation i org-väljaren för att hantera användare</p>
+        <a href="/superadmin/organizations"
+           class="px-4 py-2.5 rounded-full bg-sky-500 text-white hover:bg-sky-600 text-sm no-underline">
+            Hantera organisationer
+        </a>
+    </div>
+}
+else
+{
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="relative flex items-center justify-center px-7">
         <a href="/"
@@ -48,6 +60,7 @@
         }
     </div>
 </div>
+}
 
 @if (showCreateDialog)
 {
@@ -113,20 +126,15 @@
     private UserRole editRole = UserRole.User;
     private ElementReference nameInput;
     private bool shouldFocusName;
-    private User? currentUser;
-
-    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [CascadingParameter] private ActiveOrganizationState? OrgState { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
-        if (AuthState is not null)
-        {
-            var state = await AuthState;
-            var userId = state.User.FindFirst("user_id")?.Value;
-            if (userId != null)
-                currentUser = await UserService.GetByIdAsync(userId);
-        }
-        users = await UserService.GetAllUsersAsync();
+        var orgId = OrgState?.ActiveOrganizationId;
+        if (orgId is not null)
+            users = await UserService.GetUsersByOrganizationAsync(orgId);
+        else
+            users = await UserService.GetAllUsersAsync();
     }
 
     private void ShowCreateDialog()
@@ -168,8 +176,11 @@
             return;
         }
 
+        var orgId = OrgState?.ActiveOrganizationId;
+        if (orgId is null) return;
+
         isSaving = true;
-        var user = await UserService.CreateUserAsync(editName.Trim(), editEmail.Trim(), currentUser!.OrganizationId, editRole);
+        var user = await UserService.CreateUserAsync(editName.Trim(), editEmail.Trim(), orgId, editRole);
 
         isSaving = false;
         showCreateDialog = false;
@@ -178,6 +189,7 @@
 
     private static string RoleDisplayName(UserRole role) => role switch
     {
+        UserRole.SuperAdmin => "Superadmin",
         UserRole.Admin => "Admin",
         UserRole.User => "Användare",
         _ => role.ToString()
@@ -185,6 +197,7 @@
 
     private static string RoleBadgeClass(UserRole role) => role switch
     {
+        UserRole.SuperAdmin => "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300",
         UserRole.Admin => "bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300",
         UserRole.User => "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300",
         _ => ""

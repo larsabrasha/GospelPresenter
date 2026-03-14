@@ -139,7 +139,8 @@ try
 
                 var identity = context.Principal?.Identity as ClaimsIdentity;
                 identity?.AddClaim(new Claim("user_id", user.Id));
-                identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
+                if (user.OrganizationId is not null)
+                    identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
                 identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
                 identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
             };
@@ -228,7 +229,8 @@ try
 
                 var identity = context.Principal?.Identity as ClaimsIdentity;
                 identity?.AddClaim(new Claim("user_id", user.Id));
-                identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
+                if (user.OrganizationId is not null)
+                    identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
                 identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
                 identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
             };
@@ -254,6 +256,7 @@ try
 
     builder.Services.AddSharedGospelPresenterServices(builder.Configuration);
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
+    builder.Services.AddSingleton<SetupStatusService>();
 
     builder.Services.AddHealthChecks()
         .ForwardToPrometheus();
@@ -305,27 +308,6 @@ builder.Services.AddMetricServer(options =>
     {
         var songService = app.Services.GetRequiredService<ISongService>();
         await songService.LoadSongsAsync();
-    }
-
-    // Seed admin user if no users exist
-    if (!string.IsNullOrEmpty(connectionString))
-    {
-        using var scope = app.Services.CreateScope();
-        var dbContextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PresentationContext>>();
-        await using var db = await dbContextFactory.CreateDbContextAsync();
-        if (!await db.Users.AnyAsync())
-        {
-            await using var transaction = await db.Database.BeginTransactionAsync();
-            var org = new Organization { Name = "Default" };
-            var admin = new User { Name = "Admin", Role = UserRole.Admin, Organization = org };
-            var invite = new Invite { User = admin };
-            db.Organizations.Add(org);
-            db.Users.Add(admin);
-            db.Invites.Add(invite);
-            await db.SaveChangesAsync();
-            await transaction.CommitAsync();
-            Log.Warning("No users found — created admin user with invite link: /invite/{Token}", invite.Token);
-        }
     }
 
     app.MapDefaultEndpoints();

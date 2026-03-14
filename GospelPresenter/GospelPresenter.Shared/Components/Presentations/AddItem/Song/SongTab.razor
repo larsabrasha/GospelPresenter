@@ -1,9 +1,7 @@
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
-@using Microsoft.AspNetCore.Components.Authorization
 
 @inject ISongService SongService
-@inject IUserService UserService
 @inject AppState AppState
 @inject IJSRuntime JsRuntime
 
@@ -188,7 +186,7 @@ else
 @code {
     [Parameter] public EventCallback<Song> OnAdd { get; set; }
     [Parameter] public EventCallback<Song> OnAddKeepOpen { get; set; }
-    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [CascadingParameter] private ActiveOrganizationState? OrgState { get; set; }
 
     private string query = "";
     private string[] searchTerms = [];
@@ -202,20 +200,11 @@ else
     private string? organizationId;
     private int? pendingScrollIndex;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
         results = SongService.Songs.ToList();
-
-        if (AuthState is not null)
-        {
-            var state = await AuthState;
-            var userId = state.User.FindFirst("user_id")?.Value;
-            if (userId != null)
-            {
-                var user = await UserService.GetByIdAsync(userId);
-                organizationId = user?.OrganizationId;
-            }
-        }
+        organizationId = OrgState?.ActiveOrganizationId;
+        return Task.CompletedTask;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

@@ -1,5 +1,5 @@
 @page "/admin/users/{UserId}"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
 
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
@@ -405,6 +405,7 @@ private async Task CreateInvite()
 
     private static string RoleDisplayName(UserRole role) => role switch
     {
+        UserRole.SuperAdmin => "Superadmin",
         UserRole.Admin => "Admin",
         UserRole.User => "Användare",
         _ => role.ToString()

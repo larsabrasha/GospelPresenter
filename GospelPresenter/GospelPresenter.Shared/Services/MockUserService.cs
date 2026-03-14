@@ -43,6 +43,9 @@ public class MockUserService : IUserService
     public Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role)
         => Task.FromResult(new User { Name = name, Email = email, OrganizationId = organizationId, Role = role, Organization = defaultOrg });
 
+    public Task<User> CreateSuperUserAsync(string name)
+        => Task.FromResult(new User { Name = name, Role = UserRole.SuperAdmin });
+
     public Task UpdateUserAsync(string id, string name, string email, UserRole role)
         => Task.CompletedTask;
 
@@ -69,4 +72,25 @@ public class MockUserService : IUserService
 
     public Task DeleteInviteAsync(string inviteId)
         => Task.CompletedTask;
+
+    public Task<bool> HasAnyUsersAsync()
+        => Task.FromResult(true);
+
+    public Task<Organization> CreateOrganizationAsync(string name)
+        => Task.FromResult(new Organization { Name = name });
+
+    public Task<List<Organization>> GetAllOrganizationsAsync()
+        => Task.FromResult(new List<Organization> { defaultOrg });
+
+    public Task<Organization?> GetOrganizationByIdAsync(string id)
+        => Task.FromResult<Organization?>(defaultOrg);
+
+    public Task UpdateOrganizationAsync(string id, string name)
+        => Task.CompletedTask;
+
+    public Task DeleteOrganizationAsync(string id)
+        => Task.CompletedTask;
+
+    public Task<List<User>> GetUsersByOrganizationAsync(string organizationId)
+        => Task.FromResult(new List<User> { mockUser });
 }

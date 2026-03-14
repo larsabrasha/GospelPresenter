@@ -1,5 +1,5 @@
 @page "/admin/songs/{SongId}/history"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
 
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Services

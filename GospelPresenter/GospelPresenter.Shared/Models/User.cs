@@ -9,8 +9,8 @@ public class User
     public string? ProfileImageSmall { get; set; }
     public UserRole Role { get; set; } = UserRole.User;
 
-    public string OrganizationId { get; set; } = "";
-    public Organization Organization { get; set; } = null!;
+    public string? OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
 
     public List<UserLogin> Logins { get; set; } = [];
 }

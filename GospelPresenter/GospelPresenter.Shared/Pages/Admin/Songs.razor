@@ -1,16 +1,26 @@
 @page "/admin/songs"
-@attribute [Authorize(Roles = "Admin")]
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
 
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 
 @inject ISongService SongService
-@inject IUserService UserService
 @inject IJSRuntime JsRuntime
 
+@if (OrgState is not null && OrgState.IsSuperAdmin && !OrgState.HasActiveOrganization)
+{
+    <div class="flex flex-col items-center text-center py-16 px-4 select-none">
+        <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed mb-4">Välj en organisation i org-väljaren för att hantera sånger</p>
+        <a href="/superadmin/organizations"
+           class="px-4 py-2.5 rounded-full bg-sky-500 text-white hover:bg-sky-600 text-sm no-underline">
+            Hantera organisationer
+        </a>
+    </div>
+}
+else
+{
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="relative flex items-center justify-center px-7">
         <a href="/"
@@ -110,7 +120,7 @@
         }
     </div>
 </div>
-
+}
 
 @if (duplicateNames is not null)
 {
@@ -157,20 +167,11 @@
     private List<Song> displayedSongs = [];
     private CancellationTokenSource? debounceToken;
 
-    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    [CascadingParameter] private ActiveOrganizationState? OrgState { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        if (AuthState is not null)
-        {
-            var state = await AuthState;
-            var userId = state.User.FindFirst("user_id")?.Value;
-            if (userId != null)
-            {
-                var user = await UserService.GetByIdAsync(userId);
-                organizationId = user?.OrganizationId;
-            }
-        }
+        organizationId = OrgState?.ActiveOrganizationId;
         displayedSongs = SongService.Songs.ToList();
     }
 

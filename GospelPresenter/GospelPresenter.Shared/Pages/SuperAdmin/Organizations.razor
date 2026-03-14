@@ -1,0 +1,159 @@
+@page "/superadmin/organizations"
+@attribute [Authorize(Roles = "SuperAdmin")]
+
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@inject IUserService UserService
+@inject ActiveOrganizationState OrgState
+@inject NavigationManager NavigationManager
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="relative flex items-center justify-center px-7">
+        <a href="/"
+           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            Tillbaka
+        </a>
+        <div class="text-xl font-bold dark:text-neutral-100">Organisationer</div>
+        <button class="absolute right-0 px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm"
+                @onclick="ShowCreateDialog">
+            Ny organisation
+        </button>
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        @if (organizations is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">Laddar...</div>
+        }
+        else if (organizations.Count == 0)
+        {
+            <div class="flex flex-col items-center text-center py-8 px-4 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-40 h-auto mb-4 text-neutral-300 dark:text-neutral-600">
+                    <rect x="30" y="20" width="60" height="50" rx="6" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <rect x="110" y="20" width="60" height="50" rx="6" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <rect x="70" y="90" width="60" height="50" rx="6" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <circle cx="60" cy="38" r="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                    <line x1="50" y1="55" x2="70" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                    <circle cx="140" cy="38" r="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                    <line x1="130" y1="55" x2="150" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                    <circle cx="100" cy="108" r="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                    <line x1="90" y1="125" x2="110" y2="125" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                </svg>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">Inga organisationer ännu</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var org in organizations)
+            {
+                <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700">
+                    <a href="/superadmin/organizations/@org.Id"
+                       class="flex-1 min-w-0 no-underline text-inherit">
+                        <div class="font-medium">@org.Name</div>
+                        <div class="text-xs text-neutral-400">@org.Users.Count @(org.Users.Count == 1 ? "användare" : "användare")</div>
+                    </a>
+                    <button @onclick="() => SwitchToOrganization(org)"
+                            class="px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer
+                                   @(OrgState.SelectedOrganizationId == org.Id
+                                       ? "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300"
+                                       : "bg-neutral-100 dark:bg-neutral-600 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-500")">
+                        @(OrgState.SelectedOrganizationId == org.Id ? "Aktiv" : "Byt till")
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@if (showCreateDialog)
+{
+    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CloseDialog">
+        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-lg space-y-4"
+             @onclick:stopPropagation="true">
+            <div class="font-semibold text-lg">Ny organisation</div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Namn</label>
+                <input @ref="nameInput"
+                       type="text"
+                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                       @bind="newOrgName"
+                       @onkeydown="OnDialogKeyDown"/>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
+                        disabled="@(isCreating || string.IsNullOrWhiteSpace(newOrgName))"
+                        @onclick="CreateOrganization">
+                    @(isCreating ? "Skapar..." : "Skapa")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Organization>? organizations;
+    private bool showCreateDialog;
+    private bool isCreating;
+    private string newOrgName = "";
+    private ElementReference nameInput;
+    private bool shouldFocusName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        organizations = await UserService.GetAllOrganizationsAsync();
+    }
+
+    private void ShowCreateDialog()
+    {
+        newOrgName = "";
+        showCreateDialog = true;
+        shouldFocusName = true;
+    }
+
+    private void CloseDialog() => showCreateDialog = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldFocusName)
+        {
+            shouldFocusName = false;
+            try { await nameInput.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnDialogKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(newOrgName))
+            await CreateOrganization();
+        else if (e.Key == "Escape")
+            CloseDialog();
+    }
+
+    private async Task CreateOrganization()
+    {
+        if (isCreating || string.IsNullOrWhiteSpace(newOrgName)) return;
+        isCreating = true;
+
+        var org = await UserService.CreateOrganizationAsync(newOrgName.Trim());
+
+        isCreating = false;
+        showCreateDialog = false;
+        organizations = await UserService.GetAllOrganizationsAsync();
+    }
+
+    private void SwitchToOrganization(Organization org)
+    {
+        OrgState.SwitchOrganization(org.Id, org.Name);
+        NavigationManager.NavigateTo("/");
+    }
+}

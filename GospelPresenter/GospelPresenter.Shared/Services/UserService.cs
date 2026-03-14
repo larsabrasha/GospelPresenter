@@ -16,6 +16,7 @@ public interface IUserService
     Task<List<User>> GetAllUsersAsync();
     Task<User?> GetByIdAsync(string id);
     Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role);
+    Task<User> CreateSuperUserAsync(string name);
     Task UpdateUserAsync(string id, string name, string email, UserRole role);
     Task UpdateEmailIfEmptyAsync(string id, string email);
     Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall);
@@ -27,6 +28,14 @@ public interface IUserService
     Task<List<Invite>> GetInvitesForUserAsync(string userId);
     Task<Invite> CreateInviteAsync(string userId);
     Task DeleteInviteAsync(string inviteId);
+
+    Task<bool> HasAnyUsersAsync();
+    Task<Organization> CreateOrganizationAsync(string name);
+    Task<List<Organization>> GetAllOrganizationsAsync();
+    Task<Organization?> GetOrganizationByIdAsync(string id);
+    Task UpdateOrganizationAsync(string id, string name);
+    Task DeleteOrganizationAsync(string id);
+    Task<List<User>> GetUsersByOrganizationAsync(string organizationId);
 }
 
 public class UserService(IDbContextFactory<PresentationContext> dbContextFactory) : IUserService
@@ -126,6 +135,19 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
         return user;
     }
 
+    public async Task<User> CreateSuperUserAsync(string name)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        var user = new User
+        {
+            Name = name,
+            Role = UserRole.SuperAdmin
+        };
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        return user;
+    }
+
     public async Task UpdateUserAsync(string id, string name, string email, UserRole role)
     {
         await using var context = await dbContextFactory.CreateDbContextAsync();
@@ -204,5 +226,64 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
         await context.Invites
             .Where(i => i.Id == inviteId)
             .ExecuteDeleteAsync();
+    }
+
+    public async Task<bool> HasAnyUsersAsync()
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.Users.AnyAsync();
+    }
+
+    public async Task<Organization> CreateOrganizationAsync(string name)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        var org = new Organization { Name = name };
+        context.Organizations.Add(org);
+        await context.SaveChangesAsync();
+        return org;
+    }
+
+    public async Task<List<Organization>> GetAllOrganizationsAsync()
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.Organizations
+            .Include(o => o.Users)
+            .OrderBy(o => o.Name)
+            .ToListAsync();
+    }
+
+    public async Task<Organization?> GetOrganizationByIdAsync(string id)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.Organizations
+            .Include(o => o.Users)
+            .FirstOrDefaultAsync(o => o.Id == id);
+    }
+
+    public async Task UpdateOrganizationAsync(string id, string name)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        await context.Organizations
+            .Where(o => o.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.Name, name));
+    }
+
+    public async Task DeleteOrganizationAsync(string id)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        await context.Organizations
+            .Where(o => o.Id == id)
+            .ExecuteDeleteAsync();
+    }
+
+    public async Task<List<User>> GetUsersByOrganizationAsync(string organizationId)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.Users
+            .Include(u => u.Organization)
+            .Include(u => u.Logins)
+            .Where(u => u.OrganizationId == organizationId)
+            .OrderBy(u => u.Name)
+            .ToListAsync();
     }
 }
