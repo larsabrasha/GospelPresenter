@@ -1,0 +1,130 @@
+@using GospelPresenter.Shared.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="flex flex-col h-full">
+    @if (OnBack.HasDelegate)
+    {
+        <div class="shrink-0">
+            <button class="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200 cursor-pointer px-4 py-2.5 mb-2 -ml-1 rounded-full"
+                    @onclick="OnBack">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+                </svg>
+                Tillbaka
+            </button>
+        </div>
+    }
+
+    <div class="flex-1 min-h-0 overflow-y-auto space-y-4">
+        <div>
+            <label class="block text-sm font-medium mb-1">Titel</label>
+            <input type="text" value="@Overlay.Title" @onchange="HandleTitleChanged" placeholder="Namn"
+                   class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm w-full"/>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Textinnehåll</label>
+            <textarea value="@Overlay.Content" @onchange="HandleContentChanged" placeholder="Text som visas i overlayen (valfritt)" rows="4"
+                      class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm w-full resize-none"/>
+        </div>
+        <div>
+            <label class="block text-sm font-medium mb-1">Bild (valfritt)</label>
+            @if (Overlay.ImageData is not null)
+            {
+                <div class="flex items-center gap-3">
+                    <img src="data:image/png;base64,@Convert.ToBase64String(Overlay.ImageData)" alt="Förhandsgranskning" class="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600"/>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                            Byt bild
+                            <InputFile OnChange="HandleImageUpload" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                        </label>
+                        <button class="text-sm text-red-500 hover:text-red-600 cursor-pointer text-left"
+                                @onclick="RemoveImage">Ta bort bild</button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                    Välj bild
+                    <InputFile OnChange="HandleImageUpload" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                </label>
+            }
+        </div>
+    </div>
+
+    <div class="shrink-0 flex items-center justify-between pt-4">
+        @if (isExisting)
+        {
+            <button class="px-4 py-2.5 rounded-full text-sm cursor-pointer @(showDeleteConfirm ? "bg-red-500 text-white hover:bg-red-600" : "text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20")"
+                    @onclick="HandleDelete">
+                @(showDeleteConfirm ? "Bekräfta borttagning" : "Ta bort")
+            </button>
+        }
+        else
+        {
+            <div></div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public required OverlaySlide Overlay { get; set; }
+    [Parameter] public EventCallback OnBack { get; set; }
+    [Parameter] public EventCallback<OverlaySlide> OnChanged { get; set; }
+    [Parameter] public EventCallback<OverlaySlide> OnDeleted { get; set; }
+
+    private bool showDeleteConfirm;
+    private bool isExisting;
+
+    protected override void OnInitialized()
+    {
+        isExisting = !string.IsNullOrWhiteSpace(Overlay.OrganizationId);
+    }
+
+    private async Task HandleTitleChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString()?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(value)) return;
+        Overlay.Title = value;
+        await OnChanged.InvokeAsync(Overlay);
+    }
+
+    private async Task HandleContentChanged(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        Overlay.Content = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        await OnChanged.InvokeAsync(Overlay);
+    }
+
+    private async Task HandleDelete()
+    {
+        if (!showDeleteConfirm)
+        {
+            showDeleteConfirm = true;
+            return;
+        }
+
+        await OnDeleted.InvokeAsync(Overlay);
+    }
+
+    private async Task RemoveImage()
+    {
+        Overlay.ImageData = null;
+        await OnChanged.InvokeAsync(Overlay);
+    }
+
+    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (!AllowedImageTypes.Contains(file.ContentType)) return;
+        if (file.Size > 10 * 1024 * 1024) return;
+
+        using var stream = file.OpenReadStream(10 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        Overlay.ImageData = ms.ToArray();
+        await OnChanged.InvokeAsync(Overlay);
+    }
+}

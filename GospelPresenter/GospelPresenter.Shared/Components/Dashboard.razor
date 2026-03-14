@@ -1,0 +1,157 @@
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+
+@inject IPresentationService PresentationService
+@inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="relative flex items-center justify-center px-7">
+        <div class="text-xl font-bold dark:text-neutral-100">Presentationer</div>
+        <button class="absolute right-0 px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer flex items-center hover:bg-sky-600 text-sm"
+                @onclick="ShowCreateDialog">
+            <PlusSymbol Class="size-4 mr-2"/>Skapa ny
+        </button>
+    </div>
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        <div>
+            @if (recentPresentations is null)
+            {
+                <div class="px-4 py-3 text-neutral-400">Laddar...</div>
+            }
+            else if (recentPresentations.Count == 0)
+            {
+                <div class="flex flex-col items-center text-center py-8 px-4 select-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-40 h-auto mb-4 text-neutral-300 dark:text-neutral-600">
+                        <!-- Back document -->
+                        <rect x="55" y="12" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+                        <!-- Front document -->
+                        <rect x="35" y="22" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <!-- Title line -->
+                        <line x1="55" y1="50" x2="115" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+                        <!-- Content lines -->
+                        <line x1="55" y1="70" x2="110" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                        <line x1="55" y1="83" x2="100" y2="83" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.25"/>
+                        <line x1="55" y1="96" x2="105" y2="96" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+                        <!-- Plus circle -->
+                        <circle cx="155" cy="130" r="18" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <line x1="155" y1="121" x2="155" y2="139" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="146" y1="130" x2="164" y2="130" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                    <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">Inga presentationer ännu</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var presentation in recentPresentations)
+                {
+                    <a href="/presentations/@presentation.Id"
+                       class="flex items-center px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+                        @presentation.Name
+                    </a>
+                }
+            }
+        </div>
+    </div>
+
+</div>
+
+@if (showCreateDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-2xl" OnClose="CancelCreate">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">Ny presentation</div>
+            <input @ref="nameInput"
+                   type="text"
+                   class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                   placeholder="Namn"
+                   @bind="newPresentationName"
+                   @bind:event="oninput"
+                   @onkeydown="OnCreateKeyDown"/>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CancelCreate">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
+                        disabled="@(isCreating || string.IsNullOrWhiteSpace(newPresentationName))"
+                        @onclick="CreatePresentationAsync">
+                    @(isCreating ? "Skapar..." : "Skapa")
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+
+    private IList<PresentationSummary>? recentPresentations;
+    private bool showCreateDialog;
+    private bool isCreating;
+    private string newPresentationName = "";
+    private ElementReference nameInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        recentPresentations = await PresentationService.GetRecentPresentationSummariesAsync(orgId, OrgState.ToCallerContext());
+    }
+
+    private string GenerateDefaultName()
+    {
+        var today = DateTime.Now;
+        var dayName = today.DayOfWeek switch
+        {
+            DayOfWeek.Sunday => "Gudstjänst",
+            _ => "Presentation"
+        };
+        return $"{dayName} {today:yyyy-MM-dd}";
+    }
+
+    private void ShowCreateDialog()
+    {
+        newPresentationName = GenerateDefaultName();
+        showCreateDialog = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (showCreateDialog)
+        {
+            try { await nameInput.FocusAsync(); } catch { }
+        }
+    }
+
+    private void CancelCreate()
+    {
+        showCreateDialog = false;
+    }
+
+    private async Task OnCreateKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(newPresentationName))
+        {
+            await CreatePresentationAsync();
+        }
+        else if (e.Key == "Escape")
+        {
+            CancelCreate();
+        }
+    }
+
+    private async Task CreatePresentationAsync()
+    {
+        if (isCreating || string.IsNullOrWhiteSpace(newPresentationName)) return;
+
+        isCreating = true;
+
+        var orgId = OrgState.ActiveOrganizationId ?? "default";
+        var userId = OrgState.UserId ?? "default";
+        var presentation = await PresentationService.CreatePresentationAsync(newPresentationName.Trim(), orgId, userId, OrgState.ToCallerContext());
+
+        NavigationManager.NavigateTo($"/presentations/{presentation.Id}");
+    }
+}

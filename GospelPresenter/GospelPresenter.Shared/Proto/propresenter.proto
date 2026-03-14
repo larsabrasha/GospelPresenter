@@ -1,0 +1,80 @@
+// Simplified ProPresenter 7 protobuf schema.
+// Based on https://github.com/greyshirtguy/ProPresenter7-Proto
+// Only includes the fields needed for song text and metadata extraction.
+
+syntax = "proto3";
+
+package rv.data;
+
+option csharp_namespace = "GospelPresenter.Shared.Proto";
+
+message Presentation {
+  string name = 3;
+  UUID selected_arrangement = 10;
+  repeated Presentation.Arrangement arrangements = 11;
+  repeated Presentation.CueGroup cue_groups = 12;
+  repeated Cue cues = 13;
+  Presentation.CCLI ccli = 14;
+
+  message CCLI {
+    string author = 1;
+    string artist_credits = 2;
+    string song_title = 3;
+    string publisher = 4;
+    uint32 copyright_year = 5;
+    uint32 song_number = 6;
+  }
+
+  message Arrangement {
+    UUID uuid = 1;
+    string name = 2;
+    repeated UUID group_identifiers = 3;
+  }
+
+  message CueGroup {
+    Group group = 1;
+    repeated UUID cue_identifiers = 2;
+  }
+}
+
+message UUID {
+  string string = 1;
+}
+
+message Group {
+  UUID uuid = 1;
+  string name = 2;
+}
+
+message Cue {
+  UUID uuid = 1;
+  repeated Action actions = 10;
+}
+
+message Action {
+  Action.SlideType slide = 23;
+
+  message SlideType {
+    PresentationSlide presentation = 2;
+  }
+}
+
+message PresentationSlide {
+  Slide base_slide = 1;
+}
+
+message Slide {
+  repeated Slide.Element elements = 1;
+
+  message Element {
+    GraphicsElement element = 1;
+  }
+}
+
+message GraphicsElement {
+  GraphicsText text = 13;
+}
+
+message GraphicsText {
+  bytes rtf_data = 5;
+}

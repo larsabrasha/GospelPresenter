@@ -1,0 +1,102 @@
+@page "/setup"
+@attribute [AllowAnonymous]
+
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+
+@inject IUserService UserService
+@inject SetupStatusService SetupStatus
+@inject NavigationManager Navigation
+
+<div class="flex flex-col h-full items-center">
+    <div class="flex flex-col items-center py-20">
+        <LogoSymbol Class="size-20 text-sky-500"/>
+        <div class="text-2xl uppercase">
+            <div><span class="text-sky-500 font-semibold">Gospel</span> <span class="text-sky-400">Presenter</span></div>
+        </div>
+    </div>
+
+    <h1 class="text-2xl font-semibold text-neutral-800 dark:text-neutral-100 mb-3">Välkommen!</h1>
+    <p class="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed text-center max-w-sm px-4 mb-2">
+        Skapa ett superanvändarkonto för att komma igång. Superanvändaren har full kontroll över hela installationen:
+    </p>
+    <ul class="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed max-w-sm px-8 mb-6 list-disc">
+        <li>Skapa och hantera organisationer</li>
+        <li>Hantera alla användare och behörigheter</li>
+        <li>Konfigurera systeminställningar</li>
+    </ul>
+
+    <div class="flex flex-col gap-4 w-full max-w-sm px-4" @onkeydown="HandleKeyDown">
+        <div>
+            <label class="block text-sm text-neutral-500 dark:text-neutral-400 mb-1">Ditt namn</label>
+            <input @bind="adminName" @bind:event="oninput"
+                   class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                   placeholder="Förnamn Efternamn"/>
+        </div>
+
+        @if (errorMessage is not null)
+        {
+            <p class="text-sm text-red-500">@errorMessage</p>
+        }
+
+        <button @onclick="Submit"
+                disabled="@submitting"
+                class="mt-2 px-6 py-3 rounded-full bg-sky-500 text-white text-lg cursor-pointer hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed">
+            Kom igång
+        </button>
+    </div>
+</div>
+
+@code {
+    private string adminName = "";
+    private string? errorMessage;
+    private bool submitting;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await SetupStatus.IsSetupCompleteAsync(UserService))
+        {
+            Navigation.NavigateTo("/", replace: true);
+        }
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await Submit();
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (submitting) return;
+
+        errorMessage = null;
+
+        if (string.IsNullOrWhiteSpace(adminName))
+        {
+            errorMessage = "Namn måste fyllas i.";
+            return;
+        }
+
+        submitting = true;
+
+        // Race condition guard
+        if (await UserService.HasAnyUsersAsync())
+        {
+            SetupStatus.MarkSetupComplete();
+            Navigation.NavigateTo("/", replace: true);
+            return;
+        }
+
+        var user = await UserService.CreateSuperUserAsync(adminName.Trim());
+        var caller = new CallerContext(user.Id, UserRole.SuperAdmin, null);
+        var invite = await UserService.CreateInviteAsync(user.Id, caller);
+
+        SetupStatus.MarkSetupComplete();
+        Navigation.NavigateTo($"/invite/{invite.Token}", forceLoad: true);
+    }
+}

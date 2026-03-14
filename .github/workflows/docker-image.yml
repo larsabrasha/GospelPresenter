@@ -14,6 +14,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build the Docker image
+    - name: Build the web Docker image
       working-directory: GospelPresenter
       run: docker build . --file GospelPresenter.Web/Dockerfile --tag gospelpresenter:$(date +%s)
+    - name: Build the migrations Docker image
+      working-directory: GospelPresenter
+      run: docker build . --file GospelPresenter.MigrationService/Dockerfile --tag gospelpresenter-migrations:$(date +%s)

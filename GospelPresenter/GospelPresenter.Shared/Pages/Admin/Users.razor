@@ -1,0 +1,201 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject IUserService UserService
+@inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="flex items-center justify-between px-7">
+        <div class="text-xl font-bold dark:text-neutral-100">Användare</div>
+        <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm"
+                @onclick="ShowCreateDialog">
+            Ny användare
+        </button>
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        @if (users is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">Laddar...</div>
+        }
+        else if (users.Count == 0)
+        {
+            <div class="px-7 py-4 text-neutral-400">Inga användare</div>
+        }
+        else
+        {
+            @foreach (var user in users)
+            {
+                <a href="/admin/users/@user.Id"
+                   class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer">
+                    <ProfileAvatar ImageUrl="@user.ProfileImageSmall" Name="@user.Name"/>
+                    <div class="font-medium flex-1">@user.Name</div>
+                    <span class="text-xs px-2 py-0.5 rounded-full @RoleBadgeClass(user.Role)">@RoleDisplayName(user.Role)</span>
+                </a>
+            }
+        }
+    </div>
+</div>
+
+@if (showCreateDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">Ny användare</div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Namn</label>
+                <input @ref="nameInput"
+                       type="text"
+                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                       @bind="editName"
+                       @bind:event="oninput"
+                       @onkeydown="OnDialogKeyDown"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">E-post</label>
+                <input type="email"
+                       class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                       @bind="editEmail"
+                       @bind:event="oninput"/>
+                @if (emailError is not null)
+                {
+                    <div class="text-sm text-red-500 mt-1">@emailError</div>
+                }
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Roll</label>
+                <div class="relative">
+                    <select @bind="editRole"
+                            class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        @foreach (var role in AllowedRoles)
+                        {
+                            <option value="@role">@RoleDisplayName(role)</option>
+                        }
+                    </select>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
+                        disabled="@(isSaving || string.IsNullOrWhiteSpace(editName))"
+                        @onclick="CreateUser">
+                    @(isSaving ? "Skapar..." : "Skapa")
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    private List<User>? users;
+    private bool showCreateDialog;
+    private bool isSaving;
+    private string editName = "";
+    private string editEmail = "";
+    private string? emailError;
+    private UserRole editRole = UserRole.User;
+    private ElementReference nameInput;
+    private bool shouldFocusName;
+
+    private IEnumerable<UserRole> AllowedRoles => OrgState.IsSuperAdmin
+        ? Enum.GetValues<UserRole>()
+        : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is not null)
+            users = await UserService.GetUsersByOrganizationAsync(orgId, OrgState.ToCallerContext());
+        else if (OrgState.IsSuperAdmin)
+            users = await UserService.GetAllUsersAsync(OrgState.ToCallerContext());
+        else
+            users = [];
+    }
+
+    private void ShowCreateDialog()
+    {
+        editName = "";
+        editEmail = "";
+        editRole = UserRole.User;
+        showCreateDialog = true;
+        shouldFocusName = true;
+    }
+
+    private void CloseDialog() => showCreateDialog = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldFocusName)
+        {
+            shouldFocusName = false;
+            try { await nameInput.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnDialogKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(editName))
+            await CreateUser();
+        else if (e.Key == "Escape")
+            CloseDialog();
+    }
+
+    private async Task CreateUser()
+    {
+        if (isSaving || string.IsNullOrWhiteSpace(editName)) return;
+        emailError = null;
+
+        if (!string.IsNullOrWhiteSpace(editEmail) && !GospelPresenter.Shared.Utils.EmailValidation.IsValidEmail(editEmail.Trim()))
+        {
+            emailError = "Ogiltig e-postadress";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(editEmail) && await UserService.IsEmailTakenAsync(editEmail.Trim()))
+        {
+            emailError = "E-postadressen används redan av en annan användare";
+            return;
+        }
+
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        isSaving = true;
+        var user = await UserService.CreateUserAsync(editName.Trim(), editEmail.Trim(), orgId, editRole, OrgState.ToCallerContext());
+
+        isSaving = false;
+        showCreateDialog = false;
+        NavigationManager.NavigateTo($"/admin/users/{user.Id}");
+    }
+
+    private static string RoleDisplayName(UserRole role) => role switch
+    {
+        UserRole.SuperAdmin => "Superadmin",
+        UserRole.Admin => "Admin",
+        UserRole.User => "Användare",
+        _ => role.ToString()
+    };
+
+    private static string RoleBadgeClass(UserRole role) => role switch
+    {
+        UserRole.SuperAdmin => "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300",
+        UserRole.Admin => "bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300",
+        UserRole.User => "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300",
+        _ => ""
+    };
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<usx version="2.0">
+  <book code="TST" style="id">Test Bible Book</book>
+  <para style="ide">UTF-8</para>
+  <para style="h">Test Book</para>
+  <para style="toc1">The Book of Tests</para>
+  <para style="mt1">Test Book</para>
+  <chapter number="1" style="c"/>
+  <para style="s">First Section</para>
+  <para style="p">
+    <verse number="1" style="v"/>In the beginning there was a test. <verse number="2" style="v"/>And the test was good. <verse number="3" style="v"/>Then came <char style="qt">a quoted phrase</char> within a verse.</para>
+  <para style="p">
+    <verse number="4" style="v"/>This verse has a <note caller="+" style="f">footnote that should be excluded</note>footnote nearby. <verse number="5-6" style="v"/>This is a verse range spanning two verses.</para>
+  <chapter number="2" style="c"/>
+  <para style="s">Poetry Section</para>
+  <para style="p">
+    <verse number="1" style="v"/>A normal paragraph to start.</para>
+  <para style="q1">
+    <verse number="2" style="v"/>This is a line of poetry,</para>
+  <para style="q2">and it continues on a second line.</para>
+  <para style="q1">
+    <verse number="3" style="v"/>Another poetic verse,</para>
+  <para style="q2">with a nested <char style="qt"><char style="add">deeply nested</char> quote</char> element.</para>
+  <para style="p">
+    <verse number="4" style="v"/>Back to normal prose.</para>
+  <chapter number="3" style="c"/>
+  <para style="s">Continuation Test</para>
+  <para style="p">
+    <verse number="1" style="v"/>First verse of chapter three.</para>
+  <para style="p">Continuation text for verse one. <verse number="2" style="v"/>Second verse starts here.</para>
+</usx>

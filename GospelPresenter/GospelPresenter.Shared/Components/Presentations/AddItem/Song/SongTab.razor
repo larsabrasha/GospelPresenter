@@ -1,0 +1,440 @@
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+
+@inject ISongService SongService
+@inject AppState AppState
+@inject IJSRuntime JsRuntime
+@inject ActiveOrganizationState OrgState
+
+@if (isCreating)
+{
+    <CreateSong InitialName="@query" OnBack="ExitCreateMode" OnCreated="HandleSongCreated"/>
+}
+else if (OrgSongs.Count == 0)
+{
+    <div class="flex flex-col items-center justify-center text-center text-neutral-400 text-sm h-full gap-3 select-none">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-12 mb-1 text-neutral-300 dark:text-neutral-600">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"/>
+        </svg>
+        <p class="text-neutral-400 dark:text-neutral-500">Inga sånger laddade</p>
+        @if (OrgState.UserRole is UserRole.Admin or UserRole.SuperAdmin)
+        {
+            <a href="/admin/songs"
+               class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
+                </svg>
+                Hantera sånger
+            </a>
+        }
+        <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
+                @onclick="EnterCreateMode">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+            </svg>
+            Skapa ny sång
+        </button>
+    </div>
+}
+else
+{
+    <div class="flex flex-col h-full" @onkeydown="OnKeyDown" tabindex="-1">
+        <div class="shrink-0">
+            <div class="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                </svg>
+                <input type="text"
+                       class="w-full py-2.5 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "!pr-9")"
+                       placeholder="Sök..."
+                       value="@query"
+                       @oninput="OnSearchInput"/>
+                @if (!string.IsNullOrEmpty(query))
+                {
+                    <button class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
+                            @onclick="ClearSearch">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="mt-3 flex-1 min-h-0 flex flex-col md:flex-row">
+            @if (results.Count > 0)
+            {
+                <div class="w-full md:w-[50%] min-w-0 flex flex-col pr-0 md:pr-3">
+                    <div class="flex-1 min-h-0 overflow-y-auto" data-song-list>
+                        <Virtualize Items="results" Context="song" ItemSize="56" OverscanCount="5">
+                            @{
+                                var isSelected = selectedSong?.Id == song.Id;
+                            }
+                            <button class="w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm @(isSelected ? "bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30" : "bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600")"
+                                    @onclick="() => SelectSong(song)">
+                                <div class="truncate w-full">@((MarkupString)Highlight(song.Name))</div>
+                                <div class="text-xs text-neutral-400 truncate w-full">@(string.IsNullOrEmpty(song.Author) ? (MarkupString)"\u00a0" : (MarkupString)Highlight(song.Author))</div>
+                            </button>
+                        </Virtualize>
+                    </div>
+                    <div class="shrink-0">
+                        <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
+                                @onclick="EnterCreateMode">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                            </svg>
+                            Skapa ny sång
+                        </button>
+                    </div>
+                </div>
+
+                <div class="hidden md:block md:w-[50%] min-w-0 overflow-y-scroll overflow-x-hidden md:pl-3" data-song-preview>
+                    @if (selectedSong is not null && previewWidth > 0)
+                    {
+                        var previewScale = previewWidth / AppState.BaseSlideWidth;
+                        <div class="mb-4 px-1">
+                            <div class="font-semibold text-sm">@((MarkupString)Highlight(selectedSong.Name))</div>
+                            @if (!string.IsNullOrEmpty(selectedSong.Author))
+                            {
+                                <div class="text-xs text-neutral-400">@((MarkupString)Highlight(selectedSong.Author))</div>
+                            }
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            @foreach (var part in selectedSong.Parts)
+                            {
+                                <SongSlide
+                                    ContentHtml="@(Highlight(part.Content).Replace("\n", "<br>"))"
+                                    Label="@part.Label"
+                                    LabelColor="@part.LabelColor"
+                                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                    BaseWidth="@AppState.BaseSlideWidth"
+                                    BaseHeight="@AppState.BaseSlideHeight"
+                                    Scale="@previewScale"/>
+                            }
+                        </div>
+                    }
+                    else if (selectedSong is null)
+                    {
+                        <div class="flex flex-col items-center justify-center h-full text-neutral-400 text-sm select-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-12 mb-3 text-neutral-300 dark:text-neutral-600">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"/>
+                            </svg>
+                            <p class="text-neutral-400 dark:text-neutral-500">Ingen sång vald</p>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(query))
+            {
+                <div class="flex flex-col items-center justify-center w-full text-neutral-400 text-sm gap-3">
+                    <div>Inga sånger hittades</div>
+                    <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5 self-start"
+                            @onclick="EnterCreateMode">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                        </svg>
+                        Skapa ny sång
+                    </button>
+                </div>
+            }
+        </div>
+
+        @if (mobilePreviewSong is not null)
+        {
+            <div class="md:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800">
+                <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+                    <button class="size-8 flex items-center justify-center rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer"
+                            @onclick="CloseMobilePreview">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-semibold text-sm truncate">@mobilePreviewSong.Name</div>
+                        @if (!string.IsNullOrEmpty(mobilePreviewSong.Author))
+                        {
+                            <div class="text-xs text-neutral-400 truncate">@mobilePreviewSong.Author</div>
+                        }
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4" data-mobile-song-preview>
+                    @if (mobilePreviewWidth > 0)
+                    {
+                        var mobileScale = mobilePreviewWidth / AppState.BaseSlideWidth;
+                        <div class="flex flex-col gap-2">
+                            @foreach (var part in mobilePreviewSong.Parts)
+                            {
+                                <SongSlide
+                                    ContentHtml="@(part.Content.Replace("\n", "<br>"))"
+                                    Label="@part.Label"
+                                    LabelColor="@part.LabelColor"
+                                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                    BaseWidth="@AppState.BaseSlideWidth"
+                                    BaseHeight="@AppState.BaseSlideHeight"
+                                    Scale="@mobileScale"/>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="shrink-0 flex items-center justify-end px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
+                    <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                            @onclick="MobileAdd">
+                        <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@mobilePreviewSong.Name</span>
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (selectedSong is not null)
+        {
+            <div class="shrink-0 hidden md:flex items-center justify-end pt-4">
+                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                        @onclick="HandleAdd">
+                    <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@selectedSong.Name</span>
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback<Song> OnAdd { get; set; }
+    [Parameter] public EventCallback<Song> OnAddKeepOpen { get; set; }
+
+    private string query = "";
+    private string[] searchTerms = [];
+    private List<Song> results = [];
+    private Song? selectedSong;
+    private double previewWidth;
+    private double mobilePreviewWidth;
+    private Song? mobilePreviewSong;
+    private CancellationTokenSource? debounceToken;
+    private bool isCreating;
+    private string? organizationId;
+    private int? pendingScrollIndex;
+
+    private IReadOnlyList<Song> OrgSongs => organizationId is not null
+        ? SongService.GetSongsByOrganization(organizationId, OrgState.ToCallerContext())
+        : [];
+
+    protected override Task OnInitializedAsync()
+    {
+        organizationId = OrgState.ActiveOrganizationId;
+        results = OrgSongs.ToList();
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Measure available content width: clientWidth minus padding and scrollbar
+            previewWidth = await JsRuntime.InvokeAsync<double>("eval",
+                "((el) => { if(!el) return 0; var s=getComputedStyle(el); return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - 2; })(document.querySelector('[data-song-preview]'))");
+            StateHasChanged();
+        }
+
+        if (pendingScrollIndex is { } index)
+        {
+            pendingScrollIndex = null;
+            await ScrollSelectedIntoView(index);
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.ShiftKey && selectedSong is not null)
+        {
+            await OnAddKeepOpen.InvokeAsync(selectedSong);
+        }
+        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedSong is not null)
+        {
+            await HandleAdd();
+        }
+        else if (e.Key == "ArrowDown" && results.Count > 0)
+        {
+            var idx = selectedSong is not null ? results.IndexOf(selectedSong) : -1;
+            if (idx < results.Count - 1)
+            {
+                selectedSong = results[idx + 1];
+                await ScrollSelectedIntoView(idx + 1);
+            }
+        }
+        else if (e.Key == "ArrowUp" && results.Count > 0)
+        {
+            var idx = selectedSong is not null ? results.IndexOf(selectedSong) : results.Count;
+            if (idx > 0)
+            {
+                selectedSong = results[idx - 1];
+                await ScrollSelectedIntoView(idx - 1);
+            }
+        }
+    }
+
+    private async Task ScrollSelectedIntoView(int index)
+    {
+        // Scroll song list to keep selected item visible
+        await JsRuntime.InvokeVoidAsync("eval",
+            $"((el,i)=>{{if(!el)return;var top=i*56;if(top<el.scrollTop)el.scrollTop=top;else if(top+56>el.scrollTop+el.clientHeight)el.scrollTop=top+56-el.clientHeight}})(document.querySelector('[data-song-list]'),{index})");
+        // Scroll preview to top when changing selection
+        await JsRuntime.InvokeVoidAsync("eval",
+            "document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        query = e.Value?.ToString() ?? "";
+        searchTerms = string.IsNullOrWhiteSpace(query)
+            ? []
+            : query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        debounceToken?.Cancel();
+        debounceToken = new CancellationTokenSource();
+        var token = debounceToken.Token;
+
+        try
+        {
+            await Task.Delay(150, token);
+            results = SongService.SearchByOrganization(query, organizationId!, OrgState.ToCallerContext()).ToList();
+            selectedSong = results.Count > 0 ? results[0] : null;
+            await ScrollListsToTop();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private async Task ClearSearch()
+    {
+        query = "";
+        searchTerms = [];
+        results = OrgSongs.ToList();
+        selectedSong = results.Count > 0 ? results[0] : null;
+        await ScrollListsToTop();
+    }
+
+    private async Task ScrollListsToTop()
+    {
+        await JsRuntime.InvokeVoidAsync("eval",
+            "document.querySelector('[data-song-list]')?.scrollTo(0,0);document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
+    }
+
+    private async Task SelectSong(Song song)
+    {
+        selectedSong = song;
+        // On mobile, open full-screen preview
+        var isMobile = await JsRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
+        if (isMobile)
+        {
+            mobilePreviewSong = song;
+            StateHasChanged();
+            await Task.Yield();
+            mobilePreviewWidth = await JsRuntime.InvokeAsync<double>("eval",
+                "((el) => { if(!el) return 0; var s=getComputedStyle(el); return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - 2; })(document.querySelector('[data-mobile-song-preview]'))");
+        }
+    }
+
+    private void CloseMobilePreview()
+    {
+        mobilePreviewSong = null;
+    }
+
+    private async Task MobileAdd()
+    {
+        if (mobilePreviewSong is not null)
+        {
+            selectedSong = mobilePreviewSong;
+            mobilePreviewSong = null;
+            await OnAdd.InvokeAsync(selectedSong);
+        }
+    }
+
+
+    private async Task HandleAdd()
+    {
+        if (selectedSong is not null)
+            await OnAdd.InvokeAsync(selectedSong);
+    }
+
+    private void EnterCreateMode()
+    {
+        isCreating = true;
+    }
+
+    private void ExitCreateMode()
+    {
+        isCreating = false;
+    }
+
+    private async Task HandleSongCreated(Song songData)
+    {
+        if (organizationId is null) return;
+
+        var created = await SongService.CreateSongAsync(
+            songData.Name,
+            songData.Author,
+            songData.Publisher,
+            songData.Year,
+            songData.Ccli,
+            songData.Parts.ToList(),
+            organizationId,
+            OrgState.ToCallerContext()
+        );
+
+        isCreating = false;
+        query = "";
+        searchTerms = [];
+        results = OrgSongs.ToList();
+        selectedSong = created;
+        pendingScrollIndex = results.IndexOf(created);
+    }
+
+    private string Highlight(string text)
+    {
+        if (searchTerms.Length == 0) return System.Net.WebUtility.HtmlEncode(text);
+
+        text = text.Normalize();
+        var matches = new List<(int Start, int Length)>();
+        foreach (var term in searchTerms)
+        {
+            var normalized = term.Normalize();
+            var idx = 0;
+            while (idx <= text.Length - normalized.Length)
+            {
+                var match = text.IndexOf(normalized, idx, StringComparison.OrdinalIgnoreCase);
+                if (match < 0) break;
+                matches.Add((match, normalized.Length));
+                idx = match + normalized.Length;
+            }
+        }
+
+        if (matches.Count == 0) return System.Net.WebUtility.HtmlEncode(text);
+
+        // Merge overlapping ranges
+        matches.Sort((a, b) => a.Start.CompareTo(b.Start));
+        var merged = new List<(int Start, int End)> { (matches[0].Start, matches[0].Start + matches[0].Length) };
+        for (var i = 1; i < matches.Count; i++)
+        {
+            var (start, length) = matches[i];
+            var last = merged[^1];
+            if (start <= last.End)
+                merged[^1] = (last.Start, Math.Max(last.End, start + length));
+            else
+                merged.Add((start, start + length));
+        }
+
+        // Build result with mark tags
+        var sb = new System.Text.StringBuilder();
+        var pos = 0;
+        foreach (var (start, end) in merged)
+        {
+            sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..start]));
+            sb.Append("<mark class=\"bg-yellow-300/60 dark:bg-yellow-500/40 text-inherit rounded-sm\">");
+            sb.Append(System.Net.WebUtility.HtmlEncode(text[start..end]));
+            sb.Append("</mark>");
+            pos = end;
+        }
+        sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..]));
+        return sb.ToString();
+    }
+
+}

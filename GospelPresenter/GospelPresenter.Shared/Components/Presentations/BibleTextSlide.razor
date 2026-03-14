@@ -1,0 +1,24 @@
+<Slide
+    IsSelected="@IsSelected"
+    Class="@Class"
+    BaseWidth="@BaseWidth"
+    BaseHeight="@BaseHeight"
+    Scale="@Scale">
+    <div>@((MarkupString)Content)</div>
+    @if (!string.IsNullOrEmpty(Credits))
+    {
+        <div class="absolute bottom-8 left-20 text-[40px] text-white/40 text-left">
+            @Credits
+        </div>
+    }
+</Slide>
+
+@code {
+    [Parameter] public required string Content { get; set; }
+    [Parameter] public string? Credits { get; set; }
+    [Parameter] public bool? IsSelected { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public required int BaseWidth { get; set; }
+    [Parameter] public required int BaseHeight { get; set; }
+    [Parameter] public required double Scale { get; set; }
+}

@@ -1,0 +1,40 @@
+@if (!string.IsNullOrEmpty(ImageUrl))
+{
+    <img src="@ImageUrl" alt="" class="@SizeClass rounded-full object-cover shrink-0 @Class"/>
+}
+else
+{
+    <div class="@SizeClass rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0 flex items-center justify-center @TextClass font-medium text-neutral-500 dark:text-neutral-400 @Class">
+        @Initials(Name)
+    </div>
+}
+
+@code {
+    [Parameter] public string? ImageUrl { get; set; }
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string Size { get; set; } = "sm";
+    [Parameter] public string? Class { get; set; }
+
+    private string SizeClass => Size switch
+    {
+        "lg" => "w-16 h-16",
+        _ => "w-8 h-8"
+    };
+
+    private string TextClass => Size switch
+    {
+        "lg" => "text-2xl",
+        _ => "text-sm"
+    };
+
+    private static string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+        return parts[0].Length >= 2
+            ? parts[0][..2].ToUpper()
+            : parts[0].ToUpper();
+    }
+}

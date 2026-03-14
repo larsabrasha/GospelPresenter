@@ -1,0 +1,256 @@
+@page "/profile"
+@attribute [Authorize]
+
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using CommunityToolkit.Mvvm.Messaging
+@using GospelPresenter.Shared.State
+
+@inject IUserService UserService
+@inject IProfileImageService ProfileImageService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ActiveOrganizationState OrgState
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="relative flex items-center justify-center px-7">
+        <div class="text-xl font-bold dark:text-neutral-100">
+            Min profil
+        </div>
+    </div>
+
+    @if (user is null)
+    {
+        <div class="px-7 text-neutral-400">Laddar...</div>
+    }
+    else
+    {
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Profilbild</label>
+                <div class="flex items-center gap-4">
+                    <label class="cursor-pointer group relative">
+                        <ProfileAvatar ImageUrl="@(user.ProfileImage ?? user.ProfileImageSmall)" Name="@user.Name"
+                                       Size="lg" Class="group-hover:brightness-75 transition"/>
+                        <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
+                                   class="hidden"/>
+                    </label>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                            @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? "Välj bild" : "Byt bild")
+                            <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
+                                       class="hidden"/>
+                        </label>
+                        @if (!string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall))
+                        {
+                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
+                                    @onclick="ConfirmRemoveProfileImage">
+                                Ta bort bild
+                            </button>
+                        }
+                        @if (imageError is not null)
+                        {
+                            <div class="text-sm text-red-500">@imageError</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Namn</label>
+                <input type="text"
+                       @bind="editName"
+                       @bind:event="oninput"
+                       @bind:after="SaveUser"
+                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">E-post</label>
+                <div class="px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-700/50 text-neutral-500 dark:text-neutral-400">
+                    @user.Email
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (confirmAction is not null)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseConfirmDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@confirmTitle</div>
+            <p>@confirmMessage</p>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseConfirmDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
+                        @onclick="ExecuteConfirmAction">
+                    @confirmButtonText
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@if (showCropDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CloseCropDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg text-center">Beskär bild</div>
+            <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
+                 id="profile-image-cropper"
+                 style="background: repeating-conic-gradient(#d1d5db 0% 25%, white 0% 50%) 0 0 / 16px 16px;">
+                <img alt="" class="absolute top-0 left-0 origin-top-left pointer-events-none max-w-none" />
+            </div>
+            <input type="range" min="0" max="100" value="5"
+                   @oninput="OnZoomSliderChanged"
+                   class="w-full accent-sky-500" />
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseCropDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                        @onclick="ConfirmCrop">
+                    Bekräfta
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private string? userId;
+    private User? user;
+    private string editName = "";
+    private string? imageError;
+    private Func<Task>? confirmAction;
+    private string confirmTitle = "";
+    private string confirmMessage = "";
+    private string confirmButtonText = "Ta bort";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            userId = state.User.FindFirst("user_id")?.Value;
+        }
+
+        if (userId is null) return;
+
+        user = await UserService.GetByIdAsync(userId, OrgState.ToCallerContext());
+        if (user is null)
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+        editName = user.Name;
+    }
+
+    private async Task SaveUser()
+    {
+        if (string.IsNullOrWhiteSpace(editName) || userId is null) return;
+
+        await UserService.UpdateUserAsync(userId, editName.Trim(), user!.Email, user.Role, OrgState.ToCallerContext());
+        user!.Name = editName.Trim();
+        WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
+    }
+
+    private void ShowConfirm(string title, string message, Func<Task> action, string buttonText = "Ta bort")
+    {
+        confirmTitle = title;
+        confirmMessage = message;
+        confirmButtonText = buttonText;
+        confirmAction = action;
+    }
+
+    private void CloseConfirmDialog() => confirmAction = null;
+
+    private async Task ExecuteConfirmAction()
+    {
+        if (confirmAction is not null)
+            await confirmAction();
+        confirmAction = null;
+    }
+
+    private void ConfirmRemoveProfileImage() => ShowConfirm(
+        "Ta bort profilbild",
+        "Är du säker på att du vill ta bort profilbilden?",
+        RemoveProfileImage);
+
+    private const long MaxImageSize = 10 * 1024 * 1024;
+    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    private bool showCropDialog;
+
+    private async Task OnProfileImageSelected(InputFileChangeEventArgs e)
+    {
+        imageError = null;
+        var file = e.File;
+        if (!AllowedImageTypes.Contains(file.ContentType))
+        {
+            imageError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
+            return;
+        }
+        if (file.Size > MaxImageSize)
+        {
+            imageError = "Bilden är för stor (max 10 MB)";
+            return;
+        }
+
+        using var stream = file.OpenReadStream(MaxImageSize);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        var dataUrl = $"data:{file.ContentType};base64,{base64}";
+
+        showCropDialog = true;
+        StateHasChanged();
+        await Task.Delay(50);
+        await JSRuntime.InvokeVoidAsync("initImageCropper", "profile-image-cropper", dataUrl);
+    }
+
+    private async Task OnZoomSliderChanged(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var value))
+            await JSRuntime.InvokeVoidAsync("setImageCropperZoom", "profile-image-cropper", value);
+    }
+
+    private async Task CloseCropDialog()
+    {
+        showCropDialog = false;
+        await JSRuntime.InvokeVoidAsync("destroyImageCropper", "profile-image-cropper");
+    }
+
+    private async Task ConfirmCrop()
+    {
+        var croppedDataUrl = await JSRuntime.InvokeAsync<string>("getImageCropResult", "profile-image-cropper");
+        showCropDialog = false;
+        await JSRuntime.InvokeVoidAsync("destroyImageCropper", "profile-image-cropper");
+
+        if (string.IsNullOrEmpty(croppedDataUrl) || userId is null) return;
+
+        var base64Data = croppedDataUrl.Substring(croppedDataUrl.IndexOf(',') + 1);
+        var imageBytes = Convert.FromBase64String(base64Data);
+        var (fullDataUri, smallDataUri) = ProfileImageService.Resize(imageBytes, "image/webp");
+
+        await UserService.UpdateProfileImageAsync(userId, fullDataUri, smallDataUri, OrgState.ToCallerContext());
+        user = await UserService.GetByIdAsync(userId, OrgState.ToCallerContext());
+        WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
+    }
+
+    private async Task RemoveProfileImage()
+    {
+        if (userId is null) return;
+        imageError = null;
+        await UserService.UpdateProfileImageAsync(userId, null, null, OrgState.ToCallerContext());
+        user = await UserService.GetByIdAsync(userId, OrgState.ToCallerContext());
+        WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
+    }
+}

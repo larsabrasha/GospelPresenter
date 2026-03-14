@@ -1,0 +1,34 @@
+@using GospelPresenter.Shared.State
+
+@if (Overlay is not null)
+{
+    var scaleStr = FormattableString.Invariant($"{Scale}");
+    var baseW = FormattableString.Invariant($"{BaseWidth}px");
+    var baseH = FormattableString.Invariant($"{BaseHeight}px");
+    var w = FormattableString.Invariant($"{Scale * BaseWidth}px");
+    var h = FormattableString.Invariant($"{Scale * BaseHeight}px");
+
+    <div class="absolute inset-0 pointer-events-none" style="z-index: 50; width: @w; height: @h">
+        <div class="origin-top-left relative"
+             style="width: @baseW; height: @baseH; transform: scale(@scaleStr);">
+            @if (Overlay.ImageUrl is not null)
+            {
+                <img src="@Overlay.ImageUrl" class="absolute inset-0 w-full h-full object-contain" alt=""/>
+            }
+            @if (Overlay.Text is not null)
+            {
+                <div class="absolute top-8 left-20 text-[40px] text-white/60 text-left whitespace-pre-line"
+                     style="text-shadow: 0 1px 4px rgba(0,0,0,0.6)">
+                    @Overlay.Text
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public ActiveOverlay? Overlay { get; set; }
+    [Parameter] public double Scale { get; set; } = 1.0;
+    [Parameter] public int BaseWidth { get; set; } = 1920;
+    [Parameter] public int BaseHeight { get; set; } = 1080;
+}

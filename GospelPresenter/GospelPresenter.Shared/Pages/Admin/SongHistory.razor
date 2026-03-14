@@ -1,0 +1,185 @@
+@page "/admin/songs/{SongId}/history"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Components.Presentations
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject ISongService SongService
+@inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
+
+<div class="flex flex-col p-3 pt-8 w-full mx-auto space-y-5" style="max-width: 1200px;">
+    <div class="relative flex items-center justify-center px-7">
+        <a href="/admin/songs/@SongId"
+           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            Tillbaka
+        </a>
+        <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
+            Historik
+        </div>
+    </div>
+
+    @if (versions is null)
+    {
+        <div class="px-7 text-neutral-400">Laddar...</div>
+    }
+    else if (versions.Count == 0)
+    {
+        <div class="px-7 text-neutral-400">Ingen historik finns för den här sången.</div>
+    }
+    else
+    {
+        <div class="flex flex-col md:flex-row gap-4">
+            <!-- Version list -->
+            <div class="w-full md:w-72 shrink-0 space-y-1">
+                @foreach (var version in versions)
+                {
+                    var isSelected = selectedVersionId == version.Id;
+                    <button class="w-full text-left px-3 h-[52px] flex flex-col justify-center rounded-lg cursor-pointer text-sm @(isSelected ? "bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30" : "bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600")"
+                            @onclick="() => SelectVersion(version.Id)">
+                        <div class="truncate w-full dark:text-neutral-100">@version.Name</div>
+                        <div class="text-xs text-neutral-400 truncate w-full">@FormatDate(version.CreatedAt)</div>
+                    </button>
+                }
+            </div>
+
+            <!-- Preview -->
+            @if (selectedVersion is not null)
+            {
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-start justify-between mb-2 px-1 gap-3">
+                        <div>
+                            <div class="font-semibold text-sm dark:text-neutral-100">@selectedVersion.Name</div>
+                            @if (!string.IsNullOrEmpty(selectedVersion.Author))
+                            {
+                                <div class="text-xs text-neutral-400">@selectedVersion.Author</div>
+                            }
+                            <div class="text-xs text-neutral-400 mt-0.5">@FormatDate(selectedVersion.CreatedAt)</div>
+                        </div>
+                        <button class="shrink-0 px-4 py-2 rounded-full text-sm bg-sky-600 text-white cursor-pointer hover:bg-sky-700 disabled:opacity-50"
+                                disabled="@isRestoring"
+                                @onclick="ConfirmRestore">
+                            @(isRestoring ? "Återställer..." : "Återställ denna version")
+                        </button>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        @foreach (var part in selectedVersion.Parts)
+                        {
+                            <SongSlide
+                                Content="@part.Content"
+                                Label="@part.Label"
+                                LabelColor="@part.LabelColor"
+                                Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                BaseWidth="1920"
+                                BaseHeight="1080"
+                                Scale="0.25"/>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (restoreConfirm)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-md" OnClose="CancelRestore">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">Återställ version</div>
+            <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                Vill du återställa sången till versionen från <strong>@FormatDate(selectedVersion!.CreatedAt)</strong>?
+                Den nuvarande versionen sparas i historiken.
+            </p>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CancelRestore">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-600 text-white cursor-pointer hover:bg-sky-700 disabled:opacity-50"
+                        disabled="@isRestoring"
+                        @onclick="ExecuteRestore">
+                    Återställ
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    [Parameter] public string SongId { get; set; } = "";
+
+    private List<SongVersionSummary>? versions;
+    private string? selectedVersionId;
+    private SongVersionDetail? selectedVersion;
+    private bool restoreConfirm;
+    private bool isRestoring;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+        if (song is null)
+        {
+            NavigationManager.NavigateTo("/admin/songs");
+            return;
+        }
+
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        versions = await SongService.GetVersionsAsync(SongId, orgId, OrgState.ToCallerContext());
+        if (versions.Count > 0)
+            await SelectVersion(versions[0].Id);
+    }
+
+    private async Task SelectVersion(string versionId)
+    {
+        selectedVersionId = versionId;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        selectedVersion = await SongService.GetVersionAsync(versionId, orgId, OrgState.ToCallerContext());
+    }
+
+    private void ConfirmRestore()
+    {
+        if (selectedVersion is null) return;
+        restoreConfirm = true;
+    }
+
+    private void CancelRestore()
+    {
+        restoreConfirm = false;
+    }
+
+    private async Task ExecuteRestore()
+    {
+        if (isRestoring || selectedVersion is null) return;
+        isRestoring = true;
+
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.RestoreVersionAsync(SongId, orgId, selectedVersion.Id, OrgState.ToCallerContext());
+
+        isRestoring = false;
+        restoreConfirm = false;
+        NavigationManager.NavigateTo($"/admin/songs/{SongId}");
+    }
+
+    private static string FormatDate(DateTime utcDate)
+    {
+        var local = utcDate.ToLocalTime();
+        var now = DateTime.Now;
+        if (local.Date == now.Date)
+            return $"Idag {local:HH:mm}";
+        if (local.Date == now.Date.AddDays(-1))
+            return $"Igår {local:HH:mm}";
+        return local.ToString("d MMM yyyy HH:mm");
+    }
+}

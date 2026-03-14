@@ -1,0 +1,520 @@
+@page "/admin/users/{UserId}"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using CommunityToolkit.Mvvm.Messaging
+@using GospelPresenter.Shared.State
+
+@layout AdminLayout
+
+@inject IUserService UserService
+@inject IProfileImageService ProfileImageService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject ActiveOrganizationState OrgState
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="relative flex items-center justify-center px-7">
+        <a href="/admin/users"
+           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            Tillbaka
+        </a>
+        <div class="text-xl font-bold dark:text-neutral-100">
+            @user?.Name
+        </div>
+    </div>
+
+    @if (user is null)
+    {
+        <div class="px-7 text-neutral-400">Laddar...</div>
+    }
+    else
+    {
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Profilbild</label>
+                <div class="flex items-center gap-4">
+                    <label class="cursor-pointer group relative">
+                        <ProfileAvatar ImageUrl="@(user.ProfileImage ?? user.ProfileImageSmall)" Name="@user.Name"
+                                       Size="lg" Class="group-hover:brightness-75 transition"/>
+                        <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
+                                   class="hidden"/>
+                    </label>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                            @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? "Välj bild" : "Byt bild")
+                            <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
+                                       class="hidden"/>
+                        </label>
+                        @if (!string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall))
+                        {
+                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
+                                    @onclick="ConfirmRemoveProfileImage">
+                                Ta bort bild
+                            </button>
+                        }
+                        @if (imageError is not null)
+                        {
+                            <div class="text-sm text-red-500">@imageError</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Namn</label>
+                <input type="text"
+                       @bind="editName"
+                       @bind:event="oninput"
+                       @bind:after="SaveUser"
+                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">E-post</label>
+                <input type="email"
+                       @bind="editEmail"
+                       @bind:event="oninput"
+                       @bind:after="SaveUser"
+                       class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                @if (emailError is not null)
+                {
+                    <div class="text-sm text-red-500 mt-1">@emailError</div>
+                }
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Roll</label>
+                <div class="relative">
+                    <select @bind="editRole"
+                            @bind:after="SaveUser"
+                            disabled="@IsCurrentUser"
+                            class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-50">
+                        @foreach (var role in AllowedRoles)
+                        {
+                            <option value="@role">@RoleDisplayName(role)</option>
+                        }
+                    </select>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                    </svg>
+                </div>
+                @if (IsCurrentUser)
+                {
+                    <div class="text-sm text-neutral-500 mt-1">Du kan inte ändra din egen roll</div>
+                }
+            </div>
+            @if (!IsCurrentUser)
+            {
+                <div>
+                    <button class="px-4 py-2.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
+                            @onclick="ConfirmDeleteUser">
+                        Ta bort användare
+                    </button>
+                </div>
+            }
+        </div>
+
+        <!-- Inloggningsmetoder -->
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
+            <div class="font-semibold">Inloggning</div>
+
+            @if (logins is null)
+            {
+                <div class="text-neutral-400">Laddar...</div>
+            }
+            else if (logins.Count == 0)
+            {
+                @if (invite is null)
+                {
+                    <div class="flex flex-col items-center text-center py-4 select-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-32 h-auto mb-3 text-neutral-300 dark:text-neutral-600">
+                            <!-- Key shape -->
+                            <circle cx="80" cy="70" r="24" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                            <circle cx="80" cy="70" r="10" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+                            <!-- Key shaft -->
+                            <line x1="104" y1="70" x2="155" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <!-- Key teeth -->
+                            <line x1="140" y1="70" x2="140" y2="82" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="150" y1="70" x2="150" y2="78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <!-- Plus circle -->
+                            <circle cx="155" cy="120" r="16" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                            <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                            <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        </svg>
+                        <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">Inga inloggningsmetoder tillagda.<br/>Skapa en inbjudningslänk för att lägga till ett konto.</p>
+                    </div>
+                }
+
+                @if (invite is not null)
+                {
+                    var inviteUrl = GetInviteUrl(invite.Token);
+                    <div class="p-4 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-2 @(invite.IsExpired ? "opacity-60" : "")">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-neutral-400">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+                                </svg>
+                                <span class="text-sm font-medium">Inbjudningslänk</span>
+                                @if (invite.IsExpired)
+                                {
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">Utgången</span>
+                                }
+                                else
+                                {
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Aktiv</span>
+                                }
+                            </div>
+                            <button class="px-3 py-1.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
+                                    @onclick="ConfirmDeleteInvite">
+                                Ta bort
+                            </button>
+                        </div>
+                        @if (!invite.IsExpired)
+                        {
+                            <div class="text-xs text-neutral-500 dark:text-neutral-400">
+                                Går ut om @FormatTimeLeft(invite.ExpiresAt)
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <input type="text" readonly value="@inviteUrl"
+                                       class="flex-1 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-sm border border-neutral-200 dark:border-neutral-500 select-all"/>
+                                <button class="px-3 py-2 rounded-lg text-sm bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
+                                        @onclick="() => CopyToClipboard(inviteUrl)">
+                                    Kopiera
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+                @if (invite is null || invite.IsExpired)
+                {
+                    <div class="flex justify-center">
+                        <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                                @onclick="CreateInvite">
+                            Skapa inbjudningslänk
+                        </button>
+                    </div>
+                }
+            }
+            else
+            {
+                @foreach (var login in logins)
+                {
+                    <div class="flex items-center justify-between p-3 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600">
+                        <div>
+                            <div class="font-medium text-sm">@ProviderDisplayName(login.Provider)</div>
+                            <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono">@login.ProviderSubjectId</div>
+                        </div>
+                        @{ var loginToDelete = login; }
+                        <button class="px-3 py-1.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
+                                @onclick="() => ConfirmDeleteLogin(loginToDelete)">
+                            Ta bort
+                        </button>
+                    </div>
+                }
+
+            }
+        </div>
+    }
+</div>
+
+@if (confirmAction is not null)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseConfirmDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@confirmTitle</div>
+            <p>@confirmMessage</p>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseConfirmDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
+                        @onclick="ExecuteConfirmAction">
+                    @confirmButtonText
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@if (showCropDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CloseCropDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg text-center">Beskär bild</div>
+            <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
+                 id="image-cropper"
+                 style="background: repeating-conic-gradient(#d1d5db 0% 25%, white 0% 50%) 0 0 / 16px 16px;">
+                <img alt="" class="absolute top-0 left-0 origin-top-left pointer-events-none max-w-none" />
+            </div>
+            <input type="range" min="0" max="100" value="5"
+                   @oninput="OnZoomSliderChanged"
+                   class="w-full accent-sky-500" />
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseCropDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                        @onclick="ConfirmCrop">
+                    Bekräfta
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    [Parameter] public string UserId { get; set; } = "";
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private string? currentUserId;
+    private User? user;
+    private List<UserLogin>? logins;
+    private Invite? invite;
+    private string editName = "";
+    private string editEmail = "";
+    private string? emailError;
+    private string? imageError;
+    private UserRole editRole;
+    private Func<Task>? confirmAction;
+    private string confirmTitle = "";
+    private string confirmMessage = "";
+    private string confirmButtonText = "Ta bort";
+
+    private bool IsCurrentUser => currentUserId is not null && currentUserId == UserId;
+
+    private IEnumerable<UserRole> AllowedRoles => OrgState.IsSuperAdmin
+        ? Enum.GetValues<UserRole>()
+        : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null)
+        {
+            var state = await AuthState;
+            currentUserId = state.User.FindFirst("user_id")?.Value;
+        }
+
+        try
+        {
+            user = await UserService.GetByIdAsync(UserId, OrgState.ToCallerContext());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            NavigationManager.NavigateTo("/admin/users");
+            return;
+        }
+
+        if (user == null)
+        {
+            NavigationManager.NavigateTo("/admin/users");
+            return;
+        }
+        editName = user.Name;
+        editEmail = user.Email;
+        editRole = user.Role;
+        await Task.WhenAll(LoadLogins(), LoadInvite());
+    }
+
+    private async Task SaveUser()
+    {
+        if (string.IsNullOrWhiteSpace(editName)) return;
+        emailError = null;
+
+        if (!string.IsNullOrWhiteSpace(editEmail) && !GospelPresenter.Shared.Utils.EmailValidation.IsValidEmail(editEmail.Trim()))
+        {
+            emailError = "Ogiltig e-postadress";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(editEmail) && await UserService.IsEmailTakenAsync(editEmail.Trim(), UserId))
+        {
+            emailError = "E-postadressen används redan av en annan användare";
+            return;
+        }
+
+        await UserService.UpdateUserAsync(UserId, editName.Trim(), editEmail.Trim(), editRole, OrgState.ToCallerContext());
+        user!.Name = editName.Trim();
+        user.Email = editEmail.Trim();
+        user.Role = editRole;
+        SyncNavbar();
+    }
+
+    private void ShowConfirm(string title, string message, Func<Task> action, string buttonText = "Ta bort")
+    {
+        confirmTitle = title;
+        confirmMessage = message;
+        confirmButtonText = buttonText;
+        confirmAction = action;
+    }
+
+    private void CloseConfirmDialog() => confirmAction = null;
+
+    private async Task ExecuteConfirmAction()
+    {
+        if (confirmAction is not null)
+            await confirmAction();
+        confirmAction = null;
+    }
+
+    private void ConfirmDeleteUser() => ShowConfirm(
+        "Ta bort användare",
+        $"Är du säker på att du vill ta bort {user?.Name}?",
+        async () => { await UserService.DeleteUserAsync(UserId, OrgState.ToCallerContext()); NavigationManager.NavigateTo("/admin/users"); });
+
+    private void ConfirmRemoveProfileImage() => ShowConfirm(
+        "Ta bort profilbild",
+        "Är du säker på att du vill ta bort profilbilden?",
+        RemoveProfileImage);
+
+    private void ConfirmDeleteInvite() => ShowConfirm(
+        "Ta bort inbjudan",
+        "Är du säker på att du vill ta bort inbjudningslänken?",
+        DeleteInvite);
+
+    private void ConfirmDeleteLogin(UserLogin login) => ShowConfirm(
+        "Ta bort kopplat konto",
+        $"Är du säker på att du vill ta bort kopplingen till {ProviderDisplayName(login.Provider)}?",
+        async () => { await UserService.DeleteLoginAsync(login.Id, OrgState.ToCallerContext()); await LoadLogins(); });
+
+    private async Task LoadLogins()
+    {
+        logins = await UserService.GetLoginsForUserAsync(UserId, OrgState.ToCallerContext());
+    }
+
+    private async Task LoadInvite()
+    {
+        var invites = await UserService.GetInvitesForUserAsync(UserId, OrgState.ToCallerContext());
+        invite = invites.FirstOrDefault();
+    }
+
+private async Task CreateInvite()
+    {
+        invite = await UserService.CreateInviteAsync(UserId, OrgState.ToCallerContext());
+    }
+
+    private async Task DeleteInvite()
+    {
+        if (invite is null) return;
+        await UserService.DeleteInviteAsync(invite.Id, OrgState.ToCallerContext());
+        invite = null;
+    }
+
+    private string GetInviteUrl(string token)
+    {
+        var baseUrl = NavigationManager.BaseUri.TrimEnd('/');
+        return $"{baseUrl}/invite/{token}";
+    }
+
+    private async Task CopyToClipboard(string text)
+    {
+        try { await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text); }
+        catch { }
+    }
+
+    private static string ProviderDisplayName(string provider) => provider switch
+    {
+        "google" => "Google",
+        "oidc" => "Pocket ID",
+        _ => provider
+    };
+
+    private static string RoleDisplayName(UserRole role) => role switch
+    {
+        UserRole.SuperAdmin => "Superadmin",
+        UserRole.Admin => "Admin",
+        UserRole.User => "Användare",
+        _ => role.ToString()
+    };
+
+    private const long MaxImageSize = 10 * 1024 * 1024;
+    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    private bool showCropDialog;
+
+    private async Task OnProfileImageSelected(InputFileChangeEventArgs e)
+    {
+        imageError = null;
+        var file = e.File;
+        if (!AllowedImageTypes.Contains(file.ContentType))
+        {
+            imageError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
+            return;
+        }
+        if (file.Size > MaxImageSize)
+        {
+            imageError = "Bilden är för stor (max 10 MB)";
+            return;
+        }
+
+        using var stream = file.OpenReadStream(MaxImageSize);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        var dataUrl = $"data:{file.ContentType};base64,{base64}";
+
+        showCropDialog = true;
+        StateHasChanged();
+        await Task.Delay(50);
+        await JSRuntime.InvokeVoidAsync("initImageCropper", "image-cropper", dataUrl);
+    }
+
+    private async Task OnZoomSliderChanged(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var value))
+            await JSRuntime.InvokeVoidAsync("setImageCropperZoom", "image-cropper", value);
+    }
+
+    private async Task CloseCropDialog()
+    {
+        showCropDialog = false;
+        await JSRuntime.InvokeVoidAsync("destroyImageCropper", "image-cropper");
+    }
+
+    private async Task ConfirmCrop()
+    {
+        var croppedDataUrl = await JSRuntime.InvokeAsync<string>("getImageCropResult", "image-cropper");
+        showCropDialog = false;
+        await JSRuntime.InvokeVoidAsync("destroyImageCropper", "image-cropper");
+
+        if (string.IsNullOrEmpty(croppedDataUrl)) return;
+
+        var base64Data = croppedDataUrl.Substring(croppedDataUrl.IndexOf(',') + 1);
+        var imageBytes = Convert.FromBase64String(base64Data);
+        var (fullDataUri, smallDataUri) = ProfileImageService.Resize(imageBytes, "image/webp");
+
+        await UserService.UpdateProfileImageAsync(UserId, fullDataUri, smallDataUri, OrgState.ToCallerContext());
+        user = await UserService.GetByIdAsync(UserId, OrgState.ToCallerContext());
+        SyncNavbar();
+    }
+
+    private async Task RemoveProfileImage()
+    {
+        imageError = null;
+        await UserService.UpdateProfileImageAsync(UserId, null, null, OrgState.ToCallerContext());
+        user = await UserService.GetByIdAsync(UserId, OrgState.ToCallerContext());
+        SyncNavbar();
+    }
+
+    private void SyncNavbar()
+    {
+        if (UserId == currentUserId)
+            WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
+    }
+
+    private static string FormatTimeLeft(DateTime expiresAt)
+    {
+        var days = (int)Math.Ceiling((expiresAt - DateTime.UtcNow).TotalDays);
+        if (days <= 0) return "mindre än en dag";
+        return $"{days} {(days == 1 ? "dag" : "dagar")}";
+    }
+
+    private void GoBack() => NavigationManager.NavigateTo("/admin/users");
+
+}

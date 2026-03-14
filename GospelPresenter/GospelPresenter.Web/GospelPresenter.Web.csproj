@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <Version>1.0.0</Version>
+        <UserSecretsId>cdf93f54-964d-4384-80cf-133a0f2ac081</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -14,15 +15,22 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj"/>
+        <ProjectReference Include="..\GospelPresenter.ServiceDefaults\GospelPresenter.ServiceDefaults.csproj" />
+        <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
       <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
       <PackageReference Include="prometheus-net.AspNetCore.HealthChecks" Version="8.2.1" />
-      <PackageReference Include="Serilog" Version="4.3.0" />
-      <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-      <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+      <PackageReference Include="Serilog" Version="4.3.1" />
+      <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+      <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="10.0.1" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.1" />
       <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
     </ItemGroup>
 

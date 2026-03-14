@@ -1,0 +1,251 @@
+@page "/admin/songs/{SongId}"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject ISongService SongService
+@inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="relative flex items-center justify-center px-7">
+        <a href="/admin/songs"
+           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            Tillbaka
+        </a>
+        <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
+            @song?.Name
+        </div>
+    </div>
+
+    @if (song is null)
+    {
+        <div class="px-7 text-neutral-400">Laddar...</div>
+    }
+    else
+    {
+        <SongFieldsEditor Name="@editName" NameChanged="HandleNameChanged"
+                          Author="@editAuthor" AuthorChanged="HandleAuthorChanged"
+                          Publisher="@editPublisher" PublisherChanged="HandlePublisherChanged"
+                          Year="@editYear" YearChanged="HandleYearChanged"
+                          Ccli="@editCcli" CcliChanged="HandleCcliChanged">
+            <div>
+                <button class="px-4 py-2.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
+                        @onclick="ConfirmDelete">
+                    Ta bort sång
+                </button>
+            </div>
+        </SongFieldsEditor>
+
+        <SongPartsEditor Parts="song.Parts"
+                         OnMoveUp="MovePartUp"
+                         OnMoveDown="MovePartDown"
+                         OnLabelChanged="HandleLabelChanged"
+                         OnContentChanged="HandleContentChanged"
+                         OnDelete="ConfirmDeletePart"
+                         OnAdd="AddPart"/>
+
+        <div class="flex items-center justify-end">
+            <a href="/admin/songs/@SongId/history"
+               class="px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200 flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+                </svg>
+                Historik
+            </a>
+        </div>
+    }
+</div>
+
+@if (deleteConfirmMessage is not null)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-md" OnClose="CancelDelete">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">Ta bort</div>
+            <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                @deleteConfirmMessage
+            </p>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CancelDelete">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 disabled:opacity-50"
+                        disabled="@isDeleting"
+                        @onclick="ExecuteDelete">
+                    @(isDeleting ? "Tar bort..." : "Ta bort")
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    [Parameter] public string SongId { get; set; } = "";
+
+    private Song? song;
+    private string editName = "";
+    private string? editAuthor;
+    private string? editPublisher;
+    private int? editYear;
+    private string? editCcli;
+    private MarkupString? deleteConfirmMessage;
+    private Func<Task>? deleteAction;
+    private bool isDeleting;
+
+    protected override void OnInitialized()
+    {
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+        if (song is null)
+        {
+            NavigationManager.NavigateTo("/admin/songs");
+            return;
+        }
+        editName = song.Name;
+        editAuthor = song.Author;
+        editPublisher = song.Publisher;
+        editYear = song.Year;
+        editCcli = song.Ccli;
+    }
+
+    private async Task HandleNameChanged(string name)
+    {
+        editName = name;
+        await SaveSong();
+    }
+
+    private async Task HandleAuthorChanged(string? author)
+    {
+        editAuthor = author;
+        await SaveSong();
+    }
+
+    private async Task HandlePublisherChanged(string? publisher)
+    {
+        editPublisher = publisher;
+        await SaveSong();
+    }
+
+    private async Task HandleYearChanged(int? year)
+    {
+        editYear = year;
+        await SaveSong();
+    }
+
+    private async Task HandleCcliChanged(string? ccli)
+    {
+        editCcli = ccli;
+        await SaveSong();
+    }
+
+    private async Task SaveSong()
+    {
+        if (song is null || string.IsNullOrWhiteSpace(editName)) return;
+
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.UpdateSongAsync(song.Id, orgId, editName.Trim(),
+            string.IsNullOrWhiteSpace(editAuthor) ? null : editAuthor.Trim(),
+            string.IsNullOrWhiteSpace(editPublisher) ? null : editPublisher.Trim(),
+            editYear,
+            string.IsNullOrWhiteSpace(editCcli) ? null : editCcli.Trim(), OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+    }
+
+    private async Task HandleLabelChanged(SongPartsEditor.PartLabelChange change)
+    {
+        if (song is null) return;
+        var part = song.Parts[change.Index];
+        var trimmedLabel = string.IsNullOrWhiteSpace(change.Label) ? null : change.Label.Trim();
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.UpdateSongPartAsync(song.Id, orgId, change.Index, trimmedLabel, part.Content, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+    }
+
+    private async Task HandleContentChanged(SongPartsEditor.PartContentChange change)
+    {
+        if (song is null) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.UpdateSongPartAsync(song.Id, orgId, change.Index, song.Parts[change.Index].Label, change.Content, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+    }
+
+    private async Task AddPart()
+    {
+        if (song is null) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.AddSongPartAsync(song.Id, orgId, null, "", OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+    }
+
+    private void ConfirmDeletePart(int index)
+    {
+        if (song is null) return;
+        var label = song.Parts[index].Label ?? $"del {index + 1}";
+        deleteConfirmMessage = new MarkupString($"Vill du ta bort <strong>{System.Net.WebUtility.HtmlEncode(label)}</strong>?");
+        deleteAction = async () =>
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is null) return;
+            await SongService.DeleteSongPartAsync(song.Id, orgId, index, OrgState.ToCallerContext());
+            song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+        };
+    }
+
+    private async Task MovePartUp(int index)
+    {
+        if (song is null || index <= 0) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.MoveSongPartAsync(song.Id, orgId, index, index - 1, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+    }
+
+    private async Task MovePartDown(int index)
+    {
+        if (song is null || index >= song.Parts.Count - 1) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        await SongService.MoveSongPartAsync(song.Id, orgId, index, index + 1, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+    }
+
+    private void ConfirmDelete()
+    {
+        deleteConfirmMessage = new MarkupString($"Vill du flytta <strong>{System.Net.WebUtility.HtmlEncode(song?.Name)}</strong> till papperskorgen? Sången raderas permanent efter 30 dagar.");
+        deleteAction = async () =>
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is null) return;
+            await SongService.DeleteSongAsync(song!.Id, orgId, OrgState.ToCallerContext());
+            NavigationManager.NavigateTo("/admin/songs");
+        };
+    }
+
+    private void CancelDelete()
+    {
+        deleteConfirmMessage = null;
+        deleteAction = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (isDeleting || deleteAction is null) return;
+        isDeleting = true;
+        await deleteAction();
+        isDeleting = false;
+        deleteConfirmMessage = null;
+        deleteAction = null;
+    }
+}

@@ -1,27 +1,50 @@
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 
 @inject AppState AppState
 @inject IJSRuntime JsRuntime
+@inject IPresentationService PresentationService
+@inject ActiveOrganizationState OrgState
 
 @implements IDisposable
 
-<div class="shrink-0 w-[300px] overflow-hidden flex">
+<div class="shrink-0 overflow-hidden flex h-full">
     <div class="p-4 overflow-auto w-full">
-        <a href="/">
-            <div class="flex flex-col -m-1">
-                <div class="flex items-center pb-3">
-                    <LogoSymbol Class="size-10 text-sky-500"/>
-                    <div class="text-xl uppercase">
-                        <div><span class="text-sky-500 font-semibold">Gospel</span>
-                            <span
-                                class="text-sky-400">Presenter</span>
+        <div class="flex items-center justify-between mb-2 -mx-1">
+            <a href="/"
+               class="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+                </svg>
+                Tillbaka
+            </a>
+            @if (AppState.SelectedProject is not null)
+            {
+                <div class="relative" @onfocusout="OnPresentationMenuFocusOut">
+                    <button class="p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                            @onclick="TogglePresentationMenu"
+                            title="Alternativ">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
+                        </svg>
+                    </button>
+                    @if (showPresentationMenu)
+                    {
+                        <div class="absolute right-0 mt-1 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden z-50 w-56">
+                            <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                    @onclick="RequestDelete">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                                </svg>
+                                Radera presentation
+                            </button>
                         </div>
-                    </div>
+                    }
                 </div>
-            </div>
-        </a>
+            }
+        </div>
 
         @if (AppState.SelectedProject is null)
         {
@@ -29,46 +52,120 @@
         }
         else
         {
-            <div class="my-4 font-semibold text-lg px-1">@AppState.SelectedProject.Name</div>
-
-            @foreach (var item in AppState.SelectedProject.Items)
+            @if (isEditingName)
             {
-                var itemClass = AppState.SelectedProjectItem?.Id == item.Id ? "bg-sky-500 text-white" : "";
-                <button @key="item.Id"
-                        class="rounded-3xl flex w-full space-x-5 px-3 py-3 border-1 border-white dark:border-neutral-800 items-center cursor-pointer hover:bg-sky-500 hover:text-white @itemClass"
-                        @onclick="() => SelectItemAsync(item)">
-                    <div class="size-3">
-                        @switch (item.Type)
-                        {
-                            case ProjectItemType.Song:
-                                <MusicalNoteSymbol Class="size-4"/>
-
-                                break;
-                            case ProjectItemType.BibleText:
-                                <BookOpenSymbol Class="size-4"/>
-
-                                break;
-                            case ProjectItemType.Image:
-                                <PhotoSymbol Class="size-4"/>
-                                break;
-                            default:
-                                <span></span>
-                                break;
-                        }
-                    </div>
-                    <div class="text-left">@item.Title </div>
+                <div class="my-4 px-1">
+                    <input @ref="nameInput"
+                           type="text"
+                           class="w-full px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-lg"
+                           @bind="editName"
+                           @bind:event="oninput"
+                           @onblur="SaveNameAsync"
+                           @onkeydown="OnNameKeyDown"/>
+                </div>
+            }
+            else
+            {
+                <button class="my-4 font-semibold text-lg px-1 cursor-pointer hover:text-sky-500 text-left"
+                        @onclick="StartEditingName"
+                        title="Klicka för att byta namn">
+                    @AppState.SelectedProject.Name
                 </button>
             }
 
-            @* <button *@
-            @*     class="mt-8 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 p-3 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"> *@
-            @*     + Lägg till *@
-            @* </button> *@
+            <div id="sidebar-item-list">
+                @foreach (var item in AppState.SelectedProject.Items)
+                {
+                    var isSelected = AppState.SelectedProjectItem?.Id == item.Id;
+                    var itemClass = isSelected ? "bg-sky-500 text-white" : "";
+                    <div @key="item.Id" data-id="@item.Id"
+                         class="rounded-3xl flex w-full px-1 py-1 border-1 border-white dark:border-neutral-800 items-center hover:bg-sky-500 hover:text-white group @itemClass">
+                        <div class="drag-handle cursor-grab active:cursor-grabbing p-2 opacity-30 group-hover:opacity-70 touch-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5"/>
+                            </svg>
+                        </div>
+                        <button class="flex items-center space-x-3 grow cursor-pointer py-2 min-w-0"
+                                @onclick="() => SelectItemAsync(item)">
+                            <div class="size-3 shrink-0">
+                                @switch (item.Type)
+                                {
+                                    case ProjectItemType.Song:
+                                        <MusicalNoteSymbol Class="size-4"/>
+                                        break;
+                                    case ProjectItemType.BibleText:
+                                        <BookOpenSymbol Class="size-4"/>
+                                        break;
+                                    case ProjectItemType.Image:
+                                        <PhotoSymbol Class="size-4"/>
+                                        break;
+                                    default:
+                                        <span></span>
+                                        break;
+                                }
+                            </div>
+                            <div class="text-left truncate">@item.Title</div>
+                        </button>
+                        <button class="p-2 opacity-30 hover:opacity-100 cursor-pointer shrink-0"
+                                title="Ta bort"
+                                @onclick="() => RequestRemoveItem(item)"
+                                @onclick:stopPropagation="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                }
+            </div>
+
+            <div class="relative mt-4" @onfocusout="OnDropdownFocusOut">
+                <button
+                    class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
+                    @onclick="ToggleDropdown">
+                    <PlusSymbol Class="size-4"/>
+                    Lägg till
+                </button>
+                @if (showDropdown)
+                {
+                    <div class="absolute left-0 right-0 mt-1 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden z-50">
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="@(() => AddItem("song"))">
+                            <MusicalNoteSymbol Class="size-4 text-neutral-400"/>
+                            Sång
+                        </button>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="@(() => AddItem("bible"))">
+                            <BookOpenSymbol Class="size-4 text-neutral-400"/>
+                            Bibeltext
+                        </button>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="@(() => AddItem("image"))">
+                            <PhotoSymbol Class="size-4 text-neutral-400"/>
+                            Bild
+                        </button>
+                    </div>
+                }
+            </div>
         }
     </div>
 </div>
 
+
 @code {
+
+    [Parameter] public EventCallback<string> OnAddRequested { get; set; }
+    [Parameter] public EventCallback<ProjectItem> OnRemoveRequested { get; set; }
+    [Parameter] public EventCallback<List<string>> OnItemsReordered { get; set; }
+    [Parameter] public EventCallback OnDeleteRequested { get; set; }
+
+
+    private bool showDropdown;
+    private bool showPresentationMenu;
+    private bool isEditingName;
+    private string editName = "";
+    private ElementReference nameInput;
+    private DotNetObjectReference<Sidebar>? dotNetRef;
+    private bool sortableInitialized;
 
     protected override void OnInitialized()
     {
@@ -78,6 +175,44 @@
     public void Dispose()
     {
         AppState.PropertyChanged -= OnPropertyChanged;
+        if (sortableInitialized)
+        {
+            _ = JsRuntime.InvokeVoidAsync("destroySortableList", "sidebar-item-list");
+        }
+        dotNetRef?.Dispose();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (isEditingName)
+        {
+            try { await nameInput.FocusAsync(); } catch { }
+        }
+
+        if (AppState.SelectedProject is not null && !sortableInitialized)
+        {
+            dotNetRef ??= DotNetObjectReference.Create(this);
+            await JsRuntime.InvokeVoidAsync("initSortableList", "sidebar-item-list", dotNetRef);
+            sortableInitialized = true;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnItemReordered(int oldIndex, int newIndex)
+    {
+        if (AppState.SelectedProject is null) return;
+
+        var items = AppState.SelectedProject.Items;
+        if (oldIndex < 0 || oldIndex >= items.Count || newIndex < 0 || newIndex >= items.Count) return;
+
+        var item = items[oldIndex];
+        items.RemoveAt(oldIndex);
+        items.Insert(newIndex, item);
+
+        var itemIds = items.Select(x => x.Id).ToList();
+        await OnItemsReordered.InvokeAsync(itemIds);
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -86,6 +221,10 @@
             nameof(AppState.SelectedProject) or
             nameof(AppState.SelectedProjectItem))
         {
+            if (e.PropertyName is nameof(AppState.SelectedProject))
+            {
+                sortableInitialized = false;
+            }
             _ = InvokeAsync(StateHasChanged);
         }
     }
@@ -96,6 +235,77 @@
         AppState.IsMenuVisible = false;
 
         await JsRuntime.InvokeVoidAsync("scrollElementToTop", "main");
+    }
+
+    private void ToggleDropdown()
+    {
+        showDropdown = !showDropdown;
+    }
+
+    private async Task OnDropdownFocusOut()
+    {
+        await Task.Delay(150);
+        showDropdown = false;
+    }
+
+    private void TogglePresentationMenu()
+    {
+        showPresentationMenu = !showPresentationMenu;
+    }
+
+    private async Task OnPresentationMenuFocusOut()
+    {
+        await Task.Delay(150);
+        showPresentationMenu = false;
+    }
+
+    private async Task RequestDelete()
+    {
+        showPresentationMenu = false;
+        await OnDeleteRequested.InvokeAsync();
+    }
+
+    private async Task AddItem(string type)
+    {
+        showDropdown = false;
+        await OnAddRequested.InvokeAsync(type);
+    }
+
+    private void StartEditingName()
+    {
+        editName = AppState.SelectedProject?.Name ?? "";
+        isEditingName = true;
+    }
+
+    private async Task OnNameKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SaveNameAsync();
+        }
+        else if (e.Key == "Escape")
+        {
+            isEditingName = false;
+        }
+    }
+
+    private async Task SaveNameAsync()
+    {
+        isEditingName = false;
+        var trimmed = editName.Trim();
+
+        if (AppState.SelectedProject is null || string.IsNullOrWhiteSpace(trimmed) || trimmed == AppState.SelectedProject.Name)
+            return;
+
+        AppState.SelectedProject.Name = trimmed;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is not null)
+            await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, trimmed, OrgState.ToCallerContext());
+    }
+
+    private async Task RequestRemoveItem(ProjectItem item)
+    {
+        await OnRemoveRequested.InvokeAsync(item);
     }
 
 }

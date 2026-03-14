@@ -1,0 +1,212 @@
+@using GospelPresenter.Shared.Services
+
+@inject IBibleService BibleService
+@inject IJSRuntime JsRuntime
+
+@if (BibleService.Bibles.Count == 0)
+{
+    <div class="text-center text-neutral-400 text-sm py-8">
+        Ingen bibel laddad
+    </div>
+}
+else
+{
+    <div class="flex flex-col h-full" @onkeydown="OnKeyDown" tabindex="-1" @ref="container">
+        @if (browseBook is null)
+        {
+            <div class="shrink-0">
+                <div class="flex gap-2">
+                    <div class="flex-1 relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                        </svg>
+                        <input type="text"
+                               @ref="searchInput"
+                               class="w-full py-2.5 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "!pr-9")"
+                               placeholder="Sök..."
+                               value="@query"
+                               @oninput="OnSearchInput"/>
+                        @if (!string.IsNullOrEmpty(query))
+                        {
+                            <button class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
+                                    @onclick="ClearSearch">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        }
+                    </div>
+
+                    <div class="relative">
+                        <select class="appearance-none py-2.5 pl-4 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                @onchange="OnBibleChanged">
+                            @foreach (var bible in BibleService.Bibles)
+                            {
+                                <option value="@bible.Id" selected="@(bible.Id == selectedBibleId)">@bible.Name</option>
+                            }
+                        </select>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                    </div>
+                </div>
+
+
+            </div>
+
+            @if (results.Count > 0)
+            {
+                <div class="mt-3 flex-1 min-h-0 flex flex-col">
+                    <BibleSearchResults Results="results" TotalCount="totalCount"/>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(query))
+            {
+                <div class="text-center text-neutral-400 text-sm py-2 mt-3">
+                    <div>Inga verser hittades</div>
+                    <div class="text-xs mt-6">
+                        <div>Sök på bibelställe:</div>
+                        <div class="mt-1 text-neutral-500 dark:text-neutral-400">Joh 3:16 · Ps 23 · Rom 8:28-30</div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="mt-3 flex-1 min-h-0 flex flex-col">
+                    <BibleBookPicker BibleId="@selectedBibleId" OnPicked="StartBrowse"/>
+                </div>
+            }
+        }
+        else
+        {
+            <BibleBrowsePicker BibleId="@selectedBibleId" InitialBook="@browseBook" OnBackClicked="OnBrowseBack" OnSelectionChanged="OnBrowseSelectionChanged"/>
+        }
+
+        @if (ShowAddButton)
+        {
+            <div class="shrink-0 flex items-center justify-end pt-4">
+                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                        @onclick="HandleAdd">
+                    <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@AddLabel</span>
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public EventCallback<List<Verse>> OnAdd { get; set; }
+    [Parameter] public EventCallback<List<Verse>> OnAddKeepOpen { get; set; }
+
+    private const int MaxResults = 500;
+
+    private ElementReference container;
+    private ElementReference searchInput;
+    private string selectedBibleId = "";
+    // Search state
+    private string query = "";
+    private List<Verse> results = [];
+    private int totalCount;
+
+    // Browse state
+    private string? browseBook;
+    private string browseSelectionLabel = "";
+    private List<Verse> browseSelectedVerses = [];
+
+    private bool ShowAddButton => browseSelectedVerses.Count > 0 || results.Count > 0;
+
+    private string AddLabel => browseSelectedVerses.Count > 0
+        ? browseSelectionLabel
+        : FormatSearchLabel();
+
+    protected override void OnInitialized()
+    {
+        selectedBibleId = BibleService.Bibles.FirstOrDefault()?.Id ?? "";
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.ShiftKey && ShowAddButton)
+            await OnAddKeepOpen.InvokeAsync(VersesToAdd);
+        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && ShowAddButton)
+            await HandleAdd();
+    }
+
+    private void OnBibleChanged(ChangeEventArgs e)
+    {
+        selectedBibleId = e.Value?.ToString() ?? "";
+        PerformSearch();
+        browseBook = null;
+        browseSelectionLabel = "";
+        browseSelectedVerses = [];
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        query = e.Value?.ToString() ?? "";
+        PerformSearch();
+    }
+
+    private void ClearSearch()
+    {
+        query = "";
+        results = [];
+        totalCount = 0;
+    }
+
+    private void PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            results = [];
+            totalCount = 0;
+            return;
+        }
+
+        var allResults = BibleService.Search(selectedBibleId, query).ToList();
+        totalCount = allResults.Count;
+        results = allResults.Count > MaxResults ? allResults.Take(MaxResults).ToList() : allResults;
+    }
+
+    private string FormatSearchLabel()
+    {
+        if (results.Count == 0) return "";
+        var first = results[0];
+        var last = results[^1];
+        var bookName = BibleBookNames.GetSwedishName(first.BookId);
+        if (first.Chapter == last.Chapter && first.VerseNumber == last.VerseNumber)
+            return $"{bookName} {first.Chapter}:{first.VerseNumber}";
+        if (first.Chapter == last.Chapter)
+            return $"{bookName} {first.Chapter}:{first.VerseNumber}-{last.VerseNumber}";
+        return $"{bookName} {first.Chapter}:{first.VerseNumber} - {last.Chapter}:{last.VerseNumber}";
+    }
+
+    private void StartBrowse(string bookId)
+    {
+        browseBook = bookId;
+        browseSelectionLabel = "";
+        browseSelectedVerses = [];
+    }
+
+    private void OnBrowseBack()
+    {
+        browseBook = null;
+        browseSelectionLabel = "";
+        browseSelectedVerses = [];
+    }
+
+    private void OnBrowseSelectionChanged(BibleBrowsePicker.SelectionState state)
+    {
+        browseSelectionLabel = state.Label;
+        browseSelectedVerses = state.Verses;
+    }
+
+    private List<Verse> VersesToAdd =>
+        browseSelectedVerses.Count > 0 ? browseSelectedVerses : results;
+
+    private async Task HandleAdd()
+    {
+        if (ShowAddButton)
+            await OnAdd.InvokeAsync(VersesToAdd);
+    }
+}

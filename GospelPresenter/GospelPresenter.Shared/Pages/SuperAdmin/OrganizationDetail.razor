@@ -1,0 +1,330 @@
+@page "/superadmin/organizations/{OrganizationId}"
+@attribute [Authorize(Roles = "SuperAdmin")]
+
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+
+@layout AdminLayout
+
+@inject IUserService UserService
+@inject IProfileImageService ProfileImageService
+@inject ActiveOrganizationState OrgState
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="relative flex items-center justify-center px-7">
+        <a href="/superadmin/organizations"
+           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            Tillbaka
+        </a>
+        <div class="text-xl font-bold dark:text-neutral-100">@(organization?.Name ?? "Organisation")</div>
+    </div>
+
+    @if (organization is null)
+    {
+        <div class="px-7 py-4 text-neutral-400">Laddar...</div>
+    }
+    else
+    {
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden p-5 space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Logga</label>
+                <div class="flex items-center gap-4">
+                    <label class="cursor-pointer group relative">
+                        <OrganizationAvatar LogoUrl="@organization.LogoSmall" Name="@organization.Name" Size="lg" Class="group-hover:brightness-75 transition"/>
+                        <InputFile OnChange="OnLogoSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                    </label>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                            @(string.IsNullOrEmpty(organization.LogoSmall) ? "Välj logga" : "Byt logga")
+                            <InputFile OnChange="OnLogoSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                        </label>
+                        @if (!string.IsNullOrEmpty(organization.LogoSmall))
+                        {
+                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
+                                    @onclick="RemoveLogo">
+                                Ta bort logga
+                            </button>
+                        }
+                        @if (logoError is not null)
+                        {
+                            <div class="text-sm text-red-500">@logoError</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="font-semibold">Organisationsnamn</div>
+            <div class="flex gap-3">
+                <input type="text"
+                       class="flex-1 px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                       @bind="editName"
+                       @bind:event="oninput"/>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50 text-sm"
+                        disabled="@(isSaving || string.IsNullOrWhiteSpace(editName) || editName.Trim() == organization.Name)"
+                        @onclick="SaveName">
+                    @(isSaving ? "Sparar..." : "Spara")
+                </button>
+            </div>
+        </div>
+
+        <div class="flex gap-3">
+            <button @onclick="ShowDeleteConfirmation"
+                    class="px-4 py-2.5 rounded-full text-sm text-red-600 dark:text-red-400 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20">
+                Ta bort organisation
+            </button>
+        </div>
+
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+            <div class="font-semibold px-5 pt-4 pb-2">Medlemmar (@members.Count)</div>
+            @if (members.Count == 0)
+            {
+                <div class="flex flex-col items-center text-center py-8 px-4 select-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 120" class="w-32 h-auto mb-3 text-neutral-300 dark:text-neutral-600">
+                        <circle cx="100" cy="40" r="20" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <path d="M65 100c0-19.33 15.67-35 35-35s35 15.67 35 35" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    </svg>
+                    <p class="text-sm text-neutral-400 dark:text-neutral-500">Inga medlemmar ännu</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var user in members)
+                {
+                    <a href="/admin/users/@user.Id"
+                       class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer no-underline text-inherit">
+                        <ProfileAvatar ImageUrl="@user.ProfileImageSmall" Name="@user.Name"/>
+                        <div class="font-medium flex-1">@user.Name</div>
+                        <span class="text-xs px-2 py-0.5 rounded-full @RoleBadgeClass(user.Role)">@RoleDisplayName(user.Role)</span>
+                    </a>
+                }
+            }
+        </div>
+    }
+</div>
+
+@if (showDeleteDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="() => showDeleteDialog = false">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">Ta bort organisation</div>
+            <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                Är du säker på att du vill ta bort <strong>@organization?.Name</strong>? Detta kan inte ångras.
+            </p>
+            <div class="text-sm text-neutral-600 dark:text-neutral-300 space-y-1">
+                <p class="font-medium">Följande kommer att tas bort permanent:</p>
+                <ul class="list-disc list-inside space-y-0.5 ml-1">
+                    <li>Organisationen och alla dess inställningar</li>
+                    <li>Alla medlemmar (@members.Count st)</li>
+                    <li>Alla sånger och sånghistorik</li>
+                    <li>Alla presentationer</li>
+                    <li>Alla uppladdade bilder</li>
+                </ul>
+            </div>
+            <div class="space-y-1">
+                <label class="text-sm text-neutral-600 dark:text-neutral-300">
+                    Skriv <strong>@organization?.Name</strong> för att bekräfta:
+                </label>
+                <input @bind="deleteConfirmText" @bind:event="oninput"
+                       class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                       placeholder="@organization?.Name" />
+            </div>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="() => { showDeleteDialog = false; deleteConfirmText = string.Empty; }">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 disabled:opacity-50"
+                        disabled="@(isDeleting || deleteConfirmText != organization?.Name)"
+                        @onclick="DeleteOrganization">
+                    @(isDeleting ? "Tar bort..." : "Ta bort")
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@if (showCropDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CloseCropDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg text-center">Beskär logga</div>
+            <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
+                 id="org-logo-cropper"
+                 style="background: repeating-conic-gradient(#d1d5db 0% 25%, white 0% 50%) 0 0 / 16px 16px;">
+                <img alt="" class="absolute top-0 left-0 origin-top-left pointer-events-none max-w-none" />
+            </div>
+            <input type="range" min="0" max="100" value="5"
+                   @oninput="OnZoomSliderChanged"
+                   class="w-full accent-sky-500" />
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="CloseCropDialog">
+                    Avbryt
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
+                        @onclick="ConfirmCrop">
+                    Bekräfta
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    [Parameter] public string OrganizationId { get; set; } = "";
+
+    private Organization? organization;
+    private List<User> members = [];
+    private string editName = "";
+    private bool isSaving;
+    private bool showDeleteDialog;
+    private bool isDeleting;
+    private string deleteConfirmText = "";
+    private string? logoError;
+    private bool showCropDialog;
+
+    protected override async Task OnInitializedAsync()
+    {
+        organization = await UserService.GetOrganizationByIdAsync(OrganizationId, OrgState.ToCallerContext());
+        if (organization is not null)
+        {
+            editName = organization.Name;
+            members = await UserService.GetUsersByOrganizationAsync(OrganizationId, OrgState.ToCallerContext());
+        }
+    }
+
+    private async Task SaveName()
+    {
+        if (isSaving || string.IsNullOrWhiteSpace(editName) || organization is null) return;
+        isSaving = true;
+
+        await UserService.UpdateOrganizationAsync(OrganizationId, editName.Trim(), OrgState.ToCallerContext());
+        organization.Name = editName.Trim();
+
+        if (OrgState.SelectedOrganizationId == OrganizationId)
+            OrgState.SwitchOrganization(OrganizationId, editName.Trim());
+
+        OrgState.NotifyOrganizationsChanged();
+        isSaving = false;
+    }
+
+    private void ShowDeleteConfirmation()
+    {
+        deleteConfirmText = "";
+        showDeleteDialog = true;
+    }
+
+    private async Task DeleteOrganization()
+    {
+        if (isDeleting) return;
+        isDeleting = true;
+
+        await UserService.DeleteOrganizationAsync(OrganizationId, OrgState.ToCallerContext());
+
+        if (OrgState.SelectedOrganizationId == OrganizationId)
+        {
+            var allOrgs = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
+            var next = allOrgs.FirstOrDefault();
+            if (next is not null)
+            {
+                OrgState.SwitchOrganization(next.Id, next.Name);
+                await UserService.SetUserSettingAsync(OrgState.UserId!, UserSetting.LastSelectedOrganizationId, next.Id, OrgState.ToCallerContext());
+            }
+        }
+
+        OrgState.NotifyOrganizationsChanged();
+        NavigationManager.NavigateTo("/superadmin/organizations");
+    }
+
+    private static string RoleDisplayName(UserRole role) => role switch
+    {
+        UserRole.SuperAdmin => "Superadmin",
+        UserRole.Admin => "Admin",
+        UserRole.User => "Användare",
+        _ => role.ToString()
+    };
+
+    private const long MaxLogoSize = 10 * 1024 * 1024;
+    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        logoError = null;
+        var file = e.File;
+        if (!AllowedImageTypes.Contains(file.ContentType))
+        {
+            logoError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
+            return;
+        }
+        if (file.Size > MaxLogoSize)
+        {
+            logoError = "Bilden får vara max 10 MB.";
+            return;
+        }
+
+        using var stream = file.OpenReadStream(MaxLogoSize);
+        using var ms = new System.IO.MemoryStream();
+        await stream.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        var dataUrl = $"data:{file.ContentType};base64,{base64}";
+
+        showCropDialog = true;
+        StateHasChanged();
+        await Task.Delay(50);
+        await JSRuntime.InvokeVoidAsync("initImageCropper", "org-logo-cropper", dataUrl);
+    }
+
+    private async Task OnZoomSliderChanged(ChangeEventArgs e)
+    {
+        if (double.TryParse(e.Value?.ToString(), out var value))
+            await JSRuntime.InvokeVoidAsync("setImageCropperZoom", "org-logo-cropper", value);
+    }
+
+    private async Task CloseCropDialog()
+    {
+        showCropDialog = false;
+        await JSRuntime.InvokeVoidAsync("destroyImageCropper", "org-logo-cropper");
+    }
+
+    private async Task ConfirmCrop()
+    {
+        var croppedDataUrl = await JSRuntime.InvokeAsync<string>("getImageCropResult", "org-logo-cropper");
+        showCropDialog = false;
+        await JSRuntime.InvokeVoidAsync("destroyImageCropper", "org-logo-cropper");
+
+        if (string.IsNullOrEmpty(croppedDataUrl)) return;
+
+        var base64Data = croppedDataUrl.Substring(croppedDataUrl.IndexOf(',') + 1);
+        var imageBytes = Convert.FromBase64String(base64Data);
+        var (_, smallDataUri) = ProfileImageService.Resize(imageBytes, "image/webp");
+
+        await UserService.UpdateOrganizationLogoAsync(OrganizationId, smallDataUri, OrgState.ToCallerContext());
+        organization!.LogoSmall = smallDataUri;
+        OrgState.NotifyOrganizationsChanged();
+    }
+
+    private async Task RemoveLogo()
+    {
+        logoError = null;
+        await UserService.UpdateOrganizationLogoAsync(OrganizationId, null, OrgState.ToCallerContext());
+        organization!.LogoSmall = null;
+        OrgState.NotifyOrganizationsChanged();
+    }
+
+    private static string RoleBadgeClass(UserRole role) => role switch
+    {
+        UserRole.SuperAdmin => "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300",
+        UserRole.Admin => "bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300",
+        UserRole.User => "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300",
+        _ => ""
+    };
+}

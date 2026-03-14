@@ -4,13 +4,21 @@
     var baseHeight = FormattableString.Invariant($"{BaseHeight}px");
     var width = FormattableString.Invariant($"{Scale * BaseWidth}px");
     var height = FormattableString.Invariant($"{Scale * BaseHeight}px");
+
+    var selectionClass = IsSelected switch
+    {
+        true => $"{BaseClass} {SelectedClass}",
+        false => $"{BaseClass} {NotSelectedClass}",
+        null => null
+    };
+    var cssClass = selectionClass ?? Class;
 }
 
 <div
-    class="select-none text-center group @Class"
+    class="select-none text-center group @cssClass"
     style="width: @width; height: @height">
     <div
-        class="origin-top-left text-[85px] flex items-center justify-center"
+        class="origin-top-left text-[85px] flex items-center justify-center px-20 pt-20 pb-36 relative"
         style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
         @ChildContent
     </div>
@@ -22,4 +30,9 @@
     [Parameter] public required int BaseHeight { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public bool? IsSelected { get; set; }
+
+    private const string BaseClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer hover:outline-sky-500";
+    private const string SelectedClass = "outline-sky-500";
+    private const string NotSelectedClass = "outline-transparent";
 }

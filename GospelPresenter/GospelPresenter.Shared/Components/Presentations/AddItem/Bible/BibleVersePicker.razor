@@ -1,0 +1,61 @@
+@using GospelPresenter.Shared.Services
+
+@inject IBibleService BibleService
+
+<div class="flex-1 min-h-0 overflow-y-auto">
+    <div class="flex flex-col gap-1.5 text-sm">
+        @foreach (var verse in verses)
+        {
+            var isSelected = IsSelected(verse.VerseNumber);
+            var bgClass = isSelected
+                ? "bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30"
+                : "bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600";
+
+            <button class="px-3 py-2 rounded-lg text-left cursor-pointer @bgClass"
+                    @onclick="() => OnPicked.InvokeAsync(verse.VerseNumber)">
+                <span class="font-semibold whitespace-nowrap text-sky-500">@verse.VerseNumber</span>
+                <span class="ml-1 text-neutral-700 dark:text-neutral-300">@verse.Text</span>
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string BibleId { get; set; } = "";
+    [Parameter, EditorRequired] public string BookId { get; set; } = "";
+    [Parameter, EditorRequired] public int Chapter { get; set; }
+    [Parameter] public int? StartChapter { get; set; }
+    [Parameter] public int? StartVerse { get; set; }
+    [Parameter] public int? EndChapter { get; set; }
+    [Parameter] public int? EndVerse { get; set; }
+    [Parameter] public EventCallback<int> OnPicked { get; set; }
+
+    private List<Verse> verses = [];
+    private int loadedChapter;
+
+    protected override void OnParametersSet()
+    {
+        if (Chapter != loadedChapter)
+        {
+            loadedChapter = Chapter;
+            verses = BibleService.GetVerses(BibleId, BookId, Chapter).ToList();
+        }
+    }
+
+    private bool IsSelected(int verseNumber)
+    {
+        if (StartChapter is null || StartVerse is null) return false;
+
+        if (EndChapter is null || EndVerse is null)
+            return Chapter == StartChapter && verseNumber == StartVerse;
+
+        var sc = StartChapter.Value;
+        var ec = EndChapter.Value;
+
+        if (Chapter < sc || Chapter > ec) return false;
+        if (Chapter == sc && Chapter == ec) return verseNumber >= StartVerse && verseNumber <= EndVerse;
+        if (Chapter == sc) return verseNumber >= StartVerse;
+        if (Chapter == ec) return verseNumber <= EndVerse;
+        return true;
+    }
+}

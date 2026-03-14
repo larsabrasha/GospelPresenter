@@ -1,0 +1,229 @@
+@using GospelPresenter.Shared.Services
+
+@inject IBibleService BibleService
+
+<div class="flex flex-col flex-1 min-h-0">
+    <div class="shrink-0">
+        <button class="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200 cursor-pointer px-4 py-2.5 mb-2 -ml-1 rounded-full"
+                @onclick="() => OnBackClicked.InvokeAsync()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            Tillbaka
+        </button>
+
+        <div class="flex items-center gap-x-0.5 ml-1">
+            @{
+                string PartStyle(EditPart part) => "px-2 py-1 rounded-md cursor-pointer " + (editing == part
+                    ? "text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10"
+                    : "text-sky-500 hover:text-sky-600 hover:bg-sky-500/10");
+            }
+
+            <button class="@PartStyle(EditPart.Book)"
+                    @onclick="() => editing = EditPart.Book">
+                @BibleBookNames.GetSwedishName(browseBook)
+            </button>
+
+            @if (startChapter is not null)
+            {
+                <button class="@PartStyle(EditPart.StartChapter)"
+                        @onclick="() => editing = EditPart.StartChapter">@startChapter</button>
+                <span class="text-neutral-400">:</span>
+                @if (startVerse is not null)
+                {
+                    <button class="@PartStyle(EditPart.StartVerse)"
+                            @onclick="() => editing = EditPart.StartVerse">@startVerse</button>
+                    <span class="text-neutral-400 mx-0.5">&mdash;</span>
+                    @if (endChapter is not null)
+                    {
+                        <button class="@PartStyle(EditPart.EndChapter)"
+                                @onclick="() => editing = EditPart.EndChapter">@endChapter</button>
+                        <span class="text-neutral-400">:</span>
+                        @if (endVerse is not null)
+                        {
+                            <button class="@PartStyle(EditPart.EndVerse)"
+                                    @onclick="() => editing = EditPart.EndVerse">@endVerse</button>
+                        }
+                        else
+                        {
+                            <span class="text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10 px-2 py-1 rounded-md">_</span>
+                        }
+                    }
+                }
+                else
+                {
+                    <span class="text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10 px-2 py-1 rounded-md">_</span>
+                }
+            }
+        </div>
+
+        @if (editing == EditPart.Book)
+        {
+            <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">V&auml;lj bok</div>
+        }
+        else if (editing is EditPart.StartChapter or EditPart.EndChapter)
+        {
+            <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">
+                @(editing == EditPart.StartChapter ? "V\u00e4lj startkapitel" : "V\u00e4lj slutkapitel")
+            </div>
+        }
+        else if (editing is EditPart.StartVerse or EditPart.EndVerse)
+        {
+            <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">
+                @(editing == EditPart.StartVerse ? "V\u00e4lj startvers" : "V\u00e4lj slutvers")
+            </div>
+        }
+    </div>
+
+    <div class="mt-3 flex-1 min-h-0 flex flex-col">
+        @if (editing == EditPart.Book)
+        {
+            <BibleBookPicker BibleId="@BibleId" OnPicked="PickBook"/>
+        }
+        else if (editing is EditPart.StartChapter or EditPart.EndChapter)
+        {
+            <BibleChapterPicker BibleId="@BibleId" BookId="@browseBook" OnPicked="PickChapter"/>
+        }
+        else if (editing is EditPart.StartVerse or EditPart.EndVerse)
+        {
+            var chapter = editing == EditPart.StartVerse ? startChapter!.Value : endChapter!.Value;
+            <BibleVersePicker BibleId="@BibleId" BookId="@browseBook" Chapter="chapter"
+                              StartChapter="startChapter" StartVerse="startVerse"
+                              EndChapter="endChapter" EndVerse="endVerse"
+                              OnPicked="PickVerse"/>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string BibleId { get; set; } = "";
+    [Parameter, EditorRequired] public string InitialBook { get; set; } = "";
+    [Parameter] public EventCallback OnBackClicked { get; set; }
+    [Parameter] public EventCallback<SelectionState> OnSelectionChanged { get; set; }
+
+    public record SelectionState(string Label, List<Verse> Verses);
+
+    private enum EditPart { Book, StartChapter, StartVerse, EndChapter, EndVerse }
+
+    private string browseBook = "";
+    private int? startChapter;
+    private int? startVerse;
+    private int? endChapter;
+    private int? endVerse;
+    private EditPart editing = EditPart.StartChapter;
+
+    private bool HasCompleteSelection => startVerse is not null && endVerse is not null;
+
+    private string SelectionLabel
+    {
+        get
+        {
+            if (startChapter is null || startVerse is null) return "";
+            var bookName = BibleBookNames.GetSwedishName(browseBook);
+            var ec = endChapter ?? startChapter.Value;
+            var ev = endVerse ?? startVerse.Value;
+            if (ec == startChapter && ev == startVerse)
+                return $"{bookName} {startChapter}:{startVerse}";
+            if (ec == startChapter)
+                return $"{bookName} {startChapter}:{startVerse}-{ev}";
+            return $"{bookName} {startChapter}:{startVerse} - {ec}:{ev}";
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        browseBook = InitialBook;
+    }
+
+    private void NotifySelectionChanged()
+    {
+        var verses = HasCompleteSelection ? GetSelectedVerses() : [];
+        OnSelectionChanged.InvokeAsync(new SelectionState(SelectionLabel, verses));
+    }
+
+    private List<Verse> GetSelectedVerses()
+    {
+        if (startChapter is null || startVerse is null) return [];
+
+        var sc = startChapter.Value;
+        var sv = startVerse.Value;
+        var ec = endChapter ?? sc;
+        var ev = endVerse ?? sv;
+
+        var verses = new List<Verse>();
+        for (var ch = sc; ch <= ec; ch++)
+        {
+            var chapterVs = BibleService.GetVerses(BibleId, browseBook, ch);
+            foreach (var v in chapterVs)
+            {
+                if (ch == sc && v.VerseNumber < sv) continue;
+                if (ch == ec && v.VerseNumber > ev) continue;
+                verses.Add(v);
+            }
+        }
+        return verses;
+    }
+
+    private void PickBook(string bookId)
+    {
+        browseBook = bookId;
+        startChapter = null;
+        startVerse = null;
+        endChapter = null;
+        endVerse = null;
+        editing = EditPart.StartChapter;
+        NotifySelectionChanged();
+    }
+
+    private void PickChapter(int chapter)
+    {
+        if (editing == EditPart.StartChapter)
+        {
+            startChapter = chapter;
+            startVerse = null;
+            endChapter = null;
+            endVerse = null;
+            editing = EditPart.StartVerse;
+        }
+        else if (editing == EditPart.EndChapter)
+        {
+            endChapter = chapter;
+            endVerse = null;
+            editing = EditPart.EndVerse;
+        }
+        NotifySelectionChanged();
+    }
+
+    private void PickVerse(int verseNumber)
+    {
+        if (editing == EditPart.StartVerse)
+        {
+            startVerse = verseNumber;
+            endChapter = startChapter;
+            endVerse = null;
+            editing = EditPart.EndVerse;
+        }
+        else if (editing == EditPart.EndVerse)
+        {
+            endVerse = verseNumber;
+            EnsureStartBeforeEnd();
+        }
+        NotifySelectionChanged();
+    }
+
+    private void EnsureStartBeforeEnd()
+    {
+        if (startChapter is null || startVerse is null || endChapter is null || endVerse is null) return;
+        var sc = startChapter.Value;
+        var sv = startVerse.Value;
+        var ec = endChapter.Value;
+        var ev = endVerse.Value;
+        if (ec < sc || (ec == sc && ev < sv))
+        {
+            startChapter = ec;
+            startVerse = ev;
+            endChapter = sc;
+            endVerse = sv;
+        }
+    }
+}

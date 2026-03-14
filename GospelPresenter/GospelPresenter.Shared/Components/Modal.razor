@@ -1,11 +1,19 @@
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 @backdropAnimationClass" @onclick="HandleOnCloseAsync">
-    <div class="rounded-3xl shadow-lg max-h-full w-full m-3 relative @Class @contentAnimationClass" @onclick:stopPropagation="true">
-        @* <CloseButton Class="absolute top-3 right-3" OnClose="HandleOnCloseAsync"/> *@
+@implements IDisposable
+
+<dialog @ref="dialogRef"
+        class="animated top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-3xl shadow-lg w-full relative backdrop:bg-black/30 p-0 overflow-hidden text-neutral-900 dark:text-neutral-100 @Class">
+    <div class="rounded-3xl">
+        <button class="absolute top-3 right-3 z-10 size-8 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer text-neutral-500"
+                @onclick="HandleOnCloseAsync">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+            </svg>
+        </button>
         <div class="p-4 text-center">
             <h5>@Title</h5>
         </div>
 
-        <div class="px-4 overflow-y-auto" style="max-height: calc(100svh - 12rem);">
+        <div class="px-4 h-[70svh] flex flex-col">
             @Body
         </div>
 
@@ -13,7 +21,7 @@
             @Footer
         </div>
     </div>
-</div>
+</dialog>
 
 @code {
     [Parameter] public RenderFragment? Title { get; set; }
@@ -24,34 +32,35 @@
 
     [Parameter] public EventCallback OnClose { get; set; }
 
-    private const string StartBackdropAnimationClass = "transition duration-200 opacity-0";
-    private const string EndBackdropAnimationClass = "transition duration-200 opacity-100";
+    [Inject] private IJSRuntime JsRuntime { get; set; } = default!;
 
-    private const string StartContentAnimationClass = "transition duration-200 translate-y-[10px]";
-    private const string EndContentAnimationClass = "transition duration-200 translate-y-0";
-
-    private string? backdropAnimationClass = StartBackdropAnimationClass;
-    private string? contentAnimationClass = StartContentAnimationClass;
+    private ElementReference dialogRef;
+    private DotNetObjectReference<Modal>? selfRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await Task.Delay(50); // Giving the view some time to render before starting the animation
-
-            backdropAnimationClass = EndBackdropAnimationClass;
-            contentAnimationClass = EndContentAnimationClass;
-            await InvokeAsync(StateHasChanged);
+            selfRef = DotNetObjectReference.Create(this);
+            await JsRuntime.InvokeVoidAsync("showModal", dialogRef, selfRef);
         }
+    }
+
+    [JSInvokable]
+    public async Task OnCancelFromJs()
+    {
+        await HandleOnCloseAsync();
+        StateHasChanged();
     }
 
     private async Task HandleOnCloseAsync()
     {
-        backdropAnimationClass = StartBackdropAnimationClass;
-        contentAnimationClass = StartContentAnimationClass;
-        await InvokeAsync(StateHasChanged);
-
-        await Task.Delay(200); // Waiting to close the modal until the animation has finished
+        await JsRuntime.InvokeVoidAsync("closeModal", dialogRef);
         await OnClose.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        selfRef?.Dispose();
     }
 }

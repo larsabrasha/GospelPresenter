@@ -1,0 +1,106 @@
+@page "/admin/overlays/new"
+@page "/admin/overlays/{OverlayId}"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Components.Presentations
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject IPresentationService PresentationService
+@inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+    <div class="relative flex items-center justify-center px-7">
+        <a href="/admin/overlays"
+           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
+            </svg>
+            Tillbaka
+        </a>
+        <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
+            @(isNew ? "Ny overlay" : overlay?.Title)
+        </div>
+    </div>
+
+    @if (!isNew && overlay is null)
+    {
+        <div class="px-7 text-neutral-400">Laddar...</div>
+    }
+    else if (overlay is not null)
+    {
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden p-5">
+            <OverlayEditor Overlay="@overlay"
+                           OnChanged="HandleChanged"
+                           OnDeleted="HandleDeleted"/>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? OverlayId { get; set; }
+
+    private OverlaySlide? overlay;
+    private bool isNew;
+    private string? organizationId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        organizationId = OrgState.ActiveOrganizationId;
+        if (organizationId is null)
+        {
+            NavigationManager.NavigateTo("/admin/overlays");
+            return;
+        }
+
+        isNew = OverlayId is null;
+
+        if (isNew)
+        {
+            overlay = new OverlaySlide();
+        }
+        else
+        {
+            overlay = await PresentationService.GetOverlayByIdAsync(OverlayId!, organizationId, OrgState.ToCallerContext());
+            if (overlay is null)
+            {
+                NavigationManager.NavigateTo("/admin/overlays");
+            }
+        }
+    }
+
+    private void NavigateBack()
+    {
+        NavigationManager.NavigateTo("/admin/overlays");
+    }
+
+    private async Task HandleChanged(OverlaySlide changed)
+    {
+        if (organizationId is null) return;
+
+        if (isNew)
+        {
+            await PresentationService.AddOverlayAsync(organizationId, changed, OrgState.ToCallerContext());
+            isNew = false;
+            NavigationManager.NavigateTo($"/admin/overlays/{changed.Id}", replace: true);
+        }
+        else
+        {
+            await PresentationService.UpdateOverlayAsync(organizationId, changed, OrgState.ToCallerContext());
+        }
+    }
+
+    private async Task HandleDeleted(OverlaySlide deleted)
+    {
+        if (organizationId is null) return;
+
+        await PresentationService.RemoveOverlayAsync(organizationId, deleted.Id, OrgState.ToCallerContext());
+        NavigationManager.NavigateTo("/admin/overlays");
+    }
+}

@@ -27,3 +27,39 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+dialog.animated {
+    opacity: 0;
+    transition:
+        opacity 200ms,
+        overlay 200ms allow-discrete,
+        display 200ms allow-discrete;
+}
+
+dialog.animated[open] {
+    opacity: 1;
+}
+
+@starting-style {
+    dialog.animated[open] {
+        opacity: 0;
+    }
+}
+
+dialog.animated::backdrop {
+    background: rgb(0 0 0 / 0);
+    transition:
+        background 200ms,
+        overlay 200ms allow-discrete,
+        display 200ms allow-discrete;
+}
+
+dialog.animated[open]::backdrop {
+    background: rgb(0 0 0 / 0.3);
+}
+
+@starting-style {
+    dialog.animated[open]::backdrop {
+        background: rgb(0 0 0 / 0);
+    }
+}
