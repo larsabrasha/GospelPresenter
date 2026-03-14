@@ -1,0 +1,46 @@
+@implements IDisposable
+
+<dialog @ref="dialogRef"
+        class="animated top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-2xl shadow-2xl w-full relative backdrop:bg-black/40 p-0 overflow-hidden text-neutral-900 dark:text-neutral-100 @Class">
+    <div class="rounded-2xl">
+        @ChildContent
+    </div>
+</dialog>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    [Inject] private IJSRuntime JsRuntime { get; set; } = default!;
+
+    private ElementReference dialogRef;
+    private DotNetObjectReference<Dialog>? selfRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            selfRef = DotNetObjectReference.Create(this);
+            await JsRuntime.InvokeVoidAsync("showModal", dialogRef, selfRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnCancelFromJs()
+    {
+        await CloseAsync();
+        StateHasChanged();
+    }
+
+    private async Task CloseAsync()
+    {
+        await JsRuntime.InvokeVoidAsync("closeModal", dialogRef);
+        await OnClose.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        selfRef?.Dispose();
+    }
+}

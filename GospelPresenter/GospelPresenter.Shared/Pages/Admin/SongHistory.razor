@@ -92,9 +92,8 @@
 
 @if (restoreConfirm)
 {
-    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelRestore">
-        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
-             @onclick:stopPropagation="true">
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-md" OnClose="CancelRestore">
+        <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">Återställ version</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
                 Vill du återställa sången till versionen från <strong>@FormatDate(selectedVersion!.CreatedAt)</strong>?
@@ -112,7 +111,7 @@
                 </button>
             </div>
         </div>
-    </div>
+    </Dialog>
 }
 
 @code {

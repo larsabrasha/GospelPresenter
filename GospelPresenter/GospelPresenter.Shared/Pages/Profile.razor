@@ -78,9 +78,8 @@
 
 @if (confirmAction is not null)
 {
-    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CloseConfirmDialog">
-        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-lg space-y-4"
-             @onclick:stopPropagation="true">
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseConfirmDialog">
+        <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@confirmTitle</div>
             <p>@confirmMessage</p>
             <div class="flex justify-end gap-3">
@@ -94,14 +93,13 @@
                 </button>
             </div>
         </div>
-    </div>
+    </Dialog>
 }
 
 @if (showCropDialog)
 {
-    <div class="fixed inset-0 bg-black/60 z-200 flex items-center justify-center p-4" @onclick="CloseCropDialog">
-        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4"
-             @onclick:stopPropagation="true">
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CloseCropDialog">
+        <div class="p-6 space-y-4">
             <div class="font-semibold text-lg text-center">Beskär bild</div>
             <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
                  id="profile-image-cropper"
@@ -122,7 +120,7 @@
                 </button>
             </div>
         </div>
-    </div>
+    </Dialog>
 }
 
 @code {

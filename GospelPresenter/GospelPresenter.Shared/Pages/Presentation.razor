@@ -316,9 +316,8 @@ else if (addModalType == "image")
 
 @if (itemToRemove is not null)
 {
-    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelRemove">
-        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4"
-             @onclick:stopPropagation="true">
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelRemove">
+        <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">Ta bort</div>
             <div>Vill du ta bort <strong>@itemToRemove.Title</strong>?</div>
             <div class="flex justify-end gap-3">
@@ -332,7 +331,7 @@ else if (addModalType == "image")
                 </button>
             </div>
         </div>
-    </div>
+    </Dialog>
 }
 
 @if (showOverlayManager)
@@ -347,9 +346,8 @@ else if (addModalType == "image")
 
 @if (showDeleteConfirmation)
 {
-    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelDeletePresentation">
-        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4"
-             @onclick:stopPropagation="true">
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDeletePresentation">
+        <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">Radera presentation</div>
             <div>Vill du radera <strong>@AppState.SelectedProject?.Name</strong>? Detta kan inte ångras.</div>
             <div class="flex justify-end gap-3">
@@ -363,7 +361,7 @@ else if (addModalType == "image")
                 </button>
             </div>
         </div>
-    </div>
+    </Dialog>
 }
 
 @code {

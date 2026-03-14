@@ -59,6 +59,13 @@ window.showModal = function(element, dotNetRef) {
         e.preventDefault();
         if (dotNetRef) dotNetRef.invokeMethodAsync('OnCancelFromJs');
     });
+
+    element.addEventListener('mousedown', function(e) {
+        if (e.target === element && dotNetRef) {
+            dotNetRef.invokeMethodAsync('OnCancelFromJs');
+        }
+    });
+
     element.showModal();
 }
 

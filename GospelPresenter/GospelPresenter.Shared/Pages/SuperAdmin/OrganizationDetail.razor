@@ -113,9 +113,8 @@
 
 @if (showDeleteDialog)
 {
-    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="() => showDeleteDialog = false">
-        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-lg space-y-4"
-             @onclick:stopPropagation="true">
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="() => showDeleteDialog = false">
+        <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">Ta bort organisation</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
                 Är du säker på att du vill ta bort <strong>@organization?.Name</strong>? Detta kan inte ångras.
@@ -150,14 +149,13 @@
                 </button>
             </div>
         </div>
-    </div>
+    </Dialog>
 }
 
 @if (showCropDialog)
 {
-    <div class="fixed inset-0 bg-black/60 z-200 flex items-center justify-center p-4" @onclick="CloseCropDialog">
-        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4"
-             @onclick:stopPropagation="true">
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CloseCropDialog">
+        <div class="p-6 space-y-4">
             <div class="font-semibold text-lg text-center">Beskär logga</div>
             <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
                  id="org-logo-cropper"
@@ -178,7 +176,7 @@
                 </button>
             </div>
         </div>
-    </div>
+    </Dialog>
 }
 
 @code {

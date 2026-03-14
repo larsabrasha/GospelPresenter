@@ -92,9 +92,8 @@ else
 
     @if (imageToDelete is not null)
     {
-        <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelDelete">
-            <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-sm space-y-4"
-                 @onclick:stopPropagation="true">
+        <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDelete">
+            <div class="p-6 space-y-4">
                 <div class="font-semibold text-lg">Radera bild</div>
                 <div>Vill du radera <strong>@imageToDelete.FileName</strong>?</div>
                 <div class="flex justify-end gap-3">
@@ -108,7 +107,7 @@ else
                     </button>
                 </div>
             </div>
-        </div>
+        </Dialog>
     }
 }
 </div>

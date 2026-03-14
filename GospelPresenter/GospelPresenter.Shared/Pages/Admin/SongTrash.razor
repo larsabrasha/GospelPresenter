@@ -93,9 +93,8 @@
 
 @if (confirmMessage is not null)
 {
-    <div class="fixed inset-0 bg-black/40 z-200 flex items-center justify-center p-4" @onclick="CancelConfirm">
-        <div class="bg-white dark:bg-neutral-800 dark:text-neutral-100 rounded-2xl shadow-2xl p-6 w-full max-w-md space-y-4"
-             @onclick:stopPropagation="true">
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-md" OnClose="CancelConfirm">
+        <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@confirmTitle</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
                 @confirmMessage
@@ -112,7 +111,7 @@
                 </button>
             </div>
         </div>
-    </div>
+    </Dialog>
 }
 
 @code {
