@@ -11,7 +11,6 @@
 
 @inject IUserService UserService
 @inject ActiveOrganizationState OrgState
-@inject NavigationManager NavigationManager
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="flex items-center justify-between px-7">
@@ -54,13 +53,6 @@
                         <div class="font-medium">@org.Name</div>
                         <div class="text-xs text-neutral-400">@org.Users.Count @(org.Users.Count == 1 ? "användare" : "användare")</div>
                     </a>
-                    <button @onclick="() => SwitchToOrganization(org)"
-                            class="px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer
-                                   @(OrgState.SelectedOrganizationId == org.Id
-                                       ? "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300"
-                                       : "bg-neutral-100 dark:bg-neutral-600 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-500")">
-                        @(OrgState.SelectedOrganizationId == org.Id ? "Aktiv" : "Byt till")
-                    </button>
                 </div>
             }
         }
@@ -146,12 +138,6 @@
         showCreateDialog = false;
         organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
         OrgState.NotifyOrganizationsChanged();
-    }
-
-    private void SwitchToOrganization(Organization org)
-    {
-        OrgState.SwitchOrganization(org.Id, org.Name);
-        NavigationManager.NavigateTo("/");
     }
 
 }
