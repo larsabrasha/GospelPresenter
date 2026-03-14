@@ -192,6 +192,9 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateUserAsync(string id, string name, string email, UserRole role, CallerContext caller)
     {
+        if (id == caller.UserId && role != caller.Role)
+            throw new UnauthorizedAccessException("Access denied: cannot change your own role.");
+
         await using var context = await dbContextFactory.CreateDbContextAsync();
 
         if (caller.Role != UserRole.SuperAdmin)
@@ -203,8 +206,6 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
                 throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
             if (role == UserRole.SuperAdmin)
                 throw new UnauthorizedAccessException("Access denied: only SuperAdmin can assign the SuperAdmin role.");
-            if (id == caller.UserId && role != caller.Role)
-                throw new UnauthorizedAccessException("Access denied: cannot change your own role.");
         }
 
         await context.Users

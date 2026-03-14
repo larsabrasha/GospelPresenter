@@ -75,6 +75,13 @@
     {
         OrgState.OnChange += OnOrgStateChanged;
         OrgState.OnOrganizationsChanged += OnOrganizationsChanged;
+
+        if (!OrgState.IsSuperAdmin)
+        {
+            organizations = [];
+            return;
+        }
+
         organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
     }
 

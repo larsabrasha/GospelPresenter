@@ -1,9 +1,12 @@
 @page "/admin/songs/{SongId}"
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
 
+@using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
 
 @inject ISongService SongService
 @inject NavigationManager NavigationManager

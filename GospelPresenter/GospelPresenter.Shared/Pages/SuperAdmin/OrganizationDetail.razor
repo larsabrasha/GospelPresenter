@@ -1,12 +1,15 @@
 @page "/superadmin/organizations/{OrganizationId}"
 @attribute [Authorize(Roles = "SuperAdmin")]
 
+@using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+
+@layout AdminLayout
 
 @inject IUserService UserService
 @inject IProfileImageService ProfileImageService

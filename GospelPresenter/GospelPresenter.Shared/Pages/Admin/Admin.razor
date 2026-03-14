@@ -1,0 +1,16 @@
+@page "/admin"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Layout
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override void OnInitialized()
+    {
+        NavigationManager.NavigateTo("/admin/songs", replace: true);
+    }
+}

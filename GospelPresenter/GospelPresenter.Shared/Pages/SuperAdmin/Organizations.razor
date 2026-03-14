@@ -1,26 +1,22 @@
 @page "/superadmin/organizations"
 @attribute [Authorize(Roles = "SuperAdmin")]
 
+@using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
 
 @inject IUserService UserService
 @inject ActiveOrganizationState OrgState
 @inject NavigationManager NavigationManager
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
-    <div class="relative flex items-center justify-center px-7">
-        <a href="/"
-           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            Tillbaka
-        </a>
+    <div class="flex items-center justify-between px-7">
         <div class="text-xl font-bold dark:text-neutral-100">Organisationer</div>
-        <button class="absolute right-0 px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm"
+        <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm"
                 @onclick="ShowCreateDialog">
             Ny organisation
         </button>
