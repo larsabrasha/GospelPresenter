@@ -29,7 +29,7 @@ else
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
                 </svg>
                 Ladda upp bild
-                <InputFile OnChange="HandleFileSelected" accept="image/*" class="hidden"/>
+                <InputFile OnChange="HandleFileSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
             </label>
             @if (uploadError is not null)
             {
@@ -118,6 +118,7 @@ else
     [Parameter] public EventCallback<OrganizationImage> OnAddKeepOpen { get; set; }
 
     private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
+    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     private const int FullMaxWidth = 1920;
     private const int FullMaxHeight = 1080;
     private const int ThumbMaxWidth = 400;
@@ -148,6 +149,11 @@ else
         uploadError = null;
         var file = e.File;
 
+        if (!AllowedImageTypes.Contains(file.ContentType))
+        {
+            uploadError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
+            return;
+        }
         if (file.Size > MaxFileSize)
         {
             uploadError = "Bilden får inte vara större än 10 MB";
@@ -165,8 +171,11 @@ else
             var originalBytes = ms.ToArray();
             var base64 = Convert.ToBase64String(originalBytes);
 
-            var fullBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, FullMaxWidth, FullMaxHeight, 0.90);
-            var thumbBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, ThumbMaxWidth, ThumbMaxHeight, 0.80);
+            var hasAlpha = file.ContentType is "image/png" or "image/webp" or "image/gif";
+            var outputFormat = hasAlpha ? "image/webp" : "image/jpeg";
+
+            var fullBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, FullMaxWidth, FullMaxHeight, 0.90, outputFormat);
+            var thumbBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, ThumbMaxWidth, ThumbMaxHeight, 0.80, outputFormat);
 
             var fullData = Convert.FromBase64String(fullBase64);
             var thumbData = Convert.FromBase64String(thumbBase64);
@@ -174,7 +183,7 @@ else
             var image = await OrganizationImageService.AddImageAsync(
                 organizationId!,
                 file.Name,
-                "image/jpeg",
+                outputFormat,
                 thumbData,
                 fullData,
                 OrgState.ToCallerContext());

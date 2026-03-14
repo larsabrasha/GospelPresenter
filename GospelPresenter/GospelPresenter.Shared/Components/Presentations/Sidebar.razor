@@ -59,6 +59,7 @@
                            type="text"
                            class="w-full px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-lg"
                            @bind="editName"
+                           @bind:event="oninput"
                            @onblur="SaveNameAsync"
                            @onkeydown="OnNameKeyDown"/>
                 </div>

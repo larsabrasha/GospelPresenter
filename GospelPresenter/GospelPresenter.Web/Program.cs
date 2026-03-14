@@ -338,19 +338,30 @@ builder.Services.AddMetricServer(options =>
     app.Use(async (context, next) =>
     {
         var path = context.Request.Path.Value ?? "";
-        var isSetupPath = path.Equals("/setup", StringComparison.OrdinalIgnoreCase);
+        var isSetupPath = path.Equals("/setup", StringComparison.OrdinalIgnoreCase)
+                          || path.StartsWith("/invite/", StringComparison.OrdinalIgnoreCase);
         var isStaticOrInternal = path.StartsWith("/_", StringComparison.OrdinalIgnoreCase)
                                  || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase);
 
-        if (!isSetupPath && !isStaticOrInternal)
+        if (!isStaticOrInternal)
         {
             var setupStatus = context.RequestServices.GetRequiredService<SetupStatusService>();
             var userService = context.RequestServices.GetRequiredService<IUserService>();
 
             if (!await setupStatus.IsSetupCompleteAsync(userService))
             {
-                context.Response.Redirect("/setup");
-                return;
+                // Clear any stale auth cookie from a previous session to prevent
+                // MainLayout's auth logic from causing a redirect loop
+                if (context.User.Identity?.IsAuthenticated == true)
+                {
+                    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                }
+
+                if (!isSetupPath)
+                {
+                    context.Response.Redirect("/setup");
+                    return;
+                }
             }
         }
 

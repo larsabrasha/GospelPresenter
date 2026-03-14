@@ -162,7 +162,8 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
 
 window.gospelPresenter = window.gospelPresenter || {};
 
-window.gospelPresenter.resizeImage = function(base64, maxWidth, maxHeight, quality) {
+window.gospelPresenter.resizeImage = function(base64, maxWidth, maxHeight, quality, mimeType) {
+    var format = mimeType || 'image/jpeg';
     return new Promise(function(resolve, reject) {
         var img = new Image();
         img.onload = function() {
@@ -176,7 +177,7 @@ window.gospelPresenter.resizeImage = function(base64, maxWidth, maxHeight, quali
             canvas.width = w;
             canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            var dataUrl = canvas.toDataURL('image/jpeg', quality);
+            var dataUrl = canvas.toDataURL(format, quality);
             resolve(dataUrl.split(',')[1]);
         };
         img.onerror = function() { reject('Failed to load image'); };

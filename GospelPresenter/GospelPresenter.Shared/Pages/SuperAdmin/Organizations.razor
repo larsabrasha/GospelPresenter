@@ -1,6 +1,7 @@
 @page "/superadmin/organizations"
 @attribute [Authorize(Roles = "SuperAdmin")]
 
+@using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
@@ -11,6 +12,7 @@
 
 @inject IUserService UserService
 @inject ActiveOrganizationState OrgState
+@inject NavigationManager NavigationManager
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="flex items-center justify-between px-7">
@@ -47,13 +49,14 @@
         {
             @foreach (var org in organizations)
             {
-                <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700">
-                    <a href="/superadmin/organizations/@org.Id"
-                       class="flex-1 min-w-0 no-underline text-inherit">
+                <a href="/superadmin/organizations/@org.Id"
+                   class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+                    <OrganizationAvatar LogoUrl="@org.LogoSmall" Name="@org.Name"/>
+                    <div class="flex-1 min-w-0">
                         <div class="font-medium">@org.Name</div>
                         <div class="text-xs text-neutral-400">@org.Users.Count @(org.Users.Count == 1 ? "användare" : "användare")</div>
-                    </a>
-                </div>
+                    </div>
+                </a>
             }
         }
     </div>
@@ -71,6 +74,7 @@
                        type="text"
                        class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
                        @bind="newOrgName"
+                       @bind:event="oninput"
                        @onkeydown="OnDialogKeyDown"/>
             </div>
             <div class="flex justify-end gap-3">
@@ -134,10 +138,13 @@
 
         var org = await UserService.CreateOrganizationAsync(newOrgName.Trim(), OrgState.ToCallerContext());
 
+        OrgState.SwitchOrganization(org.Id, org.Name);
+        await UserService.SetUserSettingAsync(OrgState.UserId!, UserSetting.LastSelectedOrganizationId, org.Id, OrgState.ToCallerContext());
+        OrgState.NotifyOrganizationsChanged();
+
         isCreating = false;
         showCreateDialog = false;
-        organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
-        OrgState.NotifyOrganizationsChanged();
+        NavigationManager.NavigateTo("/admin/users");
     }
 
 }

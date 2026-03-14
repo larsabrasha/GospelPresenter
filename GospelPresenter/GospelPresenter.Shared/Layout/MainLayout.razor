@@ -87,7 +87,11 @@
             else
             {
                 OrgState.MarkInitialized();
-                NavigationManager.NavigateTo("/superadmin/organizations");
+                var currentPath = new Uri(NavigationManager.Uri).AbsolutePath;
+                if (!currentPath.StartsWith("/superadmin/organizations", StringComparison.OrdinalIgnoreCase))
+                {
+                    NavigationManager.NavigateTo("/superadmin/organizations");
+                }
                 return;
             }
         }

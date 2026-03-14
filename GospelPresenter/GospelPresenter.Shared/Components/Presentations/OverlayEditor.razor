@@ -14,12 +14,12 @@
     <div class="flex-1 min-h-0 overflow-y-auto space-y-4">
         <div>
             <label class="block text-sm font-medium mb-1">Titel</label>
-            <input type="text" @bind="title" placeholder="Namn"
+            <input type="text" @bind="title" @bind:event="oninput" placeholder="Namn"
                    class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm w-full"/>
         </div>
         <div>
             <label class="block text-sm font-medium mb-1">Textinnehåll</label>
-            <textarea @bind="content" placeholder="Text som visas i overlayen (valfritt)" rows="4"
+            <textarea @bind="content" @bind:event="oninput" placeholder="Text som visas i overlayen (valfritt)" rows="4"
                       class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm w-full resize-none"/>
         </div>
         <div>
@@ -29,7 +29,7 @@
                 <div class="flex items-center gap-2">
                     <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
                         Byt bild
-                        <InputFile OnChange="HandleImageUpload" accept="image/*" class="hidden"/>
+                        <InputFile OnChange="HandleImageUpload" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
                     </label>
                     <button class="text-sm text-red-500 hover:text-red-600 cursor-pointer"
                             @onclick="RemoveImage">Ta bort bild</button>
@@ -39,7 +39,7 @@
             {
                 <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
                     Välj bild
-                    <InputFile OnChange="HandleImageUpload" accept="image/*" class="hidden"/>
+                    <InputFile OnChange="HandleImageUpload" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
                 </label>
             }
         </div>
@@ -123,12 +123,15 @@
         clearImage = true;
     }
 
+    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
     private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
         var file = e.File;
-        if (file.Size > 5 * 1024 * 1024) return;
+        if (!AllowedImageTypes.Contains(file.ContentType)) return;
+        if (file.Size > 10 * 1024 * 1024) return;
 
-        using var stream = file.OpenReadStream(5 * 1024 * 1024);
+        using var stream = file.OpenReadStream(10 * 1024 * 1024);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
         imageData = ms.ToArray();
