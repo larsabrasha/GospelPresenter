@@ -160,6 +160,12 @@
         if (isSaving || string.IsNullOrWhiteSpace(editName)) return;
         emailError = null;
 
+        if (!string.IsNullOrWhiteSpace(editEmail) && !GospelPresenter.Shared.Utils.EmailValidation.IsValidEmail(editEmail.Trim()))
+        {
+            emailError = "Ogiltig e-postadress";
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(editEmail) && await UserService.IsEmailTakenAsync(editEmail.Trim()))
         {
             emailError = "E-postadressen används redan av en annan användare";
