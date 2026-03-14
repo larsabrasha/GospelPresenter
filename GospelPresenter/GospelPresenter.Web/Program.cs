@@ -121,7 +121,7 @@ try
                         await userService.UpdateEmailIfEmptyAsync(user.Id, email);
                 }
 
-                if (string.IsNullOrEmpty(user.ProfileImage))
+                if (string.IsNullOrEmpty(user.ProfileImage) && !user.ProfileImageRemoved)
                 {
                     var pictureUrl = context.Principal?.FindFirstValue("picture");
                     if (!string.IsNullOrEmpty(pictureUrl))
@@ -211,7 +211,7 @@ try
                         await userService.UpdateEmailIfEmptyAsync(user.Id, email);
                 }
 
-                if (string.IsNullOrEmpty(user.ProfileImage))
+                if (string.IsNullOrEmpty(user.ProfileImage) && !user.ProfileImageRemoved)
                 {
                     var pictureUrl = context.Principal?.FindFirstValue("picture");
                     if (!string.IsNullOrEmpty(pictureUrl))

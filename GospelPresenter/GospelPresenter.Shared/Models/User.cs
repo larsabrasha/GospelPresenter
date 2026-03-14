@@ -7,6 +7,7 @@ public class User
     public string Email { get; set; } = "";
     public string? ProfileImage { get; set; }
     public string? ProfileImageSmall { get; set; }
+    public bool ProfileImageRemoved { get; set; }
     public UserRole Role { get; set; } = UserRole.User;
 
     public string? OrganizationId { get; set; }

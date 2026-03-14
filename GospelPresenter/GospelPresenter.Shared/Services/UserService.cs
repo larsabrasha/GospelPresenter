@@ -226,12 +226,14 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall)
     {
+        var removed = profileImage is null;
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await context.Users
             .Where(u => u.Id == id)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(u => u.ProfileImage, profileImage)
-                .SetProperty(u => u.ProfileImageSmall, profileImageSmall));
+                .SetProperty(u => u.ProfileImageSmall, profileImageSmall)
+                .SetProperty(u => u.ProfileImageRemoved, removed));
     }
 
     public async Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall, CallerContext caller)
