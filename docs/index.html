@@ -8,9 +8,10 @@
     <title>docs</title>
   </head>
   <body>
-    <div class="min-h-dvh">
+    <div class="min-h-dvh animated-bg">
+      <div class="blob-3"></div>
       <nav
-        class="flex items-center justify-between mx-auto max-w-5xl p-3 sticky top-0 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm"
+        class="relative z-10 flex items-center justify-between mx-auto max-w-5xl p-3 sticky top-0 backdrop-blur-sm"
       >
         <div class="flex items-center space-x-1">
           <div class="text-sky-500 w-8">
@@ -46,17 +47,17 @@
 
         <div>
           <a href="https://github.com/larsabrasha/GospelPresenter">
-            <img src="github-mark.svg" class="w-6" />
+            <img src="github-mark.svg" class="w-6 dark:invert" />
           </a>
         </div>
       </nav>
 
-      <div class="max-w-5xl mx-auto flex flex-col p-3">
-        <div class="text-center text-7xl sm:text-8xl font-bold py-15">
+      <div class="relative z-10 max-w-5xl mx-auto flex flex-col p-3">
+        <div class="text-center text-7xl sm:text-8xl font-bold py-15 bg-gradient-to-r from-sky-500 to-sky-400 bg-clip-text text-transparent">
           Gospel Presenter
         </div>
         <div
-          class="text-center text-3xl/10 sm:text-4xl/12 font-medium text-neutral-400 max-w-180 mx-auto"
+          class="text-center text-3xl/10 sm:text-4xl/12 font-medium text-slate-600 dark:text-slate-400 max-w-180 mx-auto"
         >
           Free and open-source, ultra-simple presentation software for churches
         </div>
@@ -93,6 +94,115 @@
             />
           </picture>
         </div>
+
+        <!-- Features -->
+        <div class="py-16">
+          <h2 class="text-3xl font-bold text-center pb-12 text-sky-500">Features</h2>
+
+          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div>
+              <div class="flex items-center gap-3 pb-2">
+                <svg class="w-8 h-8 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+                </svg>
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Presentations</h3>
+              </div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Build presentations with songs, Bible passages, and images.
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-3 pb-2">
+                <svg class="w-8 h-8 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 20.25h12m-7.5-3v3m3-3v3m-10.125-3h17.25c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125Z" />
+                </svg>
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Live Display</h3>
+              </div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Show your presentation fullscreen on a second screen. Changes
+                sync instantly to all connected viewers.
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-3 pb-2">
+                <svg class="w-8 h-8 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V4.103A2.25 2.25 0 0 0 17.868 2.1l-6.236 1.78A2.25 2.25 0 0 0 9 6.032V9m0 0a2.25 2.25 0 0 0-1.632 2.163l-.001 1.59a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 9Z" />
+                </svg>
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Song Library</h3>
+              </div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Manage your church's song collection with lyrics, metadata, and
+                version history. Import songs from ProPresenter.
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-3 pb-2">
+                <svg class="w-8 h-8 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                </svg>
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Bible Integration</h3>
+              </div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Browse and search multiple Bible translations. Add verses
+                directly into your presentations.
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-3 pb-2">
+                <svg class="w-8 h-8 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6.429 9.75 2.25 12l4.179 2.25m0-4.5 5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0 4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0-5.571 3-5.571-3" />
+                </svg>
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Overlays</h3>
+              </div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Display text or images on top of your slides &mdash; perfect for
+                announcements, QR codes, or collection info.
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-3 pb-2">
+                <svg class="w-8 h-8 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                </svg>
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Multi-User &amp; Organizations</h3>
+              </div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Invite team members and manage roles. Each organization has its
+                own song library and presentations.
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-3 pb-2">
+                <svg class="w-8 h-8 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                </svg>
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Dark Mode</h3>
+              </div>
+              <p class="text-slate-600 dark:text-slate-400">
+                A clean, modern interface with full dark mode support that works
+                on desktop, tablet, and mobile.
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-3 pb-2">
+                <svg class="w-8 h-8 text-sky-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+                </svg>
+                <h3 class="text-lg font-semibold text-neutral-800 dark:text-neutral-100">Open Source</h3>
+              </div>
+              <p class="text-slate-600 dark:text-slate-400">
+                Completely free and open source. Self-host on your own server.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -100,22 +210,22 @@
       class="bg-neutral-50 dark:bg-neutral-800 p-3 border-t border-neutral-100 dark:border-neutral-700"
     >
       <div id="get-started" class="max-w-5xl mx-auto flex flex-col p-3 pb-100">
-        <h1 class="text-xl font-bold py-8">About</h1>
+        <h1 class="text-xl font-bold py-8 text-sky-500">About</h1>
 
-        <p class="pb-4 max-w-prose text-neutral-700 dark:text-neutral-300">
+        <p class="pb-4 max-w-prose text-slate-600 dark:text-slate-400">
           Gospel Presenter is a free and open-source presentation tool built for
           churches. It makes it easy to display song lyrics and Bible verses on a
           second screen during services.
         </p>
 
-        <p class="pb-12 max-w-prose text-neutral-700 dark:text-neutral-300">
+        <p class="pb-12 max-w-prose text-slate-600 dark:text-slate-400">
           The project is open source. Visit the GitHub repository for
           instructions on how to self-host.
         </p>
 
         <a
           href="https://github.com/larsabrasha/GospelPresenter"
-          class="inline-flex items-center gap-2 bg-neutral-800 dark:bg-neutral-600 rounded-full px-7 py-3 text-white font-bold hover:bg-neutral-700 dark:hover:bg-neutral-500 w-fit"
+          class="inline-flex items-center gap-2 bg-sky-500 rounded-full px-7 py-3 text-white font-bold hover:bg-sky-600 w-fit"
         >
           <img
             src="github-mark.svg"
@@ -126,7 +236,41 @@
         </a>
       </div>
 
-      <div class="text-center text-xs text-neutral-400">Larsabrasha 2025</div>
+      <div class="flex justify-center py-6 opacity-20 dark:opacity-15">
+        <svg viewBox="0 0 48 48" class="w-8 h-8" fill="#9ca3af">
+          <!-- Left ear -->
+          <path d="M8 20 L4 4 L18 14 Z"/>
+          <!-- Right ear -->
+          <path d="M40 20 L44 4 L30 14 Z"/>
+          <!-- Inner ears -->
+          <path d="M9.5 18 L7 8 L16 14 Z" fill="#d1d5db"/>
+          <path d="M38.5 18 L41 8 L32 14 Z" fill="#d1d5db"/>
+          <!-- Face -->
+          <circle cx="24" cy="28" r="16"/>
+          <!-- Eyes -->
+          <g class="cat-eyes">
+            <ellipse cx="17" cy="26" rx="2.5" ry="3" fill="#e5e7eb"/>
+            <ellipse cx="31" cy="26" rx="2.5" ry="3" fill="#e5e7eb"/>
+            <circle cx="17.5" cy="26.5" r="1.5" fill="#4b5563"/>
+            <circle cx="31.5" cy="26.5" r="1.5" fill="#4b5563"/>
+          </g>
+          <!-- Closed eyes -->
+          <g class="cat-eyes-closed">
+            <path d="M14 26.5 Q17 24.5 20 26.5" fill="none" stroke="#e5e7eb" stroke-width="1.2" stroke-linecap="round"/>
+            <path d="M28 26.5 Q31 24.5 34 26.5" fill="none" stroke="#e5e7eb" stroke-width="1.2" stroke-linecap="round"/>
+          </g>
+          <!-- Nose -->
+          <path d="M24 31 L22.5 33 L25.5 33 Z" fill="#d1d5db"/>
+          <!-- Mouth -->
+          <path d="M24 33.5 Q22 36 20 35" fill="none" stroke="#e5e7eb" stroke-width="0.8" stroke-linecap="round"/>
+          <path d="M24 33.5 Q26 36 28 35" fill="none" stroke="#e5e7eb" stroke-width="0.8" stroke-linecap="round"/>
+          <!-- Whiskers -->
+          <line x1="14" y1="32" x2="2" y2="30" stroke="#9ca3af" stroke-width="0.7"/>
+          <line x1="14" y1="34" x2="2" y2="35" stroke="#9ca3af" stroke-width="0.7"/>
+          <line x1="34" y1="32" x2="46" y2="30" stroke="#9ca3af" stroke-width="0.7"/>
+          <line x1="34" y1="34" x2="46" y2="35" stroke="#9ca3af" stroke-width="0.7"/>
+        </svg>
+      </div>
     </div>
   </body>
 </html>
