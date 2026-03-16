@@ -11,13 +11,13 @@
 @if (isLoading)
 {
     <div class="flex items-center justify-center py-12 text-neutral-400 text-sm">
-        Laddar bilder...
+        @L["ImageTab.LoadingImages"]
     </div>
 }
 else if (organizationId is null)
 {
     <div class="flex items-center justify-center py-12 text-neutral-400 text-sm">
-        Kunde inte ladda bilder
+        @L["ImageTab.LoadError"]
     </div>
 }
 else
@@ -28,7 +28,7 @@ else
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
                 </svg>
-                Ladda upp bild
+                @L["ImageTab.Upload"]
                 <InputFile OnChange="HandleFileSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
             </label>
             @if (uploadError is not null)
@@ -37,7 +37,7 @@ else
             }
             @if (isUploading)
             {
-                <span class="text-neutral-400 text-sm">Laddar upp...</span>
+                <span class="text-neutral-400 text-sm">@L["ImageTab.Uploading"]</span>
             }
         </div>
 
@@ -74,7 +74,7 @@ else
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-12 mb-3 text-neutral-300 dark:text-neutral-600">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/>
                     </svg>
-                    <p class="text-neutral-400 dark:text-neutral-500">Inga bilder uppladdade</p>
+                    <p class="text-neutral-400 dark:text-neutral-500">@L["ImageTab.NoImages"]</p>
                 </div>
             }
         </div>
@@ -84,7 +84,7 @@ else
             <div class="shrink-0 flex items-center justify-end pt-4">
                 <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
-                    <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@selectedImage.FileName</span>
+                    <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@selectedImage.FileName</span>
                 </button>
             </div>
         }
@@ -94,16 +94,16 @@ else
     {
         <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDelete">
             <div class="p-6 space-y-4">
-                <div class="font-semibold text-lg">Radera bild</div>
-                <div>Vill du radera <strong>@imageToDelete.FileName</strong>?</div>
+                <div class="font-semibold text-lg">@L["ImageTab.DeleteImage"]</div>
+                <div>@((MarkupString)L["ImageTab.ConfirmDelete", imageToDelete.FileName].Value)</div>
                 <div class="flex justify-end gap-3">
                     <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                             @onclick="CancelDelete">
-                        Avbryt
+                        @L["Common.Cancel"]
                     </button>
                     <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
                             @onclick="DeleteImage">
-                        Radera
+                        @L["Common.Remove"]
                     </button>
                 </div>
             </div>
@@ -150,12 +150,12 @@ else
 
         if (!AllowedImageTypes.Contains(file.ContentType))
         {
-            uploadError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
+            uploadError = L["ImageTab.UnsupportedFormat"];
             return;
         }
         if (file.Size > MaxFileSize)
         {
-            uploadError = "Bilden får inte vara större än 10 MB";
+            uploadError = L["ImageTab.ImageTooLarge"];
             return;
         }
 
@@ -191,7 +191,7 @@ else
         }
         catch (Exception)
         {
-            uploadError = "Kunde inte ladda upp bilden";
+            uploadError = L["ImageTab.UploadError"];
         }
         finally
         {

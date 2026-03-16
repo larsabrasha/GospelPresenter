@@ -20,7 +20,7 @@
 
     @if (valid == null)
     {
-        <div class="text-neutral-400">Laddar...</div>
+        <div class="text-neutral-400">@L["Common.Loading"]</div>
     }
     else if (expired)
     {
@@ -41,7 +41,7 @@
                 <line x1="138" y1="33" x2="162" y2="57" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
                 <line x1="162" y1="33" x2="138" y2="57" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
             </svg>
-            <p class="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">Inbjudan har gått ut. Be din administratör skapa en ny.</p>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">@L["Invite.Expired"]</p>
         </div>
     }
     else if (valid == false)
@@ -60,13 +60,13 @@
                 <line x1="144" y1="104" x2="160" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                 <line x1="160" y1="104" x2="144" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
             </svg>
-            <p class="text-sm text-red-400 dark:text-red-400 leading-relaxed">Ogiltig eller redan använd inbjudan.</p>
-            <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-2 leading-relaxed">Kontakta din administratör för att få en ny inbjudan.</p>
+            <p class="text-sm text-red-400 dark:text-red-400 leading-relaxed">@L["Invite.Invalid"]</p>
+            <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-2 leading-relaxed">@L["Invite.ContactAdmin"]</p>
         </div>
     }
     else
     {
-        <div class="text-lg dark:text-neutral-100 mb-4">Välkommen <strong>@userName</strong>! Välj hur du vill logga in:</div>
+        <div class="text-lg dark:text-neutral-100 mb-4">@((MarkupString)L["Invite.Welcome", userName].Value)</div>
 
         <div class="flex flex-col p-3 w-full sm:w-140 items-center gap-3">
             <a href="/invite/@Token/signin?provider=google" class="flex items-center justify-center gap-2 w-64 px-6 py-3 rounded-full bg-white text-neutral-700 text-lg cursor-pointer hover:bg-neutral-100 border border-neutral-300">
@@ -81,14 +81,14 @@
             @if (showMore)
             {
                 <a href="/invite/@Token/signin?provider=oidc" class="flex items-center justify-center gap-2 w-64 px-6 py-3 rounded-full bg-sky-500 text-white text-lg cursor-pointer hover:bg-sky-600">
-                    Pocket ID
+                    @L["Invite.PocketId"]
                 </a>
             }
             else
             {
                 <button class="text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
                         @onclick="() => showMore = true">
-                    Fler alternativ
+                    @L["SignIn.MoreOptions"]
                 </button>
             }
         </div>

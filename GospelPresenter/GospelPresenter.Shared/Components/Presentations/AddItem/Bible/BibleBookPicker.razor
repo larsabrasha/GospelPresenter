@@ -36,8 +36,8 @@
             var ot = books.Where(BibleBookNames.IsOldTestament).ToList();
             var nt = books.Where(b => !BibleBookNames.IsOldTestament(b)).ToList();
             groupedBooks = [];
-            if (ot.Count > 0) groupedBooks.Add(("Gamla testamentet", ot));
-            if (nt.Count > 0) groupedBooks.Add(("Nya testamentet", nt));
+            if (ot.Count > 0) groupedBooks.Add((L["Bible.OldTestament"], ot));
+            if (nt.Count > 0) groupedBooks.Add((L["Bible.NewTestament"], nt));
         }
     }
 }

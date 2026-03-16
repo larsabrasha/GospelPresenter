@@ -18,32 +18,32 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
-            Tillbaka
+            @L["Common.Back"]
         </a>
-        <div class="text-xl font-bold dark:text-neutral-100">Papperskorg</div>
+        <div class="text-xl font-bold dark:text-neutral-100">@L["SongTrash.Title"]</div>
     </div>
 
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
         @if (trashedSongs is null)
         {
-            <div class="px-5 py-4 text-neutral-400 text-sm">Laddar...</div>
+            <div class="px-5 py-4 text-neutral-400 text-sm">@L["Common.Loading"]</div>
         }
         else if (trashedSongs.Count == 0)
         {
-            <div class="px-5 py-4 text-neutral-400 text-sm">Papperskorgen är tom.</div>
+            <div class="px-5 py-4 text-neutral-400 text-sm">@L["SongTrash.Empty"]</div>
         }
         else
         {
             <div class="px-5 pt-4 pb-2 flex items-center justify-between">
-                <div class="font-semibold">@trashedSongs.Count @(trashedSongs.Count == 1 ? "sång" : "sånger")</div>
+                <div class="font-semibold">@trashedSongs.Count @(trashedSongs.Count == 1 ? L["SongTrash.SongSingular"] : L["SongTrash.SongPlural"])</div>
                 <div class="flex items-center gap-2">
                     <button class="px-4 py-2 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30"
                             @onclick="ConfirmRestoreAll">
-                        Återställ alla
+                        @L["SongTrash.RestoreAll"]
                     </button>
                     <button class="px-4 py-2 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
                             @onclick="ConfirmEmptyTrash">
-                        Töm papperskorgen
+                        @L["SongTrash.EmptyTrash"]
                     </button>
                 </div>
             </div>
@@ -62,21 +62,21 @@
                                 }
                                 @if (song.DaysRemaining == 0)
                                 {
-                                    <span class="text-red-500">Raderas snart</span>
+                                    <span class="text-red-500">@L["SongTrash.DeletesSoon"]</span>
                                 }
                                 else if (song.DaysRemaining == 1)
                                 {
-                                    <span class="text-red-500">1 dag kvar</span>
+                                    <span class="text-red-500">@L["SongTrash.OneDayLeft"]</span>
                                 }
                                 else
                                 {
-                                    <span>@song.DaysRemaining dagar kvar</span>
+                                    <span>@L["SongTrash.DaysLeft", song.DaysRemaining]</span>
                                 }
                             </div>
                         </div>
                         <button class="px-3 py-1.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30"
                                 @onclick="() => ConfirmRestore(song)">
-                            Återställ
+                            @L["SongTrash.Restore"]
                         </button>
                         <button class="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 cursor-pointer"
                                 @onclick="() => ConfirmPermanentDelete(song)">
@@ -102,7 +102,7 @@
             <div class="flex justify-end gap-3">
                 <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                         @onclick="CancelConfirm">
-                    Avbryt
+                    @L["Common.Cancel"]
                 </button>
                 <button class="px-4 py-2.5 rounded-full text-white cursor-pointer disabled:opacity-50 @(confirmIsDestructive ? "bg-red-500 hover:bg-red-600" : "bg-sky-500 hover:bg-sky-600")"
                         disabled="@isProcessing"
@@ -135,10 +135,10 @@
 
     private void ConfirmRestore(TrashedSong song)
     {
-        confirmTitle = "Återställ";
-        confirmMessage = new MarkupString($"Vill du återställa <strong>{System.Net.WebUtility.HtmlEncode(song.Name)}</strong>?");
-        confirmButtonText = "Återställ";
-        confirmButtonBusy = "Återställer...";
+        confirmTitle = L["SongTrash.Restore"];
+        confirmMessage = new MarkupString(L["SongTrash.ConfirmRestore", System.Net.WebUtility.HtmlEncode(song.Name)]);
+        confirmButtonText = L["SongTrash.Restore"];
+        confirmButtonBusy = L["SongTrash.Restoring"];
         confirmIsDestructive = false;
         confirmAction = async () =>
         {
@@ -149,10 +149,10 @@
 
     private void ConfirmRestoreAll()
     {
-        confirmTitle = "Återställ alla";
-        confirmMessage = new MarkupString($"Vill du återställa alla {trashedSongs!.Count} sånger?");
-        confirmButtonText = "Återställ alla";
-        confirmButtonBusy = "Återställer...";
+        confirmTitle = L["SongTrash.RestoreAll"];
+        confirmMessage = new MarkupString(L["SongTrash.ConfirmRestore", trashedSongs!.Count].Value);
+        confirmButtonText = L["SongTrash.RestoreAll"];
+        confirmButtonBusy = L["SongTrash.Restoring"];
         confirmIsDestructive = false;
         confirmAction = async () =>
         {
@@ -163,10 +163,10 @@
 
     private void ConfirmPermanentDelete(TrashedSong song)
     {
-        confirmTitle = "Ta bort permanent";
-        confirmMessage = new MarkupString($"Vill du ta bort <strong>{System.Net.WebUtility.HtmlEncode(song.Name)}</strong> permanent? Detta kan inte ångras.");
-        confirmButtonText = "Ta bort permanent";
-        confirmButtonBusy = "Tar bort...";
+        confirmTitle = L["SongTrash.DeletePermanently"];
+        confirmMessage = new MarkupString(L["SongTrash.ConfirmPermanentDelete", System.Net.WebUtility.HtmlEncode(song.Name)]);
+        confirmButtonText = L["SongTrash.DeletePermanently"];
+        confirmButtonBusy = L["Common.Deleting"];
         confirmIsDestructive = true;
         confirmAction = async () =>
         {
@@ -177,10 +177,10 @@
 
     private void ConfirmEmptyTrash()
     {
-        confirmTitle = "Töm papperskorgen";
-        confirmMessage = new MarkupString($"Vill du ta bort alla {trashedSongs!.Count} sånger permanent? Detta kan inte ångras.");
-        confirmButtonText = "Ta bort permanent";
-        confirmButtonBusy = "Tar bort...";
+        confirmTitle = L["SongTrash.EmptyTrash"];
+        confirmMessage = new MarkupString(L["SongTrash.ConfirmEmptyTrash", trashedSongs!.Count].Value);
+        confirmButtonText = L["SongTrash.DeletePermanently"];
+        confirmButtonBusy = L["Common.Deleting"];
         confirmIsDestructive = true;
         confirmAction = async () =>
         {

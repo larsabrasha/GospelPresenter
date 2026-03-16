@@ -6,7 +6,7 @@
 @if (BibleService.Bibles.Count == 0)
 {
     <div class="text-center text-neutral-400 text-sm py-8">
-        Ingen bibel laddad
+        @L["Bible.NoBible"]
     </div>
 }
 else
@@ -23,7 +23,7 @@ else
                         <input type="text"
                                @ref="searchInput"
                                class="w-full py-2.5 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "!pr-9")"
-                               placeholder="Sök..."
+                               placeholder="@L["Common.Search"]"
                                value="@query"
                                @oninput="OnSearchInput"/>
                         @if (!string.IsNullOrEmpty(query))
@@ -63,10 +63,10 @@ else
             else if (!string.IsNullOrWhiteSpace(query))
             {
                 <div class="text-center text-neutral-400 text-sm py-2 mt-3">
-                    <div>Inga verser hittades</div>
+                    <div>@L["Bible.NoVersesFound"]</div>
                     <div class="text-xs mt-6">
-                        <div>Sök på bibelställe:</div>
-                        <div class="mt-1 text-neutral-500 dark:text-neutral-400">Joh 3:16 · Ps 23 · Rom 8:28-30</div>
+                        <div>@L["Bible.SearchHint"]</div>
+                        <div class="mt-1 text-neutral-500 dark:text-neutral-400">@L["Bible.SearchExamples"]</div>
                     </div>
                 </div>
             }
@@ -87,7 +87,7 @@ else
             <div class="shrink-0 flex items-center justify-end pt-4">
                 <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
-                    <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@AddLabel</span>
+                    <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@AddLabel</span>
                 </button>
             </div>
         }

@@ -17,7 +17,7 @@ else if (OrgSongs.Count == 0)
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-12 mb-1 text-neutral-300 dark:text-neutral-600">
             <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"/>
         </svg>
-        <p class="text-neutral-400 dark:text-neutral-500">Inga sånger laddade</p>
+        <p class="text-neutral-400 dark:text-neutral-500">@L["SongTab.NoSongs"]</p>
         @if (OrgState.UserRole is UserRole.Admin or UserRole.SuperAdmin)
         {
             <a href="/admin/songs"
@@ -25,7 +25,7 @@ else if (OrgSongs.Count == 0)
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
                 </svg>
-                Hantera sånger
+                @L["SongTab.ManageSongs"]
             </a>
         }
         <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
@@ -33,7 +33,7 @@ else if (OrgSongs.Count == 0)
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
             </svg>
-            Skapa ny sång
+            @L["SongTab.CreateNewSong"]
         </button>
     </div>
 }
@@ -47,7 +47,7 @@ else
                 </svg>
                 <input type="text"
                        class="w-full py-2.5 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "!pr-9")"
-                       placeholder="Sök..."
+                       placeholder="@L["Common.Search"]"
                        value="@query"
                        @oninput="OnSearchInput"/>
                 @if (!string.IsNullOrEmpty(query))
@@ -84,7 +84,7 @@ else
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                             </svg>
-                            Skapa ny sång
+                            @L["SongTab.CreateNewSong"]
                         </button>
                     </div>
                 </div>
@@ -120,7 +120,7 @@ else
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-12 mb-3 text-neutral-300 dark:text-neutral-600">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"/>
                             </svg>
-                            <p class="text-neutral-400 dark:text-neutral-500">Ingen sång vald</p>
+                            <p class="text-neutral-400 dark:text-neutral-500">@L["SongTab.NoSongSelected"]</p>
                         </div>
                     }
                 </div>
@@ -128,13 +128,13 @@ else
             else if (!string.IsNullOrWhiteSpace(query))
             {
                 <div class="flex flex-col items-center justify-center w-full text-neutral-400 text-sm gap-3">
-                    <div>Inga sånger hittades</div>
+                    <div>@L["SongTab.NoSongsFound"]</div>
                     <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5 self-start"
                             @onclick="EnterCreateMode">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                         </svg>
-                        Skapa ny sång
+                        @L["SongTab.CreateNewSong"]
                     </button>
                 </div>
             }
@@ -180,7 +180,7 @@ else
                 <div class="shrink-0 flex items-center justify-end px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
                     <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                             @onclick="MobileAdd">
-                        <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@mobilePreviewSong.Name</span>
+                        <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@mobilePreviewSong.Name</span>
                     </button>
                 </div>
             </div>
@@ -191,7 +191,7 @@ else
             <div class="shrink-0 hidden md:flex items-center justify-end pt-4">
                 <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
-                    <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@selectedSong.Name</span>
+                    <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@selectedSong.Name</span>
                 </button>
             </div>
         }

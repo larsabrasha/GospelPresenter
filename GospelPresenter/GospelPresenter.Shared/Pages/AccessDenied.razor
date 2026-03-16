@@ -1,12 +1,12 @@
 @page "/access-denied"
 @attribute [AllowAnonymous]
 
-<PageTitle>Access Denied</PageTitle>
+<PageTitle>@L["AccessDenied.Title"]</PageTitle>
 
 <div class="flex items-center justify-center h-full">
     <div class="text-center">
-        <h1 class="text-2xl font-bold text-neutral-800 dark:text-neutral-200 mb-4">Access Denied</h1>
-        <p class="text-neutral-600 dark:text-neutral-400 mb-6">You do not have permission to access this application.</p>
-        <a href="/" class="text-sky-500 hover:text-sky-700 underline">Back to start</a>
+        <h1 class="text-2xl font-bold text-neutral-800 dark:text-neutral-200 mb-4">@L["AccessDenied.Title"]</h1>
+        <p class="text-neutral-600 dark:text-neutral-400 mb-6">@L["AccessDenied.Message"]</p>
+        <a href="/" class="text-sky-500 hover:text-sky-700 underline">@L["AccessDenied.BackToStart"]</a>
     </div>
 </div>

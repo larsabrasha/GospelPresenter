@@ -24,20 +24,20 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
-            Tillbaka
+            @L["Common.Back"]
         </a>
-        <div class="text-xl font-bold dark:text-neutral-100">@(organization?.Name ?? "Organisation")</div>
+        <div class="text-xl font-bold dark:text-neutral-100">@(organization?.Name ?? L["OrgDetail.DefaultName"])</div>
     </div>
 
     @if (organization is null)
     {
-        <div class="px-7 py-4 text-neutral-400">Laddar...</div>
+        <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
     }
     else
     {
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden p-5 space-y-4">
             <div>
-                <label class="block text-sm font-medium mb-1">Logga</label>
+                <label class="block text-sm font-medium mb-1">@L["OrgDetail.Logo"]</label>
                 <div class="flex items-center gap-4">
                     <label class="cursor-pointer group relative">
                         <OrganizationAvatar LogoUrl="@organization.LogoSmall" Name="@organization.Name" Size="lg" Class="group-hover:brightness-75 transition"/>
@@ -45,14 +45,14 @@
                     </label>
                     <div class="flex flex-col gap-1">
                         <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
-                            @(string.IsNullOrEmpty(organization.LogoSmall) ? "Välj logga" : "Byt logga")
+                            @(string.IsNullOrEmpty(organization.LogoSmall) ? L["OrgDetail.ChooseLogo"] : L["OrgDetail.ChangeLogo"])
                             <InputFile OnChange="OnLogoSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
                         </label>
                         @if (!string.IsNullOrEmpty(organization.LogoSmall))
                         {
                             <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
                                     @onclick="RemoveLogo">
-                                Ta bort logga
+                                @L["OrgDetail.RemoveLogo"]
                             </button>
                         }
                         @if (logoError is not null)
@@ -62,7 +62,7 @@
                     </div>
                 </div>
             </div>
-            <div class="font-semibold">Organisationsnamn</div>
+            <div class="font-semibold">@L["OrgDetail.OrgName"]</div>
             <div class="flex gap-3">
                 <input type="text"
                        class="flex-1 px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -71,7 +71,7 @@
                 <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50 text-sm"
                         disabled="@(isSaving || string.IsNullOrWhiteSpace(editName) || editName.Trim() == organization.Name)"
                         @onclick="SaveName">
-                    @(isSaving ? "Sparar..." : "Spara")
+                    @(isSaving ? L["Common.Saving"] : L["Common.Save"])
                 </button>
             </div>
         </div>
@@ -79,12 +79,12 @@
         <div class="flex gap-3">
             <button @onclick="ShowDeleteConfirmation"
                     class="px-4 py-2.5 rounded-full text-sm text-red-600 dark:text-red-400 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20">
-                Ta bort organisation
+                @L["OrgDetail.DeleteOrg"]
             </button>
         </div>
 
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
-            <div class="font-semibold px-5 pt-4 pb-2">Medlemmar (@members.Count)</div>
+            <div class="font-semibold px-5 pt-4 pb-2">@L["OrgDetail.Members"] (@members.Count)</div>
             @if (members.Count == 0)
             {
                 <div class="flex flex-col items-center text-center py-8 px-4 select-none">
@@ -92,7 +92,7 @@
                         <circle cx="100" cy="40" r="20" stroke="currentColor" stroke-width="2" fill="none"/>
                         <path d="M65 100c0-19.33 15.67-35 35-35s35 15.67 35 35" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
                     </svg>
-                    <p class="text-sm text-neutral-400 dark:text-neutral-500">Inga medlemmar ännu</p>
+                    <p class="text-sm text-neutral-400 dark:text-neutral-500">@L["OrgDetail.NoMembers"]</p>
                 </div>
             }
             else
@@ -115,23 +115,23 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="() => showDeleteDialog = false">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">Ta bort organisation</div>
+            <div class="font-semibold text-lg">@L["OrgDetail.DeleteOrg"]</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                Är du säker på att du vill ta bort <strong>@organization?.Name</strong>? Detta kan inte ångras.
+                @((MarkupString)L["OrgDetail.ConfirmDeleteOrg", organization?.Name].Value)
             </p>
             <div class="text-sm text-neutral-600 dark:text-neutral-300 space-y-1">
-                <p class="font-medium">Följande kommer att tas bort permanent:</p>
+                <p class="font-medium">@L["OrgDetail.WillBeDeleted"]</p>
                 <ul class="list-disc list-inside space-y-0.5 ml-1">
-                    <li>Organisationen och alla dess inställningar</li>
-                    <li>Alla medlemmar (@members.Count st)</li>
-                    <li>Alla sånger och sånghistorik</li>
-                    <li>Alla presentationer</li>
-                    <li>Alla uppladdade bilder</li>
+                    <li>@L["OrgDetail.OrgAndSettings"]</li>
+                    <li>@((MarkupString)L["OrgDetail.AllMembers", members.Count].Value)</li>
+                    <li>@L["OrgDetail.AllSongs"]</li>
+                    <li>@L["OrgDetail.AllPresentations"]</li>
+                    <li>@L["OrgDetail.AllImages"]</li>
                 </ul>
             </div>
             <div class="space-y-1">
                 <label class="text-sm text-neutral-600 dark:text-neutral-300">
-                    Skriv <strong>@organization?.Name</strong> för att bekräfta:
+                    @((MarkupString)L["OrgDetail.TypeToConfirm", organization?.Name].Value)
                 </label>
                 <input @bind="deleteConfirmText" @bind:event="oninput"
                        class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -140,12 +140,12 @@
             <div class="flex justify-end gap-3">
                 <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                         @onclick="() => { showDeleteDialog = false; deleteConfirmText = string.Empty; }">
-                    Avbryt
+                    @L["Common.Cancel"]
                 </button>
                 <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 disabled:opacity-50"
                         disabled="@(isDeleting || deleteConfirmText != organization?.Name)"
                         @onclick="DeleteOrganization">
-                    @(isDeleting ? "Tar bort..." : "Ta bort")
+                    @(isDeleting ? L["Common.Deleting"] : L["Common.Delete"])
                 </button>
             </div>
         </div>
@@ -156,7 +156,7 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CloseCropDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg text-center">Beskär logga</div>
+            <div class="font-semibold text-lg text-center">@L["OrgDetail.CropLogo"]</div>
             <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
                  id="org-logo-cropper"
                  style="background: repeating-conic-gradient(#d1d5db 0% 25%, white 0% 50%) 0 0 / 16px 16px;">
@@ -168,11 +168,11 @@
             <div class="flex justify-end gap-3">
                 <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                         @onclick="CloseCropDialog">
-                    Avbryt
+                    @L["Common.Cancel"]
                 </button>
                 <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
                         @onclick="ConfirmCrop">
-                    Bekräfta
+                    @L["Common.Confirm"]
                 </button>
             </div>
         </div>
@@ -245,11 +245,11 @@
         NavigationManager.NavigateTo("/superadmin/organizations");
     }
 
-    private static string RoleDisplayName(UserRole role) => role switch
+    private string RoleDisplayName(UserRole role) => role switch
     {
-        UserRole.SuperAdmin => "Superadmin",
-        UserRole.Admin => "Admin",
-        UserRole.User => "Användare",
+        UserRole.SuperAdmin => L["Users.Superadmin"],
+        UserRole.Admin => L["Users.Admin"],
+        UserRole.User => L["Users.User"],
         _ => role.ToString()
     };
 
@@ -262,12 +262,12 @@
         var file = e.File;
         if (!AllowedImageTypes.Contains(file.ContentType))
         {
-            logoError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
+            logoError = L["OrgDetail.UnsupportedFormat"];
             return;
         }
         if (file.Size > MaxLogoSize)
         {
-            logoError = "Bilden får vara max 10 MB.";
+            logoError = L["OrgDetail.ImageTooLarge"];
             return;
         }
 

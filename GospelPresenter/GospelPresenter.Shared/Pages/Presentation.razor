@@ -76,11 +76,11 @@
                         {
                             <a href="/live?session=@AppState.SessionId" target="_blank"
                                class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
-                               title="Starta presentation">
+                               title="@L["Presentation.StartPresentation"]">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
                                     <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
                                 </svg>
-                                <span class="text-sm font-medium">Starta presentation</span>
+                                <span class="text-sm font-medium">@L["Presentation.StartPresentation"]</span>
                             </a>
                         }
                     </div>
@@ -173,9 +173,9 @@
                                 <line x1="160" y1="120" x2="160" y2="140" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                                 <line x1="150" y1="130" x2="170" y2="130" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                             </svg>
-                            <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">Presentationen är tom</h2>
+                            <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Presentation.Empty"]</h2>
                             <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">
-                                Tryck på <strong>Lägg till</strong> i sidomenyn för att lägga till sånger, bibeltexter eller bilder.
+                                @((MarkupString)L["Presentation.EmptyHint"].Value)
                             </p>
                         </div>
                     }
@@ -228,8 +228,8 @@
                                 Class="rounded-lg"/>
                             <button @onclick="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
                                     class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-sm text-neutral-600 dark:text-neutral-300"
-                                    title="Visa svart bild">
-                                <span>Visa svart bild</span>
+                                    title="@L["Presentation.ShowBlack"]">
+                                <span>@L["Presentation.ShowBlack"]</span>
                                 <div class="relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 @(isBlackScreen ? "bg-sky-500" : "bg-neutral-300 dark:bg-neutral-500")">
                                     <div class="absolute top-0.5 size-4 rounded-full bg-white shadow transition-all duration-200 @(isBlackScreen ? "left-4.5" : "left-0.5")"></div>
                                 </div>
@@ -279,7 +279,7 @@
             <div class="flex justify-end">
                 <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
                         @onclick="DismissSessionExpired">
-                    OK
+                    @L["Common.OK"]
                 </button>
             </div>
         </div>
@@ -289,7 +289,7 @@
 @if (addModalType == "song")
 {
     <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
-        <Title><span>Lägg till sång</span></Title>
+        <Title><span>@L["Presentation.AddSong"]</span></Title>
         <Body>
             <SongTab OnAdd="@HandleSongAdded" OnAddKeepOpen="@HandleSongAddedKeepOpen"/>
         </Body>
@@ -298,7 +298,7 @@
 else if (addModalType == "bible")
 {
     <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
-        <Title><span>Lägg till bibeltext</span></Title>
+        <Title><span>@L["Presentation.AddBibleText"]</span></Title>
         <Body>
             <BibleTextTab OnAdd="@HandleBibleVersesAdded" OnAddKeepOpen="@HandleBibleVersesAddedKeepOpen"/>
         </Body>
@@ -307,7 +307,7 @@ else if (addModalType == "bible")
 else if (addModalType == "image")
 {
     <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
-        <Title><span>Lägg till bild</span></Title>
+        <Title><span>@L["Presentation.AddImage"]</span></Title>
         <Body>
             <ImageTab OnAdd="@HandleImageAdded" OnAddKeepOpen="@HandleImageAddedKeepOpen"/>
         </Body>
@@ -318,16 +318,16 @@ else if (addModalType == "image")
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelRemove">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">Ta bort</div>
+            <div class="font-semibold text-lg">@L["Common.Delete"]</div>
             <div>Vill du ta bort <strong>@itemToRemove.Title</strong>?</div>
             <div class="flex justify-end gap-3">
                 <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                         @onclick="CancelRemove">
-                    Avbryt
+                    @L["Common.Cancel"]
                 </button>
                 <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
                         @onclick="RemoveItemAsync">
-                    Ta bort
+                    @L["Common.Delete"]
                 </button>
             </div>
         </div>
@@ -348,16 +348,16 @@ else if (addModalType == "image")
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDeletePresentation">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">Radera presentation</div>
+            <div class="font-semibold text-lg">@L["Presentation.DeletePresentation"]</div>
             <div>Vill du radera <strong>@AppState.SelectedProject?.Name</strong>? Detta kan inte ångras.</div>
             <div class="flex justify-end gap-3">
                 <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                         @onclick="CancelDeletePresentation">
-                    Avbryt
+                    @L["Common.Cancel"]
                 </button>
                 <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
                         @onclick="DeletePresentationAsync">
-                    Radera
+                    @L["Common.Remove"]
                 </button>
             </div>
         </div>

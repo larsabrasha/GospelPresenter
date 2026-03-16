@@ -11,7 +11,7 @@
     @if (TotalCount > Results.Count)
     {
         <div class="text-center text-neutral-400 text-xs py-1">
-            Visar @Results.Count av @TotalCount verser
+            @L["Bible.ShowingResults", Results.Count, TotalCount]
         </div>
     }
 </div>

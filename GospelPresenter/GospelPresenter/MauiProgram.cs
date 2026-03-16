@@ -50,7 +50,8 @@ public static class MauiProgram
 
         builder.Services.AddHttpClient();
         
-        var culture = new CultureInfo("sv");
+        var deviceLang = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        var culture = deviceLang == "sv" ? new CultureInfo("sv") : new CultureInfo("en");
         CultureInfo.DefaultThreadCurrentCulture = culture;
         CultureInfo.DefaultThreadCurrentUICulture = culture;
 

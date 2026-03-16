@@ -14,7 +14,7 @@
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="px-7 flex items-center justify-between">
-        <div class="text-xl font-bold dark:text-neutral-100">Overlays</div>
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Overlays.Title"]</div>
         @if (overlays is not null && overlays.Count > 0)
         {
             <a href="/admin/overlays/new"
@@ -22,7 +22,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                 </svg>
-                Ny overlay
+                @L["Overlays.New"]
             </a>
         }
     </div>
@@ -30,7 +30,7 @@
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
         @if (overlays is null)
         {
-            <div class="px-5 py-4 text-neutral-400 text-sm">Laddar...</div>
+            <div class="px-5 py-4 text-neutral-400 text-sm">@L["Common.Loading"]</div>
         }
         else if (overlays.Count == 0)
         {
@@ -43,16 +43,16 @@
                     <line x1="75" y1="70" x2="135" y2="70" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
                     <line x1="85" y1="82" x2="125" y2="82" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
                 </svg>
-                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">Inga overlays</h2>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Overlays.Empty"]</h2>
                 <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
-                    Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.
+                    @L["Overlays.Description"]
                 </p>
                 <a href="/admin/overlays/new"
                    class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                     </svg>
-                    Lägg till overlay
+                    @L["Overlays.Add"]
                 </a>
             </div>
         }

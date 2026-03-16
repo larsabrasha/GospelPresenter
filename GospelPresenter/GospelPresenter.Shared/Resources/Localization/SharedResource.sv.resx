@@ -1,0 +1,731 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Common.Loading" xml:space="preserve">
+    <value>Laddar...</value>
+  </data>
+  <data name="Common.Cancel" xml:space="preserve">
+    <value>Avbryt</value>
+  </data>
+  <data name="Common.Save" xml:space="preserve">
+    <value>Spara</value>
+  </data>
+  <data name="Common.Saving" xml:space="preserve">
+    <value>Sparar...</value>
+  </data>
+  <data name="Common.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Common.Creating" xml:space="preserve">
+    <value>Skapar...</value>
+  </data>
+  <data name="Common.Delete" xml:space="preserve">
+    <value>Ta bort</value>
+  </data>
+  <data name="Common.Deleting" xml:space="preserve">
+    <value>Tar bort...</value>
+  </data>
+  <data name="Common.Remove" xml:space="preserve">
+    <value>Radera</value>
+  </data>
+  <data name="Common.Back" xml:space="preserve">
+    <value>Tillbaka</value>
+  </data>
+  <data name="Common.Add" xml:space="preserve">
+    <value>Lägg till</value>
+  </data>
+  <data name="Common.Confirm" xml:space="preserve">
+    <value>Bekräfta</value>
+  </data>
+  <data name="Common.Search" xml:space="preserve">
+    <value>Sök...</value>
+  </data>
+  <data name="Common.Name" xml:space="preserve">
+    <value>Namn</value>
+  </data>
+  <data name="Common.Email" xml:space="preserve">
+    <value>E-post</value>
+  </data>
+  <data name="Common.Role" xml:space="preserve">
+    <value>Roll</value>
+  </data>
+  <data name="Common.OK" xml:space="preserve">
+    <value>OK</value>
+  </data>
+  <data name="Common.ChooseImage" xml:space="preserve">
+    <value>Välj bild</value>
+  </data>
+  <data name="Common.ChangeImage" xml:space="preserve">
+    <value>Byt bild</value>
+  </data>
+  <data name="Common.RemoveImage" xml:space="preserve">
+    <value>Ta bort bild</value>
+  </data>
+  <data name="Common.CropImage" xml:space="preserve">
+    <value>Beskär bild</value>
+  </data>
+  <data name="Nav.MyProfile" xml:space="preserve">
+    <value>Min profil</value>
+  </data>
+  <data name="Nav.Media" xml:space="preserve">
+    <value>Media</value>
+  </data>
+  <data name="Nav.Administration" xml:space="preserve">
+    <value>Administration</value>
+  </data>
+  <data name="Nav.Logout" xml:space="preserve">
+    <value>Logga ut</value>
+  </data>
+  <data name="Nav.Songs" xml:space="preserve">
+    <value>Sånger</value>
+  </data>
+  <data name="Nav.Overlays" xml:space="preserve">
+    <value>Overlays</value>
+  </data>
+  <data name="Nav.Users" xml:space="preserve">
+    <value>Användare</value>
+  </data>
+  <data name="Nav.Organizations" xml:space="preserve">
+    <value>Organisationer</value>
+  </data>
+  <data name="MainLayout.UnexpectedError" xml:space="preserve">
+    <value>Ett oväntat fel har inträffat.</value>
+  </data>
+  <data name="MainLayout.Reload" xml:space="preserve">
+    <value>Ladda om</value>
+  </data>
+  <data name="Dashboard.Presentations" xml:space="preserve">
+    <value>Presentationer</value>
+  </data>
+  <data name="Dashboard.CreateNew" xml:space="preserve">
+    <value>Skapa ny</value>
+  </data>
+  <data name="Dashboard.NoPresentations" xml:space="preserve">
+    <value>Inga presentationer ännu</value>
+  </data>
+  <data name="Dashboard.NewPresentation" xml:space="preserve">
+    <value>Ny presentation</value>
+  </data>
+  <data name="Dashboard.Sunday" xml:space="preserve">
+    <value>Gudstjänst</value>
+  </data>
+  <data name="Dashboard.DefaultName" xml:space="preserve">
+    <value>Presentation</value>
+  </data>
+  <data name="Presentation.EmptyHint" xml:space="preserve">
+    <value>Tryck på &lt;strong&gt;Lägg till&lt;/strong&gt; i sidomenyn för att lägga till sånger, bibeltexter eller bilder.</value>
+  </data>
+  <data name="Presentation.ShowBlack" xml:space="preserve">
+    <value>Visa svart bild</value>
+  </data>
+  <data name="Presentation.AddSong" xml:space="preserve">
+    <value>Lägg till sång</value>
+  </data>
+  <data name="Presentation.AddBibleText" xml:space="preserve">
+    <value>Lägg till bibeltext</value>
+  </data>
+  <data name="Presentation.AddImage" xml:space="preserve">
+    <value>Lägg till bild</value>
+  </data>
+  <data name="Presentation.DeletePresentation" xml:space="preserve">
+    <value>Radera presentation</value>
+  </data>
+  <data name="Sidebar.DeletePresentation" xml:space="preserve">
+    <value>Radera presentation</value>
+  </data>
+  <data name="Sidebar.NotFound" xml:space="preserve">
+    <value>Presentationen hittades inte</value>
+  </data>
+  <data name="Sidebar.ClickToRename" xml:space="preserve">
+    <value>Klicka för att byta namn</value>
+  </data>
+  <data name="Sidebar.Song" xml:space="preserve">
+    <value>Sång</value>
+  </data>
+  <data name="Sidebar.BibleText" xml:space="preserve">
+    <value>Bibeltext</value>
+  </data>
+  <data name="Sidebar.Image" xml:space="preserve">
+    <value>Bild</value>
+  </data>
+  <data name="Songs.Title" xml:space="preserve">
+    <value>Sånger</value>
+  </data>
+  <data name="Songs.ImportProPresenter" xml:space="preserve">
+    <value>Importera ProPresenter-sånger</value>
+  </data>
+  <data name="Songs.ImportDescription" xml:space="preserve">
+    <value>Välj en eller flera &lt;code&gt;.pro&lt;/code&gt;-filer att importera.</value>
+  </data>
+  <data name="Songs.Importing" xml:space="preserve">
+    <value>Importerar...</value>
+  </data>
+  <data name="Songs.ChooseFiles" xml:space="preserve">
+    <value>Välj filer...</value>
+  </data>
+  <data name="Songs.AllSongs" xml:space="preserve">
+    <value>Alla sånger</value>
+  </data>
+  <data name="Songs.Trash" xml:space="preserve">
+    <value>Papperskorg</value>
+  </data>
+  <data name="Songs.NoSongsImported" xml:space="preserve">
+    <value>Inga sånger importerade ännu.</value>
+  </data>
+  <data name="Songs.NoSongsFound" xml:space="preserve">
+    <value>Inga sånger hittades</value>
+  </data>
+  <data name="Songs.DuplicatesFound" xml:space="preserve">
+    <value>Dubbletter hittades</value>
+  </data>
+  <data name="Songs.DuplicatesCount" xml:space="preserve">
+    <value>{0} av {1} sånger finns redan:</value>
+  </data>
+  <data name="Songs.SkipDuplicates" xml:space="preserve">
+    <value>Hoppa över dubbletter</value>
+  </data>
+  <data name="Songs.ReplaceDuplicates" xml:space="preserve">
+    <value>Ersätt dubbletter</value>
+  </data>
+  <data name="Songs.NoProFiles" xml:space="preserve">
+    <value>Inga .pro-filer hittades.</value>
+  </data>
+  <data name="Songs.ImportError" xml:space="preserve">
+    <value>Fel vid import: {0}</value>
+  </data>
+  <data name="Songs.NoSongsImportable" xml:space="preserve">
+    <value>Inga sånger kunde importeras.</value>
+  </data>
+  <data name="Songs.ImportedSingular" xml:space="preserve">
+    <value>{0} ny</value>
+  </data>
+  <data name="Songs.ImportedPlural" xml:space="preserve">
+    <value>{0} nya</value>
+  </data>
+  <data name="Songs.ReplacedSingular" xml:space="preserve">
+    <value>{0} ersatt</value>
+  </data>
+  <data name="Songs.ReplacedPlural" xml:space="preserve">
+    <value>{0} ersatta</value>
+  </data>
+  <data name="Songs.SkippedSingular" xml:space="preserve">
+    <value>{0} överhoppad (fanns redan)</value>
+  </data>
+  <data name="Songs.SkippedPlural" xml:space="preserve">
+    <value>{0} överhoppade (fanns redan)</value>
+  </data>
+  <data name="SongDetail.DeleteSong" xml:space="preserve">
+    <value>Ta bort sång</value>
+  </data>
+  <data name="SongDetail.History" xml:space="preserve">
+    <value>Historik</value>
+  </data>
+  <data name="SongDetail.ConfirmDeletePart" xml:space="preserve">
+    <value>Vill du ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="SongDetail.ConfirmTrashSong" xml:space="preserve">
+    <value>Vill du flytta &lt;strong&gt;{0}&lt;/strong&gt; till papperskorgen? Sången raderas permanent efter 30 dagar.</value>
+  </data>
+  <data name="SongTrash.Title" xml:space="preserve">
+    <value>Papperskorg</value>
+  </data>
+  <data name="SongTrash.Empty" xml:space="preserve">
+    <value>Papperskorgen är tom.</value>
+  </data>
+  <data name="SongTrash.SongSingular" xml:space="preserve">
+    <value>sång</value>
+  </data>
+  <data name="SongTrash.SongPlural" xml:space="preserve">
+    <value>sånger</value>
+  </data>
+  <data name="SongTrash.RestoreAll" xml:space="preserve">
+    <value>Återställ alla</value>
+  </data>
+  <data name="SongTrash.EmptyTrash" xml:space="preserve">
+    <value>Töm papperskorgen</value>
+  </data>
+  <data name="SongTrash.DeletesSoon" xml:space="preserve">
+    <value>Raderas snart</value>
+  </data>
+  <data name="SongTrash.OneDayLeft" xml:space="preserve">
+    <value>1 dag kvar</value>
+  </data>
+  <data name="SongTrash.DaysLeft" xml:space="preserve">
+    <value>{0} dagar kvar</value>
+  </data>
+  <data name="SongTrash.Restore" xml:space="preserve">
+    <value>Återställ</value>
+  </data>
+  <data name="SongTrash.Restoring" xml:space="preserve">
+    <value>Återställer...</value>
+  </data>
+  <data name="SongTrash.ConfirmRestore" xml:space="preserve">
+    <value>Vill du återställa &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="SongTrash.ConfirmPermanentDelete" xml:space="preserve">
+    <value>Vill du ta bort &lt;strong&gt;{0}&lt;/strong&gt; permanent?</value>
+  </data>
+  <data name="SongTrash.ConfirmEmptyTrash" xml:space="preserve">
+    <value>Vill du ta bort alla {0} sånger i papperskorgen permanent?</value>
+  </data>
+  <data name="SongTrash.DeletePermanently" xml:space="preserve">
+    <value>Ta bort permanent</value>
+  </data>
+  <data name="SongHistory.Title" xml:space="preserve">
+    <value>Historik</value>
+  </data>
+  <data name="SongHistory.NoHistory" xml:space="preserve">
+    <value>Ingen historik finns för den här sången.</value>
+  </data>
+  <data name="SongHistory.RestoreVersion" xml:space="preserve">
+    <value>Återställ version</value>
+  </data>
+  <data name="SongHistory.ConfirmRestore" xml:space="preserve">
+    <value>Vill du återställa sången till versionen från &lt;strong&gt;{0}&lt;/strong&gt;? Den nuvarande versionen sparas i historiken.</value>
+  </data>
+  <data name="SongParts.LabelPlaceholder" xml:space="preserve">
+    <value>Etikett (t.ex. Vers 1)</value>
+  </data>
+  <data name="SongParts.DeleteConfirm" xml:space="preserve">
+    <value>Ta bort?</value>
+  </data>
+  <data name="SongParts.TextPlaceholder" xml:space="preserve">
+    <value>Skriv texten här...</value>
+  </data>
+  <data name="SongParts.AddPart" xml:space="preserve">
+    <value>Lägg till del</value>
+  </data>
+  <data name="SongFields.SongName" xml:space="preserve">
+    <value>Sångens namn</value>
+  </data>
+  <data name="SongFields.Artist" xml:space="preserve">
+    <value>Artist</value>
+  </data>
+  <data name="SongFields.ArtistPlaceholder" xml:space="preserve">
+    <value>Artist / upphovsperson</value>
+  </data>
+  <data name="SongFields.Publisher" xml:space="preserve">
+    <value>Förlag</value>
+  </data>
+  <data name="SongFields.Year" xml:space="preserve">
+    <value>År</value>
+  </data>
+  <data name="SongFields.CcliNumber" xml:space="preserve">
+    <value>CCLI-nummer</value>
+  </data>
+  <data name="SongTab.NoSongs" xml:space="preserve">
+    <value>Inga sånger laddade</value>
+  </data>
+  <data name="SongTab.ManageSongs" xml:space="preserve">
+    <value>Hantera sånger</value>
+  </data>
+  <data name="SongTab.CreateNewSong" xml:space="preserve">
+    <value>Skapa ny sång</value>
+  </data>
+  <data name="SongTab.NoSongsFound" xml:space="preserve">
+    <value>Inga sånger hittades</value>
+  </data>
+  <data name="CreateSong.SaveSong" xml:space="preserve">
+    <value>Spara sång</value>
+  </data>
+  <data name="Bible.NoBible" xml:space="preserve">
+    <value>Ingen bibel laddad</value>
+  </data>
+  <data name="Bible.NoVersesFound" xml:space="preserve">
+    <value>Inga verser hittades</value>
+  </data>
+  <data name="Bible.SearchHint" xml:space="preserve">
+    <value>Sök på bibelställe:</value>
+  </data>
+  <data name="Bible.SearchExamples" xml:space="preserve">
+    <value>Joh 3:16 · Ps 23 · Rom 8:28-30</value>
+  </data>
+  <data name="ImageTab.LoadingImages" xml:space="preserve">
+    <value>Laddar bilder...</value>
+  </data>
+  <data name="ImageTab.LoadError" xml:space="preserve">
+    <value>Kunde inte ladda bilder</value>
+  </data>
+  <data name="ImageTab.Upload" xml:space="preserve">
+    <value>Ladda upp bild</value>
+  </data>
+  <data name="ImageTab.Uploading" xml:space="preserve">
+    <value>Laddar upp...</value>
+  </data>
+  <data name="ImageTab.NoImages" xml:space="preserve">
+    <value>Inga bilder uppladdade</value>
+  </data>
+  <data name="ImageTab.DeleteImage" xml:space="preserve">
+    <value>Radera bild</value>
+  </data>
+  <data name="ImageTab.ConfirmDelete" xml:space="preserve">
+    <value>Vill du radera &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Users.Title" xml:space="preserve">
+    <value>Användare</value>
+  </data>
+  <data name="Users.NewUser" xml:space="preserve">
+    <value>Ny användare</value>
+  </data>
+  <data name="Users.NoUsers" xml:space="preserve">
+    <value>Inga användare</value>
+  </data>
+  <data name="Users.CannotChangeOwnRole" xml:space="preserve">
+    <value>Du kan inte ändra din egen roll</value>
+  </data>
+  <data name="Users.InvalidEmail" xml:space="preserve">
+    <value>Ogiltig e-postadress</value>
+  </data>
+  <data name="Users.EmailTaken" xml:space="preserve">
+    <value>E-postadressen används redan av en annan användare</value>
+  </data>
+  <data name="Users.Superadmin" xml:space="preserve">
+    <value>Superadmin</value>
+  </data>
+  <data name="Users.Admin" xml:space="preserve">
+    <value>Admin</value>
+  </data>
+  <data name="Users.User" xml:space="preserve">
+    <value>Användare</value>
+  </data>
+  <data name="UserDetail.ProfileImage" xml:space="preserve">
+    <value>Profilbild</value>
+  </data>
+  <data name="UserDetail.DeleteUser" xml:space="preserve">
+    <value>Ta bort användare</value>
+  </data>
+  <data name="UserDetail.Login" xml:space="preserve">
+    <value>Inloggning</value>
+  </data>
+  <data name="UserDetail.NoLoginMethods" xml:space="preserve">
+    <value>Inga inloggningsmetoder tillagda.&lt;br/&gt;Skapa en inbjudningslänk för att lägga till ett konto.</value>
+  </data>
+  <data name="UserDetail.InviteLink" xml:space="preserve">
+    <value>Inbjudningslänk</value>
+  </data>
+  <data name="UserDetail.Expired" xml:space="preserve">
+    <value>Utgången</value>
+  </data>
+  <data name="UserDetail.Active" xml:space="preserve">
+    <value>Aktiv</value>
+  </data>
+  <data name="UserDetail.ExpiresIn" xml:space="preserve">
+    <value>Går ut om {0}</value>
+  </data>
+  <data name="UserDetail.Copy" xml:space="preserve">
+    <value>Kopiera</value>
+  </data>
+  <data name="UserDetail.CreateInviteLink" xml:space="preserve">
+    <value>Skapa inbjudningslänk</value>
+  </data>
+  <data name="UserDetail.ConfirmDeleteUser" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort {0}?</value>
+  </data>
+  <data name="UserDetail.DeleteInvite" xml:space="preserve">
+    <value>Ta bort inbjudan</value>
+  </data>
+  <data name="UserDetail.ConfirmDeleteInvite" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort inbjudningslänken?</value>
+  </data>
+  <data name="UserDetail.DeleteLinkedAccount" xml:space="preserve">
+    <value>Ta bort kopplat konto</value>
+  </data>
+  <data name="UserDetail.ConfirmDeleteLogin" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort kopplingen till {0}?</value>
+  </data>
+  <data name="Overlays.Title" xml:space="preserve">
+    <value>Overlays</value>
+  </data>
+  <data name="Overlays.New" xml:space="preserve">
+    <value>Ny overlay</value>
+  </data>
+  <data name="Overlays.Empty" xml:space="preserve">
+    <value>Inga overlays</value>
+  </data>
+  <data name="Overlays.Description" xml:space="preserve">
+    <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
+  </data>
+  <data name="Overlays.Add" xml:space="preserve">
+    <value>Lägg till overlay</value>
+  </data>
+  <data name="OverlayEditor.Title" xml:space="preserve">
+    <value>Titel</value>
+  </data>
+  <data name="OverlayEditor.TextContent" xml:space="preserve">
+    <value>Textinnehåll</value>
+  </data>
+  <data name="OverlayEditor.TextPlaceholder" xml:space="preserve">
+    <value>Text som visas i overlayen (valfritt)</value>
+  </data>
+  <data name="OverlayEditor.ImageOptional" xml:space="preserve">
+    <value>Bild (valfritt)</value>
+  </data>
+  <data name="OverlayEditor.Preview" xml:space="preserve">
+    <value>Förhandsgranskning</value>
+  </data>
+  <data name="OverlayEditor.ConfirmDelete" xml:space="preserve">
+    <value>Bekräfta borttagning</value>
+  </data>
+  <data name="Orgs.Title" xml:space="preserve">
+    <value>Organisationer</value>
+  </data>
+  <data name="Orgs.New" xml:space="preserve">
+    <value>Ny organisation</value>
+  </data>
+  <data name="Orgs.NoOrgs" xml:space="preserve">
+    <value>Inga organisationer ännu</value>
+  </data>
+  <data name="OrgDetail.Logo" xml:space="preserve">
+    <value>Logga</value>
+  </data>
+  <data name="OrgDetail.ChooseLogo" xml:space="preserve">
+    <value>Välj logga</value>
+  </data>
+  <data name="OrgDetail.ChangeLogo" xml:space="preserve">
+    <value>Byt logga</value>
+  </data>
+  <data name="OrgDetail.RemoveLogo" xml:space="preserve">
+    <value>Ta bort logga</value>
+  </data>
+  <data name="OrgDetail.OrgName" xml:space="preserve">
+    <value>Organisationsnamn</value>
+  </data>
+  <data name="OrgDetail.DeleteOrg" xml:space="preserve">
+    <value>Ta bort organisation</value>
+  </data>
+  <data name="OrgDetail.Members" xml:space="preserve">
+    <value>Medlemmar</value>
+  </data>
+  <data name="OrgDetail.NoMembers" xml:space="preserve">
+    <value>Inga medlemmar ännu</value>
+  </data>
+  <data name="OrgDetail.ConfirmDeleteOrg" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort &lt;strong&gt;{0}&lt;/strong&gt;? Detta kan inte ångras.</value>
+  </data>
+  <data name="OrgDetail.WillBeDeleted" xml:space="preserve">
+    <value>Följande kommer att tas bort permanent:</value>
+  </data>
+  <data name="OrgDetail.OrgAndSettings" xml:space="preserve">
+    <value>Organisationen och alla dess inställningar</value>
+  </data>
+  <data name="OrgDetail.AllMembers" xml:space="preserve">
+    <value>Alla medlemmar ({0} st)</value>
+  </data>
+  <data name="OrgDetail.AllSongs" xml:space="preserve">
+    <value>Alla sånger och sånghistorik</value>
+  </data>
+  <data name="OrgDetail.AllPresentations" xml:space="preserve">
+    <value>Alla presentationer</value>
+  </data>
+  <data name="OrgDetail.AllImages" xml:space="preserve">
+    <value>Alla uppladdade bilder</value>
+  </data>
+  <data name="OrgDetail.TypeToConfirm" xml:space="preserve">
+    <value>Skriv &lt;strong&gt;{0}&lt;/strong&gt; för att bekräfta:</value>
+  </data>
+  <data name="OrgDetail.CropLogo" xml:space="preserve">
+    <value>Beskär logga</value>
+  </data>
+  <data name="OrgSwitcher.NoOrgSelected" xml:space="preserve">
+    <value>Ingen organisation vald</value>
+  </data>
+  <data name="OrgSwitcher.NoOrgs" xml:space="preserve">
+    <value>Inga organisationer</value>
+  </data>
+  <data name="OverlayManager.Empty" xml:space="preserve">
+    <value>Inga overlays</value>
+  </data>
+  <data name="OverlayManager.Description" xml:space="preserve">
+    <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
+  </data>
+  <data name="OverlayManager.Add" xml:space="preserve">
+    <value>Lägg till overlay</value>
+  </data>
+  <data name="Profile.RemoveProfileImage" xml:space="preserve">
+    <value>Ta bort profilbild</value>
+  </data>
+  <data name="Profile.ConfirmRemoveProfileImage" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort profilbilden?</value>
+  </data>
+  <data name="Profile.UnsupportedFormat" xml:space="preserve">
+    <value>Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.</value>
+  </data>
+  <data name="Profile.ImageTooLarge" xml:space="preserve">
+    <value>Bilden är för stor (max 10 MB)</value>
+  </data>
+  <data name="Invite.Expired" xml:space="preserve">
+    <value>Inbjudan har gått ut. Be din administratör skapa en ny.</value>
+  </data>
+  <data name="AccessDenied.Title" xml:space="preserve">
+    <value>Åtkomst nekad</value>
+  </data>
+  <data name="AccessDenied.Message" xml:space="preserve">
+    <value>Du har inte behörighet att komma åt den här applikationen.</value>
+  </data>
+  <data name="AccessDenied.BackToStart" xml:space="preserve">
+    <value>Tillbaka till start</value>
+  </data>
+  <data name="AuthError.Title" xml:space="preserve">
+    <value>Inloggningsfel</value>
+  </data>
+  <data name="AuthError.Message" xml:space="preserve">
+    <value>Något gick fel vid inloggningen. Försök igen.</value>
+  </data>
+  <data name="AuthError.BackToStart" xml:space="preserve">
+    <value>Tillbaka till start</value>
+  </data>
+  <data name="Setup.Welcome" xml:space="preserve">
+    <value>Välkommen!</value>
+  </data>
+  <data name="Setup.Description" xml:space="preserve">
+    <value>Skapa ett superanvändarkonto för att komma igång. Superanvändaren har full kontroll över hela installationen:</value>
+  </data>
+  <data name="Setup.CreateOrgs" xml:space="preserve">
+    <value>Skapa och hantera organisationer</value>
+  </data>
+  <data name="Setup.ManageUsers" xml:space="preserve">
+    <value>Hantera alla användare och behörigheter</value>
+  </data>
+  <data name="Setup.ConfigureSettings" xml:space="preserve">
+    <value>Konfigurera systeminställningar</value>
+  </data>
+  <data name="Setup.YourName" xml:space="preserve">
+    <value>Ditt namn</value>
+  </data>
+  <data name="Setup.NamePlaceholder" xml:space="preserve">
+    <value>Förnamn Efternamn</value>
+  </data>
+  <data name="Setup.NameRequired" xml:space="preserve">
+    <value>Namn måste fyllas i.</value>
+  </data>
+  <data name="Setup.GetStarted" xml:space="preserve">
+    <value>Kom igång</value>
+  </data>
+  <data name="SignIn.MoreOptions" xml:space="preserve">
+    <value>Fler alternativ</value>
+  </data>
+  <data name="Presentation.StartPresentation" xml:space="preserve">
+    <value>Starta presentation</value>
+  </data>
+  <data name="Invite.Invalid" xml:space="preserve">
+    <value>Ogiltig eller redan använd inbjudan.</value>
+  </data>
+  <data name="Invite.ContactAdmin" xml:space="preserve">
+    <value>Kontakta din administratör för att få en ny inbjudan.</value>
+  </data>
+  <data name="Invite.Welcome" xml:space="preserve">
+    <value>Välkommen &lt;strong&gt;{0}&lt;/strong&gt;! Välj hur du vill logga in:</value>
+  </data>
+  <data name="Invite.PocketId" xml:space="preserve">
+    <value>Pocket ID</value>
+  </data>
+  <data name="Profile.Title" xml:space="preserve">
+    <value>Min profil</value>
+  </data>
+  <data name="Profile.ProfileImage" xml:space="preserve">
+    <value>Profilbild</value>
+  </data>
+  <data name="SongTab.NoSongSelected" xml:space="preserve">
+    <value>Ingen sång vald</value>
+  </data>
+  <data name="Orgs.UserCount" xml:space="preserve">
+    <value>användare</value>
+  </data>
+  <data name="SongHistory.Today" xml:space="preserve">
+    <value>Idag {0}</value>
+  </data>
+  <data name="SongHistory.Yesterday" xml:space="preserve">
+    <value>Igår {0}</value>
+  </data>
+  <data name="UserDetail.LoginMethods" xml:space="preserve">
+    <value>Inloggningsmetoder</value>
+  </data>
+  <data name="UserDetail.LessThanADay" xml:space="preserve">
+    <value>mindre än en dag</value>
+  </data>
+  <data name="UserDetail.DaySingular" xml:space="preserve">
+    <value>dag</value>
+  </data>
+  <data name="UserDetail.DayPlural" xml:space="preserve">
+    <value>dagar</value>
+  </data>
+  <data name="OrgDetail.DefaultName" xml:space="preserve">
+    <value>Organisation</value>
+  </data>
+  <data name="OrgDetail.UnsupportedFormat" xml:space="preserve">
+    <value>Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.</value>
+  </data>
+  <data name="OrgDetail.ImageTooLarge" xml:space="preserve">
+    <value>Bilden får vara max 10 MB.</value>
+  </data>
+  <data name="CreateSong.DefaultVerse" xml:space="preserve">
+    <value>Vers {0}</value>
+  </data>
+  <data name="Bible.OldTestament" xml:space="preserve">
+    <value>Gamla testamentet</value>
+  </data>
+  <data name="Bible.NewTestament" xml:space="preserve">
+    <value>Nya testamentet</value>
+  </data>
+  <data name="Bible.ChooseBook" xml:space="preserve">
+    <value>Välj bok</value>
+  </data>
+  <data name="Bible.ChooseStartChapter" xml:space="preserve">
+    <value>Välj startkapitel</value>
+  </data>
+  <data name="Bible.ChooseEndChapter" xml:space="preserve">
+    <value>Välj slutkapitel</value>
+  </data>
+  <data name="Bible.ChooseStartVerse" xml:space="preserve">
+    <value>Välj startvers</value>
+  </data>
+  <data name="Bible.ChooseEndVerse" xml:space="preserve">
+    <value>Välj slutvers</value>
+  </data>
+  <data name="Bible.ShowingResults" xml:space="preserve">
+    <value>Visar {0} av {1} verser</value>
+  </data>
+  <data name="ImageTab.UnsupportedFormat" xml:space="preserve">
+    <value>Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.</value>
+  </data>
+  <data name="ImageTab.ImageTooLarge" xml:space="preserve">
+    <value>Bilden får inte vara större än 10 MB</value>
+  </data>
+  <data name="ImageTab.UploadError" xml:space="preserve">
+    <value>Kunde inte ladda upp bilden</value>
+  </data>
+  <data name="Presentation.Empty" xml:space="preserve">
+    <value>Presentationen är tom</value>
+  </data>
+</root>

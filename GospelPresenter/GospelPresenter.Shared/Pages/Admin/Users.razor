@@ -15,21 +15,21 @@
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <div class="flex items-center justify-between px-7">
-        <div class="text-xl font-bold dark:text-neutral-100">Användare</div>
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Users.Title"]</div>
         <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm"
                 @onclick="ShowCreateDialog">
-            Ny användare
+            @L["Users.NewUser"]
         </button>
     </div>
 
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
         @if (users is null)
         {
-            <div class="px-7 py-4 text-neutral-400">Laddar...</div>
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
         }
         else if (users.Count == 0)
         {
-            <div class="px-7 py-4 text-neutral-400">Inga användare</div>
+            <div class="px-7 py-4 text-neutral-400">@L["Users.NoUsers"]</div>
         }
         else
         {
@@ -50,9 +50,9 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">Ny användare</div>
+            <div class="font-semibold text-lg">@L["Users.NewUser"]</div>
             <div>
-                <label class="block text-sm font-medium mb-1">Namn</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
                 <input @ref="nameInput"
                        type="text"
                        class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -61,7 +61,7 @@
                        @onkeydown="OnDialogKeyDown"/>
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">E-post</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Email"]</label>
                 <input type="email"
                        class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
                        @bind="editEmail"
@@ -72,7 +72,7 @@
                 }
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">Roll</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Role"]</label>
                 <div class="relative">
                     <select @bind="editRole"
                             class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
@@ -89,12 +89,12 @@
             <div class="flex justify-end gap-3">
                 <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
                         @onclick="CloseDialog">
-                    Avbryt
+                    @L["Common.Cancel"]
                 </button>
                 <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
                         disabled="@(isSaving || string.IsNullOrWhiteSpace(editName))"
                         @onclick="CreateUser">
-                    @(isSaving ? "Skapar..." : "Skapa")
+                    @(isSaving ? L["Common.Creating"] : L["Common.Create"])
                 </button>
             </div>
         </div>
@@ -162,13 +162,13 @@
 
         if (!string.IsNullOrWhiteSpace(editEmail) && !GospelPresenter.Shared.Utils.EmailValidation.IsValidEmail(editEmail.Trim()))
         {
-            emailError = "Ogiltig e-postadress";
+            emailError = L["Users.InvalidEmail"];
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(editEmail) && await UserService.IsEmailTakenAsync(editEmail.Trim()))
         {
-            emailError = "E-postadressen används redan av en annan användare";
+            emailError = L["Users.EmailTaken"];
             return;
         }
 
@@ -183,11 +183,11 @@
         NavigationManager.NavigateTo($"/admin/users/{user.Id}");
     }
 
-    private static string RoleDisplayName(UserRole role) => role switch
+    private string RoleDisplayName(UserRole role) => role switch
     {
-        UserRole.SuperAdmin => "Superadmin",
-        UserRole.Admin => "Admin",
-        UserRole.User => "Användare",
+        UserRole.SuperAdmin => L["Users.Superadmin"],
+        UserRole.Admin => L["Users.Admin"],
+        UserRole.User => L["Users.User"],
         _ => role.ToString()
     };
 

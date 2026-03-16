@@ -9,7 +9,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
-            Tillbaka
+            @L["Common.Back"]
         </button>
 
         <div class="flex items-center gap-x-0.5 ml-1">
@@ -59,18 +59,18 @@
 
         @if (editing == EditPart.Book)
         {
-            <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">V&auml;lj bok</div>
+            <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">@L["Bible.ChooseBook"]</div>
         }
         else if (editing is EditPart.StartChapter or EditPart.EndChapter)
         {
             <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">
-                @(editing == EditPart.StartChapter ? "V\u00e4lj startkapitel" : "V\u00e4lj slutkapitel")
+                @(editing == EditPart.StartChapter ? L["Bible.ChooseStartChapter"] : L["Bible.ChooseEndChapter"])
             </div>
         }
         else if (editing is EditPart.StartVerse or EditPart.EndVerse)
         {
             <div class="text-sm text-orange-500 dark:text-orange-400 mt-3 px-3">
-                @(editing == EditPart.StartVerse ? "V\u00e4lj startvers" : "V\u00e4lj slutvers")
+                @(editing == EditPart.StartVerse ? L["Bible.ChooseStartVerse"] : L["Bible.ChooseEndVerse"])
             </div>
         }
     </div>

@@ -263,14 +263,13 @@ try
 
     builder.Services.UseHttpClientMetrics();
 
-    string[] supportedCultures = ["sv"];
+    string[] supportedCultures = ["en", "sv"];
     builder.Services.Configure<RequestLocalizationOptions>(options =>
     {
-        options.SetDefaultCulture(supportedCultures[0])
+        options.SetDefaultCulture("en")
             .AddSupportedCultures(supportedCultures)
             .AddSupportedUICultures(supportedCultures);
     });
-    builder.Services.AddLocalization();
 
     var connectionString = builder.Configuration.GetConnectionString("postgresdb");
     if (!string.IsNullOrEmpty(connectionString))

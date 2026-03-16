@@ -7,7 +7,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
-            Tillbaka
+            @L["Common.Back"]
         </button>
     </div>
 
@@ -27,18 +27,18 @@
     <div class="shrink-0 flex items-center justify-end gap-3 pt-4">
         <button class="px-4 py-2.5 rounded-full text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
                 @onclick="HandleBack">
-            Avbryt
+            @L["Common.Cancel"]
         </button>
         <button class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer disabled:opacity-50"
                 disabled="@(!CanSave)"
                 @onclick="HandleSave">
             @if (isSaving)
             {
-                <span>Sparar...</span>
+                <span>@L["Common.Saving"]</span>
             }
             else
             {
-                <span>Spara sång</span>
+                <span>@L["CreateSong.SaveSong"]</span>
             }
         </button>
     </div>
@@ -54,13 +54,15 @@
     private string? publisher;
     private int? year;
     private string? ccli;
-    private List<SongPart> parts = [new("Vers 1", "")];
+    private List<SongPart> parts = [];
     private bool isSaving;
 
     private bool CanSave => !isSaving && !string.IsNullOrWhiteSpace(name);
 
     protected override void OnInitialized()
     {
+        if (parts.Count == 0)
+            parts.Add(new SongPart(L["CreateSong.DefaultVerse", 1], ""));
         if (!string.IsNullOrWhiteSpace(InitialName))
             name = InitialName;
     }
@@ -68,7 +70,7 @@
     private void AddPart()
     {
         var nextNumber = parts.Count + 1;
-        parts.Add(new SongPart($"Vers {nextNumber}", ""));
+        parts.Add(new SongPart(L["CreateSong.DefaultVerse", nextNumber], ""));
     }
 
     private void RemovePart(int index)
