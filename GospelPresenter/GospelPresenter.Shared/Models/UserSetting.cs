@@ -3,6 +3,7 @@ namespace GospelPresenter.Shared.Models;
 public class UserSetting
 {
     public const string LastSelectedOrganizationId = "LastSelectedOrganizationId";
+    public const string PreferredLanguage = "PreferredLanguage";
 
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string UserId { get; set; } = "";

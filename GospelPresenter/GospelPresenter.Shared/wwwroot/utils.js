@@ -1,3 +1,24 @@
+window.setTheme = function (theme) {
+    localStorage.setItem('theme', theme);
+    applyTheme();
+};
+
+window.getTheme = function () {
+    return localStorage.getItem('theme') || 'system';
+};
+
+function applyTheme() {
+    var theme = localStorage.getItem('theme') || 'system';
+    var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', dark);
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+    if ((localStorage.getItem('theme') || 'system') === 'system') {
+        applyTheme();
+    }
+});
+
 window.getOrCreateSessionId = function () {
     let id = sessionStorage.getItem('session-id');
     if (!id) {

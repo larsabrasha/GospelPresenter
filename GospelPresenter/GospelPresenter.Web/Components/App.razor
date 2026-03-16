@@ -22,6 +22,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Gospel Presenter</title>
+    <script>
+        (function() {
+            var theme = localStorage.getItem('theme') || 'system';
+            var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.classList.add('dark');
+        })();
+    </script>
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 

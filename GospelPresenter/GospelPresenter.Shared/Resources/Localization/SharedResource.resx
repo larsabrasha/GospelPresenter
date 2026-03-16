@@ -728,4 +728,28 @@
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentation is empty</value>
   </data>
+  <data name="Nav.Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings.Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Settings.Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Settings.Theme" xml:space="preserve">
+    <value>Color theme</value>
+  </data>
+  <data name="Settings.ThemeDescription" xml:space="preserve">
+    <value>Applies to this device</value>
+  </data>
+  <data name="Settings.ThemeSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Settings.ThemeLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="Settings.ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
 </root>

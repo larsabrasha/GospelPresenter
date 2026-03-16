@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -269,6 +272,7 @@ try
         options.SetDefaultCulture("en")
             .AddSupportedCultures(supportedCultures)
             .AddSupportedUICultures(supportedCultures);
+        options.RequestCultureProviders.Insert(0, new CookieRequestCultureProvider());
     });
 
     var connectionString = builder.Configuration.GetConnectionString("postgresdb");
@@ -369,6 +373,34 @@ builder.Services.AddMetricServer(options =>
 
     app.UseAntiforgery();
 
+    app.Use(async (context, next) =>
+    {
+        if (context.User.Identity?.IsAuthenticated == true
+            && !context.Request.Cookies.ContainsKey(CookieRequestCultureProvider.DefaultCookieName))
+        {
+            var userId = context.User.FindFirst("user_id")?.Value;
+            if (userId is not null)
+            {
+                var userService = context.RequestServices.GetRequiredService<IUserService>();
+                var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
+                var orgId = context.User.FindFirst("organization_id")?.Value;
+                var caller = new CallerContext(userId, role, orgId);
+                var lang = await userService.GetUserSettingAsync(userId, UserSetting.PreferredLanguage, caller);
+                if (lang is not null)
+                {
+                    context.Response.Cookies.Append(
+                        CookieRequestCultureProvider.DefaultCookieName,
+                        CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(lang)),
+                        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true });
+                    context.Response.Redirect(context.Request.Path + context.Request.QueryString);
+                    return;
+                }
+            }
+        }
+
+        await next(context);
+    });
+
     app.UseRequestLocalization(supportedCultures);
 
     app.MapStaticAssets();
@@ -404,6 +436,25 @@ builder.Services.AddMetricServer(options =>
     {
         await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         context.Response.Redirect("/");
+    }).RequireAuthorization();
+
+    app.MapPost("/culture", async (HttpContext context, [FromForm] string culture, [FromForm] string returnUrl, IUserService userService) =>
+    {
+        context.Response.Cookies.Append(
+            CookieRequestCultureProvider.DefaultCookieName,
+            CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
+            new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true });
+
+        var userId = context.User.FindFirst("user_id")?.Value;
+        if (userId is not null)
+        {
+            var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
+            var orgId = context.User.FindFirst("organization_id")?.Value;
+            var caller = new CallerContext(userId, role, orgId);
+            await userService.SetUserSettingAsync(userId, UserSetting.PreferredLanguage, culture, caller);
+        }
+
+        return Results.LocalRedirect(returnUrl ?? "/");
     }).RequireAuthorization();
 
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
