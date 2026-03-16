@@ -1,0 +1,27 @@
+
+{
+  "title": "Gospel Presenter",
+  "tagline": "Elegant och enkel presentationsapp för kyrkor. Gratis och öppen källkod.",
+  "openApp": "Öppna appen",
+  "featuresTitle": "Funktioner",
+  "feature_presentations_title": "Presentationer",
+  "feature_presentations_desc": "Bygg presentationer med sånger, Bibeltexter och bilder.",
+  "feature_liveDisplay_title": "Livevisning",
+  "feature_liveDisplay_desc": "Visa din presentation i helskärm på en andra skärm. Ändringar synkroniseras direkt till alla anslutna visare.",
+  "feature_songLibrary_title": "Sångbibliotek",
+  "feature_songLibrary_desc": "Hantera kyrkans sångsamling med texter, metadata och versionshistorik. Importera sånger från ProPresenter.",
+  "feature_bible_title": "Bibelintegrering",
+  "feature_bible_desc": "Bläddra och sök i flera Bibelöversättningar. Lägg till verser direkt i dina presentationer.",
+  "feature_overlays_title": "Överlagringar",
+  "feature_overlays_desc": "Visa text eller bilder ovanpå dina bilder — perfekt för meddelanden, QR-koder eller kollektinformation.",
+  "feature_multiUser_title": "Flera användare & organisationer",
+  "feature_multiUser_desc": "Bjud in teammedlemmar och hantera roller. Varje organisation har sitt eget sångbibliotek och presentationer.",
+  "feature_darkMode_title": "Mörkt läge",
+  "feature_darkMode_desc": "Ett rent, modernt gränssnitt med fullt stöd för mörkt läge som fungerar på dator, surfplatta och mobil.",
+  "feature_openSource_title": "Öppen källkod",
+  "feature_openSource_desc": "Helt gratis och med öppen källkod. Självhosta på din egen server.",
+  "aboutTitle": "Om",
+  "about1": "Gospel Presenter är en gratis presentationsapp med öppen källkod byggd för kyrkor. Det gör det enkelt att visa sångtexter och Bibelverser på en andra skärm under gudstjänster.",
+  "about2": "Projektet är öppen källkod. Besök GitHub-repositoryt för instruktioner om hur du självhostar.",
+  "viewOnGitHub": "Visa på GitHub"
+}
