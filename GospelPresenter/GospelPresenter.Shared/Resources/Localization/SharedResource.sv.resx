@@ -387,7 +387,7 @@
     <value>Kunde inte ladda bilder</value>
   </data>
   <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Ladda upp bild</value>
+    <value>Ladda upp bilder</value>
   </data>
   <data name="ImageTab.Uploading" xml:space="preserve">
     <value>Laddar upp...</value>
@@ -736,6 +736,12 @@
   </data>
   <data name="ImageTab.UploadError" xml:space="preserve">
     <value>Kunde inte ladda upp bilden</value>
+  </data>
+  <data name="ImageTab.UploadingProgress" xml:space="preserve">
+    <value>Laddar upp {0} av {1}...</value>
+  </data>
+  <data name="ImageTab.UploadErrorCount" xml:space="preserve">
+    <value>{0} bild(er) kunde inte laddas upp</value>
   </data>
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentationen är tom</value>

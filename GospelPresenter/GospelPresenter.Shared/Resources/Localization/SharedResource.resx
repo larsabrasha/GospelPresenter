@@ -387,7 +387,7 @@
     <value>Could not load images</value>
   </data>
   <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Upload image</value>
+    <value>Upload images</value>
   </data>
   <data name="ImageTab.Uploading" xml:space="preserve">
     <value>Uploading...</value>
@@ -736,6 +736,12 @@
   </data>
   <data name="ImageTab.UploadError" xml:space="preserve">
     <value>Could not upload the image</value>
+  </data>
+  <data name="ImageTab.UploadingProgress" xml:space="preserve">
+    <value>Uploading {0} of {1}...</value>
+  </data>
+  <data name="ImageTab.UploadErrorCount" xml:space="preserve">
+    <value>{0} image(s) could not be uploaded</value>
   </data>
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentation is empty</value>

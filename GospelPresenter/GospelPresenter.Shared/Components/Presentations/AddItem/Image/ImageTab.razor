@@ -24,12 +24,12 @@ else
 {
     <div class="flex flex-col h-full">
         <div class="shrink-0 flex items-center gap-3 pb-4">
-            <label class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30">
+            <label class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm @(isUploading ? "text-neutral-400 dark:text-neutral-500 cursor-not-allowed" : "text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30")">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
                 </svg>
                 @L["ImageTab.Upload"]
-                <InputFile OnChange="HandleFileSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                <InputFile OnChange="HandleFilesSelected" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden"/>
             </label>
             @if (uploadError is not null)
             {
@@ -37,7 +37,7 @@ else
             }
             @if (isUploading)
             {
-                <span class="text-neutral-400 text-sm">@L["ImageTab.Uploading"]</span>
+                <span class="text-neutral-400 text-sm">@L["ImageTab.UploadingProgress", uploadedCount, uploadTotalCount]</span>
             }
         </div>
 
@@ -127,6 +127,8 @@ else
     private List<OrganizationImage> images = [];
     private bool isLoading = true;
     private bool isUploading;
+    private int uploadedCount;
+    private int uploadTotalCount;
     private string? uploadError;
     private OrganizationImage? imageToDelete;
     private OrganizationImage? selectedImage;
@@ -143,60 +145,82 @@ else
         isLoading = false;
     }
 
-    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
     {
+        if (isUploading) return;
         uploadError = null;
-        var file = e.File;
 
-        if (!AllowedImageTypes.Contains(file.ContentType))
+        var files = e.GetMultipleFiles(maximumFileCount: 50);
+        var validFiles = new List<IBrowserFile>();
+
+        foreach (var file in files)
         {
-            uploadError = L["ImageTab.UnsupportedFormat"];
-            return;
+            if (!AllowedImageTypes.Contains(file.ContentType))
+            {
+                uploadError = L["ImageTab.UnsupportedFormat"];
+                continue;
+            }
+            if (file.Size > MaxFileSize)
+            {
+                uploadError = L["ImageTab.ImageTooLarge"];
+                continue;
+            }
+            validFiles.Add(file);
         }
-        if (file.Size > MaxFileSize)
-        {
-            uploadError = L["ImageTab.ImageTooLarge"];
-            return;
-        }
+
+        if (validFiles.Count == 0) return;
 
         isUploading = true;
+        uploadedCount = 0;
+        uploadTotalCount = validFiles.Count;
         StateHasChanged();
 
-        try
+        int failedCount = 0;
+
+        foreach (var file in validFiles)
         {
-            using var stream = file.OpenReadStream(MaxFileSize);
-            using var ms = new System.IO.MemoryStream();
-            await stream.CopyToAsync(ms);
-            var originalBytes = ms.ToArray();
-            var base64 = Convert.ToBase64String(originalBytes);
+            try
+            {
+                using var stream = file.OpenReadStream(MaxFileSize);
+                using var ms = new System.IO.MemoryStream();
+                await stream.CopyToAsync(ms);
+                var originalBytes = ms.ToArray();
+                var base64 = Convert.ToBase64String(originalBytes);
 
-            var hasAlpha = file.ContentType is "image/png" or "image/webp" or "image/gif";
-            var outputFormat = hasAlpha ? "image/webp" : "image/jpeg";
+                var hasAlpha = file.ContentType is "image/png" or "image/webp" or "image/gif";
+                var outputFormat = hasAlpha ? "image/webp" : "image/jpeg";
 
-            var fullBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, FullMaxWidth, FullMaxHeight, 0.90, outputFormat);
-            var thumbBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, ThumbMaxWidth, ThumbMaxHeight, 0.80, outputFormat);
+                var fullBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, FullMaxWidth, FullMaxHeight, 0.90, outputFormat);
+                var thumbBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, ThumbMaxWidth, ThumbMaxHeight, 0.80, outputFormat);
 
-            var fullData = Convert.FromBase64String(fullBase64);
-            var thumbData = Convert.FromBase64String(thumbBase64);
+                var fullData = Convert.FromBase64String(fullBase64);
+                var thumbData = Convert.FromBase64String(thumbBase64);
 
-            var image = await OrganizationImageService.AddImageAsync(
-                organizationId!,
-                file.Name,
-                outputFormat,
-                thumbData,
-                fullData,
-                OrgState.ToCallerContext());
+                var image = await OrganizationImageService.AddImageAsync(
+                    organizationId!,
+                    file.Name,
+                    outputFormat,
+                    thumbData,
+                    fullData,
+                    OrgState.ToCallerContext());
 
-            images.Insert(0, image);
+                images.Insert(0, image);
+            }
+            catch (Exception)
+            {
+                failedCount++;
+            }
+
+            uploadedCount++;
+            StateHasChanged();
         }
-        catch (Exception)
+
+        if (failedCount > 0)
         {
-            uploadError = L["ImageTab.UploadError"];
+            uploadError = L["ImageTab.UploadErrorCount", failedCount];
         }
-        finally
-        {
-            isUploading = false;
-        }
+
+        isUploading = false;
     }
 
     private void SelectImage(OrganizationImage image)
