@@ -755,4 +755,25 @@
   <data name="Settings.ThemeDark" xml:space="preserve">
     <value>Mörkt</value>
   </data>
+  <data name="Presentation.StopPresentation" xml:space="preserve">
+    <value>Avsluta presentation</value>
+  </data>
+  <data name="Presentation.ManageOverlays" xml:space="preserve">
+    <value>Hantera overlays</value>
+  </data>
+  <data name="Presentation.SessionExpired" xml:space="preserve">
+    <value>Visningen avslutades</value>
+  </data>
+  <data name="Presentation.SessionExpiredDescription" xml:space="preserve">
+    <value>Presentationen stängdes automatiskt på grund av inaktivitet.</value>
+  </data>
+  <data name="Presentation.ConfirmRemoveItem" xml:space="preserve">
+    <value>Vill du ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Presentation.ConfirmDeletePresentation" xml:space="preserve">
+    <value>Vill du radera &lt;strong&gt;{0}&lt;/strong&gt;? Detta kan inte ångras.</value>
+  </data>
+  <data name="Common.Options" xml:space="preserve">
+    <value>Alternativ</value>
+  </data>
 </root>

@@ -755,4 +755,25 @@
   <data name="Settings.ThemeDark" xml:space="preserve">
     <value>Dark</value>
   </data>
+  <data name="Presentation.StopPresentation" xml:space="preserve">
+    <value>Stop presentation</value>
+  </data>
+  <data name="Presentation.ManageOverlays" xml:space="preserve">
+    <value>Manage overlays</value>
+  </data>
+  <data name="Presentation.SessionExpired" xml:space="preserve">
+    <value>Session ended</value>
+  </data>
+  <data name="Presentation.SessionExpiredDescription" xml:space="preserve">
+    <value>The presentation was automatically closed due to inactivity.</value>
+  </data>
+  <data name="Presentation.ConfirmRemoveItem" xml:space="preserve">
+    <value>Do you want to remove &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Presentation.ConfirmDeletePresentation" xml:space="preserve">
+    <value>Do you want to delete &lt;strong&gt;{0}&lt;/strong&gt;? This cannot be undone.</value>
+  </data>
+  <data name="Common.Options" xml:space="preserve">
+    <value>Options</value>
+  </data>
 </root>
