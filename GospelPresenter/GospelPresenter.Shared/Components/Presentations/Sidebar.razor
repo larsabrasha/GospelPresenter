@@ -10,8 +10,8 @@
 
 @implements IDisposable
 
-<div class="shrink-0 overflow-hidden flex h-full">
-    <div class="p-4 overflow-auto w-full">
+<div class="p-4 shrink-0 overflow-hidden flex h-full">
+    <div class="overflow-auto w-full">
         @if (AppState.SelectedProject is null)
         {
             <div class="text-sm text-center text-neutral-500 pt-10">@L["Sidebar.NotFound"]</div>
@@ -66,17 +66,15 @@
                 @foreach (var item in AppState.SelectedProject.Items)
                 {
                     var isSelected = AppState.SelectedProjectItem?.Id == item.Id;
-                    var itemClass = isSelected ? "bg-sky-500 text-white" : "";
+                    var itemClass = isSelected
+                        ? "bg-sky-500 text-white"
+                        : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700";
+                    
                     <div @key="item.Id" data-id="@item.Id"
-                         class="rounded-3xl flex w-full px-1 py-1 border-1 border-white dark:border-neutral-800 items-center hover:bg-sky-500 hover:text-white group @itemClass">
-                        <div class="drag-handle cursor-grab active:cursor-grabbing p-2 opacity-30 group-hover:opacity-70 touch-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5"/>
-                            </svg>
-                        </div>
-                        <button class="flex items-center space-x-3 grow cursor-pointer py-2 min-w-0"
+                         class="flex items-center gap-1 px-3 rounded-lg text-sm group @itemClass">
+                        <button class="flex items-center space-x-3 py-3 grow cursor-pointer min-w-0"
                                 @onclick="() => SelectItemAsync(item)">
-                            <div class="size-3 shrink-0">
+                            <div class="size-3 shrink-0 drag-handle cursor-grab active:cursor-grabbing ">
                                 @switch (item.Type)
                                 {
                                     case ProjectItemType.Song:
@@ -95,7 +93,7 @@
                             </div>
                             <div class="text-left truncate">@item.Title</div>
                         </button>
-                        <button class="p-2 opacity-30 hover:opacity-100 cursor-pointer shrink-0"
+                        <button class="px-2 py-2 opacity-30 hover:opacity-100 cursor-pointer shrink-0"
                                 title="@L["Common.Delete"]"
                                 @onclick="() => RequestRemoveItem(item)"
                                 @onclick:stopPropagation="true">

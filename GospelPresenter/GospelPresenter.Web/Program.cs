@@ -154,7 +154,8 @@ try
     else
     {
         Log.Warning("No authentication provider configured — using mock authentication");
-        builder.Services.AddAuthentication();
+        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie();
         builder.Services.AddScoped<AuthenticationStateProvider, MockAuthenticationStateProvider>();
         builder.Services.AddSingleton<IAuthProviderService, MockAuthProviderService>();
     }
@@ -257,6 +258,26 @@ builder.Services.AddMetricServer(options =>
     app.UseHttpsRedirection();
 
     app.UseAuthentication();
+
+    if (isMockMode)
+    {
+        // Auto-sign in the mock user via cookie so the HTTP pipeline
+        // (middleware, endpoints with RequireAuthorization) also sees
+        // an authenticated user — not just Blazor components.
+        app.Use(async (context, next) =>
+        {
+            if (context.User.Identity?.IsAuthenticated != true)
+            {
+                var authStateProvider = context.RequestServices.GetRequiredService<AuthenticationStateProvider>();
+                var authState = await authStateProvider.GetAuthenticationStateAsync();
+                await context.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    authState.User);
+            }
+            await next(context);
+        });
+    }
+
     app.UseAuthorization();
 
     app.Use(async (context, next) =>
