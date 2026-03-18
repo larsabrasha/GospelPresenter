@@ -46,14 +46,14 @@
                         </label>
                         @if (!string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall))
                         {
-                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
+                            <button class="text-sm text-red-600 dark:text-red-400 cursor-pointer hover:underline text-left"
                                     @onclick="ConfirmRemoveProfileImage">
                                 @L["Common.RemoveImage"]
                             </button>
                         }
                         @if (imageError is not null)
                         {
-                            <div class="text-sm text-red-500">@imageError</div>
+                            <div class="text-sm text-red-500 dark:text-red-400">@imageError</div>
                         }
                     </div>
                 </div>

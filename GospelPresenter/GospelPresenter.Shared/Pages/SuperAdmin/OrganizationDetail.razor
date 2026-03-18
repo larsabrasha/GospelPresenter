@@ -50,14 +50,14 @@
                         </label>
                         @if (!string.IsNullOrEmpty(organization.LogoSmall))
                         {
-                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
+                            <button class="text-sm text-red-600 dark:text-red-400 cursor-pointer hover:underline text-left"
                                     @onclick="RemoveLogo">
                                 @L["OrgDetail.RemoveLogo"]
                             </button>
                         }
                         @if (logoError is not null)
                         {
-                            <div class="text-sm text-red-500">@logoError</div>
+                            <div class="text-sm text-red-500 dark:text-red-400">@logoError</div>
                         }
                     </div>
                 </div>
