@@ -795,9 +795,15 @@
     <value>Alternativ</value>
   </data>
   <data name="Presentation.EditImageOrder" xml:space="preserve">
-    <value>Ändra ordning</value>
+    <value>Redigera</value>
   </data>
   <data name="Presentation.DoneEditingImages" xml:space="preserve">
     <value>Klar</value>
+  </data>
+  <data name="Presentation.AddMoreImages" xml:space="preserve">
+    <value>Lägg till bilder</value>
+  </data>
+  <data name="Presentation.ConfirmRemoveImage" xml:space="preserve">
+    <value>Vill du ta bort den här bilden?</value>
   </data>
 </root>

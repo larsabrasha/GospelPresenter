@@ -12,6 +12,9 @@ public interface IPresentationService
     Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default);
     Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default);
     Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default);
+    Task RenameItemAsync(string organizationId, string presentationId, string itemId, string title, CallerContext caller, CancellationToken cancellationToken = default);
+    Task AddItemPartsAsync(string organizationId, string presentationId, string itemId, List<PresentationItemPart> parts, CallerContext caller, CancellationToken cancellationToken = default);
+    Task RemoveItemPartAsync(string organizationId, string presentationId, string itemId, string partId, CallerContext caller, CancellationToken cancellationToken = default);
     Task ReorderItemPartsAsync(string organizationId, string presentationId, string itemId, List<string> partIds, CallerContext caller, CancellationToken cancellationToken = default);
     Task RemoveItemAsync(string organizationId, string presentationId, string itemId, CallerContext caller, CancellationToken cancellationToken = default);
     Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default);
@@ -140,6 +143,48 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
         }
 
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RenameItemAsync(string organizationId, string presentationId, string itemId, string title, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManagePresentations);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        await context.PresentationItems
+            .Where(x => x.Id == itemId && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
+            .ExecuteUpdateAsync(x => x.SetProperty(p => p.Title, title), cancellationToken);
+    }
+
+    public async Task AddItemPartsAsync(string organizationId, string presentationId, string itemId, List<PresentationItemPart> parts, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManagePresentations);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var maxSortOrder = await context.PresentationItemParts
+            .Where(x => x.PresentationItemId == itemId && x.PresentationItem.PresentationId == presentationId && x.PresentationItem.Presentation.OrganizationId == organizationId)
+            .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1;
+
+        foreach (var part in parts)
+        {
+            part.PresentationItemId = itemId;
+            part.SortOrder = ++maxSortOrder;
+        }
+
+        context.PresentationItemParts.AddRange(parts);
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveItemPartAsync(string organizationId, string presentationId, string itemId, string partId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManagePresentations);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        await context.PresentationItemParts
+            .Where(x => x.Id == partId && x.PresentationItemId == itemId && x.PresentationItem.PresentationId == presentationId && x.PresentationItem.Presentation.OrganizationId == organizationId)
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     public async Task ReorderItemPartsAsync(string organizationId, string presentationId, string itemId, List<string> partIds, CallerContext caller, CancellationToken cancellationToken = default)

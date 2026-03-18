@@ -795,9 +795,15 @@
     <value>Options</value>
   </data>
   <data name="Presentation.EditImageOrder" xml:space="preserve">
-    <value>Edit order</value>
+    <value>Edit</value>
   </data>
   <data name="Presentation.DoneEditingImages" xml:space="preserve">
     <value>Done</value>
+  </data>
+  <data name="Presentation.AddMoreImages" xml:space="preserve">
+    <value>Add images</value>
+  </data>
+  <data name="Presentation.ConfirmRemoveImage" xml:space="preserve">
+    <value>Do you want to remove this image?</value>
   </data>
 </root>

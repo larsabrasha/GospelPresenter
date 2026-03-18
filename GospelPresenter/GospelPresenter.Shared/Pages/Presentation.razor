@@ -54,8 +54,25 @@
                 <div
                     class="flex justify-between absolute top-0 left-0 right-0 bg-linear-to-b from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none h-16">
                     <div class="px-5 py-3 pointer-events-auto flex items-center gap-3">
-                        <span class="text-xl font-semibold">@AppState.SelectedProjectItem?.Title</span>
-                        @if (SelectedImage is not null && SelectedImage.Urls.Count > 1)
+                        @if (isEditingItemTitle)
+                        {
+                            <input @ref="itemTitleInput"
+                                   type="text"
+                                   class="text-xl font-semibold px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                   @bind="editItemTitle"
+                                   @bind:event="oninput"
+                                   @onblur="SaveItemTitleAsync"
+                                   @onkeydown="OnItemTitleKeyDown"/>
+                        }
+                        else
+                        {
+                            <button class="text-xl font-semibold cursor-pointer hover:text-sky-500 text-left truncate"
+                                    @onclick="StartEditingItemTitle"
+                                    title="@L["Sidebar.ClickToRename"]">
+                                @AppState.SelectedProjectItem?.Title
+                            </button>
+                        }
+                        @if (SelectedImage is not null)
                         {
                             <button class="flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
                                            @(isEditingImageOrder
@@ -73,7 +90,7 @@
                                 else
                                 {
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
                                     </svg>
                                     @L["Presentation.EditImageOrder"]
                                 }
@@ -184,9 +201,14 @@
                                                 BaseWidth="@AppState.BaseSlideWidth"
                                                 BaseHeight="@AppState.BaseSlideHeight"
                                                 Scale="@slideScale"/>
-                                            <div class="absolute top-1 left-1 bg-black/50 text-white rounded-full size-6 flex items-center justify-center text-xs font-bold">
-                                                @(partIndex + 1)
-                                            </div>
+                                            <button class="absolute top-1 right-1 bg-black/50 hover:bg-red-500 text-white rounded-full size-6 flex items-center justify-center cursor-pointer"
+                                                    title="@L["Common.Delete"]"
+                                                    @onclick="() => ConfirmRemoveImagePart(partIndex)"
+                                                    @onclick:stopPropagation="true">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
                                         </div>
                                     }
                                     else
@@ -203,6 +225,17 @@
                                 </div>
                             }
                         </div>
+                        @if (isEditingImageOrder)
+                        {
+                            <button class="border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-xl flex items-center justify-center cursor-pointer hover:border-sky-500 hover:text-sky-500 text-neutral-400 dark:text-neutral-500 transition-colors"
+                                    style="width: @(AppState.BaseSlideWidth * slideScale)px; height: @(AppState.BaseSlideHeight * slideScale)px;"
+                                    @onclick="OpenAddImagesToExisting"
+                                    title="@L["Presentation.AddMoreImages"]">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                                </svg>
+                            </button>
+                        }
                     }
                     else if (AppState.SelectedProject is not null && AppState.SelectedProject.Items.Count == 0)
                     {
@@ -364,6 +397,36 @@ else if (addModalType == "image")
     </Modal>
 }
 
+@if (showAddImagesToExisting)
+{
+    <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddImagesToExisting">
+        <Title><span>@L["Presentation.AddMoreImages"]</span></Title>
+        <Body>
+            <ImageTab OnAdd="@HandleImagesAddedToExisting" OnAddKeepOpen="@HandleImagesAddedToExistingKeepOpen"/>
+        </Body>
+    </Modal>
+}
+
+@if (imagePartToRemoveIndex is not null)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="() => imagePartToRemoveIndex = null">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@L["Common.Delete"]</div>
+            <div>@L["Presentation.ConfirmRemoveImage"]</div>
+            <div class="flex justify-end gap-3">
+                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                        @onclick="() => imagePartToRemoveIndex = null">
+                    @L["Common.Cancel"]
+                </button>
+                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
+                        @onclick="ConfirmAndRemoveImagePart">
+                    @L["Common.Delete"]
+                </button>
+            </div>
+        </div>
+    </Dialog>
+}
+
 @if (itemToRemove is not null)
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelRemove">
@@ -432,6 +495,11 @@ else if (addModalType == "image")
     private string? activeOverlayId;
     private bool isEditingImageOrder;
     private bool imageSortableInitialized;
+    private bool isEditingItemTitle;
+    private string editItemTitle = "";
+    private ElementReference itemTitleInput;
+    private bool showAddImagesToExisting;
+    private int? imagePartToRemoveIndex;
     private int idleHintIndex;
 
     private record IdleHint(string Icon, string Text, string? Source = null);
@@ -513,6 +581,11 @@ else if (addModalType == "image")
             await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef, isActive, AppState.SessionId);
         }
 
+        if (isEditingItemTitle)
+        {
+            try { await itemTitleInput.FocusAsync(); } catch { }
+        }
+
         if (isEditingImageOrder && !imageSortableInitialized)
         {
             await JsRuntime.InvokeVoidAsync("initSortableList", "image-slide-list", dotNetRef);
@@ -577,6 +650,181 @@ else if (addModalType == "image")
             imageSortableInitialized = false;
             await JsRuntime.InvokeVoidAsync("destroySortableList", "image-slide-list");
         }
+    }
+
+    private void ConfirmRemoveImagePart(int index)
+    {
+        imagePartToRemoveIndex = index;
+    }
+
+    private async Task ConfirmAndRemoveImagePart()
+    {
+        if (imagePartToRemoveIndex is null) return;
+        var index = imagePartToRemoveIndex.Value;
+        imagePartToRemoveIndex = null;
+        await RemoveImagePart(index);
+    }
+
+    private async Task RemoveImagePart(int index)
+    {
+        if (SelectedImage is null || index < 0 || index >= SelectedImage.Urls.Count) return;
+
+        var partId = SelectedImage.PartIds.ElementAtOrDefault(index);
+        var urls = SelectedImage.Urls.ToList();
+        var partIds = SelectedImage.PartIds.ToList();
+
+        urls.RemoveAt(index);
+        if (index < partIds.Count) partIds.RemoveAt(index);
+
+        // Update in-memory model
+        var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == SelectedImage.Id);
+        if (imageItem is not null && partId is not null)
+        {
+            imageItem.Parts.RemoveAll(p => p.Id == partId);
+            for (var i = 0; i < imageItem.Parts.Count; i++)
+                imageItem.Parts[i].SortOrder = i;
+        }
+
+        if (urls.Count == 0)
+        {
+            // No images left — remove the entire item
+            isEditingImageOrder = false;
+            imageSortableInitialized = false;
+            var projectItem = AppState.SelectedProjectItem;
+            if (projectItem is not null)
+            {
+                AppState.SelectedProject?.Items.Remove(projectItem);
+                loadedPresentation?.Items.RemoveAll(x => x.Id == projectItem.Id);
+                AppState.SelectedProjectItem = null;
+            }
+            SelectedImage = null;
+
+            if (PresentationId is not null && projectItem is not null)
+            {
+                var orgId = OrgState.ActiveOrganizationId;
+                if (orgId is not null)
+                    await PresentationService.RemoveItemAsync(orgId, PresentationId, projectItem.Id, OrgState.ToCallerContext());
+            }
+            return;
+        }
+
+        SelectedImage = new Image(SelectedImage.Id, urls, partIds);
+
+        // Persist to database
+        if (PresentationId is not null && partId is not null)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.RemoveItemPartAsync(orgId, PresentationId, SelectedImage.Id, partId, OrgState.ToCallerContext());
+        }
+    }
+
+    private void OpenAddImagesToExisting()
+    {
+        showAddImagesToExisting = true;
+    }
+
+    private void CloseAddImagesToExisting()
+    {
+        showAddImagesToExisting = false;
+    }
+
+    private async Task HandleImagesAddedToExisting(List<OrganizationImage> images)
+    {
+        showAddImagesToExisting = false;
+        await AddImagesToExistingItem(images);
+    }
+
+    private async Task HandleImagesAddedToExistingKeepOpen(List<OrganizationImage> images)
+    {
+        await AddImagesToExistingItem(images);
+    }
+
+    private async Task AddImagesToExistingItem(List<OrganizationImage> images)
+    {
+        if (images.Count == 0 || SelectedImage is null) return;
+
+        var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == SelectedImage.Id);
+        if (imageItem is null) return;
+
+        var maxSortOrder = imageItem.Parts.Count > 0
+            ? imageItem.Parts.Max(p => p.SortOrder)
+            : -1;
+
+        var newParts = images.Select((img, i) => new PresentationItemPart
+        {
+            Id = Guid.NewGuid().ToString(),
+            Content = img.Id,
+            SortOrder = maxSortOrder + 1 + i,
+            PresentationItemId = imageItem.Id
+        }).ToList();
+
+        imageItem.Parts.AddRange(newParts);
+
+        // Rebuild SelectedImage with new URLs
+        var urls = SelectedImage.Urls.ToList();
+        var partIds = SelectedImage.PartIds.ToList();
+        foreach (var img in images)
+        {
+            if (img.FullData is not null)
+            {
+                urls.Add($"data:{img.ContentType};base64,{Convert.ToBase64String(img.FullData)}");
+                partIds.Add(newParts[images.IndexOf(img)].Id);
+            }
+        }
+        SelectedImage = new Image(SelectedImage.Id, urls, partIds);
+
+        // Reinitialize sortable after render
+        imageSortableInitialized = false;
+
+        // Persist to database
+        if (PresentationId is not null)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.AddItemPartsAsync(orgId, PresentationId, imageItem.Id, newParts, OrgState.ToCallerContext());
+        }
+    }
+
+    private void StartEditingItemTitle()
+    {
+        editItemTitle = AppState.SelectedProjectItem?.Title ?? "";
+        isEditingItemTitle = true;
+    }
+
+    private async Task OnItemTitleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await SaveItemTitleAsync();
+        else if (e.Key == "Escape")
+            isEditingItemTitle = false;
+    }
+
+    private async Task SaveItemTitleAsync()
+    {
+        isEditingItemTitle = false;
+        var trimmed = editItemTitle.Trim();
+        var item = AppState.SelectedProjectItem;
+
+        if (item is null || string.IsNullOrWhiteSpace(trimmed) || trimmed == item.Title)
+            return;
+
+        item.Title = trimmed;
+
+        // Update in-memory presentation model
+        var presentationItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == item.Id);
+        if (presentationItem is not null)
+            presentationItem.Title = trimmed;
+
+        // Persist to database
+        if (PresentationId is not null)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.RenameItemAsync(orgId, PresentationId, item.Id, trimmed, OrgState.ToCallerContext());
+        }
+
+        AppState.NotifyProjectChanged();
     }
 
     protected override void OnInitialized()
@@ -678,6 +926,7 @@ else if (addModalType == "image")
         SelectedBibleText = null;
         SelectedImage = null;
         isEditingImageOrder = false;
+        isEditingItemTitle = false;
         imageSortableInitialized = false;
 
         switch (AppState.SelectedProjectItem?.Type)
