@@ -36,11 +36,14 @@ services:
       Settings__DataProtectionKeysDirectory: /app/data-protection-keys
       Settings__BiblesPath: /app/data/bibles
       Settings__SongsPath: /app/data/songs
-      OpenIdConnect__Authority: ${OIDC_AUTHORITY:-}
-      OpenIdConnect__ClientId: ${OIDC_CLIENT_ID:-}
-      OpenIdConnect__ClientSecret: ${OIDC_CLIENT_SECRET:-}
-      Google__ClientId: ${GOOGLE_CLIENT_ID:-}
-      Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Authentication__OpenIdConnect__Enabled: ${OIDC_ENABLED:-false}
+      Authentication__OpenIdConnect__Authority: ${OIDC_AUTHORITY:-}
+      Authentication__OpenIdConnect__ClientId: ${OIDC_CLIENT_ID:-}
+      Authentication__OpenIdConnect__ClientSecret: ${OIDC_CLIENT_SECRET:-}
+      Authentication__OpenIdConnect__DisplayName: ${OIDC_DISPLAY_NAME:-OpenID Connect}
+      Authentication__Google__Enabled: ${GOOGLE_ENABLED:-false}
+      Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
     volumes:
       - data-protection-keys:/app/data-protection-keys
       - ./bibles:/app/data/bibles:ro

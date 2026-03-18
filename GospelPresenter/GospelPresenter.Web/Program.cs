@@ -3,21 +3,20 @@ using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
+using GospelPresenter.Web.Configuration;
 using GospelPresenter.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Prometheus;
-using GospelPresenter.Web.Configuration;
-using GospelPresenter.Web.Services;
-using Microsoft.AspNetCore.Components.Authorization;
 using System.Security.Claims;
 using Serilog;
 
@@ -48,10 +47,20 @@ try
 
     var sessionTimeoutMinutes = builder.Configuration.GetValue("Settings:SessionTimeoutMinutes", 240);
 
-    builder.Services.AddAuthentication(options =>
+    var authOptions = builder.Configuration.GetSection("Authentication").Get<GospelPresenter.Web.Configuration.AuthenticationOptions>()
+                      ?? new GospelPresenter.Web.Configuration.AuthenticationOptions();
+
+    var googleConfigured = authOptions.Google.Enabled && !string.IsNullOrEmpty(authOptions.Google.ClientId);
+    var oidcConfigured = authOptions.OpenIdConnect.Enabled && !string.IsNullOrEmpty(authOptions.OpenIdConnect.ClientId);
+    if (!googleConfigured && !oidcConfigured)
+        throw new InvalidOperationException("At least one authentication provider must be enabled and configured (Google or OpenID Connect).");
+
+    builder.Services.Configure<GospelPresenter.Web.Configuration.AuthenticationOptions>(builder.Configuration.GetSection("Authentication"));
+    builder.Services.AddSingleton<IAuthProviderService, AuthProviderService>();
+
+    var authBuilder = builder.Services.AddAuthentication(options =>
         {
             options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
         })
         .AddCookie(options =>
         {
@@ -60,12 +69,16 @@ try
             options.Cookie.HttpOnly = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
             options.Cookie.SameSite = SameSiteMode.Lax;
-        })
-        .AddOpenIdConnect(options =>
+            options.LoginPath = "/login";
+        });
+
+    if (oidcConfigured)
+    {
+        authBuilder.AddOpenIdConnect(options =>
         {
-            options.Authority = builder.Configuration["OpenIdConnect:Authority"];
-            options.ClientId = builder.Configuration["OpenIdConnect:ClientId"];
-            options.ClientSecret = builder.Configuration["OpenIdConnect:ClientSecret"];
+            options.Authority = authOptions.OpenIdConnect.Authority;
+            options.ClientId = authOptions.OpenIdConnect.ClientId;
+            options.ClientSecret = authOptions.OpenIdConnect.ClientSecret;
             options.ResponseType = "code";
             options.SaveTokens = true;
             options.GetClaimsFromUserInfoEndpoint = true;
@@ -83,69 +96,9 @@ try
 
             options.Events.OnTokenValidated = async context =>
             {
-                var subject = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrEmpty(subject))
-                {
-                    context.Fail("No subject claim found");
-                    return;
-                }
-
-                var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
-                string? inviteToken = null;
-                context.Properties?.Items.TryGetValue("invite_token", out inviteToken);
-
-                User? user;
-                if (!string.IsNullOrEmpty(inviteToken))
-                {
-                    var invite = await userService.GetInviteByTokenAsync(inviteToken);
-                    if (invite == null)
-                    {
-                        context.Fail("Invalid invite");
-                        return;
-                    }
-                    await userService.LinkLoginAsync(invite.UserId, "oidc", subject);
-                    await userService.MarkInviteUsedAsync(invite.Id);
-                    user = invite.User;
-                }
-                else
-                {
-                    user = await userService.GetByLoginAsync("oidc", subject);
-                    if (user == null)
-                    {
-                        context.Fail("User not found");
-                        return;
-                    }
-                }
-
-                if (string.IsNullOrEmpty(user.Email))
-                {
-                    var email = context.Principal?.FindFirstValue(ClaimTypes.Email);
-                    if (!string.IsNullOrEmpty(email))
-                        await userService.UpdateEmailIfEmptyAsync(user.Id, email);
-                }
-
-                if (string.IsNullOrEmpty(user.ProfileImage) && !user.ProfileImageRemoved)
-                {
-                    var pictureUrl = context.Principal?.FindFirstValue("picture");
-                    if (!string.IsNullOrEmpty(pictureUrl))
-                    {
-                        var httpClientFactory = context.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
-                        var profileImageService = context.HttpContext.RequestServices.GetRequiredService<IProfileImageService>();
-                        var imageBytes = await DownloadImage(httpClientFactory, pictureUrl);
-                        if (imageBytes != null)
-                        {
-                            var (full, small) = profileImageService.Resize(imageBytes, "image/jpeg");
-                            await userService.UpdateProfileImageAsync(user.Id, full, small);
-                        }
-                    }
-                }
-
-                var identity = context.Principal?.Identity as ClaimsIdentity;
-                identity?.AddClaim(new Claim("user_id", user.Id));
-                if (user.OrganizationId is not null)
-                    identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
-                identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
-                identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
+                await HandleAuthenticatedUser(context.HttpContext, context.Principal, context.Properties,
+                    "oidc",
+                    onFailure: msg => context.Fail(msg));
             };
 
             options.Events.OnRemoteFailure = context =>
@@ -154,11 +107,15 @@ try
                 context.HandleResponse();
                 return Task.CompletedTask;
             };
-        })
-        .AddGoogle(options =>
+        });
+    }
+
+    if (googleConfigured)
+    {
+        authBuilder.AddGoogle(options =>
         {
-            options.ClientId = builder.Configuration["Google:ClientId"] ?? "";
-            options.ClientSecret = builder.Configuration["Google:ClientSecret"] ?? "";
+            options.ClientId = authOptions.Google.ClientId;
+            options.ClientSecret = authOptions.Google.ClientSecret;
             options.CallbackPath = "/signin-google";
 
             options.Scope.Add("profile");
@@ -170,72 +127,13 @@ try
 
             options.Events.OnTicketReceived = async context =>
             {
-                var subject = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrEmpty(subject))
-                {
-                    context.Response.Redirect("/authentication-error");
-                    context.HandleResponse();
-                    return;
-                }
-
-                var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
-                string? inviteToken = null;
-                context.Properties?.Items.TryGetValue("invite_token", out inviteToken);
-
-                User? user;
-                if (!string.IsNullOrEmpty(inviteToken))
-                {
-                    var invite = await userService.GetInviteByTokenAsync(inviteToken);
-                    if (invite == null)
+                await HandleAuthenticatedUser(context.HttpContext, context.Principal, context.Properties,
+                    "google",
+                    onFailure: _ =>
                     {
                         context.Response.Redirect("/authentication-error");
                         context.HandleResponse();
-                        return;
-                    }
-                    await userService.LinkLoginAsync(invite.UserId, "google", subject);
-                    await userService.MarkInviteUsedAsync(invite.Id);
-                    user = invite.User;
-                }
-                else
-                {
-                    user = await userService.GetByLoginAsync("google", subject);
-                    if (user == null)
-                    {
-                        context.Response.Redirect("/authentication-error");
-                        context.HandleResponse();
-                        return;
-                    }
-                }
-
-                if (string.IsNullOrEmpty(user.Email))
-                {
-                    var email = context.Principal?.FindFirstValue(ClaimTypes.Email);
-                    if (!string.IsNullOrEmpty(email))
-                        await userService.UpdateEmailIfEmptyAsync(user.Id, email);
-                }
-
-                if (string.IsNullOrEmpty(user.ProfileImage) && !user.ProfileImageRemoved)
-                {
-                    var pictureUrl = context.Principal?.FindFirstValue("picture");
-                    if (!string.IsNullOrEmpty(pictureUrl))
-                    {
-                        var httpClientFactory = context.HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
-                        var profileImageService = context.HttpContext.RequestServices.GetRequiredService<IProfileImageService>();
-                        var imageBytes = await DownloadImage(httpClientFactory, pictureUrl);
-                        if (imageBytes != null)
-                        {
-                            var (full, small) = profileImageService.Resize(imageBytes, "image/jpeg");
-                            await userService.UpdateProfileImageAsync(user.Id, full, small);
-                        }
-                    }
-                }
-
-                var identity = context.Principal?.Identity as ClaimsIdentity;
-                identity?.AddClaim(new Claim("user_id", user.Id));
-                if (user.OrganizationId is not null)
-                    identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
-                identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
-                identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
+                    });
             };
 
             options.Events.OnRemoteFailure = context =>
@@ -245,6 +143,7 @@ try
                 return Task.CompletedTask;
             };
         });
+    }
 
     builder.Services.AddHttpClient();
     builder.Services.AddAuthorization();
@@ -408,23 +307,24 @@ builder.Services.AddMetricServer(options =>
         .AddInteractiveServerRenderMode()
         .AddAdditionalAssemblies(typeof(GospelPresenter.Shared._Imports).Assembly);
 
-    app.MapGet("/signin", (string? returnUrl, string? provider) =>
+    app.MapGet("/signin", (string? returnUrl, string? provider, IAuthProviderService authProviders) =>
     {
-        var scheme = provider == "google"
-            ? GoogleDefaults.AuthenticationScheme
-            : OpenIdConnectDefaults.AuthenticationScheme;
+        var scheme = ResolveScheme(provider, authProviders);
+        if (scheme == null)
+            return Results.Redirect("/authentication-error");
+
         return Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }, [scheme]);
     }).AllowAnonymous();
 
-    app.MapGet("/invite/{token}/signin", async (string token, string provider, IUserService userService) =>
+    app.MapGet("/invite/{token}/signin", async (string token, string provider, IUserService userService, IAuthProviderService authProviders) =>
     {
+        var scheme = ResolveScheme(provider, authProviders);
+        if (scheme == null)
+            return Results.Redirect("/authentication-error");
+
         var invite = await userService.GetInviteByTokenAsync(token);
         if (invite == null)
             return Results.Redirect("/authentication-error");
-
-        var scheme = provider == "google"
-            ? GoogleDefaults.AuthenticationScheme
-            : OpenIdConnectDefaults.AuthenticationScheme;
 
         var properties = new AuthenticationProperties { RedirectUri = "/" };
         properties.Items["invite_token"] = token;
@@ -473,6 +373,101 @@ finally
 {
     Log.Information("Shut down complete");
     Log.CloseAndFlush();
+}
+
+static string? ResolveScheme(string? provider, IAuthProviderService authProviders)
+{
+    if (provider == "google" && authProviders.IsEnabled("google"))
+        return GoogleDefaults.AuthenticationScheme;
+
+    if (provider == "oidc" && authProviders.IsEnabled("oidc"))
+        return OpenIdConnectDefaults.AuthenticationScheme;
+
+    // No explicit provider — use first enabled
+    if (string.IsNullOrEmpty(provider))
+    {
+        var first = authProviders.EnabledProviders.FirstOrDefault();
+        return first?.Id switch
+        {
+            "google" => GoogleDefaults.AuthenticationScheme,
+            "oidc" => OpenIdConnectDefaults.AuthenticationScheme,
+            _ => null,
+        };
+    }
+
+    return null;
+}
+
+static async Task HandleAuthenticatedUser(
+    HttpContext httpContext,
+    ClaimsPrincipal? principal,
+    AuthenticationProperties? properties,
+    string loginProvider,
+    Action<string> onFailure)
+{
+    var subject = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+    if (string.IsNullOrEmpty(subject))
+    {
+        onFailure("No subject claim found");
+        return;
+    }
+
+    var userService = httpContext.RequestServices.GetRequiredService<IUserService>();
+    string? inviteToken = null;
+    properties?.Items.TryGetValue("invite_token", out inviteToken);
+
+    User? user;
+    if (!string.IsNullOrEmpty(inviteToken))
+    {
+        var invite = await userService.GetInviteByTokenAsync(inviteToken);
+        if (invite == null)
+        {
+            onFailure("Invalid invite");
+            return;
+        }
+        await userService.LinkLoginAsync(invite.UserId, loginProvider, subject);
+        await userService.MarkInviteUsedAsync(invite.Id);
+        user = invite.User;
+    }
+    else
+    {
+        user = await userService.GetByLoginAsync(loginProvider, subject);
+        if (user == null)
+        {
+            onFailure("User not found");
+            return;
+        }
+    }
+
+    if (string.IsNullOrEmpty(user.Email))
+    {
+        var email = principal?.FindFirstValue(ClaimTypes.Email);
+        if (!string.IsNullOrEmpty(email))
+            await userService.UpdateEmailIfEmptyAsync(user.Id, email);
+    }
+
+    if (string.IsNullOrEmpty(user.ProfileImage) && !user.ProfileImageRemoved)
+    {
+        var pictureUrl = principal?.FindFirstValue("picture");
+        if (!string.IsNullOrEmpty(pictureUrl))
+        {
+            var httpClientFactory = httpContext.RequestServices.GetRequiredService<IHttpClientFactory>();
+            var profileImageService = httpContext.RequestServices.GetRequiredService<IProfileImageService>();
+            var imageBytes = await DownloadImage(httpClientFactory, pictureUrl);
+            if (imageBytes != null)
+            {
+                var (full, small) = profileImageService.Resize(imageBytes, "image/jpeg");
+                await userService.UpdateProfileImageAsync(user.Id, full, small);
+            }
+        }
+    }
+
+    var identity = principal?.Identity as ClaimsIdentity;
+    identity?.AddClaim(new Claim("user_id", user.Id));
+    if (user.OrganizationId is not null)
+        identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
+    identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
+    identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
 }
 
 static async Task<byte[]?> DownloadImage(IHttpClientFactory httpClientFactory, string url)

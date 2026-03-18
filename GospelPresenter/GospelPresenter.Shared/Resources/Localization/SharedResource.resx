@@ -635,6 +635,9 @@
   <data name="SignIn.MoreOptions" xml:space="preserve">
     <value>More options</value>
   </data>
+  <data name="SignIn.Provider" xml:space="preserve">
+    <value>Sign in with {0}</value>
+  </data>
   <data name="Presentation.StartPresentation" xml:space="preserve">
     <value>Start presentation</value>
   </data>
