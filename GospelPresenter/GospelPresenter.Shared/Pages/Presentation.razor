@@ -17,6 +17,7 @@
 @inject ISongService SongService
 @inject IBibleTextService BibleTextService
 @inject IPresentationService PresentationService
+@inject IOrganizationImageService OrganizationImageService
 @inject IJSRuntime JsRuntime
 
 @implements IDisposable
@@ -145,14 +146,18 @@
                     }
                     else if (SelectedImage is not null)
                     {
-                        <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, 0)">
-                            <ImageSlide
-                                Url="@SelectedImage.Url"
-                                IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == 0)"
-                                BaseWidth="@AppState.BaseSlideWidth"
-                                BaseHeight="@AppState.BaseSlideHeight"
-                                Scale="@slideScale"/>
-                        </button>
+                        @for (var i = 0; i < SelectedImage.Urls.Count; i++)
+                        {
+                            var partIndex = i;
+                            <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, partIndex)">
+                                <ImageSlide
+                                    Url="@SelectedImage.Urls[i]"
+                                    IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
+                                    BaseWidth="@AppState.BaseSlideWidth"
+                                    BaseHeight="@AppState.BaseSlideHeight"
+                                    Scale="@slideScale"/>
+                            </button>
+                        }
                     }
                     else if (AppState.SelectedProject is not null && AppState.SelectedProject.Items.Count == 0)
                     {
@@ -307,9 +312,9 @@ else if (addModalType == "bible")
 else if (addModalType == "image")
 {
     <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
-        <Title><span>@L["Presentation.AddImage"]</span></Title>
+        <Title><span>@L["Presentation.AddImages"]</span></Title>
         <Body>
-            <ImageTab OnAdd="@HandleImageAdded" OnAddKeepOpen="@HandleImageAddedKeepOpen"/>
+            <ImageTab OnAdd="@HandleImagesAdded" OnAddKeepOpen="@HandleImagesAddedKeepOpen"/>
         </Body>
     </Modal>
 }
@@ -481,7 +486,7 @@ else if (addModalType == "image")
         loadedPresentationId = PresentationId;
 
         await LoadPresentationAsync();
-        GetDataForSelectedItem();
+        await GetDataForSelectedItem();
     }
 
     private async Task LoadPresentationAsync()
@@ -533,14 +538,14 @@ else if (addModalType == "image")
         dotNetRef?.Dispose();
     }
 
-    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private async void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(AppState.SelectedProjectItem))
         {
-            GetDataForSelectedItem();
+            await GetDataForSelectedItem();
             if (AppState.SelectedProjectItem is null)
                 idleHintIndex = Random.Shared.Next(idleHints.Length);
-            _ = InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged);
         }
         else if (e.PropertyName is
                  nameof(AppState.MainViewport) or
@@ -560,7 +565,7 @@ else if (addModalType == "image")
         }
     }
 
-    private void GetDataForSelectedItem()
+    private async Task GetDataForSelectedItem()
     {
         SelectedSong = null;
         SongCredits = null;
@@ -602,10 +607,34 @@ else if (addModalType == "image")
                 break;
             case ProjectItemType.Image:
                 var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
-                if (imageItem?.ImageData is not null)
+                if (imageItem is not null)
                 {
-                    var dataUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(imageItem.ImageData)}";
-                    SelectedImage = new Image(imageItem.Id, dataUrl);
+                    var urls = new List<string>();
+                    if (imageItem.Parts.Count > 0)
+                    {
+                        var orgId = OrgState.ActiveOrganizationId;
+                        if (orgId is not null)
+                        {
+                            foreach (var part in imageItem.Parts.OrderBy(p => p.SortOrder))
+                            {
+                                var orgImage = await OrganizationImageService.GetImageByIdAsync(part.Content, orgId, OrgState.ToCallerContext());
+                                if (orgImage?.FullData is not null)
+                                {
+                                    urls.Add($"data:{orgImage.ContentType};base64,{Convert.ToBase64String(orgImage.FullData)}");
+                                }
+                            }
+                        }
+                    }
+                    else if (imageItem.ImageData is not null)
+                    {
+                        // Backward compatibility: single image stored directly
+                        urls.Add($"data:image/jpeg;base64,{Convert.ToBase64String(imageItem.ImageData)}");
+                    }
+
+                    if (urls.Count > 0)
+                    {
+                        SelectedImage = new Image(imageItem.Id, urls);
+                    }
                 }
                 break;
         }
@@ -649,10 +678,9 @@ else if (addModalType == "image")
             }
             case ProjectItemType.Image:
             {
-                var imgItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                if (imgItem?.ImageData is not null)
+                if (SelectedImage is not null && partIndex < SelectedImage.Urls.Count)
                 {
-                    imageUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(imgItem.ImageData)}";
+                    imageUrl = SelectedImage.Urls[partIndex];
                 }
 
                 break;
@@ -919,35 +947,50 @@ else if (addModalType == "image")
         }
     }
 
-    private async Task HandleImageAdded(OrganizationImage image)
+    private async Task HandleImagesAdded(List<OrganizationImage> images)
     {
         addModalType = null;
-        await AddImage(image);
+        await AddImages(images);
     }
 
-    private async Task HandleImageAddedKeepOpen(OrganizationImage image)
+    private async Task HandleImagesAddedKeepOpen(List<OrganizationImage> images)
     {
-        await AddImage(image);
+        await AddImages(images);
     }
 
-    private async Task AddImage(OrganizationImage image)
+    private async Task AddImages(List<OrganizationImage> images)
     {
+        if (images.Count == 0) return;
+
         var itemId = Guid.NewGuid().ToString();
+        var title = images.Count == 1
+            ? images[0].FileName
+            : $"{images.Count} {L["ImageTab.Images"]}";
+
+        var parts = images.Select((img, i) => new PresentationItemPart
+        {
+            Id = Guid.NewGuid().ToString(),
+            Content = img.Id,
+            SortOrder = i,
+            PresentationItemId = itemId
+        }).ToList();
+
         var projectItem = new ProjectItem
         {
             Id = itemId,
-            SourceId = image.Id,
+            SourceId = images[0].Id,
             Type = ProjectItemType.Image,
-            Title = image.FileName
+            Title = title
         };
 
         var presentationItem = new PresentationItem
         {
             Id = itemId,
-            SourceId = image.Id,
+            SourceId = images[0].Id,
             Type = PresentationItemType.Image,
-            Title = image.FileName,
-            ImageData = image.FullData
+            Title = title,
+            ImageData = images[0].FullData,
+            Parts = parts
         };
 
         loadedPresentation?.Items.Add(presentationItem);

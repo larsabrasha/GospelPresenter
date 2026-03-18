@@ -155,8 +155,8 @@
   <data name="Presentation.AddBibleText" xml:space="preserve">
     <value>Lägg till bibeltext</value>
   </data>
-  <data name="Presentation.AddImage" xml:space="preserve">
-    <value>Lägg till bild</value>
+  <data name="Presentation.AddImages" xml:space="preserve">
+    <value>Lägg till bilder</value>
   </data>
   <data name="Presentation.DeletePresentation" xml:space="preserve">
     <value>Radera presentation</value>
@@ -176,8 +176,8 @@
   <data name="Sidebar.BibleText" xml:space="preserve">
     <value>Bibeltext</value>
   </data>
-  <data name="Sidebar.Image" xml:space="preserve">
-    <value>Bild</value>
+  <data name="Sidebar.Images" xml:space="preserve">
+    <value>Bilder</value>
   </data>
   <data name="Songs.Title" xml:space="preserve">
     <value>Sånger</value>
@@ -742,6 +742,9 @@
   </data>
   <data name="ImageTab.UploadErrorCount" xml:space="preserve">
     <value>{0} bild(er) kunde inte laddas upp</value>
+  </data>
+  <data name="ImageTab.Images" xml:space="preserve">
+    <value>bilder</value>
   </data>
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentationen är tom</value>

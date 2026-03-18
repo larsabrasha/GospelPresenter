@@ -155,8 +155,8 @@
   <data name="Presentation.AddBibleText" xml:space="preserve">
     <value>Add Bible text</value>
   </data>
-  <data name="Presentation.AddImage" xml:space="preserve">
-    <value>Add image</value>
+  <data name="Presentation.AddImages" xml:space="preserve">
+    <value>Add images</value>
   </data>
   <data name="Presentation.DeletePresentation" xml:space="preserve">
     <value>Delete presentation</value>
@@ -176,8 +176,8 @@
   <data name="Sidebar.BibleText" xml:space="preserve">
     <value>Bible text</value>
   </data>
-  <data name="Sidebar.Image" xml:space="preserve">
-    <value>Image</value>
+  <data name="Sidebar.Images" xml:space="preserve">
+    <value>Images</value>
   </data>
   <data name="Songs.Title" xml:space="preserve">
     <value>Songs</value>
@@ -742,6 +742,9 @@
   </data>
   <data name="ImageTab.UploadErrorCount" xml:space="preserve">
     <value>{0} image(s) could not be uploaded</value>
+  </data>
+  <data name="ImageTab.Images" xml:space="preserve">
+    <value>images</value>
   </data>
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentation is empty</value>

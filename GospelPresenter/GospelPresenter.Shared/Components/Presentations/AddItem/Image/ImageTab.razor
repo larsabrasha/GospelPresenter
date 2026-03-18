@@ -7,7 +7,7 @@
 @inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
 
-<div @onkeydown="OnKeyDown" tabindex="-1">
+<div @onkeydown="OnKeyDown" tabindex="-1" class="h-full">
 @if (isLoading)
 {
     <div class="flex items-center justify-center py-12 text-neutral-400 text-sm">
@@ -44,19 +44,30 @@ else
         <div class="flex-1 min-h-0 overflow-y-auto">
             @if (images.Count > 0)
             {
-                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1">
                     @foreach (var image in images)
                     {
-                        <div class="group relative">
+                        <div class="group relative p-2">
                             @{
-                                var isSelected = selectedImage?.Id == image.Id;
+                                var isSelected = selectedImages.Contains(image.Id);
                             }
-                            <button class="w-full aspect-video rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-700 cursor-pointer transition-shadow @(isSelected ? "ring-2 ring-sky-500" : "hover:ring-2 hover:ring-sky-500")"
-                                    @onclick="() => SelectImage(image)">
+                            <button class="relative w-full aspect-video rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-700 cursor-pointer transition-shadow ring-4 @(isSelected ? "ring-sky-500" : "ring-transparent hover:ring-sky-500")"
+                                    @onclick="() => ToggleImage(image)">
                                 <img src="data:@image.ContentType;base64,@Convert.ToBase64String(image.ThumbnailData)"
                                      alt="@image.FileName"
                                      class="w-full h-full object-cover"/>
+                                @if (isSelected)
+                                {
+                                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div class="size-8 flex items-center justify-center rounded-full bg-sky-500 text-white">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+                                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                }
                             </button>
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1">@image.FileName</p>
                             <button class="absolute top-1 right-1 size-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-red-600"
                                     @onclick="() => ConfirmDelete(image)"
                                     @onclick:stopPropagation="true">
@@ -79,12 +90,12 @@ else
             }
         </div>
 
-        @if (selectedImage is not null)
+        @if (selectedImages.Count > 0)
         {
             <div class="shrink-0 flex items-center justify-end pt-4">
                 <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
-                    <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@selectedImage.FileName</span>
+                    <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@(selectedImages.Count == 1 ? GetSelectedImageNames() : $"{selectedImages.Count} {L["ImageTab.Images"]}")</span>
                 </button>
             </div>
         }
@@ -113,8 +124,8 @@ else
 </div>
 
 @code {
-    [Parameter] public EventCallback<OrganizationImage> OnAdd { get; set; }
-    [Parameter] public EventCallback<OrganizationImage> OnAddKeepOpen { get; set; }
+    [Parameter] public EventCallback<List<OrganizationImage>> OnAdd { get; set; }
+    [Parameter] public EventCallback<List<OrganizationImage>> OnAddKeepOpen { get; set; }
 
     private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
     private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -131,7 +142,7 @@ else
     private int uploadTotalCount;
     private string? uploadError;
     private OrganizationImage? imageToDelete;
-    private OrganizationImage? selectedImage;
+    private HashSet<string> selectedImages = [];
 
     protected override async Task OnInitializedAsync()
     {
@@ -223,38 +234,62 @@ else
         isUploading = false;
     }
 
-    private void SelectImage(OrganizationImage image)
+    private void ToggleImage(OrganizationImage image)
     {
-        selectedImage = image;
+        if (!selectedImages.Remove(image.Id))
+        {
+            selectedImages.Add(image.Id);
+        }
+    }
+
+    private string GetSelectedImageNames()
+    {
+        var selected = images.Where(i => selectedImages.Contains(i.Id)).ToList();
+        return string.Join(", ", selected.Select(i => i.FileName));
+    }
+
+    private async Task<List<OrganizationImage>> GetSelectedFullImages()
+    {
+        var result = new List<OrganizationImage>();
+        foreach (var id in selectedImages)
+        {
+            var fullImage = await OrganizationImageService.GetImageByIdAsync(id, organizationId!, OrgState.ToCallerContext());
+            if (fullImage is not null)
+            {
+                result.Add(fullImage);
+            }
+        }
+        return result;
     }
 
     private async Task HandleAdd()
     {
-        if (selectedImage is null) return;
-        var fullImage = await OrganizationImageService.GetImageByIdAsync(selectedImage.Id, organizationId!, OrgState.ToCallerContext());
-        if (fullImage is not null)
+        if (selectedImages.Count == 0) return;
+        var fullImages = await GetSelectedFullImages();
+        if (fullImages.Count > 0)
         {
-            await OnAdd.InvokeAsync(fullImage);
+            await OnAdd.InvokeAsync(fullImages);
         }
     }
 
     private async Task HandleAddKeepOpen()
     {
-        if (selectedImage is null) return;
-        var fullImage = await OrganizationImageService.GetImageByIdAsync(selectedImage.Id, organizationId!, OrgState.ToCallerContext());
-        if (fullImage is not null)
+        if (selectedImages.Count == 0) return;
+        var fullImages = await GetSelectedFullImages();
+        if (fullImages.Count > 0)
         {
-            await OnAddKeepOpen.InvokeAsync(fullImage);
+            await OnAddKeepOpen.InvokeAsync(fullImages);
+            selectedImages.Clear();
         }
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && e.ShiftKey && selectedImage is not null)
+        if (e.Key == "Enter" && e.ShiftKey && selectedImages.Count > 0)
         {
             await HandleAddKeepOpen();
         }
-        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedImage is not null)
+        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedImages.Count > 0)
         {
             await HandleAdd();
         }
