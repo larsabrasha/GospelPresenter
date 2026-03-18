@@ -46,110 +46,123 @@ try
     }
 
     var sessionTimeoutMinutes = builder.Configuration.GetValue("Settings:SessionTimeoutMinutes", 240);
+    var connectionString = builder.Configuration.GetConnectionString("postgresdb");
+    var isMockMode = string.IsNullOrEmpty(connectionString);
 
-    var authOptions = builder.Configuration.GetSection("Authentication").Get<GospelPresenter.Web.Configuration.AuthenticationOptions>()
-                      ?? new GospelPresenter.Web.Configuration.AuthenticationOptions();
-
-    var googleConfigured = authOptions.Google.Enabled && !string.IsNullOrEmpty(authOptions.Google.ClientId);
-    var oidcConfigured = authOptions.OpenIdConnect.Enabled && !string.IsNullOrEmpty(authOptions.OpenIdConnect.ClientId);
-    if (!googleConfigured && !oidcConfigured)
-        throw new InvalidOperationException("At least one authentication provider must be enabled and configured (Google or OpenID Connect).");
-
-    builder.Services.Configure<GospelPresenter.Web.Configuration.AuthenticationOptions>(builder.Configuration.GetSection("Authentication"));
-    builder.Services.AddSingleton<IAuthProviderService, AuthProviderService>();
-
-    var authBuilder = builder.Services.AddAuthentication(options =>
-        {
-            options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        })
-        .AddCookie(options =>
-        {
-            options.ExpireTimeSpan = TimeSpan.FromMinutes(sessionTimeoutMinutes);
-            options.SlidingExpiration = false;
-            options.Cookie.HttpOnly = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-            options.Cookie.SameSite = SameSiteMode.Lax;
-            options.LoginPath = "/login";
-        });
-
-    if (oidcConfigured)
+    if (!isMockMode)
     {
-        authBuilder.AddOpenIdConnect(options =>
+        var authOptions = builder.Configuration.GetSection("Authentication").Get<GospelPresenter.Web.Configuration.AuthenticationOptions>()
+                          ?? new GospelPresenter.Web.Configuration.AuthenticationOptions();
+
+        var googleConfigured = authOptions.Google.Enabled && !string.IsNullOrEmpty(authOptions.Google.ClientId);
+        var oidcConfigured = authOptions.OpenIdConnect.Enabled && !string.IsNullOrEmpty(authOptions.OpenIdConnect.ClientId);
+        if (!googleConfigured && !oidcConfigured)
+            throw new InvalidOperationException("At least one authentication provider must be enabled and configured (Google or OpenID Connect).");
+
+        builder.Services.Configure<GospelPresenter.Web.Configuration.AuthenticationOptions>(builder.Configuration.GetSection("Authentication"));
+        builder.Services.AddSingleton<IAuthProviderService, AuthProviderService>();
+
+        var authBuilder = builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+            })
+            .AddCookie(options =>
+            {
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(sessionTimeoutMinutes);
+                options.SlidingExpiration = false;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                options.Cookie.SameSite = SameSiteMode.Lax;
+                options.LoginPath = "/login";
+            });
+
+        if (oidcConfigured)
         {
-            options.Authority = authOptions.OpenIdConnect.Authority;
-            options.ClientId = authOptions.OpenIdConnect.ClientId;
-            options.ClientSecret = authOptions.OpenIdConnect.ClientSecret;
-            options.ResponseType = "code";
-            options.SaveTokens = true;
-            options.GetClaimsFromUserInfoEndpoint = true;
-            options.CallbackPath = "/signin-oidc";
-            options.SignedOutCallbackPath = "/signout-callback-oidc";
-            options.Scope.Add("openid");
-            options.Scope.Add("profile");
-            options.Scope.Add("email");
-
-            options.Events.OnRedirectToIdentityProvider = context =>
+            authBuilder.AddOpenIdConnect(options =>
             {
-                context.ProtocolMessage.Prompt = "login";
-                return Task.CompletedTask;
-            };
+                options.Authority = authOptions.OpenIdConnect.Authority;
+                options.ClientId = authOptions.OpenIdConnect.ClientId;
+                options.ClientSecret = authOptions.OpenIdConnect.ClientSecret;
+                options.ResponseType = "code";
+                options.SaveTokens = true;
+                options.GetClaimsFromUserInfoEndpoint = true;
+                options.CallbackPath = "/signin-oidc";
+                options.SignedOutCallbackPath = "/signout-callback-oidc";
+                options.Scope.Add("openid");
+                options.Scope.Add("profile");
+                options.Scope.Add("email");
 
-            options.Events.OnTokenValidated = async context =>
-            {
-                await HandleAuthenticatedUser(context.HttpContext, context.Principal, context.Properties,
-                    "oidc",
-                    onFailure: msg => context.Fail(msg));
-            };
+                options.Events.OnRedirectToIdentityProvider = context =>
+                {
+                    context.ProtocolMessage.Prompt = "login";
+                    return Task.CompletedTask;
+                };
 
-            options.Events.OnRemoteFailure = context =>
+                options.Events.OnTokenValidated = async context =>
+                {
+                    await HandleAuthenticatedUser(context.HttpContext, context.Principal, context.Properties,
+                        "oidc",
+                        onFailure: msg => context.Fail(msg));
+                };
+
+                options.Events.OnRemoteFailure = context =>
+                {
+                    context.Response.Redirect("/authentication-error");
+                    context.HandleResponse();
+                    return Task.CompletedTask;
+                };
+            });
+        }
+
+        if (googleConfigured)
+        {
+            authBuilder.AddGoogle(options =>
             {
-                context.Response.Redirect("/authentication-error");
-                context.HandleResponse();
-                return Task.CompletedTask;
-            };
-        });
+                options.ClientId = authOptions.Google.ClientId;
+                options.ClientSecret = authOptions.Google.ClientSecret;
+                options.CallbackPath = "/signin-google";
+
+                options.Scope.Add("profile");
+                options.Scope.Add("email");
+
+                options.ClaimActions.MapJsonKey(System.Security.Claims.ClaimTypes.Name, "name");
+                options.ClaimActions.MapJsonKey(System.Security.Claims.ClaimTypes.Email, "email");
+                options.ClaimActions.MapJsonKey("picture", "picture");
+
+                options.Events.OnTicketReceived = async context =>
+                {
+                    await HandleAuthenticatedUser(context.HttpContext, context.Principal, context.Properties,
+                        "google",
+                        onFailure: _ =>
+                        {
+                            context.Response.Redirect("/authentication-error");
+                            context.HandleResponse();
+                        });
+                };
+
+                options.Events.OnRemoteFailure = context =>
+                {
+                    context.Response.Redirect("/authentication-error");
+                    context.HandleResponse();
+                    return Task.CompletedTask;
+                };
+            });
+        }
+
+        builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingAuthStateProvider>();
     }
-
-    if (googleConfigured)
+    else
     {
-        authBuilder.AddGoogle(options =>
-        {
-            options.ClientId = authOptions.Google.ClientId;
-            options.ClientSecret = authOptions.Google.ClientSecret;
-            options.CallbackPath = "/signin-google";
-
-            options.Scope.Add("profile");
-            options.Scope.Add("email");
-
-            options.ClaimActions.MapJsonKey(System.Security.Claims.ClaimTypes.Name, "name");
-            options.ClaimActions.MapJsonKey(System.Security.Claims.ClaimTypes.Email, "email");
-            options.ClaimActions.MapJsonKey("picture", "picture");
-
-            options.Events.OnTicketReceived = async context =>
-            {
-                await HandleAuthenticatedUser(context.HttpContext, context.Principal, context.Properties,
-                    "google",
-                    onFailure: _ =>
-                    {
-                        context.Response.Redirect("/authentication-error");
-                        context.HandleResponse();
-                    });
-            };
-
-            options.Events.OnRemoteFailure = context =>
-            {
-                context.Response.Redirect("/authentication-error");
-                context.HandleResponse();
-                return Task.CompletedTask;
-            };
-        });
+        Log.Warning("No authentication provider configured — using mock authentication");
+        builder.Services.AddAuthentication();
+        builder.Services.AddScoped<AuthenticationStateProvider, MockAuthenticationStateProvider>();
+        builder.Services.AddSingleton<IAuthProviderService, MockAuthProviderService>();
     }
 
     builder.Services.AddHttpClient();
     builder.Services.AddAuthorization();
 
     builder.Services.AddCascadingAuthenticationState();
-    builder.Services.AddScoped<AuthenticationStateProvider, RevalidatingAuthStateProvider>();
 
 // Add services to the container.
     builder.Services.AddRazorComponents(options => options.DetailedErrors = builder.Environment.IsDevelopment())
@@ -174,22 +187,22 @@ try
         options.RequestCultureProviders.Insert(0, new CookieRequestCultureProvider());
     });
 
-    var connectionString = builder.Configuration.GetConnectionString("postgresdb");
-    if (!string.IsNullOrEmpty(connectionString))
+    if (!isMockMode)
     {
         builder.Services.AddDbContextFactory<PresentationContext>(opt =>
             opt.UseNpgsql(connectionString));
-        builder.Services.AddScoped<IPresentationService, PresentationService>();
-        builder.Services.AddSingleton<ISongService, SongService>();
-        builder.Services.AddScoped<IUserService, UserService>();
     }
     else
     {
-        Log.Warning("No database connection string found — using mock services");
-        builder.Services.AddSingleton<IPresentationService, MockPresentationService>();
-        builder.Services.AddSingleton<ISongService, MockSongService>();
-        builder.Services.AddSingleton<IUserService, MockUserService>();
+        Log.Warning("No database connection string found — using SQLite mock database");
+        builder.Services.AddDbContextFactory<PresentationContext>(opt =>
+            opt.UseSqlite("Data Source=gospelpresenter-mock.db"));
     }
+
+    builder.Services.AddScoped<IPresentationService, PresentationService>();
+    builder.Services.AddSingleton<ISongService, SongService>();
+    builder.Services.AddScoped<IUserService, UserService>();
+    builder.Services.AddScoped<IOrganizationImageService, OrganizationImageService>();
 
 #if !DEBUG
 builder.Services.AddMetricServer(options =>
@@ -199,6 +212,15 @@ builder.Services.AddMetricServer(options =>
 #endif
 
     var app = builder.Build();
+
+    if (isMockMode)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PresentationContext>>();
+        await using var db = await dbFactory.CreateDbContextAsync();
+        await db.Database.EnsureCreatedAsync();
+        await MockDataSeeder.SeedAsync(db);
+    }
 
     var biblesPath = app.Configuration.GetSection("Settings:BiblesPath").Value;
     if (!string.IsNullOrEmpty(biblesPath))

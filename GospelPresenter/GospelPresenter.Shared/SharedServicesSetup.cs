@@ -16,7 +16,6 @@ public static class SharedServicesSetup
         services.AddScoped<ActiveOrganizationState>();
         services.AddSingleton(new SharedAppState(TimeSpan.FromMinutes(timeoutMinutes)));
         services.AddSingleton<IImageService, ImageService>();
-        services.AddScoped<IOrganizationImageService, OrganizationImageService>();
         services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IBibleService, BibleService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
