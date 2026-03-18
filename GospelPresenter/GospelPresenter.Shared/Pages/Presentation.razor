@@ -53,8 +53,32 @@
             <div class="flex flex-col grow overflow-hidden h-full relative">
                 <div
                     class="flex justify-between absolute top-0 left-0 right-0 bg-linear-to-b from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none h-16">
-                    <div class="px-5 py-3 pointer-events-auto">
+                    <div class="px-5 py-3 pointer-events-auto flex items-center gap-3">
                         <span class="text-xl font-semibold">@AppState.SelectedProjectItem?.Title</span>
+                        @if (SelectedImage is not null && SelectedImage.Urls.Count > 1)
+                        {
+                            <button class="flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
+                                           @(isEditingImageOrder
+                                               ? "bg-sky-500 text-white hover:bg-sky-600"
+                                               : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300")"
+                                    @onclick="ToggleImageEditMode"
+                                    title="@(isEditingImageOrder ? L["Presentation.DoneEditingImages"] : L["Presentation.EditImageOrder"])">
+                                @if (isEditingImageOrder)
+                                {
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                                    </svg>
+                                    @L["Presentation.DoneEditingImages"]
+                                }
+                                else
+                                {
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"/>
+                                    </svg>
+                                    @L["Presentation.EditImageOrder"]
+                                }
+                            </button>
+                        }
                     </div>
 
                     <div id="live-view-container" class="p-3 pointer-events-auto flex items-center gap-2">
@@ -146,18 +170,39 @@
                     }
                     else if (SelectedImage is not null)
                     {
-                        @for (var i = 0; i < SelectedImage.Urls.Count; i++)
-                        {
-                            var partIndex = i;
-                            <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, partIndex)">
-                                <ImageSlide
-                                    Url="@SelectedImage.Urls[i]"
-                                    IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
-                                    BaseWidth="@AppState.BaseSlideWidth"
-                                    BaseHeight="@AppState.BaseSlideHeight"
-                                    Scale="@slideScale"/>
-                            </button>
-                        }
+                        <div id="image-slide-list" class="@(isEditingImageOrder ? "col-span-full grid grid-cols-1 sm:flex sm:flex-wrap gap-3" : "contents")">
+                            @for (var i = 0; i < SelectedImage.Urls.Count; i++)
+                            {
+                                var partIndex = i;
+                                <div @key="SelectedImage.PartIds.ElementAtOrDefault(i) ?? i.ToString()" data-id="@(SelectedImage.PartIds.ElementAtOrDefault(i) ?? i.ToString())" class="@(isEditingImageOrder ? "cursor-grab active:cursor-grabbing" : "")">
+                                    @if (isEditingImageOrder)
+                                    {
+                                        <div class="relative drag-handle">
+                                            <ImageSlide
+                                                Url="@SelectedImage.Urls[i]"
+                                                IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
+                                                BaseWidth="@AppState.BaseSlideWidth"
+                                                BaseHeight="@AppState.BaseSlideHeight"
+                                                Scale="@slideScale"/>
+                                            <div class="absolute top-1 left-1 bg-black/50 text-white rounded-full size-6 flex items-center justify-center text-xs font-bold">
+                                                @(partIndex + 1)
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, partIndex)">
+                                            <ImageSlide
+                                                Url="@SelectedImage.Urls[i]"
+                                                IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
+                                                BaseWidth="@AppState.BaseSlideWidth"
+                                                BaseHeight="@AppState.BaseSlideHeight"
+                                                Scale="@slideScale"/>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </div>
                     }
                     else if (AppState.SelectedProject is not null && AppState.SelectedProject.Items.Count == 0)
                     {
@@ -385,6 +430,8 @@ else if (addModalType == "image")
     private bool showOverlayManager;
     private List<OverlaySlide> overlaySlides = [];
     private string? activeOverlayId;
+    private bool isEditingImageOrder;
+    private bool imageSortableInitialized;
     private int idleHintIndex;
 
     private record IdleHint(string Icon, string Text, string? Source = null);
@@ -465,12 +512,71 @@ else if (addModalType == "image")
             var isActive = SharedAppState.IsPresentationActive(AppState.SessionId);
             await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef, isActive, AppState.SessionId);
         }
+
+        if (isEditingImageOrder && !imageSortableInitialized)
+        {
+            await JsRuntime.InvokeVoidAsync("initSortableList", "image-slide-list", dotNetRef);
+            imageSortableInitialized = true;
+        }
     }
 
     [JSInvokable]
     public void OnPresentationStateChanged(bool active)
     {
         SharedAppState.SetPresentationActive(AppState.SessionId, active);
+    }
+
+    [JSInvokable]
+    public async Task OnItemReordered(int oldIndex, int newIndex)
+    {
+        if (SelectedImage is null || SelectedImage.PartIds.Count == 0) return;
+        if (oldIndex < 0 || oldIndex >= SelectedImage.Urls.Count || newIndex < 0 || newIndex >= SelectedImage.Urls.Count) return;
+
+        var urls = SelectedImage.Urls.ToList();
+        var partIds = SelectedImage.PartIds.ToList();
+
+        var movedUrl = urls[oldIndex];
+        urls.RemoveAt(oldIndex);
+        urls.Insert(newIndex, movedUrl);
+
+        var movedPartId = partIds[oldIndex];
+        partIds.RemoveAt(oldIndex);
+        partIds.Insert(newIndex, movedPartId);
+
+        SelectedImage = new Image(SelectedImage.Id, urls, partIds);
+
+        // Update the in-memory model
+        var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == SelectedImage.Id);
+        if (imageItem is not null)
+        {
+            for (var i = 0; i < partIds.Count; i++)
+            {
+                var part = imageItem.Parts.FirstOrDefault(p => p.Id == partIds[i]);
+                if (part is not null)
+                    part.SortOrder = i;
+            }
+        }
+
+        // Persist to database
+        if (PresentationId is not null)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.ReorderItemPartsAsync(orgId, PresentationId, SelectedImage.Id, partIds, OrgState.ToCallerContext());
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ToggleImageEditMode()
+    {
+        isEditingImageOrder = !isEditingImageOrder;
+
+        if (!isEditingImageOrder)
+        {
+            imageSortableInitialized = false;
+            await JsRuntime.InvokeVoidAsync("destroySortableList", "image-slide-list");
+        }
     }
 
     protected override void OnInitialized()
@@ -571,6 +677,8 @@ else if (addModalType == "image")
         SongCredits = null;
         SelectedBibleText = null;
         SelectedImage = null;
+        isEditingImageOrder = false;
+        imageSortableInitialized = false;
 
         switch (AppState.SelectedProjectItem?.Type)
         {
@@ -610,6 +718,7 @@ else if (addModalType == "image")
                 if (imageItem is not null)
                 {
                     var urls = new List<string>();
+                    var partIds = new List<string>();
                     if (imageItem.Parts.Count > 0)
                     {
                         var orgId = OrgState.ActiveOrganizationId;
@@ -621,6 +730,7 @@ else if (addModalType == "image")
                                 if (orgImage?.FullData is not null)
                                 {
                                     urls.Add($"data:{orgImage.ContentType};base64,{Convert.ToBase64String(orgImage.FullData)}");
+                                    partIds.Add(part.Id);
                                 }
                             }
                         }
@@ -633,7 +743,7 @@ else if (addModalType == "image")
 
                     if (urls.Count > 0)
                     {
-                        SelectedImage = new Image(imageItem.Id, urls);
+                        SelectedImage = new Image(imageItem.Id, urls, partIds);
                     }
                 }
                 break;

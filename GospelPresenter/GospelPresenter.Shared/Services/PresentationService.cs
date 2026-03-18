@@ -12,6 +12,7 @@ public interface IPresentationService
     Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default);
     Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default);
     Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default);
+    Task ReorderItemPartsAsync(string organizationId, string presentationId, string itemId, List<string> partIds, CallerContext caller, CancellationToken cancellationToken = default);
     Task RemoveItemAsync(string organizationId, string presentationId, string itemId, CallerContext caller, CancellationToken cancellationToken = default);
     Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default);
     Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
@@ -136,6 +137,26 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
             var newIndex = itemIds.IndexOf(item.Id);
             if (newIndex >= 0)
                 item.SortOrder = newIndex;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ReorderItemPartsAsync(string organizationId, string presentationId, string itemId, List<string> partIds, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManagePresentations);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var parts = await context.PresentationItemParts
+            .Where(x => x.PresentationItemId == itemId && x.PresentationItem.PresentationId == presentationId && x.PresentationItem.Presentation.OrganizationId == organizationId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var part in parts)
+        {
+            var newIndex = partIds.IndexOf(part.Id);
+            if (newIndex >= 0)
+                part.SortOrder = newIndex;
         }
 
         await context.SaveChangesAsync(cancellationToken);

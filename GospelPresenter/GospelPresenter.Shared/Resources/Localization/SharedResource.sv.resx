@@ -794,4 +794,10 @@
   <data name="Common.Options" xml:space="preserve">
     <value>Alternativ</value>
   </data>
+  <data name="Presentation.EditImageOrder" xml:space="preserve">
+    <value>Ändra ordning</value>
+  </data>
+  <data name="Presentation.DoneEditingImages" xml:space="preserve">
+    <value>Klar</value>
+  </data>
 </root>
