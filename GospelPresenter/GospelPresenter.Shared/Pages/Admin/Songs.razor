@@ -32,7 +32,26 @@
             <InputFile OnChange="OnFilesSelected" multiple accept=".pro" class="hidden" disabled="@isImporting"/>
         </label>
 
-        @if (importMessage is not null)
+        @if (isImporting)
+        {
+            <div class="space-y-2">
+                <div class="text-sm text-neutral-600 dark:text-neutral-300">
+                    @importProgressText
+                </div>
+                <div class="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 overflow-hidden">
+                    @if (importTotal > 0)
+                    {
+                        <div class="bg-sky-500 h-2 rounded-full transition-all duration-200"
+                             style="width: @((int)(100.0 * importProgress / importTotal))%"></div>
+                    }
+                    else
+                    {
+                        <div class="bg-sky-500 h-2 rounded-full w-1/3 animate-pulse"></div>
+                    }
+                </div>
+            </div>
+        }
+        else if (importMessage is not null)
         {
             <div class="text-sm @(importError ? "text-red-500 dark:text-red-400" : "text-green-600 dark:text-green-400")">
                 @importMessage
@@ -141,6 +160,9 @@
 @code {
     private bool isImporting;
     private string? importMessage;
+    private string? importProgressText;
+    private int importProgress;
+    private int importTotal;
     private bool importError;
     private string? organizationId;
     private List<(string FileName, byte[] Data)>? pendingFiles;
@@ -168,35 +190,52 @@
         importMessage = null;
         importError = false;
 
+        var proFiles = e.GetMultipleFiles(1000)
+            .Where(f => f.Name.EndsWith(".pro", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (proFiles.Count == 0)
+        {
+            importMessage = L["Songs.NoProFiles"];
+            importError = true;
+            isImporting = false;
+            return;
+        }
+
+        importTotal = proFiles.Count;
+        importProgress = 0;
+        importProgressText = L["Songs.ReadingFiles", 0, importTotal];
+
         try
         {
+            // Read files from browser streams (must happen on the sync context)
             var files = new List<(string FileName, byte[] Data)>();
-            foreach (var file in e.GetMultipleFiles(1000))
+            foreach (var file in proFiles)
             {
-                if (!file.Name.EndsWith(".pro", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
                 using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
                 using var ms = new MemoryStream();
                 await stream.CopyToAsync(ms);
                 files.Add((file.Name, ms.ToArray()));
+                importProgress++;
+                importProgressText = L["Songs.ReadingFiles", importProgress, importTotal];
+                StateHasChanged();
             }
 
-            if (files.Count == 0)
-            {
-                importMessage = L["Songs.NoProFiles"];
-                importError = true;
-                return;
-            }
+            // Parse and check duplicates on a background thread
+            importProgressText = L["Songs.ProcessingFiles"];
+            importTotal = 0;
+            StateHasChanged();
 
-            // Parse to get names and check for duplicates
-            var parsedNames = files
+            var orgId = organizationId;
+            var caller = OrgState.ToCallerContext();
+
+            var parsedNames = await Task.Run(() => files
                 .Select(f => ProPresenterParser.Parse(f.Data, Path.GetFileNameWithoutExtension(f.FileName)))
                 .Where(s => s is not null)
                 .Select(s => s!.Name)
-                .ToList();
+                .ToList());
 
-            var duplicates = await SongService.FindDuplicateNamesAsync(parsedNames, organizationId, OrgState.ToCallerContext());
+            var duplicates = await SongService.FindDuplicateNamesAsync(parsedNames, orgId, caller);
 
             if (duplicates.Count > 0)
             {
@@ -206,7 +245,10 @@
                 return;
             }
 
-            var result = await SongService.ImportProPresenterFilesAsync(files, organizationId, OrgState.ToCallerContext());
+            importProgressText = L["Songs.SavingSongs"];
+            StateHasChanged();
+
+            var result = await SongService.ImportProPresenterFilesAsync(files, orgId, caller);
             importMessage = FormatImportResult(result);
             RefreshDisplayedSongs();
         }
@@ -235,6 +277,8 @@
         pendingFiles = null;
         duplicateNames = null;
         isImporting = true;
+        importTotal = 0;
+        importProgressText = L["Songs.SavingSongs"];
 
         try
         {

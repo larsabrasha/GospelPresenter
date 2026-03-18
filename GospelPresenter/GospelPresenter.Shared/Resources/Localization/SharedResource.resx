@@ -245,6 +245,15 @@
   <data name="Songs.SkippedPlural" xml:space="preserve">
     <value>{0} skipped (already exist)</value>
   </data>
+  <data name="Songs.ReadingFiles" xml:space="preserve">
+    <value>Reading files... {0} of {1}</value>
+  </data>
+  <data name="Songs.ProcessingFiles" xml:space="preserve">
+    <value>Processing files...</value>
+  </data>
+  <data name="Songs.SavingSongs" xml:space="preserve">
+    <value>Saving songs...</value>
+  </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
     <value>Delete song</value>
   </data>

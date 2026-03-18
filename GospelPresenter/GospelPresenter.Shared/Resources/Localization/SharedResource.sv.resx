@@ -245,6 +245,15 @@
   <data name="Songs.SkippedPlural" xml:space="preserve">
     <value>{0} överhoppade (fanns redan)</value>
   </data>
+  <data name="Songs.ReadingFiles" xml:space="preserve">
+    <value>Läser filer... {0} av {1}</value>
+  </data>
+  <data name="Songs.ProcessingFiles" xml:space="preserve">
+    <value>Bearbetar filer...</value>
+  </data>
+  <data name="Songs.SavingSongs" xml:space="preserve">
+    <value>Sparar sånger...</value>
+  </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
     <value>Ta bort sång</value>
   </data>
