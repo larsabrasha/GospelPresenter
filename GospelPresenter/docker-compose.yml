@@ -35,7 +35,6 @@ services:
       ConnectionStrings__postgresdb: "Host=postgres;Database=gospelpresenter;Username=gospelpresenter;Password=${POSTGRES_PASSWORD}"
       Settings__DataProtectionKeysDirectory: /app/data-protection-keys
       Settings__BiblesPath: /app/data/bibles
-      Settings__SongsPath: /app/data/songs
       Authentication__OpenIdConnect__Enabled: ${OIDC_ENABLED:-false}
       Authentication__OpenIdConnect__Authority: ${OIDC_AUTHORITY:-}
       Authentication__OpenIdConnect__ClientId: ${OIDC_CLIENT_ID:-}
@@ -47,7 +46,6 @@ services:
     volumes:
       - data-protection-keys:/app/data-protection-keys
       - ./bibles:/app/data/bibles:ro
-      - ./songs:/app/data/songs:ro
     depends_on:
       migrations:
         condition: service_completed_successfully
