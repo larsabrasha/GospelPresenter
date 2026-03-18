@@ -5,95 +5,123 @@ namespace GospelPresenter.UnitTests.Services;
 
 public class BibleConverterTests
 {
+    private const string TestBookId = "TST";
     private static readonly string ResourceDir = Path.Combine(AppContext.BaseDirectory, "Resources");
 
     [Fact]
-    public void ConvertUsxToJson_ParsesNormalParagraphs()
+    public void ConvertUsxToJson_NormalParagraphs_ParsesVerseText()
     {
+        // Arrange
         var verses = ConvertAndDeserialize();
 
-        var v1 = verses.Single(v => v is { BookId: "TST", Chapter: 1, VerseNumber: 1 });
+        // Act
+        var v1 = verses.Single(v => v is { BookId: TestBookId, Chapter: 1, VerseNumber: 1 });
+
+        // Assert
         v1.Text.ShouldBe("In the beginning there was a test.");
     }
 
     [Fact]
-    public void ConvertUsxToJson_ParsesCharElements()
+    public void ConvertUsxToJson_CharElements_IncludesQuotedText()
     {
+        // Arrange
         var verses = ConvertAndDeserialize();
 
-        // <char style="qt"> content should be included in verse text
-        var v3 = verses.Single(v => v is { BookId: "TST", Chapter: 1, VerseNumber: 3 });
+        // Act
+        var v3 = verses.Single(v => v is { BookId: TestBookId, Chapter: 1, VerseNumber: 3 });
+
+        // Assert
         v3.Text.ShouldContain("a quoted phrase");
     }
 
     [Fact]
-    public void ConvertUsxToJson_ExcludesFootnotes()
+    public void ConvertUsxToJson_Footnotes_ExcludesFootnoteText()
     {
+        // Arrange
         var verses = ConvertAndDeserialize();
 
-        var v4 = verses.Single(v => v is { BookId: "TST", Chapter: 1, VerseNumber: 4 });
+        // Act
+        var v4 = verses.Single(v => v is { BookId: TestBookId, Chapter: 1, VerseNumber: 4 });
+
+        // Assert
         v4.Text.ShouldNotContain("footnote that should be excluded");
         v4.Text.ShouldContain("footnote nearby");
     }
 
     [Fact]
-    public void ConvertUsxToJson_HandlesVerseRanges()
+    public void ConvertUsxToJson_VerseRange_ParsesAsFirstVerseNumber()
     {
+        // Arrange
         var verses = ConvertAndDeserialize();
 
-        // "5-6" should be parsed as verse 5
-        var v5 = verses.Single(v => v is { BookId: "TST", Chapter: 1, VerseNumber: 5 });
+        // Act
+        var v5 = verses.Single(v => v is { BookId: TestBookId, Chapter: 1, VerseNumber: 5 });
+
+        // Assert
         v5.Text.ShouldContain("verse range spanning two verses");
     }
 
     [Fact]
-    public void ConvertUsxToJson_ParsesPoetryParagraphs()
+    public void ConvertUsxToJson_PoetryParagraphs_CombinesLinesIntoSingleVerse()
     {
+        // Arrange
         var verses = ConvertAndDeserialize();
 
-        // q1 paragraph with verse marker
-        var v2 = verses.Single(v => v is { BookId: "TST", Chapter: 2, VerseNumber: 2 });
+        // Act
+        var v2 = verses.Single(v => v is { BookId: TestBookId, Chapter: 2, VerseNumber: 2 });
+
+        // Assert
         v2.Text.ShouldContain("line of poetry");
-        // q2 continuation should be part of the same verse
         v2.Text.ShouldContain("continues on a second line");
     }
 
     [Fact]
-    public void ConvertUsxToJson_ParsesNestedCharElements()
+    public void ConvertUsxToJson_NestedCharElements_ExtractsAllText()
     {
+        // Arrange
         var verses = ConvertAndDeserialize();
 
-        var v3 = verses.Single(v => v is { BookId: "TST", Chapter: 2, VerseNumber: 3 });
+        // Act
+        var v3 = verses.Single(v => v is { BookId: TestBookId, Chapter: 2, VerseNumber: 3 });
+
+        // Assert
         v3.Text.ShouldContain("deeply nested");
         v3.Text.ShouldContain("quote");
     }
 
     [Fact]
-    public void ConvertUsxToJson_HandlesContinuationText()
+    public void ConvertUsxToJson_ContinuationText_AppendsToPreviousVerse()
     {
+        // Arrange
         var verses = ConvertAndDeserialize();
 
-        // Text at the start of a <para> before any <verse> belongs to the previous verse
-        var v1 = verses.Single(v => v is { BookId: "TST", Chapter: 3, VerseNumber: 1 });
+        // Act
+        var v1 = verses.Single(v => v is { BookId: TestBookId, Chapter: 3, VerseNumber: 1 });
+
+        // Assert
         v1.Text.ShouldContain("First verse of chapter three");
         v1.Text.ShouldContain("Continuation text for verse one");
     }
 
     [Fact]
-    public void ConvertUsxToJson_SkipsHeadingsAndMetadata()
+    public void ConvertUsxToJson_HeadingsAndMetadata_ExcludedFromVerses()
     {
+        // Arrange & Act
         var verses = ConvertAndDeserialize();
 
+        // Assert
         verses.ShouldAllBe(v => !v.Text.Contains("First Section"));
         verses.ShouldAllBe(v => !v.Text.Contains("Test Book"));
         verses.ShouldAllBe(v => !v.Text.Contains("Poetry Section"));
     }
 
     [Fact]
-    public void ConvertUsxToJson_ProducesCorrectChapterStructure()
+    public void ConvertUsxToJson_MultipleChapters_ProducesCorrectVerseCounts()
     {
+        // Arrange & Act
         var verses = ConvertAndDeserialize();
 
+        // Assert
         verses.Count(v => v.Chapter == 1).ShouldBe(5);
         verses.Count(v => v.Chapter == 2).ShouldBe(4);
         verses.Count(v => v.Chapter == 3).ShouldBe(2);

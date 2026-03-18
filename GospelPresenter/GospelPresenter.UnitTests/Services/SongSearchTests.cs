@@ -47,156 +47,190 @@ public class SongSearchTests
     private static readonly Song[] AllSongs = [Majestat, HogstAvAllt, DetArSaligt, ViVillSeGud];
 
     [Fact]
-    public void EmptyQuery_ReturnsAllSongs()
+    public void SearchByOrganization_EmptyQuery_ReturnsAllSongs()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
+        // Act
         var result = service.SearchByOrganization("", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBe(4);
     }
 
     [Fact]
-    public void WhitespaceQuery_ReturnsAllSongs()
+    public void SearchByOrganization_WhitespaceQuery_ReturnsAllSongs()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
+        // Act
         var result = service.SearchByOrganization("   ", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBe(4);
     }
 
     [Fact]
-    public void TitleMatch_ReturnsCorrectSong()
+    public void SearchByOrganization_ExactTitle_ReturnsMatchingSong()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
+        // Act
         var result = service.SearchByOrganization("Majestät", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
     }
 
     [Fact]
-    public void TitleMatch_RankedFirst()
+    public void SearchByOrganization_TitleMatch_RankedFirst()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
-        // "Gud" appears in title of "Vi vill se Gud" and in text of others
+        // Act
         var result = service.SearchByOrganization("Gud", TestOrgId, TestCaller);
 
+        // Assert
         result[0].Name.ShouldBe("Vi vill se Gud");
     }
 
     [Fact]
-    public void PartialTitleMatch_Works()
+    public void SearchByOrganization_PartialTitle_ReturnsMatchingSong()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
+        // Act
         var result = service.SearchByOrganization("Maj", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
     }
 
     [Fact]
-    public void FirstPartMatch_RankedBeforeOtherParts()
+    public void SearchByOrganization_FirstPartMatch_RankedBeforeOtherParts()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
-        // "saligt" is in first part of "Det är saligt" and not in title
+        // Act
         var result = service.SearchByOrganization("saligt", TestOrgId, TestCaller);
 
+        // Assert
         result[0].Name.ShouldBe("Det är saligt");
     }
 
     [Fact]
-    public void TextSearch_FindsInLaterParts()
+    public void SearchByOrganization_TextInLaterPart_FindsCorrectSong()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
-        // "knä" only in second part of Majestät
+        // Act
         var result = service.SearchByOrganization("knä", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
     }
 
     [Fact]
-    public void MultipleTerms_AllMatch()
+    public void SearchByOrganization_MultipleTerms_ReturnsMatchingAllTerms()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
+        // Act
         var result = service.SearchByOrganization("kung Jesus", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
     }
 
     [Fact]
-    public void MultipleTerms_PartialMatch_StillReturnsResults()
+    public void SearchByOrganization_PartialTermMatch_StillReturnsResults()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
-        // "Majestät" matches title, "nonexistent" matches nothing
+        // Act
         var result = service.SearchByOrganization("Majestät nonexistent", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
     }
 
     [Fact]
-    public void AllTermsMatch_RankedHigherThanPartialMatch()
+    public void SearchByOrganization_AllTermsMatch_RankedHigherThanPartialMatch()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
-        // "Gud" + "saligt" both match "Det är saligt"
-        // "Gud" alone matches several songs
+        // Act
         var result = service.SearchByOrganization("Gud saligt", TestOrgId, TestCaller);
 
+        // Assert
         result[0].Name.ShouldBe("Det är saligt");
     }
 
     [Fact]
-    public void CaseInsensitive()
+    public void SearchByOrganization_LowercaseQuery_MatchesCaseInsensitively()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
+        // Act
         var result = service.SearchByOrganization("majestät", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
     }
 
     [Fact]
-    public void NoMatch_ReturnsEmpty()
+    public void SearchByOrganization_NonexistentTerm_ReturnsEmpty()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
+        // Act
         var result = service.SearchByOrganization("xyznonexistent", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBe(0);
     }
 
     [Fact]
-    public void TitleStartsWith_RankedHigher()
+    public void SearchByOrganization_TitleStartsWith_RankedHigherThanTextMatch()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
-        // Both "Det är saligt" and "Vi vill se Gud" have "vill" in text,
-        // but "Vi vill se Gud" starts with "vi"
+        // Act
         var result = service.SearchByOrganization("vi vill", TestOrgId, TestCaller);
 
+        // Assert
         result[0].Name.ShouldBe("Vi vill se Gud");
     }
 
     [Fact]
-    public void AuthorSearch_Works()
+    public void SearchByOrganization_AuthorName_FindsCorrectSong()
     {
+        // Arrange
         var service = CreateService(AllSongs);
 
+        // Act
         var result = service.SearchByOrganization("Honningdal", TestOrgId, TestCaller);
 
+        // Assert
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
     }

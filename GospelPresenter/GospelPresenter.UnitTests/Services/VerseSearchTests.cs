@@ -5,95 +5,109 @@ namespace GospelPresenter.UnitTests.Services;
 
 public class VerseSearchTests
 {
+    private const string Matthew = "MAT";
+    private const string Genesis = "GEN";
+
     private static readonly List<Verse> Verses =
     [
-        new("MAT", 3, 14, "v3:14"),
-        new("MAT", 3, 15, "v3:15"),
-        new("MAT", 3, 16, "v3:16"),
-        new("MAT", 3, 17, "v3:17"),
-        new("MAT", 4, 1, "v4:1"),
-        new("MAT", 4, 2, "v4:2"),
-        new("MAT", 4, 3, "v4:3"),
-        new("MAT", 5, 1, "v5:1"),
-        new("GEN", 1, 1, "gen1:1"),
+        new(Matthew, 3, 14, "v3:14"),
+        new(Matthew, 3, 15, "v3:15"),
+        new(Matthew, 3, 16, "v3:16"),
+        new(Matthew, 3, 17, "v3:17"),
+        new(Matthew, 4, 1, "v4:1"),
+        new(Matthew, 4, 2, "v4:2"),
+        new(Matthew, 4, 3, "v4:3"),
+        new(Matthew, 5, 1, "v5:1"),
+        new(Genesis, 1, 1, "gen1:1"),
     ];
 
     [Fact]
-    public void SingleChapter_ReturnsAllVersesInChapter()
+    public void Search_SingleChapter_ReturnsAllVersesInChapter()
     {
+        // Act
         var result = VerseSearch.Search(Verses, "MAT 3").ToList();
 
+        // Assert
         result.Count.ShouldBe(4);
         result.ShouldAllBe(v => v.Chapter == 3);
     }
 
     [Fact]
-    public void SingleVerse_ReturnsExactVerse()
+    public void Search_SingleVerse_ReturnsExactVerse()
     {
+        // Act
         var result = VerseSearch.Search(Verses, "MAT 3:15").ToList();
 
+        // Assert
         result.Count.ShouldBe(1);
         result[0].Text.ShouldBe("v3:15");
     }
 
     [Fact]
-    public void VerseRangeWithinChapter_ReturnsVerseRange()
+    public void Search_VerseRangeWithinChapter_ReturnsVerseRange()
     {
-        // "Matt 3:15-17" → chapter 3, verses 15-17
+        // Act
         var result = VerseSearch.Search(Verses, "MAT 3:15-17").ToList();
 
+        // Assert
         result.Count.ShouldBe(3);
         result[0].VerseNumber.ShouldBe(15);
         result[2].VerseNumber.ShouldBe(17);
     }
 
     [Fact]
-    public void VerseToChapter_ReturnsFromVerseToEndOfChapter()
+    public void Search_VerseToChapter_ReturnsFromVerseToEndOfChapter()
     {
-        // "Matt 3:15-4" → chapter 3 verse 15 through all of chapter 4
+        // Act
         var result = VerseSearch.Search(Verses, "MAT 3:15-4").ToList();
 
+        // Assert
         result.Count.ShouldBe(6);
         result[0].Text.ShouldBe("v3:15");
         result[^1].Text.ShouldBe("v4:3");
     }
 
     [Fact]
-    public void ChapterRange_ReturnsAllVersesInRange()
+    public void Search_ChapterRange_ReturnsAllVersesInRange()
     {
-        // "Matt 3-4" → all of chapters 3 and 4
+        // Act
         var result = VerseSearch.Search(Verses, "MAT 3-4").ToList();
 
+        // Assert
         result.Count.ShouldBe(7);
         result[0].Text.ShouldBe("v3:14");
         result[^1].Text.ShouldBe("v4:3");
     }
 
     [Fact]
-    public void ChapterVerseToChapterVerse_ReturnsExactRange()
+    public void Search_ChapterVerseToChapterVerse_ReturnsExactRange()
     {
-        // "Matt 3:16-4:2" → chapter 3 verse 16 through chapter 4 verse 2
+        // Act
         var result = VerseSearch.Search(Verses, "MAT 3:16-4:2").ToList();
 
+        // Assert
         result.Count.ShouldBe(4);
         result[0].Text.ShouldBe("v3:16");
         result[^1].Text.ShouldBe("v4:2");
     }
 
     [Fact]
-    public void BookMatchIsCaseInsensitive()
+    public void Search_LowercaseBookId_MatchesCaseInsensitively()
     {
+        // Act
         var result = VerseSearch.Search(Verses, "mat 3:15").ToList();
 
+        // Assert
         result.Count.ShouldBe(1);
     }
 
     [Fact]
-    public void BookMatchIsPrefixBased()
+    public void Search_PrefixBookId_MatchesFullBookId()
     {
-        // "GE" should match "GEN"
+        // Act
         var result = VerseSearch.Search(Verses, "GE 1:1").ToList();
 
+        // Assert
         result.Count.ShouldBe(1);
         result[0].Text.ShouldBe("gen1:1");
     }
@@ -104,10 +118,12 @@ public class VerseSearchTests
     [InlineData("MAT 3: 15")]
     [InlineData("MAT 3 : 15")]
     [InlineData("  MAT   3:15  ")]
-    public void ExtraWhitespace_IsNormalized(string query)
+    public void Search_ExtraWhitespace_NormalizesAndReturnsCorrectVerse(string query)
     {
+        // Act
         var result = VerseSearch.Search(Verses, query).ToList();
 
+        // Assert
         result.Count.ShouldBe(1);
         result[0].Text.ShouldBe("v3:15");
     }
@@ -116,10 +132,12 @@ public class VerseSearchTests
     [InlineData("MAT 3:15 - 17")]
     [InlineData("MAT 3 :15- 17")]
     [InlineData("MAT 3 : 15 - 17")]
-    public void ExtraWhitespaceInRange_IsNormalized(string query)
+    public void Search_ExtraWhitespaceInRange_NormalizesAndReturnsCorrectRange(string query)
     {
+        // Act
         var result = VerseSearch.Search(Verses, query).ToList();
 
+        // Assert
         result.Count.ShouldBe(3);
         result[0].VerseNumber.ShouldBe(15);
         result[2].VerseNumber.ShouldBe(17);
@@ -131,10 +149,12 @@ public class VerseSearchTests
     [InlineData("matteusevangeliet 3:15")]
     [InlineData("Mat 3:15")]
     [InlineData("MATT 3:15")]
-    public void SwedishBookNames_ResolveCorrectly(string query)
+    public void Search_SwedishBookName_ResolvesToCorrectBook(string query)
     {
+        // Act
         var result = VerseSearch.Search(Verses, query).ToList();
 
+        // Assert
         result.Count.ShouldBe(1);
         result[0].Text.ShouldBe("v3:15");
     }
@@ -146,25 +166,43 @@ public class VerseSearchTests
     [InlineData("första moseboken 1:1")]
     [InlineData("genesis 1:1")]
     [InlineData("gen 1:1")]
-    public void NumberedBookVariants_ResolveCorrectly(string query)
+    public void Search_NumberedBookVariant_ResolvesToCorrectBook(string query)
     {
+        // Act
         var result = VerseSearch.Search(Verses, query).ToList();
 
+        // Assert
         result.Count.ShouldBe(1);
         result[0].Text.ShouldBe("gen1:1");
     }
 
     [Fact]
-    public void InvalidQuery_ReturnsEmpty()
+    public void Search_EmptyQuery_ReturnsEmpty()
     {
-        VerseSearch.Search(Verses, "").ShouldBeEmpty();
-        VerseSearch.Search(Verses, "MAT abc").ShouldBeEmpty();
+        // Act
+        var result = VerseSearch.Search(Verses, "");
+
+        // Assert
+        result.ShouldBeEmpty();
     }
 
     [Fact]
-    public void BookOnly_ReturnsAllVersesForBook()
+    public void Search_InvalidChapterFormat_ReturnsEmpty()
     {
+        // Act
+        var result = VerseSearch.Search(Verses, "MAT abc");
+
+        // Assert
+        result.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Search_BookOnly_ReturnsAllVersesForBook()
+    {
+        // Act
         var result = VerseSearch.Search(Verses, "MAT").ToList();
+
+        // Assert
         result.Count.ShouldBe(8);
     }
 }
