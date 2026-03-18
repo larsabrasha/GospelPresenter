@@ -112,7 +112,7 @@
     private ElementReference nameInput;
     private bool shouldFocusName;
 
-    private IEnumerable<UserRole> AllowedRoles => OrgState.IsSuperAdmin
+    private IEnumerable<UserRole> AllowedRoles => OrgState.HasPermission(Permission.AssignSuperAdminRole)
         ? Enum.GetValues<UserRole>()
         : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin);
 
@@ -121,7 +121,7 @@
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is not null)
             users = await UserService.GetUsersByOrganizationAsync(orgId, OrgState.ToCallerContext());
-        else if (OrgState.IsSuperAdmin)
+        else if (OrgState.HasPermission(Permission.ManageOrganizations))
             users = await UserService.GetAllUsersAsync(OrgState.ToCallerContext());
         else
             users = [];

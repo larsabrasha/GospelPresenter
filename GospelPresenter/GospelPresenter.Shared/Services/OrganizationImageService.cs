@@ -16,6 +16,7 @@ public class OrganizationImageService(IDbContextFactory<PresentationContext> dbC
 {
     public async Task<List<OrganizationImage>> GetImagesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ViewOrganizationImages);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -36,6 +37,7 @@ public class OrganizationImageService(IDbContextFactory<PresentationContext> dbC
 
     public async Task<OrganizationImage?> GetImageByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ViewOrganizationImages);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -45,6 +47,7 @@ public class OrganizationImageService(IDbContextFactory<PresentationContext> dbC
 
     public async Task<OrganizationImage> AddImageAsync(string organizationId, string fileName, string contentType, byte[] thumbnailData, byte[] fullData, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManageOrganizationImages);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -65,6 +68,7 @@ public class OrganizationImageService(IDbContextFactory<PresentationContext> dbC
 
     public async Task DeleteImageAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManageOrganizationImages);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 

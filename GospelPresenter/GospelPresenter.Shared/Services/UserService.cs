@@ -6,21 +6,23 @@ namespace GospelPresenter.Shared.Services;
 
 public record CallerContext(string UserId, UserRole Role, string? OrganizationId)
 {
-    public void RequireOrganizationAccess(string organizationId)
+    public bool HasPermission(Permission permission) => PermissionMap.HasPermission(Role, permission);
+
+    public void RequirePermission(Permission permission)
     {
-        if (Role != UserRole.SuperAdmin && OrganizationId != organizationId)
-            throw new UnauthorizedAccessException("Access denied: you do not have access to this organization.");
+        if (!HasPermission(permission))
+            throw new UnauthorizedAccessException($"Access denied: missing required permission {permission}.");
     }
 
-    public void RequireSuperAdmin()
+    public void RequireOrganizationAccess(string organizationId)
     {
-        if (Role != UserRole.SuperAdmin)
-            throw new UnauthorizedAccessException("Access denied: this action requires SuperAdmin privileges.");
+        if (!HasPermission(Permission.CrossOrganizationAccess) && OrganizationId != organizationId)
+            throw new UnauthorizedAccessException("Access denied: you do not have access to this organization.");
     }
 
     public void RequireUserAccess(string targetUserId)
     {
-        if (Role != UserRole.SuperAdmin && UserId != targetUserId)
+        if (!HasPermission(Permission.CrossOrganizationAccess) && UserId != targetUserId)
             throw new UnauthorizedAccessException("Access denied: you can only access your own data.");
     }
 }
@@ -130,7 +132,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<List<User>> GetAllUsersAsync(CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         return await context.Users
             .Include(u => u.Organization)
@@ -148,7 +150,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
             .FirstOrDefaultAsync(u => u.Id == id);
         if (user is null) return null;
 
-        if (caller.Role != UserRole.SuperAdmin && user.OrganizationId != caller.OrganizationId)
+        if (!caller.HasPermission(Permission.CrossOrganizationAccess) && user.OrganizationId != caller.OrganizationId)
             throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
 
         return user;
@@ -156,13 +158,11 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role, CallerContext caller)
     {
-        if (caller.Role != UserRole.SuperAdmin)
-        {
-            if (caller.OrganizationId != organizationId)
-                throw new UnauthorizedAccessException("Access denied: cannot create users in another organization.");
-            if (role == UserRole.SuperAdmin)
-                throw new UnauthorizedAccessException("Access denied: only SuperAdmin can assign the SuperAdmin role.");
-        }
+        caller.RequirePermission(Permission.ManageUsers);
+        if (!caller.HasPermission(Permission.CrossOrganizationAccess) && caller.OrganizationId != organizationId)
+            throw new UnauthorizedAccessException("Access denied: cannot create users in another organization.");
+        if (!caller.HasPermission(Permission.AssignSuperAdminRole) && role == UserRole.SuperAdmin)
+            throw new UnauthorizedAccessException("Access denied: you do not have permission to assign the SuperAdmin role.");
 
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var user = new User
@@ -192,22 +192,29 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateUserAsync(string id, string name, string email, UserRole role, CallerContext caller)
     {
-        if (id == caller.UserId && role != caller.Role)
-            throw new UnauthorizedAccessException("Access denied: cannot change your own role.");
-
-        await using var context = await dbContextFactory.CreateDbContextAsync();
-
-        if (caller.Role != UserRole.SuperAdmin)
+        if (id != caller.UserId)
         {
-            var targetUser = await context.Users.FirstOrDefaultAsync(u => u.Id == id);
-            if (targetUser is null)
-                throw new InvalidOperationException("User not found.");
-            if (targetUser.OrganizationId != caller.OrganizationId)
-                throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
-            if (role == UserRole.SuperAdmin)
-                throw new UnauthorizedAccessException("Access denied: only SuperAdmin can assign the SuperAdmin role.");
+            caller.RequirePermission(Permission.ManageUsers);
+
+            await using var checkContext = await dbContextFactory.CreateDbContextAsync();
+
+            if (!caller.HasPermission(Permission.CrossOrganizationAccess))
+            {
+                var targetUser = await checkContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+                if (targetUser is null)
+                    throw new InvalidOperationException("User not found.");
+                if (targetUser.OrganizationId != caller.OrganizationId)
+                    throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
+            }
+            if (!caller.HasPermission(Permission.AssignSuperAdminRole) && role == UserRole.SuperAdmin)
+                throw new UnauthorizedAccessException("Access denied: you do not have permission to assign the SuperAdmin role.");
+        }
+        else if (role != caller.Role)
+        {
+            throw new UnauthorizedAccessException("Access denied: cannot change your own role.");
         }
 
+        await using var context = await dbContextFactory.CreateDbContextAsync();
         await context.Users
             .Where(u => u.Id == id)
             .ExecuteUpdateAsync(s => s
@@ -238,7 +245,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall, CallerContext caller)
     {
-        if (caller.Role != UserRole.SuperAdmin)
+        if (!caller.HasPermission(Permission.CrossOrganizationAccess))
         {
             await using var checkContext = await dbContextFactory.CreateDbContextAsync();
             var targetUser = await checkContext.Users.FirstOrDefaultAsync(u => u.Id == id);
@@ -253,12 +260,13 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task DeleteUserAsync(string id, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageUsers);
         if (id == caller.UserId)
             throw new InvalidOperationException("Cannot delete your own account.");
 
         await using var context = await dbContextFactory.CreateDbContextAsync();
 
-        if (caller.Role != UserRole.SuperAdmin)
+        if (!caller.HasPermission(Permission.CrossOrganizationAccess))
         {
             var targetUser = await context.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (targetUser is null)
@@ -287,7 +295,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var login = await context.UserLogins.Include(ul => ul.User).FirstOrDefaultAsync(ul => ul.Id == loginId);
         if (login is null) return;
-        if (caller.Role != UserRole.SuperAdmin && login.User.OrganizationId != caller.OrganizationId)
+        if (!caller.HasPermission(Permission.CrossOrganizationAccess) && login.User.OrganizationId != caller.OrganizationId)
             throw new UnauthorizedAccessException("Access denied: login belongs to a user in a different organization.");
         await context.UserLogins.Where(ul => ul.Id == loginId).ExecuteDeleteAsync();
     }
@@ -317,14 +325,14 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var invite = await context.Invites.Include(i => i.User).FirstOrDefaultAsync(i => i.Id == inviteId);
         if (invite is null) return;
-        if (caller.Role != UserRole.SuperAdmin && invite.User.OrganizationId != caller.OrganizationId)
+        if (!caller.HasPermission(Permission.CrossOrganizationAccess) && invite.User.OrganizationId != caller.OrganizationId)
             throw new UnauthorizedAccessException("Access denied: invite belongs to a user in a different organization.");
         await context.Invites.Where(i => i.Id == inviteId).ExecuteDeleteAsync();
     }
 
     private async Task VerifyUserAccessAsync(string userId, CallerContext caller)
     {
-        if (caller.Role == UserRole.SuperAdmin) return;
+        if (caller.HasPermission(Permission.CrossOrganizationAccess)) return;
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var user = await context.Users.FirstOrDefaultAsync(u => u.Id == userId);
         if (user is null) throw new InvalidOperationException("User not found.");
@@ -340,7 +348,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<Organization> CreateOrganizationAsync(string name, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var org = new Organization { Name = name };
         context.Organizations.Add(org);
@@ -350,7 +358,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<List<Organization>> GetAllOrganizationsAsync(CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         return await context.Organizations
             .Include(o => o.Users)
@@ -360,7 +368,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<Organization?> GetOrganizationByIdAsync(string id, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         return await context.Organizations
             .Include(o => o.Users)
@@ -369,7 +377,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateOrganizationAsync(string id, string name, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await context.Organizations
             .Where(o => o.Id == id)
@@ -378,7 +386,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task DeleteOrganizationAsync(string id, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await using var transaction = await context.Database.BeginTransactionAsync();
 
@@ -395,7 +403,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateOrganizationLogoAsync(string id, string? logoSmall, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await context.Organizations
             .Where(o => o.Id == id)
@@ -404,6 +412,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<List<User>> GetUsersByOrganizationAsync(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewUsers);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         return await context.Users

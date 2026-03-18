@@ -1,3 +1,4 @@
+using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.State;
 
 namespace GospelPresenter.Shared.Services;
@@ -9,12 +10,14 @@ public class MockSongService : ISongService
 
     public IReadOnlyList<Song> GetSongsByOrganization(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         return songsSorted.Where(s => s.OrganizationId == organizationId).ToList();
     }
 
     public Song? GetSongById(string id, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         var song = songsById.GetValueOrDefault(id);
         return song?.OrganizationId == organizationId ? song : null;
@@ -22,6 +25,7 @@ public class MockSongService : ISongService
 
     public IReadOnlyList<Song> SearchByOrganization(string query, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         if (string.IsNullOrWhiteSpace(query))
             return GetSongsByOrganization(organizationId, caller);
@@ -47,18 +51,21 @@ public class MockSongService : ISongService
 
     public Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.FromResult(new List<string>());
     }
 
     public Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, CallerContext caller, bool replaceExisting = false)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.FromResult(new ImportResult(0, 0, 0));
     }
 
     public Task DeleteSongAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         songsById.Remove(id);
         songsSorted = songsById.Values.OrderBy(s => s.Name).ToList();
@@ -67,84 +74,98 @@ public class MockSongService : ISongService
 
     public Task<List<TrashedSong>> GetTrashedSongsAsync(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.FromResult(new List<TrashedSong>());
     }
 
     public Task RestoreFromTrashAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task PermanentlyDeleteSongAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task EmptyTrashAsync(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task RestoreAllFromTrashAsync(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task UpdateSongAsync(string id, string organizationId, string name, string? author, string? publisher, int? year, string? ccli, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? label, string content, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task AddSongPartAsync(string songId, string organizationId, string? label, string content, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task DeleteSongPartAsync(string songId, string organizationId, int partIndex, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task MoveSongPartAsync(string songId, string organizationId, int fromIndex, int toIndex, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task<List<SongVersionSummary>> GetVersionsAsync(string songId, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.FromResult(new List<SongVersionSummary>());
     }
 
     public Task<SongVersionDetail?> GetVersionAsync(string versionId, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.FromResult<SongVersionDetail?>(null);
     }
 
     public Task RestoreVersionAsync(string songId, string organizationId, string versionId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         return Task.CompletedTask;
     }
 
     public Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         var song = new Song(Guid.NewGuid().ToString(), name, author, publisher, year, ccli, parts.ToList<SongPart>());
         songsById[song.Id] = song;

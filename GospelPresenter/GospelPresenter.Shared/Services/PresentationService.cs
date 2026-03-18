@@ -26,6 +26,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 {
     public async Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ViewPresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -41,6 +42,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ViewPresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -54,6 +56,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -84,6 +87,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -106,6 +110,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -118,6 +123,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -137,6 +143,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task RemoveItemAsync(string organizationId, string presentationId, string itemId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -147,6 +154,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -161,6 +169,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
@@ -182,6 +191,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ViewOverlays);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -193,6 +203,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ViewOverlays);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -202,6 +213,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManageOverlays);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -219,6 +231,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task UpdateOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManageOverlays);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -232,6 +245,7 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
     public async Task RemoveOverlayAsync(string organizationId, string overlayId, CallerContext caller, CancellationToken cancellationToken = default)
     {
+        caller.RequirePermission(Permission.ManageOverlays);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 

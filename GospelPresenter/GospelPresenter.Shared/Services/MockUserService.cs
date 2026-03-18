@@ -36,7 +36,7 @@ public class MockUserService : IUserService
 
     public Task<List<User>> GetAllUsersAsync(CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         return Task.FromResult(new List<User> { mockUser });
     }
 
@@ -84,42 +84,43 @@ public class MockUserService : IUserService
 
     public Task<Organization> CreateOrganizationAsync(string name, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         return Task.FromResult(new Organization { Name = name });
     }
 
     public Task<List<Organization>> GetAllOrganizationsAsync(CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         return Task.FromResult(new List<Organization> { defaultOrg });
     }
 
     public Task<Organization?> GetOrganizationByIdAsync(string id, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         return Task.FromResult<Organization?>(defaultOrg);
     }
 
     public Task UpdateOrganizationAsync(string id, string name, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         return Task.CompletedTask;
     }
 
     public Task DeleteOrganizationAsync(string id, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         return Task.CompletedTask;
     }
 
     public Task UpdateOrganizationLogoAsync(string id, string? logoSmall, CallerContext caller)
     {
-        caller.RequireSuperAdmin();
+        caller.RequirePermission(Permission.ManageOrganizations);
         return Task.CompletedTask;
     }
 
     public Task<List<User>> GetUsersByOrganizationAsync(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewUsers);
         caller.RequireOrganizationAccess(organizationId);
         return Task.FromResult(new List<User> { mockUser });
     }

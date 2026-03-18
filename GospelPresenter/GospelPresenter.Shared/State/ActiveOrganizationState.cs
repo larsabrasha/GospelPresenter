@@ -13,6 +13,8 @@ public class ActiveOrganizationState
 
     public bool IsSuperAdmin => UserRole == UserRole.SuperAdmin;
 
+    public bool HasPermission(Permission permission) => PermissionMap.HasPermission(UserRole, permission);
+
     public string? ActiveOrganizationId => IsSuperAdmin ? SelectedOrganizationId : UserOrganizationId;
 
 public bool IsInitialized { get; private set; }

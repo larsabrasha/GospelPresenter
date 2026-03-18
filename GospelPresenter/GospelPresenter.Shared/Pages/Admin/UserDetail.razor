@@ -290,7 +290,7 @@
 
     private bool IsCurrentUser => currentUserId is not null && currentUserId == UserId;
 
-    private IEnumerable<UserRole> AllowedRoles => OrgState.IsSuperAdmin
+    private IEnumerable<UserRole> AllowedRoles => OrgState.HasPermission(Permission.AssignSuperAdminRole)
         ? Enum.GetValues<UserRole>()
         : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin);
 

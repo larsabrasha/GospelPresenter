@@ -1,5 +1,6 @@
 using System.Text.Json;
 using GospelPresenter.Shared.Contexts;
+using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.State;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,6 +47,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public IReadOnlyList<Song> GetSongsByOrganization(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         return cacheByOrg.TryGetValue(organizationId, out var cache) ? cache.SongsSorted : [];
     }
@@ -84,6 +86,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var nameList = names.ToList();
@@ -98,6 +101,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, CallerContext caller, bool replaceExisting = false)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
 
@@ -184,6 +188,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task DeleteSongAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId);
@@ -201,6 +206,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<List<TrashedSong>> GetTrashedSongsAsync(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         return await db.Songs
@@ -212,6 +218,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task RestoreFromTrashAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId && s.DeletedAt != null);
@@ -227,6 +234,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task PermanentlyDeleteSongAsync(string id, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId && s.DeletedAt != null);
@@ -239,6 +247,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task EmptyTrashAsync(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var trashed = await db.Songs.Where(s => s.DeletedAt != null && s.OrganizationId == organizationId).ToListAsync();
@@ -251,6 +260,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task RestoreAllFromTrashAsync(string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var trashed = await db.Songs
@@ -275,6 +285,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateSongAsync(string id, string organizationId, string name, string? author, string? publisher, int? year, string? ccli, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId);
@@ -300,6 +311,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? label, string content, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
@@ -320,6 +332,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task AddSongPartAsync(string songId, string organizationId, string? label, string content, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
@@ -343,6 +356,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task DeleteSongPartAsync(string songId, string organizationId, int partIndex, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
@@ -366,6 +380,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task MoveSongPartAsync(string songId, string organizationId, int fromIndex, int toIndex, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
@@ -391,6 +406,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<List<SongVersionSummary>> GetVersionsAsync(string songId, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
 
@@ -406,6 +422,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<SongVersionDetail?> GetVersionAsync(string versionId, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var v = await db.SongVersions
@@ -419,6 +436,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task RestoreVersionAsync(string songId, string organizationId, string versionId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var version = await db.SongVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == versionId && x.SongId == songId);
@@ -454,6 +472,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
 
@@ -537,6 +556,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public Song? GetSongById(string id, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         return cacheByOrg.TryGetValue(organizationId, out var cache)
             ? cache.SongsById.GetValueOrDefault(id)
@@ -545,6 +565,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public IReadOnlyList<Song> SearchByOrganization(string query, string organizationId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
         if (string.IsNullOrWhiteSpace(query))
             return GetSongsByOrganization(organizationId, caller);
