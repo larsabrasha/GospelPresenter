@@ -417,6 +417,46 @@ window.destroyImageCropper = function(containerId) {
     delete window.imageCropperState[containerId];
 };
 
+window.positionDropdown = function(element) {
+    if (!element) return;
+
+    // Reset any previous inline adjustments
+    element.style.removeProperty('top');
+    element.style.removeProperty('bottom');
+    element.style.removeProperty('margin-top');
+    element.style.removeProperty('margin-bottom');
+    element.style.removeProperty('max-height');
+    element.style.removeProperty('overflow-y');
+
+    var rect = element.getBoundingClientRect();
+    var viewportHeight = window.innerHeight;
+    var margin = 8;
+
+    // If dropdown fits in viewport, nothing to do
+    if (rect.bottom <= viewportHeight - margin) return;
+
+    var parent = element.offsetParent || element.parentElement;
+    var parentRect = parent.getBoundingClientRect();
+    var spaceAbove = parentRect.top;
+    var spaceBelow = viewportHeight - parentRect.bottom;
+
+    if (spaceAbove > spaceBelow) {
+        // Flip to open upward
+        element.style.top = 'auto';
+        element.style.bottom = '100%';
+        element.style.marginBottom = '0.25rem';
+        element.style.marginTop = '0';
+        if (rect.height > spaceAbove - margin) {
+            element.style.maxHeight = (spaceAbove - margin) + 'px';
+            element.style.overflowY = 'auto';
+        }
+    } else {
+        // Keep below but constrain height
+        element.style.maxHeight = (spaceBelow - margin) + 'px';
+        element.style.overflowY = 'auto';
+    }
+};
+
 window.initLiveViewListener = function(sessionId) {
     window.liveViewChannel.postMessage({ type: 'live-opened', sessionId });
     window.liveViewChannel.addEventListener('message', function(e) {

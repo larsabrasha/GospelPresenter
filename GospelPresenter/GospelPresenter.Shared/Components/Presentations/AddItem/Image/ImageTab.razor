@@ -50,7 +50,6 @@ else
                         <div class="relative p-2 flex flex-col items-center">
                             @{
                                 var isSelected = selectedImages.Contains(image.Id);
-                                var isMenuOpen = openMenuImageId == image.Id;
                             }
                             <button class="relative rounded-lg cursor-pointer transition-shadow ring-3 @(isSelected ? "ring-sky-500" : "ring-transparent")"
                                     @onclick="() => ToggleImage(image)">
@@ -67,27 +66,25 @@ else
                                         </div>
                                     </div>
                                 }
-                                <div class="absolute top-1 right-1" @onfocusout="OnMenuFocusOut">
-                                    <button class="size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80"
-                                            @onclick="() => ToggleMenu(image.Id)"
-                                            @onclick:stopPropagation="true">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
-                                            <path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM15.5 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/>
-                                        </svg>
-                                    </button>
-                                    @if (isMenuOpen)
-                                    {
-                                        <div class="absolute right-0 top-8 z-50 min-w-36 rounded-lg bg-white dark:bg-neutral-800 shadow-lg ring-1 ring-neutral-200 dark:ring-neutral-700 py-1">
+                                <div class="absolute top-1 right-1">
+                                    <Dropdown MenuClass="right-0 min-w-36 rounded-lg bg-white dark:bg-neutral-800 shadow-lg ring-1 ring-neutral-200 dark:ring-neutral-700 py-1">
+                                        <Trigger>
+                                            <button class="size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                                                    <path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM15.5 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/>
+                                                </svg>
+                                            </button>
+                                        </Trigger>
+                                        <Menu>
                                             <button class="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
-                                                    @onclick="() => ConfirmDeleteFromMenu(image)"
-                                                    @onclick:stopPropagation="true">
+                                                    @onclick="() => ConfirmDelete(image)">
                                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
                                                 </svg>
                                                 @L["Common.Remove"]
                                             </button>
-                                        </div>
-                                    }
+                                        </Menu>
+                                    </Dropdown>
                                 </div>
                             </button>
                             <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center">@image.FileName</p>
@@ -159,7 +156,6 @@ else
     private string? uploadError;
     private OrganizationImage? imageToDelete;
     private HashSet<string> selectedImages = [];
-    private string? openMenuImageId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -253,7 +249,6 @@ else
 
     private void ToggleImage(OrganizationImage image)
     {
-        openMenuImageId = null;
         if (!selectedImages.Remove(image.Id))
         {
             selectedImages.Add(image.Id);
@@ -313,20 +308,8 @@ else
         }
     }
 
-    private void ToggleMenu(string imageId)
+    private void ConfirmDelete(OrganizationImage image)
     {
-        openMenuImageId = openMenuImageId == imageId ? null : imageId;
-    }
-
-    private async Task OnMenuFocusOut()
-    {
-        await Task.Delay(150);
-        openMenuImageId = null;
-    }
-
-    private void ConfirmDeleteFromMenu(OrganizationImage image)
-    {
-        openMenuImageId = null;
         imageToDelete = image;
     }
 

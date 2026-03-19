@@ -39,27 +39,26 @@
                         @AppState.SelectedProject.Name
                     </button>
                 }
-                <div class="relative shrink-0" @onfocusout="OnPresentationMenuFocusOut">
-                    <button class="p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-                            @onclick="TogglePresentationMenu"
-                            title="@L["Common.Options"]">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
-                        </svg>
-                    </button>
-                    @if (showPresentationMenu)
-                    {
-                        <div class="absolute right-0 mt-1 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden z-50 w-56">
-                            <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                    @onclick="RequestDelete">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
-                                </svg>
-                                @L["Sidebar.DeletePresentation"]
-                            </button>
-                        </div>
-                    }
-                </div>
+                <Dropdown Class="shrink-0"
+                          MenuClass="right-0 w-56 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden">
+                    <Trigger>
+                        <button class="p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                                title="@L["Common.Options"]">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
+                            </svg>
+                        </button>
+                    </Trigger>
+                    <Menu>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="RequestDelete">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                            </svg>
+                            @L["Sidebar.DeletePresentation"]
+                        </button>
+                    </Menu>
+                </Dropdown>
             </div>
 
             <div id="sidebar-item-list">
@@ -69,7 +68,7 @@
                     var itemClass = isSelected
                         ? "bg-sky-500 text-white"
                         : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700";
-                    
+
                     <div @key="item.Id" data-id="@item.Id"
                          class="flex items-center gap-1 px-3 rounded-lg text-sm group @itemClass">
                         <button class="flex items-center space-x-3 py-3 grow cursor-pointer min-w-0"
@@ -105,34 +104,32 @@
                 }
             </div>
 
-            <div class="relative mt-4" @onfocusout="OnDropdownFocusOut">
-                <button
-                    class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
-                    @onclick="ToggleDropdown">
-                    <PlusSymbol Class="size-4"/>
-                    @L["Common.Add"]
-                </button>
-                @if (showDropdown)
-                {
-                    <div class="absolute left-0 right-0 mt-1 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden z-50">
-                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                @onclick="@(() => AddItem("song"))">
-                            <MusicalNoteSymbol Class="size-4 text-neutral-400"/>
-                            @L["Sidebar.Song"]
-                        </button>
-                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                @onclick="@(() => AddItem("bible"))">
-                            <BookOpenSymbol Class="size-4 text-neutral-400"/>
-                            @L["Sidebar.BibleText"]
-                        </button>
-                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                @onclick="@(() => AddItem("image"))">
-                            <PhotoSymbol Class="size-4 text-neutral-400"/>
-                            @L["Sidebar.Images"]
-                        </button>
-                    </div>
-                }
-            </div>
+            <Dropdown Class="mt-4"
+                      MenuClass="left-0 right-0 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden">
+                <Trigger>
+                    <button class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2">
+                        <PlusSymbol Class="size-4"/>
+                        @L["Common.Add"]
+                    </button>
+                </Trigger>
+                <Menu>
+                    <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                            @onclick="@(() => AddItem("song"))">
+                        <MusicalNoteSymbol Class="size-4 text-neutral-400"/>
+                        @L["Sidebar.Song"]
+                    </button>
+                    <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                            @onclick="@(() => AddItem("bible"))">
+                        <BookOpenSymbol Class="size-4 text-neutral-400"/>
+                        @L["Sidebar.BibleText"]
+                    </button>
+                    <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                            @onclick="@(() => AddItem("image"))">
+                        <PhotoSymbol Class="size-4 text-neutral-400"/>
+                        @L["Sidebar.Images"]
+                    </button>
+                </Menu>
+            </Dropdown>
         }
     </div>
 </div>
@@ -145,9 +142,6 @@
     [Parameter] public EventCallback<List<string>> OnItemsReordered { get; set; }
     [Parameter] public EventCallback OnDeleteRequested { get; set; }
 
-
-    private bool showDropdown;
-    private bool showPresentationMenu;
     private bool isEditingName;
     private string editName = "";
     private ElementReference nameInput;
@@ -224,37 +218,13 @@
         await JsRuntime.InvokeVoidAsync("scrollElementToTop", "main");
     }
 
-    private void ToggleDropdown()
-    {
-        showDropdown = !showDropdown;
-    }
-
-    private async Task OnDropdownFocusOut()
-    {
-        await Task.Delay(150);
-        showDropdown = false;
-    }
-
-    private void TogglePresentationMenu()
-    {
-        showPresentationMenu = !showPresentationMenu;
-    }
-
-    private async Task OnPresentationMenuFocusOut()
-    {
-        await Task.Delay(150);
-        showPresentationMenu = false;
-    }
-
     private async Task RequestDelete()
     {
-        showPresentationMenu = false;
         await OnDeleteRequested.InvokeAsync();
     }
 
     private async Task AddItem(string type)
     {
-        showDropdown = false;
         await OnAddRequested.InvokeAsync(type);
     }
 
