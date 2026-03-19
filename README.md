@@ -103,6 +103,34 @@ The primary target is the web app. MAUI support may be added later.
     brew install fswatch
     ```
 
+### Screenshots
+
+Capture screenshots of the app across languages, themes, and viewports using the `GospelPresenter.Screenshots` tool.
+
+**First-time setup** — install Playwright's Chromium browser:
+
+```shell
+cd GospelPresenter/GospelPresenter.Screenshots
+dotnet run -- --install
+```
+
+**Take screenshots** (requires the web app to be running):
+
+```shell
+dotnet run -- --base-url https://localhost:7175 --output ../../screenshots
+```
+
+Options:
+
+| Flag | Description |
+|---|---|
+| `--base-url <url>` | Web app URL (default: `http://localhost:5253`) |
+| `--output <dir>` | Output directory (default: `./screenshots`) |
+| `--headed` | Show the browser window |
+| `--install` | Install Playwright's Chromium browser and exit |
+
+The tool captures every combination of language (en, sv), theme (light, dark), and viewport (desktop, tablet, mobile). Screenshots are captured at 2× resolution (Retina).
+
 ### Troubleshooting
 
 For Rider:
