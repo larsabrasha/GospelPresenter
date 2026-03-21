@@ -167,8 +167,8 @@
   <data name="Sidebar.NotFound" xml:space="preserve">
     <value>Presentation not found</value>
   </data>
-  <data name="Sidebar.ClickToRename" xml:space="preserve">
-    <value>Click to rename</value>
+  <data name="Sidebar.Rename" xml:space="preserve">
+    <value>Rename</value>
   </data>
   <data name="Sidebar.Song" xml:space="preserve">
     <value>Song</value>

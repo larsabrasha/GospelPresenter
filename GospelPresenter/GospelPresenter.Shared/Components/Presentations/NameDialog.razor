@@ -1,0 +1,73 @@
+<Dialog Class="bg-white dark:bg-neutral-800 max-w-2xl" OnClose="OnClose">
+    <div class="p-6 space-y-4">
+        <div class="font-semibold text-lg">@Title</div>
+        <input @ref="input"
+               type="text"
+               class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+               placeholder="@L["Common.Name"]"
+               @bind="name"
+               @bind:event="oninput"
+               @onkeydown="OnKeyDown"/>
+        <div class="flex justify-end gap-3">
+            <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                    @onclick="OnClose">
+                @L["Common.Cancel"]
+            </button>
+            <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
+                    disabled="@(isSaving || string.IsNullOrWhiteSpace(name))"
+                    @onclick="Save">
+                @(isSaving && SaveLoadingText is not null ? SaveLoadingText : SaveText)
+            </button>
+        </div>
+    </div>
+</Dialog>
+
+@code {
+
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+    [Parameter, EditorRequired] public EventCallback<string> OnSave { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnClose { get; set; }
+    [Parameter] public string? SaveText { get; set; }
+    [Parameter] public string? SaveLoadingText { get; set; }
+
+    private string name = "";
+    private bool isSaving;
+    private ElementReference input;
+
+    protected override void OnInitialized()
+    {
+        name = Name;
+        SaveText ??= L["Common.Save"];
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try { await input.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(name))
+        {
+            await Save();
+        }
+        else if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private async Task Save()
+    {
+        var trimmed = name.Trim();
+        if (isSaving || string.IsNullOrWhiteSpace(trimmed)) return;
+
+        isSaving = true;
+        await OnSave.InvokeAsync(trimmed);
+    }
+
+}

@@ -60,38 +60,19 @@
 
 @if (showCreateDialog)
 {
-    <Dialog Class="bg-white dark:bg-neutral-800 max-w-2xl" OnClose="CancelCreate">
-        <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["Dashboard.NewPresentation"]</div>
-            <input @ref="nameInput"
-                   type="text"
-                   class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                   placeholder="@L["Common.Name"]"
-                   @bind="newPresentationName"
-                   @bind:event="oninput"
-                   @onkeydown="OnCreateKeyDown"/>
-            <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CancelCreate">
-                    @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
-                        disabled="@(isCreating || string.IsNullOrWhiteSpace(newPresentationName))"
-                        @onclick="CreatePresentationAsync">
-                    @(isCreating ? L["Common.Creating"] : L["Common.Create"])
-                </button>
-            </div>
-        </div>
-    </Dialog>
+    <NameDialog Title="@L["Dashboard.NewPresentation"]"
+                Name="@newPresentationName"
+                SaveText="@L["Common.Create"]"
+                SaveLoadingText="@L["Common.Creating"]"
+                OnSave="CreatePresentationAsync"
+                OnClose="CancelCreate"/>
 }
 
 @code {
 
     private IList<PresentationSummary>? recentPresentations;
     private bool showCreateDialog;
-    private bool isCreating;
     private string newPresentationName = "";
-    private ElementReference nameInput;
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,40 +98,16 @@
         showCreateDialog = true;
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (showCreateDialog)
-        {
-            try { await nameInput.FocusAsync(); } catch { }
-        }
-    }
-
     private void CancelCreate()
     {
         showCreateDialog = false;
     }
 
-    private async Task OnCreateKeyDown(KeyboardEventArgs e)
+    private async Task CreatePresentationAsync(string name)
     {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(newPresentationName))
-        {
-            await CreatePresentationAsync();
-        }
-        else if (e.Key == "Escape")
-        {
-            CancelCreate();
-        }
-    }
-
-    private async Task CreatePresentationAsync()
-    {
-        if (isCreating || string.IsNullOrWhiteSpace(newPresentationName)) return;
-
-        isCreating = true;
-
         var orgId = OrgState.ActiveOrganizationId ?? "default";
         var userId = OrgState.UserId ?? "default";
-        var presentation = await PresentationService.CreatePresentationAsync(newPresentationName.Trim(), orgId, userId, OrgState.ToCallerContext());
+        var presentation = await PresentationService.CreatePresentationAsync(name, orgId, userId, OrgState.ToCallerContext());
 
         NavigationManager.NavigateTo($"/presentations/{presentation.Id}");
     }
