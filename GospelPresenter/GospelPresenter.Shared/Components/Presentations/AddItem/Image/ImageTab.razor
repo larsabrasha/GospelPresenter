@@ -108,7 +108,8 @@ else
         {
             <div class="shrink-0 flex items-center justify-end gap-10 pt-4">
                 <AddMoreCheckbox State="AddMoreState"/>
-                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer disabled:opacity-50 disabled:cursor-default"
+                        disabled="@isAdding"
                         @onclick="HandleAdd">
                     <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@(selectedImages.Count == 1 ? GetSelectedImageNames() : $"{selectedImages.Count} {L["ImageTab.Images"]}")</span>
                 </button>
@@ -159,6 +160,7 @@ else
     private string? uploadError;
     private OrganizationImage? imageToDelete;
     private HashSet<string> selectedImages = [];
+    private bool isAdding;
 
     protected override async Task OnInitializedAsync()
     {
@@ -280,32 +282,48 @@ else
 
     private async Task HandleAdd()
     {
-        if (selectedImages.Count == 0) return;
-        var fullImages = await GetSelectedFullImages();
-        if (fullImages.Count > 0)
+        if (selectedImages.Count == 0 || isAdding) return;
+        isAdding = true;
+        try
         {
-            await OnAdd.InvokeAsync(fullImages);
+            var fullImages = await GetSelectedFullImages();
+            if (fullImages.Count > 0)
+            {
+                await OnAdd.InvokeAsync(fullImages);
+            }
+        }
+        finally
+        {
+            isAdding = false;
         }
     }
 
     private async Task HandleAddKeepOpen()
     {
-        if (selectedImages.Count == 0) return;
-        var fullImages = await GetSelectedFullImages();
-        if (fullImages.Count > 0)
+        if (selectedImages.Count == 0 || isAdding) return;
+        isAdding = true;
+        try
         {
-            await OnAddKeepOpen.InvokeAsync(fullImages);
-            selectedImages.Clear();
+            var fullImages = await GetSelectedFullImages();
+            if (fullImages.Count > 0)
+            {
+                await OnAddKeepOpen.InvokeAsync(fullImages);
+                selectedImages.Clear();
+            }
+        }
+        finally
+        {
+            isAdding = false;
         }
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && e.ShiftKey && selectedImages.Count > 0)
+        if (e.Key == "Enter" && e.ShiftKey && selectedImages.Count > 0 && !isAdding)
         {
             await HandleAddKeepOpen();
         }
-        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedImages.Count > 0)
+        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedImages.Count > 0 && !isAdding)
         {
             await HandleAdd();
         }

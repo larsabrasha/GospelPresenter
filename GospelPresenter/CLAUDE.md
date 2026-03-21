@@ -15,8 +15,7 @@
 - Uploaded images must be validated (file type, size) and compressed/optimized before storage. Always show a preview before upload.
 
 ## Feedback and destructive operations
-- Use toasts for confirmations and short-lived messages (e.g. "Sparat", "Ångra"). Toasts must disappear automatically but also be manually dismissible.
-- Prefer the undo pattern (an "Ångra" toast) over confirmation dialogs for a smoother flow.
+- Use toasts for confirmations and short-lived messages (e.g. "Sparat"). Toasts are non-interactive and must disappear automatically.
 - Use a confirmation dialog only when the operation cannot be undone (e.g. permanent data deletion with no rollback).
 
 ## Async behavior

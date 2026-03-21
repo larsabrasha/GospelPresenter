@@ -812,4 +812,16 @@
   <data name="AddItemModal.AddMoreInfo" xml:space="preserve">
     <value>När ikryssad stannar modalen öppen efter tillägg så att du kan fortsätta lägga till fler objekt.</value>
   </data>
+  <data name="Toast.SongAdded" xml:space="preserve">
+    <value>"{0}" har lagts till i presentationen</value>
+  </data>
+  <data name="Toast.BibleTextAdded" xml:space="preserve">
+    <value>"{0}" har lagts till i presentationen</value>
+  </data>
+  <data name="Toast.ImageAdded" xml:space="preserve">
+    <value>"{0}" har lagts till i presentationen</value>
+  </data>
+  <data name="Toast.ImagesAdded" xml:space="preserve">
+    <value>{0} bilder har lagts till i presentationen</value>
+  </data>
 </root>

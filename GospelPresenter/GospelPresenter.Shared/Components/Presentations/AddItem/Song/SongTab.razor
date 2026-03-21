@@ -180,7 +180,8 @@ else
                 </div>
                 <div class="shrink-0 flex items-center justify-end gap-10 px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
                     <AddMoreCheckbox State="AddMoreState"/>
-                    <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                    <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer disabled:opacity-50 disabled:cursor-default"
+                            disabled="@isAdding"
                             @onclick="MobileAdd">
                         <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@mobilePreviewSong.Name</span>
                     </button>
@@ -192,7 +193,8 @@ else
         {
             <div class="shrink-0 hidden md:flex items-center justify-end gap-10 pt-4">
                 <AddMoreCheckbox State="AddMoreState"/>
-                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer disabled:opacity-50 disabled:cursor-default"
+                        disabled="@isAdding"
                         @onclick="HandleAdd">
                     <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@selectedSong.Name</span>
                 </button>
@@ -215,6 +217,7 @@ else
     private Song? mobilePreviewSong;
     private CancellationTokenSource? debounceToken;
     private bool isCreating;
+    private bool isAdding;
     private string? organizationId;
     private int? pendingScrollIndex;
 
@@ -248,9 +251,17 @@ else
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && e.ShiftKey && selectedSong is not null)
+        if (e.Key == "Enter" && e.ShiftKey && selectedSong is not null && !isAdding)
         {
-            await OnAddKeepOpen.InvokeAsync(selectedSong);
+            isAdding = true;
+            try
+            {
+                await OnAddKeepOpen.InvokeAsync(selectedSong);
+            }
+            finally
+            {
+                isAdding = false;
+            }
         }
         else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedSong is not null)
         {
@@ -344,19 +355,32 @@ else
 
     private async Task MobileAdd()
     {
-        if (mobilePreviewSong is not null)
+        if (mobilePreviewSong is null || isAdding) return;
+        isAdding = true;
+        try
         {
             selectedSong = mobilePreviewSong;
             mobilePreviewSong = null;
             await OnAdd.InvokeAsync(selectedSong);
         }
+        finally
+        {
+            isAdding = false;
+        }
     }
-
 
     private async Task HandleAdd()
     {
-        if (selectedSong is not null)
+        if (selectedSong is null || isAdding) return;
+        isAdding = true;
+        try
+        {
             await OnAdd.InvokeAsync(selectedSong);
+        }
+        finally
+        {
+            isAdding = false;
+        }
     }
 
     private void EnterCreateMode()

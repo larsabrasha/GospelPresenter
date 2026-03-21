@@ -12,6 +12,7 @@ public static class SharedServicesSetup
         var timeoutMinutes = configuration?.GetValue("Settings:SessionTimeoutMinutes", 240) ?? 240;
 
         services.AddLocalization(options => options.ResourcesPath = "Resources");
+        services.AddScoped<ToastService>();
         services.AddScoped<AppState>();
         services.AddScoped<ActiveOrganizationState>();
         services.AddSingleton(new SharedAppState(TimeSpan.FromMinutes(timeoutMinutes)));

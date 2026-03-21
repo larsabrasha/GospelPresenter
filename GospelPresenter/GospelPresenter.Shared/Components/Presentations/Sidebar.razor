@@ -10,58 +10,58 @@
 
 @implements IDisposable
 
-<div class="p-4 shrink-0 overflow-hidden flex h-full">
-    <div class="overflow-auto w-full">
-        @if (AppState.SelectedProject is null)
-        {
-            <div class="text-sm text-center text-neutral-500 pt-10">@L["Sidebar.NotFound"]</div>
-        }
-        else
-        {
-            <div class="flex items-center justify-between mb-4">
-                @if (isEditingName)
-                {
-                    <div class="px-1 grow">
-                        <input @ref="nameInput"
-                               type="text"
-                               class="w-full px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-lg"
-                               @bind="editName"
-                               @bind:event="oninput"
-                               @onblur="SaveNameAsync"
-                               @onkeydown="OnNameKeyDown"/>
-                    </div>
-                }
-                else
-                {
-                    <button class="font-semibold text-lg px-1 cursor-pointer hover:text-sky-500 text-left truncate"
-                            @onclick="StartEditingName"
-                            title="@L["Sidebar.ClickToRename"]">
-                        @AppState.SelectedProject.Name
+<div class="flex flex-col h-full">
+    @if (AppState.SelectedProject is null)
+    {
+        <div class="text-sm text-center text-neutral-500 pt-10">@L["Sidebar.NotFound"]</div>
+    }
+    else
+    {
+        <div class="shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
+            @if (isEditingName)
+            {
+                <div class="px-1 grow">
+                    <input @ref="nameInput"
+                           type="text"
+                           class="w-full px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-lg"
+                           @bind="editName"
+                           @bind:event="oninput"
+                           @onblur="SaveNameAsync"
+                           @onkeydown="OnNameKeyDown"/>
+                </div>
+            }
+            else
+            {
+                <button class="font-semibold text-lg px-1 cursor-pointer hover:text-sky-500 text-left truncate"
+                        @onclick="StartEditingName"
+                        title="@L["Sidebar.ClickToRename"]">
+                    @AppState.SelectedProject.Name
+                </button>
+            }
+            <Dropdown Class="shrink-0"
+                      MenuClass="right-0 w-56 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden">
+                <Trigger>
+                    <button class="p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                            title="@L["Common.Options"]">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
+                        </svg>
                     </button>
-                }
-                <Dropdown Class="shrink-0"
-                          MenuClass="right-0 w-56 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden">
-                    <Trigger>
-                        <button class="p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-                                title="@L["Common.Options"]">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
-                            </svg>
-                        </button>
-                    </Trigger>
-                    <Menu>
-                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                @onclick="RequestDelete">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
-                            </svg>
-                            @L["Sidebar.DeletePresentation"]
-                        </button>
-                    </Menu>
-                </Dropdown>
-            </div>
+                </Trigger>
+                <Menu>
+                    <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                            @onclick="RequestDelete">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                        </svg>
+                        @L["Sidebar.DeletePresentation"]
+                    </button>
+                </Menu>
+            </Dropdown>
+        </div>
 
-            <div id="sidebar-item-list">
+        <div class="flex-1 min-h-0 overflow-y-auto px-4">
+            <div id="sidebar-item-list" class="pb-14">
                 @foreach (var item in AppState.SelectedProject.Items)
                 {
                     var isSelected = AppState.SelectedProjectItem?.Id == item.Id;
@@ -70,7 +70,7 @@
                         : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700";
 
                     <div @key="item.Id" data-id="@item.Id"
-                         class="flex items-center gap-1 px-3 rounded-lg text-sm group @itemClass">
+                         class="flex items-center gap-1 px-3 rounded-lg text-sm group scroll-mb-16 @itemClass">
                         <button class="flex items-center space-x-3 py-3 grow cursor-pointer min-w-0"
                                 @onclick="() => SelectItemAsync(item)">
                             <div class="size-3 shrink-0 drag-handle cursor-grab active:cursor-grabbing ">
@@ -104,13 +104,15 @@
                 }
             </div>
 
-            <button class="mt-4 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
-                    @onclick="OnAddClicked">
-                <PlusSymbol Class="size-4"/>
-                @L["Common.Add"]
-            </button>
-        }
-    </div>
+            <div class="sticky bottom-0 py-3 bg-white dark:bg-neutral-800">
+                <button class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
+                        @onclick="OnAddClicked">
+                    <PlusSymbol Class="size-4"/>
+                    @L["Common.Add"]
+                </button>
+            </div>
+        </div>
+    }
 </div>
 
 
@@ -155,6 +157,12 @@
             await JsRuntime.InvokeVoidAsync("initSortableList", "sidebar-item-list", dotNetRef);
             sortableInitialized = true;
         }
+
+        if (pendingScrollToSelected && AppState.SelectedProjectItem is not null)
+        {
+            pendingScrollToSelected = false;
+            await JsRuntime.InvokeVoidAsync("scrollSidebarItemIntoView", AppState.SelectedProjectItem.Id);
+        }
     }
 
     [JSInvokable]
@@ -175,6 +183,8 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    private bool pendingScrollToSelected;
+
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is
@@ -184,6 +194,10 @@
             if (e.PropertyName is nameof(AppState.SelectedProject))
             {
                 sortableInitialized = false;
+            }
+            if (e.PropertyName is nameof(AppState.SelectedProjectItem))
+            {
+                pendingScrollToSelected = true;
             }
             _ = InvokeAsync(StateHasChanged);
         }

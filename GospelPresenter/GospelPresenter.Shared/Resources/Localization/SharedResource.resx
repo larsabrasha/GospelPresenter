@@ -812,4 +812,16 @@
   <data name="AddItemModal.AddMoreInfo" xml:space="preserve">
     <value>When checked, the modal stays open after adding so you can continue adding more items.</value>
   </data>
+  <data name="Toast.SongAdded" xml:space="preserve">
+    <value>"{0}" added to the presentation</value>
+  </data>
+  <data name="Toast.BibleTextAdded" xml:space="preserve">
+    <value>"{0}" added to the presentation</value>
+  </data>
+  <data name="Toast.ImageAdded" xml:space="preserve">
+    <value>"{0}" added to the presentation</value>
+  </data>
+  <data name="Toast.ImagesAdded" xml:space="preserve">
+    <value>{0} images added to the presentation</value>
+  </data>
 </root>

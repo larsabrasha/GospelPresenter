@@ -22,6 +22,7 @@
 @implements IDisposable
 @inject IStatusBarService StatusBarService
 @inject NavigationManager NavigationManager
+@inject ToastService ToastService
 @inject ActiveOrganizationState OrgState
 
 @{
@@ -1234,16 +1235,21 @@
             });
         }
 
-        loadedPresentation?.Items.Add(presentationItem);
-        AppState.SelectedProject?.Items.Add(projectItem);
+        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
         if (PresentationId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
+            {
                 await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
+                if (inserted) await ReorderAfterInsert(orgId);
+            }
         }
+
+        ToastService.Show(L["Toast.BibleTextAdded", bibleText.Title]);
     }
 
     private async Task HandleSongAdded(Song song)
@@ -1276,16 +1282,21 @@
             Title = song.Name
         };
 
-        loadedPresentation?.Items.Add(presentationItem);
-        AppState.SelectedProject?.Items.Add(projectItem);
+        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
         if (PresentationId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
+            {
                 await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
+                if (inserted) await ReorderAfterInsert(orgId);
+            }
         }
+
+        ToastService.Show(L["Toast.SongAdded", song.Name]);
     }
 
     private async Task HandleImagesAdded(List<OrganizationImage> images)
@@ -1334,16 +1345,64 @@
             Parts = parts
         };
 
-        loadedPresentation?.Items.Add(presentationItem);
-        AppState.SelectedProject?.Items.Add(projectItem);
+        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
         if (PresentationId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
+            {
                 await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
+                if (inserted) await ReorderAfterInsert(orgId);
+            }
         }
+
+        ToastService.Show(images.Count == 1
+            ? L["Toast.ImageAdded", images[0].FileName]
+            : L["Toast.ImagesAdded", images.Count]);
+    }
+
+    private bool InsertAfterSelected<T>(IList<T>? list, T item) where T : class
+    {
+        if (list is null) return false;
+
+        var selectedId = AppState.SelectedProjectItem?.Id;
+        if (selectedId is not null)
+        {
+            var index = -1;
+            for (var i = 0; i < list.Count; i++)
+            {
+                var id = list[i] switch
+                {
+                    ProjectItem pi => pi.Id,
+                    PresentationItem pi => pi.Id,
+                    _ => null
+                };
+                if (id == selectedId)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index >= 0 && index < list.Count - 1)
+            {
+                list.Insert(index + 1, item);
+                return true;
+            }
+        }
+
+        list.Add(item);
+        return false;
+    }
+
+    private async Task ReorderAfterInsert(string orgId)
+    {
+        if (PresentationId is null || AppState.SelectedProject is null) return;
+        var itemIds = AppState.SelectedProject.Items.Select(x => x.Id).ToList();
+        await PresentationService.ReorderItemsAsync(orgId, PresentationId, itemIds, OrgState.ToCallerContext());
     }
 
 }

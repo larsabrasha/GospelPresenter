@@ -100,6 +100,19 @@ window.closeModal = function(element) {
     });
 }
 
+window.showPopoverElement = function(element) {
+    element.showPopover();
+}
+
+window.hidePopoverElement = function(element) {
+    element.hidePopover();
+}
+
+window.scrollSidebarItemIntoView = function(itemId) {
+    var el = document.querySelector('#sidebar-item-list [data-id="' + CSS.escape(itemId) + '"]');
+    if (el) el.scrollIntoView({ block: 'nearest' });
+}
+
 window.liveViewChannel = new BroadcastChannel('gospel-live');
 
 window.presentationState = { connection: null, dotNetRef: null };
