@@ -806,4 +806,10 @@
   <data name="Presentation.ConfirmRemoveImage" xml:space="preserve">
     <value>Do you want to remove this image?</value>
   </data>
+  <data name="AddItemModal.AddMore" xml:space="preserve">
+    <value>Add more</value>
+  </data>
+  <data name="AddItemModal.AddMoreInfo" xml:space="preserve">
+    <value>When checked, the modal stays open after adding so you can continue adding more items.</value>
+  </data>
 </root>

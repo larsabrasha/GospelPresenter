@@ -806,4 +806,10 @@
   <data name="Presentation.ConfirmRemoveImage" xml:space="preserve">
     <value>Vill du ta bort den här bilden?</value>
   </data>
+  <data name="AddItemModal.AddMore" xml:space="preserve">
+    <value>Lägg till fler</value>
+  </data>
+  <data name="AddItemModal.AddMoreInfo" xml:space="preserve">
+    <value>När ikryssad stannar modalen öppen efter tillägg så att du kan fortsätta lägga till fler objekt.</value>
+  </data>
 </root>

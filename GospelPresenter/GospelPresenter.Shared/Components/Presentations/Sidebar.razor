@@ -104,32 +104,11 @@
                 }
             </div>
 
-            <Dropdown Class="mt-4"
-                      MenuClass="left-0 right-0 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden">
-                <Trigger>
-                    <button class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2">
-                        <PlusSymbol Class="size-4"/>
-                        @L["Common.Add"]
-                    </button>
-                </Trigger>
-                <Menu>
-                    <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                            @onclick="@(() => AddItem("song"))">
-                        <MusicalNoteSymbol Class="size-4 text-neutral-400"/>
-                        @L["Sidebar.Song"]
-                    </button>
-                    <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                            @onclick="@(() => AddItem("bible"))">
-                        <BookOpenSymbol Class="size-4 text-neutral-400"/>
-                        @L["Sidebar.BibleText"]
-                    </button>
-                    <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                            @onclick="@(() => AddItem("image"))">
-                        <PhotoSymbol Class="size-4 text-neutral-400"/>
-                        @L["Sidebar.Images"]
-                    </button>
-                </Menu>
-            </Dropdown>
+            <button class="mt-4 text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
+                    @onclick="OnAddClicked">
+                <PlusSymbol Class="size-4"/>
+                @L["Common.Add"]
+            </button>
         }
     </div>
 </div>
@@ -137,7 +116,7 @@
 
 @code {
 
-    [Parameter] public EventCallback<string> OnAddRequested { get; set; }
+    [Parameter] public EventCallback OnAddRequested { get; set; }
     [Parameter] public EventCallback<ProjectItem> OnRemoveRequested { get; set; }
     [Parameter] public EventCallback<List<string>> OnItemsReordered { get; set; }
     [Parameter] public EventCallback OnDeleteRequested { get; set; }
@@ -223,9 +202,9 @@
         await OnDeleteRequested.InvokeAsync();
     }
 
-    private async Task AddItem(string type)
+    private async Task OnAddClicked()
     {
-        await OnAddRequested.InvokeAsync(type);
+        await OnAddRequested.InvokeAsync();
     }
 
     private void StartEditingName()

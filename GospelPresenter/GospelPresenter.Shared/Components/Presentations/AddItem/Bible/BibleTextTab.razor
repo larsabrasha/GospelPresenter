@@ -1,3 +1,4 @@
+@using GospelPresenter.Shared.Components.Presentations.AddItem
 @using GospelPresenter.Shared.Services
 
 @inject IBibleService BibleService
@@ -84,7 +85,8 @@ else
 
         @if (ShowAddButton)
         {
-            <div class="shrink-0 flex items-center justify-end pt-4">
+            <div class="shrink-0 flex items-center justify-end gap-10 pt-4">
+                <AddMoreCheckbox State="AddMoreState"/>
                 <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
                     <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@AddLabel</span>
@@ -97,6 +99,7 @@ else
 @code {
     [Parameter] public EventCallback<List<Verse>> OnAdd { get; set; }
     [Parameter] public EventCallback<List<Verse>> OnAddKeepOpen { get; set; }
+    [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
 
     private const int MaxResults = 500;
 

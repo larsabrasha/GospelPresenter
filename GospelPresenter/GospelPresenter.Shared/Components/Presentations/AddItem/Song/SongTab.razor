@@ -1,3 +1,4 @@
+@using GospelPresenter.Shared.Components.Presentations.AddItem
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
@@ -177,7 +178,8 @@ else
                         </div>
                     }
                 </div>
-                <div class="shrink-0 flex items-center justify-end px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
+                <div class="shrink-0 flex items-center justify-end gap-10 px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
+                    <AddMoreCheckbox State="AddMoreState"/>
                     <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                             @onclick="MobileAdd">
                         <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@mobilePreviewSong.Name</span>
@@ -188,7 +190,8 @@ else
 
         @if (selectedSong is not null)
         {
-            <div class="shrink-0 hidden md:flex items-center justify-end pt-4">
+            <div class="shrink-0 hidden md:flex items-center justify-end gap-10 pt-4">
+                <AddMoreCheckbox State="AddMoreState"/>
                 <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
                         @onclick="HandleAdd">
                     <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@selectedSong.Name</span>
@@ -201,6 +204,7 @@ else
 @code {
     [Parameter] public EventCallback<Song> OnAdd { get; set; }
     [Parameter] public EventCallback<Song> OnAddKeepOpen { get; set; }
+    [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
 
     private string query = "";
     private string[] searchTerms = [];

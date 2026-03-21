@@ -4,8 +4,7 @@
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Components.Presentations
-@using GospelPresenter.Shared.Components.Presentations.AddItem.Song
-@using GospelPresenter.Shared.Components.Presentations.AddItem.Bible
+@using GospelPresenter.Shared.Components.Presentations.AddItem
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Image
 @using GospelPresenter.Shared.Components.Symbols
 @using GospelPresenter.Shared.Models
@@ -369,32 +368,15 @@
     </div>
 }
 
-@if (addModalType == "song")
+@if (showAddModal)
 {
-    <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
-        <Title><span>@L["Presentation.AddSong"]</span></Title>
-        <Body>
-            <SongTab OnAdd="@HandleSongAdded" OnAddKeepOpen="@HandleSongAddedKeepOpen"/>
-        </Body>
-    </Modal>
-}
-else if (addModalType == "bible")
-{
-    <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
-        <Title><span>@L["Presentation.AddBibleText"]</span></Title>
-        <Body>
-            <BibleTextTab OnAdd="@HandleBibleVersesAdded" OnAddKeepOpen="@HandleBibleVersesAddedKeepOpen"/>
-        </Body>
-    </Modal>
-}
-else if (addModalType == "image")
-{
-    <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseAddModal">
-        <Title><span>@L["Presentation.AddImages"]</span></Title>
-        <Body>
-            <ImageTab OnAdd="@HandleImagesAdded" OnAddKeepOpen="@HandleImagesAddedKeepOpen"/>
-        </Body>
-    </Modal>
+    <AddItemModal OnClose="@CloseAddModal"
+                  OnSongAdded="@HandleSongAdded"
+                  OnSongAddedKeepOpen="@HandleSongAddedKeepOpen"
+                  OnBibleVersesAdded="@HandleBibleVersesAdded"
+                  OnBibleVersesAddedKeepOpen="@HandleBibleVersesAddedKeepOpen"
+                  OnImagesAdded="@HandleImagesAdded"
+                  OnImagesAddedKeepOpen="@HandleImagesAddedKeepOpen"/>
 }
 
 @if (showAddImagesToExisting)
@@ -488,7 +470,7 @@ else if (addModalType == "image")
     private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
-    private string? addModalType;
+    private bool showAddModal;
     private bool showSessionExpired;
     private bool showOverlayManager;
     private List<OverlaySlide> overlaySlides = [];
@@ -1190,14 +1172,14 @@ else if (addModalType == "image")
         }
     }
 
-    private void OpenAddModal(string type)
+    private void OpenAddModal()
     {
-        addModalType = type;
+        showAddModal = true;
     }
 
     private void CloseAddModal()
     {
-        addModalType = null;
+        showAddModal = false;
     }
 
     private static string? FormatSongCredits(Song? song)
@@ -1216,7 +1198,7 @@ else if (addModalType == "image")
 
     private async Task HandleBibleVersesAdded(List<Verse> verses)
     {
-        addModalType = null;
+        showAddModal = false;
         await AddBibleVerses(verses);
     }
 
@@ -1266,7 +1248,7 @@ else if (addModalType == "image")
 
     private async Task HandleSongAdded(Song song)
     {
-        addModalType = null;
+        showAddModal = false;
         await AddSong(song);
     }
 
@@ -1308,7 +1290,7 @@ else if (addModalType == "image")
 
     private async Task HandleImagesAdded(List<OrganizationImage> images)
     {
-        addModalType = null;
+        showAddModal = false;
         await AddImages(images);
     }
 
