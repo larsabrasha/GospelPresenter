@@ -38,7 +38,7 @@ window.initSortableList = function (elementId, dotNetRef) {
         delay: 150,
         delayOnTouchOnly: true,
         touchStartThreshold: 5,
-        ghostClass: 'opacity-30',
+        ghostClass: 'opacity-0',
         onEnd: function (evt) {
             if (evt.oldIndex !== evt.newIndex) {
                 // Revert the DOM change — let Blazor handle the reorder via its own rendering

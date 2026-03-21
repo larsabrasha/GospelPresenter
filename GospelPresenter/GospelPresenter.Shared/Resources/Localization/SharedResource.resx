@@ -53,6 +53,9 @@
   <data name="Common.Delete" xml:space="preserve">
     <value>Delete</value>
   </data>
+  <data name="Common.ErrorOccurred" xml:space="preserve">
+    <value>Something went wrong. Please try again.</value>
+  </data>
   <data name="Common.Deleting" xml:space="preserve">
     <value>Deleting...</value>
   </data>
@@ -823,5 +826,32 @@
   </data>
   <data name="Toast.ImagesAdded" xml:space="preserve">
     <value>{0} images added to the presentation</value>
+  </data>
+  <data name="Sidebar.Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="Sidebar.DoneEditing" xml:space="preserve">
+    <value>Done</value>
+  </data>
+  <data name="Sidebar.DeleteSelected" xml:space="preserve">
+    <value>Delete selected ({0})</value>
+  </data>
+  <data name="Presentation.ConfirmRemoveItemSingle" xml:space="preserve">
+    <value>Do you want to remove this item?</value>
+  </data>
+  <data name="Presentation.ConfirmRemoveItems" xml:space="preserve">
+    <value>Do you want to remove {0} items?</value>
+  </data>
+  <data name="Sidebar.SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="Toast.ItemRemoved" xml:space="preserve">
+    <value>Item removed</value>
+  </data>
+  <data name="Toast.ItemsRemoved" xml:space="preserve">
+    <value>{0} items removed</value>
+  </data>
+  <data name="Sidebar.SelectItemsHint" xml:space="preserve">
+    <value>Select items to delete</value>
   </data>
 </root>

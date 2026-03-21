@@ -53,6 +53,9 @@
   <data name="Common.Delete" xml:space="preserve">
     <value>Ta bort</value>
   </data>
+  <data name="Common.ErrorOccurred" xml:space="preserve">
+    <value>Något gick fel. Försök igen.</value>
+  </data>
   <data name="Common.Deleting" xml:space="preserve">
     <value>Tar bort...</value>
   </data>
@@ -823,5 +826,32 @@
   </data>
   <data name="Toast.ImagesAdded" xml:space="preserve">
     <value>{0} bilder har lagts till i presentationen</value>
+  </data>
+  <data name="Sidebar.Select" xml:space="preserve">
+    <value>Välj</value>
+  </data>
+  <data name="Sidebar.DoneEditing" xml:space="preserve">
+    <value>Klar</value>
+  </data>
+  <data name="Sidebar.DeleteSelected" xml:space="preserve">
+    <value>Radera markerade ({0})</value>
+  </data>
+  <data name="Presentation.ConfirmRemoveItemSingle" xml:space="preserve">
+    <value>Vill du ta bort detta objekt?</value>
+  </data>
+  <data name="Presentation.ConfirmRemoveItems" xml:space="preserve">
+    <value>Vill du ta bort {0} objekt?</value>
+  </data>
+  <data name="Sidebar.SelectAll" xml:space="preserve">
+    <value>Markera alla</value>
+  </data>
+  <data name="Toast.ItemRemoved" xml:space="preserve">
+    <value>Objekt borttaget</value>
+  </data>
+  <data name="Toast.ItemsRemoved" xml:space="preserve">
+    <value>{0} objekt borttagna</value>
+  </data>
+  <data name="Sidebar.SelectItemsHint" xml:space="preserve">
+    <value>Välj objekt att radera</value>
   </data>
 </root>
