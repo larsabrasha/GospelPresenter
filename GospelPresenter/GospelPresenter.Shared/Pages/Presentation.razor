@@ -18,7 +18,6 @@
 @inject ISongService SongService
 @inject IBibleTextService BibleTextService
 @inject IPresentationService PresentationService
-@inject IOrganizationImageService OrganizationImageService
 @inject IJSRuntime JsRuntime
 
 @implements IDisposable
@@ -604,7 +603,9 @@
     [JSInvokable]
     public void OnPresentationStateChanged(bool active)
     {
-        SharedAppState.SetPresentationActive(AppState.SessionId, active);
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        SharedAppState.SetPresentationActive(AppState.SessionId, active, orgId);
     }
 
     [JSInvokable]
@@ -774,11 +775,8 @@
         var partIds = SelectedImage.PartIds.ToList();
         foreach (var img in images)
         {
-            if (img.FullData is not null)
-            {
-                urls.Add($"data:{img.ContentType};base64,{Convert.ToBase64String(img.FullData)}");
-                partIds.Add(newParts[images.IndexOf(img)].Id);
-            }
+            urls.Add(ImageUrlHelper.OrgImageUrl(img.Id, "full"));
+            partIds.Add(newParts[images.IndexOf(img)].Id);
         }
         SelectedImage = new Image(SelectedImage.Id, urls, partIds);
 
@@ -978,26 +976,12 @@
                     var partIds = new List<string>();
                     if (imageItem.Parts.Count > 0)
                     {
-                        var orgId = OrgState.ActiveOrganizationId;
-                        if (orgId is not null)
+                        foreach (var part in imageItem.Parts.OrderBy(p => p.SortOrder))
                         {
-                            foreach (var part in imageItem.Parts.OrderBy(p => p.SortOrder))
-                            {
-                                var orgImage = await OrganizationImageService.GetImageByIdAsync(part.Content, orgId, OrgState.ToCallerContext());
-                                if (orgImage?.FullData is not null)
-                                {
-                                    urls.Add($"data:{orgImage.ContentType};base64,{Convert.ToBase64String(orgImage.FullData)}");
-                                    partIds.Add(part.Id);
-                                }
-                            }
+                            urls.Add(ImageUrlHelper.OrgImageUrl(part.Content, "full"));
+                            partIds.Add(part.Id);
                         }
                     }
-                    else if (imageItem.ImageData is not null)
-                    {
-                        // Backward compatibility: single image stored directly
-                        urls.Add($"data:image/jpeg;base64,{Convert.ToBase64String(imageItem.ImageData)}");
-                    }
-
                     if (urls.Count > 0)
                     {
                         SelectedImage = new Image(imageItem.Id, urls, partIds);
@@ -1045,9 +1029,11 @@
             }
             case ProjectItemType.Image:
             {
-                if (SelectedImage is not null && partIndex < SelectedImage.Urls.Count)
+                var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
+                var parts = imageItem?.Parts.OrderBy(p => p.SortOrder).ToList();
+                if (parts is not null && partIndex < parts.Count)
                 {
-                    imageUrl = SelectedImage.Urls[partIndex];
+                    imageUrl = ImageUrlHelper.LiveOrgImageUrl(AppState.SessionId, parts[partIndex].Content, "full");
                 }
 
                 break;
@@ -1101,9 +1087,9 @@
         {
             activeOverlayId = overlay.Id;
             string? imageUrl = null;
-            if (overlay.ImageData is not null)
+            if (overlay.HasImage)
             {
-                imageUrl = $"data:image/png;base64,{Convert.ToBase64String(overlay.ImageData)}";
+                imageUrl = ImageUrlHelper.LiveOverlayImageUrl(AppState.SessionId, overlay.Id);
             }
             SharedAppState.SetOverlay(AppState.SessionId, overlay.Content, imageUrl);
         }
@@ -1417,7 +1403,6 @@
             SourceId = images[0].Id,
             Type = PresentationItemType.Image,
             Title = title,
-            ImageData = images[0].FullData,
             Parts = parts
         };
 

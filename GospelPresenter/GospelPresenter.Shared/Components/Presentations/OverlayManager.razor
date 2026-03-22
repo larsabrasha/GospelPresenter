@@ -52,9 +52,9 @@ else
             {
                 <button class="flex items-center gap-3 p-3 rounded-xl text-left cursor-pointer bg-neutral-100 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600"
                         @onclick="() => EditOverlay(overlay)">
-                    @if (overlay.ImageData is not null)
+                    @if (overlay.HasImage)
                     {
-                        <img src="data:image/png;base64,@Convert.ToBase64String(overlay.ImageData)"
+                        <img src="@ImageUrlHelper.OverlayImageUrl(overlay.Id)"
                              alt="" class="w-16 h-9 object-cover rounded border border-neutral-200 dark:border-neutral-600 shrink-0"/>
                     }
                     else

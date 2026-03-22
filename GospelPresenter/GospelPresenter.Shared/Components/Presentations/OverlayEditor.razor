@@ -29,10 +29,13 @@
         </div>
         <div>
             <label class="block text-sm font-medium mb-1">@L["OverlayEditor.ImageOptional"]</label>
-            @if (Overlay.ImageData is not null)
+            @if (Overlay.ImageData is not null || Overlay.HasImage)
             {
+                var imgSrc = Overlay.ImageData is not null
+                    ? $"data:{Overlay.ImageContentType};base64,{Convert.ToBase64String(Overlay.ImageData)}"
+                    : ImageUrlHelper.OverlayImageUrl(Overlay.Id);
                 <div class="flex items-center gap-3">
-                    <img src="data:image/png;base64,@Convert.ToBase64String(Overlay.ImageData)" alt="@L["OverlayEditor.Preview"]" class="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600"/>
+                    <img src="@imgSrc" alt="@L["OverlayEditor.Preview"]" class="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600"/>
                     <div class="flex flex-col gap-1">
                         <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
                             @L["Common.ChangeImage"]
@@ -111,6 +114,7 @@
     private async Task RemoveImage()
     {
         Overlay.ImageData = null;
+        Overlay.HasImage = false;
         await OnChanged.InvokeAsync(Overlay);
     }
 
@@ -126,6 +130,7 @@
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
         Overlay.ImageData = ms.ToArray();
+        Overlay.ImageContentType = file.ContentType;
         await OnChanged.InvokeAsync(Overlay);
     }
 }

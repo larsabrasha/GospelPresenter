@@ -3,6 +3,7 @@ using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
+using GospelPresenter.Shared.State;
 using GospelPresenter.Web.Configuration;
 using GospelPresenter.Web.Services;
 using Microsoft.AspNetCore.Authentication;
@@ -399,6 +400,93 @@ builder.Services.AddMetricServer(options =>
 
         return Results.LocalRedirect(returnUrl ?? "/");
     }).RequireAuthorization();
+
+    // Auth check runs on every request (DB lookup) even though the response is cached
+    // with immutable — this is intentional: browsers cache after the first authorized hit,
+    // but unauthenticated/unauthorized requests are always rejected.
+    app.MapGet("/api/images/{type}/{id}/{variant}", async (
+        string type, string id, string variant,
+        HttpContext context,
+        IObjectStorageService storage,
+        IOrganizationImageService imageService,
+        IPresentationService presentationService) =>
+    {
+        var userId = context.User.FindFirst("user_id")?.Value;
+        if (userId is null) return Results.Unauthorized();
+
+        var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
+        var orgId = context.User.FindFirst("organization_id")?.Value;
+        var caller = new CallerContext(userId, role, orgId);
+
+        if (orgId is null) return Results.Forbid();
+
+        string s3Key;
+        try
+        {
+            s3Key = type switch
+            {
+                "org-image" => ImageUrlHelper.OrgImageKey(orgId, id, variant),
+                "overlay" => ImageUrlHelper.OverlayImageKey(orgId, id),
+                _ => throw new ArgumentException($"Unknown image type: {type}")
+            };
+
+            // Verify entity exists and belongs to caller's org
+            switch (type)
+            {
+                case "org-image":
+                    var image = await imageService.GetImageByIdAsync(id, orgId, caller);
+                    if (image is null) return Results.NotFound();
+                    break;
+                case "overlay":
+                    var overlay = await presentationService.GetOverlayByIdAsync(id, orgId, caller);
+                    if (overlay is null) return Results.NotFound();
+                    break;
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Results.Forbid();
+        }
+
+        var result = await storage.GetAsync(s3Key);
+        if (result is null) return Results.NotFound();
+
+        var (stream, contentType) = result.Value;
+        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        return Results.File(stream, contentType);
+    }).RequireAuthorization();
+
+    // Unauthenticated endpoint for the live view — only serves images while the session's presentation is active.
+    // Org isolation is enforced by the S3 key structure: org/{orgId}/..., so an image from
+    // another org simply won't exist at the path built from this session's org.
+    app.MapGet("/api/live-images/{sessionId}/{type}/{id}/{variant}", async (
+        string sessionId, string type, string id, string variant,
+        HttpContext context,
+        SharedAppState sharedAppState,
+        IObjectStorageService storage) =>
+    {
+        if (!sharedAppState.IsPresentationActive(sessionId))
+            return Results.NotFound();
+
+        var orgId = sharedAppState.GetSessionOrganizationId(sessionId);
+        if (orgId is null) return Results.NotFound();
+
+        var s3Key = type switch
+        {
+            "org-image" => ImageUrlHelper.OrgImageKey(orgId, id, variant),
+            "overlay" => ImageUrlHelper.OverlayImageKey(orgId, id),
+            _ => null
+        };
+
+        if (s3Key is null) return Results.NotFound();
+
+        var result = await storage.GetAsync(s3Key);
+        if (result is null) return Results.NotFound();
+
+        var (stream, contentType) = result.Value;
+        context.Response.Headers.CacheControl = "public, max-age=3600";
+        return Results.File(stream, contentType);
+    }).AllowAnonymous();
 
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

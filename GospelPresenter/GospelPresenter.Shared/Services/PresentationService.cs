@@ -27,7 +27,9 @@ public interface IPresentationService
     Task RemoveOverlayAsync(string organizationId, string overlayId, CallerContext caller, CancellationToken cancellationToken = default);
 }
 
-public class PresentationService(IDbContextFactory<PresentationContext> dbContextFactory) : IPresentationService
+public class PresentationService(
+    IDbContextFactory<PresentationContext> dbContextFactory,
+    IObjectStorageService storage) : IPresentationService
 {
     public async Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
@@ -304,14 +306,24 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
 
         overlay.OrganizationId = organizationId;
 
+        var uploadedKey = await UploadOverlayImageAsync(overlay, organizationId, cancellationToken);
+
         var maxSortOrder = await context.OverlaySlides
             .Where(x => x.OrganizationId == organizationId)
             .MaxAsync(x => (int?)x.SortOrder, cancellationToken) ?? -1;
 
         overlay.SortOrder = maxSortOrder + 1;
 
-        context.OverlaySlides.Add(overlay);
-        await context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            context.OverlaySlides.Add(overlay);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception) when (uploadedKey is not null)
+        {
+            await storage.DeleteAsync(uploadedKey, cancellationToken);
+            throw;
+        }
     }
 
     public async Task UpdateOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default)
@@ -324,8 +336,24 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
             .FirstOrDefaultAsync(x => x.Id == overlay.Id && x.OrganizationId == organizationId, cancellationToken);
         if (existing is null) return;
 
-        context.Entry(existing).CurrentValues.SetValues(overlay);
-        await context.SaveChangesAsync(cancellationToken);
+        var removingImage = existing.HasImage && !overlay.HasImage && overlay.ImageData is null;
+        var uploadedKey = await UploadOverlayImageAsync(overlay, organizationId, cancellationToken);
+
+        try
+        {
+            context.Entry(existing).CurrentValues.SetValues(overlay);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception) when (uploadedKey is not null)
+        {
+            await storage.DeleteAsync(uploadedKey, cancellationToken);
+            throw;
+        }
+
+        if (removingImage)
+        {
+            await storage.DeleteAsync(ImageUrlHelper.OverlayImageKey(organizationId, overlay.Id), cancellationToken);
+        }
     }
 
     public async Task RemoveOverlayAsync(string organizationId, string overlayId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -337,5 +365,19 @@ public class PresentationService(IDbContextFactory<PresentationContext> dbContex
         await context.OverlaySlides
             .Where(x => x.OrganizationId == organizationId && x.Id == overlayId)
             .ExecuteDeleteAsync(cancellationToken);
+
+        await storage.DeleteAsync(ImageUrlHelper.OverlayImageKey(organizationId, overlayId), cancellationToken);
+    }
+
+    private async Task<string?> UploadOverlayImageAsync(OverlaySlide overlay, string organizationId, CancellationToken cancellationToken)
+    {
+        if (overlay.ImageData is null) return null;
+
+        var key = ImageUrlHelper.OverlayImageKey(organizationId, overlay.Id);
+        await storage.UploadAsync(key, overlay.ImageData, overlay.ImageContentType ?? "image/png", cancellationToken);
+        overlay.HasImage = true;
+        overlay.ImageData = null;
+        overlay.ImageContentType = null;
+        return key;
     }
 }

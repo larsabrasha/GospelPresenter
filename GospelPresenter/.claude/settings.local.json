@@ -2,26 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(dotnet test:*)",
-      "Bash(git status:*)",
-      "Bash(git:*)",
       "Bash(dotnet build:*)",
-      "Bash(dotnet ef:*)",
-      "Bash(dotnet package:*)",
-      "Bash(grep:*)",
-      "Bash(brew list:*)",
-      "Bash(echo === $\\(basename \"$f\"\\) ===:*)",
-      "Bash(find:*)",
-      "Bash(strings:*)",
-      "Bash(python3:*)",
-      "Bash(gh api:*)",
-      "Bash(gh repo:*)",
-      "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(cd /Users/larsar/Developer/GospelPresenter/GospelPresenter/GospelPresenter.Web && dotnet add package Auth0.AspNetCore.Authentication)",
-      "Bash(find /Users/larsar/Developer/GospelPresenter/GospelPresenter -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) 2>/dev/null | head -20)",
-      "Bash(ls GospelPresenter.*/GospelPresenter.*.csproj)",
-      "WebSearch",
-      "Bash(dotnet add:*)"
+      "Bash(git status:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

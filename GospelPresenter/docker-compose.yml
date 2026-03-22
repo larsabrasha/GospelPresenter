@@ -15,13 +15,38 @@ services:
       timeout: 5s
       retries: 5
 
+  garage:
+    image: dxflrs/garage:v2.2.0
+    container_name: gospelpresenter-garage
+    restart: always
+    environment:
+      GARAGE_ALLOW_WORLD_READABLE_SECRETS: "true"
+    volumes:
+      - garage-data:/var/lib/garage/data
+      - garage-meta:/var/lib/garage/meta
+      - ./garage.toml:/etc/garage.toml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3903/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   migrations:
     image: ghcr.io/larsabrasha/gospelpresenter-migrations:release
     container_name: gospelpresenter-migrations
     environment:
       ConnectionStrings__postgresdb: "Host=postgres;Database=gospelpresenter;Username=gospelpresenter;Password=${POSTGRES_PASSWORD}"
+      S3__Endpoint: http://garage:3900
+      S3__AccessKey: ${S3_ACCESS_KEY}
+      S3__SecretKey: ${S3_SECRET_KEY}
+      S3__BucketName: ${S3_BUCKET_NAME:-gospelpresenter}
+      S3__Region: garage
+      S3__AdminEndpoint: http://garage:3903
+      S3__AdminToken: ${S3_ADMIN_TOKEN:-gospelpresenter-admin-token}
     depends_on:
       postgres:
+        condition: service_healthy
+      garage:
         condition: service_healthy
 
   web:
@@ -35,6 +60,11 @@ services:
       ConnectionStrings__postgresdb: "Host=postgres;Database=gospelpresenter;Username=gospelpresenter;Password=${POSTGRES_PASSWORD}"
       Settings__DataProtectionKeysDirectory: /app/data-protection-keys
       Settings__BiblesPath: /app/data/bibles
+      S3__Endpoint: http://garage:3900
+      S3__AccessKey: ${S3_ACCESS_KEY}
+      S3__SecretKey: ${S3_SECRET_KEY}
+      S3__BucketName: ${S3_BUCKET_NAME:-gospelpresenter}
+      S3__Region: garage
       Authentication__OpenIdConnect__Enabled: ${OIDC_ENABLED:-false}
       Authentication__OpenIdConnect__Authority: ${OIDC_AUTHORITY:-}
       Authentication__OpenIdConnect__ClientId: ${OIDC_CLIENT_ID:-}
@@ -53,3 +83,5 @@ services:
 volumes:
   postgres-data:
   data-protection-keys:
+  garage-data:
+  garage-meta:

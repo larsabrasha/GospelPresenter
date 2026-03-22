@@ -12,7 +12,9 @@ public interface IOrganizationImageService
     Task DeleteImageAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
 }
 
-public class OrganizationImageService(IDbContextFactory<PresentationContext> dbContextFactory) : IOrganizationImageService
+public class OrganizationImageService(
+    IDbContextFactory<PresentationContext> dbContextFactory,
+    IObjectStorageService storage) : IOrganizationImageService
 {
     public async Task<List<OrganizationImage>> GetImagesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
@@ -27,7 +29,6 @@ public class OrganizationImageService(IDbContextFactory<PresentationContext> dbC
             {
                 Id = x.Id,
                 FileName = x.FileName,
-                ThumbnailData = x.ThumbnailData,
                 ContentType = x.ContentType,
                 CreatedAt = x.CreatedAt,
                 OrganizationId = x.OrganizationId
@@ -54,14 +55,24 @@ public class OrganizationImageService(IDbContextFactory<PresentationContext> dbC
         var image = new OrganizationImage
         {
             FileName = fileName,
-            ThumbnailData = thumbnailData,
-            FullData = fullData,
             ContentType = contentType,
             OrganizationId = organizationId
         };
 
-        context.OrganizationImages.Add(image);
-        await context.SaveChangesAsync(cancellationToken);
+        await Task.WhenAll(
+            storage.UploadAsync(ImageUrlHelper.OrgImageKey(organizationId, image.Id, "full"), fullData, contentType, cancellationToken),
+            storage.UploadAsync(ImageUrlHelper.OrgImageKey(organizationId, image.Id, "thumb"), thumbnailData, contentType, cancellationToken));
+
+        try
+        {
+            context.OrganizationImages.Add(image);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception)
+        {
+            await storage.DeleteByPrefixAsync(ImageUrlHelper.OrgImagePrefix(organizationId, image.Id), cancellationToken);
+            throw;
+        }
 
         return image;
     }
@@ -75,5 +86,7 @@ public class OrganizationImageService(IDbContextFactory<PresentationContext> dbC
         await context.OrganizationImages
             .Where(x => x.Id == id && x.OrganizationId == organizationId)
             .ExecuteDeleteAsync(cancellationToken);
+
+        await storage.DeleteByPrefixAsync(ImageUrlHelper.OrgImagePrefix(organizationId, id), cancellationToken);
     }
 }

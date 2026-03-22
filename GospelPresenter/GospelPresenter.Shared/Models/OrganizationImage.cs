@@ -4,8 +4,6 @@ public class OrganizationImage
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string FileName { get; set; } = "";
-    public byte[] ThumbnailData { get; set; } = [];
-    public byte[] FullData { get; set; } = [];
     public string ContentType { get; set; } = "image/jpeg";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 

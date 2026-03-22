@@ -61,9 +61,9 @@
                 {
                     <a href="/admin/overlays/@overlay.Id"
                        class="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
-                        @if (overlay.ImageData is not null)
+                        @if (overlay.HasImage)
                         {
-                            <img src="data:image/png;base64,@Convert.ToBase64String(overlay.ImageData)"
+                            <img src="@ImageUrlHelper.OverlayImageUrl(overlay.Id)"
                                  alt="" class="w-16 h-9 object-cover rounded border border-neutral-200 dark:border-neutral-600 shrink-0"/>
                         }
                         else

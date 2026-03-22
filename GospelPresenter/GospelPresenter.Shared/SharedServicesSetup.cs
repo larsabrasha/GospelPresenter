@@ -1,3 +1,4 @@
+using GospelPresenter.Shared.Configuration;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using Microsoft.Extensions.Configuration;
@@ -20,5 +21,15 @@ public static class SharedServicesSetup
         services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IBibleService, BibleService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
+
+        if (configuration is not null)
+        {
+            services.Configure<S3Options>(configuration.GetSection("S3"));
+            services.AddSingleton<IObjectStorageService, ObjectStorageService>();
+        }
+        else
+        {
+            services.AddSingleton<IObjectStorageService, NullObjectStorageService>();
+        }
     }
 }

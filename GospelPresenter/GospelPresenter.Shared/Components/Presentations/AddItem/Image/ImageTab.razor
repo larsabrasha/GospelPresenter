@@ -3,10 +3,12 @@
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Logging
 
 @inject IOrganizationImageService OrganizationImageService
 @inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
+@inject ILogger<ImageTab> Logger
 
 <div @onkeydown="OnKeyDown" tabindex="-1" class="h-full">
 @if (isLoading)
@@ -54,7 +56,7 @@ else
                             }
                             <button class="relative rounded-lg cursor-pointer transition-shadow ring-3 @(isSelected ? "ring-sky-500" : "ring-transparent")"
                                     @onclick="() => ToggleImage(image)">
-                                <img src="data:@image.ContentType;base64,@Convert.ToBase64String(image.ThumbnailData)"
+                                <img src="@ImageUrlHelper.OrgImageUrl(image.Id, "thumb")"
                                      alt="@image.FileName"
                                      class="block max-w-full max-h-32 rounded-lg"/>
                                 @if (isSelected)
@@ -233,8 +235,9 @@ else
 
                 images.Insert(0, image);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Logger.LogError(ex, "Failed to upload image {FileName}", file.Name);
                 failedCount++;
             }
 
@@ -264,18 +267,10 @@ else
         return string.Join(", ", selected.Select(i => i.FileName));
     }
 
-    private async Task<List<OrganizationImage>> GetSelectedFullImages()
+    private Task<List<OrganizationImage>> GetSelectedFullImages()
     {
-        var result = new List<OrganizationImage>();
-        foreach (var id in selectedImages)
-        {
-            var fullImage = await OrganizationImageService.GetImageByIdAsync(id, organizationId!, OrgState.ToCallerContext());
-            if (fullImage is not null)
-            {
-                result.Add(fullImage);
-            }
-        }
-        return result;
+        var result = images.Where(i => selectedImages.Contains(i.Id)).ToList();
+        return Task.FromResult(result);
     }
 
     private async Task HandleAdd()
