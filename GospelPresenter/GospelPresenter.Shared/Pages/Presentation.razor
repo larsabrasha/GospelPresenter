@@ -363,10 +363,9 @@
             <div class="font-semibold text-lg">@L["Presentation.SessionExpired"]</div>
             <div>@L["Presentation.SessionExpiredDescription"]</div>
             <div class="flex justify-end">
-                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
-                        @onclick="DismissSessionExpired">
+                <AppButton Variant="ButtonVariant.Primary" OnClick="DismissSessionExpired">
                     @L["Common.OK"]
-                </button>
+                </AppButton>
             </div>
         </div>
     </div>
@@ -400,14 +399,12 @@
             <div class="font-semibold text-lg">@L["Common.Delete"]</div>
             <div>@L["Presentation.ConfirmRemoveImage"]</div>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="() => imagePartToRemoveIndex = null">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="() => imagePartToRemoveIndex = null">
                     @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
-                        @onclick="ConfirmAndRemoveImagePart">
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled OnClick="ConfirmAndRemoveImagePart">
                     @L["Common.Delete"]
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>
@@ -420,14 +417,12 @@
             <div class="font-semibold text-lg">@L["Common.Delete"]</div>
             <div>@((MarkupString)L["Presentation.ConfirmRemoveItem", itemToRemove.Title].Value)</div>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CancelRemove">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelRemove">
                     @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
-                        @onclick="RemoveItemAsync">
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled OnClick="RemoveItemAsync">
                     @L["Common.Delete"]
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>
@@ -449,26 +444,12 @@
                 }
             </div>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        disabled="@isRemovingMultiple"
-                        @onclick="CancelRemoveMultiple">
+                <AppButton Variant="ButtonVariant.Cancel" Disabled="isRemovingMultiple" OnClick="CancelRemoveMultiple">
                     @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled="@isRemovingMultiple"
-                        @onclick="RemoveMultipleItemsAsync">
-                    @if (isRemovingMultiple)
-                    {
-                        <svg class="animate-spin size-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                        </svg>
-                    }
-                    else
-                    {
-                        @L["Common.Delete"]
-                    }
-                </button>
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled Disabled="isRemovingMultiple" Loading="isRemovingMultiple" OnClick="RemoveMultipleItemsAsync">
+                    @L["Common.Delete"]
+                </AppButton>
             </div>
         </div>
     </Dialog>
@@ -491,14 +472,12 @@
             <div class="font-semibold text-lg">@L["Presentation.DeletePresentation"]</div>
             <div>@((MarkupString)L["Presentation.ConfirmDeletePresentation", AppState.SelectedProject?.Name ?? ""].Value)</div>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CancelDeletePresentation">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDeletePresentation">
                     @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
-                        @onclick="DeletePresentationAsync">
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled OnClick="DeletePresentationAsync">
                     @L["Common.Remove"]
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>

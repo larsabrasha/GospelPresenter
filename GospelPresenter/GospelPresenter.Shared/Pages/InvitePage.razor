@@ -67,7 +67,7 @@
     }
     else
     {
-        <div class="text-lg dark:text-neutral-100 mb-4">@((MarkupString)L["Invite.Welcome", userName].Value)</div>
+        <div class="text-lg dark:text-neutral-100 mb-4">@((MarkupString)L["Invite.Welcome", userName ?? string.Empty].Value)</div>
 
         <div class="flex flex-col p-3 w-full sm:w-140 items-center gap-3">
             @{ var providers = AuthProviders.EnabledProviders; }

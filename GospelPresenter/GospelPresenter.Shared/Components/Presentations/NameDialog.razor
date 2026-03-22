@@ -9,15 +9,12 @@
                @bind:event="oninput"
                @onkeydown="OnKeyDown"/>
         <div class="flex justify-end gap-3">
-            <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                    @onclick="OnClose">
+            <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
                 @L["Common.Cancel"]
-            </button>
-            <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
-                    disabled="@(isSaving || string.IsNullOrWhiteSpace(name))"
-                    @onclick="Save">
+            </AppButton>
+            <AppButton Variant="ButtonVariant.Primary" Disabled="@(isSaving || string.IsNullOrWhiteSpace(name))" OnClick="Save">
                 @(isSaving && SaveLoadingText is not null ? SaveLoadingText : SaveText)
-            </button>
+            </AppButton>
         </div>
     </div>
 </Dialog>

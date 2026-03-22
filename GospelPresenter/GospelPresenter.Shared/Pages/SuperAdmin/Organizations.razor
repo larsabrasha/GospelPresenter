@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "SuperAdmin")]
 
 @using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Components.Symbols
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
@@ -14,13 +15,12 @@
 @inject ActiveOrganizationState OrgState
 @inject NavigationManager NavigationManager
 
-<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+<PageContainer>
     <div class="flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Orgs.Title"]</div>
-        <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm"
-                @onclick="ShowCreateDialog">
-            @L["Orgs.New"]
-        </button>
+        <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center">
+            <PlusSymbol Class="size-4 mr-2"/>@L["Orgs.New"]
+        </AppButton>
     </div>
 
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
@@ -60,7 +60,7 @@
             }
         }
     </div>
-</div>
+</PageContainer>
 
 @if (showCreateDialog)
 {
@@ -77,15 +77,14 @@
                        @onkeydown="OnDialogKeyDown"/>
             </div>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CloseDialog">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
                     @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
-                        disabled="@(isCreating || string.IsNullOrWhiteSpace(newOrgName))"
-                        @onclick="CreateOrganization">
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary"
+                           Disabled="@(isCreating || string.IsNullOrWhiteSpace(newOrgName))"
+                           OnClick="CreateOrganization">
                     @(isCreating ? L["Common.Creating"] : L["Common.Create"])
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>

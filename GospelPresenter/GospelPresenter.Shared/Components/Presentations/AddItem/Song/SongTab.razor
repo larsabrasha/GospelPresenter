@@ -21,21 +21,19 @@ else if (OrgSongs.Count == 0)
         <p class="text-neutral-400 dark:text-neutral-500">@L["SongTab.NoSongs"]</p>
         @if (OrgState.HasPermission(Permission.ManageSongs))
         {
-            <a href="/admin/songs"
-               class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5">
+            <AppButton Variant="ButtonVariant.Secondary" Href="/admin/songs" Class="flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75"/>
                 </svg>
                 @L["SongTab.ManageSongs"]
-            </a>
+            </AppButton>
         }
-        <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
-                @onclick="EnterCreateMode">
+        <AppButton Variant="ButtonVariant.Secondary" OnClick="EnterCreateMode" Class="flex items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
             </svg>
             @L["SongTab.CreateNewSong"]
-        </button>
+        </AppButton>
     </div>
 }
 else
@@ -53,12 +51,11 @@ else
                        @oninput="OnSearchInput"/>
                 @if (!string.IsNullOrEmpty(query))
                 {
-                    <button class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
-                            @onclick="ClearSearch">
+                    <AppButton Variant="ButtonVariant.Icon" OnClick="ClearSearch" Class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
                         </svg>
-                    </button>
+                    </AppButton>
                 }
             </div>
         </div>
@@ -80,13 +77,12 @@ else
                         </Virtualize>
                     </div>
                     <div class="shrink-0">
-                        <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
-                                @onclick="EnterCreateMode">
+                        <AppButton Variant="ButtonVariant.Secondary" OnClick="EnterCreateMode" Class="flex items-center gap-1.5">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                             </svg>
                             @L["SongTab.CreateNewSong"]
-                        </button>
+                        </AppButton>
                     </div>
                 </div>
 
@@ -130,13 +126,12 @@ else
             {
                 <div class="flex flex-col items-center justify-center w-full text-neutral-400 text-sm gap-3">
                     <div>@L["SongTab.NoSongsFound"]</div>
-                    <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5 self-start"
-                            @onclick="EnterCreateMode">
+                    <AppButton Variant="ButtonVariant.Secondary" OnClick="EnterCreateMode" Class="flex items-center gap-1.5 self-start">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                         </svg>
                         @L["SongTab.CreateNewSong"]
-                    </button>
+                    </AppButton>
                 </div>
             }
         </div>
@@ -145,12 +140,11 @@ else
         {
             <div class="md:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800">
                 <div class="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
-                    <button class="size-8 flex items-center justify-center rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer"
-                            @onclick="CloseMobilePreview">
+                    <AppButton Variant="ButtonVariant.Icon" OnClick="CloseMobilePreview">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
                         </svg>
-                    </button>
+                    </AppButton>
                     <div class="flex-1 min-w-0">
                         <div class="font-semibold text-sm truncate">@mobilePreviewSong.Name</div>
                         @if (!string.IsNullOrEmpty(mobilePreviewSong.Author))
@@ -180,11 +174,9 @@ else
                 </div>
                 <div class="shrink-0 flex items-center justify-end gap-10 px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
                     <AddMoreCheckbox State="AddMoreState"/>
-                    <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer disabled:opacity-50 disabled:cursor-default"
-                            disabled="@isAdding"
-                            @onclick="MobileAdd">
+                    <AppButton Variant="ButtonVariant.Primary" Disabled="isAdding" OnClick="MobileAdd" Class="max-w-full inline-flex items-center gap-1">
                         <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@mobilePreviewSong.Name</span>
-                    </button>
+                    </AppButton>
                 </div>
             </div>
         }
@@ -193,11 +185,9 @@ else
         {
             <div class="shrink-0 hidden md:flex items-center justify-end gap-10 pt-4">
                 <AddMoreCheckbox State="AddMoreState"/>
-                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer disabled:opacity-50 disabled:cursor-default"
-                        disabled="@isAdding"
-                        @onclick="HandleAdd">
+                <AppButton Variant="ButtonVariant.Primary" Disabled="isAdding" OnClick="HandleAdd" Class="max-w-full inline-flex items-center gap-1">
                     <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@selectedSong.Name</span>
-                </button>
+                </AppButton>
             </div>
         }
     </div>

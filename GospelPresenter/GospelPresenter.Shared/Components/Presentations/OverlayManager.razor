@@ -35,13 +35,14 @@ else
                     @L["OverlayManager.Description"]
                 </p>
                 <div>
-                    <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5"
-                            @onclick="AddNew">
+                    <AppButton Variant="ButtonVariant.Secondary"
+                               Class="flex items-center gap-1.5"
+                               OnClick="AddNew">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                         </svg>
                         @L["OverlayManager.Add"]
-                    </button>
+                    </AppButton>
                 </div>
             </div>
         }
@@ -77,13 +78,14 @@ else
                 </button>
             }
 
-            <button class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5 self-start"
-                    @onclick="AddNew">
+            <AppButton Variant="ButtonVariant.Secondary"
+                       Class="flex items-center gap-1.5 self-start"
+                       OnClick="AddNew">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                 </svg>
                 @L["OverlayManager.Add"]
-            </button>
+            </AppButton>
         }
     </div>
 }

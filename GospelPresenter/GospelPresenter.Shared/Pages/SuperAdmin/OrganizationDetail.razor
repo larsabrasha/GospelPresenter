@@ -17,15 +17,15 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
-<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+<PageContainer>
     <div class="relative flex items-center justify-center px-7">
-        <a href="/superadmin/organizations"
-           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+        <AppButton Variant="ButtonVariant.Cancel" Href="/superadmin/organizations"
+                   Class="absolute left-0 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
             @L["Common.Back"]
-        </a>
+        </AppButton>
         <div class="text-xl font-bold dark:text-neutral-100">@(organization?.Name ?? L["OrgDetail.DefaultName"])</div>
     </div>
 
@@ -50,10 +50,10 @@
                         </label>
                         @if (!string.IsNullOrEmpty(organization.LogoSmall))
                         {
-                            <button class="text-sm text-red-600 dark:text-red-400 cursor-pointer hover:underline text-left"
-                                    @onclick="RemoveLogo">
+                            <AppButton Variant="ButtonVariant.Danger" OnClick="RemoveLogo"
+                                       Class="text-left">
                                 @L["OrgDetail.RemoveLogo"]
-                            </button>
+                            </AppButton>
                         }
                         @if (logoError is not null)
                         {
@@ -68,19 +68,18 @@
                        class="flex-1 px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
                        @bind="editName"
                        @bind:event="oninput"/>
-                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50 text-sm"
-                        disabled="@(isSaving || string.IsNullOrWhiteSpace(editName) || editName.Trim() == organization.Name)"
-                        @onclick="SaveName">
+                <AppButton Variant="ButtonVariant.Primary"
+                           Disabled="@(isSaving || string.IsNullOrWhiteSpace(editName) || editName.Trim() == organization.Name)"
+                           OnClick="SaveName">
                     @(isSaving ? L["Common.Saving"] : L["Common.Save"])
-                </button>
+                </AppButton>
             </div>
         </div>
 
         <div class="flex gap-3">
-            <button @onclick="ShowDeleteConfirmation"
-                    class="px-4 py-2.5 rounded-full text-sm text-red-600 dark:text-red-400 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20">
+            <AppButton Variant="ButtonVariant.Danger" OnClick="ShowDeleteConfirmation">
                 @L["OrgDetail.DeleteOrg"]
-            </button>
+            </AppButton>
         </div>
 
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
@@ -109,7 +108,7 @@
             }
         </div>
     }
-</div>
+</PageContainer>
 
 @if (showDeleteDialog)
 {
@@ -117,7 +116,7 @@
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["OrgDetail.DeleteOrg"]</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                @((MarkupString)L["OrgDetail.ConfirmDeleteOrg", organization?.Name].Value)
+                @((MarkupString)L["OrgDetail.ConfirmDeleteOrg", organization?.Name ?? string.Empty].Value)
             </p>
             <div class="text-sm text-neutral-600 dark:text-neutral-300 space-y-1">
                 <p class="font-medium">@L["OrgDetail.WillBeDeleted"]</p>
@@ -131,22 +130,22 @@
             </div>
             <div class="space-y-1">
                 <label class="text-sm text-neutral-600 dark:text-neutral-300">
-                    @((MarkupString)L["OrgDetail.TypeToConfirm", organization?.Name].Value)
+                    @((MarkupString)L["OrgDetail.TypeToConfirm", organization?.Name ?? string.Empty].Value)
                 </label>
                 <input @bind="deleteConfirmText" @bind:event="oninput"
                        class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                        placeholder="@organization?.Name" />
             </div>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="() => { showDeleteDialog = false; deleteConfirmText = string.Empty; }">
+                <AppButton Variant="ButtonVariant.Cancel"
+                           OnClick="() => { showDeleteDialog = false; deleteConfirmText = string.Empty; }">
                     @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600 disabled:opacity-50"
-                        disabled="@(isDeleting || deleteConfirmText != organization?.Name)"
-                        @onclick="DeleteOrganization">
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled
+                           Disabled="@(isDeleting || deleteConfirmText != organization?.Name)"
+                           OnClick="DeleteOrganization">
                     @(isDeleting ? L["Common.Deleting"] : L["Common.Delete"])
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>
@@ -166,14 +165,12 @@
                    @oninput="OnZoomSliderChanged"
                    class="w-full accent-sky-500" />
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CloseCropDialog">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseCropDialog">
                     @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
-                        @onclick="ConfirmCrop">
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="ConfirmCrop">
                     @L["Common.Confirm"]
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>

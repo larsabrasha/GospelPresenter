@@ -108,11 +108,11 @@ else
         {
             <div class="shrink-0 flex items-center justify-end gap-10 pt-4">
                 <AddMoreCheckbox State="AddMoreState"/>
-                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer disabled:opacity-50 disabled:cursor-default"
-                        disabled="@isAdding"
-                        @onclick="HandleAdd">
+                <AppButton Variant="ButtonVariant.Primary" Class="max-w-full inline-flex items-center gap-1"
+                           Disabled="isAdding"
+                           OnClick="HandleAdd">
                     <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@(selectedImages.Count == 1 ? GetSelectedImageNames() : $"{selectedImages.Count} {L["ImageTab.Images"]}")</span>
-                </button>
+                </AppButton>
             </div>
         }
     </div>
@@ -124,14 +124,12 @@ else
                 <div class="font-semibold text-lg">@L["ImageTab.DeleteImage"]</div>
                 <div>@((MarkupString)L["ImageTab.ConfirmDelete", imageToDelete.FileName].Value)</div>
                 <div class="flex justify-end gap-3">
-                    <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                            @onclick="CancelDelete">
+                    <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDelete">
                         @L["Common.Cancel"]
-                    </button>
-                    <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
-                            @onclick="DeleteImage">
+                    </AppButton>
+                    <AppButton Variant="ButtonVariant.Danger" Filled OnClick="DeleteImage">
                         @L["Common.Remove"]
-                    </button>
+                    </AppButton>
                 </div>
             </div>
         </Dialog>

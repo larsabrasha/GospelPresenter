@@ -12,18 +12,17 @@
 @inject IPresentationService PresentationService
 @inject ActiveOrganizationState OrgState
 
-<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+<PageContainer>
     <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Overlays.Title"]</div>
         @if (overlays is not null && overlays.Count > 0)
         {
-            <a href="/admin/overlays/new"
-               class="px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 flex items-center gap-1.5">
+            <AppButton Variant="ButtonVariant.Primary" Href="/admin/overlays/new" Class="flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                 </svg>
                 @L["Overlays.New"]
-            </a>
+            </AppButton>
         }
     </div>
 
@@ -47,13 +46,12 @@
                 <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
                     @L["Overlays.Description"]
                 </p>
-                <a href="/admin/overlays/new"
-                   class="px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 flex items-center gap-1.5">
+                <AppButton Variant="ButtonVariant.Secondary" Href="/admin/overlays/new" Class="flex items-center gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                     </svg>
                     @L["Overlays.Add"]
-                </a>
+                </AppButton>
             </div>
         }
         else
@@ -88,7 +86,7 @@
             </div>
         }
     </div>
-</div>
+</PageContainer>
 
 @code {
     private List<OverlaySlide>? overlays;

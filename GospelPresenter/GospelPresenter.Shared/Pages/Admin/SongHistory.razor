@@ -13,15 +13,15 @@
 @inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
 
-<div class="flex flex-col p-3 pt-8 w-full mx-auto space-y-5" style="max-width: 1200px;">
+<PageContainer MaxWidthClass="max-w-[1200px]">
     <div class="relative flex items-center justify-center px-5">
-        <a href="/admin/songs/@SongId"
-           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+        <AppButton Href="@($"/admin/songs/{SongId}")" Variant="ButtonVariant.Cancel"
+                   Class="absolute left-0 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
             @L["Common.Back"]
-        </a>
+        </AppButton>
         <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
             @L["SongHistory.Title"]
         </div>
@@ -64,11 +64,11 @@
                             }
                             <div class="text-xs text-neutral-400 mt-0.5">@FormatDate(selectedVersion.CreatedAt)</div>
                         </div>
-                        <button class="shrink-0 px-4 py-2 rounded-full text-sm bg-sky-600 text-white cursor-pointer hover:bg-sky-700 disabled:opacity-50"
-                                disabled="@isRestoring"
-                                @onclick="ConfirmRestore">
+                        <AppButton Variant="ButtonVariant.Primary" Class="shrink-0"
+                                   Disabled="@isRestoring"
+                                   OnClick="ConfirmRestore">
                             @(isRestoring ? L["SongTrash.Restoring"] : L["SongHistory.RestoreVersion"])
-                        </button>
+                        </AppButton>
                     </div>
 
                     <div class="flex flex-col gap-2">
@@ -88,7 +88,7 @@
             }
         </div>
     }
-</div>
+</PageContainer>
 
 @if (restoreConfirm)
 {
@@ -99,15 +99,14 @@
                 @(new MarkupString(L["SongHistory.ConfirmRestore", FormatDate(selectedVersion!.CreatedAt)]))
             </p>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CancelRestore">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelRestore">
                     @L["Common.Cancel"]
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-sky-600 text-white cursor-pointer hover:bg-sky-700 disabled:opacity-50"
-                        disabled="@isRestoring"
-                        @onclick="ExecuteRestore">
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary"
+                           Disabled="@isRestoring"
+                           OnClick="ExecuteRestore">
                     @L["SongTrash.Restore"]
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>
