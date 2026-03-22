@@ -412,3 +412,4 @@ GospelPresenter/GospelPresenter.Web/gospelpresenter-mock.db*
 
 # Screenshot tool output
 screenshots/
+GospelPresenter/.env

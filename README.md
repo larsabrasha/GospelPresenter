@@ -10,28 +10,15 @@ Gospel Presenter is a free and open-source presentation app built for churches. 
 
 The [`docker-compose.yml`](docker-compose.yml) uses pre-built images from GitHub Container Registry and handles PostgreSQL, database migrations, and the web app.
 
-1. Create a `.env` file next to the compose file:
+1. Copy the example environment file and edit it:
 
-    ```env
-    POSTGRES_PASSWORD=<strong-password>
-    WEB_PORT=8082
-
-    # Google (optional)
-    GOOGLE_ENABLED=true
-    GOOGLE_CLIENT_ID=
-    GOOGLE_CLIENT_SECRET=
-
-    # OpenID Connect (optional)
-    OIDC_ENABLED=true
-    OIDC_AUTHORITY=
-    OIDC_CLIENT_ID=
-    OIDC_CLIENT_SECRET=
-    OIDC_DISPLAY_NAME=Pocket ID
+    ```shell
+    cp .env.example .env
     ```
 
-    Enable at least one authentication provider. If both are enabled, users can choose which one to use on the login page.
+    At minimum, set `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`. Enable at least one authentication provider (Google or OpenID Connect). See [`.env.example`](.env.example) for all available options.
 
-2. Place your bible and song data in `bibles/` and `songs/` next to the compose file (these are mounted read-only into the container).
+2. Place your bible data in `bibles/` next to the compose file (mounted read-only into the container).
 
 3. Start everything:
 
@@ -41,7 +28,7 @@ The [`docker-compose.yml`](docker-compose.yml) uses pre-built images from GitHub
 
     The app is available at `http://localhost:8082` (or whatever `WEB_PORT` you set).
 
-On startup, the migrations container runs automatically and exits once the database is up to date. The web app starts after migrations have completed.
+On startup, the migrations container runs automatically — it creates the database schema and provisions the S3 bucket in Garage. The web app starts after migrations have completed.
 
 ---
 
@@ -50,6 +37,7 @@ On startup, the migrations container runs automatically and exits once the datab
 - [Blazor](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor) (Server) — UI framework
 - [Tailwind CSS](https://tailwindcss.com) — Styling
 - [PostgreSQL](https://www.postgresql.org) — Database
+- [Garage](https://garagehq.deuxfleurs.fr) — S3-compatible object storage for uploaded images
 - [.NET Aspire](https://learn.microsoft.com/dotnet/aspire/) — Local orchestration and observability
 - [SignalR](https://dotnet.microsoft.com/apps/aspnet/signalr) — Real-time sync
 
@@ -81,6 +69,7 @@ dotnet run --project GospelPresenter.AppHost
 
 This starts:
 - A PostgreSQL container with a persistent data volume
+- A Garage container for S3-compatible image storage
 - Database migrations (`GospelPresenter.MigrationService`)
 - The web app (`GospelPresenter.Web`)
 - pgweb on <http://localhost:5050> for database browsing
