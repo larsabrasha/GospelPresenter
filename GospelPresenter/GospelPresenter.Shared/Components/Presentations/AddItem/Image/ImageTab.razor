@@ -50,7 +50,7 @@ else
                 <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center">
                     @foreach (var image in images)
                     {
-                        <div class="relative p-2 flex flex-col items-center">
+                        <div class="relative p-2 flex flex-col items-center min-w-0">
                             @{
                                 var isSelected = selectedImages.Contains(image.Id);
                             }
@@ -90,7 +90,7 @@ else
                                     </Dropdown>
                                 </div>
                             </button>
-                            <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center">@image.FileName</p>
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full">@image.FileName</p>
                         </div>
                     }
                 </div>
