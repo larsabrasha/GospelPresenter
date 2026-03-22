@@ -1,0 +1,45 @@
+namespace GospelPresenter.Shared.Models;
+
+public static class PermissionMap
+{
+    private static readonly Dictionary<UserRole, HashSet<Permission>> rolePermissions = new()
+    {
+        [UserRole.User] =
+        [
+            Permission.ViewPresentations,
+            Permission.ManagePresentations,
+            Permission.ViewOrganizationImages,
+            Permission.ManageOrganizationImages,
+            Permission.ViewSongs,
+            Permission.ManageSongs,
+            Permission.ViewOverlays,
+            Permission.ManageOverlays
+        ],
+        [UserRole.Admin] =
+        [
+            Permission.ViewPresentations,
+            Permission.ManagePresentations,
+            Permission.ViewOrganizationImages,
+            Permission.ManageOrganizationImages,
+            Permission.ViewSongs,
+            Permission.ManageSongs,
+            Permission.ViewOverlays,
+            Permission.ManageOverlays,
+            Permission.ViewUsers,
+            Permission.ManageUsers
+        ],
+        [UserRole.SuperAdmin] = [..Enum.GetValues<Permission>()]
+    };
+
+    public static HashSet<Permission> GetPermissions(UserRole role)
+    {
+        return rolePermissions.TryGetValue(role, out var permissions)
+            ? permissions
+            : new HashSet<Permission>();
+    }
+
+    public static bool HasPermission(UserRole role, Permission permission)
+    {
+        return GetPermissions(role).Contains(permission);
+    }
+}

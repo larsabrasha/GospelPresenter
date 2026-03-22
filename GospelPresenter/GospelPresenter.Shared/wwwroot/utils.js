@@ -1,3 +1,24 @@
+window.setTheme = function (theme) {
+    localStorage.setItem('theme', theme);
+    applyTheme();
+};
+
+window.getTheme = function () {
+    return localStorage.getItem('theme') || 'system';
+};
+
+function applyTheme() {
+    var theme = localStorage.getItem('theme') || 'system';
+    var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', dark);
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
+    if ((localStorage.getItem('theme') || 'system') === 'system') {
+        applyTheme();
+    }
+});
+
 window.getOrCreateSessionId = function () {
     let id = sessionStorage.getItem('session-id');
     if (!id) {
@@ -17,7 +38,7 @@ window.initSortableList = function (elementId, dotNetRef) {
         delay: 150,
         delayOnTouchOnly: true,
         touchStartThreshold: 5,
-        ghostClass: 'opacity-30',
+        ghostClass: 'opacity-0',
         onEnd: function (evt) {
             if (evt.oldIndex !== evt.newIndex) {
                 // Revert the DOM change — let Blazor handle the reorder via its own rendering
@@ -77,6 +98,19 @@ window.closeModal = function(element) {
         element.addEventListener('transitionend', done, { once: true });
         element.close();
     });
+}
+
+window.showPopoverElement = function(element) {
+    element.showPopover();
+}
+
+window.hidePopoverElement = function(element) {
+    element.hidePopover();
+}
+
+window.scrollSidebarItemIntoView = function(itemId) {
+    var el = document.querySelector('#sidebar-item-list [data-id="' + CSS.escape(itemId) + '"]');
+    if (el) el.scrollIntoView({ block: 'nearest' });
 }
 
 window.liveViewChannel = new BroadcastChannel('gospel-live');
@@ -394,6 +428,46 @@ window.destroyImageCropper = function(containerId) {
     const state = window.imageCropperState[containerId];
     if (state && state.cleanup) state.cleanup();
     delete window.imageCropperState[containerId];
+};
+
+window.positionDropdown = function(element) {
+    if (!element) return;
+
+    // Reset any previous inline adjustments
+    element.style.removeProperty('top');
+    element.style.removeProperty('bottom');
+    element.style.removeProperty('margin-top');
+    element.style.removeProperty('margin-bottom');
+    element.style.removeProperty('max-height');
+    element.style.removeProperty('overflow-y');
+
+    var rect = element.getBoundingClientRect();
+    var viewportHeight = window.innerHeight;
+    var margin = 8;
+
+    // If dropdown fits in viewport, nothing to do
+    if (rect.bottom <= viewportHeight - margin) return;
+
+    var parent = element.offsetParent || element.parentElement;
+    var parentRect = parent.getBoundingClientRect();
+    var spaceAbove = parentRect.top;
+    var spaceBelow = viewportHeight - parentRect.bottom;
+
+    if (spaceAbove > spaceBelow) {
+        // Flip to open upward
+        element.style.top = 'auto';
+        element.style.bottom = '100%';
+        element.style.marginBottom = '0.25rem';
+        element.style.marginTop = '0';
+        if (rect.height > spaceAbove - margin) {
+            element.style.maxHeight = (spaceAbove - margin) + 'px';
+            element.style.overflowY = 'auto';
+        }
+    } else {
+        // Keep below but constrain height
+        element.style.maxHeight = (spaceBelow - margin) + 'px';
+        element.style.overflowY = 'auto';
+    }
 };
 
 window.initLiveViewListener = function(sessionId) {

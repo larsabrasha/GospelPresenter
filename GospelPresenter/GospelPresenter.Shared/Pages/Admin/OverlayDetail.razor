@@ -15,23 +15,22 @@
 @inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
 
-<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
-    <div class="relative flex items-center justify-center px-7">
-        <a href="/admin/overlays"
-           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+<PageContainer>
+    <div class="relative flex items-center justify-center px-5">
+        <AppButton Variant="ButtonVariant.Cancel" Href="/admin/overlays" Class="absolute left-0 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
-            Tillbaka
-        </a>
+            @L["Common.Back"]
+        </AppButton>
         <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
-            @(isNew ? "Ny overlay" : overlay?.Title)
+            @(isNew ? L["Overlays.New"] : overlay?.Title)
         </div>
     </div>
 
     @if (!isNew && overlay is null)
     {
-        <div class="px-7 text-neutral-400">Laddar...</div>
+        <div class="px-7 text-neutral-400">@L["Common.Loading"]</div>
     }
     else if (overlay is not null)
     {
@@ -41,7 +40,7 @@
                            OnDeleted="HandleDeleted"/>
         </div>
     }
-</div>
+</PageContainer>
 
 @code {
     [Parameter] public string? OverlayId { get; set; }

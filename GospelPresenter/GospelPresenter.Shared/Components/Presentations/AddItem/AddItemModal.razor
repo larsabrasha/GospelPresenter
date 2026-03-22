@@ -1,0 +1,102 @@
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Components.Presentations.AddItem.Bible
+@using GospelPresenter.Shared.Components.Presentations.AddItem.Song
+@using GospelPresenter.Shared.Components.Presentations.AddItem.Image
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+
+<Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@OnClose">
+    <Title>
+        <span>@L["Common.Add"]</span>
+    </Title>
+    <Body>
+        <div class="flex justify-center mb-4">
+            <div class="inline-flex bg-neutral-100 dark:bg-neutral-700 rounded-full p-1 gap-1">
+                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "song" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
+                        @onclick="@(() => activeTab = "song")">
+                    <MusicalNoteSymbol Class="size-4"/>
+                    @L["Sidebar.Song"]
+                </button>
+                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "bible" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
+                        @onclick="@(() => activeTab = "bible")">
+                    <BookOpenSymbol Class="size-4"/>
+                    @L["Sidebar.BibleText"]
+                </button>
+                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "image" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
+                        @onclick="@(() => activeTab = "image")">
+                    <PhotoSymbol Class="size-4"/>
+                    @L["Sidebar.Images"]
+                </button>
+            </div>
+        </div>
+
+        <div class="@(activeTab == "song" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+            <SongTab OnAdd="@HandleSongAdd" OnAddKeepOpen="@HandleSongAddKeepOpen" AddMoreState="@addMoreState"/>
+        </div>
+        <div class="@(activeTab == "bible" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+            <BibleTextTab OnAdd="@HandleBibleAdd" OnAddKeepOpen="@HandleBibleAddKeepOpen" AddMoreState="@addMoreState"/>
+        </div>
+        <div class="@(activeTab == "image" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+            <ImageTab OnAdd="@HandleImageAdd" OnAddKeepOpen="@HandleImageAddKeepOpen" AddMoreState="@addMoreState"/>
+        </div>
+    </Body>
+</Modal>
+
+@code {
+    [Parameter] public string InitialTab { get; set; } = "song";
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<GospelPresenter.Shared.State.Song> OnSongAdded { get; set; }
+    [Parameter] public EventCallback<GospelPresenter.Shared.State.Song> OnSongAddedKeepOpen { get; set; }
+    [Parameter] public EventCallback<List<Verse>> OnBibleVersesAdded { get; set; }
+    [Parameter] public EventCallback<List<Verse>> OnBibleVersesAddedKeepOpen { get; set; }
+    [Parameter] public EventCallback<List<OrganizationImage>> OnImagesAdded { get; set; }
+    [Parameter] public EventCallback<List<OrganizationImage>> OnImagesAddedKeepOpen { get; set; }
+
+    private string activeTab = "song";
+    private AddMoreToggle addMoreState = new();
+
+    protected override void OnInitialized()
+    {
+        activeTab = InitialTab;
+    }
+
+    private async Task HandleSongAdd(GospelPresenter.Shared.State.Song song)
+    {
+        if (addMoreState.Value)
+            await OnSongAddedKeepOpen.InvokeAsync(song);
+        else
+            await OnSongAdded.InvokeAsync(song);
+    }
+
+    private async Task HandleSongAddKeepOpen(GospelPresenter.Shared.State.Song song)
+    {
+        await OnSongAddedKeepOpen.InvokeAsync(song);
+    }
+
+    private async Task HandleBibleAdd(List<Verse> verses)
+    {
+        if (addMoreState.Value)
+            await OnBibleVersesAddedKeepOpen.InvokeAsync(verses);
+        else
+            await OnBibleVersesAdded.InvokeAsync(verses);
+    }
+
+    private async Task HandleBibleAddKeepOpen(List<Verse> verses)
+    {
+        await OnBibleVersesAddedKeepOpen.InvokeAsync(verses);
+    }
+
+    private async Task HandleImageAdd(List<OrganizationImage> images)
+    {
+        if (addMoreState.Value)
+            await OnImagesAddedKeepOpen.InvokeAsync(images);
+        else
+            await OnImagesAdded.InvokeAsync(images);
+    }
+
+    private async Task HandleImageAddKeepOpen(List<OrganizationImage> images)
+    {
+        await OnImagesAddedKeepOpen.InvokeAsync(images);
+    }
+}

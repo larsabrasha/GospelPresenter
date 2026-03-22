@@ -17,7 +17,7 @@ namespace GospelPresenter.Shared.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.1")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -178,17 +178,9 @@ namespace GospelPresenter.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<byte[]>("FullData")
-                        .IsRequired()
-                        .HasColumnType("bytea");
-
                     b.Property<string>("OrganizationId")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<byte[]>("ThumbnailData")
-                        .IsRequired()
-                        .HasColumnType("bytea");
 
                     b.HasKey("Id");
 
@@ -205,8 +197,8 @@ namespace GospelPresenter.Shared.Migrations
                     b.Property<string>("Content")
                         .HasColumnType("text");
 
-                    b.Property<byte[]>("ImageData")
-                        .HasColumnType("bytea");
+                    b.Property<bool>("HasImage")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
@@ -264,9 +256,6 @@ namespace GospelPresenter.Shared.Migrations
                 {
                     b.Property<string>("Id")
                         .HasColumnType("text");
-
-                    b.Property<byte[]>("ImageData")
-                        .HasColumnType("bytea");
 
                     b.Property<string>("PresentationId")
                         .IsRequired()

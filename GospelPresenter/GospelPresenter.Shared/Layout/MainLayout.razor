@@ -109,6 +109,8 @@
     }
 }
 
+<ToastContainer/>
+
 <div id="blazor-error-ui" data-nosnippet
      class="
 hidden
@@ -119,6 +121,6 @@ bottom-0
 w-full
 z-1000
 p-3">
-    Ett oväntat fel har inträffat.
-    <a href="." class="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl">Ladda om</a>
+    @L["MainLayout.UnexpectedError"]
+    <a href="." class="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl">@L["MainLayout.Reload"]</a>
 </div>

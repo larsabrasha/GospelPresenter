@@ -3,6 +3,8 @@
 @source "../GospelPresenter";
 @source "../GospelPresenter.Web";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
     --animate-delayed-pulse: delayed-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 1s infinite;
 
@@ -55,6 +57,88 @@
     -moz-user-drag: none;
     -o-user-drag: none;
     user-select: none;
+}
+
+@keyframes blob-1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -50px) scale(1.1); }
+    66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+@keyframes blob-2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-40px, 30px) scale(1.15); }
+    66% { transform: translate(20px, -40px) scale(0.95); }
+}
+
+@keyframes blob-3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(20px, 40px) scale(0.95); }
+    66% { transform: translate(-30px, -20px) scale(1.1); }
+}
+
+.animated-bg {
+    position: relative;
+    overflow: hidden;
+}
+
+.animated-bg::before,
+.animated-bg::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+}
+
+.animated-bg::before {
+    width: 600px;
+    height: 600px;
+    background: #0ea5e9;
+    top: -200px;
+    left: -100px;
+    opacity: 0.15;
+    animation: blob-1 18s ease-in-out infinite;
+}
+
+.animated-bg::after {
+    width: 500px;
+    height: 500px;
+    background: #38bdf8;
+    top: -100px;
+    right: -100px;
+    opacity: 0.12;
+    animation: blob-2 22s ease-in-out infinite;
+}
+
+.blob-3 {
+    position: absolute;
+    width: 450px;
+    height: 450px;
+    background: #0ea5e9;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.1;
+    top: 200px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: blob-3 20s ease-in-out infinite;
+    pointer-events: none;
+}
+
+:where(.dark, .dark *) .animated-bg::before {
+    background: #0284c7;
+    opacity: 0.2;
+}
+
+:where(.dark, .dark *) .animated-bg::after {
+    background: #0ea5e9;
+    opacity: 0.15;
+}
+
+:where(.dark, .dark *) .blob-3 {
+    background: #0284c7;
+    opacity: 0.12;
 }
 
 :root {

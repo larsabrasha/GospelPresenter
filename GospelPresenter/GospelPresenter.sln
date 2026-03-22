@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GospelPresenter.ServiceDefa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GospelPresenter.MigrationService", "GospelPresenter.MigrationService\GospelPresenter.MigrationService.csproj", "{E688DEAD-6300-4100-A492-E0FEB7230427}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GospelPresenter.Screenshots", "GospelPresenter.Screenshots\GospelPresenter.Screenshots.csproj", "{16BC1552-A145-4272-A877-B119EA0318B1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -111,6 +113,18 @@ Global
 		{E688DEAD-6300-4100-A492-E0FEB7230427}.Release|x64.Build.0 = Release|Any CPU
 		{E688DEAD-6300-4100-A492-E0FEB7230427}.Release|x86.ActiveCfg = Release|Any CPU
 		{E688DEAD-6300-4100-A492-E0FEB7230427}.Release|x86.Build.0 = Release|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Debug|x64.Build.0 = Debug|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Debug|x86.Build.0 = Debug|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Release|x64.ActiveCfg = Release|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Release|x64.Build.0 = Release|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Release|x86.ActiveCfg = Release|Any CPU
+		{16BC1552-A145-4272-A877-B119EA0318B1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

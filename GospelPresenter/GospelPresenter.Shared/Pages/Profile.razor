@@ -16,21 +16,21 @@
 @inject ActiveOrganizationState OrgState
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
-    <div class="relative flex items-center justify-center px-7">
+    <div class="relative flex items-center px-5">
         <div class="text-xl font-bold dark:text-neutral-100">
-            Min profil
+            @L["Profile.Title"]
         </div>
     </div>
 
     @if (user is null)
     {
-        <div class="px-7 text-neutral-400">Laddar...</div>
+        <div class="px-7 text-neutral-400">@L["Common.Loading"]</div>
     }
     else
     {
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
             <div>
-                <label class="block text-sm font-medium mb-1">Profilbild</label>
+                <label class="block text-sm font-medium mb-1">@L["Profile.ProfileImage"]</label>
                 <div class="flex items-center gap-4">
                     <label class="cursor-pointer group relative">
                         <ProfileAvatar ImageUrl="@(user.ProfileImage ?? user.ProfileImageSmall)" Name="@user.Name"
@@ -40,26 +40,26 @@
                     </label>
                     <div class="flex flex-col gap-1">
                         <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
-                            @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? "Välj bild" : "Byt bild")
+                            @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? L["Common.ChooseImage"] : L["Common.ChangeImage"])
                             <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
                                        class="hidden"/>
                         </label>
                         @if (!string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall))
                         {
-                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
-                                    @onclick="ConfirmRemoveProfileImage">
-                                Ta bort bild
-                            </button>
+                            <AppButton Variant="ButtonVariant.Danger"
+                                       OnClick="ConfirmRemoveProfileImage">
+                                @L["Common.RemoveImage"]
+                            </AppButton>
                         }
                         @if (imageError is not null)
                         {
-                            <div class="text-sm text-red-500">@imageError</div>
+                            <div class="text-sm text-red-500 dark:text-red-400">@imageError</div>
                         }
                     </div>
                 </div>
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">Namn</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
                 <input type="text"
                        @bind="editName"
                        @bind:event="oninput"
@@ -67,7 +67,7 @@
                        class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">E-post</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Email"]</label>
                 <div class="px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-700/50 text-neutral-500 dark:text-neutral-400">
                     @user.Email
                 </div>
@@ -83,14 +83,12 @@
             <div class="font-semibold text-lg">@confirmTitle</div>
             <p>@confirmMessage</p>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CloseConfirmDialog">
-                    Avbryt
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
-                        @onclick="ExecuteConfirmAction">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseConfirmDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled OnClick="ExecuteConfirmAction">
                     @confirmButtonText
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>
@@ -100,7 +98,7 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CloseCropDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg text-center">Beskär bild</div>
+            <div class="font-semibold text-lg text-center">@L["Common.CropImage"]</div>
             <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
                  id="profile-image-cropper"
                  style="background: repeating-conic-gradient(#d1d5db 0% 25%, white 0% 50%) 0 0 / 16px 16px;">
@@ -110,14 +108,12 @@
                    @oninput="OnZoomSliderChanged"
                    class="w-full accent-sky-500" />
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CloseCropDialog">
-                    Avbryt
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
-                        @onclick="ConfirmCrop">
-                    Bekräfta
-                </button>
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseCropDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="ConfirmCrop">
+                    @L["Common.Confirm"]
+                </AppButton>
             </div>
         </div>
     </Dialog>
@@ -133,7 +129,7 @@
     private Func<Task>? confirmAction;
     private string confirmTitle = "";
     private string confirmMessage = "";
-    private string confirmButtonText = "Ta bort";
+    private string confirmButtonText = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -163,11 +159,11 @@
         WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
     }
 
-    private void ShowConfirm(string title, string message, Func<Task> action, string buttonText = "Ta bort")
+    private void ShowConfirm(string title, string message, Func<Task> action, string? buttonText = null)
     {
         confirmTitle = title;
         confirmMessage = message;
-        confirmButtonText = buttonText;
+        confirmButtonText = buttonText ?? L["Common.Delete"];
         confirmAction = action;
     }
 
@@ -181,8 +177,8 @@
     }
 
     private void ConfirmRemoveProfileImage() => ShowConfirm(
-        "Ta bort profilbild",
-        "Är du säker på att du vill ta bort profilbilden?",
+        L["Profile.RemoveProfileImage"],
+        L["Profile.ConfirmRemoveProfileImage"],
         RemoveProfileImage);
 
     private const long MaxImageSize = 10 * 1024 * 1024;
@@ -195,12 +191,12 @@
         var file = e.File;
         if (!AllowedImageTypes.Contains(file.ContentType))
         {
-            imageError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
+            imageError = L["Profile.UnsupportedFormat"];
             return;
         }
         if (file.Size > MaxImageSize)
         {
-            imageError = "Bilden är för stor (max 10 MB)";
+            imageError = L["Profile.ImageTooLarge"];
             return;
         }
 

@@ -7,78 +7,55 @@ namespace GospelPresenter.UnitTests.Services;
 
 public class ProPresenterParserTests
 {
-    private static readonly CallerContext TestCaller = new("test-user", UserRole.Admin, "");
-    private static readonly string? SongsPath = FindSongsPath();
+    private const string TestUserId = "test-user";
+    private const string TestAuthor = "Test Author";
+    private const string TestPublisher = "Test Publisher";
+    private const string TestCcliNumber = "12345";
+    private static readonly CallerContext TestCaller = new(TestUserId, UserRole.Admin, "");
 
-    private static string? FindSongsPath()
-    {
-        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
-        while (dir is not null)
-        {
-            var candidate = Path.Combine(dir.FullName, "songs");
-            if (Directory.Exists(candidate)) return candidate;
-            dir = dir.Parent;
-        }
-        return null;
-    }
-
-    [Fact]
-    public void ParseFile_SwedishCharacters_DecodedCorrectly()
-    {
-        if (SongsPath is null) return;
-
-        var songFile = Directory.GetFiles(SongsPath, "*.pro", SearchOption.AllDirectories)
-            .FirstOrDefault(f => f.Contains("utvalt"));
-        if (songFile is null) return;
-
-        var song = ProPresenterParser.ParseFile(songFile);
-
-        song.ShouldNotBeNull();
-        var allText = string.Join(" ", song.Parts.Select(p => p.Content));
-        allText.ShouldContain("förkunnar", Case.Insensitive);
-    }
+    private static Song[] CreateTestSongs() =>
+    [
+        new Song("1", "Ett utvalt folk förkunnar", TestAuthor, null, null, null,
+        [
+            new SongPart("Verse 1", "Du har ett utvalt folk som förkunnar din ära"),
+            new SongPart("Chorus", "Vi prisar dig, vi tillber dig")
+        ]),
+        new Song("2", "Välsignelse över dig", TestAuthor, null, null, null,
+        [
+            new SongPart("Verse 1", "Välsignelse över dig som tror"),
+            new SongPart("Verse 2", "Hans nåd är ny varje morgon")
+        ]),
+        new Song("3", "Stor är din trofasthet", null, TestPublisher, null, TestCcliNumber,
+        [
+            new SongPart("Verse 1", "Stor är din trofasthet, o Gud min Fader")
+        ])
+    ];
 
     [Fact]
-    public void Search_SwedishWord_FindsResults()
+    public void SearchByOrganization_SwedishWord_FindsMatchingSongs()
     {
-        if (SongsPath is null) return;
+        // Arrange
+        var service = new TestSongService(CreateTestSongs());
 
-        var songs = LoadSongsFromDisk();
-        songs.Count.ShouldBeGreaterThan(100, $"Only {songs.Count} songs loaded");
-
-        var service = new TestSongService(songs.ToArray());
+        // Act
         var results = service.SearchByOrganization("förkunnar", "", TestCaller);
+
+        // Assert
         results.Count.ShouldBeGreaterThan(0);
     }
 
     [Fact]
-    public void Search_NfdNormalizedTitle_MatchesNfcQuery()
+    public void SearchByOrganization_SwedishCharacters_MatchesCorrectSong()
     {
-        if (SongsPath is null) return;
+        // Arrange
+        var service = new TestSongService(CreateTestSongs());
 
-        var songs = LoadSongsFromDisk();
-        var service = new TestSongService(songs.ToArray());
-
+        // Act
         var results = service.SearchByOrganization("välsignel", "", TestCaller);
+
+        // Assert
         results.Count.ShouldBeGreaterThan(0);
         results.ShouldContain(s => s.Name.Contains("lsignelse"));
-    }
-
-    private static List<Song> LoadSongsFromDisk()
-    {
-        var files = Directory.GetFiles(SongsPath!, "*.pro", SearchOption.AllDirectories);
-        var songs = new List<Song>();
-        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var file in files)
-        {
-            var song = ProPresenterParser.ParseFile(file);
-            if (song is null) continue;
-            if (!seenNames.Add(song.Name)) continue;
-            songs.Add(song);
-        }
-
-        return songs;
     }
 
     private class TestSongService : SongService

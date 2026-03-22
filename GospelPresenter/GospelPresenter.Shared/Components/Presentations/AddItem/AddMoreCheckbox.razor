@@ -1,0 +1,41 @@
+<div class="flex items-center gap-2">
+    <button type="button" class="flex items-center gap-2 text-sm cursor-pointer select-none text-neutral-500 dark:text-neutral-400"
+            @onclick="() => State.Value = !State.Value">
+        @if (State.Value)
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-6 text-sky-500">
+                <rect width="20" height="20" x="2" y="2" rx="4" fill="currentColor" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="white"/>
+            </svg>
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="size-6 text-neutral-300 dark:text-neutral-500">
+                <rect width="20" height="20" x="2" y="2" rx="4" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+        }
+        @L["AddItemModal.AddMore"]
+    </button>
+    <div class="relative">
+        <button type="button"
+                class="size-4 flex items-center justify-center rounded-full text-[10px] font-semibold border border-neutral-300 dark:border-neutral-500 text-neutral-400 dark:text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
+                @onclick="() => showTooltip = !showTooltip"
+                @onclick:stopPropagation="true">
+            i
+        </button>
+        @if (showTooltip)
+        {
+            <div class="fixed inset-0 z-9" @onclick="() => showTooltip = false"></div>
+            <div class="fixed left-4 right-4 bottom-20 md:absolute md:left-1/2 md:right-auto md:bottom-full md:-translate-x-1/2 md:w-56 mb-2 px-3 py-2 rounded-lg bg-white dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 ring-1 ring-neutral-200 dark:ring-neutral-600 text-xs leading-relaxed shadow-lg z-10">
+                @L["AddItemModal.AddMoreInfo"]
+                <div class="hidden md:block absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white dark:border-t-neutral-700"></div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public AddMoreToggle State { get; set; } = new();
+
+    private bool showTooltip;
+}

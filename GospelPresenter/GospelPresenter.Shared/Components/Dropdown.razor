@@ -1,0 +1,56 @@
+@inject IJSRuntime JsRuntime
+
+<div class="relative @Class" @onclick:stopPropagation="true" @onfocusout="OnFocusOut">
+    <div @onclick="Toggle">
+        @Trigger
+    </div>
+    @if (isOpen)
+    {
+        <div class="fixed inset-0 z-[120]" @onclick="Close"></div>
+        <div @ref="menuRef" class="absolute top-full mt-1 z-[130] @MenuClass" @onclick="Close">
+            @Menu
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Trigger { get; set; }
+    [Parameter] public RenderFragment? Menu { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? MenuClass { get; set; }
+
+    private bool isOpen;
+    private bool needsPositioning;
+    private ElementReference menuRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (needsPositioning)
+        {
+            needsPositioning = false;
+            await JsRuntime.InvokeVoidAsync("positionDropdown", menuRef);
+        }
+    }
+
+    private void Toggle()
+    {
+        isOpen = !isOpen;
+        if (isOpen) needsPositioning = true;
+    }
+
+    private void Close()
+    {
+        if (!isOpen) return;
+        isOpen = false;
+    }
+
+    private async Task OnFocusOut()
+    {
+        await Task.Delay(150);
+        if (isOpen)
+        {
+            isOpen = false;
+            StateHasChanged();
+        }
+    }
+}

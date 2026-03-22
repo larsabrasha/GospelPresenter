@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "SuperAdmin")]
 
 @using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Components.Symbols
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
@@ -14,19 +15,18 @@
 @inject ActiveOrganizationState OrgState
 @inject NavigationManager NavigationManager
 
-<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
-    <div class="flex items-center justify-between px-7">
-        <div class="text-xl font-bold dark:text-neutral-100">Organisationer</div>
-        <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm"
-                @onclick="ShowCreateDialog">
-            Ny organisation
-        </button>
+<PageContainer>
+    <div class="flex items-center justify-between px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Orgs.Title"]</div>
+        <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center">
+            <PlusSymbol Class="size-4 mr-2"/>@L["Orgs.New"]
+        </AppButton>
     </div>
 
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
         @if (organizations is null)
         {
-            <div class="px-7 py-4 text-neutral-400">Laddar...</div>
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
         }
         else if (organizations.Count == 0)
         {
@@ -42,7 +42,7 @@
                     <circle cx="100" cy="108" r="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
                     <line x1="90" y1="125" x2="110" y2="125" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
                 </svg>
-                <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">Inga organisationer ännu</p>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">@L["Orgs.NoOrgs"]</p>
             </div>
         }
         else
@@ -54,21 +54,21 @@
                     <OrganizationAvatar LogoUrl="@org.LogoSmall" Name="@org.Name"/>
                     <div class="flex-1 min-w-0">
                         <div class="font-medium">@org.Name</div>
-                        <div class="text-xs text-neutral-400">@org.Users.Count @(org.Users.Count == 1 ? "användare" : "användare")</div>
+                        <div class="text-xs text-neutral-400">@org.Users.Count @L["Orgs.UserCount"]</div>
                     </div>
                 </a>
             }
         }
     </div>
-</div>
+</PageContainer>
 
 @if (showCreateDialog)
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">Ny organisation</div>
+            <div class="font-semibold text-lg">@L["Orgs.New"]</div>
             <div>
-                <label class="block text-sm font-medium mb-1">Namn</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
                 <input @ref="nameInput"
                        type="text"
                        class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -77,15 +77,14 @@
                        @onkeydown="OnDialogKeyDown"/>
             </div>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CloseDialog">
-                    Avbryt
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 disabled:opacity-50"
-                        disabled="@(isCreating || string.IsNullOrWhiteSpace(newOrgName))"
-                        @onclick="CreateOrganization">
-                    @(isCreating ? "Skapar..." : "Skapa")
-                </button>
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary"
+                           Disabled="@(isCreating || string.IsNullOrWhiteSpace(newOrgName))"
+                           OnClick="CreateOrganization">
+                    @(isCreating ? L["Common.Creating"] : L["Common.Create"])
+                </AppButton>
             </div>
         </div>
     </Dialog>

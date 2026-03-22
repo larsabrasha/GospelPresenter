@@ -10,162 +10,245 @@
 
 @implements IDisposable
 
-<div class="shrink-0 overflow-hidden flex h-full">
-    <div class="p-4 overflow-auto w-full">
-        <div class="flex items-center justify-between mb-2 -mx-1">
-            <a href="/"
-               class="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-                </svg>
-                Tillbaka
-            </a>
-            @if (AppState.SelectedProject is not null)
+<div class="flex flex-col h-full">
+    @if (AppState.SelectedProject is null)
+    {
+        <div class="text-sm text-center text-neutral-500 pt-10">@L["Sidebar.NotFound"]</div>
+    }
+    else
+    {
+        <div class="shrink-0 px-4 pt-4 pb-2 space-y-2">
+            <div class="flex items-center justify-between gap-1">
+                <div class="font-semibold text-lg px-1 text-left min-w-0 line-clamp-2">
+                    @AppState.SelectedProject.Name
+                </div>
+                <Dropdown Class="shrink-0"
+                          MenuClass="right-0 w-56 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden">
+                    <Trigger>
+                        <button class="p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+                                title="@L["Common.Options"]">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
+                            </svg>
+                        </button>
+                    </Trigger>
+                    <Menu>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="ShowRenameDialog">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
+                            </svg>
+                            @L["Sidebar.Rename"]
+                        </button>
+                        <div class="border-t border-neutral-200 dark:border-neutral-600"></div>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="RequestDelete">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                            </svg>
+                            @L["Sidebar.DeletePresentation"]
+                        </button>
+                    </Menu>
+                </Dropdown>
+            </div>
+            @if (isEditMode || AppState.SelectedProject.Items.Count > 1)
             {
-                <div class="relative" @onfocusout="OnPresentationMenuFocusOut">
-                    <button class="p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-                            @onclick="TogglePresentationMenu"
-                            title="Alternativ">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
-                        </svg>
-                    </button>
-                    @if (showPresentationMenu)
+                <div class="flex items-center justify-between">
+                    @if (isEditMode)
                     {
-                        <div class="absolute right-0 mt-1 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden z-50 w-56">
-                            <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                    @onclick="RequestDelete">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                        var allSelected = AppState.SelectedProject.Items.Count > 0
+                            && selectedItemIds.Count == AppState.SelectedProject.Items.Count;
+                        <button class="flex items-center gap-2 px-1 text-sm cursor-pointer select-none text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                                @onclick="ToggleSelectAll">
+                            @if (allSelected)
+                            {
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5 text-sky-500">
+                                    <rect width="20" height="20" x="2" y="2" rx="4" fill="currentColor" stroke="currentColor" stroke-width="1.5"/>
+                                    <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="white"/>
                                 </svg>
-                                Radera presentation
-                            </button>
-                        </div>
+                            }
+                            else
+                            {
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="size-5 text-neutral-300 dark:text-neutral-500">
+                                    <rect width="20" height="20" x="2" y="2" rx="4" stroke="currentColor" stroke-width="1.5"/>
+                                </svg>
+                            }
+                            @L["Sidebar.SelectAll"]
+                        </button>
                     }
+                    else
+                    {
+                        <div></div>
+                    }
+                    <button class="px-2 py-1.5 rounded-full text-xs cursor-pointer
+                                   @(isEditMode
+                                       ? "bg-sky-500 text-white hover:bg-sky-600"
+                                       : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700")"
+                            @onclick="ToggleEditMode">
+                        @(isEditMode ? L["Sidebar.DoneEditing"] : L["Sidebar.Select"])
+                    </button>
                 </div>
             }
         </div>
 
-        @if (AppState.SelectedProject is null)
-        {
-            <div class="text-sm text-center text-neutral-500 pt-10">Presentationen hittades inte</div>
-        }
-        else
-        {
-            @if (isEditingName)
-            {
-                <div class="my-4 px-1">
-                    <input @ref="nameInput"
-                           type="text"
-                           class="w-full px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 font-semibold text-lg"
-                           @bind="editName"
-                           @bind:event="oninput"
-                           @onblur="SaveNameAsync"
-                           @onkeydown="OnNameKeyDown"/>
-                </div>
-            }
-            else
-            {
-                <button class="my-4 font-semibold text-lg px-1 cursor-pointer hover:text-sky-500 text-left"
-                        @onclick="StartEditingName"
-                        title="Klicka för att byta namn">
-                    @AppState.SelectedProject.Name
-                </button>
-            }
-
-            <div id="sidebar-item-list">
+        <div class="flex-1 min-h-0 overflow-y-auto">
+            <div id="sidebar-item-list" class="pb-8">
                 @foreach (var item in AppState.SelectedProject.Items)
                 {
                     var isSelected = AppState.SelectedProjectItem?.Id == item.Id;
-                    var itemClass = isSelected ? "bg-sky-500 text-white" : "";
+                    var itemClass = isSelected
+                        ? "bg-sky-500 text-white"
+                        : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700";
+
                     <div @key="item.Id" data-id="@item.Id"
-                         class="rounded-3xl flex w-full px-1 py-1 border-1 border-white dark:border-neutral-800 items-center hover:bg-sky-500 hover:text-white group @itemClass">
-                        <div class="drag-handle cursor-grab active:cursor-grabbing p-2 opacity-30 group-hover:opacity-70 touch-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5"/>
-                            </svg>
-                        </div>
-                        <button class="flex items-center space-x-3 grow cursor-pointer py-2 min-w-0"
-                                @onclick="() => SelectItemAsync(item)">
-                            <div class="size-3 shrink-0">
-                                @switch (item.Type)
+                         class="flex items-center mx-2 rounded-lg text-sm group scroll-mb-16 @itemClass">
+                        @if (isEditMode)
+                        {
+                            var isChecked = selectedItemIds.Contains(item.Id);
+                            <button class="flex items-center gap-3 px-3 py-3 grow cursor-pointer min-w-0"
+                                    @onclick="(e) => ToggleItemChecked(item.Id, e.ShiftKey)">
+                                @if (isChecked)
                                 {
-                                    case ProjectItemType.Song:
-                                        <MusicalNoteSymbol Class="size-4"/>
-                                        break;
-                                    case ProjectItemType.BibleText:
-                                        <BookOpenSymbol Class="size-4"/>
-                                        break;
-                                    case ProjectItemType.Image:
-                                        <PhotoSymbol Class="size-4"/>
-                                        break;
-                                    default:
-                                        <span></span>
-                                        break;
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5 shrink-0 text-sky-500">
+                                        <rect width="20" height="20" x="2" y="2" rx="4" fill="currentColor" stroke="currentColor" stroke-width="1.5"/>
+                                        <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="white"/>
+                                    </svg>
                                 }
+                                else
+                                {
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="size-5 shrink-0 text-neutral-300 dark:text-neutral-500">
+                                        <rect width="20" height="20" x="2" y="2" rx="4" stroke="currentColor" stroke-width="1.5"/>
+                                    </svg>
+                                }
+                                <div class="size-3 shrink-0">
+                                    @switch (item.Type)
+                                    {
+                                        case ProjectItemType.Song:
+                                            <MusicalNoteSymbol Class="size-4"/>
+                                            break;
+                                        case ProjectItemType.BibleText:
+                                            <BookOpenSymbol Class="size-4"/>
+                                            break;
+                                        case ProjectItemType.Image:
+                                            <PhotoSymbol Class="size-4"/>
+                                            break;
+                                        default:
+                                            <span></span>
+                                            break;
+                                    }
+                                </div>
+                                <div class="text-left truncate">@item.Title</div>
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="flex items-center space-x-3 px-3 py-3 grow cursor-pointer min-w-0"
+                                    @onclick="() => SelectItemAsync(item)">
+                                <div class="size-3 shrink-0">
+                                    @switch (item.Type)
+                                    {
+                                        case ProjectItemType.Song:
+                                            <MusicalNoteSymbol Class="size-4"/>
+                                            break;
+                                        case ProjectItemType.BibleText:
+                                            <BookOpenSymbol Class="size-4"/>
+                                            break;
+                                        case ProjectItemType.Image:
+                                            <PhotoSymbol Class="size-4"/>
+                                            break;
+                                        default:
+                                            <span></span>
+                                            break;
+                                    }
+                                </div>
+                                <div class="text-left truncate">@item.Title</div>
+                            </button>
+                            @if (isSelected)
+                            {
+                                <Dropdown Class="shrink-0"
+                                          MenuClass="right-0 w-48 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden">
+                                    <Trigger>
+                                        <button class="p-2 rounded-full hover:bg-sky-400 cursor-pointer text-white/70 hover:text-white"
+                                                title="@L["Common.Options"]">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z"/>
+                                            </svg>
+                                        </button>
+                                    </Trigger>
+                                    <Menu>
+                                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                                @onclick="() => RequestRemoveItem(item)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                                            </svg>
+                                            @L["Common.Remove"]
+                                        </button>
+                                    </Menu>
+                                </Dropdown>
+                            }
+                            <div class="px-3 py-2 shrink-0 drag-handle cursor-grab active:cursor-grabbing
+                                        @(isSelected ? "text-white/30" : "text-neutral-300 dark:text-neutral-500")">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+                                </svg>
                             </div>
-                            <div class="text-left truncate">@item.Title</div>
-                        </button>
-                        <button class="p-2 opacity-30 hover:opacity-100 cursor-pointer shrink-0"
-                                title="Ta bort"
-                                @onclick="() => RequestRemoveItem(item)"
-                                @onclick:stopPropagation="true">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
+                        }
                     </div>
                 }
             </div>
 
-            <div class="relative mt-4" @onfocusout="OnDropdownFocusOut">
-                <button
-                    class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
-                    @onclick="ToggleDropdown">
-                    <PlusSymbol Class="size-4"/>
-                    Lägg till
-                </button>
-                @if (showDropdown)
+            <div class="sticky bottom-0 p-3 bg-white dark:bg-neutral-800">
+                @if (isEditMode && selectedItemIds.Count > 0)
                 {
-                    <div class="absolute left-0 right-0 mt-1 bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border border-neutral-200 dark:border-neutral-600 overflow-hidden z-50">
-                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                @onclick="@(() => AddItem("song"))">
-                            <MusicalNoteSymbol Class="size-4 text-neutral-400"/>
-                            Sång
-                        </button>
-                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                @onclick="@(() => AddItem("bible"))">
-                            <BookOpenSymbol Class="size-4 text-neutral-400"/>
-                            Bibeltext
-                        </button>
-                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                @onclick="@(() => AddItem("image"))">
-                            <PhotoSymbol Class="size-4 text-neutral-400"/>
-                            Bild
-                        </button>
+                    <button class="text-sm text-center w-full bg-red-500 text-white px-4 py-2.5 rounded-full hover:bg-red-600 cursor-pointer flex items-center justify-center gap-2"
+                            @onclick="RemoveSelectedItems">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                        </svg>
+                        @L["Sidebar.DeleteSelected", selectedItemIds.Count]
+                    </button>
+                }
+                else if (isEditMode)
+                {
+                    <div class="text-sm text-center text-neutral-400 dark:text-neutral-500 py-2.5">
+                        @L["Sidebar.SelectItemsHint"]
                     </div>
                 }
+                else
+                {
+                    <button class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
+                            @onclick="OnAddClicked">
+                        <PlusSymbol Class="size-4"/>
+                        @L["Common.Add"]
+                    </button>
+                }
             </div>
-        }
-    </div>
+        </div>
+    }
 </div>
 
+@if (showRenameDialog)
+{
+    <NameDialog Title="@L["Sidebar.Rename"]"
+                Name="@(AppState.SelectedProject?.Name ?? "")"
+                OnSave="SaveNameAsync"
+                OnClose="CancelRename"/>
+}
 
 @code {
 
-    [Parameter] public EventCallback<string> OnAddRequested { get; set; }
+    [Parameter] public EventCallback OnAddRequested { get; set; }
     [Parameter] public EventCallback<ProjectItem> OnRemoveRequested { get; set; }
+    [Parameter] public EventCallback<List<ProjectItem>> OnRemoveMultipleRequested { get; set; }
     [Parameter] public EventCallback<List<string>> OnItemsReordered { get; set; }
     [Parameter] public EventCallback OnDeleteRequested { get; set; }
 
-
-    private bool showDropdown;
-    private bool showPresentationMenu;
-    private bool isEditingName;
-    private string editName = "";
-    private ElementReference nameInput;
+    private bool showRenameDialog;
     private DotNetObjectReference<Sidebar>? dotNetRef;
     private bool sortableInitialized;
+    private bool isEditMode;
+    private HashSet<string> selectedItemIds = [];
+    private string? lastToggledItemId;
 
     protected override void OnInitialized()
     {
@@ -184,16 +267,17 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (isEditingName)
-        {
-            try { await nameInput.FocusAsync(); } catch { }
-        }
-
         if (AppState.SelectedProject is not null && !sortableInitialized)
         {
             dotNetRef ??= DotNetObjectReference.Create(this);
             await JsRuntime.InvokeVoidAsync("initSortableList", "sidebar-item-list", dotNetRef);
             sortableInitialized = true;
+        }
+
+        if (pendingScrollToSelected && AppState.SelectedProjectItem is not null)
+        {
+            pendingScrollToSelected = false;
+            await JsRuntime.InvokeVoidAsync("scrollSidebarItemIntoView", AppState.SelectedProjectItem.Id);
         }
     }
 
@@ -215,6 +299,8 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    private bool pendingScrollToSelected;
+
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is
@@ -224,6 +310,12 @@
             if (e.PropertyName is nameof(AppState.SelectedProject))
             {
                 sortableInitialized = false;
+                isEditMode = false;
+                selectedItemIds.Clear();
+            }
+            if (e.PropertyName is nameof(AppState.SelectedProjectItem))
+            {
+                pendingScrollToSelected = true;
             }
             _ = InvokeAsync(StateHasChanged);
         }
@@ -237,75 +329,97 @@
         await JsRuntime.InvokeVoidAsync("scrollElementToTop", "main");
     }
 
-    private void ToggleDropdown()
-    {
-        showDropdown = !showDropdown;
-    }
-
-    private async Task OnDropdownFocusOut()
-    {
-        await Task.Delay(150);
-        showDropdown = false;
-    }
-
-    private void TogglePresentationMenu()
-    {
-        showPresentationMenu = !showPresentationMenu;
-    }
-
-    private async Task OnPresentationMenuFocusOut()
-    {
-        await Task.Delay(150);
-        showPresentationMenu = false;
-    }
-
     private async Task RequestDelete()
     {
-        showPresentationMenu = false;
         await OnDeleteRequested.InvokeAsync();
     }
 
-    private async Task AddItem(string type)
+    private async Task OnAddClicked()
     {
-        showDropdown = false;
-        await OnAddRequested.InvokeAsync(type);
+        await OnAddRequested.InvokeAsync();
     }
 
-    private void StartEditingName()
+    private void ShowRenameDialog()
     {
-        editName = AppState.SelectedProject?.Name ?? "";
-        isEditingName = true;
+        showRenameDialog = true;
     }
 
-    private async Task OnNameKeyDown(KeyboardEventArgs e)
+    private void CancelRename()
     {
-        if (e.Key == "Enter")
-        {
-            await SaveNameAsync();
-        }
-        else if (e.Key == "Escape")
-        {
-            isEditingName = false;
-        }
+        showRenameDialog = false;
     }
 
-    private async Task SaveNameAsync()
+    private async Task SaveNameAsync(string newName)
     {
-        isEditingName = false;
-        var trimmed = editName.Trim();
+        showRenameDialog = false;
 
-        if (AppState.SelectedProject is null || string.IsNullOrWhiteSpace(trimmed) || trimmed == AppState.SelectedProject.Name)
+        if (AppState.SelectedProject is null || newName == AppState.SelectedProject.Name)
             return;
 
-        AppState.SelectedProject.Name = trimmed;
+        AppState.SelectedProject.Name = newName;
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is not null)
-            await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, trimmed, OrgState.ToCallerContext());
+            await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, newName, OrgState.ToCallerContext());
     }
 
     private async Task RequestRemoveItem(ProjectItem item)
     {
         await OnRemoveRequested.InvokeAsync(item);
+    }
+
+    private void ToggleEditMode()
+    {
+        isEditMode = !isEditMode;
+        selectedItemIds.Clear();
+        lastToggledItemId = null;
+    }
+
+    private void ToggleSelectAll()
+    {
+        if (AppState.SelectedProject is null) return;
+
+        if (selectedItemIds.Count == AppState.SelectedProject.Items.Count)
+            selectedItemIds.Clear();
+        else
+            selectedItemIds = AppState.SelectedProject.Items.Select(i => i.Id).ToHashSet();
+    }
+
+    private void ToggleItemChecked(string itemId, bool shiftKey)
+    {
+        if (shiftKey && lastToggledItemId is not null && AppState.SelectedProject is not null)
+        {
+            var items = AppState.SelectedProject.Items.ToList();
+            var lastIndex = items.FindIndex(i => i.Id == lastToggledItemId);
+            var currentIndex = items.FindIndex(i => i.Id == itemId);
+
+            if (lastIndex >= 0 && currentIndex >= 0)
+            {
+                var from = Math.Min(lastIndex, currentIndex);
+                var to = Math.Max(lastIndex, currentIndex);
+                for (var i = from; i <= to; i++)
+                    selectedItemIds.Add(items[i].Id);
+
+                lastToggledItemId = itemId;
+                return;
+            }
+        }
+
+        if (!selectedItemIds.Remove(itemId))
+            selectedItemIds.Add(itemId);
+
+        lastToggledItemId = itemId;
+    }
+
+    private async Task RemoveSelectedItems()
+    {
+        if (AppState.SelectedProject is null) return;
+
+        var items = AppState.SelectedProject.Items
+            .Where(i => selectedItemIds.Contains(i.Id))
+            .ToList();
+
+        if (items.Count > 0)
+            await OnRemoveMultipleRequested.InvokeAsync(items);
     }
 
 }

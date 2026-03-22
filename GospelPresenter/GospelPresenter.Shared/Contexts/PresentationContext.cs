@@ -1,5 +1,6 @@
 using GospelPresenter.Shared.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GospelPresenter.Shared.Contexts;
 
@@ -25,7 +26,6 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
             .HasIndex(us => new { us.UserId, us.Key })
             .IsUnique();
 
-
         modelBuilder.Entity<User>()
             .Property(u => u.Role)
             .HasConversion<string>();
@@ -41,5 +41,28 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
         modelBuilder.Entity<Invite>()
             .HasIndex(i => i.Token)
             .IsUnique();
+
+        // SQLite does not support DateTimeOffset in ORDER BY — store as ticks (long)
+        if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+        {
+            var dateTimeOffsetConverter = new ValueConverter<DateTimeOffset, long>(
+                v => v.ToUnixTimeMilliseconds(),
+                v => DateTimeOffset.FromUnixTimeMilliseconds(v));
+
+            var nullableDateTimeOffsetConverter = new ValueConverter<DateTimeOffset?, long?>(
+                v => v.HasValue ? v.Value.ToUnixTimeMilliseconds() : null,
+                v => v.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(v.Value) : null);
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTimeOffset))
+                        property.SetValueConverter(dateTimeOffsetConverter);
+                    else if (property.ClrType == typeof(DateTimeOffset?))
+                        property.SetValueConverter(nullableDateTimeOffsetConverter);
+                }
+            }
+        }
     }
 }

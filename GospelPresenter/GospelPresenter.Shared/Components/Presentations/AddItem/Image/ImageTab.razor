@@ -1,69 +1,96 @@
+@using GospelPresenter.Shared.Components.Presentations.AddItem
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Logging
 
 @inject IOrganizationImageService OrganizationImageService
 @inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
+@inject ILogger<ImageTab> Logger
 
-<div @onkeydown="OnKeyDown" tabindex="-1">
+<div @onkeydown="OnKeyDown" tabindex="-1" class="h-full">
 @if (isLoading)
 {
     <div class="flex items-center justify-center py-12 text-neutral-400 text-sm">
-        Laddar bilder...
+        @L["ImageTab.LoadingImages"]
     </div>
 }
 else if (organizationId is null)
 {
     <div class="flex items-center justify-center py-12 text-neutral-400 text-sm">
-        Kunde inte ladda bilder
+        @L["ImageTab.LoadError"]
     </div>
 }
 else
 {
     <div class="flex flex-col h-full">
         <div class="shrink-0 flex items-center gap-3 pb-4">
-            <label class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30">
+            <label class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm @(isUploading ? "text-neutral-400 dark:text-neutral-500 cursor-not-allowed" : "text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-900/30")">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
                 </svg>
-                Ladda upp bild
-                <InputFile OnChange="HandleFileSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                @L["ImageTab.Upload"]
+                <InputFile OnChange="HandleFilesSelected" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden"/>
             </label>
             @if (uploadError is not null)
             {
-                <span class="text-red-500 text-sm">@uploadError</span>
+                <span class="text-red-500 dark:text-red-400 text-sm">@uploadError</span>
             }
             @if (isUploading)
             {
-                <span class="text-neutral-400 text-sm">Laddar upp...</span>
+                <span class="text-neutral-400 text-sm">@L["ImageTab.UploadingProgress", uploadedCount, uploadTotalCount]</span>
             }
         </div>
 
         <div class="flex-1 min-h-0 overflow-y-auto">
             @if (images.Count > 0)
             {
-                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center">
                     @foreach (var image in images)
                     {
-                        <div class="group relative">
+                        <div class="relative p-2 flex flex-col items-center min-w-0">
                             @{
-                                var isSelected = selectedImage?.Id == image.Id;
+                                var isSelected = selectedImages.Contains(image.Id);
                             }
-                            <button class="w-full aspect-video rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-700 cursor-pointer transition-shadow @(isSelected ? "ring-2 ring-sky-500" : "hover:ring-2 hover:ring-sky-500")"
-                                    @onclick="() => SelectImage(image)">
-                                <img src="data:@image.ContentType;base64,@Convert.ToBase64String(image.ThumbnailData)"
+                            <button class="relative rounded-lg cursor-pointer transition-shadow ring-3 @(isSelected ? "ring-sky-500" : "ring-transparent")"
+                                    @onclick="() => ToggleImage(image)">
+                                <img src="@ImageUrlHelper.OrgImageUrl(image.Id, "thumb")"
                                      alt="@image.FileName"
-                                     class="w-full h-full object-cover"/>
+                                     class="block max-w-full max-h-32 rounded-lg"/>
+                                @if (isSelected)
+                                {
+                                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <div class="size-8 flex items-center justify-center rounded-full bg-sky-500 text-white">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+                                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                }
+                                <div class="absolute top-1 right-1">
+                                    <Dropdown MenuClass="right-0 min-w-36 rounded-lg bg-white dark:bg-neutral-800 shadow-lg ring-1 ring-neutral-200 dark:ring-neutral-700 py-1">
+                                        <Trigger>
+                                            <button class="size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80">
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                                                    <path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM15.5 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/>
+                                                </svg>
+                                            </button>
+                                        </Trigger>
+                                        <Menu>
+                                            <button class="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"
+                                                    @onclick="() => ConfirmDelete(image)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                                                </svg>
+                                                @L["Common.Remove"]
+                                            </button>
+                                        </Menu>
+                                    </Dropdown>
+                                </div>
                             </button>
-                            <button class="absolute top-1 right-1 size-7 flex items-center justify-center rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-red-600"
-                                    @onclick="() => ConfirmDelete(image)"
-                                    @onclick:stopPropagation="true">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
-                                </svg>
-                            </button>
+                            <p class="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full">@image.FileName</p>
                         </div>
                     }
                 </div>
@@ -74,18 +101,20 @@ else
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-12 mb-3 text-neutral-300 dark:text-neutral-600">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/>
                     </svg>
-                    <p class="text-neutral-400 dark:text-neutral-500">Inga bilder uppladdade</p>
+                    <p class="text-neutral-400 dark:text-neutral-500">@L["ImageTab.NoImages"]</p>
                 </div>
             }
         </div>
 
-        @if (selectedImage is not null)
+        @if (selectedImages.Count > 0)
         {
-            <div class="shrink-0 flex items-center justify-end pt-4">
-                <button class="max-w-full inline-flex items-center gap-1 px-4 py-2.5 rounded-full text-sm bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
-                        @onclick="HandleAdd">
-                    <span class="shrink-0">Lägg till</span> <span class="font-bold truncate">@selectedImage.FileName</span>
-                </button>
+            <div class="shrink-0 flex items-center justify-end gap-10 pt-4">
+                <AddMoreCheckbox State="AddMoreState"/>
+                <AppButton Variant="ButtonVariant.Primary" Class="max-w-full inline-flex items-center gap-1"
+                           Disabled="isAdding"
+                           OnClick="HandleAdd">
+                    <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@(selectedImages.Count == 1 ? GetSelectedImageNames() : $"{selectedImages.Count} {L["ImageTab.Images"]}")</span>
+                </AppButton>
             </div>
         }
     </div>
@@ -94,17 +123,15 @@ else
     {
         <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDelete">
             <div class="p-6 space-y-4">
-                <div class="font-semibold text-lg">Radera bild</div>
-                <div>Vill du radera <strong>@imageToDelete.FileName</strong>?</div>
+                <div class="font-semibold text-lg">@L["ImageTab.DeleteImage"]</div>
+                <div>@((MarkupString)L["ImageTab.ConfirmDelete", imageToDelete.FileName].Value)</div>
                 <div class="flex justify-end gap-3">
-                    <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                            @onclick="CancelDelete">
-                        Avbryt
-                    </button>
-                    <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
-                            @onclick="DeleteImage">
-                        Radera
-                    </button>
+                    <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDelete">
+                        @L["Common.Cancel"]
+                    </AppButton>
+                    <AppButton Variant="ButtonVariant.Danger" Filled OnClick="DeleteImage">
+                        @L["Common.Remove"]
+                    </AppButton>
                 </div>
             </div>
         </Dialog>
@@ -113,8 +140,9 @@ else
 </div>
 
 @code {
-    [Parameter] public EventCallback<OrganizationImage> OnAdd { get; set; }
-    [Parameter] public EventCallback<OrganizationImage> OnAddKeepOpen { get; set; }
+    [Parameter] public EventCallback<List<OrganizationImage>> OnAdd { get; set; }
+    [Parameter] public EventCallback<List<OrganizationImage>> OnAddKeepOpen { get; set; }
+    [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
 
     private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
     private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -127,9 +155,12 @@ else
     private List<OrganizationImage> images = [];
     private bool isLoading = true;
     private bool isUploading;
+    private int uploadedCount;
+    private int uploadTotalCount;
     private string? uploadError;
     private OrganizationImage? imageToDelete;
-    private OrganizationImage? selectedImage;
+    private HashSet<string> selectedImages = [];
+    private bool isAdding;
 
     protected override async Task OnInitializedAsync()
     {
@@ -143,94 +174,157 @@ else
         isLoading = false;
     }
 
-    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
     {
+        if (isUploading) return;
         uploadError = null;
-        var file = e.File;
 
-        if (!AllowedImageTypes.Contains(file.ContentType))
+        var files = e.GetMultipleFiles(maximumFileCount: 50);
+        var validFiles = new List<IBrowserFile>();
+
+        foreach (var file in files)
         {
-            uploadError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
-            return;
+            if (!AllowedImageTypes.Contains(file.ContentType))
+            {
+                uploadError = L["ImageTab.UnsupportedFormat"];
+                continue;
+            }
+            if (file.Size > MaxFileSize)
+            {
+                uploadError = L["ImageTab.ImageTooLarge"];
+                continue;
+            }
+            validFiles.Add(file);
         }
-        if (file.Size > MaxFileSize)
-        {
-            uploadError = "Bilden får inte vara större än 10 MB";
-            return;
-        }
+
+        if (validFiles.Count == 0) return;
 
         isUploading = true;
+        uploadedCount = 0;
+        uploadTotalCount = validFiles.Count;
         StateHasChanged();
 
-        try
+        int failedCount = 0;
+
+        foreach (var file in validFiles)
         {
-            using var stream = file.OpenReadStream(MaxFileSize);
-            using var ms = new System.IO.MemoryStream();
-            await stream.CopyToAsync(ms);
-            var originalBytes = ms.ToArray();
-            var base64 = Convert.ToBase64String(originalBytes);
+            try
+            {
+                using var stream = file.OpenReadStream(MaxFileSize);
+                using var ms = new System.IO.MemoryStream();
+                await stream.CopyToAsync(ms);
+                var originalBytes = ms.ToArray();
+                var base64 = Convert.ToBase64String(originalBytes);
 
-            var hasAlpha = file.ContentType is "image/png" or "image/webp" or "image/gif";
-            var outputFormat = hasAlpha ? "image/webp" : "image/jpeg";
+                var hasAlpha = file.ContentType is "image/png" or "image/webp" or "image/gif";
+                var outputFormat = hasAlpha ? "image/webp" : "image/jpeg";
 
-            var fullBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, FullMaxWidth, FullMaxHeight, 0.90, outputFormat);
-            var thumbBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, ThumbMaxWidth, ThumbMaxHeight, 0.80, outputFormat);
+                var fullBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, FullMaxWidth, FullMaxHeight, 0.90, outputFormat);
+                var thumbBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, ThumbMaxWidth, ThumbMaxHeight, 0.80, outputFormat);
 
-            var fullData = Convert.FromBase64String(fullBase64);
-            var thumbData = Convert.FromBase64String(thumbBase64);
+                var fullData = Convert.FromBase64String(fullBase64);
+                var thumbData = Convert.FromBase64String(thumbBase64);
 
-            var image = await OrganizationImageService.AddImageAsync(
-                organizationId!,
-                file.Name,
-                outputFormat,
-                thumbData,
-                fullData,
-                OrgState.ToCallerContext());
+                var image = await OrganizationImageService.AddImageAsync(
+                    organizationId!,
+                    file.Name,
+                    outputFormat,
+                    thumbData,
+                    fullData,
+                    OrgState.ToCallerContext());
 
-            images.Insert(0, image);
+                images.Insert(0, image);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to upload image {FileName}", file.Name);
+                failedCount++;
+            }
+
+            uploadedCount++;
+            StateHasChanged();
         }
-        catch (Exception)
+
+        if (failedCount > 0)
         {
-            uploadError = "Kunde inte ladda upp bilden";
+            uploadError = L["ImageTab.UploadErrorCount", failedCount];
         }
-        finally
+
+        isUploading = false;
+    }
+
+    private void ToggleImage(OrganizationImage image)
+    {
+        if (!selectedImages.Remove(image.Id))
         {
-            isUploading = false;
+            selectedImages.Add(image.Id);
         }
     }
 
-    private void SelectImage(OrganizationImage image)
+    private string GetSelectedImageNames()
     {
-        selectedImage = image;
+        var selected = images.Where(i => selectedImages.Contains(i.Id)).ToList();
+        return string.Join(", ", selected.Select(i => i.FileName));
+    }
+
+    private Task<List<OrganizationImage>> GetSelectedFullImages()
+    {
+        var result = images.Where(i => selectedImages.Contains(i.Id)).ToList();
+        return Task.FromResult(result);
     }
 
     private async Task HandleAdd()
     {
-        if (selectedImage is null) return;
-        var fullImage = await OrganizationImageService.GetImageByIdAsync(selectedImage.Id, organizationId!, OrgState.ToCallerContext());
-        if (fullImage is not null)
+        if (selectedImages.Count == 0 || isAdding) return;
+        isAdding = true;
+        try
         {
-            await OnAdd.InvokeAsync(fullImage);
+            var fullImages = await GetSelectedFullImages();
+            if (fullImages.Count > 0)
+            {
+                if (AddMoreState.Value)
+                {
+                    await OnAddKeepOpen.InvokeAsync(fullImages);
+                    selectedImages.Clear();
+                }
+                else
+                {
+                    await OnAdd.InvokeAsync(fullImages);
+                }
+            }
+        }
+        finally
+        {
+            isAdding = false;
         }
     }
 
     private async Task HandleAddKeepOpen()
     {
-        if (selectedImage is null) return;
-        var fullImage = await OrganizationImageService.GetImageByIdAsync(selectedImage.Id, organizationId!, OrgState.ToCallerContext());
-        if (fullImage is not null)
+        if (selectedImages.Count == 0 || isAdding) return;
+        isAdding = true;
+        try
         {
-            await OnAddKeepOpen.InvokeAsync(fullImage);
+            var fullImages = await GetSelectedFullImages();
+            if (fullImages.Count > 0)
+            {
+                await OnAddKeepOpen.InvokeAsync(fullImages);
+                selectedImages.Clear();
+            }
+        }
+        finally
+        {
+            isAdding = false;
         }
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && e.ShiftKey && selectedImage is not null)
+        if (e.Key == "Enter" && e.ShiftKey && selectedImages.Count > 0 && !isAdding)
         {
             await HandleAddKeepOpen();
         }
-        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedImage is not null)
+        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedImages.Count > 0 && !isAdding)
         {
             await HandleAdd();
         }

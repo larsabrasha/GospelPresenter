@@ -1,0 +1,11 @@
+<div class="flex-1 min-h-0 overflow-y-auto">
+    <div class="flex flex-col p-3 pt-8 w-full @(MaxWidthClass ?? "sm:w-180") mx-auto space-y-5 @Class">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? MaxWidthClass { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

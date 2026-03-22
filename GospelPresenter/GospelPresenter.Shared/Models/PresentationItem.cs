@@ -7,7 +7,6 @@ public class PresentationItem
     public PresentationItemType Type { get; set; }
     public string Title { get; set; } = "";
     public int SortOrder { get; set; }
-    public byte[]? ImageData { get; set; }
 
     public string PresentationId { get; set; } = "";
     public Presentation Presentation { get; set; } = null!;

@@ -15,8 +15,7 @@
 - Uploaded images must be validated (file type, size) and compressed/optimized before storage. Always show a preview before upload.
 
 ## Feedback and destructive operations
-- Use toasts for confirmations and short-lived messages (e.g. "Sparat", "Ångra"). Toasts must disappear automatically but also be manually dismissible.
-- Prefer the undo pattern (an "Ångra" toast) over confirmation dialogs for a smoother flow.
+- Use toasts for confirmations and short-lived messages (e.g. "Sparat"). Toasts are non-interactive and must disappear automatically.
 - Use a confirmation dialog only when the operation cannot be undone (e.g. permanent data deletion with no rollback).
 
 ## Async behavior
@@ -57,7 +56,12 @@
 - Log all significant events (logins, data changes, errors) on the server side for debugging. Never log sensitive data such as passwords.
 
 ## Language
-- All UI text must be in Swedish.
+- All UI text must be localized using `IStringLocalizer<SharedResource> L` (injected via `_Imports.razor`).
+- Use `@L["Key"]` in Razor templates and `L["Key"]` in `@code` blocks. For formatted strings, use `L["Key", arg1, arg2]`.
+- When rendering HTML from localized strings, use `@((MarkupString)L["Key"].Value)`.
+- Translations are stored in `.resx` files under `GospelPresenter.Shared/Resources/`: `SharedResource.resx` (English) and `SharedResource.sv.resx` (Swedish).
+- The app defaults to the browser's `Accept-Language` header, with English as the fallback language.
+- Never hardcode UI-visible strings — always add them to both `.resx` files.
 - Code, comments, and variable names must be in English.
 
 ## Real-time / SignalR

@@ -14,7 +14,8 @@ public class ImageService : IImageService
         {
             "9d2ae22f-de51-42a9-9615-f9647e0cd47i", new Image(
                 "9d2ae22f-de51-42a9-9615-f9647e0cd47i",
-                "media/swish.jpg")
+                ["media/swish.jpg"],
+                [])
         }
     };
 

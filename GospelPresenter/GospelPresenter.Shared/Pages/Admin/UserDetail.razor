@@ -18,15 +18,15 @@
 @inject IJSRuntime JSRuntime
 @inject ActiveOrganizationState OrgState
 
-<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
-    <div class="relative flex items-center justify-center px-7">
-        <a href="/admin/users"
-           class="absolute left-0 flex items-center gap-2 px-4 py-2.5 rounded-full text-sm text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-700 dark:hover:text-neutral-200">
+<PageContainer>
+    <div class="relative flex items-center justify-center px-5">
+        <AppButton Variant="ButtonVariant.Cancel" Href="/admin/users"
+                   Class="absolute left-0 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
-            Tillbaka
-        </a>
+            @L["Common.Back"]
+        </AppButton>
         <div class="text-xl font-bold dark:text-neutral-100">
             @user?.Name
         </div>
@@ -34,13 +34,13 @@
 
     @if (user is null)
     {
-        <div class="px-7 text-neutral-400">Laddar...</div>
+        <div class="px-7 text-neutral-400">@L["Common.Loading"]</div>
     }
     else
     {
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
             <div>
-                <label class="block text-sm font-medium mb-1">Profilbild</label>
+                <label class="block text-sm font-medium mb-1">@L["UserDetail.ProfileImage"]</label>
                 <div class="flex items-center gap-4">
                     <label class="cursor-pointer group relative">
                         <ProfileAvatar ImageUrl="@(user.ProfileImage ?? user.ProfileImageSmall)" Name="@user.Name"
@@ -50,26 +50,26 @@
                     </label>
                     <div class="flex flex-col gap-1">
                         <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
-                            @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? "Välj bild" : "Byt bild")
+                            @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? L["Common.ChooseImage"] : L["Common.ChangeImage"])
                             <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
                                        class="hidden"/>
                         </label>
                         @if (!string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall))
                         {
-                            <button class="text-sm text-red-600 cursor-pointer hover:underline text-left"
-                                    @onclick="ConfirmRemoveProfileImage">
-                                Ta bort bild
-                            </button>
+                            <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmRemoveProfileImage"
+                                       Class="text-left">
+                                @L["Common.RemoveImage"]
+                            </AppButton>
                         }
                         @if (imageError is not null)
                         {
-                            <div class="text-sm text-red-500">@imageError</div>
+                            <div class="text-sm text-red-500 dark:text-red-400">@imageError</div>
                         }
                     </div>
                 </div>
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">Namn</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
                 <input type="text"
                        @bind="editName"
                        @bind:event="oninput"
@@ -77,7 +77,7 @@
                        class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">E-post</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Email"]</label>
                 <input type="email"
                        @bind="editEmail"
                        @bind:event="oninput"
@@ -85,11 +85,11 @@
                        class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
                 @if (emailError is not null)
                 {
-                    <div class="text-sm text-red-500 mt-1">@emailError</div>
+                    <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>
                 }
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">Roll</label>
+                <label class="block text-sm font-medium mb-1">@L["Common.Role"]</label>
                 <div class="relative">
                     <select @bind="editRole"
                             @bind:after="SaveUser"
@@ -106,27 +106,26 @@
                 </div>
                 @if (IsCurrentUser)
                 {
-                    <div class="text-sm text-neutral-500 mt-1">Du kan inte ändra din egen roll</div>
+                    <div class="text-sm text-neutral-500 mt-1">@L["Users.CannotChangeOwnRole"]</div>
                 }
             </div>
             @if (!IsCurrentUser)
             {
                 <div>
-                    <button class="px-4 py-2.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
-                            @onclick="ConfirmDeleteUser">
-                        Ta bort användare
-                    </button>
+                    <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDeleteUser">
+                        @L["UserDetail.DeleteUser"]
+                    </AppButton>
                 </div>
             }
         </div>
 
         <!-- Inloggningsmetoder -->
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
-            <div class="font-semibold">Inloggning</div>
+            <div class="font-semibold">@L["UserDetail.Login"]</div>
 
             @if (logins is null)
             {
-                <div class="text-neutral-400">Laddar...</div>
+                <div class="text-neutral-400">@L["Common.Loading"]</div>
             }
             else if (logins.Count == 0)
             {
@@ -147,7 +146,7 @@
                             <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                             <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                         </svg>
-                        <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">Inga inloggningsmetoder tillagda.<br/>Skapa en inbjudningslänk för att lägga till ett konto.</p>
+                        <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">@((MarkupString)L["UserDetail.NoLoginMethods"].Value)</p>
                     </div>
                 }
 
@@ -160,32 +159,32 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 text-neutral-400">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
                                 </svg>
-                                <span class="text-sm font-medium">Inbjudningslänk</span>
+                                <span class="text-sm font-medium">@L["UserDetail.InviteLink"]</span>
                                 @if (invite.IsExpired)
                                 {
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">Utgången</span>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">@L["UserDetail.Expired"]</span>
                                 }
                                 else
                                 {
-                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">Aktiv</span>
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">@L["UserDetail.Active"]</span>
                                 }
                             </div>
-                            <button class="px-3 py-1.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
-                                    @onclick="ConfirmDeleteInvite">
-                                Ta bort
-                            </button>
+                            <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDeleteInvite"
+                                       Class="px-3 py-1.5">
+                                @L["Common.Delete"]
+                            </AppButton>
                         </div>
                         @if (!invite.IsExpired)
                         {
                             <div class="text-xs text-neutral-500 dark:text-neutral-400">
-                                Går ut om @FormatTimeLeft(invite.ExpiresAt)
+                                @L["UserDetail.ExpiresIn", FormatTimeLeft(invite.ExpiresAt)]
                             </div>
                             <div class="flex items-center gap-2">
                                 <input type="text" readonly value="@inviteUrl"
                                        class="flex-1 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-sm border border-neutral-200 dark:border-neutral-500 select-all"/>
                                 <button class="px-3 py-2 rounded-lg text-sm bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
                                         @onclick="() => CopyToClipboard(inviteUrl)">
-                                    Kopiera
+                                    @L["UserDetail.Copy"]
                                 </button>
                             </div>
                         }
@@ -194,10 +193,9 @@
                 @if (invite is null || invite.IsExpired)
                 {
                     <div class="flex justify-center">
-                        <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
-                                @onclick="CreateInvite">
-                            Skapa inbjudningslänk
-                        </button>
+                        <AppButton Variant="ButtonVariant.Primary" OnClick="CreateInvite">
+                            @L["UserDetail.CreateInviteLink"]
+                        </AppButton>
                     </div>
                 }
             }
@@ -211,17 +209,17 @@
                             <div class="text-xs text-neutral-500 dark:text-neutral-400 font-mono">@login.ProviderSubjectId</div>
                         </div>
                         @{ var loginToDelete = login; }
-                        <button class="px-3 py-1.5 rounded-full text-sm text-red-600 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/30"
-                                @onclick="() => ConfirmDeleteLogin(loginToDelete)">
-                            Ta bort
-                        </button>
+                        <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmDeleteLogin(loginToDelete)"
+                                   Class="px-3 py-1.5">
+                            @L["Common.Delete"]
+                        </AppButton>
                     </div>
                 }
 
             }
         </div>
     }
-</div>
+</PageContainer>
 
 @if (confirmAction is not null)
 {
@@ -230,14 +228,12 @@
             <div class="font-semibold text-lg">@confirmTitle</div>
             <p>@confirmMessage</p>
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CloseConfirmDialog">
-                    Avbryt
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-red-500 text-white cursor-pointer hover:bg-red-600"
-                        @onclick="ExecuteConfirmAction">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseConfirmDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled OnClick="ExecuteConfirmAction">
                     @confirmButtonText
-                </button>
+                </AppButton>
             </div>
         </div>
     </Dialog>
@@ -247,7 +243,7 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CloseCropDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg text-center">Beskär bild</div>
+            <div class="font-semibold text-lg text-center">@L["Common.CropImage"]</div>
             <div class="relative mx-auto w-64 h-64 rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
                  id="image-cropper"
                  style="background: repeating-conic-gradient(#d1d5db 0% 25%, white 0% 50%) 0 0 / 16px 16px;">
@@ -257,14 +253,12 @@
                    @oninput="OnZoomSliderChanged"
                    class="w-full accent-sky-500" />
             <div class="flex justify-end gap-3">
-                <button class="px-4 py-2.5 rounded-full cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700"
-                        @onclick="CloseCropDialog">
-                    Avbryt
-                </button>
-                <button class="px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600"
-                        @onclick="ConfirmCrop">
-                    Bekräfta
-                </button>
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseCropDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="ConfirmCrop">
+                    @L["Common.Confirm"]
+                </AppButton>
             </div>
         </div>
     </Dialog>
@@ -286,11 +280,11 @@
     private Func<Task>? confirmAction;
     private string confirmTitle = "";
     private string confirmMessage = "";
-    private string confirmButtonText = "Ta bort";
+    private string confirmButtonText = "";
 
     private bool IsCurrentUser => currentUserId is not null && currentUserId == UserId;
 
-    private IEnumerable<UserRole> AllowedRoles => OrgState.IsSuperAdmin
+    private IEnumerable<UserRole> AllowedRoles => OrgState.HasPermission(Permission.AssignSuperAdminRole)
         ? Enum.GetValues<UserRole>()
         : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin);
 
@@ -330,13 +324,13 @@
 
         if (!string.IsNullOrWhiteSpace(editEmail) && !GospelPresenter.Shared.Utils.EmailValidation.IsValidEmail(editEmail.Trim()))
         {
-            emailError = "Ogiltig e-postadress";
+            emailError = L["Users.InvalidEmail"];
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(editEmail) && await UserService.IsEmailTakenAsync(editEmail.Trim(), UserId))
         {
-            emailError = "E-postadressen används redan av en annan användare";
+            emailError = L["Users.EmailTaken"];
             return;
         }
 
@@ -347,11 +341,11 @@
         SyncNavbar();
     }
 
-    private void ShowConfirm(string title, string message, Func<Task> action, string buttonText = "Ta bort")
+    private void ShowConfirm(string title, string message, Func<Task> action, string? buttonText = null)
     {
         confirmTitle = title;
         confirmMessage = message;
-        confirmButtonText = buttonText;
+        confirmButtonText = buttonText ?? L["Common.Delete"];
         confirmAction = action;
     }
 
@@ -365,23 +359,23 @@
     }
 
     private void ConfirmDeleteUser() => ShowConfirm(
-        "Ta bort användare",
-        $"Är du säker på att du vill ta bort {user?.Name}?",
+        L["UserDetail.DeleteUser"],
+        L["UserDetail.ConfirmDeleteUser", user?.Name ?? ""],
         async () => { await UserService.DeleteUserAsync(UserId, OrgState.ToCallerContext()); NavigationManager.NavigateTo("/admin/users"); });
 
     private void ConfirmRemoveProfileImage() => ShowConfirm(
-        "Ta bort profilbild",
-        "Är du säker på att du vill ta bort profilbilden?",
+        L["Profile.RemoveProfileImage"],
+        L["Profile.ConfirmRemoveProfileImage"],
         RemoveProfileImage);
 
     private void ConfirmDeleteInvite() => ShowConfirm(
-        "Ta bort inbjudan",
-        "Är du säker på att du vill ta bort inbjudningslänken?",
+        L["UserDetail.DeleteInvite"],
+        L["UserDetail.ConfirmDeleteInvite"],
         DeleteInvite);
 
     private void ConfirmDeleteLogin(UserLogin login) => ShowConfirm(
-        "Ta bort kopplat konto",
-        $"Är du säker på att du vill ta bort kopplingen till {ProviderDisplayName(login.Provider)}?",
+        L["UserDetail.DeleteLinkedAccount"],
+        L["UserDetail.ConfirmDeleteLogin", ProviderDisplayName(login.Provider)],
         async () => { await UserService.DeleteLoginAsync(login.Id, OrgState.ToCallerContext()); await LoadLogins(); });
 
     private async Task LoadLogins()
@@ -426,11 +420,11 @@ private async Task CreateInvite()
         _ => provider
     };
 
-    private static string RoleDisplayName(UserRole role) => role switch
+    private string RoleDisplayName(UserRole role) => role switch
     {
-        UserRole.SuperAdmin => "Superadmin",
-        UserRole.Admin => "Admin",
-        UserRole.User => "Användare",
+        UserRole.SuperAdmin => L["Users.Superadmin"],
+        UserRole.Admin => L["Users.Admin"],
+        UserRole.User => L["Users.User"],
         _ => role.ToString()
     };
 
@@ -444,12 +438,12 @@ private async Task CreateInvite()
         var file = e.File;
         if (!AllowedImageTypes.Contains(file.ContentType))
         {
-            imageError = "Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.";
+            imageError = L["Profile.UnsupportedFormat"];
             return;
         }
         if (file.Size > MaxImageSize)
         {
-            imageError = "Bilden är för stor (max 10 MB)";
+            imageError = L["Profile.ImageTooLarge"];
             return;
         }
 
@@ -508,11 +502,11 @@ private async Task CreateInvite()
             WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
     }
 
-    private static string FormatTimeLeft(DateTime expiresAt)
+    private string FormatTimeLeft(DateTime expiresAt)
     {
         var days = (int)Math.Ceiling((expiresAt - DateTime.UtcNow).TotalDays);
-        if (days <= 0) return "mindre än en dag";
-        return $"{days} {(days == 1 ? "dag" : "dagar")}";
+        if (days <= 0) return L["UserDetail.LessThanADay"];
+        return $"{days} {(days == 1 ? L["UserDetail.DaySingular"] : L["UserDetail.DayPlural"])}";
     }
 
     private void GoBack() => NavigationManager.NavigateTo("/admin/users");
