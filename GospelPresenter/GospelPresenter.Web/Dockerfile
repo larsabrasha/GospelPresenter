@@ -1,6 +1,6 @@
 ﻿FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends libfontconfig1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libfontconfig1 libkrb5-3 && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/data-protection-keys && chown $APP_UID /app/data-protection-keys
 USER $APP_UID
 EXPOSE 8080

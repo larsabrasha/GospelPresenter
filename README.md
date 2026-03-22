@@ -18,9 +18,21 @@ The [`docker-compose.yml`](docker-compose.yml) uses pre-built images from GitHub
 
     At minimum, set `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`. Enable at least one authentication provider (Google or OpenID Connect). See [`.env.example`](.env.example) for all available options.
 
-2. Place your bible data in `bibles/` next to the compose file (mounted read-only into the container).
+2. Copy the Garage configuration and edit it:
 
-3. Start everything:
+    ```shell
+    cp garage.toml.example garage.toml
+    ```
+
+    For production, generate unique secrets for `rpc_secret` and `admin_token` (the latter must match `S3_ADMIN_TOKEN` in `.env`):
+
+    ```shell
+    openssl rand -hex 32
+    ```
+
+3. Place your bible data in `bibles/` next to the compose file (mounted read-only into the container).
+
+4. Start everything:
 
     ```shell
     docker compose up -d

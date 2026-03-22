@@ -26,7 +26,7 @@ services:
       - garage-meta:/var/lib/garage/meta
       - ./garage.toml:/etc/garage.toml:ro
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:3903/health"]
+      test: ["CMD", "/garage", "stats", "-a"]
       interval: 5s
       timeout: 5s
       retries: 5
