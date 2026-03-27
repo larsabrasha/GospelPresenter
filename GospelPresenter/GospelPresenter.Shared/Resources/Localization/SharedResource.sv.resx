@@ -122,6 +122,9 @@
   <data name="Nav.Organizations" xml:space="preserve">
     <value>Organisationer</value>
   </data>
+  <data name="Nav.ApiKeys" xml:space="preserve">
+    <value>API-nycklar</value>
+  </data>
   <data name="MainLayout.UnexpectedError" xml:space="preserve">
     <value>Ett oväntat fel har inträffat.</value>
   </data>
@@ -853,5 +856,29 @@
   </data>
   <data name="Sidebar.SelectItemsHint" xml:space="preserve">
     <value>Välj objekt att radera</value>
+  </data>
+  <data name="ApiKeys.Title" xml:space="preserve">
+    <value>API-nycklar</value>
+  </data>
+  <data name="ApiKeys.New" xml:space="preserve">
+    <value>Ny API-nyckel</value>
+  </data>
+  <data name="ApiKeys.Empty" xml:space="preserve">
+    <value>Inga API-nycklar har skapats ännu</value>
+  </data>
+  <data name="ApiKeys.User" xml:space="preserve">
+    <value>Användare</value>
+  </data>
+  <data name="ApiKeys.NamePlaceholder" xml:space="preserve">
+    <value>t.ex. Claude Desktop</value>
+  </data>
+  <data name="ApiKeys.Created" xml:space="preserve">
+    <value>API-nyckel skapad</value>
+  </data>
+  <data name="ApiKeys.CreatedDescription" xml:space="preserve">
+    <value>Kopiera nyckeln nu. Den visas inte igen.</value>
+  </data>
+  <data name="ApiKeys.Deleted" xml:space="preserve">
+    <value>API-nyckel raderad</value>
   </data>
 </root>

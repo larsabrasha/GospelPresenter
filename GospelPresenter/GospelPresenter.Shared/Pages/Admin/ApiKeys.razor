@@ -1,0 +1,198 @@
+@page "/admin/api-keys"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject IUserService UserService
+@inject ActiveOrganizationState OrgState
+@inject ToastService Toast
+
+<PageContainer>
+    <div class="flex items-center justify-between px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["ApiKeys.Title"]</div>
+        <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center">
+            <PlusSymbol Class="size-4 mr-2"/>@L["ApiKeys.New"]
+        </AppButton>
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        @if (apiKeys is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+        }
+        else if (apiKeys.Count == 0)
+        {
+            <div class="flex flex-col items-center justify-center py-16 text-neutral-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mb-3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+                </svg>
+                <span class="text-sm">@L["ApiKeys.Empty"]</span>
+            </div>
+        }
+        else
+        {
+            @foreach (var key in apiKeys)
+            {
+                <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium">@key.Name</div>
+                        <div class="text-xs text-neutral-400">
+                            @key.User.Name &middot; @key.CreatedAt.ToString("yyyy-MM-dd")
+                        </div>
+                    </div>
+                    <button class="cursor-pointer text-red-500 hover:text-red-700 dark:hover:text-red-400 p-2"
+                            title="@L["Common.Delete"]"
+                            @onclick="() => DeleteKey(key)">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                            <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.519.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</PageContainer>
+
+@if (showCreateDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@L["ApiKeys.New"]</div>
+            <div>
+                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
+                <input @ref="nameInput"
+                       type="text"
+                       placeholder="@L["ApiKeys.NamePlaceholder"]"
+                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                       @bind="editName"
+                       @bind:event="oninput"
+                       @onkeydown="OnDialogKeyDown"/>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">@L["ApiKeys.User"]</label>
+                <div class="relative">
+                    <select @bind="selectedUserId"
+                            class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        @if (users is not null)
+                        {
+                            @foreach (var user in users)
+                            {
+                                <option value="@user.Id">@user.Name</option>
+                            }
+                        }
+                    </select>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary"
+                           Disabled="@(isSaving || string.IsNullOrWhiteSpace(editName))"
+                           OnClick="CreateKey">
+                    @(isSaving ? L["Common.Creating"] : L["Common.Create"])
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@if (createdKey is not null)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="() => createdKey = null">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@L["ApiKeys.Created"]</div>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">@L["ApiKeys.CreatedDescription"]</p>
+            <div class="bg-neutral-100 dark:bg-neutral-700 rounded-xl p-4 font-mono text-sm break-all select-all">
+                @createdKey
+            </div>
+            <div class="flex justify-end">
+                <AppButton Variant="ButtonVariant.Primary" OnClick="() => createdKey = null">
+                    @L["Common.OK"]
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    private List<McpApiKey>? apiKeys;
+    private List<User>? users;
+    private bool showCreateDialog;
+    private bool isSaving;
+    private string editName = "";
+    private string selectedUserId = "";
+    private string? createdKey;
+    private ElementReference nameInput;
+    private bool shouldFocusName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        var caller = OrgState.ToCallerContext();
+        apiKeys = await UserService.GetMcpApiKeysAsync(orgId, caller);
+        users = await UserService.GetUsersByOrganizationAsync(orgId, caller);
+        selectedUserId = users.FirstOrDefault()?.Id ?? "";
+    }
+
+    private void ShowCreateDialog()
+    {
+        editName = "";
+        selectedUserId = users?.FirstOrDefault()?.Id ?? "";
+        showCreateDialog = true;
+        shouldFocusName = true;
+    }
+
+    private void CloseDialog() => showCreateDialog = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldFocusName)
+        {
+            shouldFocusName = false;
+            try { await nameInput.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnDialogKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(editName))
+            await CreateKey();
+        else if (e.Key == "Escape")
+            CloseDialog();
+    }
+
+    private async Task CreateKey()
+    {
+        if (isSaving || string.IsNullOrWhiteSpace(editName) || string.IsNullOrEmpty(selectedUserId)) return;
+
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        isSaving = true;
+        var key = await UserService.CreateMcpApiKeyAsync(editName.Trim(), selectedUserId, orgId, OrgState.ToCallerContext());
+        createdKey = key.Key;
+        apiKeys = await UserService.GetMcpApiKeysAsync(orgId, OrgState.ToCallerContext());
+        isSaving = false;
+        showCreateDialog = false;
+    }
+
+    private async Task DeleteKey(McpApiKey key)
+    {
+        await UserService.DeleteMcpApiKeyAsync(key.Id, OrgState.ToCallerContext());
+        apiKeys?.Remove(key);
+        Toast.Show(L["ApiKeys.Deleted"]);
+    }
+}

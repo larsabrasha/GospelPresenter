@@ -65,6 +65,10 @@ public interface IUserService
     Task<string?> GetUserSettingAsync(string userId, string key, CallerContext caller);
     Task SetUserSettingAsync(string userId, string key, string value, CallerContext caller);
     Task DeleteUserSettingAsync(string userId, string key, CallerContext caller);
+
+    Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller);
+    Task<McpApiKey> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller);
+    Task DeleteMcpApiKeyAsync(string id, CallerContext caller);
 }
 
 public class UserService(IDbContextFactory<PresentationContext> dbContextFactory) : IUserService
@@ -463,5 +467,43 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
         await context.UserSettings
             .Where(us => us.UserId == userId && us.Key == key)
             .ExecuteDeleteAsync();
+    }
+
+    public async Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ManageUsers);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.McpApiKeys
+            .Include(k => k.User)
+            .Where(k => k.OrganizationId == organizationId)
+            .OrderByDescending(k => k.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<McpApiKey> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ManageUsers);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        var apiKey = new McpApiKey
+        {
+            Name = name,
+            UserId = userId,
+            OrganizationId = organizationId
+        };
+        context.McpApiKeys.Add(apiKey);
+        await context.SaveChangesAsync();
+        return apiKey;
+    }
+
+    public async Task DeleteMcpApiKeyAsync(string id, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ManageUsers);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        var key = await context.McpApiKeys.FirstOrDefaultAsync(k => k.Id == id);
+        if (key is null) return;
+        caller.RequireOrganizationAccess(key.OrganizationId);
+        await context.McpApiKeys.Where(k => k.Id == id).ExecuteDeleteAsync();
     }
 }

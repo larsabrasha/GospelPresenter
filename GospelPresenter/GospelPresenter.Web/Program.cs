@@ -5,6 +5,7 @@ using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using GospelPresenter.Web.Configuration;
+using GospelPresenter.Web.Mcp;
 using GospelPresenter.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -174,6 +175,16 @@ try
     builder.Services.AddSharedGospelPresenterServices(builder.Configuration);
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
     builder.Services.AddSingleton<SetupStatusService>();
+
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddTransient<McpCallerContextAccessor>();
+    builder.Services
+        .AddMcpServer(mcpOptions =>
+        {
+            mcpOptions.ServerInfo = new() { Name = "GospelPresenter", Version = "1.0.0" };
+        })
+        .WithHttpTransport()
+        .WithToolsFromAssembly();
 
     builder.Services.AddHealthChecks()
         .ForwardToPrometheus();
@@ -487,6 +498,39 @@ builder.Services.AddMetricServer(options =>
         context.Response.Headers.CacheControl = "public, max-age=3600";
         return Results.File(stream, contentType);
     }).AllowAnonymous();
+
+    // MCP API key authentication middleware
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/mcp"))
+        {
+            var authHeader = context.Request.Headers.Authorization.ToString();
+            if (!authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = 401;
+                return;
+            }
+
+            var apiKey = authHeader["Bearer ".Length..];
+            var db = context.RequestServices.GetRequiredService<PresentationContext>();
+            var key = await db.McpApiKeys.FirstOrDefaultAsync(k => k.Key == apiKey);
+
+            if (key is null)
+            {
+                context.Response.StatusCode = 401;
+                return;
+            }
+
+            var accessor = context.RequestServices.GetRequiredService<McpCallerContextAccessor>();
+            accessor.UserId = key.UserId;
+            accessor.OrganizationId = key.OrganizationId;
+            accessor.Caller = new CallerContext(key.UserId, UserRole.User, key.OrganizationId);
+        }
+
+        await next(context);
+    });
+
+    app.MapMcp("/mcp");
 
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
