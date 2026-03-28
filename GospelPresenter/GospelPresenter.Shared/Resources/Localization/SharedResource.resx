@@ -101,8 +101,11 @@
   <data name="Nav.MyProfile" xml:space="preserve">
     <value>My profile</value>
   </data>
+  <data name="Nav.Dashboard" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
   <data name="Nav.Media" xml:space="preserve">
-    <value>Media</value>
+    <value>Content</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
     <value>Administration</value>
@@ -436,6 +439,15 @@
   </data>
   <data name="Users.User" xml:space="preserve">
     <value>User</value>
+  </data>
+  <data name="Users.RoleDescription.User" xml:space="preserve">
+    <value>Can create presentations and manage songs and overlays.</value>
+  </data>
+  <data name="Users.RoleDescription.Admin" xml:space="preserve">
+    <value>Everything a user can do, plus manage templates and users.</value>
+  </data>
+  <data name="Users.RoleDescription.SuperAdmin" xml:space="preserve">
+    <value>Full access, including managing organizations.</value>
   </data>
   <data name="UserDetail.ProfileImage" xml:space="preserve">
     <value>Profile image</value>
@@ -946,5 +958,8 @@
   </data>
   <data name="Toast.SavedAsTemplate" xml:space="preserve">
     <value>Saved as template</value>
+  </data>
+  <data name="Toast.LinkCopied" xml:space="preserve">
+    <value>Link copied</value>
   </data>
 </root>

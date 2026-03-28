@@ -1,3 +1,8 @@
+window.copyToClipboard = function (text) {
+    if (!navigator.clipboard) return Promise.resolve(false);
+    return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return false; });
+};
+
 window.setTheme = function (theme) {
     localStorage.setItem('theme', theme);
     applyTheme();

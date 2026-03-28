@@ -177,6 +177,8 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
             Role = role
         };
         context.Users.Add(user);
+        var invite = new Invite { UserId = user.Id };
+        context.Invites.Add(invite);
         await context.SaveChangesAsync();
         return user;
     }

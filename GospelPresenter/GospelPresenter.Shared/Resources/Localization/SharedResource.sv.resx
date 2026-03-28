@@ -101,8 +101,11 @@
   <data name="Nav.MyProfile" xml:space="preserve">
     <value>Min profil</value>
   </data>
+  <data name="Nav.Dashboard" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
   <data name="Nav.Media" xml:space="preserve">
-    <value>Media</value>
+    <value>Innehåll</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
     <value>Administration</value>
@@ -436,6 +439,15 @@
   </data>
   <data name="Users.User" xml:space="preserve">
     <value>Användare</value>
+  </data>
+  <data name="Users.RoleDescription.User" xml:space="preserve">
+    <value>Kan skapa presentationer och hantera sånger och overlays.</value>
+  </data>
+  <data name="Users.RoleDescription.Admin" xml:space="preserve">
+    <value>Allt en användare kan göra, plus hantera mallar och användare.</value>
+  </data>
+  <data name="Users.RoleDescription.SuperAdmin" xml:space="preserve">
+    <value>Full åtkomst, inklusive hantering av organisationer.</value>
   </data>
   <data name="UserDetail.ProfileImage" xml:space="preserve">
     <value>Profilbild</value>
@@ -946,5 +958,8 @@
   </data>
   <data name="Toast.SavedAsTemplate" xml:space="preserve">
     <value>Sparad som mall</value>
+  </data>
+  <data name="Toast.LinkCopied" xml:space="preserve">
+    <value>Länk kopierad</value>
   </data>
 </root>

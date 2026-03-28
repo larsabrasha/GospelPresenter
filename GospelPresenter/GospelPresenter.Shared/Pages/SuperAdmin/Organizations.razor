@@ -1,4 +1,4 @@
-@page "/superadmin/organizations"
+@page "/admin/organizations"
 @attribute [Authorize(Roles = "SuperAdmin")]
 
 @using GospelPresenter.Shared.Components
@@ -49,7 +49,7 @@
         {
             @foreach (var org in organizations)
             {
-                <a href="/superadmin/organizations/@org.Id"
+                <a href="/admin/organizations/@org.Id"
                    class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
                     <OrganizationAvatar LogoUrl="@org.LogoSmall" Name="@org.Name"/>
                     <div class="flex-1 min-w-0">

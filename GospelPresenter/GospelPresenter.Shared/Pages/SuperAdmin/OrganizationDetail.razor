@@ -1,4 +1,4 @@
-@page "/superadmin/organizations/{OrganizationId}"
+@page "/admin/organizations/{OrganizationId}"
 @attribute [Authorize(Roles = "SuperAdmin")]
 
 @using GospelPresenter.Shared.Layout
@@ -19,7 +19,7 @@
 
 <PageContainer>
     <div class="relative flex items-center justify-center px-7">
-        <AppButton Variant="ButtonVariant.Cancel" Href="/superadmin/organizations"
+        <AppButton Variant="ButtonVariant.Cancel" Href="/admin/organizations"
                    Class="absolute left-0 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
@@ -239,7 +239,7 @@
         }
 
         OrgState.NotifyOrganizationsChanged();
-        NavigationManager.NavigateTo("/superadmin/organizations");
+        NavigationManager.NavigateTo("/admin/organizations");
     }
 
     private string RoleDisplayName(UserRole role) => role switch
