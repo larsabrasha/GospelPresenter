@@ -1,13 +1,10 @@
 @using GospelPresenter.Shared.Models
 
 <div class="flex flex-col h-full overflow-y-auto">
-    <div class="flex justify-end mb-1">
-        <AutoSaveIndicator @ref="saveIndicator"/>
-    </div>
+    <DetailHeader @ref="header" OnBack="OnBack" Class="mb-2"/>
     <OverlayEditor Overlay="@Overlay"
-                   OnBack="OnBack"
-                   OnChanged="HandleChanged"
-                   OnSaved="() => saveIndicator?.Show()"/>
+                   OnChanged="OnChanged"
+                   OnSaved="() => header?.ShowSaved()"/>
     <div class="flex items-center justify-end pt-4">
         <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDelete">
             @L["Common.Delete"]
@@ -29,14 +26,9 @@
     [Parameter, EditorRequired] public EventCallback<OverlaySlide> OnChanged { get; set; }
     [Parameter, EditorRequired] public EventCallback OnDeleted { get; set; }
 
-    private AutoSaveIndicator? saveIndicator;
+    private DetailHeader? header;
     private MarkupString? deleteConfirmMessage;
     private bool isDeleting;
-
-    private async Task HandleChanged(OverlaySlide overlay)
-    {
-        await OnChanged.InvokeAsync(overlay);
-    }
 
     private void ConfirmDelete()
     {

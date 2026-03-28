@@ -11,11 +11,7 @@
 @inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
 
-@if (editingSongId is not null)
-{
-    <CreateSong SongId="@(editingSongId!)" OnBack="ExitCreateMode" OnDeleted="HandleSongDeleted"/>
-}
-else if (OrgSongs.Count == 0)
+@if (OrgSongs.Count == 0)
 {
     <div class="flex flex-col items-center justify-center text-center text-neutral-400 text-sm h-full gap-3 select-none">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-12 mb-1 text-neutral-300 dark:text-neutral-600">
@@ -66,7 +62,7 @@ else
         <div class="mt-3 flex-1 min-h-0 flex flex-col md:flex-row">
             @if (results.Count > 0)
             {
-                <div class="w-full md:w-[50%] min-w-0 flex flex-col pr-0 md:pr-3">
+                <div class="w-full md:w-[50%] min-w-0 min-h-0 flex flex-col pr-0 md:pr-3">
                     <div class="flex-1 min-h-0 overflow-y-auto" data-song-list>
                         <Virtualize Items="results" Context="song" ItemSize="56" OverscanCount="5">
                             @{
@@ -79,7 +75,7 @@ else
                             </button>
                         </Virtualize>
                     </div>
-                    <div class="shrink-0">
+                    <div class="shrink-0 pt-3">
                         <AppButton Variant="ButtonVariant.Secondary" OnClick="EnterCreateMode" Class="flex items-center gap-1.5">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
@@ -183,9 +179,11 @@ else
                         </div>
                     }
                 </div>
-                <div class="shrink-0 flex items-center justify-end gap-10 px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
-                    <AddMoreCheckbox State="AddMoreState"/>
-                    <AppButton Variant="ButtonVariant.Primary" Disabled="isAdding" OnClick="MobileAdd" Class="max-w-full inline-flex items-center gap-1">
+                <div class="shrink-0 flex items-center justify-between gap-4 px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
+                    <div class="shrink-0 whitespace-nowrap">
+                        <AddMoreCheckbox State="AddMoreState"/>
+                    </div>
+                    <AppButton Variant="ButtonVariant.Primary" Disabled="isAdding" OnClick="MobileAdd" Class="min-w-0 inline-flex items-center gap-1">
                         <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@mobilePreviewSong.Name</span>
                     </AppButton>
                 </div>
@@ -218,6 +216,7 @@ else
     [Parameter] public EventCallback<Song> OnAdd { get; set; }
     [Parameter] public EventCallback<Song> OnAddKeepOpen { get; set; }
     [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
+    [Parameter] public EventCallback<string> OnEditSong { get; set; }
 
     private string query = "";
     private string[] searchTerms = [];
@@ -227,7 +226,6 @@ else
     private double mobilePreviewWidth;
     private Song? mobilePreviewSong;
     private readonly Debouncer searchDebounce = new(150);
-    private string? editingSongId;
     private bool isAdding;
     private string? organizationId;
     private int? pendingScrollIndex;
@@ -390,10 +388,13 @@ else
         }
     }
 
-    private void EditSong(Song song)
+    private bool wasInMobilePreview;
+
+    private async Task EditSong(Song song)
     {
+        wasInMobilePreview = mobilePreviewSong is not null;
         mobilePreviewSong = null;
-        editingSongId = song.Id;
+        await OnEditSong.InvokeAsync(song.Id);
     }
 
     private void EnterCreateMode()
@@ -402,16 +403,22 @@ else
         showNameDialog = true;
     }
 
-    private void ExitCreateMode()
+    public void NotifyEditComplete(string? editedSongId)
     {
-        var editedId = editingSongId;
-        editingSongId = null;
-        query = "";
-        searchTerms = [];
-        results = OrgSongs.ToList();
-        selectedSong = editedId is not null
-            ? results.FirstOrDefault(s => s.Id == editedId)
-            : null;
+        // Refresh song data (name/content may have changed) but preserve search and selection
+        var previousId = editedSongId ?? selectedSong?.Id;
+        results = string.IsNullOrWhiteSpace(query)
+            ? OrgSongs.ToList()
+            : SongService.SearchByOrganization(query, organizationId!, OrgState.ToCallerContext()).ToList();
+        selectedSong = previousId is not null
+            ? results.FirstOrDefault(s => s.Id == previousId)
+            : selectedSong;
+        if (wasInMobilePreview && selectedSong is not null)
+        {
+            mobilePreviewSong = selectedSong;
+        }
+        wasInMobilePreview = false;
+        StateHasChanged();
     }
 
     private async Task HandleCreateSong(string name)
@@ -419,13 +426,7 @@ else
         if (organizationId is null) return;
         var song = await SongService.CreateSongAsync(name, null, null, null, null, [], organizationId, OrgState.ToCallerContext());
         showNameDialog = false;
-        editingSongId = song.Id;
-    }
-
-    private void HandleSongDeleted()
-    {
-        editingSongId = null;
-        RefreshSongList();
+        await OnEditSong.InvokeAsync(song.Id);
     }
 
     private void RefreshSongList()

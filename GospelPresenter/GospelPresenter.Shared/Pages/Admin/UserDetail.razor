@@ -21,19 +21,7 @@
 @inject ToastService ToastService
 
 <PageContainer>
-    <div class="relative flex items-center justify-center px-5">
-        <AppButton Variant="ButtonVariant.Cancel" Href="/admin/users"
-                   Class="absolute left-0 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            @L["Common.Back"]
-        </AppButton>
-        <div class="text-xl font-bold dark:text-neutral-100">
-            @user?.Name
-        </div>
-        <AutoSaveIndicator @ref="saveIndicator" Class="absolute right-0"/>
-    </div>
+    <DetailHeader @ref="header" BackHref="/admin/users" Title="@user?.Name" Class="px-5"/>
 
     @if (user is null)
     {
@@ -323,7 +311,7 @@
     }
 
     private readonly Utils.Debouncer saveDebounce = new();
-    private AutoSaveIndicator? saveIndicator;
+    private DetailHeader? header;
 
     public void Dispose() => saveDebounce.Dispose();
 
@@ -361,7 +349,7 @@
         user.Email = editEmail.Trim();
         user.Role = editRole;
         SyncNavbar();
-        saveIndicator?.Show();
+        header?.ShowSaved();
     }
 
     private void ShowConfirm(string title, string message, Func<Task> action, string? buttonText = null)

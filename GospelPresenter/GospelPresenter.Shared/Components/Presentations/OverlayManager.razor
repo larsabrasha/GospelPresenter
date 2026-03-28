@@ -124,10 +124,9 @@ else
     {
         var overlay = new OverlaySlide { Title = title.Trim() };
         await PresentationService.AddOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
-        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
-        await OnOverlaysChanged.InvokeAsync();
+        await RefreshOverlays();
         showNameDialog = false;
-        editingOverlay = overlay;
+        editingOverlay = overlays.FirstOrDefault(o => o.Id == overlay.Id) ?? overlay;
     }
 
     private void EditOverlay(OverlaySlide overlay)
@@ -143,16 +142,20 @@ else
     private async Task HandleChanged(OverlaySlide overlay)
     {
         await PresentationService.UpdateOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
-        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
-        await OnOverlaysChanged.InvokeAsync();
+        await RefreshOverlays();
     }
 
     private async Task HandleDelete()
     {
         if (editingOverlay is null) return;
         await PresentationService.RemoveOverlayAsync(OrganizationId, editingOverlay.Id, OrgState.ToCallerContext());
-        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
         editingOverlay = null;
+        await RefreshOverlays();
+    }
+
+    private async Task RefreshOverlays()
+    {
+        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
         await OnOverlaysChanged.InvokeAsync();
     }
 }

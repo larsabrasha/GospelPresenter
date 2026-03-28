@@ -17,12 +17,7 @@
 @inject ActiveOrganizationState OrgState
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
-    <div class="relative flex items-center px-5">
-        <div class="text-xl font-bold dark:text-neutral-100">
-            @L["Profile.Title"]
-        </div>
-        <AutoSaveIndicator @ref="saveIndicator" Class="absolute right-0"/>
-    </div>
+    <DetailHeader @ref="header" Title="@L["Profile.Title"]" Class="px-5"/>
 
     @if (user is null)
     {
@@ -152,7 +147,7 @@
     }
 
     private readonly Utils.Debouncer saveDebounce = new();
-    private AutoSaveIndicator? saveIndicator;
+    private DetailHeader? header;
 
     public void Dispose() => saveDebounce.Dispose();
 
@@ -168,7 +163,7 @@
         await UserService.UpdateUserAsync(userId, editName.Trim(), user!.Email, user.Role, OrgState.ToCallerContext());
         user!.Name = editName.Trim();
         WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
-        saveIndicator?.Show();
+        header?.ShowSaved();
     }
 
     private void ShowConfirm(string title, string message, Func<Task> action, string? buttonText = null)

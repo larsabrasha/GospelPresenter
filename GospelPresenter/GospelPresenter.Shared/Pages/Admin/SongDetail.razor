@@ -13,18 +13,7 @@
 @inject ActiveOrganizationState OrgState
 
 <PageContainer Class="pb-8">
-    <div class="relative flex items-center justify-center px-5">
-        <AppButton Href="/admin/songs" Variant="ButtonVariant.Cancel" Class="absolute left-0 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            @L["Common.Back"]
-        </AppButton>
-        <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
-            @songName
-        </div>
-        <AutoSaveIndicator @ref="saveIndicator" Class="absolute right-0"/>
-    </div>
+    <DetailHeader @ref="header" BackHref="/admin/songs" Title="@songName" Class="px-5"/>
 
     @if (songName is null)
     {
@@ -48,7 +37,7 @@
     [Parameter] public string SongId { get; set; } = "";
 
     private string? songName;
-    private AutoSaveIndicator? saveIndicator;
+    private DetailHeader? header;
 
     protected override void OnInitialized()
     {
@@ -65,7 +54,7 @@
     {
         var song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
         if (song is not null) songName = song.Name;
-        saveIndicator?.Show();
+        header?.ShowSaved();
     }
 
     private void HandleDeleted()
