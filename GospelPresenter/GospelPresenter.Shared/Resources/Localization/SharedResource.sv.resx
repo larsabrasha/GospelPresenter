@@ -143,20 +143,14 @@
   <data name="Dashboard.Presentations" xml:space="preserve">
     <value>Presentationer</value>
   </data>
-  <data name="Dashboard.CreateNew" xml:space="preserve">
-    <value>Skapa presentation</value>
-  </data>
   <data name="Dashboard.NoPresentations" xml:space="preserve">
     <value>Inga presentationer ännu</value>
   </data>
   <data name="Dashboard.Description" xml:space="preserve">
     <value>Skapa en presentation för att komma igång med din gudstjänst.</value>
   </data>
-  <data name="Dashboard.Add" xml:space="preserve">
-    <value>Lägg till presentation</value>
-  </data>
-  <data name="Dashboard.NewPresentation" xml:space="preserve">
-    <value>Ny presentation</value>
+  <data name="Dashboard.Create" xml:space="preserve">
+    <value>Skapa presentation</value>
   </data>
   <data name="Dashboard.Sunday" xml:space="preserve">
     <value>Gudstjänst</value>
@@ -275,11 +269,8 @@
   <data name="Songs.SavingSongs" xml:space="preserve">
     <value>Sparar sånger...</value>
   </data>
-  <data name="Songs.New" xml:space="preserve">
-    <value>Lägg till sång</value>
-  </data>
-  <data name="Songs.NewSong" xml:space="preserve">
-    <value>Ny sång</value>
+  <data name="Songs.Create" xml:space="preserve">
+    <value>Skapa sång</value>
   </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
     <value>Ta bort sång</value>
@@ -431,11 +422,8 @@
   <data name="Users.Title" xml:space="preserve">
     <value>Användare</value>
   </data>
-  <data name="Users.NewUser" xml:space="preserve">
-    <value>Ny användare</value>
-  </data>
-  <data name="Users.Add" xml:space="preserve">
-    <value>Lägg till användare</value>
+  <data name="Users.Create" xml:space="preserve">
+    <value>Skapa användare</value>
   </data>
   <data name="Users.NoUsers" xml:space="preserve">
     <value>Inga användare</value>
@@ -518,9 +506,6 @@
   <data name="Overlays.Title" xml:space="preserve">
     <value>Overlays</value>
   </data>
-  <data name="Overlays.New" xml:space="preserve">
-    <value>Ny overlay</value>
-  </data>
   <data name="Overlays.Empty" xml:space="preserve">
     <value>Inga overlays</value>
   </data>
@@ -530,8 +515,8 @@
   <data name="Overlays.Description" xml:space="preserve">
     <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
   </data>
-  <data name="Overlays.Add" xml:space="preserve">
-    <value>Lägg till overlay</value>
+  <data name="Overlays.Create" xml:space="preserve">
+    <value>Skapa overlay</value>
   </data>
   <data name="OverlayEditor.Title" xml:space="preserve">
     <value>Titel</value>
@@ -554,8 +539,8 @@
   <data name="Orgs.Title" xml:space="preserve">
     <value>Organisationer</value>
   </data>
-  <data name="Orgs.New" xml:space="preserve">
-    <value>Lägg till organisation</value>
+  <data name="Orgs.Create" xml:space="preserve">
+    <value>Skapa organisation</value>
   </data>
   <data name="Orgs.NoOrgs" xml:space="preserve">
     <value>Inga organisationer ännu</value>
@@ -622,12 +607,6 @@
   </data>
   <data name="OverlayManager.Description" xml:space="preserve">
     <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
-  </data>
-  <data name="OverlayManager.Add" xml:space="preserve">
-    <value>Lägg till overlay</value>
-  </data>
-  <data name="OverlayManager.New" xml:space="preserve">
-    <value>Ny overlay</value>
   </data>
   <data name="Profile.RemoveProfileImage" xml:space="preserve">
     <value>Ta bort profilbild</value>
@@ -905,17 +884,14 @@
   <data name="ApiKeys.Title" xml:space="preserve">
     <value>MCP API-nycklar</value>
   </data>
-  <data name="ApiKeys.New" xml:space="preserve">
-    <value>Lägg till MCP API-nyckel</value>
+  <data name="ApiKeys.Create" xml:space="preserve">
+    <value>Skapa MCP API-nyckel</value>
   </data>
   <data name="ApiKeys.Empty" xml:space="preserve">
     <value>Inga MCP API-nycklar</value>
   </data>
   <data name="ApiKeys.EmptyDescription" xml:space="preserve">
     <value>Skapa en MCP API-nyckel för att ansluta externa verktyg via MCP-protokollet.</value>
-  </data>
-  <data name="ApiKeys.Add" xml:space="preserve">
-    <value>Lägg till MCP API-nyckel</value>
   </data>
   <data name="ApiKeys.User" xml:space="preserve">
     <value>Användare</value>
@@ -953,9 +929,6 @@
   <data name="Templates.Title" xml:space="preserve">
     <value>Mallar</value>
   </data>
-  <data name="Templates.New" xml:space="preserve">
-    <value>Ny</value>
-  </data>
   <data name="Templates.Empty" xml:space="preserve">
     <value>Inga mallar</value>
   </data>
@@ -968,11 +941,8 @@
   <data name="Templates.DeleteConfirm" xml:space="preserve">
     <value>Är du säker på att du vill ta bort mallen?</value>
   </data>
-  <data name="Templates.Add" xml:space="preserve">
-    <value>Lägg till mall</value>
-  </data>
-  <data name="Templates.NewTemplate" xml:space="preserve">
-    <value>Ny mall</value>
+  <data name="Templates.Create" xml:space="preserve">
+    <value>Skapa mall</value>
   </data>
   <data name="Dashboard.Recent" xml:space="preserve">
     <value>Senaste</value>
@@ -982,9 +952,6 @@
   </data>
   <data name="Dashboard.BlankPresentation" xml:space="preserve">
     <value>Tom presentation</value>
-  </data>
-  <data name="Dashboard.CreateNewPresentation" xml:space="preserve">
-    <value>Skapa en ny presentation</value>
   </data>
   <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
     <value>Spara som mall</value>

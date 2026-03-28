@@ -15,7 +15,7 @@
         @if (recentPresentations is not null && recentPresentations.Count > 0)
         {
             <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center">
-                <PlusSymbol Class="size-4 mr-2"/>@L["Dashboard.CreateNew"]
+                <PlusSymbol Class="size-4 mr-2"/>@L["Dashboard.Create"]
             </AppButton>
         }
     </div>
@@ -46,7 +46,7 @@
                     </p>
                     <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center gap-1.5">
                         <PlusSymbol Class="size-4"/>
-                        @L["Dashboard.Add"]
+                        @L["Dashboard.Create"]
                     </AppButton>
                 </div>
             }
@@ -75,7 +75,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
                 </svg>
             </button>
-            <div class="font-semibold text-lg pr-8">@L["Dashboard.CreateNewPresentation"]</div>
+            <div class="font-semibold text-lg pr-8">@L["Dashboard.Create"]</div>
             <p class="text-sm text-neutral-500 dark:text-neutral-400">@L["Dashboard.PickerDescription"]</p>
             <div class="flex flex-wrap gap-3">
                 @if (recentTemplates is not null)
@@ -105,7 +105,7 @@
 
 @if (showNameDialog)
 {
-    <NameDialog Title="@(selectedTemplate is not null ? selectedTemplate.Name : L["Dashboard.NewPresentation"])"
+    <NameDialog Title="@(selectedTemplate is not null ? selectedTemplate.Name : L["Dashboard.Create"])"
                 Name="@newPresentationName"
                 SaveText="@L["Common.Create"]"
                 SaveLoadingText="@L["Common.Creating"]"

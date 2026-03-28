@@ -21,7 +21,7 @@
         {
             <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
                 <PlusSymbol Class="size-4"/>
-                @L["Users.Add"]
+                @L["Users.Create"]
             </AppButton>
         }
     </div>
@@ -48,7 +48,7 @@
                 </p>
                 <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
                     <PlusSymbol Class="size-4"/>
-                    @L["Users.Add"]
+                    @L["Users.Create"]
                 </AppButton>
             </div>
         }
@@ -71,7 +71,7 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["Users.NewUser"]</div>
+            <div class="font-semibold text-lg">@L["Users.Create"]</div>
             <FloatingInput @ref="nameFloatingInput" Id="new-user-name" Label="@L["Common.Name"]"
                            Value="@editName" OnInput="(e) => editName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
             <div>

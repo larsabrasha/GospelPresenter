@@ -19,7 +19,7 @@
     <div class="flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Orgs.Title"]</div>
         <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center">
-            <PlusSymbol Class="size-4 mr-2"/>@L["Orgs.New"]
+            <PlusSymbol Class="size-4 mr-2"/>@L["Orgs.Create"]
         </AppButton>
     </div>
 
@@ -66,7 +66,7 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["Orgs.New"]</div>
+            <div class="font-semibold text-lg">@L["Orgs.Create"]</div>
             <FloatingInput @ref="nameFloatingInput" Id="new-org-name" Label="@L["Common.Name"]"
                            Value="@newOrgName" OnInput="(e) => newOrgName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
             <div class="flex justify-end gap-3">
