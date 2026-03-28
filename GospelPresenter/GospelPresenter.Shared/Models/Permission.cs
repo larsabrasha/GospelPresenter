@@ -14,6 +14,8 @@ public enum Permission
     ManageUsers,
     ViewTemplates,
     ManageTemplates,
+    ViewOrganizationAudios,
+    ManageOrganizationAudios,
     ManageOrganizations,
     AssignSuperAdminRole,
     CrossOrganizationAccess,

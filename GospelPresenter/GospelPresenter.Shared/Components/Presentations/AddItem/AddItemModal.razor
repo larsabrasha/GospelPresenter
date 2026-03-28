@@ -2,6 +2,7 @@
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Bible
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Song
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Image
+@using GospelPresenter.Shared.Components.Presentations.AddItem.Audio
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
@@ -35,6 +36,11 @@
                     <PhotoSymbol Class="size-4"/>
                     @L["Sidebar.Images"]
                 </button>
+                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "audio" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
+                        @onclick="@(() => activeTab = "audio")">
+                    <SpeakerWaveSymbol Class="size-4"/>
+                    @L["Sidebar.Audio"]
+                </button>
             </div>
         </div>
 
@@ -46,6 +52,9 @@
         </div>
         <div class="@(editingSongId is null && activeTab == "image" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
             <ImageTab OnAdd="@HandleImageAdd" OnAddKeepOpen="@HandleImageAddKeepOpen" AddMoreState="@addMoreState"/>
+        </div>
+        <div class="@(editingSongId is null && activeTab == "audio" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+            <AudioTab OnAdd="@HandleAudioAdd" OnAddKeepOpen="@HandleAudioAddKeepOpen" AddMoreState="@addMoreState"/>
         </div>
     </Body>
 </Modal>
@@ -59,6 +68,8 @@
     [Parameter] public EventCallback<List<Verse>> OnBibleVersesAddedKeepOpen { get; set; }
     [Parameter] public EventCallback<List<OrganizationImage>> OnImagesAdded { get; set; }
     [Parameter] public EventCallback<List<OrganizationImage>> OnImagesAddedKeepOpen { get; set; }
+    [Parameter] public EventCallback<List<OrganizationAudio>> OnAudiosAdded { get; set; }
+    [Parameter] public EventCallback<List<OrganizationAudio>> OnAudiosAddedKeepOpen { get; set; }
 
     private string activeTab = "song";
     private AddMoreToggle addMoreState = new();
@@ -107,6 +118,19 @@
     private async Task HandleImageAddKeepOpen(List<OrganizationImage> images)
     {
         await OnImagesAddedKeepOpen.InvokeAsync(images);
+    }
+
+    private async Task HandleAudioAdd(List<OrganizationAudio> audios)
+    {
+        if (addMoreState.Value)
+            await OnAudiosAddedKeepOpen.InvokeAsync(audios);
+        else
+            await OnAudiosAdded.InvokeAsync(audios);
+    }
+
+    private async Task HandleAudioAddKeepOpen(List<OrganizationAudio> audios)
+    {
+        await OnAudiosAddedKeepOpen.InvokeAsync(audios);
     }
 
     private void EnterSongEdit(string songId)

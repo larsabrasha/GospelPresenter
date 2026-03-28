@@ -773,6 +773,54 @@
   <data name="ImageTab.Images" xml:space="preserve">
     <value>bilder</value>
   </data>
+  <data name="Sidebar.Audio" xml:space="preserve">
+    <value>Ljud</value>
+  </data>
+  <data name="Presentation.AddAudio" xml:space="preserve">
+    <value>Lägg till ljud</value>
+  </data>
+  <data name="AudioTab.Upload" xml:space="preserve">
+    <value>Ladda upp</value>
+  </data>
+  <data name="AudioTab.LoadingAudio" xml:space="preserve">
+    <value>Laddar ljudfiler...</value>
+  </data>
+  <data name="AudioTab.LoadError" xml:space="preserve">
+    <value>Kunde inte ladda ljudfiler</value>
+  </data>
+  <data name="AudioTab.NoAudio" xml:space="preserve">
+    <value>Inga ljudfiler uppladdade</value>
+  </data>
+  <data name="AudioTab.UnsupportedFormat" xml:space="preserve">
+    <value>Ljudformatet stöds inte</value>
+  </data>
+  <data name="AudioTab.AudioTooLarge" xml:space="preserve">
+    <value>Filen är för stor (max 50 MB)</value>
+  </data>
+  <data name="AudioTab.UploadingProgress" xml:space="preserve">
+    <value>Laddar upp {0} av {1}...</value>
+  </data>
+  <data name="AudioTab.UploadErrorCount" xml:space="preserve">
+    <value>{0} fil(er) kunde inte laddas upp</value>
+  </data>
+  <data name="AudioTab.AudioFiles" xml:space="preserve">
+    <value>ljudfiler</value>
+  </data>
+  <data name="AudioTab.FadeOut" xml:space="preserve">
+    <value>Tona ut</value>
+  </data>
+  <data name="AudioTab.DeleteAudio" xml:space="preserve">
+    <value>Ta bort ljudfil</value>
+  </data>
+  <data name="AudioTab.ConfirmDelete" xml:space="preserve">
+    <value>Vill du verkligen ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Toast.AudioAdded" xml:space="preserve">
+    <value>Lade till {0}</value>
+  </data>
+  <data name="Toast.AudiosAdded" xml:space="preserve">
+    <value>Lade till {0} ljudfiler</value>
+  </data>
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentationen är tom</value>
   </data>

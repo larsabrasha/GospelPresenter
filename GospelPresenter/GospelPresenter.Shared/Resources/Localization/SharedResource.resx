@@ -773,6 +773,54 @@
   <data name="ImageTab.Images" xml:space="preserve">
     <value>images</value>
   </data>
+  <data name="Sidebar.Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="Presentation.AddAudio" xml:space="preserve">
+    <value>Add audio</value>
+  </data>
+  <data name="AudioTab.Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="AudioTab.LoadingAudio" xml:space="preserve">
+    <value>Loading audio files...</value>
+  </data>
+  <data name="AudioTab.LoadError" xml:space="preserve">
+    <value>Could not load audio files</value>
+  </data>
+  <data name="AudioTab.NoAudio" xml:space="preserve">
+    <value>No audio files uploaded</value>
+  </data>
+  <data name="AudioTab.UnsupportedFormat" xml:space="preserve">
+    <value>Unsupported audio format</value>
+  </data>
+  <data name="AudioTab.AudioTooLarge" xml:space="preserve">
+    <value>File too large (max 50 MB)</value>
+  </data>
+  <data name="AudioTab.UploadingProgress" xml:space="preserve">
+    <value>Uploading {0} of {1}...</value>
+  </data>
+  <data name="AudioTab.UploadErrorCount" xml:space="preserve">
+    <value>{0} file(s) failed to upload</value>
+  </data>
+  <data name="AudioTab.AudioFiles" xml:space="preserve">
+    <value>audio files</value>
+  </data>
+  <data name="AudioTab.FadeOut" xml:space="preserve">
+    <value>Fade out</value>
+  </data>
+  <data name="AudioTab.DeleteAudio" xml:space="preserve">
+    <value>Delete audio file</value>
+  </data>
+  <data name="AudioTab.ConfirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Toast.AudioAdded" xml:space="preserve">
+    <value>Added {0}</value>
+  </data>
+  <data name="Toast.AudiosAdded" xml:space="preserve">
+    <value>Added {0} audio files</value>
+  </data>
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentation is empty</value>
   </data>

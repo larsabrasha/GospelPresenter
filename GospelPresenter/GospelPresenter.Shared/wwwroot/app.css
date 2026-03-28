@@ -94,6 +94,19 @@ dialog.animated[open]::backdrop {
     animation: toast-out 200ms ease-in forwards;
 }
 
+.fade-out-btn.fading-out {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.fade-out-btn.fading-out .fade-out-icon {
+    display: none;
+}
+
+.fade-out-btn.fading-out .fade-out-spinner {
+    display: block;
+}
+
 .toast-popover:popover-open {
     position: fixed;
     inset: auto;

@@ -494,3 +494,146 @@ window.initLiveViewListener = function(sessionId) {
         window.liveViewChannel.postMessage({ type: 'live-closed', sessionId });
     });
 }
+
+window.gospelPresenter.formatTime = function(seconds) {
+    var mins = Math.floor(seconds / 60);
+    var secs = Math.floor(seconds % 60);
+    return mins + ':' + (secs < 10 ? '0' : '') + secs;
+};
+
+window.gospelPresenter.toggleAudio = function(audioId) {
+    var audio = document.getElementById(audioId);
+    if (!audio) return;
+    if (audio.paused) audio.play();
+    else audio.pause();
+};
+
+window.gospelPresenter.startSeek = function(audioId, event, bar) {
+    var audio = document.getElementById(audioId);
+    if (!audio || !audio.duration) return;
+    event.preventDefault();
+
+    var debounceTimer = null;
+    audio._seeking = true;
+
+    function getX(e) {
+        return e.touches ? e.touches[0].clientX : e.clientX;
+    }
+
+    function seekTo(e) {
+        var rect = bar.getBoundingClientRect();
+        var ratio = Math.max(0, Math.min(1, (getX(e) - rect.left) / rect.width));
+        audio.currentTime = ratio * audio.duration;
+        gospelPresenter.updateAudioUI(audioId, audio.currentTime, audio.duration);
+    }
+
+    var originalVolume = audio.volume;
+    audio.volume = 0;
+    seekTo(event);
+
+    function scheduleUnmute() {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            audio.volume = originalVolume;
+        }, 150);
+    }
+
+    scheduleUnmute();
+
+    function onMove(e) {
+        audio.volume = 0;
+        seekTo(e);
+        scheduleUnmute();
+    }
+
+    function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+        if (debounceTimer) clearTimeout(debounceTimer);
+        audio._seeking = false;
+        audio.volume = originalVolume;
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove);
+    document.addEventListener('touchend', onUp);
+};
+
+window.gospelPresenter.onAudioPlay = function(audioId, containerId) {
+    var playIcon = document.getElementById(audioId + '-play-icon');
+    var pauseIcon = document.getElementById(audioId + '-pause-icon');
+    if (playIcon) playIcon.classList.add('hidden');
+    if (pauseIcon) pauseIcon.classList.remove('hidden');
+
+    // Pause all other audio elements in the same container
+    var container = document.getElementById(containerId);
+    if (container) {
+        container.querySelectorAll('audio').forEach(function(a) {
+            if (a.id !== audioId && !a.paused) {
+                a.pause();
+                a.currentTime = 0;
+            }
+        });
+    }
+};
+
+window.gospelPresenter.onAudioPause = function(audioId) {
+    var playIcon = document.getElementById(audioId + '-play-icon');
+    var pauseIcon = document.getElementById(audioId + '-pause-icon');
+    if (playIcon) playIcon.classList.remove('hidden');
+    if (pauseIcon) pauseIcon.classList.add('hidden');
+};
+
+window.gospelPresenter.updateAudioUI = function(audioId, currentTime, duration) {
+    var pct = (currentTime / duration) * 100;
+    var progress = document.getElementById(audioId + '-progress');
+    var thumb = document.getElementById(audioId + '-thumb');
+    var current = document.getElementById(audioId + '-current');
+    if (progress) progress.style.width = pct + '%';
+    if (thumb) thumb.style.left = 'calc(' + pct + '% - 7px)';
+    if (current) current.textContent = gospelPresenter.formatTime(currentTime);
+};
+
+window.gospelPresenter.onAudioTimeUpdate = function(audioId) {
+    var audio = document.getElementById(audioId);
+    if (!audio || !audio.duration || audio._seeking) return;
+    gospelPresenter.updateAudioUI(audioId, audio.currentTime, audio.duration);
+};
+
+window.gospelPresenter.onAudioMetadata = function(audioId) {
+    var audio = document.getElementById(audioId);
+    if (!audio) return;
+    var duration = document.getElementById(audioId + '-duration');
+    if (duration) duration.textContent = gospelPresenter.formatTime(audio.duration);
+};
+
+window.gospelPresenter.fadeOutAudio = function(audioElement, button, durationMs) {
+    durationMs = durationMs || 5000;
+    if (audioElement.paused) return;
+    if (audioElement._fadeInterval) return;
+
+    var startVolume = audioElement.volume;
+    var startTime = Date.now();
+
+    if (button) button.classList.add('fading-out');
+
+    audioElement._fadeInterval = setInterval(function() {
+        var elapsed = Date.now() - startTime;
+        var progress = Math.min(1, elapsed / durationMs);
+        // Ease-out: fast at start, slow at end
+        var eased = 1 - Math.pow(1 - progress, 3);
+        audioElement.volume = Math.max(0, startVolume * (1 - eased));
+
+        if (progress >= 1) {
+            clearInterval(audioElement._fadeInterval);
+            audioElement._fadeInterval = null;
+            audioElement.pause();
+            audioElement.currentTime = 0;
+            audioElement.volume = startVolume;
+            if (button) button.classList.remove('fading-out');
+        }
+    }, 50);
+};

@@ -162,6 +162,18 @@
                         ? "mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
                         : "flex items-center justify-center h-full overflow-auto";
                 }
+                @if (SelectedAudio is not null)
+                {
+                    <div id="audio-container" class="flex flex-col gap-3 w-full sm:max-w-lg sm:mx-auto px-3 pt-16 overflow-auto">
+                        @for (var i = 0; i < SelectedAudio.Parts.Count; i++)
+                        {
+                            var part = SelectedAudio.Parts[i];
+                            <AudioPlayer AudioElementId="@($"audio-player-{i}")" FileName="@part.FileName" Url="@part.Url"/>
+                        }
+                    </div>
+                }
+                else
+                {
                 <div class="@mainClass" id="main">
                     @if (SelectedSong is not null)
                     {
@@ -295,6 +307,7 @@
                         </div>
                     }
                 </div>
+                }
 
                 <div
                     class="flex items-center absolute bottom-0 left-0 right-0 justify-between p-3 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-none">
@@ -389,7 +402,9 @@
                   OnBibleVersesAdded="@HandleBibleVersesAdded"
                   OnBibleVersesAddedKeepOpen="@HandleBibleVersesAddedKeepOpen"
                   OnImagesAdded="@HandleImagesAdded"
-                  OnImagesAddedKeepOpen="@HandleImagesAddedKeepOpen"/>
+                  OnImagesAddedKeepOpen="@HandleImagesAddedKeepOpen"
+                  OnAudiosAdded="@HandleAudiosAdded"
+                  OnAudiosAddedKeepOpen="@HandleAudiosAddedKeepOpen"/>
 }
 
 @if (showAddImagesToExisting)
@@ -529,6 +544,7 @@
     private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
+    private Audio? SelectedAudio { get; set; }
     private bool showAddModal;
     private bool showSessionExpired;
     private bool showOverlayManager;
@@ -923,6 +939,7 @@
                     PresentationItemType.Song => ProjectItemType.Song,
                     PresentationItemType.BibleText => ProjectItemType.BibleText,
                     PresentationItemType.Image => ProjectItemType.Image,
+                    PresentationItemType.Audio => ProjectItemType.Audio,
                     _ => ProjectItemType.Song
                 },
                 Title = item.Title
@@ -1014,6 +1031,7 @@
         SongCredits = null;
         SelectedBibleText = null;
         SelectedImage = null;
+        SelectedAudio = null;
         isEditingImageOrder = false;
         isEditingItemTitle = false;
         imageSortableInitialized = false;
@@ -1069,6 +1087,22 @@
                     {
                         SelectedImage = new Image(imageItem.Id, urls, partIds);
                     }
+                }
+                break;
+            case ProjectItemType.Audio:
+                var audioItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                if (audioItem is not null && audioItem.Parts.Count > 0)
+                {
+                    var audioParts = audioItem.Parts.OrderBy(p => p.SortOrder)
+                        .Select(p =>
+                        {
+                            var parts = p.Content.Split('|', 2);
+                            var audioId = parts[0];
+                            var fileName = parts.Length > 1 ? parts[1] : audioId;
+                            return new AudioPart(p.Id, audioId, fileName, ImageUrlHelper.OrgAudioUrl(audioId));
+                        })
+                        .ToList();
+                    SelectedAudio = new Audio(audioItem.Id, audioParts);
                 }
                 break;
         }
@@ -1132,6 +1166,8 @@
 
                 break;
             }
+            case ProjectItemType.Audio:
+                return;
             default:
                 return;
         }
@@ -1520,6 +1556,71 @@
         ToastService.Show(images.Count == 1
             ? L["Toast.ImageAdded", images[0].FileName]
             : L["Toast.ImagesAdded", images.Count]);
+    }
+
+    private async Task HandleAudiosAdded(List<OrganizationAudio> audios)
+    {
+        showAddModal = false;
+        await AddAudios(audios);
+    }
+
+    private async Task HandleAudiosAddedKeepOpen(List<OrganizationAudio> audios)
+    {
+        await AddAudios(audios);
+    }
+
+    private async Task AddAudios(List<OrganizationAudio> audios)
+    {
+        if (audios.Count == 0) return;
+
+        var itemId = Guid.NewGuid().ToString();
+        var title = audios.Count == 1
+            ? audios[0].FileName
+            : $"{audios.Count} {L["AudioTab.AudioFiles"]}";
+
+        var parts = audios.Select((audio, i) => new PresentationItemPart
+        {
+            Id = Guid.NewGuid().ToString(),
+            Content = $"{audio.Id}|{audio.FileName}",
+            SortOrder = i,
+            PresentationItemId = itemId
+        }).ToList();
+
+        var projectItem = new ProjectItem
+        {
+            Id = itemId,
+            SourceId = audios[0].Id,
+            Type = ProjectItemType.Audio,
+            Title = title
+        };
+
+        var presentationItem = new PresentationItem
+        {
+            Id = itemId,
+            SourceId = audios[0].Id,
+            Type = PresentationItemType.Audio,
+            Title = title,
+            Parts = parts
+        };
+
+        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
+        AppState.SelectedProjectItem = projectItem;
+
+        if (EffectiveId is not null)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+            {
+                await PresentationService.AddItemAsync(orgId, EffectiveId, presentationItem, OrgState.ToCallerContext());
+                if (inserted) await ReorderAfterInsert(orgId);
+            }
+        }
+
+        NotifyPresentationChanged();
+        ToastService.Show(audios.Count == 1
+            ? L["Toast.AudioAdded", audios[0].FileName]
+            : L["Toast.AudiosAdded", audios.Count]);
     }
 
     private bool InsertAfterSelected<T>(IList<T>? list, T item) where T : class

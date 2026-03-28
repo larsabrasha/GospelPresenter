@@ -1,0 +1,309 @@
+@using GospelPresenter.Shared.Components.Presentations.AddItem
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Logging
+
+@inject IOrganizationAudioService OrganizationAudioService
+@inject ActiveOrganizationState OrgState
+@inject ILogger<AudioTab> Logger
+
+<div @onkeydown="OnKeyDown" tabindex="-1" class="h-full">
+@if (isLoading)
+{
+    <div class="flex items-center justify-center py-12 text-neutral-400 text-sm">
+        @L["AudioTab.LoadingAudio"]
+    </div>
+}
+else if (organizationId is null)
+{
+    <div class="flex items-center justify-center py-12 text-neutral-400 text-sm">
+        @L["AudioTab.LoadError"]
+    </div>
+}
+else
+{
+    <div class="flex flex-col h-full">
+        <div class="shrink-0 flex items-center gap-3 pb-4">
+            <AppButton Variant="ButtonVariant.Secondary" AsLabel Disabled="@isUploading"
+                       Class="inline-flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
+                </svg>
+                @L["AudioTab.Upload"]
+                <InputFile OnChange="HandleFilesSelected" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm,audio/x-m4a" multiple class="hidden"/>
+            </AppButton>
+            @if (uploadError is not null)
+            {
+                <span class="text-red-500 dark:text-red-400 text-sm">@uploadError</span>
+            }
+            @if (isUploading)
+            {
+                <span class="text-neutral-400 text-sm">@L["AudioTab.UploadingProgress", uploadedCount, uploadTotalCount]</span>
+            }
+        </div>
+
+        <div class="flex-1 min-h-0 overflow-y-auto">
+            @if (audios.Count > 0)
+            {
+                <div class="flex flex-col gap-1 p-3">
+                    @foreach (var audio in audios)
+                    {
+                        var isSelected = selectedAudios.Contains(audio.Id);
+                        <div class="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition ring-2 @(isSelected ? "ring-sky-500 bg-sky-50 dark:bg-sky-900/20" : "ring-transparent hover:bg-neutral-100 dark:hover:bg-neutral-700")"
+                             @onclick="() => ToggleAudio(audio)">
+                            @if (isSelected)
+                            {
+                                <div class="size-5 flex items-center justify-center rounded-full bg-sky-500 text-white shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                            }
+                            else
+                            {
+                                <SpeakerWaveSymbol Class="size-5 text-neutral-400 shrink-0"/>
+                            }
+                            <span class="text-sm truncate flex-1">@audio.FileName</span>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="flex flex-col items-center justify-center text-neutral-400 text-sm py-8 select-none">
+                    <SpeakerWaveSymbol Class="size-12 mb-3 text-neutral-300 dark:text-neutral-600"/>
+                    <p class="text-neutral-400 dark:text-neutral-500">@L["AudioTab.NoAudio"]</p>
+                </div>
+            }
+        </div>
+
+        @if (selectedAudios.Count > 0)
+        {
+            <div class="shrink-0 flex items-center justify-end gap-10 pt-4">
+                <AddMoreCheckbox State="AddMoreState"/>
+                <AppButton Variant="ButtonVariant.Primary" Class="max-w-full inline-flex items-center gap-1"
+                           Disabled="isAdding"
+                           OnClick="HandleAdd">
+                    <span class="shrink-0">@L["Common.Add"]</span> <span class="font-bold truncate">@GetSelectedAudioNames()</span>
+                </AppButton>
+            </div>
+        }
+    </div>
+
+    @if (audioToDelete is not null)
+    {
+        <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDelete">
+            <div class="p-6 space-y-4">
+                <div class="font-semibold text-lg">@L["AudioTab.DeleteAudio"]</div>
+                <div>@((MarkupString)L["AudioTab.ConfirmDelete", audioToDelete.FileName].Value)</div>
+                <div class="flex justify-end gap-3">
+                    <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDelete">
+                        @L["Common.Cancel"]
+                    </AppButton>
+                    <AppButton Variant="ButtonVariant.Danger" Filled OnClick="DeleteAudio">
+                        @L["Common.Remove"]
+                    </AppButton>
+                </div>
+            </div>
+        </Dialog>
+    }
+}
+</div>
+
+@code {
+    [Parameter] public EventCallback<List<OrganizationAudio>> OnAdd { get; set; }
+    [Parameter] public EventCallback<List<OrganizationAudio>> OnAddKeepOpen { get; set; }
+    [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
+
+    private const long MaxFileSize = 50 * 1024 * 1024; // 50 MB
+    private static readonly HashSet<string> AllowedAudioTypes = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/webm", "audio/x-m4a"];
+
+    private string? organizationId;
+    private List<OrganizationAudio> audios = [];
+    private bool isLoading = true;
+    private bool isUploading;
+    private int uploadedCount;
+    private int uploadTotalCount;
+    private string? uploadError;
+    private OrganizationAudio? audioToDelete;
+    private HashSet<string> selectedAudios = [];
+    private bool isAdding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        organizationId = OrgState.ActiveOrganizationId;
+
+        if (organizationId is not null)
+        {
+            audios = await OrganizationAudioService.GetAudiosAsync(organizationId, OrgState.ToCallerContext());
+        }
+
+        isLoading = false;
+    }
+
+    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+    {
+        if (isUploading) return;
+        uploadError = null;
+
+        var files = e.GetMultipleFiles(maximumFileCount: 50);
+        var validFiles = new List<IBrowserFile>();
+
+        foreach (var file in files)
+        {
+            if (!AllowedAudioTypes.Contains(file.ContentType))
+            {
+                uploadError = L["AudioTab.UnsupportedFormat"];
+                continue;
+            }
+            if (file.Size > MaxFileSize)
+            {
+                uploadError = L["AudioTab.AudioTooLarge"];
+                continue;
+            }
+            validFiles.Add(file);
+        }
+
+        if (validFiles.Count == 0) return;
+
+        isUploading = true;
+        uploadedCount = 0;
+        uploadTotalCount = validFiles.Count;
+        StateHasChanged();
+
+        int failedCount = 0;
+
+        foreach (var file in validFiles)
+        {
+            try
+            {
+                using var stream = file.OpenReadStream(MaxFileSize);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                var data = ms.ToArray();
+
+                var audio = await OrganizationAudioService.AddAudioAsync(
+                    organizationId!,
+                    file.Name,
+                    file.ContentType,
+                    data,
+                    OrgState.ToCallerContext());
+
+                audios.Insert(0, audio);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to upload audio {FileName}", file.Name);
+                failedCount++;
+            }
+
+            uploadedCount++;
+            StateHasChanged();
+        }
+
+        if (failedCount > 0)
+        {
+            uploadError = L["AudioTab.UploadErrorCount", failedCount];
+        }
+
+        isUploading = false;
+    }
+
+    private void ToggleAudio(OrganizationAudio audio)
+    {
+        if (selectedAudios.Contains(audio.Id))
+        {
+            selectedAudios.Clear();
+        }
+        else
+        {
+            selectedAudios.Clear();
+            selectedAudios.Add(audio.Id);
+        }
+    }
+
+    private string GetSelectedAudioNames()
+    {
+        var selected = audios.Where(a => selectedAudios.Contains(a.Id)).ToList();
+        return string.Join(", ", selected.Select(a => a.FileName));
+    }
+
+    private async Task HandleAdd()
+    {
+        if (selectedAudios.Count == 0 || isAdding) return;
+        isAdding = true;
+        try
+        {
+            var fullAudios = audios.Where(a => selectedAudios.Contains(a.Id)).ToList();
+            if (fullAudios.Count > 0)
+            {
+                if (AddMoreState.Value)
+                {
+                    await OnAddKeepOpen.InvokeAsync(fullAudios);
+                    selectedAudios.Clear();
+                }
+                else
+                {
+                    await OnAdd.InvokeAsync(fullAudios);
+                }
+            }
+        }
+        finally
+        {
+            isAdding = false;
+        }
+    }
+
+    private async Task HandleAddKeepOpen()
+    {
+        if (selectedAudios.Count == 0 || isAdding) return;
+        isAdding = true;
+        try
+        {
+            var fullAudios = audios.Where(a => selectedAudios.Contains(a.Id)).ToList();
+            if (fullAudios.Count > 0)
+            {
+                await OnAddKeepOpen.InvokeAsync(fullAudios);
+                selectedAudios.Clear();
+            }
+        }
+        finally
+        {
+            isAdding = false;
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.ShiftKey && selectedAudios.Count > 0 && !isAdding)
+        {
+            await HandleAddKeepOpen();
+        }
+        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedAudios.Count > 0 && !isAdding)
+        {
+            await HandleAdd();
+        }
+    }
+
+    private void ConfirmDelete(OrganizationAudio audio)
+    {
+        audioToDelete = audio;
+    }
+
+    private void CancelDelete()
+    {
+        audioToDelete = null;
+    }
+
+    private async Task DeleteAudio()
+    {
+        if (audioToDelete is null) return;
+
+        await OrganizationAudioService.DeleteAudioAsync(audioToDelete.Id, organizationId!, OrgState.ToCallerContext());
+        audios.Remove(audioToDelete);
+        audioToDelete = null;
+    }
+}

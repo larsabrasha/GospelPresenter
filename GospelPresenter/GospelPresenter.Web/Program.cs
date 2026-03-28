@@ -216,6 +216,7 @@ try
     builder.Services.AddSingleton<ISongService, SongService>();
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IOrganizationImageService, OrganizationImageService>();
+    builder.Services.AddScoped<IOrganizationAudioService, OrganizationAudioService>();
 
 #if !DEBUG
 builder.Services.AddMetricServer(options =>
@@ -498,6 +499,40 @@ builder.Services.AddMetricServer(options =>
         context.Response.Headers.CacheControl = "public, max-age=3600";
         return Results.File(stream, contentType);
     }).AllowAnonymous();
+
+    // Authenticated audio endpoint
+    app.MapGet("/api/audio/org-audio/{id}", async (
+        string id,
+        HttpContext context,
+        IObjectStorageService storage,
+        IOrganizationAudioService audioService) =>
+    {
+        var userId = context.User.FindFirst("user_id")?.Value;
+        if (userId is null) return Results.Unauthorized();
+
+        var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
+        var orgId = context.User.FindFirst("organization_id")?.Value;
+        if (orgId is null) return Results.Forbid();
+
+        var caller = new CallerContext(userId, role, orgId);
+
+        try
+        {
+            var audio = await audioService.GetAudioByIdAsync(id, orgId, caller);
+            if (audio is null) return Results.NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Results.Forbid();
+        }
+
+        var result = await storage.GetAsync(ImageUrlHelper.OrgAudioKey(orgId, id));
+        if (result is null) return Results.NotFound();
+
+        var (stream, contentType) = result.Value;
+        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        return Results.File(stream, contentType);
+    }).RequireAuthorization();
 
     // MCP API key authentication middleware
     app.Use(async (context, next) =>
