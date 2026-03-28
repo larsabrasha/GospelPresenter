@@ -110,14 +110,6 @@
                     <div class="text-sm text-neutral-500 mt-1">@L["Users.CannotChangeOwnRole"]</div>
                 }
             </div>
-            @if (!IsCurrentUser)
-            {
-                <div>
-                    <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDeleteUser">
-                        @L["UserDetail.DeleteUser"]
-                    </AppButton>
-                </div>
-            }
         </div>
 
         <!-- Inloggningsmetoder -->
@@ -183,7 +175,7 @@
                             <div class="flex items-center gap-2">
                                 <input type="text" readonly value="@inviteUrl"
                                        class="flex-1 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-sm border border-neutral-200 dark:border-neutral-500 select-all"/>
-                                <button class="p-2 rounded-lg bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
+                                <button class="px-3 self-stretch rounded-lg bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
                                         title="@L["UserDetail.Copy"]"
                                         @onclick="() => CopyToClipboard(inviteUrl)">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
@@ -223,6 +215,14 @@
 
             }
         </div>
+        @if (!IsCurrentUser)
+        {
+            <div class="flex justify-end">
+                <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDeleteUser">
+                    @L["UserDetail.DeleteUser"]
+                </AppButton>
+            </div>
+        }
     }
 </PageContainer>
 

@@ -14,6 +14,7 @@
 @inject ActiveOrganizationState OrgState
 @inject ToastService Toast
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageContainer>
     <div class="flex items-center justify-between px-5">
@@ -130,8 +131,17 @@
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["ApiKeys.Created"]</div>
             <p class="text-sm text-neutral-500 dark:text-neutral-400">@L["ApiKeys.CreatedDescription"]</p>
-            <div class="bg-neutral-100 dark:bg-neutral-700 rounded-xl p-4 font-mono text-sm break-all select-all">
-                @createdKey
+            <div class="flex items-center gap-2">
+                <input type="text" readonly value="@createdKey"
+                       class="flex-1 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-sm border border-neutral-200 dark:border-neutral-500 select-all"/>
+                <button class="px-3 self-stretch rounded-lg bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
+                        title="@L["UserDetail.Copy"]"
+                        @onclick="CopyKey">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                        <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1Z"/>
+                        <path d="M4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z"/>
+                    </svg>
+                </button>
             </div>
             <div class="flex justify-end">
                 <AppButton Variant="ButtonVariant.Primary" OnClick="() => createdKey = null">
@@ -225,6 +235,18 @@
         apiKeys = await UserService.GetMcpApiKeysAsync(orgId, OrgState.ToCallerContext());
         isSaving = false;
         showCreateDialog = false;
+    }
+
+    private async Task CopyKey()
+    {
+        if (createdKey is null) return;
+        try
+        {
+            var success = await JSRuntime.InvokeAsync<bool>("copyToClipboard", createdKey);
+            if (success)
+                Toast.Show(L["Toast.KeyCopied"]);
+        }
+        catch { }
     }
 
     private void ConfirmDeleteKey(McpApiKey key) => keyToDelete = key;

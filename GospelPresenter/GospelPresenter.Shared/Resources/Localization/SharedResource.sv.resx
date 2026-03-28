@@ -962,4 +962,7 @@
   <data name="Toast.LinkCopied" xml:space="preserve">
     <value>Länk kopierad</value>
   </data>
+  <data name="Toast.KeyCopied" xml:space="preserve">
+    <value>Nyckel kopierad</value>
+  </data>
 </root>

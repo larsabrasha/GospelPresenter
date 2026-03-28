@@ -35,13 +35,7 @@
                           Author="@editAuthor" AuthorChanged="HandleAuthorChanged"
                           Publisher="@editPublisher" PublisherChanged="HandlePublisherChanged"
                           Year="@editYear" YearChanged="HandleYearChanged"
-                          Ccli="@editCcli" CcliChanged="HandleCcliChanged">
-            <div>
-                <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDelete">
-                    @L["SongDetail.DeleteSong"]
-                </AppButton>
-            </div>
-        </SongFieldsEditor>
+                          Ccli="@editCcli" CcliChanged="HandleCcliChanged"/>
 
         <SongPartsEditor Parts="song.Parts"
                          OnMoveUp="MovePartUp"
@@ -51,13 +45,16 @@
                          OnDelete="ConfirmDeletePart"
                          OnAdd="AddPart"/>
 
-        <div class="flex items-center justify-end">
+        <div class="flex items-center justify-between">
             <AppButton Href="@($"/admin/songs/{SongId}/history")" Variant="ButtonVariant.Neutral"
                        Class="flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
                 </svg>
                 @L["SongDetail.History"]
+            </AppButton>
+            <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDelete">
+                @L["SongDetail.DeleteSong"]
             </AppButton>
         </div>
     }
