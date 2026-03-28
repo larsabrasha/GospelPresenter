@@ -759,10 +759,10 @@
     <value>Presentation is empty</value>
   </data>
   <data name="Nav.Settings" xml:space="preserve">
-    <value>Settings</value>
+    <value>My settings</value>
   </data>
   <data name="Settings.Title" xml:space="preserve">
-    <value>Settings</value>
+    <value>My settings</value>
   </data>
   <data name="Settings.Language" xml:space="preserve">
     <value>Language</value>
