@@ -366,10 +366,10 @@
     <value>Sångens namn</value>
   </data>
   <data name="SongFields.Artist" xml:space="preserve">
-    <value>Artist</value>
+    <value>Upphovspersoner</value>
   </data>
   <data name="SongFields.ArtistPlaceholder" xml:space="preserve">
-    <value>Artist / upphovsperson</value>
+    <value>Upphovspersoner</value>
   </data>
   <data name="SongFields.Publisher" xml:space="preserve">
     <value>Förlag</value>
