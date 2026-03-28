@@ -44,6 +44,9 @@
   <data name="Common.Saving" xml:space="preserve">
     <value>Sparar...</value>
   </data>
+  <data name="Common.Saved" xml:space="preserve">
+    <value>Sparad</value>
+  </data>
   <data name="Common.Create" xml:space="preserve">
     <value>Skapa</value>
   </data>
@@ -101,8 +104,11 @@
   <data name="Nav.MyProfile" xml:space="preserve">
     <value>Min profil</value>
   </data>
+  <data name="Nav.Dashboard" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
   <data name="Nav.Media" xml:space="preserve">
-    <value>Media</value>
+    <value>Innehåll</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
     <value>Administration</value>
@@ -122,6 +128,12 @@
   <data name="Nav.Organizations" xml:space="preserve">
     <value>Organisationer</value>
   </data>
+  <data name="Nav.Experimental" xml:space="preserve">
+    <value>Experimentellt</value>
+  </data>
+  <data name="Nav.ApiKeys" xml:space="preserve">
+    <value>MCP API-nycklar</value>
+  </data>
   <data name="MainLayout.UnexpectedError" xml:space="preserve">
     <value>Ett oväntat fel har inträffat.</value>
   </data>
@@ -131,14 +143,14 @@
   <data name="Dashboard.Presentations" xml:space="preserve">
     <value>Presentationer</value>
   </data>
-  <data name="Dashboard.CreateNew" xml:space="preserve">
-    <value>Skapa ny</value>
-  </data>
   <data name="Dashboard.NoPresentations" xml:space="preserve">
     <value>Inga presentationer ännu</value>
   </data>
-  <data name="Dashboard.NewPresentation" xml:space="preserve">
-    <value>Ny presentation</value>
+  <data name="Dashboard.Description" xml:space="preserve">
+    <value>Skapa en presentation för att komma igång med din gudstjänst.</value>
+  </data>
+  <data name="Dashboard.Create" xml:space="preserve">
+    <value>Skapa presentation</value>
   </data>
   <data name="Dashboard.Sunday" xml:space="preserve">
     <value>Gudstjänst</value>
@@ -257,6 +269,9 @@
   <data name="Songs.SavingSongs" xml:space="preserve">
     <value>Sparar sånger...</value>
   </data>
+  <data name="Songs.Create" xml:space="preserve">
+    <value>Skapa sång</value>
+  </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
     <value>Ta bort sång</value>
   </data>
@@ -327,13 +342,13 @@
     <value>Vill du återställa sången till versionen från &lt;strong&gt;{0}&lt;/strong&gt;? Den nuvarande versionen sparas i historiken.</value>
   </data>
   <data name="SongParts.LabelPlaceholder" xml:space="preserve">
-    <value>Etikett (t.ex. Vers 1)</value>
+    <value>Etikett</value>
   </data>
   <data name="SongParts.DeleteConfirm" xml:space="preserve">
     <value>Ta bort?</value>
   </data>
   <data name="SongParts.TextPlaceholder" xml:space="preserve">
-    <value>Skriv texten här...</value>
+    <value>Text</value>
   </data>
   <data name="SongParts.AddPart" xml:space="preserve">
     <value>Lägg till del</value>
@@ -342,10 +357,10 @@
     <value>Sångens namn</value>
   </data>
   <data name="SongFields.Artist" xml:space="preserve">
-    <value>Artist</value>
+    <value>Upphovspersoner</value>
   </data>
   <data name="SongFields.ArtistPlaceholder" xml:space="preserve">
-    <value>Artist / upphovsperson</value>
+    <value>Upphovspersoner</value>
   </data>
   <data name="SongFields.Publisher" xml:space="preserve">
     <value>Förlag</value>
@@ -407,11 +422,14 @@
   <data name="Users.Title" xml:space="preserve">
     <value>Användare</value>
   </data>
-  <data name="Users.NewUser" xml:space="preserve">
-    <value>Ny användare</value>
+  <data name="Users.Create" xml:space="preserve">
+    <value>Skapa användare</value>
   </data>
   <data name="Users.NoUsers" xml:space="preserve">
     <value>Inga användare</value>
+  </data>
+  <data name="Users.Description" xml:space="preserve">
+    <value>Lägg till användare i din organisation för att ge dem tillgång till presentationer och sånger.</value>
   </data>
   <data name="Users.CannotChangeOwnRole" xml:space="preserve">
     <value>Du kan inte ändra din egen roll</value>
@@ -430,6 +448,15 @@
   </data>
   <data name="Users.User" xml:space="preserve">
     <value>Användare</value>
+  </data>
+  <data name="Users.RoleDescription.User" xml:space="preserve">
+    <value>Kan skapa presentationer och hantera sånger och overlays.</value>
+  </data>
+  <data name="Users.RoleDescription.Admin" xml:space="preserve">
+    <value>Allt en användare kan göra, plus hantera mallar och användare.</value>
+  </data>
+  <data name="Users.RoleDescription.SuperAdmin" xml:space="preserve">
+    <value>Full åtkomst, inklusive hantering av organisationer.</value>
   </data>
   <data name="UserDetail.ProfileImage" xml:space="preserve">
     <value>Profilbild</value>
@@ -479,17 +506,17 @@
   <data name="Overlays.Title" xml:space="preserve">
     <value>Overlays</value>
   </data>
-  <data name="Overlays.New" xml:space="preserve">
-    <value>Ny overlay</value>
-  </data>
   <data name="Overlays.Empty" xml:space="preserve">
     <value>Inga overlays</value>
+  </data>
+  <data name="Overlays.ConfirmDelete" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort overlayen "{0}"?</value>
   </data>
   <data name="Overlays.Description" xml:space="preserve">
     <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
   </data>
-  <data name="Overlays.Add" xml:space="preserve">
-    <value>Lägg till overlay</value>
+  <data name="Overlays.Create" xml:space="preserve">
+    <value>Skapa overlay</value>
   </data>
   <data name="OverlayEditor.Title" xml:space="preserve">
     <value>Titel</value>
@@ -512,8 +539,8 @@
   <data name="Orgs.Title" xml:space="preserve">
     <value>Organisationer</value>
   </data>
-  <data name="Orgs.New" xml:space="preserve">
-    <value>Ny organisation</value>
+  <data name="Orgs.Create" xml:space="preserve">
+    <value>Skapa organisation</value>
   </data>
   <data name="Orgs.NoOrgs" xml:space="preserve">
     <value>Inga organisationer ännu</value>
@@ -580,9 +607,6 @@
   </data>
   <data name="OverlayManager.Description" xml:space="preserve">
     <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
-  </data>
-  <data name="OverlayManager.Add" xml:space="preserve">
-    <value>Lägg till overlay</value>
   </data>
   <data name="Profile.RemoveProfileImage" xml:space="preserve">
     <value>Ta bort profilbild</value>
@@ -749,14 +773,62 @@
   <data name="ImageTab.Images" xml:space="preserve">
     <value>bilder</value>
   </data>
+  <data name="Sidebar.Audio" xml:space="preserve">
+    <value>Ljud</value>
+  </data>
+  <data name="Presentation.AddAudio" xml:space="preserve">
+    <value>Lägg till ljud</value>
+  </data>
+  <data name="AudioTab.Upload" xml:space="preserve">
+    <value>Ladda upp</value>
+  </data>
+  <data name="AudioTab.LoadingAudio" xml:space="preserve">
+    <value>Laddar ljudfiler...</value>
+  </data>
+  <data name="AudioTab.LoadError" xml:space="preserve">
+    <value>Kunde inte ladda ljudfiler</value>
+  </data>
+  <data name="AudioTab.NoAudio" xml:space="preserve">
+    <value>Inga ljudfiler uppladdade</value>
+  </data>
+  <data name="AudioTab.UnsupportedFormat" xml:space="preserve">
+    <value>Ljudformatet stöds inte</value>
+  </data>
+  <data name="AudioTab.AudioTooLarge" xml:space="preserve">
+    <value>Filen är för stor (max 50 MB)</value>
+  </data>
+  <data name="AudioTab.UploadingProgress" xml:space="preserve">
+    <value>Laddar upp {0} av {1}...</value>
+  </data>
+  <data name="AudioTab.UploadErrorCount" xml:space="preserve">
+    <value>{0} fil(er) kunde inte laddas upp</value>
+  </data>
+  <data name="AudioTab.AudioFiles" xml:space="preserve">
+    <value>ljudfiler</value>
+  </data>
+  <data name="AudioTab.FadeOut" xml:space="preserve">
+    <value>Tona ut</value>
+  </data>
+  <data name="AudioTab.DeleteAudio" xml:space="preserve">
+    <value>Ta bort ljudfil</value>
+  </data>
+  <data name="AudioTab.ConfirmDelete" xml:space="preserve">
+    <value>Vill du verkligen ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Toast.AudioAdded" xml:space="preserve">
+    <value>Lade till {0}</value>
+  </data>
+  <data name="Toast.AudiosAdded" xml:space="preserve">
+    <value>Lade till {0} ljudfiler</value>
+  </data>
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentationen är tom</value>
   </data>
   <data name="Nav.Settings" xml:space="preserve">
-    <value>Inställningar</value>
+    <value>Mina inställningar</value>
   </data>
   <data name="Settings.Title" xml:space="preserve">
-    <value>Inställningar</value>
+    <value>Mina inställningar</value>
   </data>
   <data name="Settings.Language" xml:space="preserve">
     <value>Språk</value>
@@ -816,16 +888,16 @@
     <value>När ikryssad stannar modalen öppen efter tillägg så att du kan fortsätta lägga till fler objekt.</value>
   </data>
   <data name="Toast.SongAdded" xml:space="preserve">
-    <value>"{0}" har lagts till i presentationen</value>
+    <value>"{0}" har lagts till</value>
   </data>
   <data name="Toast.BibleTextAdded" xml:space="preserve">
-    <value>"{0}" har lagts till i presentationen</value>
+    <value>"{0}" har lagts till</value>
   </data>
   <data name="Toast.ImageAdded" xml:space="preserve">
-    <value>"{0}" har lagts till i presentationen</value>
+    <value>"{0}" har lagts till</value>
   </data>
   <data name="Toast.ImagesAdded" xml:space="preserve">
-    <value>{0} bilder har lagts till i presentationen</value>
+    <value>{0} bilder har lagts till</value>
   </data>
   <data name="Sidebar.Select" xml:space="preserve">
     <value>Välj</value>
@@ -851,7 +923,97 @@
   <data name="Toast.ItemsRemoved" xml:space="preserve">
     <value>{0} objekt borttagna</value>
   </data>
+  <data name="Toast.PresentationUpdatedExternally" xml:space="preserve">
+    <value>Presentationen har uppdaterats</value>
+  </data>
   <data name="Sidebar.SelectItemsHint" xml:space="preserve">
     <value>Välj objekt att radera</value>
+  </data>
+  <data name="ApiKeys.Title" xml:space="preserve">
+    <value>MCP API-nycklar</value>
+  </data>
+  <data name="ApiKeys.Create" xml:space="preserve">
+    <value>Skapa MCP API-nyckel</value>
+  </data>
+  <data name="ApiKeys.Empty" xml:space="preserve">
+    <value>Inga MCP API-nycklar</value>
+  </data>
+  <data name="ApiKeys.EmptyDescription" xml:space="preserve">
+    <value>Skapa en MCP API-nyckel för att ansluta externa verktyg via MCP-protokollet.</value>
+  </data>
+  <data name="ApiKeys.User" xml:space="preserve">
+    <value>Användare</value>
+  </data>
+  <data name="ApiKeys.NamePlaceholder" xml:space="preserve">
+    <value>t.ex. Claude Desktop</value>
+  </data>
+  <data name="ApiKeys.Description" xml:space="preserve">
+    <value>MCP API-nycklar gör det möjligt för AI-assistenter att hantera presentationer, söka sånger och lägga till bibeltexter via &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
+  </data>
+  <data name="ApiKeys.SetupInstructions" xml:space="preserve">
+    <value>Hur använder jag en MCP API-nyckel?</value>
+  </data>
+  <data name="ApiKeys.SetupHelp" xml:space="preserve">
+    <value>Lägg till följande i din MCP-klientkonfiguration (t.ex. &lt;code class="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-600"&gt;settings.json&lt;/code&gt; i Claude Code eller VS Code). Ersätt &lt;code class="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-600"&gt;&amp;lt;API_KEY&amp;gt;&lt;/code&gt; med nyckeln du får när du skapar en nedan.</value>
+  </data>
+  <data name="ApiKeys.Created" xml:space="preserve">
+    <value>MCP API-nyckel skapad</value>
+  </data>
+  <data name="ApiKeys.CreatedDescription" xml:space="preserve">
+    <value>Kopiera nyckeln nu. Den visas inte igen.</value>
+  </data>
+  <data name="ApiKeys.ConfirmDeleteTitle" xml:space="preserve">
+    <value>Radera MCP API-nyckel</value>
+  </data>
+  <data name="ApiKeys.ConfirmDeleteMessage" xml:space="preserve">
+    <value>Är du säker på att du vill radera MCP API-nyckeln "{0}"? Alla integrationer som använder denna nyckel slutar fungera.</value>
+  </data>
+  <data name="ApiKeys.Deleted" xml:space="preserve">
+    <value>MCP API-nyckel raderad</value>
+  </data>
+  <data name="Nav.Templates" xml:space="preserve">
+    <value>Mallar</value>
+  </data>
+  <data name="Templates.Title" xml:space="preserve">
+    <value>Mallar</value>
+  </data>
+  <data name="Templates.Empty" xml:space="preserve">
+    <value>Inga mallar</value>
+  </data>
+  <data name="Templates.Description" xml:space="preserve">
+    <value>Med mallar kan du snabbt skapa presentationer med fördefinierat innehåll.</value>
+  </data>
+  <data name="Templates.EditingBanner" xml:space="preserve">
+    <value>Du redigerar en mall</value>
+  </data>
+  <data name="Templates.DeleteConfirm" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort mallen?</value>
+  </data>
+  <data name="Templates.Create" xml:space="preserve">
+    <value>Skapa mall</value>
+  </data>
+  <data name="Dashboard.Recent" xml:space="preserve">
+    <value>Senaste</value>
+  </data>
+  <data name="Dashboard.PickerDescription" xml:space="preserve">
+    <value>Börja från grunden eller välj en mall. Mallens innehåll kopieras till din nya presentation.</value>
+  </data>
+  <data name="Dashboard.BlankPresentation" xml:space="preserve">
+    <value>Tom presentation</value>
+  </data>
+  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
+    <value>Spara som mall</value>
+  </data>
+  <data name="Sidebar.DeleteTemplate" xml:space="preserve">
+    <value>Ta bort mall</value>
+  </data>
+  <data name="Toast.SavedAsTemplate" xml:space="preserve">
+    <value>Sparad som mall</value>
+  </data>
+  <data name="Toast.LinkCopied" xml:space="preserve">
+    <value>Länk kopierad</value>
+  </data>
+  <data name="Toast.KeyCopied" xml:space="preserve">
+    <value>Nyckel kopierad</value>
   </data>
 </root>

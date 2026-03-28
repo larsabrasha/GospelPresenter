@@ -9,6 +9,11 @@ public class Presentation
     public DateTimeOffset UpdatedAt { get; set; }
     public string UpdatedBy { get; set; } = string.Empty;
 
+    public bool IsTemplate { get; set; }
+    public string? Description { get; set; }
+    public DateTimeOffset? LastUsedAt { get; set; }
+    public int UseCount { get; set; }
+
     public string OrganizationId { get; set; } = string.Empty;
     public Organization Organization { get; set; } = null!;
 

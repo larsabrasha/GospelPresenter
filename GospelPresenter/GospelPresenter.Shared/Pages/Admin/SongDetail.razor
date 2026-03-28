@@ -13,45 +13,15 @@
 @inject ActiveOrganizationState OrgState
 
 <PageContainer Class="pb-8">
-    <div class="relative flex items-center justify-center px-5">
-        <AppButton Href="/admin/songs" Variant="ButtonVariant.Cancel" Class="absolute left-0 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            @L["Common.Back"]
-        </AppButton>
-        <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
-            @song?.Name
-        </div>
-    </div>
+    <DetailHeader @ref="header" BackHref="/admin/songs" Title="@songName" Class="px-5"/>
 
-    @if (song is null)
+    @if (songName is null)
     {
         <div class="px-7 text-neutral-400">@L["Common.Loading"]</div>
     }
     else
     {
-        <SongFieldsEditor Name="@editName" NameChanged="HandleNameChanged"
-                          Author="@editAuthor" AuthorChanged="HandleAuthorChanged"
-                          Publisher="@editPublisher" PublisherChanged="HandlePublisherChanged"
-                          Year="@editYear" YearChanged="HandleYearChanged"
-                          Ccli="@editCcli" CcliChanged="HandleCcliChanged">
-            <div>
-                <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDelete">
-                    @L["SongDetail.DeleteSong"]
-                </AppButton>
-            </div>
-        </SongFieldsEditor>
-
-        <SongPartsEditor Parts="song.Parts"
-                         OnMoveUp="MovePartUp"
-                         OnMoveDown="MovePartDown"
-                         OnLabelChanged="HandleLabelChanged"
-                         OnContentChanged="HandleContentChanged"
-                         OnDelete="ConfirmDeletePart"
-                         OnAdd="AddPart"/>
-
-        <div class="flex items-center justify-end">
+        <SongEditor SongId="@SongId" OnDeleted="HandleDeleted" OnSaved="HandleSaved">
             <AppButton Href="@($"/admin/songs/{SongId}/history")" Variant="ButtonVariant.Neutral"
                        Class="flex items-center gap-1.5">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
@@ -59,188 +29,36 @@
                 </svg>
                 @L["SongDetail.History"]
             </AppButton>
-        </div>
+        </SongEditor>
     }
 </PageContainer>
-
-@if (deleteConfirmMessage is not null)
-{
-    <Dialog Class="bg-white dark:bg-neutral-800 max-w-md" OnClose="CancelDelete">
-        <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["Common.Delete"]</div>
-            <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                @deleteConfirmMessage
-            </p>
-            <div class="flex justify-end gap-3">
-                <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDelete">
-                    @L["Common.Cancel"]
-                </AppButton>
-                <AppButton Variant="ButtonVariant.Danger" Filled Disabled="isDeleting" OnClick="ExecuteDelete">
-                    @(isDeleting ? L["Common.Deleting"] : L["Common.Delete"])
-                </AppButton>
-            </div>
-        </div>
-    </Dialog>
-}
 
 @code {
     [Parameter] public string SongId { get; set; } = "";
 
-    private Song? song;
-    private string editName = "";
-    private string? editAuthor;
-    private string? editPublisher;
-    private int? editYear;
-    private string? editCcli;
-    private MarkupString? deleteConfirmMessage;
-    private Func<Task>? deleteAction;
-    private bool isDeleting;
+    private string? songName;
+    private DetailHeader? header;
 
     protected override void OnInitialized()
     {
-        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+        var song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
         if (song is null)
         {
             NavigationManager.NavigateTo("/admin/songs");
             return;
         }
-        editName = song.Name;
-        editAuthor = song.Author;
-        editPublisher = song.Publisher;
-        editYear = song.Year;
-        editCcli = song.Ccli;
+        songName = song.Name;
     }
 
-    private async Task HandleNameChanged(string name)
+    private void HandleSaved()
     {
-        editName = name;
-        await SaveSong();
+        var song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+        if (song is not null) songName = song.Name;
+        header?.ShowSaved();
     }
 
-    private async Task HandleAuthorChanged(string? author)
+    private void HandleDeleted()
     {
-        editAuthor = author;
-        await SaveSong();
-    }
-
-    private async Task HandlePublisherChanged(string? publisher)
-    {
-        editPublisher = publisher;
-        await SaveSong();
-    }
-
-    private async Task HandleYearChanged(int? year)
-    {
-        editYear = year;
-        await SaveSong();
-    }
-
-    private async Task HandleCcliChanged(string? ccli)
-    {
-        editCcli = ccli;
-        await SaveSong();
-    }
-
-    private async Task SaveSong()
-    {
-        if (song is null || string.IsNullOrWhiteSpace(editName)) return;
-
-        var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null) return;
-        await SongService.UpdateSongAsync(song.Id, orgId, editName.Trim(),
-            string.IsNullOrWhiteSpace(editAuthor) ? null : editAuthor.Trim(),
-            string.IsNullOrWhiteSpace(editPublisher) ? null : editPublisher.Trim(),
-            editYear,
-            string.IsNullOrWhiteSpace(editCcli) ? null : editCcli.Trim(), OrgState.ToCallerContext());
-        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-    }
-
-    private async Task HandleLabelChanged(SongPartsEditor.PartLabelChange change)
-    {
-        if (song is null) return;
-        var part = song.Parts[change.Index];
-        var trimmedLabel = string.IsNullOrWhiteSpace(change.Label) ? null : change.Label.Trim();
-        var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null) return;
-        await SongService.UpdateSongPartAsync(song.Id, orgId, change.Index, trimmedLabel, part.Content, OrgState.ToCallerContext());
-        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-    }
-
-    private async Task HandleContentChanged(SongPartsEditor.PartContentChange change)
-    {
-        if (song is null) return;
-        var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null) return;
-        await SongService.UpdateSongPartAsync(song.Id, orgId, change.Index, song.Parts[change.Index].Label, change.Content, OrgState.ToCallerContext());
-        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-    }
-
-    private async Task AddPart()
-    {
-        if (song is null) return;
-        var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null) return;
-        await SongService.AddSongPartAsync(song.Id, orgId, null, "", OrgState.ToCallerContext());
-        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-    }
-
-    private void ConfirmDeletePart(int index)
-    {
-        if (song is null) return;
-        var label = song.Parts[index].Label ?? $"del {index + 1}";
-        deleteConfirmMessage = new MarkupString(L["SongDetail.ConfirmDeletePart", System.Net.WebUtility.HtmlEncode(label)]);
-        deleteAction = async () =>
-        {
-            var orgId = OrgState.ActiveOrganizationId;
-            if (orgId is null) return;
-            await SongService.DeleteSongPartAsync(song.Id, orgId, index, OrgState.ToCallerContext());
-            song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-        };
-    }
-
-    private async Task MovePartUp(int index)
-    {
-        if (song is null || index <= 0) return;
-        var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null) return;
-        await SongService.MoveSongPartAsync(song.Id, orgId, index, index - 1, OrgState.ToCallerContext());
-        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-    }
-
-    private async Task MovePartDown(int index)
-    {
-        if (song is null || index >= song.Parts.Count - 1) return;
-        var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null) return;
-        await SongService.MoveSongPartAsync(song.Id, orgId, index, index + 1, OrgState.ToCallerContext());
-        song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-    }
-
-    private void ConfirmDelete()
-    {
-        deleteConfirmMessage = new MarkupString(L["SongDetail.ConfirmTrashSong", System.Net.WebUtility.HtmlEncode(song?.Name) ?? string.Empty]);
-        deleteAction = async () =>
-        {
-            var orgId = OrgState.ActiveOrganizationId;
-            if (orgId is null) return;
-            await SongService.DeleteSongAsync(song!.Id, orgId, OrgState.ToCallerContext());
-            NavigationManager.NavigateTo("/admin/songs");
-        };
-    }
-
-    private void CancelDelete()
-    {
-        deleteConfirmMessage = null;
-        deleteAction = null;
-    }
-
-    private async Task ExecuteDelete()
-    {
-        if (isDeleting || deleteAction is null) return;
-        isDeleting = true;
-        await deleteAction();
-        isDeleting = false;
-        deleteConfirmMessage = null;
-        deleteAction = null;
+        NavigationManager.NavigateTo("/admin/songs");
     }
 }

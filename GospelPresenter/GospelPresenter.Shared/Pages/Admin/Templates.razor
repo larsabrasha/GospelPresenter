@@ -1,0 +1,130 @@
+@page "/admin/templates"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Components.Presentations
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject IPresentationService PresentationService
+@inject NavigationManager NavigationManager
+@inject ActiveOrganizationState OrgState
+
+<PageContainer>
+    <div class="px-5 flex items-center justify-between">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Templates.Title"]</div>
+        @if (templates is not null && templates.Count > 0)
+        {
+            <AppButton Variant="ButtonVariant.Primary" OnClick="CreateTemplate" Loading="creating" Class="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                </svg>
+                @L["Templates.Create"]
+            </AppButton>
+        }
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        @if (templates is null)
+        {
+            <div class="px-5 py-4 text-neutral-400 text-sm">@L["Common.Loading"]</div>
+        }
+        else if (templates.Count == 0)
+        {
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <!-- Back document -->
+                    <rect x="55" y="12" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+                    <!-- Front document -->
+                    <rect x="35" y="22" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <!-- Title line -->
+                    <line x1="55" y1="50" x2="115" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+                    <!-- Content lines -->
+                    <line x1="55" y1="70" x2="110" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                    <line x1="55" y1="83" x2="100" y2="83" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.25"/>
+                    <!-- Star/template indicator -->
+                    <circle cx="155" cy="130" r="18" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <path d="M155 118l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z" fill="currentColor" opacity="0.5"/>
+                </svg>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Templates.Empty"]</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                    @L["Templates.Description"]
+                </p>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="CreateTemplate" Loading="creating" Class="flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                    </svg>
+                    @L["Templates.Create"]
+                </AppButton>
+            </div>
+        }
+        else
+        {
+            <div>
+                @foreach (var template in templates)
+                {
+                    <a href="/templates/@template.Id"
+                       class="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">@template.Name</div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+</PageContainer>
+
+@if (showNameDialog)
+{
+    <NameDialog Title="@L["Templates.Create"]"
+                Name="@newTemplateName"
+                SaveText="@L["Common.Create"]"
+                SaveLoadingText="@L["Common.Creating"]"
+                OnSave="HandleCreateTemplate"
+                OnClose="() => showNameDialog = false"/>
+}
+
+@code {
+    private IList<PresentationSummary>? templates;
+    private bool creating;
+    private bool showNameDialog;
+    private string newTemplateName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        templates = await PresentationService.GetAllTemplateSummariesAsync(orgId, OrgState.ToCallerContext());
+    }
+
+    private void CreateTemplate()
+    {
+        newTemplateName = "";
+        showNameDialog = true;
+    }
+
+    private async Task HandleCreateTemplate(string name)
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        var userId = OrgState.UserId;
+        if (orgId is null || userId is null) return;
+
+        creating = true;
+        try
+        {
+            var template = await PresentationService.CreateTemplateAsync(name, orgId, userId, OrgState.ToCallerContext());
+            NavigationManager.NavigateTo($"/templates/{template.Id}");
+        }
+        finally
+        {
+            creating = false;
+            showNameDialog = false;
+        }
+    }
+}

@@ -1,0 +1,57 @@
+@using GospelPresenter.Shared.Models
+
+<div class="flex flex-col h-full overflow-y-auto">
+    <DetailHeader @ref="header" OnBack="OnBack" Class="mb-2"/>
+    <OverlayEditor Overlay="@Overlay"
+                   OnChanged="OnChanged"
+                   OnSaved="() => header?.ShowSaved()"/>
+    <div class="flex items-center justify-end pt-4">
+        <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDelete">
+            @L["Common.Delete"]
+        </AppButton>
+    </div>
+</div>
+
+@if (deleteConfirmMessage is not null)
+{
+    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+                         IsDeleting="isDeleting"
+                         OnConfirm="ExecuteDelete"
+                         OnClose="CancelDelete"/>
+}
+
+@code {
+    [Parameter, EditorRequired] public required OverlaySlide Overlay { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnBack { get; set; }
+    [Parameter, EditorRequired] public EventCallback<OverlaySlide> OnChanged { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnDeleted { get; set; }
+
+    private DetailHeader? header;
+    private MarkupString? deleteConfirmMessage;
+    private bool isDeleting;
+
+    private void ConfirmDelete()
+    {
+        deleteConfirmMessage = new MarkupString(L["Overlays.ConfirmDelete", System.Net.WebUtility.HtmlEncode(Overlay.Title) ?? ""]);
+    }
+
+    private void CancelDelete()
+    {
+        deleteConfirmMessage = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (isDeleting) return;
+        isDeleting = true;
+        try
+        {
+            await OnDeleted.InvokeAsync();
+            deleteConfirmMessage = null;
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+}

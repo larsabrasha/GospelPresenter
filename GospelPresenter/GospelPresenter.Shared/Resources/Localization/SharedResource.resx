@@ -44,6 +44,9 @@
   <data name="Common.Saving" xml:space="preserve">
     <value>Saving...</value>
   </data>
+  <data name="Common.Saved" xml:space="preserve">
+    <value>Saved</value>
+  </data>
   <data name="Common.Create" xml:space="preserve">
     <value>Create</value>
   </data>
@@ -101,8 +104,11 @@
   <data name="Nav.MyProfile" xml:space="preserve">
     <value>My profile</value>
   </data>
+  <data name="Nav.Dashboard" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
   <data name="Nav.Media" xml:space="preserve">
-    <value>Media</value>
+    <value>Content</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
     <value>Administration</value>
@@ -122,6 +128,12 @@
   <data name="Nav.Organizations" xml:space="preserve">
     <value>Organizations</value>
   </data>
+  <data name="Nav.Experimental" xml:space="preserve">
+    <value>Experimental</value>
+  </data>
+  <data name="Nav.ApiKeys" xml:space="preserve">
+    <value>MCP API keys</value>
+  </data>
   <data name="MainLayout.UnexpectedError" xml:space="preserve">
     <value>An unexpected error has occurred.</value>
   </data>
@@ -131,14 +143,14 @@
   <data name="Dashboard.Presentations" xml:space="preserve">
     <value>Presentations</value>
   </data>
-  <data name="Dashboard.CreateNew" xml:space="preserve">
-    <value>Create new</value>
-  </data>
   <data name="Dashboard.NoPresentations" xml:space="preserve">
     <value>No presentations yet</value>
   </data>
-  <data name="Dashboard.NewPresentation" xml:space="preserve">
-    <value>New presentation</value>
+  <data name="Dashboard.Description" xml:space="preserve">
+    <value>Create a presentation to get started with your worship service.</value>
+  </data>
+  <data name="Dashboard.Create" xml:space="preserve">
+    <value>Create presentation</value>
   </data>
   <data name="Dashboard.Sunday" xml:space="preserve">
     <value>Service</value>
@@ -257,6 +269,9 @@
   <data name="Songs.SavingSongs" xml:space="preserve">
     <value>Saving songs...</value>
   </data>
+  <data name="Songs.Create" xml:space="preserve">
+    <value>Create song</value>
+  </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
     <value>Delete song</value>
   </data>
@@ -327,13 +342,13 @@
     <value>Do you want to restore the song to the version from &lt;strong&gt;{0}&lt;/strong&gt;? The current version will be saved in the history.</value>
   </data>
   <data name="SongParts.LabelPlaceholder" xml:space="preserve">
-    <value>Label (e.g. Verse 1)</value>
+    <value>Label</value>
   </data>
   <data name="SongParts.DeleteConfirm" xml:space="preserve">
     <value>Delete?</value>
   </data>
   <data name="SongParts.TextPlaceholder" xml:space="preserve">
-    <value>Type the text here...</value>
+    <value>Text</value>
   </data>
   <data name="SongParts.AddPart" xml:space="preserve">
     <value>Add part</value>
@@ -407,11 +422,14 @@
   <data name="Users.Title" xml:space="preserve">
     <value>Users</value>
   </data>
-  <data name="Users.NewUser" xml:space="preserve">
-    <value>New user</value>
+  <data name="Users.Create" xml:space="preserve">
+    <value>Create user</value>
   </data>
   <data name="Users.NoUsers" xml:space="preserve">
     <value>No users</value>
+  </data>
+  <data name="Users.Description" xml:space="preserve">
+    <value>Add users to your organization to give them access to presentations and songs.</value>
   </data>
   <data name="Users.CannotChangeOwnRole" xml:space="preserve">
     <value>You cannot change your own role</value>
@@ -430,6 +448,15 @@
   </data>
   <data name="Users.User" xml:space="preserve">
     <value>User</value>
+  </data>
+  <data name="Users.RoleDescription.User" xml:space="preserve">
+    <value>Can create presentations and manage songs and overlays.</value>
+  </data>
+  <data name="Users.RoleDescription.Admin" xml:space="preserve">
+    <value>Everything a user can do, plus manage templates and users.</value>
+  </data>
+  <data name="Users.RoleDescription.SuperAdmin" xml:space="preserve">
+    <value>Full access, including managing organizations.</value>
   </data>
   <data name="UserDetail.ProfileImage" xml:space="preserve">
     <value>Profile image</value>
@@ -479,17 +506,17 @@
   <data name="Overlays.Title" xml:space="preserve">
     <value>Overlays</value>
   </data>
-  <data name="Overlays.New" xml:space="preserve">
-    <value>New overlay</value>
-  </data>
   <data name="Overlays.Empty" xml:space="preserve">
     <value>No overlays</value>
+  </data>
+  <data name="Overlays.ConfirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete the overlay "{0}"?</value>
   </data>
   <data name="Overlays.Description" xml:space="preserve">
     <value>Overlays are shown on top of the active slide during a presentation, e.g. a payment QR code during offering.</value>
   </data>
-  <data name="Overlays.Add" xml:space="preserve">
-    <value>Add overlay</value>
+  <data name="Overlays.Create" xml:space="preserve">
+    <value>Create overlay</value>
   </data>
   <data name="OverlayEditor.Title" xml:space="preserve">
     <value>Title</value>
@@ -512,8 +539,8 @@
   <data name="Orgs.Title" xml:space="preserve">
     <value>Organizations</value>
   </data>
-  <data name="Orgs.New" xml:space="preserve">
-    <value>New organization</value>
+  <data name="Orgs.Create" xml:space="preserve">
+    <value>Create organization</value>
   </data>
   <data name="Orgs.NoOrgs" xml:space="preserve">
     <value>No organizations yet</value>
@@ -580,9 +607,6 @@
   </data>
   <data name="OverlayManager.Description" xml:space="preserve">
     <value>Overlays are shown on top of the active slide during a presentation, e.g. a payment QR code during offering.</value>
-  </data>
-  <data name="OverlayManager.Add" xml:space="preserve">
-    <value>Add overlay</value>
   </data>
   <data name="Profile.RemoveProfileImage" xml:space="preserve">
     <value>Remove profile image</value>
@@ -749,14 +773,62 @@
   <data name="ImageTab.Images" xml:space="preserve">
     <value>images</value>
   </data>
+  <data name="Sidebar.Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="Presentation.AddAudio" xml:space="preserve">
+    <value>Add audio</value>
+  </data>
+  <data name="AudioTab.Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="AudioTab.LoadingAudio" xml:space="preserve">
+    <value>Loading audio files...</value>
+  </data>
+  <data name="AudioTab.LoadError" xml:space="preserve">
+    <value>Could not load audio files</value>
+  </data>
+  <data name="AudioTab.NoAudio" xml:space="preserve">
+    <value>No audio files uploaded</value>
+  </data>
+  <data name="AudioTab.UnsupportedFormat" xml:space="preserve">
+    <value>Unsupported audio format</value>
+  </data>
+  <data name="AudioTab.AudioTooLarge" xml:space="preserve">
+    <value>File too large (max 50 MB)</value>
+  </data>
+  <data name="AudioTab.UploadingProgress" xml:space="preserve">
+    <value>Uploading {0} of {1}...</value>
+  </data>
+  <data name="AudioTab.UploadErrorCount" xml:space="preserve">
+    <value>{0} file(s) failed to upload</value>
+  </data>
+  <data name="AudioTab.AudioFiles" xml:space="preserve">
+    <value>audio files</value>
+  </data>
+  <data name="AudioTab.FadeOut" xml:space="preserve">
+    <value>Fade out</value>
+  </data>
+  <data name="AudioTab.DeleteAudio" xml:space="preserve">
+    <value>Delete audio file</value>
+  </data>
+  <data name="AudioTab.ConfirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Toast.AudioAdded" xml:space="preserve">
+    <value>Added {0}</value>
+  </data>
+  <data name="Toast.AudiosAdded" xml:space="preserve">
+    <value>Added {0} audio files</value>
+  </data>
   <data name="Presentation.Empty" xml:space="preserve">
     <value>Presentation is empty</value>
   </data>
   <data name="Nav.Settings" xml:space="preserve">
-    <value>Settings</value>
+    <value>My settings</value>
   </data>
   <data name="Settings.Title" xml:space="preserve">
-    <value>Settings</value>
+    <value>My settings</value>
   </data>
   <data name="Settings.Language" xml:space="preserve">
     <value>Language</value>
@@ -816,16 +888,16 @@
     <value>When checked, the modal stays open after adding so you can continue adding more items.</value>
   </data>
   <data name="Toast.SongAdded" xml:space="preserve">
-    <value>"{0}" added to the presentation</value>
+    <value>"{0}" added</value>
   </data>
   <data name="Toast.BibleTextAdded" xml:space="preserve">
-    <value>"{0}" added to the presentation</value>
+    <value>"{0}" added</value>
   </data>
   <data name="Toast.ImageAdded" xml:space="preserve">
-    <value>"{0}" added to the presentation</value>
+    <value>"{0}" added</value>
   </data>
   <data name="Toast.ImagesAdded" xml:space="preserve">
-    <value>{0} images added to the presentation</value>
+    <value>{0} images added</value>
   </data>
   <data name="Sidebar.Select" xml:space="preserve">
     <value>Select</value>
@@ -851,7 +923,97 @@
   <data name="Toast.ItemsRemoved" xml:space="preserve">
     <value>{0} items removed</value>
   </data>
+  <data name="Toast.PresentationUpdatedExternally" xml:space="preserve">
+    <value>Presentation has been updated</value>
+  </data>
   <data name="Sidebar.SelectItemsHint" xml:space="preserve">
     <value>Select items to delete</value>
+  </data>
+  <data name="ApiKeys.Title" xml:space="preserve">
+    <value>MCP API keys</value>
+  </data>
+  <data name="ApiKeys.Create" xml:space="preserve">
+    <value>Create MCP API key</value>
+  </data>
+  <data name="ApiKeys.Empty" xml:space="preserve">
+    <value>No MCP API keys</value>
+  </data>
+  <data name="ApiKeys.EmptyDescription" xml:space="preserve">
+    <value>Create an MCP API key to connect external tools via the MCP protocol.</value>
+  </data>
+  <data name="ApiKeys.User" xml:space="preserve">
+    <value>User</value>
+  </data>
+  <data name="ApiKeys.NamePlaceholder" xml:space="preserve">
+    <value>e.g. Claude Desktop</value>
+  </data>
+  <data name="ApiKeys.Description" xml:space="preserve">
+    <value>MCP API keys allow AI assistants to manage presentations, search songs, and add Bible texts via the &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
+  </data>
+  <data name="ApiKeys.SetupInstructions" xml:space="preserve">
+    <value>How do I use an MCP API key?</value>
+  </data>
+  <data name="ApiKeys.SetupHelp" xml:space="preserve">
+    <value>Add the following to your MCP client configuration (e.g. &lt;code class="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-600"&gt;settings.json&lt;/code&gt; in Claude Code or VS Code). Replace &lt;code class="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-600"&gt;&amp;lt;API_KEY&amp;gt;&lt;/code&gt; with the key you get when creating one below.</value>
+  </data>
+  <data name="ApiKeys.Created" xml:space="preserve">
+    <value>MCP API key created</value>
+  </data>
+  <data name="ApiKeys.CreatedDescription" xml:space="preserve">
+    <value>Copy this key now. It will not be shown again.</value>
+  </data>
+  <data name="ApiKeys.ConfirmDeleteTitle" xml:space="preserve">
+    <value>Delete MCP API key</value>
+  </data>
+  <data name="ApiKeys.ConfirmDeleteMessage" xml:space="preserve">
+    <value>Are you sure you want to delete the MCP API key "{0}"? Any integrations using this key will stop working.</value>
+  </data>
+  <data name="ApiKeys.Deleted" xml:space="preserve">
+    <value>MCP API key deleted</value>
+  </data>
+  <data name="Nav.Templates" xml:space="preserve">
+    <value>Templates</value>
+  </data>
+  <data name="Templates.Title" xml:space="preserve">
+    <value>Templates</value>
+  </data>
+  <data name="Templates.Empty" xml:space="preserve">
+    <value>No templates yet</value>
+  </data>
+  <data name="Templates.Description" xml:space="preserve">
+    <value>Templates let you quickly create presentations with predefined content.</value>
+  </data>
+  <data name="Templates.EditingBanner" xml:space="preserve">
+    <value>You are editing a template</value>
+  </data>
+  <data name="Templates.DeleteConfirm" xml:space="preserve">
+    <value>Are you sure you want to delete this template?</value>
+  </data>
+  <data name="Templates.Create" xml:space="preserve">
+    <value>Create template</value>
+  </data>
+  <data name="Dashboard.Recent" xml:space="preserve">
+    <value>Recent</value>
+  </data>
+  <data name="Dashboard.PickerDescription" xml:space="preserve">
+    <value>Start from scratch or choose a template. The template's content will be copied into your new presentation.</value>
+  </data>
+  <data name="Dashboard.BlankPresentation" xml:space="preserve">
+    <value>Blank presentation</value>
+  </data>
+  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
+    <value>Save as template</value>
+  </data>
+  <data name="Sidebar.DeleteTemplate" xml:space="preserve">
+    <value>Delete template</value>
+  </data>
+  <data name="Toast.SavedAsTemplate" xml:space="preserve">
+    <value>Saved as template</value>
+  </data>
+  <data name="Toast.LinkCopied" xml:space="preserve">
+    <value>Link copied</value>
+  </data>
+  <data name="Toast.KeyCopied" xml:space="preserve">
+    <value>Key copied</value>
   </data>
 </root>

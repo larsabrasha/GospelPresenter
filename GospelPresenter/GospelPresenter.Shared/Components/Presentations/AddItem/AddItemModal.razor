@@ -2,6 +2,7 @@
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Bible
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Song
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Image
+@using GospelPresenter.Shared.Components.Presentations.AddItem.Audio
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
@@ -11,7 +12,14 @@
         <span>@L["Common.Add"]</span>
     </Title>
     <Body>
-        <div class="flex justify-center mb-4">
+        @if (editingSongId is not null)
+        {
+            <div class="fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800 md:static md:inset-auto md:z-auto md:h-full">
+                <EditSong SongId="@editingSongId" OnBack="ExitSongEdit" OnDeleted="HandleSongDeleted"/>
+            </div>
+        }
+
+        <div class="@(editingSongId is not null ? "hidden" : "flex justify-center mb-4")">
             <div class="inline-flex bg-neutral-100 dark:bg-neutral-700 rounded-full p-1 gap-1">
                 <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "song" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
                         @onclick="@(() => activeTab = "song")">
@@ -28,17 +36,25 @@
                     <PhotoSymbol Class="size-4"/>
                     @L["Sidebar.Images"]
                 </button>
+                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "audio" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
+                        @onclick="@(() => activeTab = "audio")">
+                    <SpeakerWaveSymbol Class="size-4"/>
+                    @L["Sidebar.Audio"]
+                </button>
             </div>
         </div>
 
-        <div class="@(activeTab == "song" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
-            <SongTab OnAdd="@HandleSongAdd" OnAddKeepOpen="@HandleSongAddKeepOpen" AddMoreState="@addMoreState"/>
+        <div class="@(editingSongId is null && activeTab == "song" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+            <SongTab @ref="songTab" OnAdd="@HandleSongAdd" OnAddKeepOpen="@HandleSongAddKeepOpen" AddMoreState="@addMoreState" OnEditSong="EnterSongEdit"/>
         </div>
-        <div class="@(activeTab == "bible" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+        <div class="@(editingSongId is null && activeTab == "bible" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
             <BibleTextTab OnAdd="@HandleBibleAdd" OnAddKeepOpen="@HandleBibleAddKeepOpen" AddMoreState="@addMoreState"/>
         </div>
-        <div class="@(activeTab == "image" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+        <div class="@(editingSongId is null && activeTab == "image" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
             <ImageTab OnAdd="@HandleImageAdd" OnAddKeepOpen="@HandleImageAddKeepOpen" AddMoreState="@addMoreState"/>
+        </div>
+        <div class="@(editingSongId is null && activeTab == "audio" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+            <AudioTab OnAdd="@HandleAudioAdd" OnAddKeepOpen="@HandleAudioAddKeepOpen" AddMoreState="@addMoreState"/>
         </div>
     </Body>
 </Modal>
@@ -52,9 +68,13 @@
     [Parameter] public EventCallback<List<Verse>> OnBibleVersesAddedKeepOpen { get; set; }
     [Parameter] public EventCallback<List<OrganizationImage>> OnImagesAdded { get; set; }
     [Parameter] public EventCallback<List<OrganizationImage>> OnImagesAddedKeepOpen { get; set; }
+    [Parameter] public EventCallback<List<OrganizationAudio>> OnAudiosAdded { get; set; }
+    [Parameter] public EventCallback<List<OrganizationAudio>> OnAudiosAddedKeepOpen { get; set; }
 
     private string activeTab = "song";
     private AddMoreToggle addMoreState = new();
+    private string? editingSongId;
+    private SongTab? songTab;
 
     protected override void OnInitialized()
     {
@@ -98,5 +118,36 @@
     private async Task HandleImageAddKeepOpen(List<OrganizationImage> images)
     {
         await OnImagesAddedKeepOpen.InvokeAsync(images);
+    }
+
+    private async Task HandleAudioAdd(List<OrganizationAudio> audios)
+    {
+        if (addMoreState.Value)
+            await OnAudiosAddedKeepOpen.InvokeAsync(audios);
+        else
+            await OnAudiosAdded.InvokeAsync(audios);
+    }
+
+    private async Task HandleAudioAddKeepOpen(List<OrganizationAudio> audios)
+    {
+        await OnAudiosAddedKeepOpen.InvokeAsync(audios);
+    }
+
+    private void EnterSongEdit(string songId)
+    {
+        editingSongId = songId;
+    }
+
+    private void ExitSongEdit()
+    {
+        var editedId = editingSongId;
+        editingSongId = null;
+        songTab?.NotifyEditComplete(editedId);
+    }
+
+    private void HandleSongDeleted()
+    {
+        editingSongId = null;
+        songTab?.NotifyEditComplete(null);
     }
 }

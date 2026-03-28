@@ -1,4 +1,3 @@
-@page "/admin/overlays/new"
 @page "/admin/overlays/{OverlayId}"
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
 
@@ -16,37 +15,23 @@
 @inject ActiveOrganizationState OrgState
 
 <PageContainer>
-    <div class="relative flex items-center justify-center px-5">
-        <AppButton Variant="ButtonVariant.Cancel" Href="/admin/overlays" Class="absolute left-0 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            @L["Common.Back"]
-        </AppButton>
-        <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
-            @(isNew ? L["Overlays.New"] : overlay?.Title)
-        </div>
-    </div>
-
-    @if (!isNew && overlay is null)
+    @if (overlay is null)
     {
         <div class="px-7 text-neutral-400">@L["Common.Loading"]</div>
     }
-    else if (overlay is not null)
+    else
     {
-        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden p-5">
-            <OverlayEditor Overlay="@overlay"
-                           OnChanged="HandleChanged"
-                           OnDeleted="HandleDeleted"/>
-        </div>
+        <OverlayEditorPanel Overlay="@overlay"
+                            OnBack="NavigateBack"
+                            OnChanged="HandleChanged"
+                            OnDeleted="HandleDelete"/>
     }
 </PageContainer>
 
 @code {
-    [Parameter] public string? OverlayId { get; set; }
+    [Parameter] public string OverlayId { get; set; } = "";
 
     private OverlaySlide? overlay;
-    private bool isNew;
     private string? organizationId;
 
     protected override async Task OnInitializedAsync()
@@ -58,19 +43,10 @@
             return;
         }
 
-        isNew = OverlayId is null;
-
-        if (isNew)
+        overlay = await PresentationService.GetOverlayByIdAsync(OverlayId, organizationId, OrgState.ToCallerContext());
+        if (overlay is null)
         {
-            overlay = new OverlaySlide();
-        }
-        else
-        {
-            overlay = await PresentationService.GetOverlayByIdAsync(OverlayId!, organizationId, OrgState.ToCallerContext());
-            if (overlay is null)
-            {
-                NavigationManager.NavigateTo("/admin/overlays");
-            }
+            NavigationManager.NavigateTo("/admin/overlays");
         }
     }
 
@@ -82,24 +58,13 @@
     private async Task HandleChanged(OverlaySlide changed)
     {
         if (organizationId is null) return;
-
-        if (isNew)
-        {
-            await PresentationService.AddOverlayAsync(organizationId, changed, OrgState.ToCallerContext());
-            isNew = false;
-            NavigationManager.NavigateTo($"/admin/overlays/{changed.Id}", replace: true);
-        }
-        else
-        {
-            await PresentationService.UpdateOverlayAsync(organizationId, changed, OrgState.ToCallerContext());
-        }
+        await PresentationService.UpdateOverlayAsync(organizationId, changed, OrgState.ToCallerContext());
     }
 
-    private async Task HandleDeleted(OverlaySlide deleted)
+    private async Task HandleDelete()
     {
-        if (organizationId is null) return;
-
-        await PresentationService.RemoveOverlayAsync(organizationId, deleted.Id, OrgState.ToCallerContext());
+        if (overlay is null || organizationId is null) return;
+        await PresentationService.RemoveOverlayAsync(organizationId, overlay.Id, OrgState.ToCallerContext());
         NavigationManager.NavigateTo("/admin/overlays");
     }
 }

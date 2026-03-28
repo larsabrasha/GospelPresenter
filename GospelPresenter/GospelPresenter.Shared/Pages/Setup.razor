@@ -29,12 +29,8 @@
     </ul>
 
     <div class="flex flex-col gap-4 w-full max-w-sm px-4" @onkeydown="HandleKeyDown">
-        <div>
-            <label class="block text-sm text-neutral-500 dark:text-neutral-400 mb-1">@L["Setup.YourName"]</label>
-            <input @bind="adminName" @bind:event="oninput"
-                   class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                   placeholder="@L["Setup.NamePlaceholder"]"/>
-        </div>
+        <FloatingInput Id="setup-name" Label="@L["Setup.YourName"]"
+                       Value="@adminName" OnInput="(e) => adminName = e.Value?.ToString() ?? string.Empty"/>
 
         @if (errorMessage is not null)
         {

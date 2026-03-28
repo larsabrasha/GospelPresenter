@@ -1,4 +1,4 @@
-@page "/superadmin/organizations"
+@page "/admin/organizations"
 @attribute [Authorize(Roles = "SuperAdmin")]
 
 @using GospelPresenter.Shared.Components
@@ -19,7 +19,7 @@
     <div class="flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Orgs.Title"]</div>
         <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center">
-            <PlusSymbol Class="size-4 mr-2"/>@L["Orgs.New"]
+            <PlusSymbol Class="size-4 mr-2"/>@L["Orgs.Create"]
         </AppButton>
     </div>
 
@@ -49,7 +49,7 @@
         {
             @foreach (var org in organizations)
             {
-                <a href="/superadmin/organizations/@org.Id"
+                <a href="/admin/organizations/@org.Id"
                    class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
                     <OrganizationAvatar LogoUrl="@org.LogoSmall" Name="@org.Name"/>
                     <div class="flex-1 min-w-0">
@@ -66,16 +66,9 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["Orgs.New"]</div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-                <input @ref="nameInput"
-                       type="text"
-                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="newOrgName"
-                       @bind:event="oninput"
-                       @onkeydown="OnDialogKeyDown"/>
-            </div>
+            <div class="font-semibold text-lg">@L["Orgs.Create"]</div>
+            <FloatingInput @ref="nameFloatingInput" Id="new-org-name" Label="@L["Common.Name"]"
+                           Value="@newOrgName" OnInput="(e) => newOrgName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
                     @L["Common.Cancel"]
@@ -95,7 +88,7 @@
     private bool showCreateDialog;
     private bool isCreating;
     private string newOrgName = "";
-    private ElementReference nameInput;
+    private FloatingInput? nameFloatingInput;
     private bool shouldFocusName;
 
     protected override async Task OnInitializedAsync()
@@ -117,7 +110,8 @@
         if (shouldFocusName)
         {
             shouldFocusName = false;
-            try { await nameInput.FocusAsync(); } catch { }
+            if (nameFloatingInput is not null)
+                try { await nameFloatingInput.FocusAsync(); } catch { }
         }
     }
 

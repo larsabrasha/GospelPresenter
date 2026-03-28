@@ -5,6 +5,7 @@ using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using GospelPresenter.Web.Configuration;
+using GospelPresenter.Web.Mcp;
 using GospelPresenter.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -175,6 +176,16 @@ try
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
     builder.Services.AddSingleton<SetupStatusService>();
 
+    builder.Services.AddHttpContextAccessor();
+    builder.Services.AddTransient<McpCallerContextAccessor>();
+    builder.Services
+        .AddMcpServer(mcpOptions =>
+        {
+            mcpOptions.ServerInfo = new() { Name = "GospelPresenter", Version = "1.0.0" };
+        })
+        .WithHttpTransport()
+        .WithToolsFromAssembly();
+
     builder.Services.AddHealthChecks()
         .ForwardToPrometheus();
 
@@ -205,6 +216,7 @@ try
     builder.Services.AddSingleton<ISongService, SongService>();
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IOrganizationImageService, OrganizationImageService>();
+    builder.Services.AddScoped<IOrganizationAudioService, OrganizationAudioService>();
 
 #if !DEBUG
 builder.Services.AddMetricServer(options =>
@@ -487,6 +499,74 @@ builder.Services.AddMetricServer(options =>
         context.Response.Headers.CacheControl = "public, max-age=3600";
         return Results.File(stream, contentType);
     }).AllowAnonymous();
+
+    // Authenticated audio endpoint
+    app.MapGet("/api/audio/org-audio/{id}", async (
+        string id,
+        HttpContext context,
+        IObjectStorageService storage,
+        IOrganizationAudioService audioService) =>
+    {
+        var userId = context.User.FindFirst("user_id")?.Value;
+        if (userId is null) return Results.Unauthorized();
+
+        var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
+        var orgId = context.User.FindFirst("organization_id")?.Value;
+        if (orgId is null) return Results.Forbid();
+
+        var caller = new CallerContext(userId, role, orgId);
+
+        try
+        {
+            var audio = await audioService.GetAudioByIdAsync(id, orgId, caller);
+            if (audio is null) return Results.NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Results.Forbid();
+        }
+
+        var result = await storage.GetAsync(ImageUrlHelper.OrgAudioKey(orgId, id));
+        if (result is null) return Results.NotFound();
+
+        var (stream, contentType) = result.Value;
+        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        return Results.File(stream, contentType);
+    }).RequireAuthorization();
+
+    // MCP API key authentication middleware
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/mcp"))
+        {
+            var authHeader = context.Request.Headers.Authorization.ToString();
+            if (!authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Response.StatusCode = 401;
+                return;
+            }
+
+            var apiKey = authHeader["Bearer ".Length..];
+            var keyHash = McpApiKey.HashKey(apiKey);
+            var db = context.RequestServices.GetRequiredService<PresentationContext>();
+            var key = await db.McpApiKeys.FirstOrDefaultAsync(k => k.KeyHash == keyHash);
+
+            if (key is null)
+            {
+                context.Response.StatusCode = 401;
+                return;
+            }
+
+            var accessor = context.RequestServices.GetRequiredService<McpCallerContextAccessor>();
+            accessor.UserId = key.UserId;
+            accessor.OrganizationId = key.OrganizationId;
+            accessor.Caller = new CallerContext(key.UserId, UserRole.User, key.OrganizationId);
+        }
+
+        await next(context);
+    });
+
+    app.MapMcp("/mcp");
 
     app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

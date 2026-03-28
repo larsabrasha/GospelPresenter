@@ -1,47 +1,14 @@
 @using GospelPresenter.Shared.State
 
 <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
-    <div>
-        <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-        <input type="text"
-               value="@Name"
-               placeholder="@L["SongFields.SongName"]"
-               @onchange="HandleNameChanged"
-               class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-    </div>
-    <div>
-        <label class="block text-sm font-medium mb-1">@L["SongFields.Artist"]</label>
-        <input type="text"
-               value="@Author"
-               placeholder="@L["SongFields.ArtistPlaceholder"]"
-               @onchange="HandleAuthorChanged"
-               class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-    </div>
-    <div>
-        <label class="block text-sm font-medium mb-1">@L["SongFields.Publisher"]</label>
-        <input type="text"
-               value="@Publisher"
-               placeholder="@L["SongFields.Publisher"]"
-               @onchange="HandlePublisherChanged"
-               class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+    <FloatingInput Id="song-name" Label="@L["Common.Name"]" Value="@Name" OnInput="HandleNameChanged"/>
+    <div class="flex gap-4">
+        <FloatingInput Id="song-author" Label="@L["SongFields.Artist"]" Class="flex-1" Value="@Author" OnInput="HandleAuthorChanged"/>
+        <FloatingInput Id="song-publisher" Label="@L["SongFields.Publisher"]" Class="flex-1" Value="@Publisher" OnInput="HandlePublisherChanged"/>
     </div>
     <div class="flex gap-4">
-        <div class="flex-1">
-            <label class="block text-sm font-medium mb-1">@L["SongFields.Year"]</label>
-            <input type="number"
-                   value="@Year"
-                   placeholder="@L["SongFields.Year"]"
-                   @onchange="HandleYearChanged"
-                   class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-        </div>
-        <div class="flex-1">
-            <label class="block text-sm font-medium mb-1">CCLI</label>
-            <input type="text"
-                   value="@Ccli"
-                   placeholder="@L["SongFields.CcliNumber"]"
-                   @onchange="HandleCcliChanged"
-                   class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-        </div>
+        <FloatingInput Id="song-year" Label="@L["SongFields.Year"]" Type="number" Class="flex-1" Value="@Year" OnInput="HandleYearChanged"/>
+        <FloatingInput Id="song-ccli" Label="CCLI" Class="flex-1" Value="@Ccli" OnInput="HandleCcliChanged"/>
     </div>
     @if (ChildContent is not null)
     {
@@ -62,37 +29,30 @@
     [Parameter] public EventCallback<string?> CcliChanged { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    private async Task HandleNameChanged(ChangeEventArgs e)
-    {
-        Name = e.Value?.ToString() ?? "";
-        await NameChanged.InvokeAsync(Name);
-    }
+    private Task HandleNameChanged(ChangeEventArgs e)
+        => NameChanged.InvokeAsync(e.Value?.ToString() ?? "");
 
-    private async Task HandleAuthorChanged(ChangeEventArgs e)
+    private Task HandleAuthorChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Author = string.IsNullOrWhiteSpace(value) ? null : value;
-        await AuthorChanged.InvokeAsync(Author);
+        return AuthorChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 
-    private async Task HandlePublisherChanged(ChangeEventArgs e)
+    private Task HandlePublisherChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Publisher = string.IsNullOrWhiteSpace(value) ? null : value;
-        await PublisherChanged.InvokeAsync(Publisher);
+        return PublisherChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 
-    private async Task HandleYearChanged(ChangeEventArgs e)
+    private Task HandleYearChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Year = int.TryParse(value, out var y) ? y : null;
-        await YearChanged.InvokeAsync(Year);
+        return YearChanged.InvokeAsync(int.TryParse(value, out var y) ? y : null);
     }
 
-    private async Task HandleCcliChanged(ChangeEventArgs e)
+    private Task HandleCcliChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Ccli = string.IsNullOrWhiteSpace(value) ? null : value;
-        await CcliChanged.InvokeAsync(Ccli);
+        return CcliChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 }

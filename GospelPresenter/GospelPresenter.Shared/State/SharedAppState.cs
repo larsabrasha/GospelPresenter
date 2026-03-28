@@ -94,6 +94,17 @@ public partial class SharedAppState : ObservableObject
     public void ClearSessionExpired(string sessionId) =>
         expiredSessions.TryRemove(sessionId, out _);
 
+    /// <summary>
+    /// Raised when a presentation's content changes (items added, removed, reordered, etc.).
+    /// Parameters: presentationId, senderSessionId (null if from MCP/external source).
+    /// </summary>
+    public event Action<string, string?>? PresentationChanged;
+
+    public void NotifyPresentationChanged(string presentationId, string? senderSessionId = null)
+    {
+        PresentationChanged?.Invoke(presentationId, senderSessionId);
+    }
+
     private void TouchSession(string sessionId)
     {
         var now = DateTime.UtcNow;

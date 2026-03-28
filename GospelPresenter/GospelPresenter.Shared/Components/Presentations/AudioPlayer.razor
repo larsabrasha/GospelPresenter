@@ -1,0 +1,62 @@
+@using GospelPresenter.Shared.Components.Symbols
+
+<div class="w-full bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-sm">
+    <div class="flex items-center justify-between mb-3">
+        <p class="text-sm font-medium truncate flex-1">@FileName</p>
+        <button id="@fadeButtonId"
+                class="fade-out-btn inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 transition shrink-0"
+                onclick="gospelPresenter.fadeOutAudio(document.getElementById('@audioElementId'), this)">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4 fade-out-icon">
+                <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06Z"/>
+                <path d="M16.5 12a4.5 4.5 0 0 0-.93-2.737.75.75 0 1 1 1.18-.926A6 6 0 0 1 18 12a6 6 0 0 1-1.25 3.663.75.75 0 1 1-1.18-.926A4.5 4.5 0 0 0 16.5 12Z" opacity="0.4"/>
+            </svg>
+            <span class="fade-out-label">@L["AudioTab.FadeOut"]</span>
+            <svg class="fade-out-spinner hidden animate-spin size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+        </button>
+    </div>
+
+    <div class="flex items-center gap-3">
+        <button class="size-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 transition shrink-0"
+                onclick="gospelPresenter.toggleAudio('@audioElementId')">
+            <svg id="@($"{audioElementId}-play-icon")" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
+                <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
+            </svg>
+            <svg id="@($"{audioElementId}-pause-icon")" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5 hidden">
+                <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z" clip-rule="evenodd"/>
+            </svg>
+        </button>
+
+        <div class="flex-1 flex items-center gap-2 min-w-0">
+            <span id="@($"{audioElementId}-current")" class="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums w-10 text-right shrink-0">0:00</span>
+            <div class="flex-1 relative h-5 flex items-center cursor-pointer group touch-none"
+                 onmousedown="gospelPresenter.startSeek('@audioElementId', event, this)"
+                 ontouchstart="gospelPresenter.startSeek('@audioElementId', event, this)">
+                <div class="w-full h-1.5 rounded-full bg-neutral-200 dark:bg-neutral-600 overflow-hidden">
+                    <div id="@($"{audioElementId}-progress")" class="h-full bg-sky-500 rounded-full transition-none" style="width: 0%"></div>
+                </div>
+                <div id="@($"{audioElementId}-thumb")" class="absolute size-3.5 rounded-full bg-sky-500 shadow opacity-0 group-hover:opacity-100 transition-opacity" style="left: 0%"></div>
+            </div>
+            <span id="@($"{audioElementId}-duration")" class="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums w-10 shrink-0">0:00</span>
+        </div>
+    </div>
+
+    <audio id="@audioElementId" preload="metadata" src="@Url"
+           onplay="this.volume = 1; gospelPresenter.onAudioPlay('@audioElementId', '@ContainerId')"
+           onpause="gospelPresenter.onAudioPause('@audioElementId')"
+           ontimeupdate="gospelPresenter.onAudioTimeUpdate('@audioElementId')"
+           onloadedmetadata="gospelPresenter.onAudioMetadata('@audioElementId')"
+           class="hidden"/>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string AudioElementId { get; set; } = "";
+    [Parameter, EditorRequired] public string FileName { get; set; } = "";
+    [Parameter, EditorRequired] public string Url { get; set; } = "";
+    [Parameter] public string ContainerId { get; set; } = "audio-container";
+
+    private string audioElementId => AudioElementId;
+    private string fadeButtonId => $"fade-btn-{AudioElementId}";
+}

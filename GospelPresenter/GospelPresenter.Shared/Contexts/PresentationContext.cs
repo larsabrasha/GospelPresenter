@@ -18,7 +18,9 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<DbSongVersion> SongVersions { get; set; }
     public DbSet<OverlaySlide> OverlaySlides { get; set; }
     public DbSet<OrganizationImage> OrganizationImages { get; set; }
+    public DbSet<OrganizationAudio> OrganizationAudios { get; set; }
     public DbSet<UserSetting> UserSettings { get; set; }
+    public DbSet<McpApiKey> McpApiKeys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,6 +42,10 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
 
         modelBuilder.Entity<Invite>()
             .HasIndex(i => i.Token)
+            .IsUnique();
+
+        modelBuilder.Entity<McpApiKey>()
+            .HasIndex(k => k.KeyHash)
             .IsUnique();
 
         // SQLite does not support DateTimeOffset in ORDER BY — store as ticks (long)

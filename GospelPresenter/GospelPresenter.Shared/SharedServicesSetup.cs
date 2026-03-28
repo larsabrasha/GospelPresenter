@@ -22,7 +22,8 @@ public static class SharedServicesSetup
         services.AddSingleton<IBibleService, BibleService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
 
-        if (configuration is not null)
+        var s3Endpoint = configuration?.GetSection("S3")["Endpoint"];
+        if (configuration is not null && !string.IsNullOrEmpty(s3Endpoint))
         {
             services.Configure<S3Options>(configuration.GetSection("S3"));
             services.AddSingleton<IObjectStorageService, ObjectStorageService>();

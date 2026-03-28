@@ -1,0 +1,52 @@
+@implements IDisposable
+
+@if (visible)
+{
+    <span class="text-xs text-neutral-400 dark:text-neutral-500 transition-opacity duration-300 @(fading ? "opacity-0" : "opacity-100") @Class">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5 inline -mt-0.5 mr-0.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+        </svg>
+        @L["Common.Saved"]
+    </span>
+}
+
+@code {
+    [Parameter] public string? Class { get; set; }
+
+    private bool visible;
+    private bool fading;
+    private CancellationTokenSource? cts;
+
+    public void Show()
+    {
+        var old = cts;
+        cts = new CancellationTokenSource();
+        old?.Cancel();
+        old?.Dispose();
+        visible = true;
+        fading = false;
+        StateHasChanged();
+        _ = HideAfterDelay(cts.Token);
+    }
+
+    private async Task HideAfterDelay(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(2000, token);
+            fading = true;
+            StateHasChanged();
+            await Task.Delay(300, token);
+            visible = false;
+            fading = false;
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    public void Dispose()
+    {
+        cts?.Cancel();
+        cts?.Dispose();
+    }
+}

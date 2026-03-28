@@ -1,4 +1,5 @@
 @page "/presentations/{presentationId}"
+@page "/templates/{templateId}"
 @attribute [Authorize]
 
 @using System.ComponentModel
@@ -31,7 +32,14 @@
     var statusBarStyle = $"padding-top: {statusBarHeight}px";
     var liveSlide = SharedAppState.GetLiveSlide(AppState.SessionId);
 }
-<div class="flex h-full relative dark:text-neutral-200 dark:bg-neutral-800" style="@statusBarStyle">
+<div class="flex flex-col h-full relative dark:text-neutral-200 dark:bg-neutral-800" style="@statusBarStyle">
+    @if (IsTemplateMode)
+    {
+        <div class="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">
+            @L["Templates.EditingBanner"]
+        </div>
+    }
+    <div class="flex flex-1 min-h-0 relative">
     @{
         var menuBackdropVisibilityClass = AppState.IsMenuVisible ? "visible opacity-100" : "invisible opacity-0";
         var menuVisibilityClass = AppState.IsMenuVisible ? "visible translate-x-0" : "invisible -translate-x-full";
@@ -46,7 +54,9 @@
                  OnRemoveRequested="@ConfirmRemoveItem"
                  OnRemoveMultipleRequested="@ConfirmRemoveMultipleItems"
                  OnItemsReordered="@HandleItemsReordered"
-                 OnDeleteRequested="@ConfirmDeletePresentation"/>
+                 OnDeleteRequested="@ConfirmDeletePresentation"
+                 IsTemplateMode="@IsTemplateMode"
+                 OnSaveAsTemplate="@ConfirmSaveAsTemplate"/>
 
     </div>
 
@@ -152,6 +162,18 @@
                         ? "mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
                         : "flex items-center justify-center h-full overflow-auto";
                 }
+                @if (SelectedAudio is not null)
+                {
+                    <div id="audio-container" class="flex flex-col gap-3 w-full sm:max-w-lg sm:mx-auto px-3 pt-16 overflow-auto">
+                        @for (var i = 0; i < SelectedAudio.Parts.Count; i++)
+                        {
+                            var part = SelectedAudio.Parts[i];
+                            <AudioPlayer AudioElementId="@($"audio-player-{i}")" FileName="@part.FileName" Url="@part.Url"/>
+                        }
+                    </div>
+                }
+                else
+                {
                 <div class="@mainClass" id="main">
                     @if (SelectedSong is not null)
                     {
@@ -285,6 +307,7 @@
                         </div>
                     }
                 </div>
+                }
 
                 <div
                     class="flex items-center absolute bottom-0 left-0 right-0 justify-between p-3 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-none">
@@ -295,7 +318,7 @@
                         </button>
                     </div>
 
-                    @if (SharedAppState.IsPresentationActive(AppState.SessionId))
+                    @if (!IsTemplateMode && SharedAppState.IsPresentationActive(AppState.SessionId))
                     {
                         var isBlackScreen = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
 
@@ -353,6 +376,7 @@
             </div>
         </div>
     </div>
+    </div>
 </div>
 
 @if (showSessionExpired)
@@ -378,7 +402,9 @@
                   OnBibleVersesAdded="@HandleBibleVersesAdded"
                   OnBibleVersesAddedKeepOpen="@HandleBibleVersesAddedKeepOpen"
                   OnImagesAdded="@HandleImagesAdded"
-                  OnImagesAddedKeepOpen="@HandleImagesAddedKeepOpen"/>
+                  OnImagesAddedKeepOpen="@HandleImagesAddedKeepOpen"
+                  OnAudiosAdded="@HandleAudiosAdded"
+                  OnAudiosAddedKeepOpen="@HandleAudiosAddedKeepOpen"/>
 }
 
 @if (showAddImagesToExisting)
@@ -468,8 +494,17 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDeletePresentation">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["Presentation.DeletePresentation"]</div>
-            <div>@((MarkupString)L["Presentation.ConfirmDeletePresentation", AppState.SelectedProject?.Name ?? ""].Value)</div>
+            <div class="font-semibold text-lg">@(IsTemplateMode ? L["Sidebar.DeleteTemplate"] : L["Presentation.DeletePresentation"])</div>
+            <div>
+                @if (IsTemplateMode)
+                {
+                    @L["Templates.DeleteConfirm"]
+                }
+                else
+                {
+                    @((MarkupString)L["Presentation.ConfirmDeletePresentation", AppState.SelectedProject?.Name ?? ""].Value)
+                }
+            </div>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDeletePresentation">
                     @L["Common.Cancel"]
@@ -482,8 +517,22 @@
     </Dialog>
 }
 
+@if (showSaveAsTemplateDialog)
+{
+    <NameDialog Title="@L["Sidebar.SaveAsTemplate"]"
+                Name="@(AppState.SelectedProject?.Name ?? "")"
+                SaveText="@L["Common.Save"]"
+                SaveLoadingText="@L["Common.Saving"]"
+                OnSave="SaveAsTemplateAsync"
+                OnClose="() => showSaveAsTemplateDialog = false"/>
+}
+
 @code {
     [Parameter] public string? PresentationId { get; set; }
+    [Parameter] public string? TemplateId { get; set; }
+
+    private bool IsTemplateMode => TemplateId is not null;
+    private string? EffectiveId => TemplateId ?? PresentationId;
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
@@ -495,6 +544,7 @@
     private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
+    private Audio? SelectedAudio { get; set; }
     private bool showAddModal;
     private bool showSessionExpired;
     private bool showOverlayManager;
@@ -508,6 +558,7 @@
     private bool showAddImagesToExisting;
     private int? imagePartToRemoveIndex;
     private int idleHintIndex;
+    private bool showSaveAsTemplateDialog;
 
     private record IdleHint(string Icon, string Text, string? Source = null);
 
@@ -584,8 +635,11 @@
         if (firstRender)
         {
             dotNetRef = DotNetObjectReference.Create(this);
-            var isActive = SharedAppState.IsPresentationActive(AppState.SessionId);
-            await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef, isActive, AppState.SessionId);
+            if (!IsTemplateMode)
+            {
+                var isActive = SharedAppState.IsPresentationActive(AppState.SessionId);
+                await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef, isActive, AppState.SessionId);
+            }
         }
 
         if (isEditingItemTitle)
@@ -640,13 +694,14 @@
         }
 
         // Persist to database
-        if (PresentationId is not null)
+        if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
-                await PresentationService.ReorderItemPartsAsync(orgId, PresentationId, SelectedImage.Id, partIds, OrgState.ToCallerContext());
+                await PresentationService.ReorderItemPartsAsync(orgId, EffectiveId, SelectedImage.Id, partIds, OrgState.ToCallerContext());
         }
 
+        NotifyPresentationChanged();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -708,24 +763,26 @@
             }
             SelectedImage = null;
 
-            if (PresentationId is not null && projectItem is not null)
+            if (EffectiveId is not null && projectItem is not null)
             {
                 var orgId = OrgState.ActiveOrganizationId;
                 if (orgId is not null)
-                    await PresentationService.RemoveItemAsync(orgId, PresentationId, projectItem.Id, OrgState.ToCallerContext());
+                    await PresentationService.RemoveItemAsync(orgId, EffectiveId, projectItem.Id, OrgState.ToCallerContext());
             }
+            NotifyPresentationChanged();
             return;
         }
 
         SelectedImage = new Image(SelectedImage.Id, urls, partIds);
 
         // Persist to database
-        if (PresentationId is not null && partId is not null)
+        if (EffectiveId is not null && partId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
-                await PresentationService.RemoveItemPartAsync(orgId, PresentationId, SelectedImage.Id, partId, OrgState.ToCallerContext());
+                await PresentationService.RemoveItemPartAsync(orgId, EffectiveId, SelectedImage.Id, partId, OrgState.ToCallerContext());
         }
+        NotifyPresentationChanged();
     }
 
     private void OpenAddImagesToExisting()
@@ -784,12 +841,14 @@
         imageSortableInitialized = false;
 
         // Persist to database
-        if (PresentationId is not null)
+        if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
-                await PresentationService.AddItemPartsAsync(orgId, PresentationId, imageItem.Id, newParts, OrgState.ToCallerContext());
+                await PresentationService.AddItemPartsAsync(orgId, EffectiveId, imageItem.Id, newParts, OrgState.ToCallerContext());
         }
+
+        NotifyPresentationChanged();
     }
 
     private void StartEditingItemTitle()
@@ -823,13 +882,14 @@
             presentationItem.Title = trimmed;
 
         // Persist to database
-        if (PresentationId is not null)
+        if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
-                await PresentationService.RenameItemAsync(orgId, PresentationId, item.Id, trimmed, OrgState.ToCallerContext());
+                await PresentationService.RenameItemAsync(orgId, EffectiveId, item.Id, trimmed, OrgState.ToCallerContext());
         }
 
+        NotifyPresentationChanged();
         AppState.NotifyProjectChanged();
     }
 
@@ -838,12 +898,13 @@
         idleHintIndex = Random.Shared.Next(idleHints.Length);
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
+        SharedAppState.PresentationChanged += OnPresentationChanged;
     }
 
     protected override async Task OnParametersSetAsync()
     {
-        if (PresentationId == loadedPresentationId) return;
-        loadedPresentationId = PresentationId;
+        if (EffectiveId == loadedPresentationId) return;
+        loadedPresentationId = EffectiveId;
 
         await LoadPresentationAsync();
         await GetDataForSelectedItem();
@@ -851,11 +912,13 @@
 
     private async Task LoadPresentationAsync()
     {
-        if (PresentationId is null) return;
+        if (EffectiveId is null) return;
 
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
-        loadedPresentation = await PresentationService.GetPresentationByIdAsync(PresentationId, orgId, OrgState.ToCallerContext());
+        loadedPresentation = IsTemplateMode
+            ? await PresentationService.GetTemplateByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext())
+            : await PresentationService.GetPresentationByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext());
         if (loadedPresentation is null)
         {
             AppState.SelectedProject = null;
@@ -876,13 +939,17 @@
                     PresentationItemType.Song => ProjectItemType.Song,
                     PresentationItemType.BibleText => ProjectItemType.BibleText,
                     PresentationItemType.Image => ProjectItemType.Image,
+                    PresentationItemType.Audio => ProjectItemType.Audio,
                     _ => ProjectItemType.Song
                 },
                 Title = item.Title
             }).ToList()
         };
 
-        overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
+        if (!IsTemplateMode)
+        {
+            overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
+        }
 
         var liveItemId = SharedAppState.GetLiveSlide(AppState.SessionId).ProjectItemId;
         var activeItem = liveItemId is not null
@@ -891,11 +958,44 @@
         AppState.SelectedProjectItem = activeItem;
     }
 
+    private void ConfirmSaveAsTemplate()
+    {
+        showSaveAsTemplateDialog = true;
+    }
+
+    private async Task SaveAsTemplateAsync(string name)
+    {
+        showSaveAsTemplateDialog = false;
+        if (EffectiveId is null) return;
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var userId = OrgState.UserId;
+        if (orgId is null || userId is null) return;
+
+        await PresentationService.SaveAsTemplateAsync(EffectiveId, name, orgId, userId, OrgState.ToCallerContext());
+        ToastService.Show(L["Toast.SavedAsTemplate"]);
+    }
+
     public void Dispose()
     {
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
+        SharedAppState.PresentationChanged -= OnPresentationChanged;
         dotNetRef?.Dispose();
+    }
+
+    private async void OnPresentationChanged(string presentationId, string? senderSessionId)
+    {
+        if (presentationId != EffectiveId) return;
+        if (senderSessionId == AppState.SessionId) return;
+
+        await InvokeAsync(async () =>
+        {
+            await LoadPresentationAsync();
+            await GetDataForSelectedItem();
+            ToastService.Show(L["Toast.PresentationUpdatedExternally"]);
+            StateHasChanged();
+        });
     }
 
     private async void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -931,6 +1031,7 @@
         SongCredits = null;
         SelectedBibleText = null;
         SelectedImage = null;
+        SelectedAudio = null;
         isEditingImageOrder = false;
         isEditingItemTitle = false;
         imageSortableInitialized = false;
@@ -986,6 +1087,22 @@
                     {
                         SelectedImage = new Image(imageItem.Id, urls, partIds);
                     }
+                }
+                break;
+            case ProjectItemType.Audio:
+                var audioItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                if (audioItem is not null && audioItem.Parts.Count > 0)
+                {
+                    var audioParts = audioItem.Parts.OrderBy(p => p.SortOrder)
+                        .Select(p =>
+                        {
+                            var parts = p.Content.Split('|', 2);
+                            var audioId = parts[0];
+                            var fileName = parts.Length > 1 ? parts[1] : audioId;
+                            return new AudioPart(p.Id, audioId, fileName, ImageUrlHelper.OrgAudioUrl(audioId));
+                        })
+                        .ToList();
+                    SelectedAudio = new Audio(audioItem.Id, audioParts);
                 }
                 break;
         }
@@ -1049,6 +1166,8 @@
 
                 break;
             }
+            case ProjectItemType.Audio:
+                return;
             default:
                 return;
         }
@@ -1130,16 +1249,22 @@
 
     private async Task DeletePresentationAsync()
     {
-        if (PresentationId is null) return;
+        if (EffectiveId is null) return;
 
         showDeleteConfirmation = false;
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
-        await PresentationService.DeletePresentationAsync(orgId, PresentationId, OrgState.ToCallerContext());
+
+        if (IsTemplateMode)
+            await PresentationService.DeleteTemplateAsync(orgId, EffectiveId, OrgState.ToCallerContext());
+        else
+            await PresentationService.DeletePresentationAsync(orgId, EffectiveId, OrgState.ToCallerContext());
+
+        NotifyPresentationChanged();
 
         AppState.SelectedProject = null;
         AppState.SelectedProjectItem = null;
-        NavigationManager.NavigateTo("/");
+        NavigationManager.NavigateTo(IsTemplateMode ? "/admin/templates" : "/");
     }
 
     private async Task RemoveItemAsync()
@@ -1159,12 +1284,14 @@
 
         AppState.NotifyProjectChanged();
 
-        if (PresentationId is not null)
+        if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
-                await PresentationService.RemoveItemAsync(orgId, PresentationId, removedItem.Id, OrgState.ToCallerContext());
+                await PresentationService.RemoveItemAsync(orgId, EffectiveId, removedItem.Id, OrgState.ToCallerContext());
         }
+
+        NotifyPresentationChanged();
     }
 
     private void ConfirmRemoveMultipleItems(List<ProjectItem> items)
@@ -1186,11 +1313,11 @@
 
         try
         {
-            if (PresentationId is not null)
+            if (EffectiveId is not null)
             {
                 var orgId = OrgState.ActiveOrganizationId;
                 if (orgId is not null)
-                    await PresentationService.RemoveItemsAsync(orgId, PresentationId, items.Select(i => i.Id).ToList(), OrgState.ToCallerContext());
+                    await PresentationService.RemoveItemsAsync(orgId, EffectiveId, items.Select(i => i.Id).ToList(), OrgState.ToCallerContext());
             }
 
             itemsToRemove = null;
@@ -1205,11 +1332,12 @@
             }
 
             AppState.NotifyProjectChanged();
+            NotifyPresentationChanged();
             ToastService.Show(items.Count == 1 ? L["Toast.ItemRemoved"] : L["Toast.ItemsRemoved", items.Count]);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Failed to remove {Count} items from presentation {PresentationId}", items.Count, PresentationId);
+            Logger.LogError(ex, "Failed to remove {Count} items from presentation {PresentationId}", items.Count, EffectiveId);
             ToastService.Show(L["Common.ErrorOccurred"]);
         }
         finally
@@ -1227,12 +1355,14 @@
                 .ToList();
         }
 
-        if (PresentationId is not null)
+        if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
-                await PresentationService.ReorderItemsAsync(orgId, PresentationId, itemIds, OrgState.ToCallerContext());
+                await PresentationService.ReorderItemsAsync(orgId, EffectiveId, itemIds, OrgState.ToCallerContext());
         }
+
+        NotifyPresentationChanged();
     }
 
     private void OpenAddModal()
@@ -1301,16 +1431,17 @@
         var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
-        if (PresentationId is not null)
+        if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
             {
-                await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
+                await PresentationService.AddItemAsync(orgId, EffectiveId, presentationItem, OrgState.ToCallerContext());
                 if (inserted) await ReorderAfterInsert(orgId);
             }
         }
 
+        NotifyPresentationChanged();
         ToastService.Show(L["Toast.BibleTextAdded", bibleText.Title]);
     }
 
@@ -1348,16 +1479,17 @@
         var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
-        if (PresentationId is not null)
+        if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
             {
-                await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
+                await PresentationService.AddItemAsync(orgId, EffectiveId, presentationItem, OrgState.ToCallerContext());
                 if (inserted) await ReorderAfterInsert(orgId);
             }
         }
 
+        NotifyPresentationChanged();
         ToastService.Show(L["Toast.SongAdded", song.Name]);
     }
 
@@ -1410,19 +1542,85 @@
         var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
-        if (PresentationId is not null)
+        if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
             {
-                await PresentationService.AddItemAsync(orgId, PresentationId, presentationItem, OrgState.ToCallerContext());
+                await PresentationService.AddItemAsync(orgId, EffectiveId, presentationItem, OrgState.ToCallerContext());
                 if (inserted) await ReorderAfterInsert(orgId);
             }
         }
 
+        NotifyPresentationChanged();
         ToastService.Show(images.Count == 1
             ? L["Toast.ImageAdded", images[0].FileName]
             : L["Toast.ImagesAdded", images.Count]);
+    }
+
+    private async Task HandleAudiosAdded(List<OrganizationAudio> audios)
+    {
+        showAddModal = false;
+        await AddAudios(audios);
+    }
+
+    private async Task HandleAudiosAddedKeepOpen(List<OrganizationAudio> audios)
+    {
+        await AddAudios(audios);
+    }
+
+    private async Task AddAudios(List<OrganizationAudio> audios)
+    {
+        if (audios.Count == 0) return;
+
+        var itemId = Guid.NewGuid().ToString();
+        var title = audios.Count == 1
+            ? audios[0].FileName
+            : $"{audios.Count} {L["AudioTab.AudioFiles"]}";
+
+        var parts = audios.Select((audio, i) => new PresentationItemPart
+        {
+            Id = Guid.NewGuid().ToString(),
+            Content = $"{audio.Id}|{audio.FileName}",
+            SortOrder = i,
+            PresentationItemId = itemId
+        }).ToList();
+
+        var projectItem = new ProjectItem
+        {
+            Id = itemId,
+            SourceId = audios[0].Id,
+            Type = ProjectItemType.Audio,
+            Title = title
+        };
+
+        var presentationItem = new PresentationItem
+        {
+            Id = itemId,
+            SourceId = audios[0].Id,
+            Type = PresentationItemType.Audio,
+            Title = title,
+            Parts = parts
+        };
+
+        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
+        AppState.SelectedProjectItem = projectItem;
+
+        if (EffectiveId is not null)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+            {
+                await PresentationService.AddItemAsync(orgId, EffectiveId, presentationItem, OrgState.ToCallerContext());
+                if (inserted) await ReorderAfterInsert(orgId);
+            }
+        }
+
+        NotifyPresentationChanged();
+        ToastService.Show(audios.Count == 1
+            ? L["Toast.AudioAdded", audios[0].FileName]
+            : L["Toast.AudiosAdded", audios.Count]);
     }
 
     private bool InsertAfterSelected<T>(IList<T>? list, T item) where T : class
@@ -1461,9 +1659,15 @@
 
     private async Task ReorderAfterInsert(string orgId)
     {
-        if (PresentationId is null || AppState.SelectedProject is null) return;
+        if (EffectiveId is null || AppState.SelectedProject is null) return;
         var itemIds = AppState.SelectedProject.Items.Select(x => x.Id).ToList();
-        await PresentationService.ReorderItemsAsync(orgId, PresentationId, itemIds, OrgState.ToCallerContext());
+        await PresentationService.ReorderItemsAsync(orgId, EffectiveId, itemIds, OrgState.ToCallerContext());
+    }
+
+    private void NotifyPresentationChanged()
+    {
+        if (EffectiveId is not null)
+            SharedAppState.NotifyPresentationChanged(EffectiveId, AppState.SessionId);
     }
 
 }

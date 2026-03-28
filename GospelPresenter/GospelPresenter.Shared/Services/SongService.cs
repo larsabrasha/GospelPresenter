@@ -22,6 +22,7 @@ public interface ISongService
     Task RestoreAllFromTrashAsync(string organizationId, CallerContext caller);
     Task UpdateSongAsync(string id, string organizationId, string name, string? author, string? publisher, int? year, string? ccli, CallerContext caller);
     Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? label, string content, CallerContext caller);
+    Task UpdateSongPartsAsync(string songId, string organizationId, IReadOnlyDictionary<int, (string? Label, string Content)> edits, CallerContext caller);
     Task AddSongPartAsync(string songId, string organizationId, string? label, string content, CallerContext caller);
     Task DeleteSongPartAsync(string songId, string organizationId, int partIndex, CallerContext caller);
     Task MoveSongPartAsync(string songId, string organizationId, int fromIndex, int toIndex, CallerContext caller);
@@ -325,6 +326,32 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
         parts[partIndex].Label = label;
         parts[partIndex].Content = content;
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        await ReloadSong(songId);
+    }
+
+    public async Task UpdateSongPartsAsync(string songId, string organizationId, IReadOnlyDictionary<int, (string? Label, string Content)> edits, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ManageSongs);
+        caller.RequireOrganizationAccess(organizationId);
+        if (edits.Count == 0) return;
+
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        if (song is null) return;
+
+        var parts = song.Parts;
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await SaveVersionSnapshotAsync(db, song);
+
+        foreach (var (index, edit) in edits)
+        {
+            if (index < 0 || index >= parts.Count) continue;
+            parts[index].Label = edit.Label;
+            parts[index].Content = edit.Content;
+        }
+
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);

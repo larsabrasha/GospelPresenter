@@ -1,5 +1,6 @@
-@page "/superadmin/organizations/{OrganizationId}"
+@page "/admin/organizations/{OrganizationId}"
 @attribute [Authorize(Roles = "SuperAdmin")]
+@implements IDisposable
 
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Components
@@ -18,16 +19,7 @@
 @inject IJSRuntime JSRuntime
 
 <PageContainer>
-    <div class="relative flex items-center justify-center px-7">
-        <AppButton Variant="ButtonVariant.Cancel" Href="/superadmin/organizations"
-                   Class="absolute left-0 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            @L["Common.Back"]
-        </AppButton>
-        <div class="text-xl font-bold dark:text-neutral-100">@(organization?.Name ?? L["OrgDetail.DefaultName"])</div>
-    </div>
+    <DetailHeader @ref="header" BackHref="/admin/organizations" Title="@(organization?.Name ?? L["OrgDetail.DefaultName"])" Class="px-7"/>
 
     @if (organization is null)
     {
@@ -43,11 +35,11 @@
                         <OrganizationAvatar LogoUrl="@organization.LogoSmall" Name="@organization.Name" Size="lg" Class="group-hover:brightness-75 transition"/>
                         <InputFile OnChange="OnLogoSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
                     </label>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                    <div class="flex flex-col items-start gap-1">
+                        <AppButton Variant="ButtonVariant.Secondary" AsLabel>
                             @(string.IsNullOrEmpty(organization.LogoSmall) ? L["OrgDetail.ChooseLogo"] : L["OrgDetail.ChangeLogo"])
                             <InputFile OnChange="OnLogoSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
-                        </label>
+                        </AppButton>
                         @if (!string.IsNullOrEmpty(organization.LogoSmall))
                         {
                             <AppButton Variant="ButtonVariant.Danger" OnClick="RemoveLogo"
@@ -62,24 +54,7 @@
                     </div>
                 </div>
             </div>
-            <div class="font-semibold">@L["OrgDetail.OrgName"]</div>
-            <div class="flex gap-3">
-                <input type="text"
-                       class="flex-1 px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="editName"
-                       @bind:event="oninput"/>
-                <AppButton Variant="ButtonVariant.Primary"
-                           Disabled="@(isSaving || string.IsNullOrWhiteSpace(editName) || editName.Trim() == organization.Name)"
-                           OnClick="SaveName">
-                    @(isSaving ? L["Common.Saving"] : L["Common.Save"])
-                </AppButton>
-            </div>
-        </div>
-
-        <div class="flex gap-3">
-            <AppButton Variant="ButtonVariant.Danger" OnClick="ShowDeleteConfirmation">
-                @L["OrgDetail.DeleteOrg"]
-            </AppButton>
+            <FloatingInput Id="org-name" Label="@L["OrgDetail.OrgName"]" Value="@editName" OnInput="HandleNameChanged"/>
         </div>
 
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
@@ -106,6 +81,11 @@
                     </a>
                 }
             }
+        </div>
+        <div class="flex justify-end">
+            <AppButton Variant="ButtonVariant.Danger" OnClick="ShowDeleteConfirmation">
+                @L["OrgDetail.DeleteOrg"]
+            </AppButton>
         </div>
     }
 </PageContainer>
@@ -182,12 +162,15 @@
     private Organization? organization;
     private List<User> members = [];
     private string editName = "";
-    private bool isSaving;
     private bool showDeleteDialog;
     private bool isDeleting;
     private string deleteConfirmText = "";
     private string? logoError;
     private bool showCropDialog;
+    private readonly Utils.Debouncer saveDebounce = new();
+    private DetailHeader? header;
+
+    public void Dispose() => saveDebounce.Dispose();
 
     protected override async Task OnInitializedAsync()
     {
@@ -199,10 +182,15 @@
         }
     }
 
+    private void HandleNameChanged(ChangeEventArgs e)
+    {
+        editName = e.Value?.ToString() ?? "";
+        saveDebounce.Run(SaveName);
+    }
+
     private async Task SaveName()
     {
-        if (isSaving || string.IsNullOrWhiteSpace(editName) || organization is null) return;
-        isSaving = true;
+        if (string.IsNullOrWhiteSpace(editName) || organization is null) return;
 
         await UserService.UpdateOrganizationAsync(OrganizationId, editName.Trim(), OrgState.ToCallerContext());
         organization.Name = editName.Trim();
@@ -211,7 +199,7 @@
             OrgState.SwitchOrganization(OrganizationId, editName.Trim());
 
         OrgState.NotifyOrganizationsChanged();
-        isSaving = false;
+        header?.ShowSaved();
     }
 
     private void ShowDeleteConfirmation()
@@ -239,7 +227,7 @@
         }
 
         OrgState.NotifyOrganizationsChanged();
-        NavigationManager.NavigateTo("/superadmin/organizations");
+        NavigationManager.NavigateTo("/admin/organizations");
     }
 
     private string RoleDisplayName(UserRole role) => role switch

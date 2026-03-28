@@ -1,9 +1,12 @@
 @page "/admin/songs"
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@implements IDisposable
 
+@using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
+@using GospelPresenter.Shared.Utils
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 
@@ -11,11 +14,21 @@
 
 @inject ISongService SongService
 @inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
 
 <PageContainer>
-    <div class="px-5">
+    <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Songs.Title"]</div>
+        @if (displayedSongs.Count > 0)
+        {
+            <AppButton Variant="ButtonVariant.Primary" OnClick="CreateSong" Loading="creating" Class="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                </svg>
+                @L["Songs.Create"]
+            </AppButton>
+        }
     </div>
 
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden p-5 space-y-4">
@@ -24,13 +37,13 @@
             @((MarkupString)L["Songs.ImportDescription"].Value)
         </p>
 
-        <label class="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-sky-500 text-white cursor-pointer hover:bg-sky-600 text-sm">
+        <AppButton Variant="ButtonVariant.Primary" AsLabel Class="inline-flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
             </svg>
             @(isImporting ? L["Songs.Importing"] : L["Songs.ChooseFiles"])
             <InputFile OnChange="OnFilesSelected" multiple accept=".pro" class="hidden" disabled="@isImporting"/>
-        </label>
+        </AppButton>
 
         @if (isImporting)
         {
@@ -153,6 +166,16 @@
     </Dialog>
 }
 
+@if (showNameDialog)
+{
+    <NameDialog Title="@L["Songs.Create"]"
+                Name="@newSongName"
+                SaveText="@L["Common.Create"]"
+                SaveLoadingText="@L["Common.Creating"]"
+                OnSave="HandleCreateSong"
+                OnClose="() => showNameDialog = false"/>
+}
+
 @code {
     private bool isImporting;
     private string? importMessage;
@@ -166,7 +189,7 @@
     private string searchQuery = "";
     private string[] searchTerms = [];
     private List<Song> displayedSongs = [];
-    private CancellationTokenSource? debounceToken;
+    private readonly Debouncer searchDebounce = new(150);
 
 
     private IReadOnlyList<Song> OrgSongs => organizationId is not null
@@ -178,6 +201,8 @@
         organizationId = OrgState.ActiveOrganizationId;
         displayedSongs = OrgSongs.ToList();
     }
+
+    public void Dispose() => searchDebounce.Dispose();
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
     {
@@ -322,25 +347,20 @@
             : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
     }
 
-    private async Task OnSearchInput(ChangeEventArgs e)
+    private void OnSearchInput(ChangeEventArgs e)
     {
         searchQuery = e.Value?.ToString() ?? "";
         searchTerms = string.IsNullOrWhiteSpace(searchQuery)
             ? []
             : searchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        debounceToken?.Cancel();
-        debounceToken = new CancellationTokenSource();
-        var token = debounceToken.Token;
-
-        try
+        searchDebounce.Run(() =>
         {
-            await Task.Delay(150, token);
             displayedSongs = string.IsNullOrWhiteSpace(searchQuery)
                 ? OrgSongs.ToList()
                 : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
-        }
-        catch (TaskCanceledException) { }
+            return Task.CompletedTask;
+        });
     }
 
     private void ClearSearch()
@@ -350,50 +370,32 @@
         displayedSongs = OrgSongs.ToList();
     }
 
-    private string Highlight(string text)
+    private bool showNameDialog;
+    private string newSongName = "";
+    private bool creating;
+
+    private void CreateSong()
     {
-        if (searchTerms.Length == 0) return System.Net.WebUtility.HtmlEncode(text);
-
-        text = text.Normalize();
-        var matches = new List<(int Start, int Length)>();
-        foreach (var term in searchTerms)
-        {
-            var normalized = term.Normalize();
-            var idx = 0;
-            while (idx <= text.Length - normalized.Length)
-            {
-                var match = text.IndexOf(normalized, idx, StringComparison.OrdinalIgnoreCase);
-                if (match < 0) break;
-                matches.Add((match, normalized.Length));
-                idx = match + normalized.Length;
-            }
-        }
-
-        if (matches.Count == 0) return System.Net.WebUtility.HtmlEncode(text);
-
-        matches.Sort((a, b) => a.Start.CompareTo(b.Start));
-        var merged = new List<(int Start, int End)> { (matches[0].Start, matches[0].Start + matches[0].Length) };
-        for (var i = 1; i < matches.Count; i++)
-        {
-            var (start, length) = matches[i];
-            var last = merged[^1];
-            if (start <= last.End)
-                merged[^1] = (last.Start, Math.Max(last.End, start + length));
-            else
-                merged.Add((start, start + length));
-        }
-
-        var sb = new System.Text.StringBuilder();
-        var pos = 0;
-        foreach (var (start, end) in merged)
-        {
-            sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..start]));
-            sb.Append("<mark class=\"bg-yellow-300/60 dark:bg-yellow-500/40 text-inherit rounded-sm\">");
-            sb.Append(System.Net.WebUtility.HtmlEncode(text[start..end]));
-            sb.Append("</mark>");
-            pos = end;
-        }
-        sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..]));
-        return sb.ToString();
+        newSongName = "";
+        showNameDialog = true;
     }
+
+    private async Task HandleCreateSong(string name)
+    {
+        if (organizationId is null) return;
+
+        creating = true;
+        try
+        {
+            var song = await SongService.CreateSongAsync(name, null, null, null, null, [], organizationId, OrgState.ToCallerContext());
+            NavigationManager.NavigateTo($"/admin/songs/{song.Id}");
+        }
+        finally
+        {
+            creating = false;
+            showNameDialog = false;
+        }
+    }
+
+    private string Highlight(string text) => SearchHighlighter.Highlight(text, searchTerms);
 }

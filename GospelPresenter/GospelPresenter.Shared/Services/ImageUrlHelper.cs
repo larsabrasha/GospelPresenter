@@ -25,4 +25,14 @@ public static class ImageUrlHelper
 
     public static string OverlayImageKey(string organizationId, string overlayId)
         => $"org/{organizationId}/overlays/{overlayId}/image";
+
+    // Audio URLs
+    public static string OrgAudioUrl(string audioId)
+        => $"/api/audio/org-audio/{audioId}";
+
+    public static string OrgAudioKey(string organizationId, string audioId)
+        => $"org/{organizationId}/audios/{audioId}/file";
+
+    public static string OrgAudioPrefix(string organizationId, string audioId)
+        => $"org/{organizationId}/audios/{audioId}/";
 }

@@ -7,10 +7,10 @@
 
 @if (editingOverlay is not null)
 {
-    <OverlayEditor Overlay="@editingOverlay"
-                   OnBack="ExitEditor"
-                   OnChanged="HandleChanged"
-                   OnDeleted="HandleDeleted"/>
+    <OverlayEditorPanel Overlay="@editingOverlay"
+                        OnBack="ExitEditor"
+                        OnChanged="HandleChanged"
+                        OnDeleted="HandleDelete"/>
 }
 else
 {
@@ -41,7 +41,7 @@ else
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                         </svg>
-                        @L["OverlayManager.Add"]
+                        @L["Overlays.Create"]
                     </AppButton>
                 </div>
             </div>
@@ -84,10 +84,20 @@ else
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                 </svg>
-                @L["OverlayManager.Add"]
+                @L["Overlays.Create"]
             </AppButton>
         }
     </div>
+}
+
+@if (showNameDialog)
+{
+    <NameDialog Title="@L["Overlays.Create"]"
+                Name="@newOverlayTitle"
+                SaveText="@L["Common.Create"]"
+                SaveLoadingText="@L["Common.Creating"]"
+                OnSave="HandleCreateOverlay"
+                OnClose="() => showNameDialog = false"/>
 }
 
 @code {
@@ -96,6 +106,8 @@ else
 
     private List<OverlaySlide> overlays = [];
     private OverlaySlide? editingOverlay;
+    private bool showNameDialog;
+    private string newOverlayTitle = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -104,7 +116,17 @@ else
 
     private void AddNew()
     {
-        editingOverlay = new OverlaySlide();
+        newOverlayTitle = "";
+        showNameDialog = true;
+    }
+
+    private async Task HandleCreateOverlay(string title)
+    {
+        var overlay = new OverlaySlide { Title = title.Trim() };
+        await PresentationService.AddOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
+        await RefreshOverlays();
+        showNameDialog = false;
+        editingOverlay = overlays.FirstOrDefault(o => o.Id == overlay.Id) ?? overlay;
     }
 
     private void EditOverlay(OverlaySlide overlay)
@@ -119,24 +141,21 @@ else
 
     private async Task HandleChanged(OverlaySlide overlay)
     {
-        if (string.IsNullOrWhiteSpace(overlay.OrganizationId))
-        {
-            await PresentationService.AddOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
-        }
-        else
-        {
-            await PresentationService.UpdateOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
-        }
-
-        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
-        await OnOverlaysChanged.InvokeAsync();
+        await PresentationService.UpdateOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
+        await RefreshOverlays();
     }
 
-    private async Task HandleDeleted(OverlaySlide overlay)
+    private async Task HandleDelete()
     {
-        await PresentationService.RemoveOverlayAsync(OrganizationId, overlay.Id, OrgState.ToCallerContext());
-        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
+        if (editingOverlay is null) return;
+        await PresentationService.RemoveOverlayAsync(OrganizationId, editingOverlay.Id, OrgState.ToCallerContext());
         editingOverlay = null;
+        await RefreshOverlays();
+    }
+
+    private async Task RefreshOverlays()
+    {
+        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
         await OnOverlaysChanged.InvokeAsync();
     }
 }

@@ -10,10 +10,13 @@ public static class PermissionMap
             Permission.ManagePresentations,
             Permission.ViewOrganizationImages,
             Permission.ManageOrganizationImages,
+            Permission.ViewOrganizationAudios,
+            Permission.ManageOrganizationAudios,
             Permission.ViewSongs,
             Permission.ManageSongs,
             Permission.ViewOverlays,
-            Permission.ManageOverlays
+            Permission.ManageOverlays,
+            Permission.ViewTemplates
         ],
         [UserRole.Admin] =
         [
@@ -21,10 +24,14 @@ public static class PermissionMap
             Permission.ManagePresentations,
             Permission.ViewOrganizationImages,
             Permission.ManageOrganizationImages,
+            Permission.ViewOrganizationAudios,
+            Permission.ManageOrganizationAudios,
             Permission.ViewSongs,
             Permission.ManageSongs,
             Permission.ViewOverlays,
             Permission.ManageOverlays,
+            Permission.ViewTemplates,
+            Permission.ManageTemplates,
             Permission.ViewUsers,
             Permission.ManageUsers
         ],

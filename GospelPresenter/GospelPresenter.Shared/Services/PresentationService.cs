@@ -8,6 +8,7 @@ public interface IPresentationService
 {
     Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<Presentation?> GetTemplateByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
     Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default);
     Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default);
@@ -20,6 +21,12 @@ public interface IPresentationService
     Task RemoveItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default);
     Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default);
     Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<IList<PresentationSummary>> GetRecentTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<IList<PresentationSummary>> GetAllTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<Presentation> SaveAsTemplateAsync(string presentationId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<Presentation> CreateTemplateAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
     Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task AddOverlayAsync(string organizationId, OverlaySlide overlay, CallerContext caller, CancellationToken cancellationToken = default);
@@ -38,7 +45,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var presentations = await context.Presentations
-            .Where(x => x.OrganizationId == organizationId)
+            .Where(x => x.OrganizationId == organizationId && !x.IsTemplate)
             .OrderByDescending(x => x.UpdatedAt)
             .Take(20)
             .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt))
@@ -51,14 +58,25 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ViewPresentations);
         caller.RequireOrganizationAccess(organizationId);
+        return await GetByIdAsync(id, organizationId, isTemplate: false, cancellationToken);
+    }
+
+    public async Task<Presentation?> GetTemplateByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ViewTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+        return await GetByIdAsync(id, organizationId, isTemplate: true, cancellationToken);
+    }
+
+    private async Task<Presentation?> GetByIdAsync(string id, string organizationId, bool isTemplate, CancellationToken cancellationToken)
+    {
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        var presentation = await context.Presentations
+        return await context.Presentations
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
                 .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder))
-            .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
-
-        return presentation;
+            .Where(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate == isTemplate)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -271,6 +289,206 @@ public class PresentationService(
 
         await context.Presentations
             .Where(x => x.Id == id && x.OrganizationId == organizationId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<IList<PresentationSummary>> GetRecentTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ViewTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await context.Presentations
+            .Where(x => x.OrganizationId == organizationId && x.IsTemplate)
+            .OrderByDescending(x => x.LastUsedAt)
+            .ThenByDescending(x => x.UpdatedAt)
+            .Take(10)
+            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IList<PresentationSummary>> GetAllTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await context.Presentations
+            .Where(x => x.OrganizationId == organizationId && x.IsTemplate)
+            .OrderByDescending(x => x.UpdatedAt)
+            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<Presentation> CreateTemplateAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var now = DateTimeOffset.UtcNow;
+        var template = new Presentation
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = name,
+            IsTemplate = true,
+            OrganizationId = organizationId,
+            CreatedAt = now,
+            CreatedBy = userId,
+            UpdatedAt = now,
+            UpdatedBy = userId
+        };
+
+        context.Presentations.Add(template);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return template;
+    }
+
+    public async Task<Presentation> SaveAsTemplateAsync(string presentationId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        var source = await context.Presentations
+            .Include(x => x.Items.OrderBy(i => i.SortOrder))
+                .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder))
+            .FirstOrDefaultAsync(x => x.Id == presentationId && x.OrganizationId == organizationId && !x.IsTemplate, cancellationToken);
+
+        if (source is null)
+            throw new InvalidOperationException("Presentation not found.");
+
+        var now = DateTimeOffset.UtcNow;
+        var template = new Presentation
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = name,
+            IsTemplate = true,
+            OrganizationId = organizationId,
+            CreatedAt = now,
+            CreatedBy = userId,
+            UpdatedAt = now,
+            UpdatedBy = userId
+        };
+
+        context.Presentations.Add(template);
+
+        foreach (var sourceItem in source.Items)
+        {
+            var newItem = new PresentationItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                SourceId = sourceItem.SourceId,
+                Type = sourceItem.Type,
+                Title = sourceItem.Title,
+                SortOrder = sourceItem.SortOrder,
+                PresentationId = template.Id
+            };
+            context.PresentationItems.Add(newItem);
+
+            foreach (var sourcePart in sourceItem.Parts)
+            {
+                context.PresentationItemParts.Add(new PresentationItemPart
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Content = sourcePart.Content,
+                    SortOrder = sourcePart.SortOrder,
+                    PresentationItemId = newItem.Id
+                });
+            }
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return template;
+    }
+
+    public async Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManagePresentations);
+        caller.RequirePermission(Permission.ViewTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        var template = await context.Presentations
+            .Include(x => x.Items.OrderBy(i => i.SortOrder))
+                .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder))
+            .FirstOrDefaultAsync(x => x.Id == templateId && x.OrganizationId == organizationId && x.IsTemplate, cancellationToken);
+
+        if (template is null)
+            throw new InvalidOperationException("Template not found.");
+
+        var now = DateTimeOffset.UtcNow;
+        var presentation = new Presentation
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = name,
+            OrganizationId = organizationId,
+            CreatedAt = now,
+            CreatedBy = userId,
+            UpdatedAt = now,
+            UpdatedBy = userId
+        };
+
+        context.Presentations.Add(presentation);
+
+        foreach (var sourceItem in template.Items)
+        {
+            var newItem = new PresentationItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                SourceId = sourceItem.SourceId,
+                Type = sourceItem.Type,
+                Title = sourceItem.Title,
+                SortOrder = sourceItem.SortOrder,
+                PresentationId = presentation.Id
+            };
+            context.PresentationItems.Add(newItem);
+
+            foreach (var sourcePart in sourceItem.Parts)
+            {
+                context.PresentationItemParts.Add(new PresentationItemPart
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Content = sourcePart.Content,
+                    SortOrder = sourcePart.SortOrder,
+                    PresentationItemId = newItem.Id
+                });
+            }
+        }
+
+        template.LastUsedAt = now;
+        template.UseCount++;
+
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return presentation;
+    }
+
+    public async Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        await context.PresentationItemParts
+            .Where(p => p.PresentationItem.PresentationId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await context.PresentationItems
+            .Where(x => x.PresentationId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await context.Presentations
+            .Where(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate)
             .ExecuteDeleteAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);

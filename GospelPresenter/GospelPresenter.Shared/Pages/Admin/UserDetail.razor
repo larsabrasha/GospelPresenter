@@ -1,5 +1,6 @@
 @page "/admin/users/{UserId}"
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@implements IDisposable
 
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Models
@@ -17,20 +18,10 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject ActiveOrganizationState OrgState
+@inject ToastService ToastService
 
 <PageContainer>
-    <div class="relative flex items-center justify-center px-5">
-        <AppButton Variant="ButtonVariant.Cancel" Href="/admin/users"
-                   Class="absolute left-0 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            @L["Common.Back"]
-        </AppButton>
-        <div class="text-xl font-bold dark:text-neutral-100">
-            @user?.Name
-        </div>
-    </div>
+    <DetailHeader @ref="header" BackHref="/admin/users" Title="@user?.Name" Class="px-5"/>
 
     @if (user is null)
     {
@@ -48,12 +39,12 @@
                         <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
                                    class="hidden"/>
                     </label>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-sm text-sky-500 hover:text-sky-600 cursor-pointer">
+                    <div class="flex flex-col items-start gap-1">
+                        <AppButton Variant="ButtonVariant.Secondary" AsLabel>
                             @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? L["Common.ChooseImage"] : L["Common.ChangeImage"])
                             <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
                                        class="hidden"/>
-                        </label>
+                        </AppButton>
                         @if (!string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall))
                         {
                             <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmRemoveProfileImage"
@@ -68,55 +59,28 @@
                     </div>
                 </div>
             </div>
+            <FloatingInput Id="user-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"/>
             <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-                <input type="text"
-                       @bind="editName"
-                       @bind:event="oninput"
-                       @bind:after="SaveUser"
-                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Email"]</label>
-                <input type="email"
-                       @bind="editEmail"
-                       @bind:event="oninput"
-                       @bind:after="SaveUser"
-                       class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                <FloatingInput Id="user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
+                               Value="@editEmail" OnInput="HandleEmailChanged"/>
                 @if (emailError is not null)
                 {
                     <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>
                 }
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Role"]</label>
-                <div class="relative">
-                    <select @bind="editRole"
-                            @bind:after="SaveUser"
-                            disabled="@IsCurrentUser"
-                            class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-50">
-                        @foreach (var role in AllowedRoles)
-                        {
-                            <option value="@role">@RoleDisplayName(role)</option>
-                        }
-                    </select>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-                    </svg>
-                </div>
+                <FloatingSelect Id="user-role" Label="@L["Common.Role"]"
+                                Value="@editRole" OnChange="HandleRoleChanged" Disabled="@IsCurrentUser">
+                    @foreach (var role in AllowedRoles)
+                    {
+                        <option value="@role">@RoleDisplayName(role)</option>
+                    }
+                </FloatingSelect>
                 @if (IsCurrentUser)
                 {
                     <div class="text-sm text-neutral-500 mt-1">@L["Users.CannotChangeOwnRole"]</div>
                 }
             </div>
-            @if (!IsCurrentUser)
-            {
-                <div>
-                    <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDeleteUser">
-                        @L["UserDetail.DeleteUser"]
-                    </AppButton>
-                </div>
-            }
         </div>
 
         <!-- Inloggningsmetoder -->
@@ -182,9 +146,13 @@
                             <div class="flex items-center gap-2">
                                 <input type="text" readonly value="@inviteUrl"
                                        class="flex-1 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-sm border border-neutral-200 dark:border-neutral-500 select-all"/>
-                                <button class="px-3 py-2 rounded-lg text-sm bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
+                                <button class="px-3 self-stretch rounded-lg bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
+                                        title="@L["UserDetail.Copy"]"
                                         @onclick="() => CopyToClipboard(inviteUrl)">
-                                    @L["UserDetail.Copy"]
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                        <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1Z"/>
+                                        <path d="M4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z"/>
+                                    </svg>
                                 </button>
                             </div>
                         }
@@ -218,6 +186,14 @@
 
             }
         </div>
+        @if (!IsCurrentUser)
+        {
+            <div class="flex justify-end">
+                <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDeleteUser">
+                    @L["UserDetail.DeleteUser"]
+                </AppButton>
+            </div>
+        }
     }
 </PageContainer>
 
@@ -317,6 +293,32 @@
         await Task.WhenAll(LoadLogins(), LoadInvite());
     }
 
+    private readonly Utils.Debouncer saveDebounce = new();
+    private DetailHeader? header;
+
+    public void Dispose() => saveDebounce.Dispose();
+
+    private void HandleNameChanged(ChangeEventArgs e)
+    {
+        editName = e.Value?.ToString() ?? "";
+        saveDebounce.Run(SaveUser);
+    }
+
+    private async Task HandleRoleChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<UserRole>(e.Value?.ToString(), out var role))
+        {
+            editRole = role;
+            await SaveUser();
+        }
+    }
+
+    private void HandleEmailChanged(ChangeEventArgs e)
+    {
+        editEmail = e.Value?.ToString() ?? "";
+        saveDebounce.Run(SaveUser);
+    }
+
     private async Task SaveUser()
     {
         if (string.IsNullOrWhiteSpace(editName)) return;
@@ -339,6 +341,7 @@
         user.Email = editEmail.Trim();
         user.Role = editRole;
         SyncNavbar();
+        header?.ShowSaved();
     }
 
     private void ShowConfirm(string title, string message, Func<Task> action, string? buttonText = null)
@@ -409,7 +412,14 @@ private async Task CreateInvite()
 
     private async Task CopyToClipboard(string text)
     {
-        try { await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", text); }
+        try
+        {
+            var success = await JSRuntime.InvokeAsync<bool>("copyToClipboard", text);
+            if (success)
+            {
+                ToastService.Show(L["Toast.LinkCopied"]);
+            }
+        }
         catch { }
     }
 
@@ -508,7 +518,5 @@ private async Task CreateInvite()
         if (days <= 0) return L["UserDetail.LessThanADay"];
         return $"{days} {(days == 1 ? L["UserDetail.DaySingular"] : L["UserDetail.DayPlural"])}";
     }
-
-    private void GoBack() => NavigationManager.NavigateTo("/admin/users");
 
 }

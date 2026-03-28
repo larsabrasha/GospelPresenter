@@ -17,9 +17,13 @@
 <PageContainer>
     <div class="flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Users.Title"]</div>
-        <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center">
-            <PlusSymbol Class="size-4 mr-2"/>@L["Users.NewUser"]
-        </AppButton>
+        @if (users is not null && users.Count > 0)
+        {
+            <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+                <PlusSymbol Class="size-4"/>
+                @L["Users.Create"]
+            </AppButton>
+        }
     </div>
 
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
@@ -29,7 +33,24 @@
         }
         else if (users.Count == 0)
         {
-            <div class="px-7 py-4 text-neutral-400">@L["Users.NoUsers"]</div>
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <circle cx="100" cy="50" r="24" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <circle cx="100" cy="50" r="10" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+                    <path d="M60 130c0-22.091 17.909-40 40-40s40 17.909 40 40" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <circle cx="155" cy="120" r="16" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Users.NoUsers"]</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                    @L["Users.Description"]
+                </p>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+                    <PlusSymbol Class="size-4"/>
+                    @L["Users.Create"]
+                </AppButton>
+            </div>
         }
         else
         {
@@ -50,40 +71,31 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["Users.NewUser"]</div>
+            <div class="font-semibold text-lg">@L["Users.Create"]</div>
+            <FloatingInput @ref="nameFloatingInput" Id="new-user-name" Label="@L["Common.Name"]"
+                           Value="@editName" OnInput="(e) => editName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
             <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-                <input @ref="nameInput"
-                       type="text"
-                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="editName"
-                       @bind:event="oninput"
-                       @onkeydown="OnDialogKeyDown"/>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Email"]</label>
-                <input type="email"
-                       class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="editEmail"
-                       @bind:event="oninput"/>
+                <FloatingInput Id="new-user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
+                               Value="@editEmail" OnInput="(e) => editEmail = e.Value?.ToString() ?? string.Empty"/>
                 @if (emailError is not null)
                 {
                     <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>
                 }
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Role"]</label>
-                <div class="relative">
-                    <select @bind="editRole"
-                            class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        @foreach (var role in AllowedRoles)
-                        {
-                            <option value="@role">@RoleDisplayName(role)</option>
-                        }
-                    </select>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-                    </svg>
+                <FloatingSelect Id="new-user-role" Label="@L["Common.Role"]" Value="@editRole" OnChange="(e) => { if (Enum.TryParse<UserRole>(e.Value?.ToString(), out var r)) editRole = r; }">
+                    @foreach (var role in AllowedRoles)
+                    {
+                        <option value="@role">@RoleDisplayName(role)</option>
+                    }
+                </FloatingSelect>
+                <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-1">
+                    <div><span class="font-medium">@L["Users.User"]:</span> @L["Users.RoleDescription.User"]</div>
+                    <div><span class="font-medium">@L["Users.Admin"]:</span> @L["Users.RoleDescription.Admin"]</div>
+                    @if (AllowedRoles.Contains(UserRole.SuperAdmin))
+                    {
+                        <div><span class="font-medium">@L["Users.Superadmin"]:</span> @L["Users.RoleDescription.SuperAdmin"]</div>
+                    }
                 </div>
             </div>
             <div class="flex justify-end gap-3">
@@ -108,7 +120,7 @@
     private string editEmail = "";
     private string? emailError;
     private UserRole editRole = UserRole.User;
-    private ElementReference nameInput;
+    private FloatingInput? nameFloatingInput;
     private bool shouldFocusName;
 
     private IEnumerable<UserRole> AllowedRoles => OrgState.HasPermission(Permission.AssignSuperAdminRole)
@@ -142,7 +154,8 @@
         if (shouldFocusName)
         {
             shouldFocusName = false;
-            try { await nameInput.FocusAsync(); } catch { }
+            if (nameFloatingInput is not null)
+                try { await nameFloatingInput.FocusAsync(); } catch { }
         }
     }
 
