@@ -1,7 +1,7 @@
 # Project Rules
 
 ## UI consistency
-- Match the size and style of buttons to existing ones in the app. Avoid introducing new button variants.
+- Always use the `<AppButton>` component for buttons — never use raw `<button>` elements. Use the `Variant` parameter (`ButtonVariant.Primary`, `ButtonVariant.Danger`, `ButtonVariant.Cancel`, etc.) and `Filled` for emphasis.
 - UI must support both light and dark mode.
 - All interactive elements (buttons, actions, icons) must always be visible. Never hide them behind hover states — the app must work equally well on mobile, tablet, and desktop.
 - Layouts must work on all screen sizes. Use Tailwind's responsive breakpoints — avoid fixed pixel widths.

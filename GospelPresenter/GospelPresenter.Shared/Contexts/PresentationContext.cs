@@ -44,7 +44,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
             .IsUnique();
 
         modelBuilder.Entity<McpApiKey>()
-            .HasIndex(k => k.Key)
+            .HasIndex(k => k.KeyHash)
             .IsUnique();
 
         // SQLite does not support DateTimeOffset in ORDER BY — store as ticks (long)

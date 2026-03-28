@@ -5,6 +5,12 @@
         @ChildContent
     </a>
 }
+else if (AsLabel)
+{
+    <label title="@Title" class="@LabelClass" @attributes="AdditionalAttributes">
+        @ChildContent
+    </label>
+}
 else
 {
     <button type="@(Type ?? "button")" disabled="@(Disabled || Loading)" title="@Title"
@@ -31,6 +37,7 @@ else
     [Parameter] public string? Target { get; set; }
     [Parameter] public string? Title { get; set; }
     [Parameter] public string? Type { get; set; }
+    [Parameter] public bool AsLabel { get; set; }
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
@@ -56,4 +63,8 @@ else
     };
 
     private string CombinedClass => string.IsNullOrEmpty(Class) ? BaseClasses : $"{BaseClasses} {Class}";
+
+    private string LabelClass => Disabled
+        ? $"{CombinedClass} opacity-50 !cursor-not-allowed pointer-events-none"
+        : CombinedClass;
 }

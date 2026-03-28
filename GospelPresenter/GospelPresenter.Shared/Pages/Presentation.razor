@@ -647,6 +647,7 @@
                 await PresentationService.ReorderItemPartsAsync(orgId, PresentationId, SelectedImage.Id, partIds, OrgState.ToCallerContext());
         }
 
+        NotifyPresentationChanged();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -714,6 +715,7 @@
                 if (orgId is not null)
                     await PresentationService.RemoveItemAsync(orgId, PresentationId, projectItem.Id, OrgState.ToCallerContext());
             }
+            NotifyPresentationChanged();
             return;
         }
 
@@ -726,6 +728,7 @@
             if (orgId is not null)
                 await PresentationService.RemoveItemPartAsync(orgId, PresentationId, SelectedImage.Id, partId, OrgState.ToCallerContext());
         }
+        NotifyPresentationChanged();
     }
 
     private void OpenAddImagesToExisting()
@@ -790,6 +793,8 @@
             if (orgId is not null)
                 await PresentationService.AddItemPartsAsync(orgId, PresentationId, imageItem.Id, newParts, OrgState.ToCallerContext());
         }
+
+        NotifyPresentationChanged();
     }
 
     private void StartEditingItemTitle()
@@ -830,6 +835,7 @@
                 await PresentationService.RenameItemAsync(orgId, PresentationId, item.Id, trimmed, OrgState.ToCallerContext());
         }
 
+        NotifyPresentationChanged();
         AppState.NotifyProjectChanged();
     }
 
@@ -838,6 +844,7 @@
         idleHintIndex = Random.Shared.Next(idleHints.Length);
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
+        SharedAppState.PresentationChanged += OnPresentationChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -895,7 +902,22 @@
     {
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
+        SharedAppState.PresentationChanged -= OnPresentationChanged;
         dotNetRef?.Dispose();
+    }
+
+    private async void OnPresentationChanged(string presentationId, string? senderSessionId)
+    {
+        if (presentationId != PresentationId) return;
+        if (senderSessionId == AppState.SessionId) return;
+
+        await InvokeAsync(async () =>
+        {
+            await LoadPresentationAsync();
+            await GetDataForSelectedItem();
+            ToastService.Show(L["Toast.PresentationUpdatedExternally"]);
+            StateHasChanged();
+        });
     }
 
     private async void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1136,6 +1158,7 @@
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
         await PresentationService.DeletePresentationAsync(orgId, PresentationId, OrgState.ToCallerContext());
+        NotifyPresentationChanged();
 
         AppState.SelectedProject = null;
         AppState.SelectedProjectItem = null;
@@ -1165,6 +1188,8 @@
             if (orgId is not null)
                 await PresentationService.RemoveItemAsync(orgId, PresentationId, removedItem.Id, OrgState.ToCallerContext());
         }
+
+        NotifyPresentationChanged();
     }
 
     private void ConfirmRemoveMultipleItems(List<ProjectItem> items)
@@ -1205,6 +1230,7 @@
             }
 
             AppState.NotifyProjectChanged();
+            NotifyPresentationChanged();
             ToastService.Show(items.Count == 1 ? L["Toast.ItemRemoved"] : L["Toast.ItemsRemoved", items.Count]);
         }
         catch (Exception ex)
@@ -1233,6 +1259,8 @@
             if (orgId is not null)
                 await PresentationService.ReorderItemsAsync(orgId, PresentationId, itemIds, OrgState.ToCallerContext());
         }
+
+        NotifyPresentationChanged();
     }
 
     private void OpenAddModal()
@@ -1311,6 +1339,7 @@
             }
         }
 
+        NotifyPresentationChanged();
         ToastService.Show(L["Toast.BibleTextAdded", bibleText.Title]);
     }
 
@@ -1358,6 +1387,7 @@
             }
         }
 
+        NotifyPresentationChanged();
         ToastService.Show(L["Toast.SongAdded", song.Name]);
     }
 
@@ -1420,6 +1450,7 @@
             }
         }
 
+        NotifyPresentationChanged();
         ToastService.Show(images.Count == 1
             ? L["Toast.ImageAdded", images[0].FileName]
             : L["Toast.ImagesAdded", images.Count]);
@@ -1464,6 +1495,12 @@
         if (PresentationId is null || AppState.SelectedProject is null) return;
         var itemIds = AppState.SelectedProject.Items.Select(x => x.Id).ToList();
         await PresentationService.ReorderItemsAsync(orgId, PresentationId, itemIds, OrgState.ToCallerContext());
+    }
+
+    private void NotifyPresentationChanged()
+    {
+        if (PresentationId is not null)
+            SharedAppState.NotifyPresentationChanged(PresentationId, AppState.SessionId);
     }
 
 }

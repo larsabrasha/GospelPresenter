@@ -512,8 +512,9 @@ builder.Services.AddMetricServer(options =>
             }
 
             var apiKey = authHeader["Bearer ".Length..];
+            var keyHash = McpApiKey.HashKey(apiKey);
             var db = context.RequestServices.GetRequiredService<PresentationContext>();
-            var key = await db.McpApiKeys.FirstOrDefaultAsync(k => k.Key == apiKey);
+            var key = await db.McpApiKeys.FirstOrDefaultAsync(k => k.KeyHash == keyHash);
 
             if (key is null)
             {

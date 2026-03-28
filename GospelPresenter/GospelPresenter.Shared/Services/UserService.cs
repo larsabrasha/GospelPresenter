@@ -67,7 +67,7 @@ public interface IUserService
     Task DeleteUserSettingAsync(string userId, string key, CallerContext caller);
 
     Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller);
-    Task<McpApiKey> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller);
+    Task<(McpApiKey ApiKey, string PlaintextKey)> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller);
     Task DeleteMcpApiKeyAsync(string id, CallerContext caller);
 }
 
@@ -481,20 +481,22 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
             .ToListAsync();
     }
 
-    public async Task<McpApiKey> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller)
+    public async Task<(McpApiKey ApiKey, string PlaintextKey)> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller)
     {
         caller.RequirePermission(Permission.ManageUsers);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync();
+        var plaintextKey = McpApiKey.GenerateKey();
         var apiKey = new McpApiKey
         {
             Name = name,
             UserId = userId,
-            OrganizationId = organizationId
+            OrganizationId = organizationId,
+            KeyHash = McpApiKey.HashKey(plaintextKey)
         };
         context.McpApiKeys.Add(apiKey);
         await context.SaveChangesAsync();
-        return apiKey;
+        return (apiKey, plaintextKey);
     }
 
     public async Task DeleteMcpApiKeyAsync(string id, CallerContext caller)

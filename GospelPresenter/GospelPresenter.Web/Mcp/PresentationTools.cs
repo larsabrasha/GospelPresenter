@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
+using GospelPresenter.Shared.State;
 using ModelContextProtocol.Server;
 
 namespace GospelPresenter.Web.Mcp;
@@ -12,7 +13,8 @@ public sealed class PresentationTools(
     ISongService songService,
     IBibleService bibleService,
     IBibleTextService bibleTextService,
-    McpCallerContextAccessor mcp)
+    McpCallerContextAccessor mcp,
+    SharedAppState sharedAppState)
 {
     private CallerContext Caller => mcp.Caller!;
     private string OrgId => mcp.OrganizationId!;
@@ -78,6 +80,7 @@ public sealed class PresentationTools(
         };
 
         await presentationService.AddItemAsync(OrgId, presentationId, item, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
         return JsonSerializer.Serialize(new { success = true, itemId = item.Id, title = song.Name });
     }
 
@@ -114,6 +117,7 @@ public sealed class PresentationTools(
         };
 
         await presentationService.AddItemAsync(OrgId, presentationId, item, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
         return JsonSerializer.Serialize(new { success = true, itemId = item.Id, title });
     }
 }

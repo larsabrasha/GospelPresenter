@@ -122,8 +122,11 @@
   <data name="Nav.Organizations" xml:space="preserve">
     <value>Organizations</value>
   </data>
+  <data name="Nav.Experimental" xml:space="preserve">
+    <value>Experimental</value>
+  </data>
   <data name="Nav.ApiKeys" xml:space="preserve">
-    <value>API keys</value>
+    <value>MCP API keys</value>
   </data>
   <data name="MainLayout.UnexpectedError" xml:space="preserve">
     <value>An unexpected error has occurred.</value>
@@ -854,17 +857,20 @@
   <data name="Toast.ItemsRemoved" xml:space="preserve">
     <value>{0} items removed</value>
   </data>
+  <data name="Toast.PresentationUpdatedExternally" xml:space="preserve">
+    <value>Presentation has been updated</value>
+  </data>
   <data name="Sidebar.SelectItemsHint" xml:space="preserve">
     <value>Select items to delete</value>
   </data>
   <data name="ApiKeys.Title" xml:space="preserve">
-    <value>API keys</value>
+    <value>MCP API keys</value>
   </data>
   <data name="ApiKeys.New" xml:space="preserve">
-    <value>New API key</value>
+    <value>New MCP API key</value>
   </data>
   <data name="ApiKeys.Empty" xml:space="preserve">
-    <value>No API keys have been created yet</value>
+    <value>No MCP API keys have been created yet</value>
   </data>
   <data name="ApiKeys.User" xml:space="preserve">
     <value>User</value>
@@ -872,13 +878,28 @@
   <data name="ApiKeys.NamePlaceholder" xml:space="preserve">
     <value>e.g. Claude Desktop</value>
   </data>
+  <data name="ApiKeys.Description" xml:space="preserve">
+    <value>MCP API keys allow AI assistants like &lt;a href="https://claude.ai/download" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Desktop&lt;/a&gt; to manage presentations, search songs, and add Bible texts via the &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
+  </data>
+  <data name="ApiKeys.SetupInstructions" xml:space="preserve">
+    <value>Show setup instructions</value>
+  </data>
+  <data name="ApiKeys.DocsLinks" xml:space="preserve">
+    <value>Read more: &lt;a href="https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Desktop&lt;/a&gt; · &lt;a href="https://code.claude.com/docs/en/mcp.md" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Code&lt;/a&gt; · &lt;a href="https://modelcontextprotocol.io/docs/concepts/transports#streamable-http" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;MCP documentation&lt;/a&gt;</value>
+  </data>
   <data name="ApiKeys.Created" xml:space="preserve">
-    <value>API key created</value>
+    <value>MCP API key created</value>
   </data>
   <data name="ApiKeys.CreatedDescription" xml:space="preserve">
     <value>Copy this key now. It will not be shown again.</value>
   </data>
+  <data name="ApiKeys.ConfirmDeleteTitle" xml:space="preserve">
+    <value>Delete MCP API key</value>
+  </data>
+  <data name="ApiKeys.ConfirmDeleteMessage" xml:space="preserve">
+    <value>Are you sure you want to delete the API key "{0}"? Any integrations using this key will stop working.</value>
+  </data>
   <data name="ApiKeys.Deleted" xml:space="preserve">
-    <value>API key deleted</value>
+    <value>MCP API key deleted</value>
   </data>
 </root>

@@ -122,8 +122,11 @@
   <data name="Nav.Organizations" xml:space="preserve">
     <value>Organisationer</value>
   </data>
+  <data name="Nav.Experimental" xml:space="preserve">
+    <value>Experimentellt</value>
+  </data>
   <data name="Nav.ApiKeys" xml:space="preserve">
-    <value>API-nycklar</value>
+    <value>MCP API-nycklar</value>
   </data>
   <data name="MainLayout.UnexpectedError" xml:space="preserve">
     <value>Ett oväntat fel har inträffat.</value>
@@ -854,17 +857,20 @@
   <data name="Toast.ItemsRemoved" xml:space="preserve">
     <value>{0} objekt borttagna</value>
   </data>
+  <data name="Toast.PresentationUpdatedExternally" xml:space="preserve">
+    <value>Presentationen har uppdaterats</value>
+  </data>
   <data name="Sidebar.SelectItemsHint" xml:space="preserve">
     <value>Välj objekt att radera</value>
   </data>
   <data name="ApiKeys.Title" xml:space="preserve">
-    <value>API-nycklar</value>
+    <value>MCP API-nycklar</value>
   </data>
   <data name="ApiKeys.New" xml:space="preserve">
-    <value>Ny API-nyckel</value>
+    <value>Ny MCP API-nyckel</value>
   </data>
   <data name="ApiKeys.Empty" xml:space="preserve">
-    <value>Inga API-nycklar har skapats ännu</value>
+    <value>Inga MCP API-nycklar har skapats ännu</value>
   </data>
   <data name="ApiKeys.User" xml:space="preserve">
     <value>Användare</value>
@@ -872,13 +878,28 @@
   <data name="ApiKeys.NamePlaceholder" xml:space="preserve">
     <value>t.ex. Claude Desktop</value>
   </data>
+  <data name="ApiKeys.Description" xml:space="preserve">
+    <value>MCP API-nycklar gör det möjligt för AI-assistenter som &lt;a href="https://claude.ai/download" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Desktop&lt;/a&gt; att hantera presentationer, söka sånger och lägga till bibeltexter via &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
+  </data>
+  <data name="ApiKeys.SetupInstructions" xml:space="preserve">
+    <value>Visa installationsinstruktioner</value>
+  </data>
+  <data name="ApiKeys.DocsLinks" xml:space="preserve">
+    <value>Läs mer: &lt;a href="https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Desktop&lt;/a&gt; · &lt;a href="https://code.claude.com/docs/en/mcp.md" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Code&lt;/a&gt; · &lt;a href="https://modelcontextprotocol.io/docs/concepts/transports#streamable-http" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;MCP-dokumentation&lt;/a&gt;</value>
+  </data>
   <data name="ApiKeys.Created" xml:space="preserve">
-    <value>API-nyckel skapad</value>
+    <value>MCP API-nyckel skapad</value>
   </data>
   <data name="ApiKeys.CreatedDescription" xml:space="preserve">
     <value>Kopiera nyckeln nu. Den visas inte igen.</value>
   </data>
+  <data name="ApiKeys.ConfirmDeleteTitle" xml:space="preserve">
+    <value>Radera MCP API-nyckel</value>
+  </data>
+  <data name="ApiKeys.ConfirmDeleteMessage" xml:space="preserve">
+    <value>Är du säker på att du vill radera API-nyckeln "{0}"? Alla integrationer som använder denna nyckel slutar fungera.</value>
+  </data>
   <data name="ApiKeys.Deleted" xml:space="preserve">
-    <value>API-nyckel raderad</value>
+    <value>MCP API-nyckel raderad</value>
   </data>
 </root>
