@@ -626,6 +626,9 @@
   <data name="OverlayManager.Add" xml:space="preserve">
     <value>Lägg till overlay</value>
   </data>
+  <data name="OverlayManager.New" xml:space="preserve">
+    <value>Ny overlay</value>
+  </data>
   <data name="Profile.RemoveProfileImage" xml:space="preserve">
     <value>Ta bort profilbild</value>
   </data>

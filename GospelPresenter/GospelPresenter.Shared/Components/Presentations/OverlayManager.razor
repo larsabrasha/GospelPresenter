@@ -7,23 +7,10 @@
 
 @if (editingOverlay is not null)
 {
-    <div class="flex flex-col h-full overflow-y-auto">
-        <div class="flex justify-end mb-1">
-            <AutoSaveIndicator @ref="saveIndicator"/>
-        </div>
-        <OverlayEditor Overlay="@editingOverlay"
-                       OnBack="ExitEditor"
-                       OnChanged="HandleChanged"
-                       OnSaved="() => saveIndicator?.Show()"/>
-        @if (!string.IsNullOrWhiteSpace(editingOverlay.OrganizationId))
-        {
-            <div class="flex items-center justify-end pt-4">
-                <AppButton Variant="ButtonVariant.Danger" OnClick="HandleDelete">
-                    @(showDeleteConfirm ? L["OverlayEditor.ConfirmDelete"] : L["Common.Delete"])
-                </AppButton>
-            </div>
-        }
-    </div>
+    <OverlayEditorPanel Overlay="@editingOverlay"
+                        OnBack="ExitEditor"
+                        OnChanged="HandleChanged"
+                        OnDeleted="HandleDelete"/>
 }
 else
 {
@@ -103,14 +90,24 @@ else
     </div>
 }
 
+@if (showNameDialog)
+{
+    <NameDialog Title="@L["OverlayManager.New"]"
+                Name="@newOverlayTitle"
+                SaveText="@L["Common.Create"]"
+                SaveLoadingText="@L["Common.Creating"]"
+                OnSave="HandleCreateOverlay"
+                OnClose="() => showNameDialog = false"/>
+}
+
 @code {
     [Parameter] public required string OrganizationId { get; set; }
     [Parameter] public EventCallback OnOverlaysChanged { get; set; }
 
     private List<OverlaySlide> overlays = [];
     private OverlaySlide? editingOverlay;
-    private bool showDeleteConfirm;
-    private AutoSaveIndicator? saveIndicator;
+    private bool showNameDialog;
+    private string newOverlayTitle = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -119,7 +116,18 @@ else
 
     private void AddNew()
     {
-        editingOverlay = new OverlaySlide();
+        newOverlayTitle = "";
+        showNameDialog = true;
+    }
+
+    private async Task HandleCreateOverlay(string title)
+    {
+        var overlay = new OverlaySlide { Title = title.Trim() };
+        await PresentationService.AddOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
+        overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
+        await OnOverlaysChanged.InvokeAsync();
+        showNameDialog = false;
+        editingOverlay = overlay;
     }
 
     private void EditOverlay(OverlaySlide overlay)
@@ -130,37 +138,21 @@ else
     private void ExitEditor()
     {
         editingOverlay = null;
-        showDeleteConfirm = false;
     }
 
     private async Task HandleChanged(OverlaySlide overlay)
     {
-        if (string.IsNullOrWhiteSpace(overlay.OrganizationId))
-        {
-            await PresentationService.AddOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
-        }
-        else
-        {
-            await PresentationService.UpdateOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
-        }
-
+        await PresentationService.UpdateOverlayAsync(OrganizationId, overlay, OrgState.ToCallerContext());
         overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
         await OnOverlaysChanged.InvokeAsync();
     }
 
     private async Task HandleDelete()
     {
-        if (!showDeleteConfirm)
-        {
-            showDeleteConfirm = true;
-            return;
-        }
-
         if (editingOverlay is null) return;
         await PresentationService.RemoveOverlayAsync(OrganizationId, editingOverlay.Id, OrgState.ToCallerContext());
         overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
         editingOverlay = null;
-        showDeleteConfirm = false;
         await OnOverlaysChanged.InvokeAsync();
     }
 }
