@@ -902,4 +902,49 @@
   <data name="ApiKeys.Deleted" xml:space="preserve">
     <value>MCP API key deleted</value>
   </data>
+  <data name="Nav.Templates" xml:space="preserve">
+    <value>Templates</value>
+  </data>
+  <data name="Templates.Title" xml:space="preserve">
+    <value>Templates</value>
+  </data>
+  <data name="Templates.New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="Templates.Empty" xml:space="preserve">
+    <value>No templates yet</value>
+  </data>
+  <data name="Templates.Description" xml:space="preserve">
+    <value>Templates let you quickly create presentations with predefined content.</value>
+  </data>
+  <data name="Templates.EditingBanner" xml:space="preserve">
+    <value>You are editing a template</value>
+  </data>
+  <data name="Templates.DeleteConfirm" xml:space="preserve">
+    <value>Are you sure you want to delete this template?</value>
+  </data>
+  <data name="Templates.NewTemplate" xml:space="preserve">
+    <value>New template</value>
+  </data>
+  <data name="Dashboard.Recent" xml:space="preserve">
+    <value>Recent</value>
+  </data>
+  <data name="Dashboard.PickerDescription" xml:space="preserve">
+    <value>Start from scratch or choose a template. The template's content will be copied into your new presentation.</value>
+  </data>
+  <data name="Dashboard.BlankPresentation" xml:space="preserve">
+    <value>Blank presentation</value>
+  </data>
+  <data name="Dashboard.CreateNewPresentation" xml:space="preserve">
+    <value>Create a new presentation</value>
+  </data>
+  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
+    <value>Save as template</value>
+  </data>
+  <data name="Sidebar.DeleteTemplate" xml:space="preserve">
+    <value>Delete template</value>
+  </data>
+  <data name="Toast.SavedAsTemplate" xml:space="preserve">
+    <value>Saved as template</value>
+  </data>
 </root>

@@ -13,7 +13,8 @@ public static class PermissionMap
             Permission.ViewSongs,
             Permission.ManageSongs,
             Permission.ViewOverlays,
-            Permission.ManageOverlays
+            Permission.ManageOverlays,
+            Permission.ViewTemplates
         ],
         [UserRole.Admin] =
         [
@@ -25,6 +26,8 @@ public static class PermissionMap
             Permission.ManageSongs,
             Permission.ViewOverlays,
             Permission.ManageOverlays,
+            Permission.ViewTemplates,
+            Permission.ManageTemplates,
             Permission.ViewUsers,
             Permission.ManageUsers
         ],

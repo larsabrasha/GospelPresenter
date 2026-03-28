@@ -12,6 +12,8 @@ public enum Permission
     ManageOrganizationImages,
     ViewUsers,
     ManageUsers,
+    ViewTemplates,
+    ManageTemplates,
     ManageOrganizations,
     AssignSuperAdminRole,
     CrossOrganizationAccess,

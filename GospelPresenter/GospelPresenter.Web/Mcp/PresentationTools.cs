@@ -53,11 +53,31 @@ public sealed class PresentationTools(
         });
     }
 
-    [McpServerTool(Name = "create_presentation"), Description("Create a new empty presentation")]
-    public async Task<string> CreatePresentation(string name)
+    [McpServerTool(Name = "create_presentation"), Description("Create a new presentation. Optionally provide a templateId to create from a template (use list_templates to find available templates).")]
+    public async Task<string> CreatePresentation(string name, string? templateId = null)
     {
-        var presentation = await presentationService.CreatePresentationAsync(name, OrgId, mcp.UserId!, Caller);
+        Presentation presentation;
+        if (templateId is not null)
+        {
+            presentation = await presentationService.CreatePresentationFromTemplateAsync(templateId, name, OrgId, mcp.UserId!, Caller);
+        }
+        else
+        {
+            presentation = await presentationService.CreatePresentationAsync(name, OrgId, mcp.UserId!, Caller);
+        }
         return JsonSerializer.Serialize(new { presentation.Id, presentation.Name });
+    }
+
+    [McpServerTool(Name = "list_templates"), Description("List all available presentation templates in the organization")]
+    public async Task<string> ListTemplates()
+    {
+        var templates = await presentationService.GetRecentTemplateSummariesAsync(OrgId, Caller);
+        return JsonSerializer.Serialize(templates.Select(t => new
+        {
+            t.Id,
+            t.Name,
+            Date = t.Date.ToString("yyyy-MM-dd")
+        }));
     }
 
     [McpServerTool(Name = "add_song_to_presentation"), Description("Add a song to a presentation by song ID")]

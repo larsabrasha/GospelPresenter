@@ -902,4 +902,49 @@
   <data name="ApiKeys.Deleted" xml:space="preserve">
     <value>MCP API-nyckel raderad</value>
   </data>
+  <data name="Nav.Templates" xml:space="preserve">
+    <value>Mallar</value>
+  </data>
+  <data name="Templates.Title" xml:space="preserve">
+    <value>Mallar</value>
+  </data>
+  <data name="Templates.New" xml:space="preserve">
+    <value>Ny</value>
+  </data>
+  <data name="Templates.Empty" xml:space="preserve">
+    <value>Inga mallar</value>
+  </data>
+  <data name="Templates.Description" xml:space="preserve">
+    <value>Med mallar kan du snabbt skapa presentationer med fördefinierat innehåll.</value>
+  </data>
+  <data name="Templates.EditingBanner" xml:space="preserve">
+    <value>Du redigerar en mall</value>
+  </data>
+  <data name="Templates.DeleteConfirm" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort mallen?</value>
+  </data>
+  <data name="Templates.NewTemplate" xml:space="preserve">
+    <value>Ny mall</value>
+  </data>
+  <data name="Dashboard.Recent" xml:space="preserve">
+    <value>Senaste</value>
+  </data>
+  <data name="Dashboard.PickerDescription" xml:space="preserve">
+    <value>Börja från grunden eller välj en mall. Mallens innehåll kopieras till din nya presentation.</value>
+  </data>
+  <data name="Dashboard.BlankPresentation" xml:space="preserve">
+    <value>Tom presentation</value>
+  </data>
+  <data name="Dashboard.CreateNewPresentation" xml:space="preserve">
+    <value>Skapa en ny presentation</value>
+  </data>
+  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
+    <value>Spara som mall</value>
+  </data>
+  <data name="Sidebar.DeleteTemplate" xml:space="preserve">
+    <value>Ta bort mall</value>
+  </data>
+  <data name="Toast.SavedAsTemplate" xml:space="preserve">
+    <value>Sparad som mall</value>
+  </data>
 </root>
