@@ -351,13 +351,13 @@
     <value>Do you want to restore the song to the version from &lt;strong&gt;{0}&lt;/strong&gt;? The current version will be saved in the history.</value>
   </data>
   <data name="SongParts.LabelPlaceholder" xml:space="preserve">
-    <value>Label (e.g. Verse 1)</value>
+    <value>Label</value>
   </data>
   <data name="SongParts.DeleteConfirm" xml:space="preserve">
     <value>Delete?</value>
   </data>
   <data name="SongParts.TextPlaceholder" xml:space="preserve">
-    <value>Type the text here...</value>
+    <value>Text</value>
   </data>
   <data name="SongParts.AddPart" xml:space="preserve">
     <value>Add part</value>

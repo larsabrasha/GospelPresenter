@@ -72,40 +72,23 @@
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["Users.NewUser"]</div>
+            <FloatingInput @ref="nameFloatingInput" Id="new-user-name" Label="@L["Common.Name"]"
+                           Value="@editName" OnInput="(e) => editName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
             <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-                <input @ref="nameInput"
-                       type="text"
-                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="editName"
-                       @bind:event="oninput"
-                       @onkeydown="OnDialogKeyDown"/>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Email"]</label>
-                <input type="email"
-                       class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="editEmail"
-                       @bind:event="oninput"/>
+                <FloatingInput Id="new-user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
+                               Value="@editEmail" OnInput="(e) => editEmail = e.Value?.ToString() ?? string.Empty"/>
                 @if (emailError is not null)
                 {
                     <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>
                 }
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Role"]</label>
-                <div class="relative">
-                    <select @bind="editRole"
-                            class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        @foreach (var role in AllowedRoles)
-                        {
-                            <option value="@role">@RoleDisplayName(role)</option>
-                        }
-                    </select>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-                    </svg>
-                </div>
+                <FloatingSelect Id="new-user-role" Label="@L["Common.Role"]" Value="@editRole" OnChange="(e) => { if (Enum.TryParse<UserRole>(e.Value?.ToString(), out var r)) editRole = r; }">
+                    @foreach (var role in AllowedRoles)
+                    {
+                        <option value="@role">@RoleDisplayName(role)</option>
+                    }
+                </FloatingSelect>
                 <div class="mt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-1">
                     <div><span class="font-medium">@L["Users.User"]:</span> @L["Users.RoleDescription.User"]</div>
                     <div><span class="font-medium">@L["Users.Admin"]:</span> @L["Users.RoleDescription.Admin"]</div>
@@ -137,7 +120,7 @@
     private string editEmail = "";
     private string? emailError;
     private UserRole editRole = UserRole.User;
-    private ElementReference nameInput;
+    private FloatingInput? nameFloatingInput;
     private bool shouldFocusName;
 
     private IEnumerable<UserRole> AllowedRoles => OrgState.HasPermission(Permission.AssignSuperAdminRole)
@@ -171,7 +154,8 @@
         if (shouldFocusName)
         {
             shouldFocusName = false;
-            try { await nameInput.FocusAsync(); } catch { }
+            if (nameFloatingInput is not null)
+                try { await nameFloatingInput.FocusAsync(); } catch { }
         }
     }
 

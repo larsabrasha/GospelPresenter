@@ -102,34 +102,17 @@
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["ApiKeys.New"]</div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-                <input @ref="nameInput"
-                       type="text"
-                       placeholder="@L["ApiKeys.NamePlaceholder"]"
-                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="editName"
-                       @bind:event="oninput"
-                       @onkeydown="OnDialogKeyDown"/>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["ApiKeys.User"]</label>
-                <div class="relative">
-                    <select @bind="selectedUserId"
-                            class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500">
-                        @if (users is not null)
-                        {
-                            @foreach (var user in users)
-                            {
-                                <option value="@user.Id">@user.Name</option>
-                            }
-                        }
-                    </select>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-                    </svg>
-                </div>
-            </div>
+            <FloatingInput @ref="nameFloatingInput" Id="api-key-name" Label="@L["Common.Name"]"
+                           Value="@editName" OnInput="(e) => editName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
+            <FloatingSelect Id="api-key-user" Label="@L["ApiKeys.User"]" Value="@selectedUserId" OnChange="(e) => selectedUserId = e.Value?.ToString() ?? string.Empty">
+                @if (users is not null)
+                {
+                    @foreach (var user in users)
+                    {
+                        <option value="@user.Id">@user.Name</option>
+                    }
+                }
+            </FloatingSelect>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
                     @L["Common.Cancel"]
@@ -200,7 +183,7 @@
     private string selectedUserId = "";
     private string? createdKey;
     private McpApiKey? keyToDelete;
-    private ElementReference nameInput;
+    private FloatingInput? nameFloatingInput;
     private bool shouldFocusName;
 
     protected override async Task OnInitializedAsync()
@@ -229,7 +212,8 @@
         if (shouldFocusName)
         {
             shouldFocusName = false;
-            try { await nameInput.FocusAsync(); } catch { }
+            if (nameFloatingInput is not null)
+                try { await nameFloatingInput.FocusAsync(); } catch { }
         }
     }
 

@@ -351,13 +351,13 @@
     <value>Vill du återställa sången till versionen från &lt;strong&gt;{0}&lt;/strong&gt;? Den nuvarande versionen sparas i historiken.</value>
   </data>
   <data name="SongParts.LabelPlaceholder" xml:space="preserve">
-    <value>Etikett (t.ex. Vers 1)</value>
+    <value>Etikett</value>
   </data>
   <data name="SongParts.DeleteConfirm" xml:space="preserve">
     <value>Ta bort?</value>
   </data>
   <data name="SongParts.TextPlaceholder" xml:space="preserve">
-    <value>Skriv texten här...</value>
+    <value>Text</value>
   </data>
   <data name="SongParts.AddPart" xml:space="preserve">
     <value>Lägg till del</value>

@@ -59,40 +59,23 @@
                     </div>
                 </div>
             </div>
+            <FloatingInput Id="user-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"/>
             <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-                <input type="text"
-                       value="@editName"
-                       @oninput="HandleNameChanged"
-                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Email"]</label>
-                <input type="email"
-                       value="@editEmail"
-                       @oninput="HandleEmailChanged"
-                       class="w-full px-4 py-3 rounded-xl border @(emailError is not null ? "border-red-500" : "border-neutral-300 dark:border-neutral-600") dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                <FloatingInput Id="user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
+                               Value="@editEmail" OnInput="HandleEmailChanged"/>
                 @if (emailError is not null)
                 {
                     <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>
                 }
             </div>
             <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Role"]</label>
-                <div class="relative">
-                    <select @bind="editRole"
-                            @bind:after="SaveUser"
-                            disabled="@IsCurrentUser"
-                            class="w-full appearance-none px-4 py-3 pr-10 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-50">
-                        @foreach (var role in AllowedRoles)
-                        {
-                            <option value="@role">@RoleDisplayName(role)</option>
-                        }
-                    </select>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-                    </svg>
-                </div>
+                <FloatingSelect Id="user-role" Label="@L["Common.Role"]"
+                                Value="@editRole" OnChange="HandleRoleChanged" Disabled="@IsCurrentUser">
+                    @foreach (var role in AllowedRoles)
+                    {
+                        <option value="@role">@RoleDisplayName(role)</option>
+                    }
+                </FloatingSelect>
                 @if (IsCurrentUser)
                 {
                     <div class="text-sm text-neutral-500 mt-1">@L["Users.CannotChangeOwnRole"]</div>
@@ -319,6 +302,15 @@
     {
         editName = e.Value?.ToString() ?? "";
         saveDebounce.Run(SaveUser);
+    }
+
+    private async Task HandleRoleChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<UserRole>(e.Value?.ToString(), out var role))
+        {
+            editRole = role;
+            await SaveUser();
+        }
     }
 
     private void HandleEmailChanged(ChangeEventArgs e)

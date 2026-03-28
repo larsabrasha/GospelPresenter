@@ -67,15 +67,8 @@
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["Orgs.New"]</div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-                <input @ref="nameInput"
-                       type="text"
-                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="newOrgName"
-                       @bind:event="oninput"
-                       @onkeydown="OnDialogKeyDown"/>
-            </div>
+            <FloatingInput @ref="nameFloatingInput" Id="new-org-name" Label="@L["Common.Name"]"
+                           Value="@newOrgName" OnInput="(e) => newOrgName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
                     @L["Common.Cancel"]
@@ -95,7 +88,7 @@
     private bool showCreateDialog;
     private bool isCreating;
     private string newOrgName = "";
-    private ElementReference nameInput;
+    private FloatingInput? nameFloatingInput;
     private bool shouldFocusName;
 
     protected override async Task OnInitializedAsync()
@@ -117,7 +110,8 @@
         if (shouldFocusName)
         {
             shouldFocusName = false;
-            try { await nameInput.FocusAsync(); } catch { }
+            if (nameFloatingInput is not null)
+                try { await nameFloatingInput.FocusAsync(); } catch { }
         }
     }
 

@@ -1,13 +1,8 @@
 <Dialog Class="bg-white dark:bg-neutral-800 max-w-2xl" OnClose="OnClose">
     <div class="p-6 space-y-4">
         <div class="font-semibold text-lg">@Title</div>
-        <input @ref="input"
-               type="text"
-               class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-               placeholder="@L["Common.Name"]"
-               @bind="name"
-               @bind:event="oninput"
-               @onkeydown="OnKeyDown"/>
+        <FloatingInput @ref="floatingInput" Id="dialog-name" Label="@L["Common.Name"]"
+                       Value="@name" OnInput="HandleNameInput" OnKeyDown="OnKeyDown"/>
         <div class="flex justify-end gap-3">
             <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
                 @L["Common.Cancel"]
@@ -30,7 +25,7 @@
 
     private string name = "";
     private bool isSaving;
-    private ElementReference input;
+    private FloatingInput? floatingInput;
 
     protected override void OnInitialized()
     {
@@ -40,11 +35,13 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && floatingInput is not null)
         {
-            try { await input.FocusAsync(); } catch { }
+            try { await floatingInput.FocusAsync(); } catch { }
         }
     }
+
+    private void HandleNameInput(ChangeEventArgs e) => name = e.Value?.ToString() ?? "";
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {

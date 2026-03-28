@@ -55,18 +55,14 @@
                     </div>
                 </div>
             </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Name"]</label>
-                <input type="text"
-                       value="@editName"
-                       @oninput="HandleNameChanged"
-                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-1">@L["Common.Email"]</label>
-                <div class="px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-700/50 text-neutral-500 dark:text-neutral-400">
+            <FloatingInput Id="profile-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"/>
+            <div class="relative">
+                <div class="w-full h-14 pt-5 px-4 rounded-xl border border-neutral-200 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-700/50 text-neutral-500 dark:text-neutral-400">
                     @user.Email
                 </div>
+                <label class="pointer-events-none absolute left-4 top-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                    @L["Common.Email"]
+                </label>
             </div>
         </div>
     }
