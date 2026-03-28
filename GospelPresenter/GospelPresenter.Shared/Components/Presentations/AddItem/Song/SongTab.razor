@@ -1,16 +1,19 @@
+@implements IDisposable
+
 @using GospelPresenter.Shared.Components.Presentations.AddItem
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
+@using GospelPresenter.Shared.Utils
 
 @inject ISongService SongService
 @inject AppState AppState
 @inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
 
-@if (isCreating)
+@if (editingSongId is not null)
 {
-    <CreateSong InitialName="@query" OnBack="ExitCreateMode" OnCreated="HandleSongCreated"/>
+    <CreateSong SongId="@(editingSongId!)" OnBack="ExitCreateMode" OnDeleted="HandleSongDeleted"/>
 }
 else if (OrgSongs.Count == 0)
 {
@@ -90,12 +93,17 @@ else
                     @if (selectedSong is not null && previewWidth > 0)
                     {
                         var previewScale = previewWidth / AppState.BaseSlideWidth;
-                        <div class="mb-4 px-1">
-                            <div class="font-semibold text-sm">@((MarkupString)Highlight(selectedSong.Name))</div>
-                            @if (!string.IsNullOrEmpty(selectedSong.Author))
-                            {
-                                <div class="text-xs text-neutral-400">@((MarkupString)Highlight(selectedSong.Author))</div>
-                            }
+                        <div class="mb-4 px-1 flex items-start gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="font-semibold text-sm">@((MarkupString)Highlight(selectedSong.Name))</div>
+                                @if (!string.IsNullOrEmpty(selectedSong.Author))
+                                {
+                                    <div class="text-xs text-neutral-400">@((MarkupString)Highlight(selectedSong.Author))</div>
+                                }
+                            </div>
+                            <AppButton Variant="ButtonVariant.Icon" OnClick="() => EditSong(selectedSong)" Class="shrink-0 size-7 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">
+                                <PencilSymbol Class="size-4"/>
+                            </AppButton>
                         </div>
                         <div class="flex flex-col gap-2">
                             @foreach (var part in selectedSong.Parts)
@@ -152,6 +160,9 @@ else
                             <div class="text-xs text-neutral-400 truncate">@mobilePreviewSong.Author</div>
                         }
                     </div>
+                    <AppButton Variant="ButtonVariant.Icon" OnClick="() => EditSong(mobilePreviewSong)" Class="shrink-0 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">
+                        <PencilSymbol Class="size-4"/>
+                    </AppButton>
                 </div>
                 <div class="flex-1 overflow-y-auto p-4" data-mobile-song-preview>
                     @if (mobilePreviewWidth > 0)
@@ -193,6 +204,16 @@ else
     </div>
 }
 
+@if (showNameDialog)
+{
+    <NameDialog Title="@L["Songs.NewSong"]"
+                Name="@newSongName"
+                SaveText="@L["Common.Create"]"
+                SaveLoadingText="@L["Common.Creating"]"
+                OnSave="HandleCreateSong"
+                OnClose="() => showNameDialog = false"/>
+}
+
 @code {
     [Parameter] public EventCallback<Song> OnAdd { get; set; }
     [Parameter] public EventCallback<Song> OnAddKeepOpen { get; set; }
@@ -205,11 +226,13 @@ else
     private double previewWidth;
     private double mobilePreviewWidth;
     private Song? mobilePreviewSong;
-    private CancellationTokenSource? debounceToken;
-    private bool isCreating;
+    private readonly Debouncer searchDebounce = new(150);
+    private string? editingSongId;
     private bool isAdding;
     private string? organizationId;
     private int? pendingScrollIndex;
+    private bool showNameDialog;
+    private string newSongName = "";
 
     private IReadOnlyList<Song> OrgSongs => organizationId is not null
         ? SongService.GetSongsByOrganization(organizationId, OrgState.ToCallerContext())
@@ -287,25 +310,19 @@ else
             "document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
     }
 
-    private async Task OnSearchInput(ChangeEventArgs e)
+    private void OnSearchInput(ChangeEventArgs e)
     {
         query = e.Value?.ToString() ?? "";
         searchTerms = string.IsNullOrWhiteSpace(query)
             ? []
             : query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        debounceToken?.Cancel();
-        debounceToken = new CancellationTokenSource();
-        var token = debounceToken.Token;
-
-        try
+        searchDebounce.Run(async () =>
         {
-            await Task.Delay(150, token);
             results = SongService.SearchByOrganization(query, organizationId!, OrgState.ToCallerContext()).ToList();
             selectedSong = results.Count > 0 ? results[0] : null;
             await ScrollListsToTop();
-        }
-        catch (TaskCanceledException) { }
+        });
     }
 
     private async Task ClearSearch()
@@ -373,86 +390,54 @@ else
         }
     }
 
+    private void EditSong(Song song)
+    {
+        mobilePreviewSong = null;
+        editingSongId = song.Id;
+    }
+
     private void EnterCreateMode()
     {
-        isCreating = true;
+        newSongName = query;
+        showNameDialog = true;
     }
 
     private void ExitCreateMode()
     {
-        isCreating = false;
-    }
-
-    private async Task HandleSongCreated(Song songData)
-    {
-        if (organizationId is null) return;
-
-        var created = await SongService.CreateSongAsync(
-            songData.Name,
-            songData.Author,
-            songData.Publisher,
-            songData.Year,
-            songData.Ccli,
-            songData.Parts.ToList(),
-            organizationId,
-            OrgState.ToCallerContext()
-        );
-
-        isCreating = false;
+        var editedId = editingSongId;
+        editingSongId = null;
         query = "";
         searchTerms = [];
         results = OrgSongs.ToList();
-        selectedSong = created;
-        pendingScrollIndex = results.IndexOf(created);
+        selectedSong = editedId is not null
+            ? results.FirstOrDefault(s => s.Id == editedId)
+            : null;
     }
 
-    private string Highlight(string text)
+    private async Task HandleCreateSong(string name)
     {
-        if (searchTerms.Length == 0) return System.Net.WebUtility.HtmlEncode(text);
-
-        text = text.Normalize();
-        var matches = new List<(int Start, int Length)>();
-        foreach (var term in searchTerms)
-        {
-            var normalized = term.Normalize();
-            var idx = 0;
-            while (idx <= text.Length - normalized.Length)
-            {
-                var match = text.IndexOf(normalized, idx, StringComparison.OrdinalIgnoreCase);
-                if (match < 0) break;
-                matches.Add((match, normalized.Length));
-                idx = match + normalized.Length;
-            }
-        }
-
-        if (matches.Count == 0) return System.Net.WebUtility.HtmlEncode(text);
-
-        // Merge overlapping ranges
-        matches.Sort((a, b) => a.Start.CompareTo(b.Start));
-        var merged = new List<(int Start, int End)> { (matches[0].Start, matches[0].Start + matches[0].Length) };
-        for (var i = 1; i < matches.Count; i++)
-        {
-            var (start, length) = matches[i];
-            var last = merged[^1];
-            if (start <= last.End)
-                merged[^1] = (last.Start, Math.Max(last.End, start + length));
-            else
-                merged.Add((start, start + length));
-        }
-
-        // Build result with mark tags
-        var sb = new System.Text.StringBuilder();
-        var pos = 0;
-        foreach (var (start, end) in merged)
-        {
-            sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..start]));
-            sb.Append("<mark class=\"bg-yellow-300/60 dark:bg-yellow-500/40 text-inherit rounded-sm\">");
-            sb.Append(System.Net.WebUtility.HtmlEncode(text[start..end]));
-            sb.Append("</mark>");
-            pos = end;
-        }
-        sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..]));
-        return sb.ToString();
+        if (organizationId is null) return;
+        var song = await SongService.CreateSongAsync(name, null, null, null, null, [], organizationId, OrgState.ToCallerContext());
+        showNameDialog = false;
+        editingSongId = song.Id;
     }
+
+    private void HandleSongDeleted()
+    {
+        editingSongId = null;
+        RefreshSongList();
+    }
+
+    private void RefreshSongList()
+    {
+        query = "";
+        searchTerms = [];
+        results = OrgSongs.ToList();
+        selectedSong = null;
+    }
+
+    public void Dispose() => searchDebounce.Dispose();
+
+    private string Highlight(string text) => SearchHighlighter.Highlight(text, searchTerms);
 
 }

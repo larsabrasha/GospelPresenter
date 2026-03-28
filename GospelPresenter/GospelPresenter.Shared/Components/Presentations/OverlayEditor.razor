@@ -1,7 +1,10 @@
+@implements IDisposable
+
 @using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Utils
 @using Microsoft.AspNetCore.Components.Forms
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col">
     @if (OnBack.HasDelegate)
     {
         <div class="shrink-0">
@@ -16,15 +19,15 @@
         </div>
     }
 
-    <div class="flex-1 min-h-0 overflow-y-auto space-y-4">
+    <div class="space-y-4">
         <div>
             <label class="block text-sm font-medium mb-1">@L["OverlayEditor.Title"]</label>
-            <input type="text" value="@Overlay.Title" @onchange="HandleTitleChanged" placeholder="@L["Common.Name"]"
+            <input type="text" value="@Overlay.Title" @oninput="HandleTitleChanged" placeholder="@L["Common.Name"]"
                    class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm w-full"/>
         </div>
         <div>
             <label class="block text-sm font-medium mb-1">@L["OverlayEditor.TextContent"]</label>
-            <textarea value="@Overlay.Content" @onchange="HandleContentChanged" placeholder="@L["OverlayEditor.TextPlaceholder"]" rows="4"
+            <textarea value="@Overlay.Content" @oninput="HandleContentChanged" placeholder="@L["OverlayEditor.TextPlaceholder"]" rows="4"
                       class="px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-sm w-full resize-none"/>
         </div>
         <div>
@@ -56,81 +59,65 @@
         </div>
     </div>
 
-    <div class="shrink-0 flex items-center justify-between pt-4">
-        @if (isExisting)
-        {
-            <AppButton Variant="ButtonVariant.Danger" Filled="@showDeleteConfirm"
-                       OnClick="HandleDelete">
-                @(showDeleteConfirm ? L["OverlayEditor.ConfirmDelete"] : L["Common.Delete"])
-            </AppButton>
-        }
-        else
-        {
-            <div></div>
-        }
-    </div>
 </div>
 
 @code {
     [Parameter] public required OverlaySlide Overlay { get; set; }
     [Parameter] public EventCallback OnBack { get; set; }
     [Parameter] public EventCallback<OverlaySlide> OnChanged { get; set; }
-    [Parameter] public EventCallback<OverlaySlide> OnDeleted { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+    private readonly Debouncer debounce = new();
 
-    private bool showDeleteConfirm;
-    private bool isExisting;
+    public void Dispose() => debounce.Dispose();
 
-    protected override void OnInitialized()
+    private void HandleTitleChanged(ChangeEventArgs e)
     {
-        isExisting = !string.IsNullOrWhiteSpace(Overlay.OrganizationId);
+        Overlay.Title = e.Value?.ToString() ?? "";
+        debounce.Run(SaveFields);
     }
 
-    private async Task HandleTitleChanged(ChangeEventArgs e)
-    {
-        var value = e.Value?.ToString()?.Trim() ?? "";
-        if (string.IsNullOrWhiteSpace(value)) return;
-        Overlay.Title = value;
-        await OnChanged.InvokeAsync(Overlay);
-    }
-
-    private async Task HandleContentChanged(ChangeEventArgs e)
+    private void HandleContentChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Overlay.Content = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        await OnChanged.InvokeAsync(Overlay);
+        Overlay.Content = string.IsNullOrWhiteSpace(value) ? null : value;
+        debounce.Run(SaveFields);
     }
 
-    private async Task HandleDelete()
+    private async Task SaveFields()
     {
-        if (!showDeleteConfirm)
-        {
-            showDeleteConfirm = true;
-            return;
-        }
-
-        await OnDeleted.InvokeAsync(Overlay);
+        if (string.IsNullOrWhiteSpace(Overlay.Title)) return;
+        Overlay.Title = Overlay.Title.Trim();
+        if (Overlay.Content is not null) Overlay.Content = Overlay.Content.Trim();
+        await OnChanged.InvokeAsync(Overlay);
+        await OnSaved.InvokeAsync();
     }
 
     private async Task RemoveImage()
     {
+        if (string.IsNullOrWhiteSpace(Overlay.Title)) return;
+        Overlay.Title = Overlay.Title.Trim();
         Overlay.ImageData = null;
         Overlay.HasImage = false;
         await OnChanged.InvokeAsync(Overlay);
+        await OnSaved.InvokeAsync();
     }
 
     private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
     private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
+        if (string.IsNullOrWhiteSpace(Overlay.Title)) return;
         var file = e.File;
         if (!AllowedImageTypes.Contains(file.ContentType)) return;
         if (file.Size > 10 * 1024 * 1024) return;
 
+        Overlay.Title = Overlay.Title.Trim();
         using var stream = file.OpenReadStream(10 * 1024 * 1024);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
         Overlay.ImageData = ms.ToArray();
         Overlay.ImageContentType = file.ContentType;
         await OnChanged.InvokeAsync(Overlay);
+        await OnSaved.InvokeAsync();
     }
 }

@@ -1,0 +1,252 @@
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using GospelPresenter.Shared.Utils
+
+@implements IDisposable
+
+@inject ISongService SongService
+@inject IJSRuntime JsRuntime
+@inject ActiveOrganizationState OrgState
+
+@if (song is not null)
+{
+    <div class="space-y-4">
+        <SongFieldsEditor Name="@editName" NameChanged="HandleNameChanged"
+                          Author="@editAuthor" AuthorChanged="HandleAuthorChanged"
+                          Publisher="@editPublisher" PublisherChanged="HandlePublisherChanged"
+                          Year="@editYear" YearChanged="HandleYearChanged"
+                          Ccli="@editCcli" CcliChanged="HandleCcliChanged"/>
+
+        <SongPartsEditor Parts="song.Parts"
+                         OnMoveUp="MovePartUp"
+                         OnMoveDown="MovePartDown"
+                         OnLabelChanged="HandleLabelChanged"
+                         OnContentChanged="HandleContentChanged"
+                         OnDelete="DeletePart"
+                         OnAdd="AddPart"/>
+
+        <div class="flex items-center justify-between">
+            @if (ChildContent is not null)
+            {
+                @ChildContent
+            }
+            else
+            {
+                <div></div>
+            }
+            <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDeleteSong">
+                @L["SongDetail.DeleteSong"]
+            </AppButton>
+        </div>
+    </div>
+}
+
+@if (deleteConfirmMessage is not null)
+{
+    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+                         IsDeleting="isDeleting"
+                         OnConfirm="ExecuteDelete"
+                         OnClose="CancelDelete"/>
+}
+
+@code {
+    [Parameter, EditorRequired] public string SongId { get; set; } = "";
+    [Parameter] public EventCallback OnDeleted { get; set; }
+    [Parameter] public EventCallback OnSaved { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private Song? song;
+    private string editName = "";
+    private string? editAuthor;
+    private string? editPublisher;
+    private int? editYear;
+    private string? editCcli;
+    private MarkupString? deleteConfirmMessage;
+    private bool isDeleting;
+    private readonly Debouncer saveDebounce = new();
+    private readonly Debouncer partDebounce = new();
+
+    private string? OrgId => OrgState.ActiveOrganizationId;
+
+    private string loadedSongId = "";
+
+    protected override void OnParametersSet()
+    {
+        if (SongId != loadedSongId)
+        {
+            loadedSongId = SongId;
+            pendingParts.Clear();
+            LoadSong();
+        }
+    }
+
+    public void Dispose()
+    {
+        saveDebounce.Dispose();
+        partDebounce.Dispose();
+    }
+
+    private void LoadSong()
+    {
+        song = SongService.GetSongById(SongId, OrgId ?? "", OrgState.ToCallerContext());
+        if (song is null) return;
+        editName = song.Name;
+        editAuthor = song.Author;
+        editPublisher = song.Publisher;
+        editYear = song.Year;
+        editCcli = song.Ccli;
+    }
+
+    private void HandleNameChanged(string name)
+    {
+        editName = name;
+        DebounceSaveSong();
+    }
+
+    private void HandleAuthorChanged(string? author)
+    {
+        editAuthor = author;
+        DebounceSaveSong();
+    }
+
+    private void HandlePublisherChanged(string? publisher)
+    {
+        editPublisher = publisher;
+        DebounceSaveSong();
+    }
+
+    private void HandleYearChanged(int? year)
+    {
+        editYear = year;
+        DebounceSaveSong();
+    }
+
+    private void HandleCcliChanged(string? ccli)
+    {
+        editCcli = ccli;
+        DebounceSaveSong();
+    }
+
+    private void DebounceSaveSong() => saveDebounce.Run(SaveSong);
+
+    private async Task SaveSong()
+    {
+        if (song is null || string.IsNullOrWhiteSpace(editName) || OrgId is null) return;
+        await SongService.UpdateSongAsync(song.Id, OrgId, editName.Trim(),
+            string.IsNullOrWhiteSpace(editAuthor) ? null : editAuthor.Trim(),
+            string.IsNullOrWhiteSpace(editPublisher) ? null : editPublisher.Trim(),
+            editYear,
+            string.IsNullOrWhiteSpace(editCcli) ? null : editCcli.Trim(), OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+        await OnSaved.InvokeAsync();
+    }
+
+    private void HandleLabelChanged(SongPartsEditor.PartLabelChange change)
+    {
+        if (song is null || change.Index < 0 || change.Index >= song.Parts.Count) return;
+        var pending = GetPendingPart(change.Index);
+        pending.Label = string.IsNullOrWhiteSpace(change.Label) ? null : change.Label;
+        partDebounce.Run(SavePendingParts);
+    }
+
+    private void HandleContentChanged(SongPartsEditor.PartContentChange change)
+    {
+        if (song is null || change.Index < 0 || change.Index >= song.Parts.Count) return;
+        var pending = GetPendingPart(change.Index);
+        pending.Content = change.Content;
+        partDebounce.Run(SavePendingParts);
+    }
+
+    private readonly Dictionary<int, PendingPartEdit> pendingParts = new();
+
+    private PendingPartEdit GetPendingPart(int index)
+    {
+        if (!pendingParts.TryGetValue(index, out var pending))
+        {
+            pending = new PendingPartEdit { Label = song!.Parts[index].Label, Content = song.Parts[index].Content };
+            pendingParts[index] = pending;
+        }
+        return pending;
+    }
+
+    private async Task SavePendingParts()
+    {
+        if (song is null || OrgId is null) return;
+        var edits = pendingParts.ToDictionary(
+            kvp => kvp.Key,
+            kvp => (string.IsNullOrWhiteSpace(kvp.Value.Label) ? null : kvp.Value.Label.Trim(), kvp.Value.Content));
+        pendingParts.Clear();
+        await SongService.UpdateSongPartsAsync(song.Id, OrgId, edits, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+        await OnSaved.InvokeAsync();
+    }
+
+    private class PendingPartEdit
+    {
+        public string? Label { get; set; }
+        public string Content { get; set; } = "";
+    }
+
+    private async Task AddPart()
+    {
+        if (song is null || OrgId is null) return;
+        await SongService.AddSongPartAsync(song.Id, OrgId, null, "", OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+        StateHasChanged();
+        await Task.Yield();
+        if (song is not null)
+        {
+            await JsRuntime.InvokeVoidAsync("scrollToElement", $"song-part-{song.Parts.Count - 1}");
+        }
+    }
+
+    private async Task DeletePart(int index)
+    {
+        if (song is null || OrgId is null) return;
+        pendingParts.Clear();
+        await SongService.DeleteSongPartAsync(song.Id, OrgId, index, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+    }
+
+    private async Task MovePartUp(int index)
+    {
+        if (song is null || index <= 0 || OrgId is null) return;
+        pendingParts.Clear();
+        await SongService.MoveSongPartAsync(song.Id, OrgId, index, index - 1, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+    }
+
+    private async Task MovePartDown(int index)
+    {
+        if (song is null || index >= song.Parts.Count - 1 || OrgId is null) return;
+        pendingParts.Clear();
+        await SongService.MoveSongPartAsync(song.Id, OrgId, index, index + 1, OrgState.ToCallerContext());
+        song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+    }
+
+    private void ConfirmDeleteSong()
+    {
+        deleteConfirmMessage = new MarkupString(L["SongDetail.ConfirmTrashSong", System.Net.WebUtility.HtmlEncode(song?.Name) ?? string.Empty]);
+    }
+
+    private void CancelDelete()
+    {
+        deleteConfirmMessage = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (isDeleting || song is null || OrgId is null) return;
+        isDeleting = true;
+        try
+        {
+            await SongService.DeleteSongAsync(song.Id, OrgId, OrgState.ToCallerContext());
+            deleteConfirmMessage = null;
+            await OnDeleted.InvokeAsync();
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+}

@@ -6,7 +6,7 @@
         <input type="text"
                value="@Name"
                placeholder="@L["SongFields.SongName"]"
-               @onchange="HandleNameChanged"
+               @oninput="HandleNameChanged"
                class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
     </div>
     <div>
@@ -14,7 +14,7 @@
         <input type="text"
                value="@Author"
                placeholder="@L["SongFields.ArtistPlaceholder"]"
-               @onchange="HandleAuthorChanged"
+               @oninput="HandleAuthorChanged"
                class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
     </div>
     <div>
@@ -22,7 +22,7 @@
         <input type="text"
                value="@Publisher"
                placeholder="@L["SongFields.Publisher"]"
-               @onchange="HandlePublisherChanged"
+               @oninput="HandlePublisherChanged"
                class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
     </div>
     <div class="flex gap-4">
@@ -31,7 +31,7 @@
             <input type="number"
                    value="@Year"
                    placeholder="@L["SongFields.Year"]"
-                   @onchange="HandleYearChanged"
+                   @oninput="HandleYearChanged"
                    class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
         </div>
         <div class="flex-1">
@@ -39,7 +39,7 @@
             <input type="text"
                    value="@Ccli"
                    placeholder="@L["SongFields.CcliNumber"]"
-                   @onchange="HandleCcliChanged"
+                   @oninput="HandleCcliChanged"
                    class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
         </div>
     </div>
@@ -62,37 +62,30 @@
     [Parameter] public EventCallback<string?> CcliChanged { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    private async Task HandleNameChanged(ChangeEventArgs e)
-    {
-        Name = e.Value?.ToString() ?? "";
-        await NameChanged.InvokeAsync(Name);
-    }
+    private Task HandleNameChanged(ChangeEventArgs e)
+        => NameChanged.InvokeAsync(e.Value?.ToString() ?? "");
 
-    private async Task HandleAuthorChanged(ChangeEventArgs e)
+    private Task HandleAuthorChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Author = string.IsNullOrWhiteSpace(value) ? null : value;
-        await AuthorChanged.InvokeAsync(Author);
+        return AuthorChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 
-    private async Task HandlePublisherChanged(ChangeEventArgs e)
+    private Task HandlePublisherChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Publisher = string.IsNullOrWhiteSpace(value) ? null : value;
-        await PublisherChanged.InvokeAsync(Publisher);
+        return PublisherChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 
-    private async Task HandleYearChanged(ChangeEventArgs e)
+    private Task HandleYearChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Year = int.TryParse(value, out var y) ? y : null;
-        await YearChanged.InvokeAsync(Year);
+        return YearChanged.InvokeAsync(int.TryParse(value, out var y) ? y : null);
     }
 
-    private async Task HandleCcliChanged(ChangeEventArgs e)
+    private Task HandleCcliChanged(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        Ccli = string.IsNullOrWhiteSpace(value) ? null : value;
-        await CcliChanged.InvokeAsync(Ccli);
+        return CcliChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 }

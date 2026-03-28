@@ -44,6 +44,9 @@
   <data name="Common.Saving" xml:space="preserve">
     <value>Saving...</value>
   </data>
+  <data name="Common.Saved" xml:space="preserve">
+    <value>Saved</value>
+  </data>
   <data name="Common.Create" xml:space="preserve">
     <value>Create</value>
   </data>
@@ -141,10 +144,16 @@
     <value>Presentations</value>
   </data>
   <data name="Dashboard.CreateNew" xml:space="preserve">
-    <value>Create new</value>
+    <value>Create presentation</value>
   </data>
   <data name="Dashboard.NoPresentations" xml:space="preserve">
     <value>No presentations yet</value>
+  </data>
+  <data name="Dashboard.Description" xml:space="preserve">
+    <value>Create a presentation to get started with your worship service.</value>
+  </data>
+  <data name="Dashboard.Add" xml:space="preserve">
+    <value>Add presentation</value>
   </data>
   <data name="Dashboard.NewPresentation" xml:space="preserve">
     <value>New presentation</value>
@@ -265,6 +274,12 @@
   </data>
   <data name="Songs.SavingSongs" xml:space="preserve">
     <value>Saving songs...</value>
+  </data>
+  <data name="Songs.New" xml:space="preserve">
+    <value>Add song</value>
+  </data>
+  <data name="Songs.NewSong" xml:space="preserve">
+    <value>New song</value>
   </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
     <value>Delete song</value>
@@ -419,8 +434,14 @@
   <data name="Users.NewUser" xml:space="preserve">
     <value>New user</value>
   </data>
+  <data name="Users.Add" xml:space="preserve">
+    <value>Add user</value>
+  </data>
   <data name="Users.NoUsers" xml:space="preserve">
     <value>No users</value>
+  </data>
+  <data name="Users.Description" xml:space="preserve">
+    <value>Add users to your organization to give them access to presentations and songs.</value>
   </data>
   <data name="Users.CannotChangeOwnRole" xml:space="preserve">
     <value>You cannot change your own role</value>
@@ -503,6 +524,9 @@
   <data name="Overlays.Empty" xml:space="preserve">
     <value>No overlays</value>
   </data>
+  <data name="Overlays.ConfirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete the overlay "{0}"?</value>
+  </data>
   <data name="Overlays.Description" xml:space="preserve">
     <value>Overlays are shown on top of the active slide during a presentation, e.g. a payment QR code during offering.</value>
   </data>
@@ -531,7 +555,7 @@
     <value>Organizations</value>
   </data>
   <data name="Orgs.New" xml:space="preserve">
-    <value>New organization</value>
+    <value>Add organization</value>
   </data>
   <data name="Orgs.NoOrgs" xml:space="preserve">
     <value>No organizations yet</value>
@@ -879,10 +903,16 @@
     <value>MCP API keys</value>
   </data>
   <data name="ApiKeys.New" xml:space="preserve">
-    <value>New MCP API key</value>
+    <value>Add MCP API key</value>
   </data>
   <data name="ApiKeys.Empty" xml:space="preserve">
-    <value>No MCP API keys have been created yet</value>
+    <value>No MCP API keys</value>
+  </data>
+  <data name="ApiKeys.EmptyDescription" xml:space="preserve">
+    <value>Create an MCP API key to connect external tools via the MCP protocol.</value>
+  </data>
+  <data name="ApiKeys.Add" xml:space="preserve">
+    <value>Add MCP API key</value>
   </data>
   <data name="ApiKeys.User" xml:space="preserve">
     <value>User</value>
@@ -891,13 +921,13 @@
     <value>e.g. Claude Desktop</value>
   </data>
   <data name="ApiKeys.Description" xml:space="preserve">
-    <value>MCP API keys allow AI assistants like &lt;a href="https://claude.ai/download" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Desktop&lt;/a&gt; to manage presentations, search songs, and add Bible texts via the &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
+    <value>MCP API keys allow AI assistants to manage presentations, search songs, and add Bible texts via the &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
   </data>
   <data name="ApiKeys.SetupInstructions" xml:space="preserve">
-    <value>Show setup instructions</value>
+    <value>How do I use an MCP API key?</value>
   </data>
-  <data name="ApiKeys.DocsLinks" xml:space="preserve">
-    <value>Read more: &lt;a href="https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Desktop&lt;/a&gt; · &lt;a href="https://code.claude.com/docs/en/mcp.md" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Code&lt;/a&gt; · &lt;a href="https://modelcontextprotocol.io/docs/concepts/transports#streamable-http" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;MCP documentation&lt;/a&gt;</value>
+  <data name="ApiKeys.SetupHelp" xml:space="preserve">
+    <value>Add the following to your MCP client configuration (e.g. &lt;code class="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-600"&gt;settings.json&lt;/code&gt; in Claude Code or VS Code). Replace &lt;code class="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-600"&gt;&amp;lt;API_KEY&amp;gt;&lt;/code&gt; with the key you get when creating one below.</value>
   </data>
   <data name="ApiKeys.Created" xml:space="preserve">
     <value>MCP API key created</value>
@@ -909,7 +939,7 @@
     <value>Delete MCP API key</value>
   </data>
   <data name="ApiKeys.ConfirmDeleteMessage" xml:space="preserve">
-    <value>Are you sure you want to delete the API key "{0}"? Any integrations using this key will stop working.</value>
+    <value>Are you sure you want to delete the MCP API key "{0}"? Any integrations using this key will stop working.</value>
   </data>
   <data name="ApiKeys.Deleted" xml:space="preserve">
     <value>MCP API key deleted</value>
@@ -934,6 +964,9 @@
   </data>
   <data name="Templates.DeleteConfirm" xml:space="preserve">
     <value>Are you sure you want to delete this template?</value>
+  </data>
+  <data name="Templates.Add" xml:space="preserve">
+    <value>Add template</value>
   </data>
   <data name="Templates.NewTemplate" xml:space="preserve">
     <value>New template</value>

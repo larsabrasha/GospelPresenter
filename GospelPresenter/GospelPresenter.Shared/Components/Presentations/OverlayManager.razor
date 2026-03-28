@@ -7,10 +7,23 @@
 
 @if (editingOverlay is not null)
 {
-    <OverlayEditor Overlay="@editingOverlay"
-                   OnBack="ExitEditor"
-                   OnChanged="HandleChanged"
-                   OnDeleted="HandleDeleted"/>
+    <div class="flex flex-col h-full overflow-y-auto">
+        <div class="flex justify-end mb-1">
+            <AutoSaveIndicator @ref="saveIndicator"/>
+        </div>
+        <OverlayEditor Overlay="@editingOverlay"
+                       OnBack="ExitEditor"
+                       OnChanged="HandleChanged"
+                       OnSaved="() => saveIndicator?.Show()"/>
+        @if (!string.IsNullOrWhiteSpace(editingOverlay.OrganizationId))
+        {
+            <div class="flex items-center justify-end pt-4">
+                <AppButton Variant="ButtonVariant.Danger" OnClick="HandleDelete">
+                    @(showDeleteConfirm ? L["OverlayEditor.ConfirmDelete"] : L["Common.Delete"])
+                </AppButton>
+            </div>
+        }
+    </div>
 }
 else
 {
@@ -96,6 +109,8 @@ else
 
     private List<OverlaySlide> overlays = [];
     private OverlaySlide? editingOverlay;
+    private bool showDeleteConfirm;
+    private AutoSaveIndicator? saveIndicator;
 
     protected override async Task OnInitializedAsync()
     {
@@ -115,6 +130,7 @@ else
     private void ExitEditor()
     {
         editingOverlay = null;
+        showDeleteConfirm = false;
     }
 
     private async Task HandleChanged(OverlaySlide overlay)
@@ -132,11 +148,19 @@ else
         await OnOverlaysChanged.InvokeAsync();
     }
 
-    private async Task HandleDeleted(OverlaySlide overlay)
+    private async Task HandleDelete()
     {
-        await PresentationService.RemoveOverlayAsync(OrganizationId, overlay.Id, OrgState.ToCallerContext());
+        if (!showDeleteConfirm)
+        {
+            showDeleteConfirm = true;
+            return;
+        }
+
+        if (editingOverlay is null) return;
+        await PresentationService.RemoveOverlayAsync(OrganizationId, editingOverlay.Id, OrgState.ToCallerContext());
         overlays = await PresentationService.GetOverlaysAsync(OrganizationId, OrgState.ToCallerContext());
         editingOverlay = null;
+        showDeleteConfirm = false;
         await OnOverlaysChanged.InvokeAsync();
     }
 }

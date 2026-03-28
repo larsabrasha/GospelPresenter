@@ -44,6 +44,9 @@
   <data name="Common.Saving" xml:space="preserve">
     <value>Sparar...</value>
   </data>
+  <data name="Common.Saved" xml:space="preserve">
+    <value>Sparad</value>
+  </data>
   <data name="Common.Create" xml:space="preserve">
     <value>Skapa</value>
   </data>
@@ -141,10 +144,16 @@
     <value>Presentationer</value>
   </data>
   <data name="Dashboard.CreateNew" xml:space="preserve">
-    <value>Skapa ny</value>
+    <value>Skapa presentation</value>
   </data>
   <data name="Dashboard.NoPresentations" xml:space="preserve">
     <value>Inga presentationer ännu</value>
+  </data>
+  <data name="Dashboard.Description" xml:space="preserve">
+    <value>Skapa en presentation för att komma igång med din gudstjänst.</value>
+  </data>
+  <data name="Dashboard.Add" xml:space="preserve">
+    <value>Lägg till presentation</value>
   </data>
   <data name="Dashboard.NewPresentation" xml:space="preserve">
     <value>Ny presentation</value>
@@ -265,6 +274,12 @@
   </data>
   <data name="Songs.SavingSongs" xml:space="preserve">
     <value>Sparar sånger...</value>
+  </data>
+  <data name="Songs.New" xml:space="preserve">
+    <value>Lägg till sång</value>
+  </data>
+  <data name="Songs.NewSong" xml:space="preserve">
+    <value>Ny sång</value>
   </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
     <value>Ta bort sång</value>
@@ -419,8 +434,14 @@
   <data name="Users.NewUser" xml:space="preserve">
     <value>Ny användare</value>
   </data>
+  <data name="Users.Add" xml:space="preserve">
+    <value>Lägg till användare</value>
+  </data>
   <data name="Users.NoUsers" xml:space="preserve">
     <value>Inga användare</value>
+  </data>
+  <data name="Users.Description" xml:space="preserve">
+    <value>Lägg till användare i din organisation för att ge dem tillgång till presentationer och sånger.</value>
   </data>
   <data name="Users.CannotChangeOwnRole" xml:space="preserve">
     <value>Du kan inte ändra din egen roll</value>
@@ -503,6 +524,9 @@
   <data name="Overlays.Empty" xml:space="preserve">
     <value>Inga overlays</value>
   </data>
+  <data name="Overlays.ConfirmDelete" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort overlayen "{0}"?</value>
+  </data>
   <data name="Overlays.Description" xml:space="preserve">
     <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
   </data>
@@ -531,7 +555,7 @@
     <value>Organisationer</value>
   </data>
   <data name="Orgs.New" xml:space="preserve">
-    <value>Ny organisation</value>
+    <value>Lägg till organisation</value>
   </data>
   <data name="Orgs.NoOrgs" xml:space="preserve">
     <value>Inga organisationer ännu</value>
@@ -879,10 +903,16 @@
     <value>MCP API-nycklar</value>
   </data>
   <data name="ApiKeys.New" xml:space="preserve">
-    <value>Ny MCP API-nyckel</value>
+    <value>Lägg till MCP API-nyckel</value>
   </data>
   <data name="ApiKeys.Empty" xml:space="preserve">
-    <value>Inga MCP API-nycklar har skapats ännu</value>
+    <value>Inga MCP API-nycklar</value>
+  </data>
+  <data name="ApiKeys.EmptyDescription" xml:space="preserve">
+    <value>Skapa en MCP API-nyckel för att ansluta externa verktyg via MCP-protokollet.</value>
+  </data>
+  <data name="ApiKeys.Add" xml:space="preserve">
+    <value>Lägg till MCP API-nyckel</value>
   </data>
   <data name="ApiKeys.User" xml:space="preserve">
     <value>Användare</value>
@@ -891,13 +921,13 @@
     <value>t.ex. Claude Desktop</value>
   </data>
   <data name="ApiKeys.Description" xml:space="preserve">
-    <value>MCP API-nycklar gör det möjligt för AI-assistenter som &lt;a href="https://claude.ai/download" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Desktop&lt;/a&gt; att hantera presentationer, söka sånger och lägga till bibeltexter via &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
+    <value>MCP API-nycklar gör det möjligt för AI-assistenter att hantera presentationer, söka sånger och lägga till bibeltexter via &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
   </data>
   <data name="ApiKeys.SetupInstructions" xml:space="preserve">
-    <value>Visa installationsinstruktioner</value>
+    <value>Hur använder jag en MCP API-nyckel?</value>
   </data>
-  <data name="ApiKeys.DocsLinks" xml:space="preserve">
-    <value>Läs mer: &lt;a href="https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Desktop&lt;/a&gt; · &lt;a href="https://code.claude.com/docs/en/mcp.md" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Claude Code&lt;/a&gt; · &lt;a href="https://modelcontextprotocol.io/docs/concepts/transports#streamable-http" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;MCP-dokumentation&lt;/a&gt;</value>
+  <data name="ApiKeys.SetupHelp" xml:space="preserve">
+    <value>Lägg till följande i din MCP-klientkonfiguration (t.ex. &lt;code class="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-600"&gt;settings.json&lt;/code&gt; i Claude Code eller VS Code). Ersätt &lt;code class="px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-600"&gt;&amp;lt;API_KEY&amp;gt;&lt;/code&gt; med nyckeln du får när du skapar en nedan.</value>
   </data>
   <data name="ApiKeys.Created" xml:space="preserve">
     <value>MCP API-nyckel skapad</value>
@@ -909,7 +939,7 @@
     <value>Radera MCP API-nyckel</value>
   </data>
   <data name="ApiKeys.ConfirmDeleteMessage" xml:space="preserve">
-    <value>Är du säker på att du vill radera API-nyckeln "{0}"? Alla integrationer som använder denna nyckel slutar fungera.</value>
+    <value>Är du säker på att du vill radera MCP API-nyckeln "{0}"? Alla integrationer som använder denna nyckel slutar fungera.</value>
   </data>
   <data name="ApiKeys.Deleted" xml:space="preserve">
     <value>MCP API-nyckel raderad</value>
@@ -934,6 +964,9 @@
   </data>
   <data name="Templates.DeleteConfirm" xml:space="preserve">
     <value>Är du säker på att du vill ta bort mallen?</value>
+  </data>
+  <data name="Templates.Add" xml:space="preserve">
+    <value>Lägg till mall</value>
   </data>
   <data name="Templates.NewTemplate" xml:space="preserve">
     <value>Ny mall</value>

@@ -1,0 +1,23 @@
+<Dialog Class="bg-white dark:bg-neutral-800 max-w-md" OnClose="OnClose">
+    <div class="p-6 space-y-4">
+        <div class="font-semibold text-lg">@L["Common.Delete"]</div>
+        <p class="text-sm text-neutral-600 dark:text-neutral-300">
+            @Message
+        </p>
+        <div class="flex justify-end gap-3">
+            <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
+                @L["Common.Cancel"]
+            </AppButton>
+            <AppButton Variant="ButtonVariant.Danger" Filled Disabled="IsDeleting" OnClick="OnConfirm">
+                @(IsDeleting ? L["Common.Deleting"] : L["Common.Delete"])
+            </AppButton>
+        </div>
+    </div>
+</Dialog>
+
+@code {
+    [Parameter, EditorRequired] public MarkupString Message { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnConfirm { get; set; }
+    [Parameter, EditorRequired] public EventCallback OnClose { get; set; }
+    [Parameter] public bool IsDeleting { get; set; }
+}

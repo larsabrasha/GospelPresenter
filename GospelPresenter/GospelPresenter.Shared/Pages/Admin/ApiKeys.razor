@@ -19,18 +19,23 @@
 <PageContainer>
     <div class="flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["ApiKeys.Title"]</div>
-        <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center">
-            <PlusSymbol Class="size-4 mr-2"/>@L["ApiKeys.New"]
-        </AppButton>
+        @if (apiKeys is not null && apiKeys.Count > 0)
+        {
+            <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center">
+                <PlusSymbol Class="size-4 mr-2"/>@L["ApiKeys.New"]
+            </AppButton>
+        }
     </div>
 
     <div class="px-5 pb-2 text-sm text-neutral-500 dark:text-neutral-400 space-y-2">
         <p>@((MarkupString)L["ApiKeys.Description"].Value)</p>
-        <p>@((MarkupString)L["ApiKeys.DocsLinks"].Value)</p>
         <details class="group">
             <summary class="cursor-pointer text-sky-600 dark:text-sky-400 hover:underline">
                 @L["ApiKeys.SetupInstructions"]
             </summary>
+            <div class="mt-2 space-y-2">
+                <p>@((MarkupString)L["ApiKeys.SetupHelp"].Value)</p>
+            </div>
             <div class="mt-2 bg-neutral-100 dark:bg-neutral-700 rounded-xl p-4 font-mono text-xs break-all whitespace-pre-wrap select-all">@($@"{{
   ""mcpServers"": {{
     ""gospel-presenter"": {{
@@ -51,11 +56,25 @@
         }
         else if (apiKeys.Count == 0)
         {
-            <div class="flex flex-col items-center justify-center py-16 text-neutral-400">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mb-3">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <circle cx="80" cy="70" r="24" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <circle cx="80" cy="70" r="10" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+                    <line x1="104" y1="70" x2="155" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="140" y1="70" x2="140" y2="82" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="150" y1="70" x2="150" y2="78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="155" cy="120" r="16" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
                 </svg>
-                <span class="text-sm">@L["ApiKeys.Empty"]</span>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["ApiKeys.Empty"]</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                    @L["ApiKeys.EmptyDescription"]
+                </p>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+                    <PlusSymbol Class="size-4"/>
+                    @L["ApiKeys.Add"]
+                </AppButton>
             </div>
         }
         else

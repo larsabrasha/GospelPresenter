@@ -1,132 +1,23 @@
-@using GospelPresenter.Shared.State
-
 <div class="flex flex-col h-full">
-    <div class="shrink-0">
-        <AppButton Variant="ButtonVariant.Cancel" OnClick="HandleBack" Class="flex items-center gap-2 mb-2 -ml-1">
+    <div class="shrink-0 relative flex items-center mb-2">
+        <AppButton Variant="ButtonVariant.Cancel" OnClick="OnBack" Class="flex items-center gap-2 -ml-1">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
             </svg>
             @L["Common.Back"]
         </AppButton>
+        <AutoSaveIndicator @ref="saveIndicator" Class="absolute right-0"/>
     </div>
 
-    <div class="flex-1 min-h-0 overflow-y-auto space-y-4">
-        <SongFieldsEditor @bind-Name="name" @bind-Author="author"
-                          @bind-Publisher="publisher" @bind-Year="year" @bind-Ccli="ccli"/>
-
-        <SongPartsEditor Parts="parts"
-                         OnMoveUp="MovePartUp"
-                         OnMoveDown="MovePartDown"
-                         OnLabelChanged="HandleLabelChanged"
-                         OnContentChanged="HandleContentChanged"
-                         OnDelete="RemovePart"
-                         OnAdd="AddPart"/>
-    </div>
-
-    <div class="shrink-0 flex items-center justify-end gap-3 pt-4">
-        <AppButton Variant="ButtonVariant.Cancel" OnClick="HandleBack">
-            @L["Common.Cancel"]
-        </AppButton>
-        <AppButton Variant="ButtonVariant.Primary" Disabled="@(!CanSave)" OnClick="HandleSave">
-            @if (isSaving)
-            {
-                <span>@L["Common.Saving"]</span>
-            }
-            else
-            {
-                <span>@L["CreateSong.SaveSong"]</span>
-            }
-        </AppButton>
+    <div class="flex-1 min-h-0 overflow-y-auto">
+        <SongEditor SongId="@SongId" OnDeleted="OnDeleted" OnSaved="() => saveIndicator?.Show()"/>
     </div>
 </div>
 
 @code {
+    [Parameter, EditorRequired] public string SongId { get; set; } = "";
     [Parameter] public EventCallback OnBack { get; set; }
-    [Parameter] public EventCallback<Song> OnCreated { get; set; }
-    [Parameter] public string? InitialName { get; set; }
+    [Parameter] public EventCallback OnDeleted { get; set; }
 
-    private string name = "";
-    private string? author;
-    private string? publisher;
-    private int? year;
-    private string? ccli;
-    private List<SongPart> parts = [];
-    private bool isSaving;
-
-    private bool CanSave => !isSaving && !string.IsNullOrWhiteSpace(name);
-
-    protected override void OnInitialized()
-    {
-        if (parts.Count == 0)
-            parts.Add(new SongPart(L["CreateSong.DefaultVerse", 1], ""));
-        if (!string.IsNullOrWhiteSpace(InitialName))
-            name = InitialName;
-    }
-
-    private void AddPart()
-    {
-        var nextNumber = parts.Count + 1;
-        parts.Add(new SongPart(L["CreateSong.DefaultVerse", nextNumber], ""));
-    }
-
-    private void RemovePart(int index)
-    {
-        if (index >= 0 && index < parts.Count)
-            parts.RemoveAt(index);
-    }
-
-    private void HandleLabelChanged(SongPartsEditor.PartLabelChange change)
-    {
-        if (change.Index >= 0 && change.Index < parts.Count)
-        {
-            var trimmed = string.IsNullOrWhiteSpace(change.Label) ? null : change.Label.Trim();
-            parts[change.Index] = parts[change.Index] with { Label = trimmed };
-        }
-    }
-
-    private void HandleContentChanged(SongPartsEditor.PartContentChange change)
-    {
-        if (change.Index >= 0 && change.Index < parts.Count)
-            parts[change.Index] = parts[change.Index] with { Content = change.Content };
-    }
-
-    private void MovePartUp(int index)
-    {
-        if (index > 0)
-            (parts[index], parts[index - 1]) = (parts[index - 1], parts[index]);
-    }
-
-    private void MovePartDown(int index)
-    {
-        if (index < parts.Count - 1)
-            (parts[index], parts[index + 1]) = (parts[index + 1], parts[index]);
-    }
-
-    private async Task HandleSave()
-    {
-        if (!CanSave) return;
-        isSaving = true;
-
-        var songParts = parts
-            .Where(p => !string.IsNullOrWhiteSpace(p.Content))
-            .Select(p => new SongPart(p.Label, p.Content.Trim()))
-            .ToList();
-
-        await OnCreated.InvokeAsync(new Song(
-            "",
-            name.Trim(),
-            author?.Trim(),
-            publisher?.Trim(),
-            year,
-            ccli?.Trim(),
-            songParts
-        ));
-
-        isSaving = false;
-    }
-
-    private async Task HandleBack()
-    {
-        await OnBack.InvokeAsync();
-    }
+    private AutoSaveIndicator? saveIndicator;
 }

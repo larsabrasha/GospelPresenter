@@ -1,5 +1,6 @@
 @page "/admin/organizations/{OrganizationId}"
 @attribute [Authorize(Roles = "SuperAdmin")]
+@implements IDisposable
 
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Components
@@ -27,6 +28,7 @@
             @L["Common.Back"]
         </AppButton>
         <div class="text-xl font-bold dark:text-neutral-100">@(organization?.Name ?? L["OrgDetail.DefaultName"])</div>
+        <AutoSaveIndicator @ref="saveIndicator" Class="absolute right-0"/>
     </div>
 
     @if (organization is null)
@@ -62,17 +64,12 @@
                     </div>
                 </div>
             </div>
-            <div class="font-semibold">@L["OrgDetail.OrgName"]</div>
-            <div class="flex gap-3">
+            <div>
+                <label class="block text-sm font-medium mb-1">@L["OrgDetail.OrgName"]</label>
                 <input type="text"
-                       class="flex-1 px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                       @bind="editName"
-                       @bind:event="oninput"/>
-                <AppButton Variant="ButtonVariant.Primary"
-                           Disabled="@(isSaving || string.IsNullOrWhiteSpace(editName) || editName.Trim() == organization.Name)"
-                           OnClick="SaveName">
-                    @(isSaving ? L["Common.Saving"] : L["Common.Save"])
-                </AppButton>
+                       class="w-full px-4 py-3 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                       value="@editName"
+                       @oninput="HandleNameChanged"/>
             </div>
         </div>
 
@@ -181,12 +178,15 @@
     private Organization? organization;
     private List<User> members = [];
     private string editName = "";
-    private bool isSaving;
     private bool showDeleteDialog;
     private bool isDeleting;
     private string deleteConfirmText = "";
     private string? logoError;
     private bool showCropDialog;
+    private readonly Utils.Debouncer saveDebounce = new();
+    private AutoSaveIndicator? saveIndicator;
+
+    public void Dispose() => saveDebounce.Dispose();
 
     protected override async Task OnInitializedAsync()
     {
@@ -198,10 +198,15 @@
         }
     }
 
+    private void HandleNameChanged(ChangeEventArgs e)
+    {
+        editName = e.Value?.ToString() ?? "";
+        saveDebounce.Run(SaveName);
+    }
+
     private async Task SaveName()
     {
-        if (isSaving || string.IsNullOrWhiteSpace(editName) || organization is null) return;
-        isSaving = true;
+        if (string.IsNullOrWhiteSpace(editName) || organization is null) return;
 
         await UserService.UpdateOrganizationAsync(OrganizationId, editName.Trim(), OrgState.ToCallerContext());
         organization.Name = editName.Trim();
@@ -210,7 +215,7 @@
             OrgState.SwitchOrganization(OrganizationId, editName.Trim());
 
         OrgState.NotifyOrganizationsChanged();
-        isSaving = false;
+        saveIndicator?.Show();
     }
 
     private void ShowDeleteConfirmation()

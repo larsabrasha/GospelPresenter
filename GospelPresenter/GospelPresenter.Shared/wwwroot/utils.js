@@ -113,6 +113,11 @@ window.hidePopoverElement = function(element) {
     element.hidePopover();
 }
 
+window.scrollToElement = function(elementId) {
+    var el = document.getElementById(elementId);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 window.scrollSidebarItemIntoView = function(itemId) {
     var el = document.querySelector('#sidebar-item-list [data-id="' + CSS.escape(itemId) + '"]');
     if (el) el.scrollIntoView({ block: 'nearest' });

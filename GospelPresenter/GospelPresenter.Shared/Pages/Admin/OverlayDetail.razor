@@ -1,4 +1,3 @@
-@page "/admin/overlays/new"
 @page "/admin/overlays/{OverlayId}"
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
 
@@ -24,30 +23,47 @@
             @L["Common.Back"]
         </AppButton>
         <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
-            @(isNew ? L["Overlays.New"] : overlay?.Title)
+            @overlay?.Title
         </div>
+        <AutoSaveIndicator @ref="saveIndicator" Class="absolute right-0"/>
     </div>
 
-    @if (!isNew && overlay is null)
+    @if (overlay is null)
     {
         <div class="px-7 text-neutral-400">@L["Common.Loading"]</div>
     }
-    else if (overlay is not null)
+    else
     {
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden p-5">
             <OverlayEditor Overlay="@overlay"
                            OnChanged="HandleChanged"
-                           OnDeleted="HandleDeleted"/>
+                           OnSaved="() => saveIndicator?.Show()"/>
+        </div>
+
+        <div class="flex items-center justify-end">
+            <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDelete">
+                @L["Common.Delete"]
+            </AppButton>
         </div>
     }
 </PageContainer>
 
+@if (deleteConfirmMessage is not null)
+{
+    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+                         IsDeleting="isDeleting"
+                         OnConfirm="ExecuteDelete"
+                         OnClose="CancelDelete"/>
+}
+
 @code {
-    [Parameter] public string? OverlayId { get; set; }
+    [Parameter] public string OverlayId { get; set; } = "";
 
     private OverlaySlide? overlay;
-    private bool isNew;
     private string? organizationId;
+    private AutoSaveIndicator? saveIndicator;
+    private MarkupString? deleteConfirmMessage;
+    private bool isDeleting;
 
     protected override async Task OnInitializedAsync()
     {
@@ -58,48 +74,42 @@
             return;
         }
 
-        isNew = OverlayId is null;
-
-        if (isNew)
+        overlay = await PresentationService.GetOverlayByIdAsync(OverlayId, organizationId, OrgState.ToCallerContext());
+        if (overlay is null)
         {
-            overlay = new OverlaySlide();
+            NavigationManager.NavigateTo("/admin/overlays");
         }
-        else
-        {
-            overlay = await PresentationService.GetOverlayByIdAsync(OverlayId!, organizationId, OrgState.ToCallerContext());
-            if (overlay is null)
-            {
-                NavigationManager.NavigateTo("/admin/overlays");
-            }
-        }
-    }
-
-    private void NavigateBack()
-    {
-        NavigationManager.NavigateTo("/admin/overlays");
     }
 
     private async Task HandleChanged(OverlaySlide changed)
     {
         if (organizationId is null) return;
-
-        if (isNew)
-        {
-            await PresentationService.AddOverlayAsync(organizationId, changed, OrgState.ToCallerContext());
-            isNew = false;
-            NavigationManager.NavigateTo($"/admin/overlays/{changed.Id}", replace: true);
-        }
-        else
-        {
-            await PresentationService.UpdateOverlayAsync(organizationId, changed, OrgState.ToCallerContext());
-        }
+        await PresentationService.UpdateOverlayAsync(organizationId, changed, OrgState.ToCallerContext());
     }
 
-    private async Task HandleDeleted(OverlaySlide deleted)
+    private void ConfirmDelete()
     {
-        if (organizationId is null) return;
+        deleteConfirmMessage = new MarkupString(L["Overlays.ConfirmDelete", System.Net.WebUtility.HtmlEncode(overlay?.Title) ?? ""]);
+    }
 
-        await PresentationService.RemoveOverlayAsync(organizationId, deleted.Id, OrgState.ToCallerContext());
-        NavigationManager.NavigateTo("/admin/overlays");
+    private void CancelDelete()
+    {
+        deleteConfirmMessage = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (isDeleting || overlay is null || organizationId is null) return;
+        isDeleting = true;
+        try
+        {
+            await PresentationService.RemoveOverlayAsync(organizationId, overlay.Id, OrgState.ToCallerContext());
+            deleteConfirmMessage = null;
+            NavigationManager.NavigateTo("/admin/overlays");
+        }
+        finally
+        {
+            isDeleting = false;
+        }
     }
 }
