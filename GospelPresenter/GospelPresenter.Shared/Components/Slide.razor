@@ -18,8 +18,8 @@
     class="select-none text-center group @cssClass"
     style="width: @width; height: @height">
     <div
-        class="origin-top-left text-[85px] flex items-center justify-center px-20 pt-20 pb-36 relative"
-        style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
+        class="origin-top-left flex items-center justify-center px-20 pt-20 pb-36 relative"
+        style="font-size: @(FormattableString.Invariant($"{FontSize}px")); width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
         @ChildContent
     </div>
 </div>
@@ -28,6 +28,7 @@
     [Parameter] public required double Scale { get; set; }
     [Parameter] public required int BaseWidth { get; set; }
     [Parameter] public required int BaseHeight { get; set; }
+    [Parameter] public int FontSize { get; set; } = 85;
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public bool? IsSelected { get; set; }

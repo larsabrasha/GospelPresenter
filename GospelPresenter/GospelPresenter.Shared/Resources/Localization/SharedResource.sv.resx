@@ -1016,4 +1016,22 @@
   <data name="Toast.KeyCopied" xml:space="preserve">
     <value>Nyckel kopierad</value>
   </data>
+  <data name="Nav.SlideSettings" xml:space="preserve">
+    <value>Slide-inställningar</value>
+  </data>
+  <data name="SlideSettings.Title" xml:space="preserve">
+    <value>Slide-inställningar</value>
+  </data>
+  <data name="SlideSettings.SongFontSize" xml:space="preserve">
+    <value>Fontstorlek för sångtext</value>
+  </data>
+  <data name="SlideSettings.SongFontSizeDescription" xml:space="preserve">
+    <value>Storlek på huvudtexten i sång-slides. Standard är 85 px.</value>
+  </data>
+  <data name="SlideSettings.Preview" xml:space="preserve">
+    <value>Förhandsgranskning</value>
+  </data>
+  <data name="SlideSettings.SaveError" xml:space="preserve">
+    <value>Kunde inte spara inställningen</value>
+  </data>
 </root>

@@ -21,11 +21,16 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<OrganizationAudio> OrganizationAudios { get; set; }
     public DbSet<UserSetting> UserSettings { get; set; }
     public DbSet<McpApiKey> McpApiKeys { get; set; }
+    public DbSet<OrganizationSetting> OrganizationSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<UserSetting>()
             .HasIndex(us => new { us.UserId, us.Key })
+            .IsUnique();
+
+        modelBuilder.Entity<OrganizationSetting>()
+            .HasIndex(os => new { os.OrganizationId, os.Key })
             .IsUnique();
 
         modelBuilder.Entity<User>()

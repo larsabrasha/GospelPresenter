@@ -48,6 +48,14 @@
                     </svg>
                     @L["Nav.Templates"]
                 </a>
+                <a href="/admin/slide-settings"
+                   @onclick="() => menuVisible = false"
+                   class="@NavClass("/admin/slide-settings") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
+                        <path fill-rule="evenodd" d="M1 2.75A.75.75 0 0 1 1.75 2h16.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75Zm0 5A.75.75 0 0 1 1.75 7h16.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75ZM1.75 12a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H1.75Zm0 5a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Z" clip-rule="evenodd"/>
+                    </svg>
+                    @L["Nav.SlideSettings"]
+                </a>
 
                 <div class="px-4 pt-4 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
                     @L["Nav.Administration"]

@@ -26,6 +26,7 @@
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
 @inject ActiveOrganizationState OrgState
+@inject IOrganizationSettingService OrgSettingService
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -186,6 +187,7 @@
                                     Label="@SelectedSong.Parts[i].Label"
                                     LabelColor="@SelectedSong.Parts[i].LabelColor"
                                     Credits="@SongCredits"
+                                    FontSize="@songFontSize"
                                     IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
@@ -536,6 +538,7 @@
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
+    private int songFontSize = Models.OrganizationSetting.DefaultSongFontSize;
     private ProjectItem? itemToRemove;
     private List<ProjectItem>? itemsToRemove;
     private bool isRemovingMultiple;
@@ -899,6 +902,7 @@
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PresentationChanged += OnPresentationChanged;
+        SharedAppState.OrganizationSongFontSizeChanged += OnSongFontSizeChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -916,6 +920,11 @@
 
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
+
+        var fontSizeValue = await OrgSettingService.GetSettingAsync(orgId, Models.OrganizationSetting.SongFontSize, OrgState.ToCallerContext());
+        if (fontSizeValue is not null && int.TryParse(fontSizeValue, out var parsed))
+            songFontSize = parsed;
+
         loadedPresentation = IsTemplateMode
             ? await PresentationService.GetTemplateByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext())
             : await PresentationService.GetPresentationByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext());
@@ -981,7 +990,17 @@
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
+        SharedAppState.OrganizationSongFontSizeChanged -= OnSongFontSizeChanged;
         dotNetRef?.Dispose();
+    }
+
+    private void OnSongFontSizeChanged(string organizationId, int fontSize)
+    {
+        if (organizationId != OrgState.ActiveOrganizationId) return;
+        songFontSize = fontSize;
+
+        var current = SharedAppState.GetLiveSlide(AppState.SessionId);
+        SharedAppState.SetLiveSlide(AppState.SessionId, current with { SongFontSize = fontSize });
     }
 
     private async void OnPresentationChanged(string presentationId, string? senderSessionId)
@@ -1181,7 +1200,8 @@
             Text = text,
             Credits = credits,
             ImageUrl = imageUrl,
-            SongPart = songPart
+            SongPart = songPart,
+            SongFontSize = songFontSize
         });
     }
 

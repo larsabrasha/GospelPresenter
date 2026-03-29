@@ -1,6 +1,7 @@
 <Slide
     IsSelected="@IsSelected"
     Class="@Class"
+    FontSize="@FontSize"
     BaseWidth="@BaseWidth"
     BaseHeight="@BaseHeight"
     Scale="@Scale">
@@ -30,6 +31,7 @@
     [Parameter] public string? Credits { get; set; }
     [Parameter] public bool? IsSelected { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public int FontSize { get; set; } = 85;
     [Parameter] public required int BaseWidth { get; set; }
     [Parameter] public required int BaseHeight { get; set; }
     [Parameter] public required double Scale { get; set; }
