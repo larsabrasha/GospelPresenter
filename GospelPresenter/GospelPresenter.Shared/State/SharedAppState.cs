@@ -88,6 +88,13 @@ public partial class SharedAppState : ObservableObject
         OnPropertyChanged(sessionId);
     }
 
+    public event Action<string, int>? OrganizationSongFontSizeChanged;
+
+    public void NotifyOrganizationSongFontSizeChanged(string organizationId, int fontSize)
+    {
+        OrganizationSongFontSizeChanged?.Invoke(organizationId, fontSize);
+    }
+
     public bool IsSessionExpired(string sessionId) =>
         expiredSessions.ContainsKey(sessionId);
 

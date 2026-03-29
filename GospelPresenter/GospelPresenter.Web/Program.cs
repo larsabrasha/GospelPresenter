@@ -217,6 +217,7 @@ try
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IOrganizationImageService, OrganizationImageService>();
     builder.Services.AddScoped<IOrganizationAudioService, OrganizationAudioService>();
+    builder.Services.AddScoped<IOrganizationSettingService, OrganizationSettingService>();
 
 #if !DEBUG
 builder.Services.AddMetricServer(options =>

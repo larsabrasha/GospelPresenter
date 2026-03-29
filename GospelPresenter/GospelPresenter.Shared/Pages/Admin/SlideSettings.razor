@@ -1,0 +1,106 @@
+@page "/admin/slide-settings"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Components.Presentations
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject IOrganizationSettingService OrgSettingService
+@inject ActiveOrganizationState OrgState
+@inject SharedAppState SharedAppState
+@inject ToastService Toast
+
+<PageContainer>
+    <div class="px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["SlideSettings.Title"]</div>
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-6">
+        <div>
+            <label class="block text-sm font-medium mb-1">@L["SlideSettings.SongFontSize"]</label>
+            <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-3">@L["SlideSettings.SongFontSizeDescription"]</p>
+
+            <div class="flex items-center gap-4">
+                <input type="range"
+                       min="40"
+                       max="150"
+                       step="5"
+                       value="@fontSize"
+                       @oninput="OnFontSizeInput"
+                       class="flex-1 accent-sky-500" />
+                <span class="text-sm font-mono w-16 text-right">@(fontSize) px</span>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-3">@L["SlideSettings.Preview"]</label>
+            <div class="flex justify-center">
+                <SongSlide
+                    Content="@previewText"
+                    FontSize="@fontSize"
+                    Label="Vers 1"
+                    LabelColor="#3b82f6"
+                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                    BaseWidth="1920"
+                    BaseHeight="1080"
+                    Scale="0.3" />
+            </div>
+        </div>
+
+        <div class="flex justify-end">
+            <AppButton Variant="ButtonVariant.Primary" OnClick="SaveAsync" Loading="@saving">
+                @L["Common.Save"]
+            </AppButton>
+        </div>
+    </div>
+</PageContainer>
+
+@code {
+    private int fontSize = OrganizationSetting.DefaultSongFontSize;
+    private bool saving;
+
+    private const string previewText = "Amazing grace\nhow sweet the sound\nthat saved a wretch like me";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        var value = await OrgSettingService.GetSettingAsync(orgId, OrganizationSetting.SongFontSize, OrgState.ToCallerContext());
+        if (value is not null && int.TryParse(value, out var parsed))
+            fontSize = parsed;
+    }
+
+    private void OnFontSizeInput(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value))
+            fontSize = value;
+    }
+
+    private async Task SaveAsync()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        saving = true;
+        try
+        {
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.SongFontSize, fontSize.ToString(), OrgState.ToCallerContext());
+            SharedAppState.NotifyOrganizationSongFontSizeChanged(orgId, fontSize);
+            Toast.Show(L["Common.Saved"]);
+        }
+        catch
+        {
+            Toast.Show(L["SlideSettings.SaveError"]);
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}
