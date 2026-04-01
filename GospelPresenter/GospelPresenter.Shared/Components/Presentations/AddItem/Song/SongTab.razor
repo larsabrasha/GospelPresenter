@@ -1,5 +1,3 @@
-@implements IDisposable
-
 @using GospelPresenter.Shared.Components.Presentations.AddItem
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
@@ -225,7 +223,6 @@ else
     private double previewWidth;
     private double mobilePreviewWidth;
     private Song? mobilePreviewSong;
-    private readonly Debouncer searchDebounce = new(150);
     private bool isAdding;
     private string? organizationId;
     private int? pendingScrollIndex;
@@ -308,19 +305,15 @@ else
             "document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
     }
 
-    private void OnSearchInput(ChangeEventArgs e)
+    private async Task OnSearchInput(ChangeEventArgs e)
     {
         query = e.Value?.ToString() ?? "";
         searchTerms = string.IsNullOrWhiteSpace(query)
             ? []
             : query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        searchDebounce.Run(async () =>
-        {
-            results = SongService.SearchByOrganization(query, organizationId!, OrgState.ToCallerContext()).ToList();
-            selectedSong = results.Count > 0 ? results[0] : null;
-            await ScrollListsToTop();
-        });
+        results = SongService.SearchByOrganization(query, organizationId!, OrgState.ToCallerContext()).ToList();
+        selectedSong = results.Count > 0 ? results[0] : null;
+        await ScrollListsToTop();
     }
 
     private async Task ClearSearch()
@@ -436,8 +429,6 @@ else
         results = OrgSongs.ToList();
         selectedSong = null;
     }
-
-    public void Dispose() => searchDebounce.Dispose();
 
     private string Highlight(string text) => SearchHighlighter.Highlight(text, searchTerms);
 

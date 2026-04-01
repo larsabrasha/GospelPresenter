@@ -9,17 +9,38 @@ public static class SearchHighlighter
         if (searchTerms.Length == 0) return System.Net.WebUtility.HtmlEncode(text);
 
         text = text.Normalize();
+        var textLower = text.ToLowerInvariant();
         var matches = new List<(int Start, int Length)>();
+
+        // Lazy-compute stripped text and position map (only if needed)
+        string? textStripped = null;
+        int[]? positionMap = null;
+
         foreach (var term in searchTerms)
         {
-            var normalized = term.Normalize();
-            var idx = 0;
-            while (idx <= text.Length - normalized.Length)
+            var normalized = term.Normalize().ToLowerInvariant();
+            var stripped = TextUtils.RemoveDiacritics(normalized);
+
+            // Exact (accent-preserved) match
+            TextUtils.FindWordPrefixMatches(textLower, normalized, matches);
+
+            // Accent-stripped match — map offsets back to original text
+            textStripped ??= TextUtils.RemoveDiacritics(textLower);
+            positionMap ??= BuildPositionMap(textLower);
+
+            var strippedMatches = new List<(int Start, int Length)>();
+            TextUtils.FindWordPrefixMatches(textStripped, stripped, strippedMatches);
+
+            foreach (var (start, _) in strippedMatches)
             {
-                var match = text.IndexOf(normalized, idx, StringComparison.OrdinalIgnoreCase);
-                if (match < 0) break;
-                matches.Add((match, normalized.Length));
-                idx = match + normalized.Length;
+                if (start < positionMap.Length)
+                {
+                    var origStart = positionMap[start];
+                    var origEnd = start + stripped.Length < positionMap.Length
+                        ? positionMap[start + stripped.Length]
+                        : textLower.Length;
+                    matches.Add((origStart, origEnd - origStart));
+                }
             }
         }
 
@@ -49,5 +70,45 @@ public static class SearchHighlighter
         }
         sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..]));
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Builds a mapping from stripped-text positions to original-text positions.
+    /// Handles cases where diacritics removal changes string length.
+    /// </summary>
+    private static int[] BuildPositionMap(string original)
+    {
+        var formD = original.Normalize(System.Text.NormalizationForm.FormD);
+
+        // Map FormD positions to original positions
+        var formDToOrig = new int[formD.Length + 1];
+        var origIdx = 0;
+        var formDIdx = 0;
+        while (origIdx < original.Length && formDIdx < formD.Length)
+        {
+            var origChar = original[origIdx];
+            var origFormD = origChar.ToString().Normalize(System.Text.NormalizationForm.FormD);
+            for (var j = 0; j < origFormD.Length && formDIdx < formD.Length; j++)
+            {
+                formDToOrig[formDIdx] = origIdx;
+                formDIdx++;
+            }
+            origIdx++;
+        }
+        formDToOrig[formD.Length] = original.Length;
+
+        // Map stripped positions to original positions
+        var map = new List<int>(formD.Length + 1);
+        for (var i = 0; i < formD.Length; i++)
+        {
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(formD[i])
+                != System.Globalization.UnicodeCategory.NonSpacingMark)
+            {
+                map.Add(formDToOrig[i]);
+            }
+        }
+        map.Add(original.Length);
+
+        return map.ToArray();
     }
 }
