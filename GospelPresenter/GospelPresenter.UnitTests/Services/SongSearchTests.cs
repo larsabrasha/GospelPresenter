@@ -155,7 +155,7 @@ public class SongSearchTests
     }
 
     [Fact]
-    public void SearchByOrganization_PartialTermMatch_StillReturnsResults()
+    public void SearchByOrganization_NotAllTermsMatch_ReturnsEmpty()
     {
         // Arrange
         var service = CreateService(AllSongs);
@@ -164,12 +164,11 @@ public class SongSearchTests
         var result = service.SearchByOrganization("Majestät nonexistent", TestOrgId, TestCaller);
 
         // Assert
-        result.Count.ShouldBeGreaterThan(0);
-        result[0].Name.ShouldBe("Majestät");
+        result.Count.ShouldBe(0);
     }
 
     [Fact]
-    public void SearchByOrganization_AllTermsMatch_RankedHigherThanPartialMatch()
+    public void SearchByOrganization_AllTermsRequired_OnlyMatchesWhenAllPresent()
     {
         // Arrange
         var service = CreateService(AllSongs);
@@ -177,7 +176,8 @@ public class SongSearchTests
         // Act
         var result = service.SearchByOrganization("Gud saligt", TestOrgId, TestCaller);
 
-        // Assert
+        // Assert - only "Det är saligt" has both "Gud" and "saligt"
+        result.Count.ShouldBe(1);
         result[0].Name.ShouldBe("Det är saligt");
     }
 
@@ -233,5 +233,185 @@ public class SongSearchTests
         // Assert
         result.Count.ShouldBeGreaterThan(0);
         result[0].Name.ShouldBe("Majestät");
+    }
+
+    [Fact]
+    public void SearchByOrganization_WithoutDiacritics_FindsSongWithDiacritics()
+    {
+        // Arrange
+        var service = CreateService(AllSongs);
+
+        // Act
+        var result = service.SearchByOrganization("Majestat", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBeGreaterThan(0);
+        result[0].Name.ShouldBe("Majestät");
+    }
+
+    [Fact]
+    public void SearchByOrganization_WithoutDiacritics_FindsSwedishCharacters()
+    {
+        // Arrange
+        var service = CreateService(AllSongs);
+
+        // Act
+        var result = service.SearchByOrganization("Hogst av allt", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBeGreaterThan(0);
+        result[0].Name.ShouldBe("Högst av allt");
+    }
+
+    [Fact]
+    public void SearchByOrganization_ExactDiacritics_RankedHigherThanStrippedMatch()
+    {
+        // Arrange
+        var service = CreateService(AllSongs);
+
+        // Act
+        var exactResult = service.SearchByOrganization("Majestät", TestOrgId, TestCaller);
+        var strippedResult = service.SearchByOrganization("Majestat", TestOrgId, TestCaller);
+
+        // Assert - both find the song, but exact match should exist
+        exactResult.Count.ShouldBeGreaterThan(0);
+        strippedResult.Count.ShouldBeGreaterThan(0);
+        exactResult[0].Name.ShouldBe("Majestät");
+        strippedResult[0].Name.ShouldBe("Majestät");
+    }
+
+    [Fact]
+    public void SearchByOrganization_WithoutDiacriticsInLyrics_FindsSong()
+    {
+        // Arrange
+        var service = CreateService(AllSongs);
+
+        // Act - "kna" without accent should match "knä" in lyrics
+        var result = service.SearchByOrganization("kna", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBeGreaterThan(0);
+        result[0].Name.ShouldBe("Majestät");
+    }
+
+    [Fact]
+    public void SearchByOrganization_PhraseInTitle_RankedHigherThanScatteredTerms()
+    {
+        // Arrange - "Vi vill se Gud" has the phrase in title,
+        // "Majestät" has "vi vill" in later parts but not as a title phrase
+        var service = CreateService(AllSongs);
+
+        // Act
+        var result = service.SearchByOrganization("vi vill se", TestOrgId, TestCaller);
+
+        // Assert
+        result[0].Name.ShouldBe("Vi vill se Gud");
+    }
+
+    [Fact]
+    public void SearchByOrganization_PhraseInTitle_RankedHigherThanPhraseInLyrics()
+    {
+        // Arrange
+        var songWithTitlePhrase = MakeSong("Gud ske lov", null, "Första versen här");
+        var songWithLyricsPhrase = MakeSong("En annan sång", null, "Gud ske lov, Gud ske tack");
+        var service = CreateService([songWithTitlePhrase, songWithLyricsPhrase]);
+
+        // Act
+        var result = service.SearchByOrganization("Gud ske lov", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBe(2);
+        result[0].Name.ShouldBe("Gud ske lov");
+    }
+
+    [Fact]
+    public void SearchByOrganization_PhraseInFirstPart_RankedHigherThanPhraseInLaterPart()
+    {
+        // Arrange
+        var songFirstPart = MakeSong("Sång A", null, "Guds barn av nåd", "Annan text");
+        var songLaterPart = MakeSong("Sång B", null, "Första versen", "Guds barn av nåd");
+        var service = CreateService([songFirstPart, songLaterPart]);
+
+        // Act
+        var result = service.SearchByOrganization("Guds barn", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBe(2);
+        result[0].Name.ShouldBe("Sång A");
+    }
+
+    [Fact]
+    public void SearchByOrganization_TermInMiddleOfWord_DoesNotMatch()
+    {
+        // Arrange - "vighet" is in the middle of "evighet", not a word prefix
+        var song = MakeSong("Annan sång", null, "I all evighet sjunger vi");
+        var service = CreateService([song]);
+
+        // Act
+        var result = service.SearchByOrganization("vighet", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public void SearchByOrganization_TermAsWordPrefix_Matches()
+    {
+        // Arrange - "evi" doesn't match but "evig" matches "evighet"
+        var song = MakeSong("Evighet", null, "I all evighet");
+        var service = CreateService([song]);
+
+        // Act
+        var result = service.SearchByOrganization("Evig", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void SearchByOrganization_ExactTitle_RankedFirst()
+    {
+        // Arrange
+        var exact = MakeSong("Vi vill se Gud", null, "Första vers");
+        var longer = MakeSong("Vi vill se Gud i detta land", null, "Första vers");
+        var service = CreateService([longer, exact]);
+
+        // Act
+        var result = service.SearchByOrganization("Vi vill se Gud", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBe(2);
+        result[0].Name.ShouldBe("Vi vill se Gud");
+    }
+
+    [Fact]
+    public void SearchByOrganization_ExactTitleWithoutDiacritics_RankedFirst()
+    {
+        // Arrange
+        var exact = MakeSong("Högst av allt", null, "Första vers");
+        var longer = MakeSong("Högst av allt i himlen", null, "Första vers");
+        var service = CreateService([longer, exact]);
+
+        // Act
+        var result = service.SearchByOrganization("hogst av allt", TestOrgId, TestCaller);
+
+        // Assert
+        result.Count.ShouldBe(2);
+        result[0].Name.ShouldBe("Högst av allt");
+    }
+
+    [Fact]
+    public void SearchByOrganization_PhraseWithoutDiacritics_StillGetsPhraseBonus()
+    {
+        // Arrange
+        var songTitle = MakeSong("Högst av allt", null, "Första vers");
+        var songScattered = MakeSong("Allt annat", null, "Högst i skyn och av alla");
+        var service = CreateService([songTitle, songScattered]);
+
+        // Act
+        var result = service.SearchByOrganization("hogst av allt", TestOrgId, TestCaller);
+
+        // Assert
+        result[0].Name.ShouldBe("Högst av allt");
     }
 }

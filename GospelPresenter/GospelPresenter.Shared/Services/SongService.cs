@@ -2,6 +2,7 @@ using System.Text.Json;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.State;
+using GospelPresenter.Shared.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Shared.Services;
@@ -600,13 +601,17 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         if (!cacheByOrg.TryGetValue(organizationId, out var cache))
             return [];
 
-        var terms = query.Normalize().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var normalized = query.Normalize().ToLowerInvariant();
+        var terms = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var strippedTerms = terms.Select(TextUtils.RemoveDiacritics).ToArray();
+        var phrase = string.Join(" ", terms);
+        var strippedPhrase = string.Join(" ", strippedTerms);
 
         var scored = new List<(Song Song, double Score)>();
 
         foreach (var entry in cache.SearchIndex)
         {
-            var score = ScoreMatch(entry, terms);
+            var score = ScoreMatch(entry, terms, strippedTerms, phrase, strippedPhrase);
             if (score > 0)
                 scored.Add((entry.Song, score));
         }
@@ -617,39 +622,80 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             .ToList();
     }
 
-    private static double ScoreMatch(SongSearchEntry entry, string[] terms)
+    private static double ScoreMatch(SongSearchEntry entry, string[] terms, string[] strippedTerms,
+        string phrase, string strippedPhrase)
     {
         double score = 0;
         int matchedTerms = 0;
 
-        foreach (var term in terms)
+        for (int i = 0; i < terms.Length; i++)
         {
-            if (entry.Name.Contains(term, StringComparison.Ordinal))
+            var term = terms[i];
+            var stripped = strippedTerms[i];
+            double termScore = 0;
+
+            // Match word prefixes: "vi" matches "vi vill" but not "evighet"
+            if (TextUtils.ContainsWordPrefix(entry.Name, term))
             {
-                score += 10;
-                matchedTerms++;
+                termScore = 10;
                 if (entry.Name.StartsWith(term, StringComparison.Ordinal))
-                    score += 5;
+                    termScore += 5;
             }
-            else if (entry.FirstPart.Contains(term, StringComparison.Ordinal))
+            else if (TextUtils.ContainsWordPrefix(entry.NameStripped, stripped))
             {
-                score += 3;
-                matchedTerms++;
+                termScore = 8;
+                if (entry.NameStripped.StartsWith(stripped, StringComparison.Ordinal))
+                    termScore += 5;
             }
-            else if (entry.AllText.Contains(term, StringComparison.Ordinal))
+
+            if (termScore == 0)
             {
-                score += 1;
+                if (TextUtils.ContainsWordPrefix(entry.FirstPart, term))
+                    termScore = 3;
+                else if (TextUtils.ContainsWordPrefix(entry.FirstPartStripped, stripped))
+                    termScore = 2.5;
+            }
+
+            if (termScore == 0)
+            {
+                if (TextUtils.ContainsWordPrefix(entry.AllText, term))
+                    termScore = 1;
+                else if (TextUtils.ContainsWordPrefix(entry.AllTextStripped, stripped))
+                    termScore = 0.5;
+            }
+
+            if (termScore > 0)
+            {
+                score += termScore;
                 matchedTerms++;
             }
         }
 
-        if (matchedTerms == 0)
+        if (matchedTerms < terms.Length)
             return 0;
 
-        if (matchedTerms == terms.Length)
-            score += 20;
+        // Exact title match bonus
+        if (entry.Name == phrase)
+            score += 100;
+        else if (entry.NameStripped == strippedPhrase)
+            score += 90;
 
-        score *= (double)matchedTerms / terms.Length;
+        // Phrase bonus: consecutive terms appearing together rank higher
+        if (terms.Length > 1)
+        {
+            if (TextUtils.ContainsWordPrefix(entry.Name, phrase))
+                score += 50;
+            else if (TextUtils.ContainsWordPrefix(entry.NameStripped, strippedPhrase))
+                score += 45;
+            else if (TextUtils.ContainsWordPrefix(entry.FirstPart, phrase))
+                score += 25;
+            else if (TextUtils.ContainsWordPrefix(entry.FirstPartStripped, strippedPhrase))
+                score += 22;
+            else if (TextUtils.ContainsWordPrefix(entry.AllText, phrase))
+                score += 10;
+            else if (TextUtils.ContainsWordPrefix(entry.AllTextStripped, strippedPhrase))
+                score += 8;
+        }
 
         return score;
     }
@@ -692,7 +738,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         return new Song(dbSong.Id, dbSong.Name, dbSong.Author, dbSong.Publisher, dbSong.Year, dbSong.Ccli, parts, dbSong.OrganizationId);
     }
 
-    private record SongSearchEntry(Song Song, string Name, string FirstPart, string AllText);
+    private record SongSearchEntry(
+        Song Song,
+        string Name, string NameStripped,
+        string FirstPart, string FirstPartStripped,
+        string AllText, string AllTextStripped);
 
     private class OrgSongCache
     {
@@ -706,12 +756,17 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
                 .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList();
 
-            SearchIndex = SongsSorted.Select(song => new SongSearchEntry(
-                song,
-                song.Name.Normalize().ToLowerInvariant(),
-                song.Parts.Count > 0 ? song.Parts[0].Content.Normalize().ToLowerInvariant() : "",
-                string.Concat(song.Name, " ", song.Author, " ", string.Join(" ", song.Parts.Select(p => p.Content))).Normalize().ToLowerInvariant()
-            )).ToList();
+            SearchIndex = SongsSorted.Select(song =>
+            {
+                var name = song.Name.Normalize().ToLowerInvariant();
+                var firstPart = song.Parts.Count > 0 ? song.Parts[0].Content.Normalize().ToLowerInvariant() : "";
+                var allText = string.Concat(song.Name, " ", song.Author, " ", string.Join(" ", song.Parts.Select(p => p.Content))).Normalize().ToLowerInvariant();
+                return new SongSearchEntry(
+                    song,
+                    name, TextUtils.RemoveDiacritics(name),
+                    firstPart, TextUtils.RemoveDiacritics(firstPart),
+                    allText, TextUtils.RemoveDiacritics(allText));
+            }).ToList();
         }
     }
 }

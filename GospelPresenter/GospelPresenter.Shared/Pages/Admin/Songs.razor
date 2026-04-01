@@ -1,7 +1,5 @@
 @page "/admin/songs"
 @attribute [Authorize(Roles = "Admin,SuperAdmin")]
-@implements IDisposable
-
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Services
@@ -189,7 +187,6 @@
     private string searchQuery = "";
     private string[] searchTerms = [];
     private List<Song> displayedSongs = [];
-    private readonly Debouncer searchDebounce = new(150);
 
 
     private IReadOnlyList<Song> OrgSongs => organizationId is not null
@@ -201,8 +198,6 @@
         organizationId = OrgState.ActiveOrganizationId;
         displayedSongs = OrgSongs.ToList();
     }
-
-    public void Dispose() => searchDebounce.Dispose();
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
     {
@@ -353,14 +348,9 @@
         searchTerms = string.IsNullOrWhiteSpace(searchQuery)
             ? []
             : searchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        searchDebounce.Run(() =>
-        {
-            displayedSongs = string.IsNullOrWhiteSpace(searchQuery)
-                ? OrgSongs.ToList()
-                : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
-            return Task.CompletedTask;
-        });
+        displayedSongs = string.IsNullOrWhiteSpace(searchQuery)
+            ? OrgSongs.ToList()
+            : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
     }
 
     private void ClearSearch()
