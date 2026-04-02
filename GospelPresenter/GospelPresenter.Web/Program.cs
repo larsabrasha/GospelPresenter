@@ -90,6 +90,7 @@ try
                 options.GetClaimsFromUserInfoEndpoint = true;
                 options.CallbackPath = "/signin-oidc";
                 options.SignedOutCallbackPath = "/signout-callback-oidc";
+                options.SignedOutRedirectUri = "/";
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("email");
@@ -130,6 +131,13 @@ try
                 options.ClaimActions.MapJsonKey(System.Security.Claims.ClaimTypes.Name, "name");
                 options.ClaimActions.MapJsonKey(System.Security.Claims.ClaimTypes.Email, "email");
                 options.ClaimActions.MapJsonKey("picture", "picture");
+
+                options.Events.OnRedirectToAuthorizationEndpoint = context =>
+                {
+                    var uri = context.RedirectUri + (context.RedirectUri.Contains('?') ? "&" : "?") + "prompt=select_account";
+                    context.Response.Redirect(uri);
+                    return Task.CompletedTask;
+                };
 
                 options.Events.OnTicketReceived = async context =>
                 {
@@ -391,8 +399,17 @@ builder.Services.AddMetricServer(options =>
 
     app.MapPost("/signout", async (HttpContext context) =>
     {
+        var provider = context.User.FindFirstValue("login_provider") ?? "";
+
         await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        context.Response.Redirect("/");
+        if (provider == "oidc")
+        {
+            await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
+        }
+        else
+        {
+            context.Response.Redirect("/");
+        }
     }).RequireAuthorization();
 
     app.MapPost("/culture", async (HttpContext context, [FromForm] string culture, [FromForm] string returnUrl, IUserService userService) =>
@@ -679,6 +696,7 @@ static async Task HandleAuthenticatedUser(
     if (user.OrganizationId is not null)
         identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
     identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
+    identity?.AddClaim(new Claim("login_provider", loginProvider));
     identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
 }
 
