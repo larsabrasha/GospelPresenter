@@ -23,7 +23,7 @@ tmux send-keys -t "$SESSION" \
 # Pane 2: Tailwind CSS watcher
 tmux split-window -h -t "$SESSION" -c "$SHARED_DIR"
 tmux send-keys -t "$SESSION" \
-  "./tailwindcss-4.1.13 -i tailwind-input.css -o wwwroot/tailwind-output.css -w" Enter
+  "./tailwind-watch.sh" Enter
 
 # Pane 3: Hot reload helper (fswatch)
 tmux split-window -v -t "$SESSION" -c "$SHARED_DIR"
