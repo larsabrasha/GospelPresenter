@@ -6,6 +6,13 @@
         <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
 
+    <PropertyGroup Label="Tailwind Properties">
+        <TailwindVersion>v4.2.2</TailwindVersion>
+        <TailwindConfigDir>$(MSBuildProjectDirectory)</TailwindConfigDir>
+        <TailwindInputFile>$(MSBuildProjectDirectory)\tailwind-input.css</TailwindInputFile>
+        <TailwindOutputFile>$(MSBuildProjectDirectory)\wwwroot\tailwind-output.css</TailwindOutputFile>
+    </PropertyGroup>
+
     <PropertyGroup>
 <!-- Attempt to fix publish error on TeamCity (https://github.com/dotnet/aspnetcore/issues/59291) -->
         <CompressionEnabled>false</CompressionEnabled>
@@ -30,6 +37,10 @@
         <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
         <PackageReference Include="SkiaSharp" Version="3.119.2" />
         <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
+        <PackageReference Include="Tailwind.MSBuild" Version="2.0.2">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
@@ -41,17 +52,5 @@
             <PublishFolderType>Content</PublishFolderType>
         </Content>
     </ItemGroup>
-
-    <ItemGroup>
-      <UpToDateCheckInput Remove="Components\Map\Map.razor" />
-      <UpToDateCheckInput Remove="Components\Map\MapFeatureSelector.razor" />
-      <UpToDateCheckInput Remove="Components\Login\Login.razor" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="HttpClients\" />
-    </ItemGroup>
-
-    <Import Project="TailwindCssCli.targets" />
 
 </Project>

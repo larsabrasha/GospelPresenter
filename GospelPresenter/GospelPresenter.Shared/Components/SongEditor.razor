@@ -144,14 +144,17 @@
     private void HandleLabelChanged(SongPartsEditor.PartLabelChange change)
     {
         if (song is null || change.Index < 0 || change.Index >= song.Parts.Count) return;
+        var label = string.IsNullOrWhiteSpace(change.Label) ? null : change.Label;
+        song.Parts[change.Index] = song.Parts[change.Index] with { Label = label };
         var pending = GetPendingPart(change.Index);
-        pending.Label = string.IsNullOrWhiteSpace(change.Label) ? null : change.Label;
+        pending.Label = label;
         partDebounce.Run(SavePendingParts);
     }
 
     private void HandleContentChanged(SongPartsEditor.PartContentChange change)
     {
         if (song is null || change.Index < 0 || change.Index >= song.Parts.Count) return;
+        song.Parts[change.Index] = song.Parts[change.Index] with { Content = change.Content };
         var pending = GetPendingPart(change.Index);
         pending.Content = change.Content;
         partDebounce.Run(SavePendingParts);

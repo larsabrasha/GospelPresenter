@@ -96,10 +96,7 @@
         @Body
         <div class="flex items-center absolute bottom-0 left-0 right-0 justify-between p-3 z-10 pointer-events-none lg:hidden">
             <div class="pointer-events-auto">
-                <button class="cursor-pointer p-4 bg-white dark:bg-neutral-800 rounded-full shadow-2xl"
-                        @onclick="() => menuVisible = true">
-                    <Bars3Symbol Class="size-8"/>
-                </button>
+                <MenuToggleButton OnClick="() => menuVisible = true"/>
             </div>
         </div>
     </main>
