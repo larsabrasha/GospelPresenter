@@ -1037,4 +1037,7 @@
   <data name="Presentation.EditSong" xml:space="preserve">
     <value>Redigera sång</value>
   </data>
+  <data name="Common.Menu" xml:space="preserve">
+    <value>Meny</value>
+  </data>
 </root>

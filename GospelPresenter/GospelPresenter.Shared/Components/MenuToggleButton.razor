@@ -1,0 +1,11 @@
+@using GospelPresenter.Shared.Components.Symbols
+
+<button class="cursor-pointer p-4 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-2xl"
+        @onclick="OnClick"
+        title="@L["Common.Menu"]">
+    <Bars3Symbol Class="size-8"/>
+</button>
+
+@code {
+    [Parameter, EditorRequired] public EventCallback OnClick { get; set; }
+}
