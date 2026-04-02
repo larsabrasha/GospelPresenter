@@ -1034,4 +1034,7 @@
   <data name="SlideSettings.SaveError" xml:space="preserve">
     <value>Kunde inte spara inställningen</value>
   </data>
+  <data name="Presentation.EditSong" xml:space="preserve">
+    <value>Redigera sång</value>
+  </data>
 </root>
