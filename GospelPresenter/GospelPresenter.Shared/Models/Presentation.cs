@@ -14,6 +14,13 @@ public class Presentation
     public DateTimeOffset? LastUsedAt { get; set; }
     public int UseCount { get; set; }
 
+    public int? ScheduledDayOfWeek { get; set; }
+    public TimeOnly? ScheduledTime { get; set; }
+
+    public DateOnly? EventDate { get; set; }
+    public TimeOnly? EventTime { get; set; }
+    public string? EventLocation { get; set; }
+
     public string OrganizationId { get; set; } = string.Empty;
     public Organization Organization { get; set; } = null!;
 

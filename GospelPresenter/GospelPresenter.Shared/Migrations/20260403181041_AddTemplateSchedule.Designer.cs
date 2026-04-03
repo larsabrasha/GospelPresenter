@@ -3,6 +3,7 @@ using System;
 using GospelPresenter.Shared.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GospelPresenter.Shared.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20260403181041_AddTemplateSchedule")]
+    partial class AddTemplateSchedule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -320,15 +323,6 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("text");
-
-                    b.Property<DateOnly?>("EventDate")
-                        .HasColumnType("date");
-
-                    b.Property<string>("EventLocation")
-                        .HasColumnType("text");
-
-                    b.Property<TimeOnly?>("EventTime")
-                        .HasColumnType("time without time zone");
 
                     b.Property<bool>("IsTemplate")
                         .HasColumnType("boolean");

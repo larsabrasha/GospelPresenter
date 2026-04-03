@@ -33,13 +33,26 @@
                         </button>
                     </Trigger>
                     <Menu>
-                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
-                                @onclick="ShowRenameDialog">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
-                            </svg>
-                            @L["Sidebar.Rename"]
-                        </button>
+                        @if (IsTemplateMode)
+                        {
+                            <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                    @onclick="ShowTemplateDetailsDialog">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
+                                </svg>
+                                @L["Sidebar.EditDetails"]
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                    @onclick="ShowPresentationDetailsDialog">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
+                                </svg>
+                                @L["Sidebar.EditDetails"]
+                            </button>
+                        }
                         @if (!IsTemplateMode && OnSaveAsTemplate.HasDelegate)
                         {
                             <AuthorizeView Roles="Admin,SuperAdmin" Context="saveTemplateAuth">
@@ -63,6 +76,23 @@
                     </Menu>
                 </Dropdown>
             </div>
+            @{
+                var scheduleLine = IsTemplateMode ? GetTemplateScheduleLine() : GetEventDateTimeLine();
+                var location = AppState.SelectedProject.EventLocation;
+            }
+            @if (scheduleLine is not null || !string.IsNullOrWhiteSpace(location))
+            {
+                <div class="px-1 -mt-1">
+                    @if (scheduleLine is not null)
+                    {
+                        <div class="text-sm text-neutral-500 dark:text-neutral-400">@scheduleLine</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(location))
+                    {
+                        <div class="text-xs text-neutral-400 dark:text-neutral-500">@location</div>
+                    }
+                </div>
+            }
             @if (isEditMode || AppState.SelectedProject.Items.Count > 1)
             {
                 <div class="flex items-center justify-between">
@@ -245,12 +275,26 @@
     }
 </div>
 
-@if (showRenameDialog)
+@if (showPresentationDetailsDialog)
 {
-    <NameDialog Title="@L["Sidebar.Rename"]"
-                Name="@(AppState.SelectedProject?.Name ?? "")"
-                OnSave="SaveNameAsync"
-                OnClose="CancelRename"/>
+    <PresentationDetailsDialog Title="@L["Sidebar.EditDetails"]"
+                               Name="@(AppState.SelectedProject?.Name ?? "")"
+                               Date="@(AppState.SelectedProject?.EventDate)"
+                               Time="@(AppState.SelectedProject?.EventTime)"
+                               Location="@(AppState.SelectedProject?.EventLocation)"
+                               OnSave="SavePresentationDetailsAsync"
+                               OnClose="() => showPresentationDetailsDialog = false"/>
+}
+
+@if (showTemplateDetailsDialog)
+{
+    <TemplateDetailsDialog Title="@L["Sidebar.EditDetails"]"
+                           Name="@(AppState.SelectedProject?.Name ?? "")"
+                           DayOfWeek="@(AppState.SelectedProject?.ScheduledDayOfWeek)"
+                           Time="@(AppState.SelectedProject?.ScheduledTime)"
+                           Location="@(AppState.SelectedProject?.EventLocation)"
+                           OnSave="SaveTemplateDetailsAsync"
+                           OnClose="() => showTemplateDetailsDialog = false"/>
 }
 
 @code {
@@ -262,8 +306,11 @@
     [Parameter] public EventCallback OnDeleteRequested { get; set; }
     [Parameter] public bool IsTemplateMode { get; set; }
     [Parameter] public EventCallback OnSaveAsTemplate { get; set; }
+    [Parameter] public EventCallback<(int? DayOfWeek, TimeOnly? Time, string? Location)> OnScheduleChanged { get; set; }
+    [Parameter] public EventCallback<(DateOnly? Date, TimeOnly? Time, string? Location)> OnEventChanged { get; set; }
 
-    private bool showRenameDialog;
+    private bool showPresentationDetailsDialog;
+    private bool showTemplateDetailsDialog;
     private DotNetObjectReference<Sidebar>? dotNetRef;
     private bool sortableInitialized;
     private bool isEditMode;
@@ -359,27 +406,72 @@
         await OnAddRequested.InvokeAsync();
     }
 
-    private void ShowRenameDialog()
+    private void ShowPresentationDetailsDialog() => showPresentationDetailsDialog = true;
+    private void ShowTemplateDetailsDialog() => showTemplateDetailsDialog = true;
+
+    private async Task SaveTemplateDetailsAsync((string Name, int? DayOfWeek, TimeOnly? Time, string? Location) details)
     {
-        showRenameDialog = true;
+        showTemplateDetailsDialog = false;
+        if (AppState.SelectedProject is null) return;
+
+        var nameChanged = details.Name != AppState.SelectedProject.Name;
+        AppState.SelectedProject.Name = details.Name;
+        AppState.SelectedProject.ScheduledDayOfWeek = details.DayOfWeek;
+        AppState.SelectedProject.ScheduledTime = details.Time;
+        AppState.SelectedProject.EventLocation = details.Location;
+
+        if (nameChanged)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, details.Name, OrgState.ToCallerContext());
+        }
+
+        await OnScheduleChanged.InvokeAsync((details.DayOfWeek, details.Time, details.Location));
     }
 
-    private void CancelRename()
+    private string? GetTemplateScheduleLine()
     {
-        showRenameDialog = false;
+        if (AppState.SelectedProject is null) return null;
+
+        var parts = new List<string>();
+        if (AppState.SelectedProject.ScheduledDayOfWeek is { } day)
+            parts.Add(L[$"Weekday.{day}"]);
+        if (AppState.SelectedProject.ScheduledTime is { } time)
+            parts.Add(time.ToString("HH:mm"));
+
+        return parts.Count > 0 ? string.Join(" ", parts) : null;
     }
 
-    private async Task SaveNameAsync(string newName)
+    private string? GetEventDateTimeLine()
     {
-        showRenameDialog = false;
+        if (AppState.SelectedProject is null) return null;
 
-        if (AppState.SelectedProject is null || newName == AppState.SelectedProject.Name)
-            return;
+        var parts = new List<string>();
+        if (AppState.SelectedProject.EventDate is { } date)
+            parts.Add(date.ToString("d"));
+        if (AppState.SelectedProject.EventTime is { } time)
+            parts.Add(time.ToString("t"));
 
-        AppState.SelectedProject.Name = newName;
+        return parts.Count > 0 ? string.Join(" ", parts) : null;
+    }
+
+    private async Task SavePresentationDetailsAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location) details)
+    {
+        showPresentationDetailsDialog = false;
+        if (AppState.SelectedProject is null) return;
+
+        var nameChanged = details.Name != AppState.SelectedProject.Name;
+        AppState.SelectedProject.Name = details.Name;
+        AppState.SelectedProject.EventDate = details.Date;
+        AppState.SelectedProject.EventTime = details.Time;
+        AppState.SelectedProject.EventLocation = details.Location;
+
         var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is not null)
-            await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, newName, OrgState.ToCallerContext());
+        if (orgId is not null && nameChanged)
+            await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, details.Name, OrgState.ToCallerContext());
+
+        await OnEventChanged.InvokeAsync((details.Date, details.Time, details.Location));
     }
 
     private async Task RequestRemoveItem(ProjectItem item)

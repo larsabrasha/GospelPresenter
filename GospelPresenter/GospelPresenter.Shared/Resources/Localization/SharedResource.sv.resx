@@ -105,13 +105,13 @@
     <value>Min profil</value>
   </data>
   <data name="Nav.Dashboard" xml:space="preserve">
-    <value>Dashboard</value>
+    <value>Hem</value>
   </data>
   <data name="Nav.Media" xml:space="preserve">
     <value>Innehåll</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
-    <value>Administration</value>
+    <value>Inställningar</value>
   </data>
   <data name="Nav.Logout" xml:space="preserve">
     <value>Logga ut</value>
@@ -1039,5 +1039,53 @@
   </data>
   <data name="Common.Menu" xml:space="preserve">
     <value>Meny</value>
+  </data>
+  <data name="Sidebar.ChangeSchedule" xml:space="preserve">
+    <value>Ändra dag och tid</value>
+  </data>
+  <data name="Sidebar.EditDetails" xml:space="preserve">
+    <value>Redigera detaljer</value>
+  </data>
+  <data name="Schedule.Day" xml:space="preserve">
+    <value>Dag</value>
+  </data>
+  <data name="Schedule.Time" xml:space="preserve">
+    <value>Tid</value>
+  </data>
+  <data name="Schedule.NoDay" xml:space="preserve">
+    <value>Ingen dag vald</value>
+  </data>
+  <data name="Sidebar.ChangeEvent" xml:space="preserve">
+    <value>Ändra datum, tid och plats</value>
+  </data>
+  <data name="Event.Date" xml:space="preserve">
+    <value>Datum</value>
+  </data>
+  <data name="Event.Time" xml:space="preserve">
+    <value>Tid</value>
+  </data>
+  <data name="Event.Location" xml:space="preserve">
+    <value>Plats</value>
+  </data>
+  <data name="Weekday.0" xml:space="preserve">
+    <value>Söndag</value>
+  </data>
+  <data name="Weekday.1" xml:space="preserve">
+    <value>Måndag</value>
+  </data>
+  <data name="Weekday.2" xml:space="preserve">
+    <value>Tisdag</value>
+  </data>
+  <data name="Weekday.3" xml:space="preserve">
+    <value>Onsdag</value>
+  </data>
+  <data name="Weekday.4" xml:space="preserve">
+    <value>Torsdag</value>
+  </data>
+  <data name="Weekday.5" xml:space="preserve">
+    <value>Fredag</value>
+  </data>
+  <data name="Weekday.6" xml:space="preserve">
+    <value>Lördag</value>
   </data>
 </root>

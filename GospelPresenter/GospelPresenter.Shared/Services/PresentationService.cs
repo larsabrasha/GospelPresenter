@@ -9,7 +9,7 @@ public interface IPresentationService
     Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation?> GetTemplateByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
-    Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default);
     Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default);
     Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default);
     Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default);
@@ -24,8 +24,10 @@ public interface IPresentationService
     Task<IList<PresentationSummary>> GetRecentTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<IList<PresentationSummary>> GetAllTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation> SaveAsTemplateAsync(string presentationId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
-    Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
-    Task<Presentation> CreateTemplateAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default);
+    Task<Presentation> CreateTemplateAsync(string name, string organizationId, string userId, CallerContext caller, int? scheduledDayOfWeek = null, TimeOnly? scheduledTime = null, string? location = null, CancellationToken cancellationToken = default);
+    Task UpdateTemplateScheduleAsync(string organizationId, string templateId, int? dayOfWeek, TimeOnly? time, string? location, CallerContext caller, CancellationToken cancellationToken = default);
+    Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, CallerContext caller, CancellationToken cancellationToken = default);
     Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
     Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
@@ -79,7 +81,7 @@ public class PresentationService(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
+    public async Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default)
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
@@ -98,6 +100,9 @@ public class PresentationService(
             Id = Guid.NewGuid().ToString(),
             Name = name,
             OrganizationId = organizationId,
+            EventDate = eventDate,
+            EventTime = eventTime,
+            EventLocation = eventLocation,
             CreatedAt = now,
             CreatedBy = userId,
             UpdatedAt = now,
@@ -305,7 +310,7 @@ public class PresentationService(
             .OrderByDescending(x => x.LastUsedAt)
             .ThenByDescending(x => x.UpdatedAt)
             .Take(10)
-            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt))
+            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt, x.ScheduledDayOfWeek, x.ScheduledTime, x.EventLocation))
             .ToListAsync(cancellationToken);
     }
 
@@ -322,7 +327,7 @@ public class PresentationService(
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<Presentation> CreateTemplateAsync(string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
+    public async Task<Presentation> CreateTemplateAsync(string name, string organizationId, string userId, CallerContext caller, int? scheduledDayOfWeek = null, TimeOnly? scheduledTime = null, string? location = null, CancellationToken cancellationToken = default)
     {
         caller.RequirePermission(Permission.ManageTemplates);
         caller.RequireOrganizationAccess(organizationId);
@@ -335,6 +340,9 @@ public class PresentationService(
             Name = name,
             IsTemplate = true,
             OrganizationId = organizationId,
+            ScheduledDayOfWeek = scheduledDayOfWeek,
+            ScheduledTime = scheduledTime,
+            EventLocation = location,
             CreatedAt = now,
             CreatedBy = userId,
             UpdatedAt = now,
@@ -408,7 +416,7 @@ public class PresentationService(
         return template;
     }
 
-    public async Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default)
+    public async Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default)
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequirePermission(Permission.ViewTemplates);
@@ -430,6 +438,9 @@ public class PresentationService(
             Id = Guid.NewGuid().ToString(),
             Name = name,
             OrganizationId = organizationId,
+            EventDate = eventDate,
+            EventTime = eventTime,
+            EventLocation = eventLocation,
             CreatedAt = now,
             CreatedBy = userId,
             UpdatedAt = now,
@@ -470,6 +481,36 @@ public class PresentationService(
         await transaction.CommitAsync(cancellationToken);
 
         return presentation;
+    }
+
+    public async Task UpdateTemplateScheduleAsync(string organizationId, string templateId, int? dayOfWeek, TimeOnly? time, string? location, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        await context.Presentations
+            .Where(x => x.Id == templateId && x.OrganizationId == organizationId && x.IsTemplate)
+            .ExecuteUpdateAsync(x => x
+                .SetProperty(p => p.ScheduledDayOfWeek, dayOfWeek)
+                .SetProperty(p => p.ScheduledTime, time)
+                .SetProperty(p => p.EventLocation, location)
+                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+    }
+
+    public async Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManagePresentations);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        await context.Presentations
+            .Where(x => x.Id == presentationId && x.OrganizationId == organizationId && !x.IsTemplate)
+            .ExecuteUpdateAsync(x => x
+                .SetProperty(p => p.EventDate, date)
+                .SetProperty(p => p.EventTime, time)
+                .SetProperty(p => p.EventLocation, location)
+                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 
     public async Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)

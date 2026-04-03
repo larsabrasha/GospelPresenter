@@ -79,21 +79,20 @@
     </div>
 </PageContainer>
 
-@if (showNameDialog)
+@if (showCreateDialog)
 {
-    <NameDialog Title="@L["Templates.Create"]"
-                Name="@newTemplateName"
-                SaveText="@L["Common.Create"]"
-                SaveLoadingText="@L["Common.Creating"]"
-                OnSave="HandleCreateTemplate"
-                OnClose="() => showNameDialog = false"/>
+    <TemplateDetailsDialog Title="@L["Templates.Create"]"
+                           Name=""
+                           SaveText="@L["Common.Create"]"
+                           SaveLoadingText="@L["Common.Creating"]"
+                           OnSave="HandleCreateTemplate"
+                           OnClose="() => showCreateDialog = false"/>
 }
 
 @code {
     private IList<PresentationSummary>? templates;
     private bool creating;
-    private bool showNameDialog;
-    private string newTemplateName = "";
+    private bool showCreateDialog;
 
     protected override async Task OnInitializedAsync()
     {
@@ -105,11 +104,10 @@
 
     private void CreateTemplate()
     {
-        newTemplateName = "";
-        showNameDialog = true;
+        showCreateDialog = true;
     }
 
-    private async Task HandleCreateTemplate(string name)
+    private async Task HandleCreateTemplate((string Name, int? DayOfWeek, TimeOnly? Time, string? Location) details)
     {
         var orgId = OrgState.ActiveOrganizationId;
         var userId = OrgState.UserId;
@@ -118,13 +116,14 @@
         creating = true;
         try
         {
-            var template = await PresentationService.CreateTemplateAsync(name, orgId, userId, OrgState.ToCallerContext());
+            var template = await PresentationService.CreateTemplateAsync(
+                details.Name, orgId, userId, OrgState.ToCallerContext(), details.DayOfWeek, details.Time, details.Location);
             NavigationManager.NavigateTo($"/templates/{template.Id}");
         }
         finally
         {
             creating = false;
-            showNameDialog = false;
+            showCreateDialog = false;
         }
     }
 }

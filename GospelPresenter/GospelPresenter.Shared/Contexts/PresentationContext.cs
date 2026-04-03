@@ -64,6 +64,22 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
                 v => v.HasValue ? v.Value.ToUnixTimeMilliseconds() : null,
                 v => v.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(v.Value) : null);
 
+            var timeOnlyConverter = new ValueConverter<TimeOnly, long>(
+                v => v.Ticks,
+                v => new TimeOnly(v));
+
+            var nullableTimeOnlyConverter = new ValueConverter<TimeOnly?, long?>(
+                v => v.HasValue ? v.Value.Ticks : null,
+                v => v.HasValue ? new TimeOnly(v.Value) : null);
+
+            var dateOnlyConverter = new ValueConverter<DateOnly, long>(
+                v => v.DayNumber,
+                v => DateOnly.FromDayNumber((int)v));
+
+            var nullableDateOnlyConverter = new ValueConverter<DateOnly?, long?>(
+                v => v.HasValue ? v.Value.DayNumber : null,
+                v => v.HasValue ? DateOnly.FromDayNumber((int)v.Value) : null);
+
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 foreach (var property in entityType.GetProperties())
@@ -72,6 +88,14 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
                         property.SetValueConverter(dateTimeOffsetConverter);
                     else if (property.ClrType == typeof(DateTimeOffset?))
                         property.SetValueConverter(nullableDateTimeOffsetConverter);
+                    else if (property.ClrType == typeof(TimeOnly))
+                        property.SetValueConverter(timeOnlyConverter);
+                    else if (property.ClrType == typeof(TimeOnly?))
+                        property.SetValueConverter(nullableTimeOnlyConverter);
+                    else if (property.ClrType == typeof(DateOnly))
+                        property.SetValueConverter(dateOnlyConverter);
+                    else if (property.ClrType == typeof(DateOnly?))
+                        property.SetValueConverter(nullableDateOnlyConverter);
                 }
             }
         }
