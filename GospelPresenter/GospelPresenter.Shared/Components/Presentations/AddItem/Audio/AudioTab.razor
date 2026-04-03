@@ -118,7 +118,7 @@ else
     [Parameter] public EventCallback<List<OrganizationAudio>> OnAddKeepOpen { get; set; }
     [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
 
-    private const long MaxFileSize = 50 * 1024 * 1024; // 50 MB
+    private const long MaxFileSize = DataLimits.MaxAudioFileSizeBytes;
     private static readonly HashSet<string> AllowedAudioTypes = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/webm", "audio/x-m4a"];
 
     private string? organizationId;

@@ -25,13 +25,89 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<UserSetting>()
-            .HasIndex(us => new { us.UserId, us.Key })
-            .IsUnique();
+        modelBuilder.Entity<User>(e =>
+        {
+            e.Property(u => u.Name).HasMaxLength(DataLimits.NameMaxLength);
+            e.Property(u => u.Email).HasMaxLength(DataLimits.EmailMaxLength);
+        });
 
-        modelBuilder.Entity<OrganizationSetting>()
-            .HasIndex(os => new { os.OrganizationId, os.Key })
-            .IsUnique();
+        modelBuilder.Entity<Organization>(e =>
+        {
+            e.Property(o => o.Name).HasMaxLength(DataLimits.NameMaxLength);
+        });
+
+        modelBuilder.Entity<Presentation>(e =>
+        {
+            e.Property(p => p.Name).HasMaxLength(DataLimits.NameMaxLength);
+            e.Property(p => p.Description).HasMaxLength(DataLimits.DescriptionMaxLength);
+            e.Property(p => p.EventLocation).HasMaxLength(DataLimits.LocationMaxLength);
+        });
+
+        modelBuilder.Entity<PresentationItem>(e =>
+        {
+            e.Property(i => i.Title).HasMaxLength(DataLimits.NameMaxLength);
+        });
+
+        modelBuilder.Entity<PresentationItemPart>(e =>
+        {
+            e.Property(p => p.Content).HasMaxLength(DataLimits.PresentationItemPartContentMaxLength);
+        });
+
+        modelBuilder.Entity<DbSong>(e =>
+        {
+            e.Property(s => s.Name).HasMaxLength(DataLimits.NameMaxLength);
+            e.Property(s => s.Author).HasMaxLength(DataLimits.SongAuthorMaxLength);
+            e.Property(s => s.Publisher).HasMaxLength(DataLimits.SongPublisherMaxLength);
+            e.Property(s => s.Ccli).HasMaxLength(DataLimits.SongCcliMaxLength);
+        });
+
+        modelBuilder.Entity<DbSongPart>(e =>
+        {
+            e.Property(p => p.Label).HasMaxLength(DataLimits.SongPartLabelMaxLength);
+            e.Property(p => p.Content).HasMaxLength(DataLimits.SongPartContentMaxLength);
+        });
+
+        modelBuilder.Entity<DbSongVersion>(e =>
+        {
+            e.Property(v => v.Name).HasMaxLength(DataLimits.NameMaxLength);
+            e.Property(v => v.Author).HasMaxLength(DataLimits.SongAuthorMaxLength);
+            e.Property(v => v.PartsJson).HasMaxLength(DataLimits.SongVersionPartsJsonMaxLength);
+        });
+
+        modelBuilder.Entity<OverlaySlide>(e =>
+        {
+            e.Property(o => o.Title).HasMaxLength(DataLimits.OverlayTitleMaxLength);
+            e.Property(o => o.Content).HasMaxLength(DataLimits.OverlayContentMaxLength);
+        });
+
+        modelBuilder.Entity<OrganizationImage>(e =>
+        {
+            e.Property(i => i.FileName).HasMaxLength(DataLimits.FileNameMaxLength);
+        });
+
+        modelBuilder.Entity<OrganizationAudio>(e =>
+        {
+            e.Property(a => a.FileName).HasMaxLength(DataLimits.FileNameMaxLength);
+        });
+
+        modelBuilder.Entity<McpApiKey>(e =>
+        {
+            e.Property(k => k.Name).HasMaxLength(DataLimits.NameMaxLength);
+        });
+
+        modelBuilder.Entity<UserSetting>(e =>
+        {
+            e.HasIndex(us => new { us.UserId, us.Key }).IsUnique();
+            e.Property(us => us.Key).HasMaxLength(DataLimits.SettingsKeyMaxLength);
+            e.Property(us => us.Value).HasMaxLength(DataLimits.SettingsValueMaxLength);
+        });
+
+        modelBuilder.Entity<OrganizationSetting>(e =>
+        {
+            e.HasIndex(os => new { os.OrganizationId, os.Key }).IsUnique();
+            e.Property(os => os.Key).HasMaxLength(DataLimits.SettingsKeyMaxLength);
+            e.Property(os => os.Value).HasMaxLength(DataLimits.SettingsValueMaxLength);
+        });
 
         modelBuilder.Entity<User>()
             .Property(u => u.Role)

@@ -4,7 +4,7 @@
 
         <FloatingInput @ref="nameInput" Id="presentation-name" Label="@L["Common.Name"]"
                        Value="@name" OnInput="HandleNameInput"
-                       OnKeyDown="OnKeyDown"/>
+                       OnKeyDown="OnKeyDown" MaxLength="DataLimits.NameMaxLength"/>
 
         <div class="flex gap-3">
             <FloatingInput Id="presentation-date" Type="date" Label="@L["Event.Date"]" Class="flex-1"
@@ -15,7 +15,8 @@
         </div>
 
         <FloatingInput Id="presentation-location" Label="@L["Event.Location"]"
-                       Value="@selectedLocation" OnInput="HandleLocationChange"/>
+                       Value="@selectedLocation" OnInput="HandleLocationChange"
+                       MaxLength="DataLimits.LocationMaxLength"/>
 
         <div class="flex justify-end gap-3">
             <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">

@@ -91,6 +91,10 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
         if (existing is not null)
             return existing;
 
+        await ValidationHelper.RequireMaxCountAsync(
+            context.UserLogins.Where(ul => ul.UserId == userId),
+            DataLimits.MaxLoginsPerUser, "logins");
+
         var login = new UserLogin
         {
             UserId = userId,
@@ -167,8 +171,13 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
             throw new UnauthorizedAccessException("Access denied: cannot create users in another organization.");
         if (!caller.HasPermission(Permission.AssignSuperAdminRole) && role == UserRole.SuperAdmin)
             throw new UnauthorizedAccessException("Access denied: you do not have permission to assign the SuperAdmin role.");
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(email, DataLimits.EmailMaxLength, "Email");
 
         await using var context = await dbContextFactory.CreateDbContextAsync();
+        await ValidationHelper.RequireMaxCountAsync(
+            context.Users.Where(u => u.OrganizationId == organizationId),
+            DataLimits.MaxUsersPerOrg, "users");
         var user = new User
         {
             Name = name,
@@ -185,6 +194,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<User> CreateSuperUserAsync(string name)
     {
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var user = new User
         {
@@ -198,6 +208,8 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task UpdateUserAsync(string id, string name, string email, UserRole role, CallerContext caller)
     {
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(email, DataLimits.EmailMaxLength, "Email");
         if (id != caller.UserId)
         {
             caller.RequirePermission(Permission.ManageUsers);
@@ -320,6 +332,9 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
     {
         await VerifyUserAccessAsync(userId, caller);
         await using var context = await dbContextFactory.CreateDbContextAsync();
+        await ValidationHelper.RequireMaxCountAsync(
+            context.Invites.Where(i => i.UserId == userId && !i.Used),
+            DataLimits.MaxInvitesPerUser, "invites");
         var invite = new Invite { UserId = userId };
         context.Invites.Add(invite);
         await context.SaveChangesAsync();
@@ -355,7 +370,10 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task<Organization> CreateOrganizationAsync(string name, CallerContext caller)
     {
         caller.RequirePermission(Permission.ManageOrganizations);
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync();
+        await ValidationHelper.RequireMaxCountAsync(
+            context.Organizations, DataLimits.MaxOrganizationsTotal, "organizations");
         var org = new Organization { Name = name };
         context.Organizations.Add(org);
         await context.SaveChangesAsync();
@@ -384,6 +402,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task UpdateOrganizationAsync(string id, string name, CallerContext caller)
     {
         caller.RequirePermission(Permission.ManageOrganizations);
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await context.Organizations
             .Where(o => o.Id == id)
@@ -441,6 +460,8 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
     public async Task SetUserSettingAsync(string userId, string key, string value, CallerContext caller)
     {
         caller.RequireUserAccess(userId);
+        ValidationHelper.RequireMaxLength(key, DataLimits.SettingsKeyMaxLength, "Key");
+        ValidationHelper.RequireMaxLength(value, DataLimits.SettingsValueMaxLength, "Value");
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var setting = await context.UserSettings
             .FirstOrDefaultAsync(us => us.UserId == userId && us.Key == key);
@@ -451,6 +472,9 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
         }
         else
         {
+            await ValidationHelper.RequireMaxCountAsync(
+                context.UserSettings.Where(us => us.UserId == userId),
+                DataLimits.MaxSettingsPerUser, "settings");
             context.UserSettings.Add(new UserSetting
             {
                 UserId = userId,
@@ -487,7 +511,11 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
     {
         caller.RequirePermission(Permission.ManageUsers);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync();
+        await ValidationHelper.RequireMaxCountAsync(
+            context.McpApiKeys.Where(k => k.UserId == userId),
+            DataLimits.MaxApiKeysPerUser, "API keys");
         var plaintextKey = McpApiKey.GenerateKey();
         var apiKey = new McpApiKey
         {

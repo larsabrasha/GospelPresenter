@@ -145,7 +145,7 @@ else
     [Parameter] public EventCallback<List<OrganizationImage>> OnAddKeepOpen { get; set; }
     [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
 
-    private const long MaxFileSize = 10 * 1024 * 1024; // 10 MB
+    private const long MaxFileSize = DataLimits.MaxImageFileSizeBytes;
     private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     private const int FullMaxWidth = 1920;
     private const int FullMaxHeight = 1080;

@@ -50,7 +50,11 @@ public class OrganizationImageService(
     {
         caller.RequirePermission(Permission.ManageOrganizationImages);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(fileName, DataLimits.FileNameMaxLength, "FileName");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await ValidationHelper.RequireMaxCountAsync(
+            context.OrganizationImages.Where(x => x.OrganizationId == organizationId),
+            DataLimits.MaxImagesPerOrg, "images", cancellationToken);
 
         var image = new OrganizationImage
         {

@@ -1088,4 +1088,61 @@
   <data name="Weekday.6" xml:space="preserve">
     <value>Saturday</value>
   </data>
+  <data name="Error.TextTooLong" xml:space="preserve">
+    <value>The text in '{0}' is too long (max {1} characters).</value>
+  </data>
+  <data name="Error.LimitReached" xml:space="preserve">
+    <value>The maximum number of {0} has been reached ({1}).</value>
+  </data>
+  <data name="Error.FileTooLarge" xml:space="preserve">
+    <value>The file is too large (max {0} MB).</value>
+  </data>
+  <data name="Error.YearOutOfRange" xml:space="preserve">
+    <value>The year must be between {0} and {1}.</value>
+  </data>
+  <data name="Entity.Songs" xml:space="preserve">
+    <value>songs</value>
+  </data>
+  <data name="Entity.Presentations" xml:space="preserve">
+    <value>presentations</value>
+  </data>
+  <data name="Entity.Templates" xml:space="preserve">
+    <value>templates</value>
+  </data>
+  <data name="Entity.Overlays" xml:space="preserve">
+    <value>overlays</value>
+  </data>
+  <data name="Entity.Users" xml:space="preserve">
+    <value>users</value>
+  </data>
+  <data name="Entity.Organizations" xml:space="preserve">
+    <value>organizations</value>
+  </data>
+  <data name="Entity.Images" xml:space="preserve">
+    <value>images</value>
+  </data>
+  <data name="Entity.AudioFiles" xml:space="preserve">
+    <value>audio files</value>
+  </data>
+  <data name="Entity.ApiKeys" xml:space="preserve">
+    <value>API keys</value>
+  </data>
+  <data name="Entity.Invites" xml:space="preserve">
+    <value>invites</value>
+  </data>
+  <data name="Entity.Logins" xml:space="preserve">
+    <value>logins</value>
+  </data>
+  <data name="Entity.Settings" xml:space="preserve">
+    <value>settings</value>
+  </data>
+  <data name="Entity.Items" xml:space="preserve">
+    <value>items</value>
+  </data>
+  <data name="Entity.Parts" xml:space="preserve">
+    <value>parts</value>
+  </data>
+  <data name="Entity.SongParts" xml:space="preserve">
+    <value>song parts</value>
+  </data>
 </root>

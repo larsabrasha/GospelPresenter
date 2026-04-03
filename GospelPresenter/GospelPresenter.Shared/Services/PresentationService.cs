@@ -85,7 +85,12 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(eventLocation, DataLimits.LocationMaxLength, "Location");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await ValidationHelper.RequireMaxCountAsync(
+            context.Presentations.Where(x => x.OrganizationId == organizationId && !x.IsTemplate),
+            DataLimits.MaxPresentationsPerOrg, "presentations", cancellationToken);
 
         var organization = await context.Organizations.FindAsync([organizationId], cancellationToken);
         if (organization is null)
@@ -119,7 +124,11 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(item.Title, DataLimits.NameMaxLength, "Title");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await ValidationHelper.RequireMaxCountAsync(
+            context.PresentationItems.Where(x => x.PresentationId == presentationId),
+            DataLimits.MaxItemsPerPresentation, "items", cancellationToken);
 
         item.PresentationId = presentationId;
 
@@ -142,6 +151,7 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.Presentations
@@ -175,6 +185,7 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(title, DataLimits.NameMaxLength, "Title");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.PresentationItems
@@ -186,7 +197,13 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
+        foreach (var part in parts)
+            ValidationHelper.RequireMaxLength(part.Content, DataLimits.PresentationItemPartContentMaxLength, "Content");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var existingCount = await context.PresentationItemParts
+            .CountAsync(x => x.PresentationItemId == itemId, cancellationToken);
+        if (existingCount + parts.Count > DataLimits.MaxPartsPerPresentationItem)
+            throw new InvalidOperationException($"The maximum number of parts ({DataLimits.MaxPartsPerPresentationItem}) has been reached.");
 
         var maxSortOrder = await context.PresentationItemParts
             .Where(x => x.PresentationItemId == itemId && x.PresentationItem.PresentationId == presentationId && x.PresentationItem.Presentation.OrganizationId == organizationId)
@@ -266,6 +283,7 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(presentation.Name, DataLimits.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var existing = await context.Presentations
@@ -331,7 +349,12 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManageTemplates);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(location, DataLimits.LocationMaxLength, "Location");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await ValidationHelper.RequireMaxCountAsync(
+            context.Presentations.Where(x => x.OrganizationId == organizationId && x.IsTemplate),
+            DataLimits.MaxTemplatesPerOrg, "templates", cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
         var template = new Presentation
@@ -359,7 +382,11 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManageTemplates);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await ValidationHelper.RequireMaxCountAsync(
+            context.Presentations.Where(x => x.OrganizationId == organizationId && x.IsTemplate),
+            DataLimits.MaxTemplatesPerOrg, "templates", cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         var source = await context.Presentations
@@ -421,7 +448,12 @@ public class PresentationService(
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequirePermission(Permission.ViewTemplates);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(eventLocation, DataLimits.LocationMaxLength, "Location");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await ValidationHelper.RequireMaxCountAsync(
+            context.Presentations.Where(x => x.OrganizationId == organizationId && !x.IsTemplate),
+            DataLimits.MaxPresentationsPerOrg, "presentations", cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         var template = await context.Presentations
@@ -487,6 +519,7 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManageTemplates);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(location, DataLimits.LocationMaxLength, "Location");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.Presentations
@@ -502,6 +535,7 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(location, DataLimits.LocationMaxLength, "Location");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.Presentations
@@ -561,7 +595,12 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManageOverlays);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(overlay.Title, DataLimits.OverlayTitleMaxLength, "Title");
+        ValidationHelper.RequireMaxLength(overlay.Content, DataLimits.OverlayContentMaxLength, "Content");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await ValidationHelper.RequireMaxCountAsync(
+            context.OverlaySlides.Where(x => x.OrganizationId == organizationId),
+            DataLimits.MaxOverlaysPerOrg, "overlays", cancellationToken);
 
         overlay.OrganizationId = organizationId;
 
@@ -589,6 +628,8 @@ public class PresentationService(
     {
         caller.RequirePermission(Permission.ManageOverlays);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(overlay.Title, DataLimits.OverlayTitleMaxLength, "Title");
+        ValidationHelper.RequireMaxLength(overlay.Content, DataLimits.OverlayContentMaxLength, "Content");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var existing = await context.OverlaySlides

@@ -1,6 +1,7 @@
 <div class="relative @Class">
     <textarea id="@Id" placeholder=" "
               value="@Value"
+              maxlength="@MaxLength"
               @oninput="OnInput"
               rows="@Rows"
               class="peer w-full pt-6 px-4 pb-2 rounded-xl border border-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-transparent resize-y"/>
@@ -14,6 +15,7 @@
     [Parameter, EditorRequired] public string Label { get; set; } = "";
     [Parameter] public string? Value { get; set; }
     [Parameter] public EventCallback<ChangeEventArgs> OnInput { get; set; }
+    [Parameter] public int? MaxLength { get; set; }
     [Parameter] public int Rows { get; set; } = 4;
     [Parameter] public string? Class { get; set; }
 }

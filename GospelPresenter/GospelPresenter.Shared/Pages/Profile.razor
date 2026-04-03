@@ -55,7 +55,8 @@
                     </div>
                 </div>
             </div>
-            <FloatingInput Id="profile-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"/>
+            <FloatingInput Id="profile-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"
+                           MaxLength="DataLimits.NameMaxLength"/>
             <div class="relative">
                 <div class="w-full h-14 pt-5 px-4 rounded-xl border border-neutral-200 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-700/50 text-neutral-500 dark:text-neutral-400">
                     @user.Email
@@ -184,7 +185,7 @@
         L["Profile.ConfirmRemoveProfileImage"],
         RemoveProfileImage);
 
-    private const long MaxImageSize = 10 * 1024 * 1024;
+    private const long MaxImageSize = DataLimits.MaxImageFileSizeBytes;
     private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     private bool showCropDialog;
 

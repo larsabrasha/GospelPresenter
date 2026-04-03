@@ -1,6 +1,9 @@
 <div class="relative @Class">
     <input @ref="inputElement" id="@Id" type="@Type" placeholder=" "
            value="@Value"
+           maxlength="@MaxLength"
+           min="@Min"
+           max="@Max"
            @oninput="OnInput"
            @onkeydown="OnKeyDown"
            class="@ComputedInputClass"/>
@@ -16,6 +19,9 @@
     [Parameter] public object? Value { get; set; }
     [Parameter] public EventCallback<ChangeEventArgs> OnInput { get; set; }
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+    [Parameter] public int? MaxLength { get; set; }
+    [Parameter] public int? Min { get; set; }
+    [Parameter] public int? Max { get; set; }
     [Parameter] public bool HasError { get; set; }
     [Parameter] public string? Class { get; set; }
 
