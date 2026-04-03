@@ -7,9 +7,11 @@
 <div class="flex flex-col">
     <div class="space-y-4">
         <FloatingInput Id="overlay-title" Label="@L["OverlayEditor.Title"]"
-                       Value="@Overlay.Title" OnInput="HandleTitleChanged"/>
+                       Value="@Overlay.Title" OnInput="HandleTitleChanged"
+                       MaxLength="DataLimits.OverlayTitleMaxLength"/>
         <FloatingTextarea Id="overlay-content" Label="@L["OverlayEditor.TextContent"]"
-                          Value="@Overlay.Content" OnInput="HandleContentChanged" Rows="4"/>
+                          Value="@Overlay.Content" OnInput="HandleContentChanged" Rows="4"
+                          MaxLength="DataLimits.OverlayContentMaxLength"/>
         <div>
             <label class="block text-sm font-medium mb-1">@L["OverlayEditor.ImageOptional"]</label>
             @if (Overlay.ImageData is not null || Overlay.HasImage)
@@ -88,10 +90,10 @@
         if (string.IsNullOrWhiteSpace(Overlay.Title)) return;
         var file = e.File;
         if (!AllowedImageTypes.Contains(file.ContentType)) return;
-        if (file.Size > 10 * 1024 * 1024) return;
+        if (file.Size > DataLimits.MaxImageFileSizeBytes) return;
 
         Overlay.Title = Overlay.Title.Trim();
-        using var stream = file.OpenReadStream(10 * 1024 * 1024);
+        using var stream = file.OpenReadStream(DataLimits.MaxImageFileSizeBytes);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
         Overlay.ImageData = ms.ToArray();

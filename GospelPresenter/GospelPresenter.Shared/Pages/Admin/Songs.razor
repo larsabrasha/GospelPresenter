@@ -90,6 +90,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
                     </svg>
                     <input type="text"
+                           maxlength="@DataLimits.SearchMaxLength"
                            class="w-full py-2 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(searchQuery) ? "" : "!pr-9")"
                            placeholder="@L["Common.Search"]"
                            value="@searchQuery"
@@ -228,7 +229,7 @@
             var files = new List<(string FileName, byte[] Data)>();
             foreach (var file in proFiles)
             {
-                using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                using var stream = file.OpenReadStream(maxAllowedSize: DataLimits.MaxImageFileSizeBytes);
                 using var ms = new MemoryStream();
                 await stream.CopyToAsync(ms);
                 files.Add((file.Name, ms.ToArray()));

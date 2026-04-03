@@ -57,7 +57,9 @@
                  OnItemsReordered="@HandleItemsReordered"
                  OnDeleteRequested="@ConfirmDeletePresentation"
                  IsTemplateMode="@IsTemplateMode"
-                 OnSaveAsTemplate="@ConfirmSaveAsTemplate"/>
+                 OnSaveAsTemplate="@ConfirmSaveAsTemplate"
+                 OnScheduleChanged="@HandleScheduleChanged"
+                 OnEventChanged="@HandleEventChanged"/>
 
     </div>
 
@@ -965,6 +967,11 @@
         {
             Id = loadedPresentation.Id,
             Name = loadedPresentation.Name,
+            ScheduledDayOfWeek = loadedPresentation.ScheduledDayOfWeek,
+            ScheduledTime = loadedPresentation.ScheduledTime,
+            EventDate = loadedPresentation.EventDate,
+            EventTime = loadedPresentation.EventTime,
+            EventLocation = loadedPresentation.EventLocation,
             Items = loadedPresentation.Items.Select(item => new ProjectItem
             {
                 Id = item.Id,
@@ -991,6 +998,32 @@
             ? AppState.SelectedProject.Items.FirstOrDefault(x => x.Id == liveItemId)
             : null;
         AppState.SelectedProjectItem = activeItem;
+    }
+
+    private async Task HandleScheduleChanged((int? DayOfWeek, TimeOnly? Time, string? Location) schedule)
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null || loadedPresentation is null) return;
+
+        loadedPresentation.ScheduledDayOfWeek = schedule.DayOfWeek;
+        loadedPresentation.ScheduledTime = schedule.Time;
+        loadedPresentation.EventLocation = schedule.Location;
+
+        await PresentationService.UpdateTemplateScheduleAsync(
+            orgId, loadedPresentation.Id, schedule.DayOfWeek, schedule.Time, schedule.Location, OrgState.ToCallerContext());
+    }
+
+    private async Task HandleEventChanged((DateOnly? Date, TimeOnly? Time, string? Location) ev)
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null || loadedPresentation is null) return;
+
+        loadedPresentation.EventDate = ev.Date;
+        loadedPresentation.EventTime = ev.Time;
+        loadedPresentation.EventLocation = ev.Location;
+
+        await PresentationService.UpdatePresentationEventAsync(
+            orgId, loadedPresentation.Id, ev.Date, ev.Time, ev.Location, OrgState.ToCallerContext());
     }
 
     private void ConfirmSaveAsTemplate()

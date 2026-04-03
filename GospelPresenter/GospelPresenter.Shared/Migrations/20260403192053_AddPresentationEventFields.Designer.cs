@@ -3,6 +3,7 @@ using System;
 using GospelPresenter.Shared.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GospelPresenter.Shared.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20260403192053_AddPresentationEventFields")]
+    partial class AddPresentationEventFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,28 +31,24 @@ namespace GospelPresenter.Shared.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Author")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Ccli")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Publisher")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<int?>("Year")
                         .HasColumnType("integer");
@@ -68,12 +67,10 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Label")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<string>("SongId")
                         .IsRequired()
@@ -95,21 +92,18 @@ namespace GospelPresenter.Shared.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Author")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PartsJson")
                         .IsRequired()
-                        .HasMaxLength(50000)
-                        .HasColumnType("character varying(50000)");
+                        .HasColumnType("text");
 
                     b.Property<string>("SongId")
                         .IsRequired()
@@ -168,8 +162,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
@@ -201,8 +194,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -223,8 +215,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
@@ -251,8 +242,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
@@ -272,8 +262,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Key")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
@@ -281,8 +270,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -298,8 +286,7 @@ namespace GospelPresenter.Shared.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Content")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("HasImage")
                         .HasColumnType("boolean");
@@ -313,8 +300,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -336,15 +322,13 @@ namespace GospelPresenter.Shared.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
                     b.Property<DateOnly?>("EventDate")
                         .HasColumnType("date");
 
                     b.Property<string>("EventLocation")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
 
                     b.Property<TimeOnly?>("EventTime")
                         .HasColumnType("time without time zone");
@@ -357,8 +341,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
@@ -404,8 +387,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer");
@@ -424,8 +406,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)");
+                        .HasColumnType("text");
 
                     b.Property<string>("PresentationItemId")
                         .IsRequired()
@@ -448,13 +429,11 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("OrganizationId")
                         .HasColumnType("text");
@@ -516,8 +495,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Key")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -525,8 +503,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.Property<string>("Value")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 

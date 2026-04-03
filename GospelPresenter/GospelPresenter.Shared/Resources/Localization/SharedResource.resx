@@ -105,13 +105,13 @@
     <value>My profile</value>
   </data>
   <data name="Nav.Dashboard" xml:space="preserve">
-    <value>Dashboard</value>
+    <value>Home</value>
   </data>
   <data name="Nav.Media" xml:space="preserve">
     <value>Content</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
-    <value>Administration</value>
+    <value>Settings</value>
   </data>
   <data name="Nav.Logout" xml:space="preserve">
     <value>Log out</value>
@@ -1039,5 +1039,110 @@
   </data>
   <data name="Common.Menu" xml:space="preserve">
     <value>Menu</value>
+  </data>
+  <data name="Sidebar.ChangeSchedule" xml:space="preserve">
+    <value>Change day and time</value>
+  </data>
+  <data name="Sidebar.EditDetails" xml:space="preserve">
+    <value>Edit details</value>
+  </data>
+  <data name="Schedule.Day" xml:space="preserve">
+    <value>Day</value>
+  </data>
+  <data name="Schedule.Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Schedule.NoDay" xml:space="preserve">
+    <value>No day selected</value>
+  </data>
+  <data name="Sidebar.ChangeEvent" xml:space="preserve">
+    <value>Change date, time and location</value>
+  </data>
+  <data name="Event.Date" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="Event.Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
+  <data name="Event.Location" xml:space="preserve">
+    <value>Location</value>
+  </data>
+  <data name="Weekday.0" xml:space="preserve">
+    <value>Sunday</value>
+  </data>
+  <data name="Weekday.1" xml:space="preserve">
+    <value>Monday</value>
+  </data>
+  <data name="Weekday.2" xml:space="preserve">
+    <value>Tuesday</value>
+  </data>
+  <data name="Weekday.3" xml:space="preserve">
+    <value>Wednesday</value>
+  </data>
+  <data name="Weekday.4" xml:space="preserve">
+    <value>Thursday</value>
+  </data>
+  <data name="Weekday.5" xml:space="preserve">
+    <value>Friday</value>
+  </data>
+  <data name="Weekday.6" xml:space="preserve">
+    <value>Saturday</value>
+  </data>
+  <data name="Error.TextTooLong" xml:space="preserve">
+    <value>The text in '{0}' is too long (max {1} characters).</value>
+  </data>
+  <data name="Error.LimitReached" xml:space="preserve">
+    <value>The maximum number of {0} has been reached ({1}).</value>
+  </data>
+  <data name="Error.FileTooLarge" xml:space="preserve">
+    <value>The file is too large (max {0} MB).</value>
+  </data>
+  <data name="Error.YearOutOfRange" xml:space="preserve">
+    <value>The year must be between {0} and {1}.</value>
+  </data>
+  <data name="Entity.Songs" xml:space="preserve">
+    <value>songs</value>
+  </data>
+  <data name="Entity.Presentations" xml:space="preserve">
+    <value>presentations</value>
+  </data>
+  <data name="Entity.Templates" xml:space="preserve">
+    <value>templates</value>
+  </data>
+  <data name="Entity.Overlays" xml:space="preserve">
+    <value>overlays</value>
+  </data>
+  <data name="Entity.Users" xml:space="preserve">
+    <value>users</value>
+  </data>
+  <data name="Entity.Organizations" xml:space="preserve">
+    <value>organizations</value>
+  </data>
+  <data name="Entity.Images" xml:space="preserve">
+    <value>images</value>
+  </data>
+  <data name="Entity.AudioFiles" xml:space="preserve">
+    <value>audio files</value>
+  </data>
+  <data name="Entity.ApiKeys" xml:space="preserve">
+    <value>API keys</value>
+  </data>
+  <data name="Entity.Invites" xml:space="preserve">
+    <value>invites</value>
+  </data>
+  <data name="Entity.Logins" xml:space="preserve">
+    <value>logins</value>
+  </data>
+  <data name="Entity.Settings" xml:space="preserve">
+    <value>settings</value>
+  </data>
+  <data name="Entity.Items" xml:space="preserve">
+    <value>items</value>
+  </data>
+  <data name="Entity.Parts" xml:space="preserve">
+    <value>parts</value>
+  </data>
+  <data name="Entity.SongParts" xml:space="preserve">
+    <value>song parts</value>
   </data>
 </root>

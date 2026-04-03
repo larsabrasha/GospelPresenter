@@ -105,13 +105,13 @@
     <value>Min profil</value>
   </data>
   <data name="Nav.Dashboard" xml:space="preserve">
-    <value>Dashboard</value>
+    <value>Hem</value>
   </data>
   <data name="Nav.Media" xml:space="preserve">
     <value>Innehåll</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
-    <value>Administration</value>
+    <value>Inställningar</value>
   </data>
   <data name="Nav.Logout" xml:space="preserve">
     <value>Logga ut</value>
@@ -1039,5 +1039,110 @@
   </data>
   <data name="Common.Menu" xml:space="preserve">
     <value>Meny</value>
+  </data>
+  <data name="Sidebar.ChangeSchedule" xml:space="preserve">
+    <value>Ändra dag och tid</value>
+  </data>
+  <data name="Sidebar.EditDetails" xml:space="preserve">
+    <value>Redigera detaljer</value>
+  </data>
+  <data name="Schedule.Day" xml:space="preserve">
+    <value>Dag</value>
+  </data>
+  <data name="Schedule.Time" xml:space="preserve">
+    <value>Tid</value>
+  </data>
+  <data name="Schedule.NoDay" xml:space="preserve">
+    <value>Ingen dag vald</value>
+  </data>
+  <data name="Sidebar.ChangeEvent" xml:space="preserve">
+    <value>Ändra datum, tid och plats</value>
+  </data>
+  <data name="Event.Date" xml:space="preserve">
+    <value>Datum</value>
+  </data>
+  <data name="Event.Time" xml:space="preserve">
+    <value>Tid</value>
+  </data>
+  <data name="Event.Location" xml:space="preserve">
+    <value>Plats</value>
+  </data>
+  <data name="Weekday.0" xml:space="preserve">
+    <value>Söndag</value>
+  </data>
+  <data name="Weekday.1" xml:space="preserve">
+    <value>Måndag</value>
+  </data>
+  <data name="Weekday.2" xml:space="preserve">
+    <value>Tisdag</value>
+  </data>
+  <data name="Weekday.3" xml:space="preserve">
+    <value>Onsdag</value>
+  </data>
+  <data name="Weekday.4" xml:space="preserve">
+    <value>Torsdag</value>
+  </data>
+  <data name="Weekday.5" xml:space="preserve">
+    <value>Fredag</value>
+  </data>
+  <data name="Weekday.6" xml:space="preserve">
+    <value>Lördag</value>
+  </data>
+  <data name="Error.TextTooLong" xml:space="preserve">
+    <value>Texten i '{0}' är för lång (max {1} tecken).</value>
+  </data>
+  <data name="Error.LimitReached" xml:space="preserve">
+    <value>Det maximala antalet {0} har nåtts ({1}).</value>
+  </data>
+  <data name="Error.FileTooLarge" xml:space="preserve">
+    <value>Filen är för stor (max {0} MB).</value>
+  </data>
+  <data name="Error.YearOutOfRange" xml:space="preserve">
+    <value>Året måste vara mellan {0} och {1}.</value>
+  </data>
+  <data name="Entity.Songs" xml:space="preserve">
+    <value>sånger</value>
+  </data>
+  <data name="Entity.Presentations" xml:space="preserve">
+    <value>presentationer</value>
+  </data>
+  <data name="Entity.Templates" xml:space="preserve">
+    <value>mallar</value>
+  </data>
+  <data name="Entity.Overlays" xml:space="preserve">
+    <value>overlays</value>
+  </data>
+  <data name="Entity.Users" xml:space="preserve">
+    <value>användare</value>
+  </data>
+  <data name="Entity.Organizations" xml:space="preserve">
+    <value>organisationer</value>
+  </data>
+  <data name="Entity.Images" xml:space="preserve">
+    <value>bilder</value>
+  </data>
+  <data name="Entity.AudioFiles" xml:space="preserve">
+    <value>ljudfiler</value>
+  </data>
+  <data name="Entity.ApiKeys" xml:space="preserve">
+    <value>API-nycklar</value>
+  </data>
+  <data name="Entity.Invites" xml:space="preserve">
+    <value>inbjudningar</value>
+  </data>
+  <data name="Entity.Logins" xml:space="preserve">
+    <value>inloggningar</value>
+  </data>
+  <data name="Entity.Settings" xml:space="preserve">
+    <value>inställningar</value>
+  </data>
+  <data name="Entity.Items" xml:space="preserve">
+    <value>objekt</value>
+  </data>
+  <data name="Entity.Parts" xml:space="preserve">
+    <value>delar</value>
+  </data>
+  <data name="Entity.SongParts" xml:space="preserve">
+    <value>sångdelar</value>
   </data>
 </root>

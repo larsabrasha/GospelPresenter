@@ -59,10 +59,12 @@
                     </div>
                 </div>
             </div>
-            <FloatingInput Id="user-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"/>
+            <FloatingInput Id="user-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"
+                           MaxLength="DataLimits.NameMaxLength"/>
             <div>
                 <FloatingInput Id="user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
-                               Value="@editEmail" OnInput="HandleEmailChanged"/>
+                               Value="@editEmail" OnInput="HandleEmailChanged"
+                               MaxLength="DataLimits.EmailMaxLength"/>
                 @if (emailError is not null)
                 {
                     <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>
@@ -438,7 +440,7 @@ private async Task CreateInvite()
         _ => role.ToString()
     };
 
-    private const long MaxImageSize = 10 * 1024 * 1024;
+    private const long MaxImageSize = DataLimits.MaxImageFileSizeBytes;
     private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     private bool showCropDialog;
 

@@ -4,8 +4,10 @@
 }
 else
 {
-    <div class="@SizeClass rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0 flex items-center justify-center @TextClass font-medium text-neutral-500 dark:text-neutral-400 @Class">
-        @Initials(Name)
+    <div class="@SizeClass rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0 flex items-center justify-center text-neutral-500 dark:text-neutral-400 @Class">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="@IconClass">
+            <path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z"/>
+        </svg>
     </div>
 }
 
@@ -21,20 +23,9 @@ else
         _ => "w-8 h-8"
     };
 
-    private string TextClass => Size switch
+    private string IconClass => Size switch
     {
-        "lg" => "text-2xl",
-        _ => "text-sm"
+        "lg" => "w-8 h-8",
+        _ => "w-4 h-4"
     };
-
-    private static string Initials(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "?";
-        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length >= 2)
-            return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
-        return parts[0].Length >= 2
-            ? parts[0][..2].ToUpper()
-            : parts[0].ToUpper();
-    }
 }

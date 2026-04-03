@@ -116,6 +116,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         foreach (var s in existingSongs)
             existingByName.TryAdd(s.Name, s);
 
+        var songCount = existingSongs.Count;
         int imported = 0, replaced = 0, skipped = 0;
 
         foreach (var (fileName, data) in files)
@@ -123,6 +124,19 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             var fallbackTitle = Path.GetFileNameWithoutExtension(fileName);
             var parsed = ProPresenterParser.Parse(data, fallbackTitle);
             if (parsed is null) continue;
+
+            parsed = parsed with
+            {
+                Name = ValidationHelper.Truncate(parsed.Name, DataLimits.NameMaxLength) ?? "",
+                Author = ValidationHelper.Truncate(parsed.Author, DataLimits.SongAuthorMaxLength),
+                Publisher = ValidationHelper.Truncate(parsed.Publisher, DataLimits.SongPublisherMaxLength),
+                Ccli = ValidationHelper.Truncate(parsed.Ccli, DataLimits.SongCcliMaxLength),
+                Parts = parsed.Parts.Select(p => p with
+                {
+                    Label = ValidationHelper.Truncate(p.Label, DataLimits.SongPartLabelMaxLength),
+                    Content = ValidationHelper.Truncate(p.Content, DataLimits.SongPartContentMaxLength) ?? ""
+                }).Take(DataLimits.MaxSongPartsPerSong).ToList()
+            };
 
             if (existingByName.TryGetValue(parsed.Name, out var existing))
             {
@@ -151,6 +165,12 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             }
             else
             {
+                if (songCount >= DataLimits.MaxSongsPerOrg)
+                {
+                    skipped++;
+                    continue;
+                }
+
                 var dbSong = new Models.DbSong
                 {
                     Name = parsed.Name,
@@ -173,6 +193,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
                 db.Songs.Add(dbSong);
                 existingByName[parsed.Name] = dbSong;
+                songCount++;
                 imported++;
             }
         }
@@ -289,6 +310,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
+        ValidateSongFields(name, author, publisher, year, ccli);
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId);
         if (song is null) return;
@@ -315,6 +337,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(label, DataLimits.SongPartLabelMaxLength, "Label");
+        ValidationHelper.RequireMaxLength(content, DataLimits.SongPartContentMaxLength, "Content");
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
@@ -337,6 +361,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         if (edits.Count == 0) return;
+        foreach (var (_, edit) in edits)
+        {
+            ValidationHelper.RequireMaxLength(edit.Label, DataLimits.SongPartLabelMaxLength, "Label");
+            ValidationHelper.RequireMaxLength(edit.Content, DataLimits.SongPartContentMaxLength, "Content");
+        }
 
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
@@ -362,9 +391,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(label, DataLimits.SongPartLabelMaxLength, "Label");
+        ValidationHelper.RequireMaxLength(content, DataLimits.SongPartContentMaxLength, "Content");
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
+        if (song.Parts.Count >= DataLimits.MaxSongPartsPerSong)
+            throw new InvalidOperationException($"The maximum number of song parts ({DataLimits.MaxSongPartsPerSong}) has been reached.");
 
         await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
@@ -498,11 +531,24 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await ReloadSong(songId);
     }
 
+    private static void ValidateSongFields(string name, string? author, string? publisher, int? year, string? ccli)
+    {
+        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(author, DataLimits.SongAuthorMaxLength, "Author");
+        ValidationHelper.RequireMaxLength(publisher, DataLimits.SongPublisherMaxLength, "Publisher");
+        ValidationHelper.RequireMaxLength(ccli, DataLimits.SongCcliMaxLength, "CCLI");
+        ValidationHelper.RequireRange(year, DataLimits.SongYearMin, DataLimits.SongYearMax, "Year");
+    }
+
     public async Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId, CallerContext caller)
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
+        ValidateSongFields(name, author, publisher, year, ccli);
         await using var db = await dbContextFactory.CreateDbContextAsync();
+        await ValidationHelper.RequireMaxCountAsync(
+            db.Songs.Where(s => s.OrganizationId == organizationId && s.DeletedAt == null),
+            DataLimits.MaxSongsPerOrg, "songs");
 
         var dbSong = new Models.DbSong
         {
@@ -539,7 +585,6 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     }
 
     private static readonly TimeSpan SessionWindow = TimeSpan.FromMinutes(30);
-    private const int MaxVersionsPerSong = 50;
 
     private async Task SaveVersionSnapshotAsync(PresentationContext db, Models.DbSong song, bool forceNew = false)
     {
@@ -575,7 +620,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var oldVersions = await db.SongVersions
             .Where(v => v.SongId == song.Id)
             .OrderByDescending(v => v.CreatedAt)
-            .Skip(MaxVersionsPerSong)
+            .Skip(DataLimits.MaxSongVersionsPerSong)
             .ToListAsync();
 
         if (oldVersions.Count > 0)

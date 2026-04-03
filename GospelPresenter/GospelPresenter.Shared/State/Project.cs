@@ -4,6 +4,11 @@ public class Project
 {
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public int? ScheduledDayOfWeek { get; set; }
+    public TimeOnly? ScheduledTime { get; set; }
+    public DateOnly? EventDate { get; set; }
+    public TimeOnly? EventTime { get; set; }
+    public string? EventLocation { get; set; }
     public IList<ProjectItem> Items { get; set; } = [];
 }
 

@@ -7,7 +7,7 @@
     <div @key="index" id="song-part-@index" class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-4 space-y-3">
         <div class="flex items-center gap-2">
             <FloatingInput Id="@($"part-label-{index}")" Label="@L["SongParts.LabelPlaceholder"]"
-                           Class="flex-1"
+                           Class="flex-1" MaxLength="DataLimits.SongPartLabelMaxLength"
                            Value="@part.Label" OnInput="(e) => HandleLabelInput(index, e.Value?.ToString())"/>
             <div class="flex items-center gap-1">
                 <AppButton Variant="ButtonVariant.Icon" Disabled="@(index == 0)"
@@ -27,7 +27,7 @@
             </div>
         </div>
         <FloatingTextarea Id="@($"part-content-{index}")" Label="@L["SongParts.TextPlaceholder"]"
-                          Value="@part.Content"
+                          Value="@part.Content" MaxLength="DataLimits.SongPartContentMaxLength"
                           OnInput="(e) => OnContentChanged.InvokeAsync(new PartContentChange(index, e.Value?.ToString() ?? string.Empty))"
                           Rows="8"/>
         <div class="flex justify-end">
