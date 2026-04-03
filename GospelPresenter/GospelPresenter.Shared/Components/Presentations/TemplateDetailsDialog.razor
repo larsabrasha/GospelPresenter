@@ -1,28 +1,29 @@
 <Dialog Class="bg-white dark:bg-neutral-800 max-w-2xl" OnClose="OnClose">
-    <div class="p-6 space-y-4">
+    <div class="p-6 space-y-3">
         <div class="font-semibold text-lg dark:text-neutral-100">@Title</div>
 
         <FloatingInput @ref="nameInput" Id="template-name" Label="@L["Common.Name"]"
                        Value="@name" OnInput="HandleNameInput"
-                       OnKeyDown="OnKeyDown" MaxLength="DataLimits.NameMaxLength"/>
+                       OnKeyDown="OnKeyDown" MaxLength="DataLimits.NameMaxLength"
+                       HideLabel/>
 
-        <div class="flex gap-3">
-            <FloatingSelect Id="template-day" Label="@L["Schedule.Day"]" Class="flex-1"
-                            Value="@selectedDay" OnChange="HandleDayChange">
+        <div class="flex gap-2 flex-wrap">
+            <SimpleSelect Id="template-day" Placeholder="@L["Schedule.Day"]"
+                          Value="@selectedDay" OnChange="HandleDayChange">
                 <option value="">@L["Schedule.NoDay"]</option>
                 @foreach (var day in OrderedDays())
                 {
                     <option value="@day">@L[$"Weekday.{day}"]</option>
                 }
-            </FloatingSelect>
+            </SimpleSelect>
 
-            <FloatingInput Id="template-time" Type="time" Label="@L["Schedule.Time"]" Class="flex-1"
-                           Value="@selectedTime" OnInput="HandleTimeChange"/>
+            <SimpleInput Id="template-time" Type="time" Placeholder="@L["Schedule.Time"]"
+                         Value="@selectedTime" OnInput="HandleTimeChange"/>
+
+            <SimpleInput Id="template-location" Placeholder="@L["Event.Location"]"
+                         Value="@selectedLocation" OnInput="HandleLocationChange"
+                         MaxLength="DataLimits.LocationMaxLength"/>
         </div>
-
-        <FloatingInput Id="template-location" Label="@L["Event.Location"]"
-                       Value="@selectedLocation" OnInput="HandleLocationChange"
-                       MaxLength="DataLimits.LocationMaxLength"/>
 
         <div class="flex justify-end gap-3">
             <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">

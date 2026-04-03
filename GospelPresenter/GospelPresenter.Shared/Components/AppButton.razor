@@ -62,6 +62,6 @@ else
     private string CombinedClass => string.IsNullOrEmpty(Class) ? BaseClasses : $"{BaseClasses} {Class}";
 
     private string LabelClass => Disabled
-        ? $"{CombinedClass} opacity-50 !cursor-not-allowed pointer-events-none"
+        ? $"{CombinedClass} opacity-50 !cursor-default pointer-events-none"
         : CombinedClass;
 }

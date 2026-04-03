@@ -1,22 +1,23 @@
 <Dialog Class="bg-white dark:bg-neutral-800 max-w-2xl" OnClose="OnClose">
-    <div class="p-6 space-y-4">
+    <div class="p-6 space-y-3">
         <div class="font-semibold text-lg dark:text-neutral-100">@Title</div>
 
         <FloatingInput @ref="nameInput" Id="presentation-name" Label="@L["Common.Name"]"
                        Value="@name" OnInput="HandleNameInput"
-                       OnKeyDown="OnKeyDown" MaxLength="DataLimits.NameMaxLength"/>
+                       OnKeyDown="OnKeyDown" MaxLength="DataLimits.NameMaxLength"
+                       HideLabel/>
 
-        <div class="flex gap-3">
-            <FloatingInput Id="presentation-date" Type="date" Label="@L["Event.Date"]" Class="flex-1"
-                           Value="@selectedDate" OnInput="HandleDateChange"/>
+        <div class="flex gap-2 flex-wrap">
+            <SimpleInput Id="presentation-date" Type="date" Placeholder="@L["Event.Date"]"
+                         Value="@selectedDate" OnInput="HandleDateChange"/>
 
-            <FloatingInput Id="presentation-time" Type="time" Label="@L["Event.Time"]" Class="flex-1"
-                           Value="@selectedTime" OnInput="HandleTimeChange"/>
+            <SimpleInput Id="presentation-time" Type="time" Placeholder="@L["Event.Time"]"
+                         Value="@selectedTime" OnInput="HandleTimeChange"/>
+
+            <SimpleInput Id="presentation-location" Placeholder="@L["Event.Location"]"
+                         Value="@selectedLocation" OnInput="HandleLocationChange"
+                         MaxLength="DataLimits.LocationMaxLength"/>
         </div>
-
-        <FloatingInput Id="presentation-location" Label="@L["Event.Location"]"
-                       Value="@selectedLocation" OnInput="HandleLocationChange"
-                       MaxLength="DataLimits.LocationMaxLength"/>
 
         <div class="flex justify-end gap-3">
             <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
