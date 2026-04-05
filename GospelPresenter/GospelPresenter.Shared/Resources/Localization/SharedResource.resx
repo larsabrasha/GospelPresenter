@@ -189,10 +189,10 @@
     <value>Rename</value>
   </data>
   <data name="Sidebar.Song" xml:space="preserve">
-    <value>Song</value>
+    <value>Songs</value>
   </data>
   <data name="Sidebar.BibleText" xml:space="preserve">
-    <value>Bible text</value>
+    <value>Bible texts</value>
   </data>
   <data name="Sidebar.Images" xml:space="preserve">
     <value>Images</value>

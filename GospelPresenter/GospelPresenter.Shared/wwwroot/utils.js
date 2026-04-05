@@ -610,6 +610,27 @@ window.gospelPresenter.onAudioMetadata = function(audioId) {
     if (duration) duration.textContent = gospelPresenter.formatTime(audio.duration);
 };
 
+window.initScrollFade = function(scrollEl, fadeLeftEl, fadeRightEl) {
+    function update() {
+        var canScroll = scrollEl.scrollWidth > scrollEl.clientWidth + 1;
+        var atStart = scrollEl.scrollLeft <= 1;
+        var atEnd = scrollEl.scrollLeft + scrollEl.clientWidth >= scrollEl.scrollWidth - 1;
+        fadeLeftEl.style.display = (canScroll && !atStart) ? '' : 'none';
+        fadeRightEl.style.display = (canScroll && !atEnd) ? '' : 'none';
+        scrollEl.classList.toggle('is-overflowing', canScroll);
+    }
+    var observer = new ResizeObserver(update);
+    scrollEl.addEventListener('scroll', update);
+    observer.observe(scrollEl);
+    update();
+    return {
+        dispose: function() {
+            scrollEl.removeEventListener('scroll', update);
+            observer.disconnect();
+        }
+    };
+};
+
 window.gospelPresenter.fadeOutAudio = function(audioElement, button, durationMs) {
     durationMs = durationMs || 5000;
     if (audioElement.paused) return;

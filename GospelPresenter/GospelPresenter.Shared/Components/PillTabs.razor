@@ -1,0 +1,42 @@
+@implements IAsyncDisposable
+
+<div class="relative bg-neutral-100 dark:bg-neutral-700 rounded-full overflow-hidden md:inline-flex @Class">
+    <div @ref="scrollRef" class="flex gap-1 overflow-x-auto scroll-fade p-1">
+        @ChildContent
+    </div>
+    <div @ref="fadeLeftRef" class="absolute top-0 left-0 bottom-0 w-16 rounded-l-full pointer-events-none bg-gradient-to-l from-transparent to-neutral-100 dark:to-neutral-700" style="display:none"></div>
+    <div @ref="fadeRightRef" class="absolute top-0 right-0 bottom-0 w-16 rounded-r-full pointer-events-none bg-gradient-to-r from-transparent to-neutral-100 dark:to-neutral-700" style="display:none"></div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    [Inject] private IJSRuntime JsRuntime { get; set; } = default!;
+
+    private ElementReference scrollRef;
+    private ElementReference fadeLeftRef;
+    private ElementReference fadeRightRef;
+    private IJSObjectReference? scrollFadeHandle;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            scrollFadeHandle = await JsRuntime.InvokeAsync<IJSObjectReference>("initScrollFade", scrollRef, fadeLeftRef, fadeRightRef);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (scrollFadeHandle is not null)
+            {
+                await scrollFadeHandle.InvokeVoidAsync("dispose");
+                await scrollFadeHandle.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException) { }
+    }
+}

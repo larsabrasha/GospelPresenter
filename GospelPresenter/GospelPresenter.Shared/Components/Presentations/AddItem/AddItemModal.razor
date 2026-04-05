@@ -19,29 +19,25 @@
             </div>
         }
 
-        <div class="@(editingSongId is not null ? "hidden" : "flex justify-center mb-4")">
-            <div class="inline-flex bg-neutral-100 dark:bg-neutral-700 rounded-full p-1 gap-1">
-                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "song" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
-                        @onclick="@(() => activeTab = "song")">
-                    <MusicalNoteSymbol Class="size-4"/>
+        <div class="@(editingSongId is not null ? "hidden" : "mb-4 md:flex md:justify-center")">
+            <PillTabs>
+                <button class="@TabClass("song")" @onclick="@(() => activeTab = "song")">
+                    <MusicalNoteSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Song"]
                 </button>
-                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "bible" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
-                        @onclick="@(() => activeTab = "bible")">
-                    <BookOpenSymbol Class="size-4"/>
+                <button class="@TabClass("bible")" @onclick="@(() => activeTab = "bible")">
+                    <BookOpenSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.BibleText"]
                 </button>
-                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "image" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
-                        @onclick="@(() => activeTab = "image")">
-                    <PhotoSymbol Class="size-4"/>
+                <button class="@TabClass("image")" @onclick="@(() => activeTab = "image")">
+                    <PhotoSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Images"]
                 </button>
-                <button class="flex items-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all @(activeTab == "audio" ? "bg-white dark:bg-neutral-600 shadow font-medium" : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400")"
-                        @onclick="@(() => activeTab = "audio")">
-                    <SpeakerWaveSymbol Class="size-4"/>
+                <button class="@TabClass("audio")" @onclick="@(() => activeTab = "audio")">
+                    <SpeakerWaveSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Audio"]
                 </button>
-            </div>
+            </PillTabs>
         </div>
 
         <div class="@(editingSongId is null && activeTab == "song" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
@@ -75,6 +71,12 @@
     private AddMoreToggle addMoreState = new();
     private string? editingSongId;
     private SongTab? songTab;
+
+    private string TabClass(string tab) =>
+        "flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all " +
+        (activeTab == tab
+            ? "bg-white dark:bg-neutral-600 shadow font-medium"
+            : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400");
 
     protected override void OnInitialized()
     {

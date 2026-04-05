@@ -189,10 +189,10 @@
     <value>Byt namn</value>
   </data>
   <data name="Sidebar.Song" xml:space="preserve">
-    <value>Sång</value>
+    <value>Sånger</value>
   </data>
   <data name="Sidebar.BibleText" xml:space="preserve">
-    <value>Bibeltext</value>
+    <value>Bibeltexter</value>
   </data>
   <data name="Sidebar.Images" xml:space="preserve">
     <value>Bilder</value>
