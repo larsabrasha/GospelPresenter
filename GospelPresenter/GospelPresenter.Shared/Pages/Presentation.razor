@@ -938,6 +938,7 @@
         if (EffectiveId == loadedPresentationId) return;
         loadedPresentationId = EffectiveId;
 
+        AppState.IsMenuVisible = true;
         await LoadPresentationAsync();
         await GetDataForSelectedItem();
     }
