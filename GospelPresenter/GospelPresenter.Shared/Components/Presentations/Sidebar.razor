@@ -66,6 +66,12 @@
                             </AuthorizeView>
                         }
                         <div class="border-t border-neutral-200 dark:border-neutral-600"></div>
+                        <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
+                                @onclick="ToggleEditMode">
+                            <CheckboxSymbol Checked="isEditMode" Class="size-4"/>
+                            @L["Sidebar.SelectItems"]
+                        </button>
+                        <div class="border-t border-neutral-200 dark:border-neutral-600"></div>
                         <button class="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 dark:text-red-400 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
                                 @onclick="RequestDelete">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
@@ -93,41 +99,19 @@
                     }
                 </div>
             }
-            @if (isEditMode || AppState.SelectedProject.Items.Count > 1)
+            @if (isEditMode)
             {
+                var allSelected = AppState.SelectedProject.Items.Count > 0
+                    && selectedItemIds.Count == AppState.SelectedProject.Items.Count;
                 <div class="flex items-center justify-between">
-                    @if (isEditMode)
-                    {
-                        var allSelected = AppState.SelectedProject.Items.Count > 0
-                            && selectedItemIds.Count == AppState.SelectedProject.Items.Count;
-                        <button class="flex items-center gap-2 px-1 text-sm cursor-pointer select-none text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
-                                @onclick="ToggleSelectAll">
-                            @if (allSelected)
-                            {
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5 text-sky-500">
-                                    <rect width="20" height="20" x="2" y="2" rx="4" fill="currentColor" stroke="currentColor" stroke-width="1.5"/>
-                                    <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="white"/>
-                                </svg>
-                            }
-                            else
-                            {
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="size-5 text-neutral-300 dark:text-neutral-500">
-                                    <rect width="20" height="20" x="2" y="2" rx="4" stroke="currentColor" stroke-width="1.5"/>
-                                </svg>
-                            }
-                            @L["Sidebar.SelectAll"]
-                        </button>
-                    }
-                    else
-                    {
-                        <div></div>
-                    }
-                    <button class="px-2 py-1.5 rounded-full text-xs cursor-pointer
-                                   @(isEditMode
-                                       ? "bg-sky-500 text-white hover:bg-sky-600"
-                                       : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700")"
+                    <button class="flex items-center gap-2 px-1 text-sm cursor-pointer select-none text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"
+                            @onclick="ToggleSelectAll">
+                        <CheckboxSymbol Checked="allSelected" Filled Class="@(allSelected ? "size-5 text-sky-500" : "size-5 text-neutral-300 dark:text-neutral-500")"/>
+                        @L["Sidebar.SelectAll"]
+                    </button>
+                    <button class="px-2 py-1.5 rounded-full text-xs cursor-pointer bg-sky-500 text-white hover:bg-sky-600"
                             @onclick="ToggleEditMode">
-                        @(isEditMode ? L["Sidebar.DoneEditing"] : L["Sidebar.Select"])
+                        @L["Sidebar.DoneEditing"]
                     </button>
                 </div>
             }
@@ -149,19 +133,7 @@
                             var isChecked = selectedItemIds.Contains(item.Id);
                             <button class="flex items-center gap-3 px-3 py-3 grow cursor-pointer min-w-0"
                                     @onclick="(e) => ToggleItemChecked(item.Id, e.ShiftKey)">
-                                @if (isChecked)
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5 shrink-0 text-sky-500">
-                                        <rect width="20" height="20" x="2" y="2" rx="4" fill="currentColor" stroke="currentColor" stroke-width="1.5"/>
-                                        <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="white"/>
-                                    </svg>
-                                }
-                                else
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="size-5 shrink-0 text-neutral-300 dark:text-neutral-500">
-                                        <rect width="20" height="20" x="2" y="2" rx="4" stroke="currentColor" stroke-width="1.5"/>
-                                    </svg>
-                                }
+                                <CheckboxSymbol Checked="isChecked" Filled Class="@(isChecked ? "size-5 shrink-0 text-sky-500" : "size-5 shrink-0 text-neutral-300 dark:text-neutral-500")"/>
                                 <div class="size-3 shrink-0">
                                     @switch (item.Type)
                                     {

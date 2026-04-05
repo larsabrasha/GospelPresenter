@@ -899,8 +899,8 @@
   <data name="Toast.ImagesAdded" xml:space="preserve">
     <value>{0} bilder har lagts till</value>
   </data>
-  <data name="Sidebar.Select" xml:space="preserve">
-    <value>Välj</value>
+  <data name="Sidebar.SelectItems" xml:space="preserve">
+    <value>Markera</value>
   </data>
   <data name="Sidebar.DoneEditing" xml:space="preserve">
     <value>Klar</value>

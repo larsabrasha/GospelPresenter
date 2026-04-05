@@ -899,7 +899,7 @@
   <data name="Toast.ImagesAdded" xml:space="preserve">
     <value>{0} images added</value>
   </data>
-  <data name="Sidebar.Select" xml:space="preserve">
+  <data name="Sidebar.SelectItems" xml:space="preserve">
     <value>Select</value>
   </data>
   <data name="Sidebar.DoneEditing" xml:space="preserve">
