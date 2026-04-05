@@ -75,45 +75,43 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
                 </svg>
             </button>
-            <div class="font-semibold text-lg pr-8">@L["Dashboard.Create"]</div>
-            <p class="text-sm text-neutral-500 dark:text-neutral-400">@L["Dashboard.PickerDescription"]</p>
-            <div class="flex flex-wrap gap-3">
-                @if (recentTemplates is not null)
-                {
+            <div class="font-semibold text-lg pr-8">@L["Dashboard.CreateTitle"]</div>
+            <button class="flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-left text-inherit cursor-pointer transition-colors"
+                    @onclick="PickBlank">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 shrink-0 text-neutral-400 dark:text-neutral-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>
+                </svg>
+                <span class="text-sm font-medium">@L["Dashboard.BlankPresentation"]</span>
+            </button>
+            @if (recentTemplates is not null && recentTemplates.Count > 0)
+            {
+                <div class="text-xs font-medium text-neutral-400 dark:text-neutral-500 uppercase tracking-wide pt-2">@L["Dashboard.PickerTemplates"]</div>
+                <div class="flex flex-col gap-2">
                     @foreach (var template in recentTemplates)
                     {
-                        <button class="flex flex-col items-center justify-center w-28 h-24 rounded-xl border border-neutral-200 dark:border-neutral-600 bg-neutral-50 dark:bg-neutral-700 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-neutral-100 dark:hover:bg-neutral-600 text-neutral-600 dark:text-neutral-300 cursor-pointer transition-colors"
+                        <button class="flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-left text-inherit cursor-pointer transition-colors"
                                 @onclick="() => PickTemplate(template)">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 mb-1 text-neutral-400 dark:text-neutral-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 shrink-0 text-neutral-400 dark:text-neutral-500">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/>
                             </svg>
-                            <span class="text-xs text-center px-1 line-clamp-2 leading-tight">@template.Name</span>
-                            @if (template.ScheduledDayOfWeek is not null || template.ScheduledTime is not null)
-                            {
-                                <span class="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">@GetTemplatePickerSchedule(template)</span>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(template.Location))
-                            {
-                                <span class="text-[10px] text-neutral-400 dark:text-neutral-500">@template.Location</span>
-                            }
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-medium truncate">@template.Name</div>
+                                @if (template.ScheduledDayOfWeek is not null || template.ScheduledTime is not null || !string.IsNullOrWhiteSpace(template.Location))
+                                {
+                                    <div class="text-xs text-neutral-400 dark:text-neutral-500">@GetTemplatePickerDetails(template)</div>
+                                }
+                            </div>
                         </button>
                     }
-                }
-            </div>
-            <button class="flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-neutral-300 dark:border-neutral-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-pointer transition-colors"
-                    @onclick="PickBlank">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                </svg>
-                <span class="text-sm">@L["Dashboard.BlankPresentation"]</span>
-            </button>
+                </div>
+            }
         </div>
     </Dialog>
 }
 
 @if (showCreateDialog)
 {
-    <PresentationDetailsDialog Title="@L["Dashboard.Create"]"
+    <PresentationDetailsDialog Title="@L["Dashboard.CreateTitle"]"
                                Name="@newPresentationName"
                                Date="@prefillDate"
                                Time="@prefillTime"
@@ -188,14 +186,16 @@
         showCreateDialog = true;
     }
 
-    private string GetTemplatePickerSchedule(PresentationSummary template)
+    private string GetTemplatePickerDetails(PresentationSummary template)
     {
-        var parts = new List<string>();
+        var schedule = "";
         if (template.ScheduledDayOfWeek is { } day)
-            parts.Add(L[$"Weekday.{day}"]);
+            schedule = L[$"Weekday.{day}"];
         if (template.ScheduledTime is { } time)
-            parts.Add(time.ToString("HH:mm"));
-        return string.Join(" ", parts);
+            schedule += (schedule.Length > 0 ? " " : "") + time.ToString("HH:mm");
+        if (!string.IsNullOrWhiteSpace(template.Location))
+            schedule += (schedule.Length > 0 ? " \u00b7 " : "") + template.Location;
+        return schedule;
     }
 
     private static DateOnly? GetNextDateForDay(int? scheduledDayOfWeek, TimeOnly? scheduledTime)

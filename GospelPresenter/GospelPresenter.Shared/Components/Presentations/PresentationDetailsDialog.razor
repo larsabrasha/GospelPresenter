@@ -8,15 +8,17 @@
                        HideLabel/>
 
         <div class="flex gap-2 flex-wrap">
-            <SimpleInput Id="presentation-date" Type="date" Placeholder="@L["Event.Date"]"
+            <SimpleInput Id="presentation-date" Type="date"
                          Value="@selectedDate" OnInput="HandleDateChange"/>
 
-            <SimpleInput Id="presentation-time" Type="time" Placeholder="@L["Event.Time"]"
+            <SimpleInput Id="presentation-time" Type="time"
                          Value="@selectedTime" OnInput="HandleTimeChange"/>
 
             <SimpleInput Id="presentation-location" Placeholder="@L["Event.Location"]"
                          Value="@selectedLocation" OnInput="HandleLocationChange"
-                         MaxLength="DataLimits.LocationMaxLength"/>
+                         MaxLength="DataLimits.LocationMaxLength">
+                <Icon><MapPinSymbol Class="size-4"/></Icon>
+            </SimpleInput>
         </div>
 
         <div class="flex justify-end gap-3">

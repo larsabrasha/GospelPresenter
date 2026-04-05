@@ -150,6 +150,9 @@
     <value>Create a presentation to get started with your worship service.</value>
   </data>
   <data name="Dashboard.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Dashboard.CreateTitle" xml:space="preserve">
     <value>Create presentation</value>
   </data>
   <data name="Dashboard.Sunday" xml:space="preserve">
@@ -270,6 +273,9 @@
     <value>Saving songs...</value>
   </data>
   <data name="Songs.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Songs.CreateTitle" xml:space="preserve">
     <value>Create song</value>
   </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
@@ -378,7 +384,7 @@
     <value>Manage songs</value>
   </data>
   <data name="SongTab.CreateNewSong" xml:space="preserve">
-    <value>Create new song</value>
+    <value>Create</value>
   </data>
   <data name="SongTab.NoSongsFound" xml:space="preserve">
     <value>No songs found</value>
@@ -423,6 +429,9 @@
     <value>Users</value>
   </data>
   <data name="Users.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Users.CreateTitle" xml:space="preserve">
     <value>Create user</value>
   </data>
   <data name="Users.NoUsers" xml:space="preserve">
@@ -486,7 +495,7 @@
     <value>Copy</value>
   </data>
   <data name="UserDetail.CreateInviteLink" xml:space="preserve">
-    <value>Create invite link</value>
+    <value>Create</value>
   </data>
   <data name="UserDetail.ConfirmDeleteUser" xml:space="preserve">
     <value>Are you sure you want to delete {0}?</value>
@@ -516,6 +525,9 @@
     <value>Overlays are shown on top of the active slide during a presentation, e.g. a payment QR code during offering.</value>
   </data>
   <data name="Overlays.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Overlays.CreateTitle" xml:space="preserve">
     <value>Create overlay</value>
   </data>
   <data name="OverlayEditor.Title" xml:space="preserve">
@@ -540,6 +552,9 @@
     <value>Organizations</value>
   </data>
   <data name="Orgs.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Orgs.CreateTitle" xml:space="preserve">
     <value>Create organization</value>
   </data>
   <data name="Orgs.NoOrgs" xml:space="preserve">
@@ -933,6 +948,9 @@
     <value>MCP API keys</value>
   </data>
   <data name="ApiKeys.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="ApiKeys.CreateTitle" xml:space="preserve">
     <value>Create MCP API key</value>
   </data>
   <data name="ApiKeys.Empty" xml:space="preserve">
@@ -990,6 +1008,9 @@
     <value>Are you sure you want to delete this template?</value>
   </data>
   <data name="Templates.Create" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="Templates.CreateTitle" xml:space="preserve">
     <value>Create template</value>
   </data>
   <data name="Dashboard.Recent" xml:space="preserve">
@@ -1001,7 +1022,9 @@
   <data name="Dashboard.BlankPresentation" xml:space="preserve">
     <value>Blank presentation</value>
   </data>
-  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
+  <data name="Dashboard.PickerTemplates" xml:space="preserve">
+    <value>Templates</value>
+  </data>  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
     <value>Save as template</value>
   </data>
   <data name="Sidebar.DeleteTemplate" xml:space="preserve">

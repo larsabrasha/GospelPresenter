@@ -150,6 +150,9 @@
     <value>Skapa en presentation för att komma igång med din gudstjänst.</value>
   </data>
   <data name="Dashboard.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Dashboard.CreateTitle" xml:space="preserve">
     <value>Skapa presentation</value>
   </data>
   <data name="Dashboard.Sunday" xml:space="preserve">
@@ -270,6 +273,9 @@
     <value>Sparar sånger...</value>
   </data>
   <data name="Songs.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Songs.CreateTitle" xml:space="preserve">
     <value>Skapa sång</value>
   </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
@@ -378,7 +384,7 @@
     <value>Hantera sånger</value>
   </data>
   <data name="SongTab.CreateNewSong" xml:space="preserve">
-    <value>Skapa ny sång</value>
+    <value>Skapa</value>
   </data>
   <data name="SongTab.NoSongsFound" xml:space="preserve">
     <value>Inga sånger hittades</value>
@@ -423,6 +429,9 @@
     <value>Användare</value>
   </data>
   <data name="Users.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Users.CreateTitle" xml:space="preserve">
     <value>Skapa användare</value>
   </data>
   <data name="Users.NoUsers" xml:space="preserve">
@@ -486,7 +495,7 @@
     <value>Kopiera</value>
   </data>
   <data name="UserDetail.CreateInviteLink" xml:space="preserve">
-    <value>Skapa inbjudningslänk</value>
+    <value>Skapa</value>
   </data>
   <data name="UserDetail.ConfirmDeleteUser" xml:space="preserve">
     <value>Är du säker på att du vill ta bort {0}?</value>
@@ -516,6 +525,9 @@
     <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
   </data>
   <data name="Overlays.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Overlays.CreateTitle" xml:space="preserve">
     <value>Skapa overlay</value>
   </data>
   <data name="OverlayEditor.Title" xml:space="preserve">
@@ -540,6 +552,9 @@
     <value>Organisationer</value>
   </data>
   <data name="Orgs.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Orgs.CreateTitle" xml:space="preserve">
     <value>Skapa organisation</value>
   </data>
   <data name="Orgs.NoOrgs" xml:space="preserve">
@@ -933,6 +948,9 @@
     <value>MCP API-nycklar</value>
   </data>
   <data name="ApiKeys.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="ApiKeys.CreateTitle" xml:space="preserve">
     <value>Skapa MCP API-nyckel</value>
   </data>
   <data name="ApiKeys.Empty" xml:space="preserve">
@@ -990,6 +1008,9 @@
     <value>Är du säker på att du vill ta bort mallen?</value>
   </data>
   <data name="Templates.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Templates.CreateTitle" xml:space="preserve">
     <value>Skapa mall</value>
   </data>
   <data name="Dashboard.Recent" xml:space="preserve">
@@ -1001,7 +1022,9 @@
   <data name="Dashboard.BlankPresentation" xml:space="preserve">
     <value>Tom presentation</value>
   </data>
-  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
+  <data name="Dashboard.PickerTemplates" xml:space="preserve">
+    <value>Mallar</value>
+  </data>  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
     <value>Spara som mall</value>
   </data>
   <data name="Sidebar.DeleteTemplate" xml:space="preserve">
