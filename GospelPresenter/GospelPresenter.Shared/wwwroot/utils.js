@@ -1,3 +1,7 @@
+window.getElementWidth = function (element) {
+    return element ? element.getBoundingClientRect().width : 0;
+};
+
 window.copyToClipboard = function (text) {
     if (!navigator.clipboard) return Promise.resolve(false);
     return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return false; });

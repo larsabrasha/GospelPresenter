@@ -120,6 +120,7 @@
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
+        var previousPath = currentPath;
         UpdateCurrentPath();
 
         if (navigatingFromSidebar)
@@ -127,7 +128,7 @@
             menuVisible = false;
             navigatingFromSidebar = false;
         }
-        else
+        else if (!previousPath.StartsWith("/admin", StringComparison.OrdinalIgnoreCase))
         {
             menuVisible = true;
         }

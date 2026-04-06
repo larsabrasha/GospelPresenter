@@ -4,7 +4,7 @@
 @using GospelPresenter.Shared.Utils
 @using Microsoft.AspNetCore.Components.Forms
 
-<div class="flex flex-col">
+<div class="@Class">
     <div class="space-y-4">
         <FloatingInput Id="overlay-title" Label="@L["OverlayEditor.Title"]"
                        Value="@Overlay.Title" OnInput="HandleTitleChanged"
@@ -40,13 +40,13 @@
             }
         </div>
     </div>
-
 </div>
 
 @code {
     [Parameter] public required OverlaySlide Overlay { get; set; }
     [Parameter] public EventCallback<OverlaySlide> OnChanged { get; set; }
     [Parameter] public EventCallback OnSaved { get; set; }
+    [Parameter] public string? Class { get; set; }
     private readonly Debouncer debounce = new();
 
     public void Dispose() => debounce.Dispose();
