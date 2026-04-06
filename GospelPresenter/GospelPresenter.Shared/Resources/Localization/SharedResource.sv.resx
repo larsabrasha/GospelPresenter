@@ -164,8 +164,8 @@
   <data name="Presentation.EmptyHint" xml:space="preserve">
     <value>Tryck på &lt;strong&gt;Lägg till&lt;/strong&gt; i sidomenyn för att lägga till sånger, bibeltexter eller bilder.</value>
   </data>
-  <data name="Presentation.ShowBlack" xml:space="preserve">
-    <value>Visa svart bild</value>
+  <data name="Presentation.ClearSlide" xml:space="preserve">
+    <value>Rensa</value>
   </data>
   <data name="Presentation.AddSong" xml:space="preserve">
     <value>Lägg till sång</value>
@@ -1058,7 +1058,7 @@
     <value>Kunde inte spara inställningen</value>
   </data>
   <data name="Presentation.EditSong" xml:space="preserve">
-    <value>Redigera sång</value>
+    <value>Redigera</value>
   </data>
   <data name="Common.Menu" xml:space="preserve">
     <value>Meny</value>

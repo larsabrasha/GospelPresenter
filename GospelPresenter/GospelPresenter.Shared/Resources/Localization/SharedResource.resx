@@ -164,8 +164,8 @@
   <data name="Presentation.EmptyHint" xml:space="preserve">
     <value>Press &lt;strong&gt;Add&lt;/strong&gt; in the sidebar to add songs, Bible texts, or images.</value>
   </data>
-  <data name="Presentation.ShowBlack" xml:space="preserve">
-    <value>Show black screen</value>
+  <data name="Presentation.ClearSlide" xml:space="preserve">
+    <value>Clear</value>
   </data>
   <data name="Presentation.AddSong" xml:space="preserve">
     <value>Add song</value>
@@ -1058,7 +1058,7 @@
     <value>Could not save the setting</value>
   </data>
   <data name="Presentation.EditSong" xml:space="preserve">
-    <value>Edit song</value>
+    <value>Edit</value>
   </data>
   <data name="Common.Menu" xml:space="preserve">
     <value>Menu</value>

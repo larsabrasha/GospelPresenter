@@ -180,8 +180,8 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
         }
     });
 
-    document.getElementById(containerId).addEventListener('click', function(e) {
-        const link = e.target.closest('a');
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a[href*="/live"]');
         if (!link) return;
 
         if (state.connection) {
@@ -209,6 +209,15 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
             });
         }
     });
+}
+
+window.stopLivePresentation = function() {
+    var state = window.presentationState;
+    if (state.connection) {
+        state.connection.terminate();
+    } else if (state.isLiveOpen) {
+        window.liveViewChannel.postMessage({ type: 'close', sessionId: state.sessionId });
+    }
 }
 
 window.gospelPresenter = window.gospelPresenter || {};

@@ -32,6 +32,7 @@
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
     var statusBarStyle = $"padding-top: {statusBarHeight}px";
     var liveSlide = SharedAppState.GetLiveSlide(AppState.SessionId);
+    var isLiveShowing = SharedAppState.IsPresentationActive(AppState.SessionId) && liveSlide.Status != LiveSlideStatus.ShowingBlackScreen;
 }
 <div class="flex flex-col h-full relative dark:text-neutral-200 dark:bg-neutral-800" style="@statusBarStyle">
     @if (IsTemplateMode)
@@ -50,7 +51,7 @@
         @onclick="() => AppState.IsMenuVisible = false">
     </div>
     <div
-        class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 @menuVisibilityClass">
+        class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-10 lg:shadow-xl lg:visible lg:translate-x-0 @menuVisibilityClass">
         <Sidebar OnAddRequested="@OpenAddModal"
                  OnRemoveRequested="@ConfirmRemoveItem"
                  OnRemoveMultipleRequested="@ConfirmRemoveMultipleItems"
@@ -64,16 +65,16 @@
     </div>
 
     <div class="bg-neutral-100 dark:bg-neutral-900 grow relative">
-        <div class="flex flex-col h-full">
-            <div class="flex flex-col grow overflow-hidden h-full relative">
+        <div class="flex flex-col lg:flex-row h-full">
+            <div class="flex flex-col grow overflow-hidden h-full relative min-w-0">
                 <div
-                    class="flex justify-between absolute top-0 left-0 right-0 bg-linear-to-b from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-auto lg:pointer-events-none h-16">
-                    <div class="px-5 py-3 pointer-events-auto flex items-center gap-3">
+                    class="flex justify-between absolute top-0 left-0 right-0 bg-linear-to-b from-neutral-100 via-neutral-100/80 dark:from-neutral-900 dark:via-neutral-900/80 to-transparent lg:bg-none lg:bg-neutral-100 lg:dark:bg-neutral-900 z-10 lg:z-[5] pointer-events-none h-20 lg:h-auto">
+                    <div class="px-5 py-1 lg:py-3 lg:pointer-events-auto flex items-center gap-3">
                         @if (isEditingItemTitle)
                         {
                             <input @ref="itemTitleInput"
                                    type="text"
-                                   class="text-xl font-semibold px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                                   class="pointer-events-auto text-xl font-semibold px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
                                    @bind="editItemTitle"
                                    @bind:event="oninput"
                                    @onblur="SaveItemTitleAsync"
@@ -81,7 +82,10 @@
                         }
                         else
                         {
-                            <button class="text-xl font-semibold cursor-pointer hover:text-sky-500 text-left truncate"
+                            <span class="text-xl font-semibold text-left truncate lg:hidden">
+                                @AppState.SelectedProjectItem?.Title
+                            </span>
+                            <button class="text-xl font-semibold cursor-pointer hover:text-sky-500 text-left truncate hidden lg:block"
                                     @onclick="StartEditingItemTitle"
                                     title="@L["Sidebar.Rename"]">
                                 @AppState.SelectedProjectItem?.Title
@@ -89,7 +93,7 @@
                         }
                         @if (SelectedSong is not null && AppState.SelectedProjectItem?.SourceId is not null)
                         {
-                            <button class="flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
+                            <button class="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
                                            text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"
                                     @onclick="() => showSongEditor = true"
                                     title="@L["Presentation.EditSong"]">
@@ -101,7 +105,7 @@
                         }
                         @if (SelectedImage is not null)
                         {
-                            <button class="flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
+                            <button class="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
                                            @(isEditingImageOrder
                                                ? "bg-sky-500 text-white hover:bg-sky-600"
                                                : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300")"
@@ -125,26 +129,11 @@
                         }
                     </div>
 
-                    <div id="live-view-container" class="p-3 pointer-events-auto flex items-center gap-2">
-                        @if (SharedAppState.IsPresentationActive(AppState.SessionId))
-                        {
-                            <div class="flex items-center gap-2 text-sm font-medium text-red-500 dark:text-red-400">
-                                <span class="size-2 rounded-full bg-red-500 animate-pulse"></span>
-                                Live
-                            </div>
-                            <a href="/live?session=@AppState.SessionId" target="_blank"
-                               class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
-                               title="@L["Presentation.StopPresentation"]">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
-                                    <path fill-rule="evenodd" d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z" clip-rule="evenodd"/>
-                                </svg>
-                                <span class="text-sm font-medium">@L["Presentation.StopPresentation"]</span>
-                            </a>
-                        }
-                        else
+                    <div id="live-view-container" class="p-3 hidden lg:flex items-center gap-2">
+                        @if (!SharedAppState.IsPresentationActive(AppState.SessionId))
                         {
                             <a href="/live?session=@AppState.SessionId" target="_blank"
-                               class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
+                               class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer pointer-events-auto bg-emerald-500 text-white hover:bg-emerald-600"
                                title="@L["Presentation.StartPresentation"]">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
                                     <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
@@ -164,6 +153,7 @@
                                 ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth / 3 * 0.98 ?? 0.15
                                 : 0.2;
 
+                    var desktopLiveScale = DesktopSidebarContentWidth / AppState.BaseSlideWidth;
                     var miscSlideScale = AppState.MainViewport is null
                         ? 0.0
                         : AppState.MainViewport.Width < 1024
@@ -203,6 +193,7 @@
                                     Credits="@SongCredits"
                                     FontSize="@songFontSize"
                                     IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
+                                    IsLive="@isLiveShowing"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
                                     Scale="@slideScale"/>
@@ -219,6 +210,7 @@
                                     Content="@SelectedBibleText.Parts[i]"
                                     Credits="@SelectedBibleText.Title"
                                     IsSelected="@(liveSlide.ProjectItemId == SelectedBibleText.Id && liveSlide.ItemPartIndex == i)"
+                                    IsLive="@isLiveShowing"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
                                     Scale="@slideScale"/>
@@ -238,6 +230,7 @@
                                             <ImageSlide
                                                 Url="@SelectedImage.Urls[i]"
                                                 IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
+                                                IsLive="@isLiveShowing"
                                                 BaseWidth="@AppState.BaseSlideWidth"
                                                 BaseHeight="@AppState.BaseSlideHeight"
                                                 Scale="@slideScale"/>
@@ -257,6 +250,7 @@
                                             <ImageSlide
                                                 Url="@SelectedImage.Urls[i]"
                                                 IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
+                                                IsLive="@isLiveShowing"
                                                 BaseWidth="@AppState.BaseSlideWidth"
                                                 BaseHeight="@AppState.BaseSlideHeight"
                                                 Scale="@slideScale"/>
@@ -325,68 +319,70 @@
                 </div>
                 }
 
+                <div class="absolute bottom-0 left-0 right-0 h-24 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent lg:hidden z-20 pointer-events-none"></div>
                 <div
-                    class="flex items-center absolute bottom-0 left-0 right-0 justify-between p-3 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent z-10 pointer-events-none">
+                    class="flex items-end absolute bottom-0 left-0 right-0 justify-between p-3 z-30 pointer-events-none">
                     <div class="flex items-center lg:hidden pointer-events-auto">
                         <MenuToggleButton OnClick="() => AppState.IsMenuVisible = true"/>
                     </div>
 
+                    @if (!IsTemplateMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+                    {
+                        <div class="lg:hidden pointer-events-auto">
+                            <a href="/live?session=@AppState.SessionId" target="_blank"
+                               class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
+                               title="@L["Presentation.StartPresentation"]">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
+                                    <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
+                                </svg>
+                                <span class="text-sm font-medium">@L["Presentation.StartPresentation"]</span>
+                            </a>
+                        </div>
+                    }
+
                     @if (!IsTemplateMode && SharedAppState.IsPresentationActive(AppState.SessionId))
                     {
-                        var isBlackScreen = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
+                        var activeOverlay = SharedAppState.GetActiveOverlay(AppState.SessionId);
 
-                        <div class="pointer-events-auto ml-auto bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 flex flex-col gap-3">
-                            <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">Nu visas</div>
-                            @{
-                                var activeOverlay = SharedAppState.GetActiveOverlay(AppState.SessionId);
-                            }
-                            <LiveDisplay
+                        <div class="pointer-events-auto ml-auto lg:hidden bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 flex flex-col gap-3">
+                            <LivePanel
                                 LiveSlide="@liveSlide"
-                                Overlay="@activeOverlay"
+                                ActiveOverlay="@activeOverlay"
                                 Scale="@miscSlideScale"
                                 BaseWidth="@AppState.BaseSlideWidth"
                                 BaseHeight="@AppState.BaseSlideHeight"
-                                Class="rounded-lg"/>
-                            <button @onclick="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
-                                    class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-sm text-neutral-600 dark:text-neutral-300"
-                                    title="@L["Presentation.ShowBlack"]">
-                                <span>@L["Presentation.ShowBlack"]</span>
-                                <div class="relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 @(isBlackScreen ? "bg-sky-500" : "bg-neutral-300 dark:bg-neutral-500")">
-                                    <div class="absolute top-0.5 size-4 rounded-full bg-white shadow transition-all duration-200 @(isBlackScreen ? "left-4.5" : "left-0.5")"></div>
-                                </div>
-                            </button>
-
-                            @if (overlaySlides.Count > 0)
-                            {
-                                <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold mt-1">Overlays</div>
-                                @foreach (var overlay in overlaySlides)
-                                {
-                                    var isActive = activeOverlayId == overlay.Id;
-                                    <button @onclick="() => ToggleOverlay(overlay)"
-                                            class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-neutral-600 dark:text-neutral-300 @(isActive ? "bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "bg-neutral-100 dark:bg-neutral-700/50")"
-                                            title="@overlay.Title">
-                                        <span class="truncate">@overlay.Title</span>
-                                        <div class="relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 @(isActive ? "bg-sky-500" : "bg-neutral-300 dark:bg-neutral-500")">
-                                            <div class="absolute top-0.5 size-4 rounded-full bg-white shadow transition-all duration-200 @(isActive ? "left-4.5" : "left-0.5")"></div>
-                                        </div>
-                                    </button>
-                                }
-                            }
-
-                            <button @onclick="() => showOverlayManager = true"
-                                    class="cursor-pointer flex items-center gap-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600"
-                                    title="@L["Presentation.ManageOverlays"]">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-                                </svg>
-                                <span>@L["Presentation.ManageOverlays"]</span>
-                            </button>
+                                OverlaySlides="@overlaySlides"
+                                ActiveOverlayId="@activeOverlayId"
+                                OnClearSlide="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
+                                OnToggleOverlay="ToggleOverlay"
+                                OnStopPresentation="StopPresentation"/>
                         </div>
                     }
                 </div>
 
             </div>
+
+            @if (!IsTemplateMode && SharedAppState.IsPresentationActive(AppState.SessionId))
+            {
+                var activeOverlayDesktop = SharedAppState.GetActiveOverlay(AppState.SessionId);
+
+                <div class="hidden lg:flex flex-col shrink-0 w-72 h-full bg-white dark:bg-neutral-800 overflow-auto shadow-xl">
+                    <div class="p-4 flex flex-col gap-3 h-full">
+                        <LivePanel
+                            LiveSlide="@liveSlide"
+                            ActiveOverlay="@activeOverlayDesktop"
+                            Scale="@desktopLiveScale"
+                            BaseWidth="@AppState.BaseSlideWidth"
+                            BaseHeight="@AppState.BaseSlideHeight"
+                            OverlaySlides="@overlaySlides"
+                            ActiveOverlayId="@activeOverlayId"
+                            ShowGrow
+                            OnClearSlide="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
+                            OnToggleOverlay="ToggleOverlay"
+                            OnStopPresentation="StopPresentation"/>
+                    </div>
+                </div>
+            }
         </div>
     </div>
     </div>
@@ -508,15 +504,6 @@
     </Dialog>
 }
 
-@if (showOverlayManager)
-{
-    <Modal Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="@CloseOverlayManager">
-        <Title><span>@L["Presentation.ManageOverlays"]</span></Title>
-        <Body>
-            <OverlayManager OrganizationId="@loadedPresentation?.OrganizationId" OnOverlaysChanged="@ReloadOverlays"/>
-        </Body>
-    </Modal>
-}
 
 @if (showDeleteConfirmation)
 {
@@ -556,6 +543,9 @@
 }
 
 @code {
+    // w-72 (288px) minus p-4 (32px) padding
+    private const double DesktopSidebarContentWidth = 256.0;
+
     [Parameter] public string? PresentationId { get; set; }
     [Parameter] public string? TemplateId { get; set; }
 
@@ -576,7 +566,7 @@
     private Audio? SelectedAudio { get; set; }
     private bool showAddModal;
     private bool showSessionExpired;
-    private bool showOverlayManager;
+
     private List<OverlaySlide> overlaySlides = [];
     private string? activeOverlayId;
     private bool isEditingImageOrder;
@@ -690,7 +680,22 @@
     {
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
+
+        if (active && AppState.SelectedProjectItem is not null)
+        {
+            var current = SharedAppState.GetLiveSlide(AppState.SessionId);
+            SharedAppState.SetLiveSlide(AppState.SessionId, current with
+            {
+                Status = LiveSlideStatus.ShowingBlackScreen
+            });
+        }
+
         SharedAppState.SetPresentationActive(AppState.SessionId, active, orgId);
+    }
+
+    private async Task StopPresentation()
+    {
+        await JsRuntime.InvokeVoidAsync("stopLivePresentation");
     }
 
     [JSInvokable]
@@ -1307,10 +1312,6 @@
         }
     }
 
-    private void CloseOverlayManager()
-    {
-        showOverlayManager = false;
-    }
 
     private void CancelRemove()
     {

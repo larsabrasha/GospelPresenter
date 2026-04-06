@@ -13,7 +13,7 @@
     return;
 }
 
-<Dropdown MenuClass="right-0 w-64 bg-white dark:bg-neutral-700 rounded-lg shadow-lg py-1">
+<Dropdown MenuClass="right-0 w-64">
     <Trigger>
         <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer
                        bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300
@@ -47,7 +47,7 @@
                 {
                     var isActive = OrgState.SelectedOrganizationId == org.Id;
                     <button @onclick="() => SelectOrganization(org)"
-                            class="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm cursor-pointer
+                            class="flex items-center gap-3 w-full text-left px-4 py-3 text-sm cursor-pointer
                                    @(isActive ? "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300" : "text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600")">
                         <OrganizationAvatar LogoUrl="@org.LogoSmall" Name="@org.Name"/>
                         <div class="flex-1 min-w-0">

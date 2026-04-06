@@ -5,20 +5,28 @@
     var width = FormattableString.Invariant($"{Scale * BaseWidth}px");
     var height = FormattableString.Invariant($"{Scale * BaseHeight}px");
 
+    var isLiveSelected = IsSelected == true && IsLive;
     var selectionClass = IsSelected switch
     {
-        true => $"{BaseClass} {SelectedClass}",
-        false => $"{BaseClass} {NotSelectedClass}",
+        true => isLiveSelected ? $"{BaseClass} {LiveSelectedClass}" : $"{BaseClass} {SelectedClass}",
+        false => IsLive ? $"{BaseClass} {LiveNotSelectedClass}" : $"{BaseClass} {NotSelectedClass}",
         null => null
     };
     var cssClass = selectionClass ?? Class;
 }
 
 <div
-    class="select-none text-center group @cssClass"
+    class="select-none text-center group relative @cssClass"
     style="width: @width; height: @height">
+    @if (isLiveSelected)
+    {
+        <div class="absolute top-1 left-1 z-10 flex items-center gap-1 bg-red-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full">
+            <span class="size-1.5 rounded-full bg-white animate-pulse"></span>
+            Live
+        </div>
+    }
     <div
-        class="origin-top-left flex items-center justify-center px-20 pt-20 pb-36 relative"
+        class="origin-top-left flex items-center justify-center px-20 pt-20 pb-36 relative overflow-hidden"
         style="font-size: @(FormattableString.Invariant($"{FontSize}px")); width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
         @ChildContent
     </div>
@@ -32,8 +40,11 @@
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public bool? IsSelected { get; set; }
+    [Parameter] public bool IsLive { get; set; }
 
-    private const string BaseClass = "border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer hover:outline-sky-500";
-    private const string SelectedClass = "outline-sky-500";
-    private const string NotSelectedClass = "outline-transparent";
+    private const string BaseClass = "border-t border-neutral-800/90 bg-black rounded-2xl outline-4 m-1 text-white cursor-pointer";
+    private const string SelectedClass = "outline-sky-500 hover:outline-sky-500";
+    private const string LiveSelectedClass = "outline-red-500 hover:outline-red-500";
+    private const string NotSelectedClass = "outline-transparent hover:outline-sky-500";
+    private const string LiveNotSelectedClass = "outline-transparent hover:outline-red-500";
 }
