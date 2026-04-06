@@ -497,7 +497,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller)
     {
-        caller.RequirePermission(Permission.ManageUsers);
+        caller.RequirePermission(Permission.ManageMcpApiKeys);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         return await context.McpApiKeys
@@ -509,7 +509,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task<(McpApiKey ApiKey, string PlaintextKey)> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller)
     {
-        caller.RequirePermission(Permission.ManageUsers);
+        caller.RequirePermission(Permission.ManageMcpApiKeys);
         caller.RequireOrganizationAccess(organizationId);
         ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync();
@@ -531,7 +531,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
 
     public async Task DeleteMcpApiKeyAsync(string id, CallerContext caller)
     {
-        caller.RequirePermission(Permission.ManageUsers);
+        caller.RequirePermission(Permission.ManageMcpApiKeys);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var key = await context.McpApiKeys.FirstOrDefaultAsync(k => k.Id == id);
         if (key is null) return;

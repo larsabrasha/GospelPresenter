@@ -21,4 +21,5 @@ public enum Permission
     ManageOrganizations,
     AssignSuperAdminRole,
     CrossOrganizationAccess,
+    ManageMcpApiKeys,
 }
