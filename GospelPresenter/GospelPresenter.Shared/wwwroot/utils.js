@@ -1,3 +1,90 @@
+window.getElementWidth = function (element) {
+    return element ? element.getBoundingClientRect().width : 0;
+};
+
+window.clickElement = function (element) {
+    if (element) element.click();
+};
+
+window.uploadFiles = async function (inputElement, url, dotNetRef, maxFileSize, allowedTypes) {
+    var files = inputElement.files;
+    if (!files || files.length === 0) return;
+
+    await dotNetRef.invokeMethodAsync('OnUploadStarted', files.length);
+
+    for (var i = 0; i < files.length; i++) {
+        if (allowedTypes && allowedTypes.length > 0 && allowedTypes.indexOf(files[i].type) === -1) {
+            await dotNetRef.invokeMethodAsync('OnFileUploadFailed', files[i].name);
+            continue;
+        }
+        if (maxFileSize > 0 && files[i].size > maxFileSize) {
+            await dotNetRef.invokeMethodAsync('OnFileUploadFailed', files[i].name);
+            continue;
+        }
+
+        var formData = new FormData();
+        formData.append('file', files[i]);
+
+        try {
+            var response = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                var json = await response.text();
+                await dotNetRef.invokeMethodAsync('OnFileUploaded', json);
+            } else {
+                await dotNetRef.invokeMethodAsync('OnFileUploadFailed', files[i].name);
+            }
+        } catch (e) {
+            await dotNetRef.invokeMethodAsync('OnFileUploadFailed', files[i].name);
+        }
+    }
+
+    await dotNetRef.invokeMethodAsync('OnAllUploadsComplete');
+    inputElement.value = '';
+};
+
+window.uploadAllFiles = async function (inputElement, url, replaceExisting) {
+    var files = inputElement.files;
+    if (!files || files.length === 0) return null;
+
+    var formData = new FormData();
+    for (var i = 0; i < files.length; i++) {
+        formData.append('file', files[i], files[i].name);
+    }
+    if (replaceExisting) {
+        formData.append('replaceExisting', 'true');
+    }
+
+    try {
+        var response = await fetch(url, { method: 'POST', body: formData });
+        if (!response.ok) return null;
+
+        var result = await response.json();
+        result.fileCount = files.length;
+        if (!result.duplicates) inputElement.value = '';
+        return result;
+    } catch (e) {
+        return null;
+    }
+};
+
+window.readFileAsDataUrl = function (inputElement, maxFileSize, allowedTypes) {
+    var file = inputElement.files && inputElement.files[0];
+    if (!file) return Promise.resolve(null);
+    if (allowedTypes && allowedTypes.length > 0 && allowedTypes.indexOf(file.type) === -1) return Promise.resolve('unsupported-type');
+    if (maxFileSize > 0 && file.size > maxFileSize) return Promise.resolve('too-large');
+
+    return new Promise(function (resolve) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve(reader.result); };
+        reader.onerror = function () { resolve(null); };
+        reader.readAsDataURL(file);
+    });
+};
+
 window.copyToClipboard = function (text) {
     if (!navigator.clipboard) return Promise.resolve(false);
     return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return false; });
@@ -125,6 +212,18 @@ window.scrollSidebarItemIntoView = function(itemId) {
 
 window.liveViewChannel = new BroadcastChannel('gospel-live');
 
+window.initLiveStateListener = function(sessionId, dotNetRef) {
+    if (window._liveStateListenerAttached) return;
+    window._liveStateListenerAttached = true;
+    window.liveViewChannel.addEventListener('message', function(e) {
+        if (e.data?.sessionId !== sessionId) return;
+        if (e.data.type === 'live-closed') {
+            window.presentationState.isLiveOpen = false;
+            dotNetRef.invokeMethodAsync('OnLiveClosed');
+        }
+    });
+}
+
 window.presentationState = { connection: null, dotNetRef: null };
 
 window.setupPresentationConnection = function(state, connection, dotNetRef) {
@@ -138,7 +237,7 @@ window.setupPresentationConnection = function(state, connection, dotNetRef) {
         state.isLiveOpen = false;
         sessionStorage.removeItem('presentation-id');
         sessionStorage.removeItem('presentation-url');
-        dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
+        window.liveViewChannel.postMessage({ type: 'live-closed', sessionId: state.sessionId });
     }
 
     connection.addEventListener('close', onDisconnect);
@@ -163,7 +262,7 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
             sessionStorage.removeItem('presentation-url');
             if (isActive) {
                 state.isLiveOpen = false;
-                dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
+                window.liveViewChannel.postMessage({ type: 'live-closed', sessionId });
             }
         });
     }
@@ -174,14 +273,11 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
         if (e.data.type === 'live-opened') {
             state.isLiveOpen = true;
             dotNetRef.invokeMethodAsync('OnPresentationStateChanged', true);
-        } else if (e.data.type === 'live-closed') {
-            state.isLiveOpen = false;
-            dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
         }
     });
 
-    document.getElementById(containerId).addEventListener('click', function(e) {
-        const link = e.target.closest('a');
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a[href*="/live"]');
         if (!link) return;
 
         if (state.connection) {
@@ -209,6 +305,15 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
             });
         }
     });
+}
+
+window.stopLivePresentation = function() {
+    var state = window.presentationState;
+    if (state.connection) {
+        state.connection.terminate();
+    } else if (state.isLiveOpen) {
+        window.liveViewChannel.postMessage({ type: 'close', sessionId: state.sessionId });
+    }
 }
 
 window.gospelPresenter = window.gospelPresenter || {};
@@ -608,6 +713,27 @@ window.gospelPresenter.onAudioMetadata = function(audioId) {
     if (!audio) return;
     var duration = document.getElementById(audioId + '-duration');
     if (duration) duration.textContent = gospelPresenter.formatTime(audio.duration);
+};
+
+window.initScrollFade = function(scrollEl, fadeLeftEl, fadeRightEl) {
+    function update() {
+        var canScroll = scrollEl.scrollWidth > scrollEl.clientWidth + 1;
+        var atStart = scrollEl.scrollLeft <= 1;
+        var atEnd = scrollEl.scrollLeft + scrollEl.clientWidth >= scrollEl.scrollWidth - 1;
+        fadeLeftEl.style.display = (canScroll && !atStart) ? '' : 'none';
+        fadeRightEl.style.display = (canScroll && !atEnd) ? '' : 'none';
+        scrollEl.classList.toggle('is-overflowing', canScroll);
+    }
+    var observer = new ResizeObserver(update);
+    scrollEl.addEventListener('scroll', update);
+    observer.observe(scrollEl);
+    update();
+    return {
+        dispose: function() {
+            scrollEl.removeEventListener('scroll', update);
+            observer.disconnect();
+        }
+    };
 };
 
 window.gospelPresenter.fadeOutAudio = function(audioElement, button, durationMs) {

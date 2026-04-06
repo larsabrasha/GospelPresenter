@@ -107,6 +107,13 @@ dialog.animated[open]::backdrop {
     display: block;
 }
 
+input.native-picker-hidden::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    width: 0;
+    padding: 0;
+    margin: 0;
+}
+
 .toast-popover:popover-open {
     position: fixed;
     inset: auto;

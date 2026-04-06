@@ -3,10 +3,11 @@
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
-@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging
+@implements IDisposable
 
 @inject IOrganizationAudioService OrganizationAudioService
+@inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
 @inject ILogger<AudioTab> Logger
 
@@ -33,7 +34,7 @@ else
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
                 </svg>
                 @L["AudioTab.Upload"]
-                <InputFile OnChange="HandleFilesSelected" accept="audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm,audio/x-m4a" multiple class="hidden"/>
+                <input @ref="fileInput" type="file" @onchange="HandleFilesSelected" accept="@AppConstraints.AudioAccept" multiple class="hidden"/>
             </AppButton>
             @if (uploadError is not null)
             {
@@ -118,19 +119,19 @@ else
     [Parameter] public EventCallback<List<OrganizationAudio>> OnAddKeepOpen { get; set; }
     [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
 
-    private const long MaxFileSize = DataLimits.MaxAudioFileSizeBytes;
-    private static readonly HashSet<string> AllowedAudioTypes = ["audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/webm", "audio/x-m4a"];
-
     private string? organizationId;
     private List<OrganizationAudio> audios = [];
     private bool isLoading = true;
     private bool isUploading;
     private int uploadedCount;
     private int uploadTotalCount;
+    private int failedCount;
     private string? uploadError;
     private OrganizationAudio? audioToDelete;
     private HashSet<string> selectedAudios = [];
     private bool isAdding;
+    private ElementReference fileInput;
+    private DotNetObjectReference<AudioTab>? dotNetRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -144,72 +145,60 @@ else
         isLoading = false;
     }
 
-    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+    private async Task HandleFilesSelected()
     {
         if (isUploading) return;
         uploadError = null;
-
-        var files = e.GetMultipleFiles(maximumFileCount: 50);
-        var validFiles = new List<IBrowserFile>();
-
-        foreach (var file in files)
-        {
-            if (!AllowedAudioTypes.Contains(file.ContentType))
-            {
-                uploadError = L["AudioTab.UnsupportedFormat"];
-                continue;
-            }
-            if (file.Size > MaxFileSize)
-            {
-                uploadError = L["AudioTab.AudioTooLarge"];
-                continue;
-            }
-            validFiles.Add(file);
-        }
-
-        if (validFiles.Count == 0) return;
-
+        failedCount = 0;
         isUploading = true;
-        uploadedCount = 0;
-        uploadTotalCount = validFiles.Count;
         StateHasChanged();
 
-        int failedCount = 0;
+        dotNetRef ??= DotNetObjectReference.Create(this);
+        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, "/api/upload/org-audio", dotNetRef, AppConstraints.MaxAudioFileSizeBytes, AppConstraints.AllowedAudioTypes);
+    }
 
-        foreach (var file in validFiles)
+    [JSInvokable]
+    public void OnUploadStarted(int totalCount)
+    {
+        uploadedCount = 0;
+        uploadTotalCount = totalCount;
+    }
+
+    [JSInvokable]
+    public void OnFileUploaded(string json)
+    {
+        var result = System.Text.Json.JsonSerializer.Deserialize<UploadResult>(json, UploadResult.JsonOptions);
+        if (result is null) return;
+        audios.Insert(0, new OrganizationAudio
         {
-            try
-            {
-                using var stream = file.OpenReadStream(MaxFileSize);
-                using var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
-                var data = ms.ToArray();
+            Id = result.Id,
+            FileName = result.FileName,
+            ContentType = result.ContentType
+        });
+        uploadedCount++;
+        StateHasChanged();
+    }
 
-                var audio = await OrganizationAudioService.AddAudioAsync(
-                    organizationId!,
-                    file.Name,
-                    file.ContentType,
-                    data,
-                    OrgState.ToCallerContext());
+    [JSInvokable]
+    public void OnFileUploadFailed(string fileName)
+    {
+        Logger.LogError("Failed to upload audio {FileName}", fileName);
+        uploadedCount++;
+        failedCount++;
+        uploadError = L["AudioTab.UploadErrorCount", failedCount];
+        StateHasChanged();
+    }
 
-                audios.Insert(0, audio);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Failed to upload audio {FileName}", file.Name);
-                failedCount++;
-            }
-
-            uploadedCount++;
-            StateHasChanged();
-        }
-
-        if (failedCount > 0)
-        {
-            uploadError = L["AudioTab.UploadErrorCount", failedCount];
-        }
-
+    [JSInvokable]
+    public void OnAllUploadsComplete()
+    {
         isUploading = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
     }
 
     private void ToggleAudio(OrganizationAudio audio)

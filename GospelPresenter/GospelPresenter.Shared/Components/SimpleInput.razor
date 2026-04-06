@@ -1,10 +1,31 @@
+@{
+    var hasIcon = Icon is not null || Type is "date" or "time";
+}
+
 <div class="relative @Class">
+    @if (hasIcon)
+    {
+        <span class="absolute left-3 inset-y-0 flex items-center pointer-events-none text-neutral-400 dark:text-neutral-500">
+            @if (Icon is not null)
+            {
+                @Icon
+            }
+            else if (Type == "date")
+            {
+                <CalendarSymbol Class="size-4"/>
+            }
+            else
+            {
+                <ClockSymbol Class="size-4"/>
+            }
+        </span>
+    }
     <input @ref="inputElement" id="@Id" type="@Type" placeholder="@Placeholder"
            value="@Value"
            maxlength="@MaxLength"
            @oninput="OnInput"
            @onkeydown="OnKeyDown"
-           class="h-9 px-4 rounded-full bg-neutral-100 dark:bg-neutral-700 dark:scheme-dark text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+           class="@($"h-9 px-4 rounded-full bg-neutral-100 dark:bg-neutral-700 dark:scheme-dark text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-sky-500{(Type is "date" or "time" ? " native-picker-hidden" : "")}{(hasIcon ? " pl-9" : "")}")"/>
 </div>
 
 @code {
@@ -16,6 +37,7 @@
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
     [Parameter] public int? MaxLength { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? Icon { get; set; }
 
     private ElementReference inputElement;
     public ValueTask FocusAsync() => inputElement.FocusAsync();

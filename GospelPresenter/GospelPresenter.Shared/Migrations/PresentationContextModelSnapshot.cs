@@ -22,6 +22,57 @@ namespace GospelPresenter.Shared.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("GospelPresenter.Shared.Models.CcliReportEntry", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CcliNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("OrganizationId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PresentationId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PresentationName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("Reported")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("ReportedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SongId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SongName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "SongId", "Date", "PresentationId")
+                        .IsUnique();
+
+                    b.ToTable("CcliReportEntries");
+                });
+
             modelBuilder.Entity("GospelPresenter.Shared.Models.DbSong", b =>
                 {
                     b.Property<string>("Id")
@@ -534,6 +585,17 @@ namespace GospelPresenter.Shared.Migrations
                         .IsUnique();
 
                     b.ToTable("UserSettings");
+                });
+
+            modelBuilder.Entity("GospelPresenter.Shared.Models.CcliReportEntry", b =>
+                {
+                    b.HasOne("GospelPresenter.Shared.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("GospelPresenter.Shared.Models.DbSong", b =>

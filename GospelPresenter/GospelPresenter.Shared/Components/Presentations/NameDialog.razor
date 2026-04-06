@@ -3,7 +3,7 @@
         <div class="font-semibold text-lg">@Title</div>
         <FloatingInput @ref="floatingInput" Id="dialog-name" Label="@L["Common.Name"]"
                        Value="@name" OnInput="HandleNameInput" OnKeyDown="OnKeyDown"
-                       MaxLength="DataLimits.NameMaxLength"/>
+                       MaxLength="AppConstraints.NameMaxLength"/>
         <div class="flex justify-end gap-3">
             <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
                 @L["Common.Cancel"]

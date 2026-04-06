@@ -2,8 +2,8 @@
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
-@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Logging
+@implements IDisposable
 
 @inject IOrganizationImageService OrganizationImageService
 @inject IJSRuntime JsRuntime
@@ -33,7 +33,7 @@ else
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
                 </svg>
                 @L["ImageTab.Upload"]
-                <InputFile OnChange="HandleFilesSelected" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden"/>
+                <input @ref="fileInput" type="file" @onchange="HandleFilesSelected" accept="@AppConstraints.ImageAccept" multiple class="hidden"/>
             </AppButton>
             @if (uploadError is not null)
             {
@@ -71,7 +71,7 @@ else
                                     </div>
                                 }
                                 <div class="absolute top-1 right-1">
-                                    <Dropdown MenuClass="right-0 min-w-36 rounded-lg bg-white dark:bg-neutral-800 shadow-lg ring-1 ring-neutral-200 dark:ring-neutral-700 py-1">
+                                    <Dropdown MenuClass="right-0 min-w-36">
                                         <Trigger>
                                             <button class="size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80">
                                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
@@ -145,23 +145,19 @@ else
     [Parameter] public EventCallback<List<OrganizationImage>> OnAddKeepOpen { get; set; }
     [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
 
-    private const long MaxFileSize = DataLimits.MaxImageFileSizeBytes;
-    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    private const int FullMaxWidth = 1920;
-    private const int FullMaxHeight = 1080;
-    private const int ThumbMaxWidth = 400;
-    private const int ThumbMaxHeight = 225;
-
     private string? organizationId;
     private List<OrganizationImage> images = [];
     private bool isLoading = true;
     private bool isUploading;
     private int uploadedCount;
     private int uploadTotalCount;
+    private int failedCount;
     private string? uploadError;
     private OrganizationImage? imageToDelete;
     private HashSet<string> selectedImages = [];
     private bool isAdding;
+    private ElementReference fileInput;
+    private DotNetObjectReference<ImageTab>? dotNetRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -175,83 +171,60 @@ else
         isLoading = false;
     }
 
-    private async Task HandleFilesSelected(InputFileChangeEventArgs e)
+    private async Task HandleFilesSelected()
     {
         if (isUploading) return;
         uploadError = null;
-
-        var files = e.GetMultipleFiles(maximumFileCount: 50);
-        var validFiles = new List<IBrowserFile>();
-
-        foreach (var file in files)
-        {
-            if (!AllowedImageTypes.Contains(file.ContentType))
-            {
-                uploadError = L["ImageTab.UnsupportedFormat"];
-                continue;
-            }
-            if (file.Size > MaxFileSize)
-            {
-                uploadError = L["ImageTab.ImageTooLarge"];
-                continue;
-            }
-            validFiles.Add(file);
-        }
-
-        if (validFiles.Count == 0) return;
-
+        failedCount = 0;
         isUploading = true;
-        uploadedCount = 0;
-        uploadTotalCount = validFiles.Count;
         StateHasChanged();
 
-        int failedCount = 0;
+        dotNetRef ??= DotNetObjectReference.Create(this);
+        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, "/api/upload/org-image", dotNetRef, AppConstraints.MaxImageFileSizeBytes, AppConstraints.AllowedImageTypes);
+    }
 
-        foreach (var file in validFiles)
+    [JSInvokable]
+    public void OnUploadStarted(int totalCount)
+    {
+        uploadedCount = 0;
+        uploadTotalCount = totalCount;
+    }
+
+    [JSInvokable]
+    public void OnFileUploaded(string json)
+    {
+        var result = System.Text.Json.JsonSerializer.Deserialize<UploadResult>(json, UploadResult.JsonOptions);
+        if (result is null) return;
+        images.Insert(0, new OrganizationImage
         {
-            try
-            {
-                using var stream = file.OpenReadStream(MaxFileSize);
-                using var ms = new System.IO.MemoryStream();
-                await stream.CopyToAsync(ms);
-                var originalBytes = ms.ToArray();
-                var base64 = Convert.ToBase64String(originalBytes);
+            Id = result.Id,
+            FileName = result.FileName,
+            ContentType = result.ContentType
+        });
+        uploadedCount++;
+        StateHasChanged();
+    }
 
-                var hasAlpha = file.ContentType is "image/png" or "image/webp" or "image/gif";
-                var outputFormat = hasAlpha ? "image/webp" : "image/jpeg";
+    [JSInvokable]
+    public void OnFileUploadFailed(string fileName)
+    {
+        Logger.LogError("Failed to upload image {FileName}", fileName);
+        uploadedCount++;
+        failedCount++;
+        uploadError = L["ImageTab.UploadErrorCount", failedCount];
+        StateHasChanged();
+    }
 
-                var fullBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, FullMaxWidth, FullMaxHeight, 0.90, outputFormat);
-                var thumbBase64 = await JsRuntime.InvokeAsync<string>("gospelPresenter.resizeImage", base64, ThumbMaxWidth, ThumbMaxHeight, 0.80, outputFormat);
-
-                var fullData = Convert.FromBase64String(fullBase64);
-                var thumbData = Convert.FromBase64String(thumbBase64);
-
-                var image = await OrganizationImageService.AddImageAsync(
-                    organizationId!,
-                    file.Name,
-                    outputFormat,
-                    thumbData,
-                    fullData,
-                    OrgState.ToCallerContext());
-
-                images.Insert(0, image);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Failed to upload image {FileName}", file.Name);
-                failedCount++;
-            }
-
-            uploadedCount++;
-            StateHasChanged();
-        }
-
-        if (failedCount > 0)
-        {
-            uploadError = L["ImageTab.UploadErrorCount", failedCount];
-        }
-
+    [JSInvokable]
+    public void OnAllUploadsComplete()
+    {
         isUploading = false;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
     }
 
     private void ToggleImage(OrganizationImage image)

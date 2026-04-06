@@ -150,6 +150,9 @@
     <value>Skapa en presentation för att komma igång med din gudstjänst.</value>
   </data>
   <data name="Dashboard.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Dashboard.CreateTitle" xml:space="preserve">
     <value>Skapa presentation</value>
   </data>
   <data name="Dashboard.Sunday" xml:space="preserve">
@@ -161,8 +164,8 @@
   <data name="Presentation.EmptyHint" xml:space="preserve">
     <value>Tryck på &lt;strong&gt;Lägg till&lt;/strong&gt; i sidomenyn för att lägga till sånger, bibeltexter eller bilder.</value>
   </data>
-  <data name="Presentation.ShowBlack" xml:space="preserve">
-    <value>Visa svart bild</value>
+  <data name="Presentation.ClearSlide" xml:space="preserve">
+    <value>Rensa</value>
   </data>
   <data name="Presentation.AddSong" xml:space="preserve">
     <value>Lägg till sång</value>
@@ -186,10 +189,10 @@
     <value>Byt namn</value>
   </data>
   <data name="Sidebar.Song" xml:space="preserve">
-    <value>Sång</value>
+    <value>Sånger</value>
   </data>
   <data name="Sidebar.BibleText" xml:space="preserve">
-    <value>Bibeltext</value>
+    <value>Bibeltexter</value>
   </data>
   <data name="Sidebar.Images" xml:space="preserve">
     <value>Bilder</value>
@@ -270,6 +273,9 @@
     <value>Sparar sånger...</value>
   </data>
   <data name="Songs.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Songs.CreateTitle" xml:space="preserve">
     <value>Skapa sång</value>
   </data>
   <data name="SongDetail.DeleteSong" xml:space="preserve">
@@ -378,7 +384,7 @@
     <value>Hantera sånger</value>
   </data>
   <data name="SongTab.CreateNewSong" xml:space="preserve">
-    <value>Skapa ny sång</value>
+    <value>Skapa</value>
   </data>
   <data name="SongTab.NoSongsFound" xml:space="preserve">
     <value>Inga sånger hittades</value>
@@ -423,6 +429,9 @@
     <value>Användare</value>
   </data>
   <data name="Users.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Users.CreateTitle" xml:space="preserve">
     <value>Skapa användare</value>
   </data>
   <data name="Users.NoUsers" xml:space="preserve">
@@ -486,7 +495,7 @@
     <value>Kopiera</value>
   </data>
   <data name="UserDetail.CreateInviteLink" xml:space="preserve">
-    <value>Skapa inbjudningslänk</value>
+    <value>Skapa</value>
   </data>
   <data name="UserDetail.ConfirmDeleteUser" xml:space="preserve">
     <value>Är du säker på att du vill ta bort {0}?</value>
@@ -516,6 +525,9 @@
     <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
   </data>
   <data name="Overlays.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Overlays.CreateTitle" xml:space="preserve">
     <value>Skapa overlay</value>
   </data>
   <data name="OverlayEditor.Title" xml:space="preserve">
@@ -540,6 +552,9 @@
     <value>Organisationer</value>
   </data>
   <data name="Orgs.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Orgs.CreateTitle" xml:space="preserve">
     <value>Skapa organisation</value>
   </data>
   <data name="Orgs.NoOrgs" xml:space="preserve">
@@ -899,8 +914,8 @@
   <data name="Toast.ImagesAdded" xml:space="preserve">
     <value>{0} bilder har lagts till</value>
   </data>
-  <data name="Sidebar.Select" xml:space="preserve">
-    <value>Välj</value>
+  <data name="Sidebar.SelectItems" xml:space="preserve">
+    <value>Markera</value>
   </data>
   <data name="Sidebar.DoneEditing" xml:space="preserve">
     <value>Klar</value>
@@ -933,6 +948,9 @@
     <value>MCP API-nycklar</value>
   </data>
   <data name="ApiKeys.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="ApiKeys.CreateTitle" xml:space="preserve">
     <value>Skapa MCP API-nyckel</value>
   </data>
   <data name="ApiKeys.Empty" xml:space="preserve">
@@ -990,6 +1008,9 @@
     <value>Är du säker på att du vill ta bort mallen?</value>
   </data>
   <data name="Templates.Create" xml:space="preserve">
+    <value>Skapa</value>
+  </data>
+  <data name="Templates.CreateTitle" xml:space="preserve">
     <value>Skapa mall</value>
   </data>
   <data name="Dashboard.Recent" xml:space="preserve">
@@ -1001,7 +1022,12 @@
   <data name="Dashboard.BlankPresentation" xml:space="preserve">
     <value>Tom presentation</value>
   </data>
-  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
+  <data name="Dashboard.PickerTemplates" xml:space="preserve">
+    <value>Mallar</value>
+  </data>
+  <data name="Dashboard.Live" xml:space="preserve">
+    <value>Live</value>
+  </data>  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
     <value>Spara som mall</value>
   </data>
   <data name="Sidebar.DeleteTemplate" xml:space="preserve">
@@ -1035,7 +1061,7 @@
     <value>Kunde inte spara inställningen</value>
   </data>
   <data name="Presentation.EditSong" xml:space="preserve">
-    <value>Redigera sång</value>
+    <value>Redigera</value>
   </data>
   <data name="Common.Menu" xml:space="preserve">
     <value>Meny</value>
@@ -1144,5 +1170,41 @@
   </data>
   <data name="Entity.SongParts" xml:space="preserve">
     <value>sångdelar</value>
+  </data>
+  <data name="Nav.CcliReport" xml:space="preserve">
+    <value>CCLI-rapport</value>
+  </data>
+  <data name="CcliReport.Title" xml:space="preserve">
+    <value>CCLI-rapport</value>
+  </data>
+  <data name="CcliReport.Empty" xml:space="preserve">
+    <value>Inga CCLI-poster</value>
+  </data>
+  <data name="CcliReport.EmptyDescription" xml:space="preserve">
+    <value>När sånger med CCLI-nummer visas live kommer de att registreras här för rapportering.</value>
+  </data>
+  <data name="CcliReport.CollectionEnabled" xml:space="preserve">
+    <value>Aktivera CCLI-datainsamling</value>
+  </data>
+  <data name="CcliReport.CollectionDescription" xml:space="preserve">
+    <value>Registrerar automatiskt vilka sånger med CCLI-nummer som visas under livepresentationer.</value>
+  </data>
+  <data name="CcliReport.Reported" xml:space="preserve">
+    <value>Rapporterad</value>
+  </data>
+  <data name="CcliReport.FilterAll" xml:space="preserve">
+    <value>Alla</value>
+  </data>
+  <data name="CcliReport.FilterUnreported" xml:space="preserve">
+    <value>Orapporterade</value>
+  </data>
+  <data name="CcliReport.FilterReported" xml:space="preserve">
+    <value>Rapporterade</value>
+  </data>
+  <data name="CcliReport.LoadMore" xml:space="preserve">
+    <value>Visa fler</value>
+  </data>
+  <data name="CcliReport.OtherPresentation" xml:space="preserve">
+    <value>Övrigt</value>
   </data>
 </root>

@@ -31,3 +31,15 @@
         padding-left: env(safe-area-inset-left);
     }
 }
+
+.scroll-fade {
+    scrollbar-width: none;
+}
+
+.scroll-fade::-webkit-scrollbar {
+    display: none;
+}
+
+.scroll-fade.is-overflowing > * {
+    flex: none;
+}

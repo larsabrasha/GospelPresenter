@@ -21,11 +21,8 @@
                   duration-200 ease-in-out absolute inset-y-0 left-0 z-110 shadow-xl
                   lg:relative lg:inset-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 @sidebarClass">
         <nav class="flex flex-col py-3">
-                <div class="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-                    @L["Nav.Media"]
-                </div>
                 <a href="/admin/songs"
-                   @onclick="() => menuVisible = false"
+                   @onclick="OnSidebarNavClick"
                    class="@NavClass("/admin/songs") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
                         <path d="M17.721 1.599a.75.75 0 0 1 .279.584v11.29a2.25 2.25 0 0 1-1.774 2.198l-2.041.442a2.216 2.216 0 1 1-.938-4.333l2.478-.536V5.749L9 7.889v8.584a2.25 2.25 0 0 1-1.774 2.198l-2.042.442a2.216 2.216 0 1 1-.938-4.333l2.504-.542V3.523a.75.75 0 0 1 .558-.724l7.5-2a.75.75 0 0 1 .913.8Z"/>
@@ -33,7 +30,7 @@
                     @L["Nav.Songs"]
                 </a>
                 <a href="/admin/overlays"
-                   @onclick="() => menuVisible = false"
+                   @onclick="OnSidebarNavClick"
                    class="@NavClass("/admin/overlays") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
                         <path fill-rule="evenodd" d="M2 4.25A2.25 2.25 0 0 1 4.25 2h6.5A2.25 2.25 0 0 1 13 4.25v1.5h2.75A2.25 2.25 0 0 1 18 8v7.75A2.25 2.25 0 0 1 15.75 18H9.25A2.25 2.25 0 0 1 7 15.75v-1.5H4.25A2.25 2.25 0 0 1 2 12V4.25Zm5 9.25v2.25c0 .414.336.75.75.75h6.5a.75.75 0 0 0 .75-.75V8a.75.75 0 0 0-.75-.75H13v4.75A2.25 2.25 0 0 1 10.75 14.25h-3.75Z" clip-rule="evenodd"/>
@@ -41,27 +38,38 @@
                     @L["Nav.Overlays"]
                 </a>
                 <a href="/admin/templates"
-                   @onclick="() => menuVisible = false"
+                   @onclick="OnSidebarNavClick"
                    class="@NavClass("/admin/templates") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
                         <path fill-rule="evenodd" d="M3.75 2A1.75 1.75 0 0 0 2 3.75v3.5C2 8.216 2.784 9 3.75 9h3.5A1.75 1.75 0 0 0 9 7.25v-3.5A1.75 1.75 0 0 0 7.25 2h-3.5ZM3.5 3.75a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.5a.25.25 0 0 1-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5ZM3.75 11A1.75 1.75 0 0 0 2 12.75v3.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 9 16.25v-3.5A1.75 1.75 0 0 0 7.25 11h-3.5Zm-.25 1.75a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.5a.25.25 0 0 1-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5ZM12.75 2A1.75 1.75 0 0 0 11 3.75v3.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 18 7.25v-3.5A1.75 1.75 0 0 0 16.25 2h-3.5Zm-.25 1.75a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.5a.25.25 0 0 1-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5ZM12.75 11A1.75 1.75 0 0 0 11 12.75v3.5c0 .966.784 1.75 1.75 1.75h3.5A1.75 1.75 0 0 0 18 16.25v-3.5A1.75 1.75 0 0 0 16.25 11h-3.5Zm-.25 1.75a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.5a.25.25 0 0 1-.25.25h-3.5a.25.25 0 0 1-.25-.25v-3.5Z" clip-rule="evenodd"/>
                     </svg>
                     @L["Nav.Templates"]
                 </a>
+
+                <div class="my-3 mx-4 h-px bg-neutral-200 dark:bg-neutral-700"></div>
+
                 <a href="/admin/slide-settings"
-                   @onclick="() => menuVisible = false"
+                   @onclick="OnSidebarNavClick"
                    class="@NavClass("/admin/slide-settings") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
                         <path fill-rule="evenodd" d="M1 2.75A.75.75 0 0 1 1.75 2h16.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 2.75Zm0 5A.75.75 0 0 1 1.75 7h16.5a.75.75 0 0 1 0 1.5H1.75A.75.75 0 0 1 1 7.75ZM1.75 12a.75.75 0 0 0 0 1.5h10.5a.75.75 0 0 0 0-1.5H1.75Zm0 5a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Z" clip-rule="evenodd"/>
                     </svg>
                     @L["Nav.SlideSettings"]
                 </a>
+                <a href="/admin/ccli-report"
+                   @onclick="OnSidebarNavClick"
+                   class="@NavClass("/admin/ccli-report") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
+                        <path fill-rule="evenodd" d="M15.988 3.012A2.25 2.25 0 0 1 18 5.25v6.5A2.25 2.25 0 0 1 15.75 14H13.5V7A2.5 2.5 0 0 0 11 4.5H8.128a2.252 2.252 0 0 1 1.884-1.488A2.25 2.25 0 0 1 12.25 1h1.5a2.25 2.25 0 0 1 2.238 2.012ZM11.5 3.25a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v.25h-3v-.25Z" clip-rule="evenodd"/>
+                        <path fill-rule="evenodd" d="M2 7a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7Zm2 3.25a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Zm0 3.5a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd"/>
+                    </svg>
+                    @L["Nav.CcliReport"]
+                </a>
 
-                <div class="px-4 pt-4 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-                    @L["Nav.Administration"]
-                </div>
+                <div class="my-3 mx-4 h-px bg-neutral-200 dark:bg-neutral-700"></div>
+
                 <a href="/admin/users"
-                   @onclick="() => menuVisible = false"
+                   @onclick="OnSidebarNavClick"
                    class="@NavClass("/admin/users") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
                         <path d="M7 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM14.5 9a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM1.615 16.428a1.224 1.224 0 0 1-.569-1.175 6.002 6.002 0 0 1 11.908 0c.058.467-.172.92-.57 1.174A9.953 9.953 0 0 1 7 18a9.953 9.953 0 0 1-5.385-1.572ZM14.5 16h-.106c.07-.297.088-.611.048-.933a7.47 7.47 0 0 0-1.588-3.755 4.502 4.502 0 0 1 5.874 2.636.818.818 0 0 1-.36.98A7.465 7.465 0 0 1 14.5 16Z"/>
@@ -70,26 +78,22 @@
                 </a>
                 <AuthorizeView Roles="SuperAdmin" Context="superAdminContext">
                     <a href="/admin/organizations"
-                       @onclick="() => menuVisible = false"
+                       @onclick="OnSidebarNavClick"
                        class="@NavClass("/admin/organizations") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
                             <path fill-rule="evenodd" d="M4.25 2A2.25 2.25 0 0 0 2 4.25v2.5A2.25 2.25 0 0 0 4.25 9h2.5A2.25 2.25 0 0 0 9 6.75v-2.5A2.25 2.25 0 0 0 6.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 2 13.25v2.5A2.25 2.25 0 0 0 4.25 18h2.5A2.25 2.25 0 0 0 9 15.75v-2.5A2.25 2.25 0 0 0 6.75 11h-2.5Zm9-9A2.25 2.25 0 0 0 11 4.25v2.5A2.25 2.25 0 0 0 13.25 9h2.5A2.25 2.25 0 0 0 18 6.75v-2.5A2.25 2.25 0 0 0 15.75 2h-2.5Zm0 9A2.25 2.25 0 0 0 11 13.25v2.5A2.25 2.25 0 0 0 13.25 18h2.5A2.25 2.25 0 0 0 18 15.75v-2.5A2.25 2.25 0 0 0 15.75 11h-2.5Z" clip-rule="evenodd"/>
                         </svg>
                         @L["Nav.Organizations"]
                     </a>
+                    <a href="/admin/api-keys"
+                       @onclick="OnSidebarNavClick"
+                       class="@NavClass("/admin/api-keys") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
+                            <path fill-rule="evenodd" d="M8 7a5 5 0 1 1 3.61 4.804l-1.903 1.903A.75.75 0 0 1 9.178 14H8v1.25a.75.75 0 0 1-.75.75h-1.5v1.25a.75.75 0 0 1-.75.75H2.75a.75.75 0 0 1-.75-.75v-1.836c0-.199.079-.39.22-.53l4.246-4.247A5 5 0 0 1 8 7Zm5-3a.75.75 0 0 0 0 1.5A1.5 1.5 0 0 1 14.5 7 .75.75 0 0 0 16 7a3 3 0 0 0-3-3Z" clip-rule="evenodd"/>
+                        </svg>
+                        @L["Nav.ApiKeys"]
+                    </a>
                 </AuthorizeView>
-
-                <div class="px-4 pt-4 py-2 text-xs font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
-                    @L["Nav.Experimental"]
-                </div>
-                <a href="/admin/api-keys"
-                   @onclick="() => menuVisible = false"
-                   class="@NavClass("/admin/api-keys") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
-                        <path fill-rule="evenodd" d="M8 7a5 5 0 1 1 3.61 4.804l-1.903 1.903A.75.75 0 0 1 9.178 14H8v1.25a.75.75 0 0 1-.75.75h-1.5v1.25a.75.75 0 0 1-.75.75H2.75a.75.75 0 0 1-.75-.75v-1.836c0-.199.079-.39.22-.53l4.246-4.247A5 5 0 0 1 8 7Zm5-3a.75.75 0 0 0 0 1.5A1.5 1.5 0 0 1 14.5 7 .75.75 0 0 0 16 7a3 3 0 0 0-3-3Z" clip-rule="evenodd"/>
-                    </svg>
-                    @L["Nav.ApiKeys"]
-                </a>
         </nav>
     </aside>
     <main class="flex-1 overflow-hidden flex flex-col relative">
@@ -104,7 +108,8 @@
 
 @code {
     private string currentPath = "";
-    private bool menuVisible;
+    private bool menuVisible = true;
+    private bool navigatingFromSidebar;
 
     protected override void OnInitialized()
     {
@@ -112,10 +117,26 @@
         UpdateCurrentPath();
     }
 
+    private void OnSidebarNavClick()
+    {
+        navigatingFromSidebar = true;
+    }
+
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
     {
+        var previousPath = currentPath;
         UpdateCurrentPath();
-        menuVisible = false;
+
+        if (navigatingFromSidebar)
+        {
+            menuVisible = false;
+            navigatingFromSidebar = false;
+        }
+        else if (!previousPath.StartsWith("/admin", StringComparison.OrdinalIgnoreCase))
+        {
+            menuVisible = true;
+        }
+
         InvokeAsync(StateHasChanged);
     }
 

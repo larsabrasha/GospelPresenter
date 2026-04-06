@@ -14,18 +14,7 @@
 @inject ActiveOrganizationState OrgState
 
 <PageContainer MaxWidthClass="max-w-[1200px]">
-    <div class="relative flex items-center justify-center px-5">
-        <AppButton Href="@($"/admin/songs/{SongId}")" Variant="ButtonVariant.Cancel"
-                   Class="absolute left-0 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/>
-            </svg>
-            @L["Common.Back"]
-        </AppButton>
-        <div class="text-xl font-bold dark:text-neutral-100 truncate max-w-[60%]">
-            @L["SongHistory.Title"]
-        </div>
-    </div>
+    <DetailHeader BackHref="@($"/admin/songs/{SongId}")" Title="@L["SongHistory.Title"].Value" Class="px-5"/>
 
     @if (versions is null)
     {

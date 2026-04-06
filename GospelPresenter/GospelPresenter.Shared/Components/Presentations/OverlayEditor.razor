@@ -2,29 +2,27 @@
 
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Utils
-@using Microsoft.AspNetCore.Components.Forms
 
-<div class="flex flex-col">
+@inject IJSRuntime JsRuntime
+
+<div class="@Class">
     <div class="space-y-4">
         <FloatingInput Id="overlay-title" Label="@L["OverlayEditor.Title"]"
                        Value="@Overlay.Title" OnInput="HandleTitleChanged"
-                       MaxLength="DataLimits.OverlayTitleMaxLength"/>
+                       MaxLength="AppConstraints.OverlayTitleMaxLength"/>
         <FloatingTextarea Id="overlay-content" Label="@L["OverlayEditor.TextContent"]"
                           Value="@Overlay.Content" OnInput="HandleContentChanged" Rows="4"
-                          MaxLength="DataLimits.OverlayContentMaxLength"/>
+                          MaxLength="AppConstraints.OverlayContentMaxLength"/>
         <div>
             <label class="block text-sm font-medium mb-1">@L["OverlayEditor.ImageOptional"]</label>
-            @if (Overlay.ImageData is not null || Overlay.HasImage)
+            @if (Overlay.HasImage)
             {
-                var imgSrc = Overlay.ImageData is not null
-                    ? $"data:{Overlay.ImageContentType};base64,{Convert.ToBase64String(Overlay.ImageData)}"
-                    : ImageUrlHelper.OverlayImageUrl(Overlay.Id);
                 <div class="flex items-center gap-3">
-                    <img src="@imgSrc" alt="@L["OverlayEditor.Preview"]" class="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600"/>
+                    <img src="@ImageUrlHelper.OverlayImageUrl(Overlay.Id)" alt="@L["OverlayEditor.Preview"]" class="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600"/>
                     <div class="flex flex-col items-start gap-1">
                         <AppButton Variant="ButtonVariant.Secondary" AsLabel>
                             @L["Common.ChangeImage"]
-                            <InputFile OnChange="HandleImageUpload" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                            <input @ref="fileInput" type="file" @onchange="HandleImageUpload" accept="@AppConstraints.ImageAccept" class="hidden"/>
                         </AppButton>
                         <AppButton Variant="ButtonVariant.Danger" OnClick="RemoveImage"
                                    Class="text-left">@L["Common.RemoveImage"]</AppButton>
@@ -35,21 +33,27 @@
             {
                 <AppButton Variant="ButtonVariant.Secondary" AsLabel>
                     @L["Common.ChooseImage"]
-                    <InputFile OnChange="HandleImageUpload" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                    <input @ref="fileInput" type="file" @onchange="HandleImageUpload" accept="@AppConstraints.ImageAccept" class="hidden"/>
                 </AppButton>
             }
         </div>
     </div>
-
 </div>
 
 @code {
     [Parameter] public required OverlaySlide Overlay { get; set; }
     [Parameter] public EventCallback<OverlaySlide> OnChanged { get; set; }
     [Parameter] public EventCallback OnSaved { get; set; }
+    [Parameter] public string? Class { get; set; }
     private readonly Debouncer debounce = new();
+    private ElementReference fileInput;
+    private DotNetObjectReference<OverlayEditor>? dotNetRef;
 
-    public void Dispose() => debounce.Dispose();
+    public void Dispose()
+    {
+        debounce.Dispose();
+        dotNetRef?.Dispose();
+    }
 
     private void HandleTitleChanged(ChangeEventArgs e)
     {
@@ -83,22 +87,30 @@
         await OnSaved.InvokeAsync();
     }
 
-    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-
-    private async Task HandleImageUpload(InputFileChangeEventArgs e)
+    private async Task HandleImageUpload()
     {
         if (string.IsNullOrWhiteSpace(Overlay.Title)) return;
-        var file = e.File;
-        if (!AllowedImageTypes.Contains(file.ContentType)) return;
-        if (file.Size > DataLimits.MaxImageFileSizeBytes) return;
+        if (string.IsNullOrEmpty(Overlay.Id)) return;
 
         Overlay.Title = Overlay.Title.Trim();
-        using var stream = file.OpenReadStream(DataLimits.MaxImageFileSizeBytes);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
-        Overlay.ImageData = ms.ToArray();
-        Overlay.ImageContentType = file.ContentType;
-        await OnChanged.InvokeAsync(Overlay);
+        dotNetRef ??= DotNetObjectReference.Create(this);
+        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, $"/api/upload/overlay-image/{Overlay.Id}", dotNetRef, AppConstraints.MaxImageFileSizeBytes, AppConstraints.AllowedImageTypes);
+    }
+
+    [JSInvokable]
+    public void OnUploadStarted(int totalCount) { }
+
+    [JSInvokable]
+    public async Task OnFileUploaded(string json)
+    {
+        Overlay.HasImage = true;
+        StateHasChanged();
         await OnSaved.InvokeAsync();
     }
+
+    [JSInvokable]
+    public void OnFileUploadFailed(string fileName) { }
+
+    [JSInvokable]
+    public void OnAllUploadsComplete() { }
 }

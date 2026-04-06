@@ -50,13 +50,13 @@ public class OrganizationAudioService(
     {
         caller.RequirePermission(Permission.ManageOrganizationAudios);
         caller.RequireOrganizationAccess(organizationId);
-        ValidationHelper.RequireMaxLength(fileName, DataLimits.FileNameMaxLength, "FileName");
-        if (data.Length > DataLimits.MaxAudioFileSizeBytes)
-            throw new InvalidOperationException($"The audio file exceeds the maximum size of {DataLimits.MaxAudioFileSizeBytes / (1024 * 1024)} MB.");
+        ValidationHelper.RequireMaxLength(fileName, AppConstraints.FileNameMaxLength, "FileName");
+        if (data.Length > AppConstraints.MaxAudioFileSizeBytes)
+            throw new InvalidOperationException($"The audio file exceeds the maximum size of {AppConstraints.MaxAudioFileSizeBytes / (1024 * 1024)} MB.");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await ValidationHelper.RequireMaxCountAsync(
             context.OrganizationAudios.Where(x => x.OrganizationId == organizationId),
-            DataLimits.MaxAudioPerOrg, "audio files", cancellationToken);
+            AppConstraints.MaxAudioPerOrg, "audio files", cancellationToken);
 
         var audio = new OrganizationAudio
         {

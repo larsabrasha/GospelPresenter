@@ -1,0 +1,21 @@
+@using GospelPresenter.Shared.Components.Symbols
+@inject NavigationManager NavigationManager
+
+<button class="cursor-pointer p-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)] @Class"
+        @onclick="HandleClick">
+    <ChevronLeftSymbol Class="size-5 stroke-2"/>
+</button>
+
+@code {
+    [Parameter] public string? Href { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private async Task HandleClick()
+    {
+        if (OnClick.HasDelegate)
+            await OnClick.InvokeAsync();
+        else if (Href is not null)
+            NavigationManager.NavigateTo(Href);
+    }
+}

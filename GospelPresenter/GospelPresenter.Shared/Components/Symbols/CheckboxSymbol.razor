@@ -1,0 +1,26 @@
+@if (Checked && Filled)
+{
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="@Class">
+        <rect width="20" height="20" x="2" y="2" rx="4" fill="currentColor" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="white"/>
+    </svg>
+}
+else if (Checked)
+{
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="@Class">
+        <rect width="20" height="20" x="2" y="2" rx="4" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M9.5 16.5 5.5 12.5 7 11l2.5 2.5 7-7L18 8Z" fill="currentColor"/>
+    </svg>
+}
+else
+{
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" class="@Class">
+        <rect width="20" height="20" x="2" y="2" rx="4" stroke="currentColor" stroke-width="1.5"/>
+    </svg>
+}
+
+@code {
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool Checked { get; set; }
+    [Parameter] public bool Filled { get; set; }
+}

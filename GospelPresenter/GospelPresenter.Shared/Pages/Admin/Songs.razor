@@ -6,7 +6,6 @@
 @using GospelPresenter.Shared.State
 @using GospelPresenter.Shared.Utils
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Forms
 
 @layout AdminLayout
 
@@ -40,7 +39,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
             </svg>
             @(isImporting ? L["Songs.Importing"] : L["Songs.ChooseFiles"])
-            <InputFile OnChange="OnFilesSelected" multiple accept=".pro" class="hidden" disabled="@isImporting"/>
+            <input @ref="fileInput" type="file" @onchange="OnFilesSelected" multiple accept=".pro" class="hidden" disabled="@isImporting"/>
         </AppButton>
 
         @if (isImporting)
@@ -50,15 +49,7 @@
                     @importProgressText
                 </div>
                 <div class="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 overflow-hidden">
-                    @if (importTotal > 0)
-                    {
-                        <div class="bg-sky-500 h-2 rounded-full transition-all duration-200"
-                             style="width: @((int)(100.0 * importProgress / importTotal))%"></div>
-                    }
-                    else
-                    {
-                        <div class="bg-sky-500 h-2 rounded-full w-1/3 animate-pulse"></div>
-                    }
+                    <div class="bg-sky-500 h-2 rounded-full w-1/3 animate-pulse"></div>
                 </div>
             </div>
         }
@@ -90,7 +81,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
                     </svg>
                     <input type="text"
-                           maxlength="@DataLimits.SearchMaxLength"
+                           maxlength="@AppConstraints.SearchMaxLength"
                            class="w-full py-2 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(searchQuery) ? "" : "!pr-9")"
                            placeholder="@L["Common.Search"]"
                            value="@searchQuery"
@@ -142,7 +133,7 @@
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["Songs.DuplicatesFound"]</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                @((MarkupString)L["Songs.DuplicatesCount", duplicateNames.Count, pendingFiles!.Count].Value)
+                @((MarkupString)L["Songs.DuplicatesCount", duplicateNames.Count, pendingFileCount].Value)
             </p>
             <div class="max-h-48 overflow-y-auto text-sm space-y-1">
                 @foreach (var name in duplicateNames)
@@ -167,7 +158,7 @@
 
 @if (showNameDialog)
 {
-    <NameDialog Title="@L["Songs.Create"]"
+    <NameDialog Title="@L["Songs.CreateTitle"]"
                 Name="@newSongName"
                 SaveText="@L["Common.Create"]"
                 SaveLoadingText="@L["Common.Creating"]"
@@ -179,15 +170,15 @@
     private bool isImporting;
     private string? importMessage;
     private string? importProgressText;
-    private int importProgress;
-    private int importTotal;
     private bool importError;
     private string? organizationId;
-    private List<(string FileName, byte[] Data)>? pendingFiles;
+    private bool hasPendingDuplicates;
+    private int pendingFileCount;
     private List<string>? duplicateNames;
     private string searchQuery = "";
     private string[] searchTerms = [];
     private List<Song> displayedSongs = [];
+    private ElementReference fileInput;
 
 
     private IReadOnlyList<Song> OrgSongs => organizationId is not null
@@ -200,73 +191,38 @@
         displayedSongs = OrgSongs.ToList();
     }
 
-    private async Task OnFilesSelected(InputFileChangeEventArgs e)
+    private async Task OnFilesSelected()
     {
         if (isImporting || organizationId is null) return;
         isImporting = true;
         importMessage = null;
         importError = false;
+        importProgressText = L["Songs.ProcessingFiles"];
+        StateHasChanged();
 
-        var proFiles = e.GetMultipleFiles(1000)
-            .Where(f => f.Name.EndsWith(".pro", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        await DoImport(replaceExisting: false);
+    }
 
-        if (proFiles.Count == 0)
-        {
-            importMessage = L["Songs.NoProFiles"];
-            importError = true;
-            isImporting = false;
-            return;
-        }
-
-        importTotal = proFiles.Count;
-        importProgress = 0;
-        importProgressText = L["Songs.ReadingFiles", 0, importTotal];
-
+    private async Task DoImport(bool replaceExisting)
+    {
         try
         {
-            // Read files from browser streams (must happen on the sync context)
-            var files = new List<(string FileName, byte[] Data)>();
-            foreach (var file in proFiles)
+            var result = await JsRuntime.InvokeAsync<SongImportResponse?>(
+                "uploadAllFiles", fileInput, "/api/upload/import-songs", replaceExisting);
+
+            if (result is null)
+                throw new InvalidOperationException("Upload failed");
+
+            if (result.Duplicates is { Count: > 0 })
             {
-                using var stream = file.OpenReadStream(maxAllowedSize: DataLimits.MaxImageFileSizeBytes);
-                using var ms = new MemoryStream();
-                await stream.CopyToAsync(ms);
-                files.Add((file.Name, ms.ToArray()));
-                importProgress++;
-                importProgressText = L["Songs.ReadingFiles", importProgress, importTotal];
-                StateHasChanged();
-            }
-
-            // Parse and check duplicates on a background thread
-            importProgressText = L["Songs.ProcessingFiles"];
-            importTotal = 0;
-            StateHasChanged();
-
-            var orgId = organizationId;
-            var caller = OrgState.ToCallerContext();
-
-            var parsedNames = await Task.Run(() => files
-                .Select(f => ProPresenterParser.Parse(f.Data, Path.GetFileNameWithoutExtension(f.FileName)))
-                .Where(s => s is not null)
-                .Select(s => s!.Name)
-                .ToList());
-
-            var duplicates = await SongService.FindDuplicateNamesAsync(parsedNames, orgId, caller);
-
-            if (duplicates.Count > 0)
-            {
-                pendingFiles = files;
-                duplicateNames = duplicates;
+                duplicateNames = result.Duplicates;
+                pendingFileCount = result.FileCount;
+                hasPendingDuplicates = true;
                 isImporting = false;
                 return;
             }
 
-            importProgressText = L["Songs.SavingSongs"];
-            StateHasChanged();
-
-            var result = await SongService.ImportProPresenterFilesAsync(files, orgId, caller);
-            importMessage = FormatImportResult(result);
+            importMessage = FormatImportResult(new ImportResult(result.Imported, result.Replaced, result.Skipped));
             RefreshDisplayedSongs();
         }
         catch (Exception ex)
@@ -282,36 +238,21 @@
 
     private void CancelImport()
     {
-        pendingFiles = null;
+        hasPendingDuplicates = false;
         duplicateNames = null;
     }
 
     private async Task FinishImport(bool replaceExisting)
     {
-        if (pendingFiles is null || organizationId is null) return;
+        if (!hasPendingDuplicates || organizationId is null) return;
 
-        var files = pendingFiles;
-        pendingFiles = null;
+        hasPendingDuplicates = false;
         duplicateNames = null;
         isImporting = true;
-        importTotal = 0;
         importProgressText = L["Songs.SavingSongs"];
+        StateHasChanged();
 
-        try
-        {
-            var result = await SongService.ImportProPresenterFilesAsync(files, organizationId, OrgState.ToCallerContext(), replaceExisting);
-            importMessage = FormatImportResult(result);
-            RefreshDisplayedSongs();
-        }
-        catch (Exception ex)
-        {
-            importMessage = L["Songs.ImportError", ex.Message];
-            importError = true;
-        }
-        finally
-        {
-            isImporting = false;
-        }
+        await DoImport(replaceExisting);
     }
 
     private string FormatImportResult(ImportResult result)
@@ -389,4 +330,6 @@
     }
 
     private string Highlight(string text) => SearchHighlighter.Highlight(text, searchTerms);
+
+    private record SongImportResponse(int Imported = 0, int Skipped = 0, int Replaced = 0, int FileCount = 0, List<string>? Duplicates = null);
 }
