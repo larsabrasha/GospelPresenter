@@ -76,7 +76,7 @@
                     </svg>
                     @L["Nav.Users"]
                 </a>
-                <AuthorizeView Roles="SuperAdmin" Context="superAdminContext">
+                <AuthorizeView Policy="@ManageOrganizations" Context="superAdminContext">
                     <a href="/admin/organizations"
                        @onclick="OnSidebarNavClick"
                        class="@NavClass("/admin/organizations") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">

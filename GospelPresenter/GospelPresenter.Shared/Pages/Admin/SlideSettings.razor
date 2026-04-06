@@ -1,5 +1,5 @@
 @page "/admin/slide-settings"
-@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@attribute [Authorize(Policy = ManageTemplates)]
 @implements IDisposable
 
 @using GospelPresenter.Shared.Components.Presentations

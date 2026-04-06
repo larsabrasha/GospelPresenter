@@ -1,5 +1,5 @@
 @page "/admin/songs"
-@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@attribute [Authorize(Policy = ManageSongs)]
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Services

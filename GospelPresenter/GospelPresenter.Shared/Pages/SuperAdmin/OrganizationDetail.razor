@@ -1,5 +1,5 @@
 @page "/admin/organizations/{OrganizationId}"
-@attribute [Authorize(Roles = "SuperAdmin")]
+@attribute [Authorize(Policy = ManageOrganizations)]
 @implements IDisposable
 
 @using GospelPresenter.Shared.Layout

@@ -1,5 +1,5 @@
 @page "/admin/users"
-@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@attribute [Authorize(Policy = ViewUsers)]
 
 @using GospelPresenter.Shared.Components.Symbols
 @using GospelPresenter.Shared.Layout

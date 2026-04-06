@@ -1,5 +1,5 @@
 @page "/admin/organizations"
-@attribute [Authorize(Roles = "SuperAdmin")]
+@attribute [Authorize(Policy = ManageOrganizations)]
 
 @using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Components.Symbols

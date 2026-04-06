@@ -55,7 +55,7 @@
                         }
                         @if (!IsTemplateMode && OnSaveAsTemplate.HasDelegate)
                         {
-                            <AuthorizeView Roles="Admin,SuperAdmin" Context="saveTemplateAuth">
+                            <AuthorizeView Policy="@ManageTemplates" Context="saveTemplateAuth">
                                 <button class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer"
                                         @onclick="() => OnSaveAsTemplate.InvokeAsync()">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">

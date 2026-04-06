@@ -1,5 +1,5 @@
 @page "/admin/api-keys"
-@attribute [Authorize(Roles = "SuperAdmin")]
+@attribute [Authorize(Policy = ManageMcpApiKeys)]
 
 @using GospelPresenter.Shared.Components.Symbols
 @using GospelPresenter.Shared.Layout
