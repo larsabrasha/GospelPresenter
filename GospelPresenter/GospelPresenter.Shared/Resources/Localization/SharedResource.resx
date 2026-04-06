@@ -1024,6 +1024,9 @@
   </data>
   <data name="Dashboard.PickerTemplates" xml:space="preserve">
     <value>Templates</value>
+  </data>
+  <data name="Dashboard.Live" xml:space="preserve">
+    <value>Live</value>
   </data>  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
     <value>Save as template</value>
   </data>

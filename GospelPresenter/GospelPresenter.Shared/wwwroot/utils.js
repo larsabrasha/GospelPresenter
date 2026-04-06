@@ -212,6 +212,18 @@ window.scrollSidebarItemIntoView = function(itemId) {
 
 window.liveViewChannel = new BroadcastChannel('gospel-live');
 
+window.initLiveStateListener = function(sessionId, dotNetRef) {
+    if (window._liveStateListenerAttached) return;
+    window._liveStateListenerAttached = true;
+    window.liveViewChannel.addEventListener('message', function(e) {
+        if (e.data?.sessionId !== sessionId) return;
+        if (e.data.type === 'live-closed') {
+            window.presentationState.isLiveOpen = false;
+            dotNetRef.invokeMethodAsync('OnLiveClosed');
+        }
+    });
+}
+
 window.presentationState = { connection: null, dotNetRef: null };
 
 window.setupPresentationConnection = function(state, connection, dotNetRef) {
@@ -225,7 +237,7 @@ window.setupPresentationConnection = function(state, connection, dotNetRef) {
         state.isLiveOpen = false;
         sessionStorage.removeItem('presentation-id');
         sessionStorage.removeItem('presentation-url');
-        dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
+        window.liveViewChannel.postMessage({ type: 'live-closed', sessionId: state.sessionId });
     }
 
     connection.addEventListener('close', onDisconnect);
@@ -250,7 +262,7 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
             sessionStorage.removeItem('presentation-url');
             if (isActive) {
                 state.isLiveOpen = false;
-                dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
+                window.liveViewChannel.postMessage({ type: 'live-closed', sessionId });
             }
         });
     }
@@ -261,9 +273,6 @@ window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId
         if (e.data.type === 'live-opened') {
             state.isLiveOpen = true;
             dotNetRef.invokeMethodAsync('OnPresentationStateChanged', true);
-        } else if (e.data.type === 'live-closed') {
-            state.isLiveOpen = false;
-            dotNetRef.invokeMethodAsync('OnPresentationStateChanged', false);
         }
     });
 

@@ -3,6 +3,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace GospelPresenter.Shared.State;
 
+public record ActiveSession(string OrganizationId, string? PresentationId);
+
 public partial class SharedAppState : ObservableObject
 {
     private readonly TimeSpan sessionTimeout;
@@ -14,7 +16,7 @@ public partial class SharedAppState : ObservableObject
 
     private readonly ConcurrentDictionary<string, LiveSlide> liveSlides = new();
     private readonly ConcurrentDictionary<string, ActiveOverlay> activeOverlays = new();
-    private readonly ConcurrentDictionary<string, string> presentationActive = new();
+    private readonly ConcurrentDictionary<string, ActiveSession> presentationActive = new();
     private readonly ConcurrentDictionary<string, DateTime> lastAccessed = new();
     private readonly ConcurrentDictionary<string, DateTime> expiredSessions = new();
 
@@ -76,16 +78,29 @@ public partial class SharedAppState : ObservableObject
         presentationActive.ContainsKey(sessionId);
 
     public string? GetSessionOrganizationId(string sessionId) =>
-        presentationActive.GetValueOrDefault(sessionId);
+        presentationActive.GetValueOrDefault(sessionId)?.OrganizationId;
 
-    public void SetPresentationActive(string sessionId, bool active, string organizationId)
+    public void ActivatePresentation(string sessionId, string organizationId, string? presentationId = null)
     {
         TouchSession(sessionId);
-        if (active)
-            presentationActive[sessionId] = organizationId;
-        else
-            presentationActive.TryRemove(sessionId, out _);
+        presentationActive[sessionId] = new ActiveSession(organizationId, presentationId);
         OnPropertyChanged(sessionId);
+    }
+
+    public void DeactivatePresentation(string sessionId)
+    {
+        TouchSession(sessionId);
+        presentationActive.TryRemove(sessionId, out _);
+        OnPropertyChanged(sessionId);
+    }
+
+    public bool IsPresentationActiveForSession(string sessionId, string presentationId) =>
+        presentationActive.TryGetValue(sessionId, out var session) && session.PresentationId == presentationId;
+
+    public void UpdateActivePresentationId(string sessionId, string presentationId)
+    {
+        if (presentationActive.TryGetValue(sessionId, out var session) && session.PresentationId != presentationId)
+            presentationActive[sessionId] = session with { PresentationId = presentationId };
     }
 
     public event Action<string, int>? OrganizationSongFontSizeChanged;

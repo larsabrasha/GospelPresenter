@@ -683,7 +683,10 @@
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        SharedAppState.SetPresentationActive(AppState.SessionId, active, orgId);
+        if (active)
+            SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId);
+        else
+            SharedAppState.DeactivatePresentation(AppState.SessionId);
     }
 
     private void ResetLiveSlide()
@@ -1257,6 +1260,9 @@
             default:
                 return;
         }
+
+        if (EffectiveId is not null)
+            SharedAppState.UpdateActivePresentationId(AppState.SessionId, EffectiveId);
 
         SharedAppState.SetLiveSlide(AppState.SessionId, SharedAppState.GetLiveSlide(AppState.SessionId) with
         {
