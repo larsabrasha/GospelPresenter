@@ -1,4 +1,5 @@
 using GospelPresenter.Shared;
+using GospelPresenter.Shared.Authorization;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
@@ -172,7 +173,7 @@ try
     }
 
     builder.Services.AddHttpClient();
-    builder.Services.AddAuthorization();
+    builder.Services.AddPermissionAuthorization();
 
     builder.Services.AddCascadingAuthenticationState();
 

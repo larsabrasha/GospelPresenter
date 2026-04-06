@@ -1,5 +1,5 @@
 @page "/admin/ccli-report"
-@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@attribute [Authorize(Policy = ViewCcliReport)]
 
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Models

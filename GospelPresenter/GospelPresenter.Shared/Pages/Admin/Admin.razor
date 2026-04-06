@@ -1,5 +1,5 @@
 @page "/admin"
-@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@attribute [Authorize(Policy = ManageSongs)]
 
 @using GospelPresenter.Shared.Layout
 @using Microsoft.AspNetCore.Authorization

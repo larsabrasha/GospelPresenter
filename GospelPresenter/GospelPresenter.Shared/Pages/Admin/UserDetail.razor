@@ -1,5 +1,5 @@
 @page "/admin/users/{UserId}"
-@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@attribute [Authorize(Policy = ViewUsers)]
 @implements IDisposable
 
 @using GospelPresenter.Shared.Layout

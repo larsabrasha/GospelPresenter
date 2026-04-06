@@ -1,5 +1,5 @@
 @page "/admin/templates"
-@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+@attribute [Authorize(Policy = ManageTemplates)]
 
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
