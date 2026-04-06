@@ -25,8 +25,8 @@ public class OrganizationSettingService(IDbContextFactory<PresentationContext> d
     {
         caller.RequirePermission(Permission.ManageUsers);
         caller.RequireOrganizationAccess(organizationId);
-        ValidationHelper.RequireMaxLength(key, DataLimits.SettingsKeyMaxLength, "Key");
-        ValidationHelper.RequireMaxLength(value, DataLimits.SettingsValueMaxLength, "Value");
+        ValidationHelper.RequireMaxLength(key, AppConstraints.SettingsKeyMaxLength, "Key");
+        ValidationHelper.RequireMaxLength(value, AppConstraints.SettingsValueMaxLength, "Value");
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var setting = await context.OrganizationSettings
             .FirstOrDefaultAsync(os => os.OrganizationId == organizationId && os.Key == key);
@@ -39,7 +39,7 @@ public class OrganizationSettingService(IDbContextFactory<PresentationContext> d
         {
             await ValidationHelper.RequireMaxCountAsync(
                 context.OrganizationSettings.Where(os => os.OrganizationId == organizationId),
-                DataLimits.MaxSettingsPerOrg, "settings");
+                AppConstraints.MaxSettingsPerOrg, "settings");
             context.OrganizationSettings.Add(new OrganizationSetting
             {
                 OrganizationId = organizationId,

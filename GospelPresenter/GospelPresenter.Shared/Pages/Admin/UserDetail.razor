@@ -7,7 +7,6 @@
 @using GospelPresenter.Shared.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components.Forms
 @using CommunityToolkit.Mvvm.Messaging
 @using GospelPresenter.Shared.State
 
@@ -33,17 +32,14 @@
             <div>
                 <label class="block text-sm font-medium mb-1">@L["UserDetail.ProfileImage"]</label>
                 <div class="flex items-center gap-4">
-                    <label class="cursor-pointer group relative">
+                    <label class="cursor-pointer group relative" @onclick="() => ClickFileInput()" @onclick:preventDefault>
                         <ProfileAvatar ImageUrl="@(user.ProfileImage ?? user.ProfileImageSmall)" Name="@user.Name"
                                        Size="lg" Class="group-hover:brightness-75 transition"/>
-                        <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
-                                   class="hidden"/>
                     </label>
                     <div class="flex flex-col items-start gap-1">
                         <AppButton Variant="ButtonVariant.Secondary" AsLabel>
                             @(string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall) ? L["Common.ChooseImage"] : L["Common.ChangeImage"])
-                            <InputFile OnChange="OnProfileImageSelected" accept="image/jpeg,image/png,image/webp,image/gif"
-                                       class="hidden"/>
+                            <input @ref="fileInput" type="file" @onchange="OnProfileImageSelected" accept="@AppConstraints.ImageAccept" class="hidden"/>
                         </AppButton>
                         @if (!string.IsNullOrEmpty(user.ProfileImage ?? user.ProfileImageSmall))
                         {
@@ -60,11 +56,11 @@
                 </div>
             </div>
             <FloatingInput Id="user-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"
-                           MaxLength="DataLimits.NameMaxLength"/>
+                           MaxLength="AppConstraints.NameMaxLength"/>
             <div>
                 <FloatingInput Id="user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
                                Value="@editEmail" OnInput="HandleEmailChanged"
-                               MaxLength="DataLimits.EmailMaxLength"/>
+                               MaxLength="AppConstraints.EmailMaxLength"/>
                 @if (emailError is not null)
                 {
                     <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>
@@ -440,30 +436,26 @@ private async Task CreateInvite()
         _ => role.ToString()
     };
 
-    private const long MaxImageSize = DataLimits.MaxImageFileSizeBytes;
-    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
     private bool showCropDialog;
+    private ElementReference fileInput;
 
-    private async Task OnProfileImageSelected(InputFileChangeEventArgs e)
+    private async Task ClickFileInput() => await JSRuntime.InvokeVoidAsync("clickElement", fileInput);
+
+    private async Task OnProfileImageSelected()
     {
         imageError = null;
-        var file = e.File;
-        if (!AllowedImageTypes.Contains(file.ContentType))
+        var dataUrl = await JSRuntime.InvokeAsync<string?>("readFileAsDataUrl", fileInput, AppConstraints.MaxImageFileSizeBytes, AppConstraints.AllowedImageTypes);
+        if (dataUrl is null) return;
+        if (dataUrl == AppConstraints.FileReadUnsupportedType)
         {
             imageError = L["Profile.UnsupportedFormat"];
             return;
         }
-        if (file.Size > MaxImageSize)
+        if (dataUrl == AppConstraints.FileReadTooLarge)
         {
             imageError = L["Profile.ImageTooLarge"];
             return;
         }
-
-        using var stream = file.OpenReadStream(MaxImageSize);
-        using var ms = new MemoryStream();
-        await stream.CopyToAsync(ms);
-        var base64 = Convert.ToBase64String(ms.ToArray());
-        var dataUrl = $"data:{file.ContentType};base64,{base64}";
 
         showCropDialog = true;
         StateHasChanged();

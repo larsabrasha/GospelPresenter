@@ -8,7 +8,6 @@
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Forms
 
 @layout AdminLayout
 
@@ -31,14 +30,13 @@
             <div>
                 <label class="block text-sm font-medium mb-1">@L["OrgDetail.Logo"]</label>
                 <div class="flex items-center gap-4">
-                    <label class="cursor-pointer group relative">
+                    <label class="cursor-pointer group relative" @onclick="() => ClickFileInput()" @onclick:preventDefault>
                         <OrganizationAvatar LogoUrl="@organization.LogoSmall" Name="@organization.Name" Size="lg" Class="group-hover:brightness-75 transition"/>
-                        <InputFile OnChange="OnLogoSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
                     </label>
                     <div class="flex flex-col items-start gap-1">
                         <AppButton Variant="ButtonVariant.Secondary" AsLabel>
                             @(string.IsNullOrEmpty(organization.LogoSmall) ? L["OrgDetail.ChooseLogo"] : L["OrgDetail.ChangeLogo"])
-                            <InputFile OnChange="OnLogoSelected" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden"/>
+                            <input @ref="fileInput" type="file" @onchange="OnLogoSelected" accept="@AppConstraints.ImageAccept" class="hidden"/>
                         </AppButton>
                         @if (!string.IsNullOrEmpty(organization.LogoSmall))
                         {
@@ -55,7 +53,7 @@
                 </div>
             </div>
             <FloatingInput Id="org-name" Label="@L["OrgDetail.OrgName"]" Value="@editName" OnInput="HandleNameChanged"
-                           MaxLength="DataLimits.NameMaxLength"/>
+                           MaxLength="AppConstraints.NameMaxLength"/>
         </div>
 
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
@@ -239,29 +237,25 @@
         _ => role.ToString()
     };
 
-    private const long MaxLogoSize = DataLimits.MaxImageFileSizeBytes;
-    private static readonly HashSet<string> AllowedImageTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    private ElementReference fileInput;
 
-    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    private async Task ClickFileInput() => await JSRuntime.InvokeVoidAsync("clickElement", fileInput);
+
+    private async Task OnLogoSelected()
     {
         logoError = null;
-        var file = e.File;
-        if (!AllowedImageTypes.Contains(file.ContentType))
+        var dataUrl = await JSRuntime.InvokeAsync<string?>("readFileAsDataUrl", fileInput, AppConstraints.MaxImageFileSizeBytes, AppConstraints.AllowedImageTypes);
+        if (dataUrl is null) return;
+        if (dataUrl == AppConstraints.FileReadUnsupportedType)
         {
             logoError = L["OrgDetail.UnsupportedFormat"];
             return;
         }
-        if (file.Size > MaxLogoSize)
+        if (dataUrl == AppConstraints.FileReadTooLarge)
         {
             logoError = L["OrgDetail.ImageTooLarge"];
             return;
         }
-
-        using var stream = file.OpenReadStream(MaxLogoSize);
-        using var ms = new System.IO.MemoryStream();
-        await stream.CopyToAsync(ms);
-        var base64 = Convert.ToBase64String(ms.ToArray());
-        var dataUrl = $"data:{file.ContentType};base64,{base64}";
 
         showCropDialog = true;
         StateHasChanged();

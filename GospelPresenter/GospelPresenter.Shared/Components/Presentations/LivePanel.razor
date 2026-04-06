@@ -7,13 +7,15 @@
 
 <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">Nu visas</div>
 
-<LiveDisplay
-    LiveSlide="@LiveSlide"
-    Overlay="@ActiveOverlay"
-    Scale="@Scale"
-    BaseWidth="@BaseWidth"
-    BaseHeight="@BaseHeight"
-    Class="rounded-lg"/>
+<div class="flex justify-center">
+    <LiveDisplay
+        LiveSlide="@LiveSlide"
+        Overlay="@ActiveOverlay"
+        Scale="@Scale"
+        BaseWidth="@BaseWidth"
+        BaseHeight="@BaseHeight"
+        Class="rounded-lg"/>
+</div>
 
 <button @onclick="OnClearSlide"
         class="cursor-pointer flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600 @(isBlackScreen ? "invisible pointer-events-none" : "")"

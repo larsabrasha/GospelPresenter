@@ -133,6 +133,7 @@
                         @if (!SharedAppState.IsPresentationActive(AppState.SessionId))
                         {
                             <a href="/live?session=@AppState.SessionId" target="_blank"
+                               @onclick="ResetLiveSlide"
                                class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer pointer-events-auto bg-emerald-500 text-white hover:bg-emerald-600"
                                title="@L["Presentation.StartPresentation"]">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
@@ -330,6 +331,7 @@
                     {
                         <div class="lg:hidden pointer-events-auto">
                             <a href="/live?session=@AppState.SessionId" target="_blank"
+                               @onclick="ResetLiveSlide"
                                class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
                                title="@L["Presentation.StartPresentation"]">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
@@ -681,16 +683,16 @@
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        if (active && AppState.SelectedProjectItem is not null)
-        {
-            var current = SharedAppState.GetLiveSlide(AppState.SessionId);
-            SharedAppState.SetLiveSlide(AppState.SessionId, current with
-            {
-                Status = LiveSlideStatus.ShowingBlackScreen
-            });
-        }
-
         SharedAppState.SetPresentationActive(AppState.SessionId, active, orgId);
+    }
+
+    private void ResetLiveSlide()
+    {
+        var current = SharedAppState.GetLiveSlide(AppState.SessionId);
+        SharedAppState.SetLiveSlide(AppState.SessionId, current with
+        {
+            Status = LiveSlideStatus.ShowingBlackScreen
+        });
     }
 
     private async Task StopPresentation()

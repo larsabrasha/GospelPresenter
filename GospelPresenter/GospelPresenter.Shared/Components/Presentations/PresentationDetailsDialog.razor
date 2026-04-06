@@ -4,7 +4,7 @@
 
         <FloatingInput @ref="nameInput" Id="presentation-name" Label="@L["Common.Name"]"
                        Value="@name" OnInput="HandleNameInput"
-                       OnKeyDown="OnKeyDown" MaxLength="DataLimits.NameMaxLength"
+                       OnKeyDown="OnKeyDown" MaxLength="AppConstraints.NameMaxLength"
                        HideLabel/>
 
         <div class="flex gap-2 flex-wrap">
@@ -16,7 +16,7 @@
 
             <SimpleInput Id="presentation-location" Placeholder="@L["Event.Location"]"
                          Value="@selectedLocation" OnInput="HandleLocationChange"
-                         MaxLength="DataLimits.LocationMaxLength">
+                         MaxLength="AppConstraints.LocationMaxLength">
                 <Icon><MapPinSymbol Class="size-4"/></Icon>
             </SimpleInput>
         </div>

@@ -4,6 +4,7 @@ using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
+using GospelPresenter.Web;
 using GospelPresenter.Web.Configuration;
 using GospelPresenter.Web.Mcp;
 using GospelPresenter.Web.Services;
@@ -485,6 +486,8 @@ builder.Services.AddMetricServer(options =>
         context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
         return Results.File(stream, contentType);
     }).RequireAuthorization();
+
+    app.MapUploadEndpoints();
 
     // Unauthenticated endpoint for the live view — only serves images while the session's presentation is active.
     // Org isolation is enforced by the S3 key structure: org/{orgId}/..., so an image from

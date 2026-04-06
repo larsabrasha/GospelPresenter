@@ -2,6 +2,89 @@ window.getElementWidth = function (element) {
     return element ? element.getBoundingClientRect().width : 0;
 };
 
+window.clickElement = function (element) {
+    if (element) element.click();
+};
+
+window.uploadFiles = async function (inputElement, url, dotNetRef, maxFileSize, allowedTypes) {
+    var files = inputElement.files;
+    if (!files || files.length === 0) return;
+
+    await dotNetRef.invokeMethodAsync('OnUploadStarted', files.length);
+
+    for (var i = 0; i < files.length; i++) {
+        if (allowedTypes && allowedTypes.length > 0 && allowedTypes.indexOf(files[i].type) === -1) {
+            await dotNetRef.invokeMethodAsync('OnFileUploadFailed', files[i].name);
+            continue;
+        }
+        if (maxFileSize > 0 && files[i].size > maxFileSize) {
+            await dotNetRef.invokeMethodAsync('OnFileUploadFailed', files[i].name);
+            continue;
+        }
+
+        var formData = new FormData();
+        formData.append('file', files[i]);
+
+        try {
+            var response = await fetch(url, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                var json = await response.text();
+                await dotNetRef.invokeMethodAsync('OnFileUploaded', json);
+            } else {
+                await dotNetRef.invokeMethodAsync('OnFileUploadFailed', files[i].name);
+            }
+        } catch (e) {
+            await dotNetRef.invokeMethodAsync('OnFileUploadFailed', files[i].name);
+        }
+    }
+
+    await dotNetRef.invokeMethodAsync('OnAllUploadsComplete');
+    inputElement.value = '';
+};
+
+window.uploadAllFiles = async function (inputElement, url, replaceExisting) {
+    var files = inputElement.files;
+    if (!files || files.length === 0) return null;
+
+    var formData = new FormData();
+    for (var i = 0; i < files.length; i++) {
+        formData.append('file', files[i], files[i].name);
+    }
+    if (replaceExisting) {
+        formData.append('replaceExisting', 'true');
+    }
+
+    try {
+        var response = await fetch(url, { method: 'POST', body: formData });
+        if (!response.ok) return null;
+
+        var result = await response.json();
+        result.fileCount = files.length;
+        if (!result.duplicates) inputElement.value = '';
+        return result;
+    } catch (e) {
+        return null;
+    }
+};
+
+window.readFileAsDataUrl = function (inputElement, maxFileSize, allowedTypes) {
+    var file = inputElement.files && inputElement.files[0];
+    if (!file) return Promise.resolve(null);
+    if (allowedTypes && allowedTypes.length > 0 && allowedTypes.indexOf(file.type) === -1) return Promise.resolve('unsupported-type');
+    if (maxFileSize > 0 && file.size > maxFileSize) return Promise.resolve('too-large');
+
+    return new Promise(function (resolve) {
+        var reader = new FileReader();
+        reader.onload = function () { resolve(reader.result); };
+        reader.onerror = function () { resolve(null); };
+        reader.readAsDataURL(file);
+    });
+};
+
 window.copyToClipboard = function (text) {
     if (!navigator.clipboard) return Promise.resolve(false);
     return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return false; });

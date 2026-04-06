@@ -127,15 +127,15 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
             parsed = parsed with
             {
-                Name = ValidationHelper.Truncate(parsed.Name, DataLimits.NameMaxLength) ?? "",
-                Author = ValidationHelper.Truncate(parsed.Author, DataLimits.SongAuthorMaxLength),
-                Publisher = ValidationHelper.Truncate(parsed.Publisher, DataLimits.SongPublisherMaxLength),
-                Ccli = ValidationHelper.Truncate(parsed.Ccli, DataLimits.SongCcliMaxLength),
+                Name = ValidationHelper.Truncate(parsed.Name, AppConstraints.NameMaxLength) ?? "",
+                Author = ValidationHelper.Truncate(parsed.Author, AppConstraints.SongAuthorMaxLength),
+                Publisher = ValidationHelper.Truncate(parsed.Publisher, AppConstraints.SongPublisherMaxLength),
+                Ccli = ValidationHelper.Truncate(parsed.Ccli, AppConstraints.SongCcliMaxLength),
                 Parts = parsed.Parts.Select(p => p with
                 {
-                    Label = ValidationHelper.Truncate(p.Label, DataLimits.SongPartLabelMaxLength),
-                    Content = ValidationHelper.Truncate(p.Content, DataLimits.SongPartContentMaxLength) ?? ""
-                }).Take(DataLimits.MaxSongPartsPerSong).ToList()
+                    Label = ValidationHelper.Truncate(p.Label, AppConstraints.SongPartLabelMaxLength),
+                    Content = ValidationHelper.Truncate(p.Content, AppConstraints.SongPartContentMaxLength) ?? ""
+                }).Take(AppConstraints.MaxSongPartsPerSong).ToList()
             };
 
             if (existingByName.TryGetValue(parsed.Name, out var existing))
@@ -165,7 +165,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             }
             else
             {
-                if (songCount >= DataLimits.MaxSongsPerOrg)
+                if (songCount >= AppConstraints.MaxSongsPerOrg)
                 {
                     skipped++;
                     continue;
@@ -337,8 +337,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
-        ValidationHelper.RequireMaxLength(label, DataLimits.SongPartLabelMaxLength, "Label");
-        ValidationHelper.RequireMaxLength(content, DataLimits.SongPartContentMaxLength, "Content");
+        ValidationHelper.RequireMaxLength(label, AppConstraints.SongPartLabelMaxLength, "Label");
+        ValidationHelper.RequireMaxLength(content, AppConstraints.SongPartContentMaxLength, "Content");
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
@@ -363,8 +363,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         if (edits.Count == 0) return;
         foreach (var (_, edit) in edits)
         {
-            ValidationHelper.RequireMaxLength(edit.Label, DataLimits.SongPartLabelMaxLength, "Label");
-            ValidationHelper.RequireMaxLength(edit.Content, DataLimits.SongPartContentMaxLength, "Content");
+            ValidationHelper.RequireMaxLength(edit.Label, AppConstraints.SongPartLabelMaxLength, "Label");
+            ValidationHelper.RequireMaxLength(edit.Content, AppConstraints.SongPartContentMaxLength, "Content");
         }
 
         await using var db = await dbContextFactory.CreateDbContextAsync();
@@ -391,13 +391,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
-        ValidationHelper.RequireMaxLength(label, DataLimits.SongPartLabelMaxLength, "Label");
-        ValidationHelper.RequireMaxLength(content, DataLimits.SongPartContentMaxLength, "Content");
+        ValidationHelper.RequireMaxLength(label, AppConstraints.SongPartLabelMaxLength, "Label");
+        ValidationHelper.RequireMaxLength(content, AppConstraints.SongPartContentMaxLength, "Content");
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
-        if (song.Parts.Count >= DataLimits.MaxSongPartsPerSong)
-            throw new InvalidOperationException($"The maximum number of song parts ({DataLimits.MaxSongPartsPerSong}) has been reached.");
+        if (song.Parts.Count >= AppConstraints.MaxSongPartsPerSong)
+            throw new InvalidOperationException($"The maximum number of song parts ({AppConstraints.MaxSongPartsPerSong}) has been reached.");
 
         await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
@@ -533,11 +533,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     private static void ValidateSongFields(string name, string? author, string? publisher, int? year, string? ccli)
     {
-        ValidationHelper.RequireMaxLength(name, DataLimits.NameMaxLength, "Name");
-        ValidationHelper.RequireMaxLength(author, DataLimits.SongAuthorMaxLength, "Author");
-        ValidationHelper.RequireMaxLength(publisher, DataLimits.SongPublisherMaxLength, "Publisher");
-        ValidationHelper.RequireMaxLength(ccli, DataLimits.SongCcliMaxLength, "CCLI");
-        ValidationHelper.RequireRange(year, DataLimits.SongYearMin, DataLimits.SongYearMax, "Year");
+        ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(author, AppConstraints.SongAuthorMaxLength, "Author");
+        ValidationHelper.RequireMaxLength(publisher, AppConstraints.SongPublisherMaxLength, "Publisher");
+        ValidationHelper.RequireMaxLength(ccli, AppConstraints.SongCcliMaxLength, "CCLI");
+        ValidationHelper.RequireRange(year, AppConstraints.SongYearMin, AppConstraints.SongYearMax, "Year");
     }
 
     public async Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId, CallerContext caller)
@@ -548,7 +548,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await using var db = await dbContextFactory.CreateDbContextAsync();
         await ValidationHelper.RequireMaxCountAsync(
             db.Songs.Where(s => s.OrganizationId == organizationId && s.DeletedAt == null),
-            DataLimits.MaxSongsPerOrg, "songs");
+            AppConstraints.MaxSongsPerOrg, "songs");
 
         var dbSong = new Models.DbSong
         {
@@ -620,7 +620,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var oldVersions = await db.SongVersions
             .Where(v => v.SongId == song.Id)
             .OrderByDescending(v => v.CreatedAt)
-            .Skip(DataLimits.MaxSongVersionsPerSong)
+            .Skip(AppConstraints.MaxSongVersionsPerSong)
             .ToListAsync();
 
         if (oldVersions.Count > 0)

@@ -104,7 +104,7 @@
             <div class="font-semibold text-lg">@L["ApiKeys.CreateTitle"]</div>
             <FloatingInput @ref="nameFloatingInput" Id="api-key-name" Label="@L["Common.Name"]"
                            Value="@editName" OnInput="(e) => editName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"
-                           MaxLength="DataLimits.NameMaxLength"/>
+                           MaxLength="AppConstraints.NameMaxLength"/>
             <FloatingSelect Id="api-key-user" Label="@L["ApiKeys.User"]" Value="@selectedUserId" OnChange="(e) => selectedUserId = e.Value?.ToString() ?? string.Empty">
                 @if (users is not null)
                 {

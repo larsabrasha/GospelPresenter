@@ -2,18 +2,18 @@
 
 <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-4">
     <FloatingInput Id="song-name" Label="@L["Common.Name"]" Value="@Name" OnInput="HandleNameChanged"
-                   MaxLength="DataLimits.NameMaxLength"/>
+                   MaxLength="AppConstraints.NameMaxLength"/>
     <div class="flex gap-4">
         <FloatingInput Id="song-author" Label="@L["SongFields.Artist"]" Class="flex-1" Value="@Author" OnInput="HandleAuthorChanged"
-                       MaxLength="DataLimits.SongAuthorMaxLength"/>
+                       MaxLength="AppConstraints.SongAuthorMaxLength"/>
         <FloatingInput Id="song-publisher" Label="@L["SongFields.Publisher"]" Class="flex-1" Value="@Publisher" OnInput="HandlePublisherChanged"
-                       MaxLength="DataLimits.SongPublisherMaxLength"/>
+                       MaxLength="AppConstraints.SongPublisherMaxLength"/>
     </div>
     <div class="flex gap-4">
         <FloatingInput Id="song-year" Label="@L["SongFields.Year"]" Type="number" Class="flex-1" Value="@Year" OnInput="HandleYearChanged"
-                       Min="DataLimits.SongYearMin" Max="DataLimits.SongYearMax"/>
+                       Min="AppConstraints.SongYearMin" Max="AppConstraints.SongYearMax"/>
         <FloatingInput Id="song-ccli" Label="CCLI" Class="flex-1" Value="@Ccli" OnInput="HandleCcliChanged"
-                       MaxLength="DataLimits.SongCcliMaxLength"/>
+                       MaxLength="AppConstraints.SongCcliMaxLength"/>
     </div>
     @if (ChildContent is not null)
     {
