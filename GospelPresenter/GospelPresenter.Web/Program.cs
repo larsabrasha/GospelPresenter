@@ -227,6 +227,8 @@ try
     builder.Services.AddScoped<IOrganizationImageService, OrganizationImageService>();
     builder.Services.AddScoped<IOrganizationAudioService, OrganizationAudioService>();
     builder.Services.AddScoped<IOrganizationSettingService, OrganizationSettingService>();
+    builder.Services.AddSingleton<ICcliReportService, CcliReportService>();
+    builder.Services.AddHostedService<GospelPresenter.Web.Services.CcliReportBackgroundService>();
 
 #if !DEBUG
 builder.Services.AddMetricServer(options =>

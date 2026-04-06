@@ -22,6 +22,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<UserSetting> UserSettings { get; set; }
     public DbSet<McpApiKey> McpApiKeys { get; set; }
     public DbSet<OrganizationSetting> OrganizationSettings { get; set; }
+    public DbSet<CcliReportEntry> CcliReportEntries { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -107,6 +108,14 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
             e.HasIndex(os => new { os.OrganizationId, os.Key }).IsUnique();
             e.Property(os => os.Key).HasMaxLength(AppConstraints.SettingsKeyMaxLength);
             e.Property(os => os.Value).HasMaxLength(AppConstraints.SettingsValueMaxLength);
+        });
+
+        modelBuilder.Entity<CcliReportEntry>(e =>
+        {
+            e.HasIndex(c => new { c.OrganizationId, c.SongId, c.Date, c.PresentationId }).IsUnique();
+            e.Property(c => c.SongName).HasMaxLength(AppConstraints.NameMaxLength);
+            e.Property(c => c.CcliNumber).HasMaxLength(AppConstraints.SongCcliMaxLength);
+            e.Property(c => c.PresentationName).HasMaxLength(AppConstraints.NameMaxLength);
         });
 
         modelBuilder.Entity<User>()

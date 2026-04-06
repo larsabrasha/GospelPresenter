@@ -1,0 +1,207 @@
+@page "/admin/ccli-report"
+@attribute [Authorize(Roles = "Admin,SuperAdmin")]
+
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject ICcliReportService CcliReportService
+@inject IOrganizationSettingService OrgSettingService
+@inject ActiveOrganizationState OrgState
+
+<PageContainer>
+    <div class="px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["CcliReport.Title"]</div>
+    </div>
+
+    <div class="px-5 pb-2">
+        <div class="flex items-center gap-3 cursor-pointer select-none"
+             @onclick="() => ToggleCollection(!collectionEnabled)">
+            <ToggleSwitch Value="@collectionEnabled" ValueChanged="ToggleCollection" StopPropagation/>
+            <span class="text-sm dark:text-neutral-200">@L["CcliReport.CollectionEnabled"]</span>
+        </div>
+        <p class="text-xs text-neutral-400 dark:text-neutral-500 mt-1 ml-12">@L["CcliReport.CollectionDescription"]</p>
+    </div>
+
+    <div class="px-5 pb-2">
+        <PillTabs>
+            <button class="@FilterTabClass(null)" @onclick="() => SetFilter(null)">
+                @L["CcliReport.FilterAll"]
+            </button>
+            <button class="@FilterTabClass(false)" @onclick="() => SetFilter(false)">
+                @L["CcliReport.FilterUnreported"]
+            </button>
+            <button class="@FilterTabClass(true)" @onclick="() => SetFilter(true)">
+                @L["CcliReport.FilterReported"]
+            </button>
+        </PillTabs>
+    </div>
+
+    @if (entries is null)
+    {
+        <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+    }
+    else if (entries.Count == 0)
+    {
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <rect x="40" y="30" width="120" height="100" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <line x1="60" y1="55" x2="140" y2="55" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                    <line x1="60" y1="70" x2="130" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                    <line x1="60" y1="85" x2="120" y2="85" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                    <line x1="60" y1="100" x2="110" y2="100" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+                    <circle cx="155" cy="120" r="16" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <path d="M149 120h12M155 114v12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+                </svg>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["CcliReport.Empty"]</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">
+                    @L["CcliReport.EmptyDescription"]
+                </p>
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var dateGroup in grouped)
+        {
+            @foreach (var presGroup in dateGroup.Presentations)
+            {
+                <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+                    <div class="flex items-center justify-between px-5 py-3 bg-neutral-100 dark:bg-neutral-700/50">
+                        <div>
+                            <div class="font-semibold dark:text-neutral-100">
+                                @(string.IsNullOrEmpty(presGroup.Key) ? L["CcliReport.OtherPresentation"] : presGroup.Key)
+                            </div>
+                            <div class="text-xs text-neutral-400 dark:text-neutral-500">@dateGroup.Date.ToString("yyyy-MM-dd")</div>
+                        </div>
+                        <div class="flex items-center gap-2 cursor-pointer select-none"
+                             @onclick="() => TogglePresentationReported(presGroup)">
+                            <span class="text-xs text-neutral-400 dark:text-neutral-500">@L["CcliReport.Reported"]</span>
+                            <ToggleSwitch Value="@presGroup.All(e => e.Reported)" ValueChanged="() => TogglePresentationReported(presGroup)" StopPropagation/>
+                        </div>
+                    </div>
+                    @foreach (var entry in presGroup)
+                    {
+                        <div class="flex items-center px-5 py-2.5 border-t border-neutral-200 dark:border-neutral-700">
+                            <div class="w-0 sm:w-28 overflow-hidden shrink-0 text-sm text-neutral-500 dark:text-neutral-400">@entry.CcliNumber</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="truncate">@entry.SongName</div>
+                                <div class="sm:hidden text-xs text-neutral-500 dark:text-neutral-400">@entry.CcliNumber</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+
+        @if (hasMore)
+        {
+            <div class="flex justify-center py-4">
+                <AppButton Variant="ButtonVariant.Cancel" Disabled="@isLoadingMore" OnClick="LoadMore">
+                    @(isLoadingMore ? L["Common.Loading"] : L["CcliReport.LoadMore"])
+                </AppButton>
+            </div>
+        }
+    }
+</PageContainer>
+
+@code {
+    private const int PageSize = 50;
+
+    private List<CcliReportEntry>? entries;
+    private bool collectionEnabled;
+    private bool isLoadingMore;
+    private bool hasMore;
+    private bool? reportedFilter;
+
+    private IEnumerable<(DateOnly Date, IEnumerable<IGrouping<string, CcliReportEntry>> Presentations)> grouped =>
+        (entries ?? [])
+            .GroupBy(e => e.Date)
+            .OrderByDescending(g => g.Key)
+            .Select(g => (g.Key, (IEnumerable<IGrouping<string, CcliReportEntry>>)g
+                .GroupBy(e => e.PresentationName)
+                .OrderBy(p => p.Key)));
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        var caller = OrgState.ToCallerContext();
+        await LoadEntriesAsync(orgId, caller);
+
+        var setting = await OrgSettingService.GetSettingAsync(orgId, OrganizationSetting.CcliCollectionEnabled, caller);
+        collectionEnabled = setting == "true";
+    }
+
+    private async Task LoadEntriesAsync(string orgId, CallerContext caller)
+    {
+        entries = await CcliReportService.GetEntriesAsync(orgId, caller, reportedFilter, 0, PageSize);
+        hasMore = entries.Count == PageSize;
+    }
+
+    private async Task SetFilter(bool? reported)
+    {
+        if (reportedFilter == reported) return;
+        reportedFilter = reported;
+
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        entries = null;
+        await LoadEntriesAsync(orgId, OrgState.ToCallerContext());
+    }
+
+    private async Task LoadMore()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null || entries is null) return;
+
+        isLoadingMore = true;
+        var caller = OrgState.ToCallerContext();
+        var more = await CcliReportService.GetEntriesAsync(orgId, caller, reportedFilter, entries.Count, PageSize);
+        entries.AddRange(more);
+        hasMore = more.Count == PageSize;
+        isLoadingMore = false;
+    }
+
+    private async Task ToggleCollection(bool value)
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        collectionEnabled = value;
+        await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.CcliCollectionEnabled,
+            value ? "true" : "false", OrgState.ToCallerContext());
+    }
+
+    private async Task TogglePresentationReported(IGrouping<string, CcliReportEntry> group)
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        var allReported = group.All(e => e.Reported);
+        var newState = !allReported;
+        var ids = group.Where(e => e.Reported != newState).Select(e => e.Id);
+        await CcliReportService.SetReportedBatchAsync(ids, newState, orgId, OrgState.ToCallerContext());
+
+        var now = DateTime.UtcNow;
+        foreach (var entry in group)
+        {
+            entry.Reported = newState;
+            entry.ReportedAt = newState ? now : null;
+        }
+    }
+
+    private string FilterTabClass(bool? value) =>
+        "flex-1 shrink-0 px-4 py-2 rounded-full text-sm cursor-pointer transition-all " +
+        (reportedFilter == value
+            ? "bg-white dark:bg-neutral-600 dark:text-neutral-100 shadow font-medium"
+            : "text-neutral-500 dark:text-neutral-400");
+
+}

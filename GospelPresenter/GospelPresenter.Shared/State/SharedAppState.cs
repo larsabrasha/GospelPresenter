@@ -3,7 +3,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace GospelPresenter.Shared.State;
 
-public record ActiveSession(string OrganizationId, string? PresentationId);
+public record ActiveSession(string OrganizationId, string? PresentationId, string? PresentationName = null);
+
+public record CcliSongDisplayedEvent(
+    string OrganizationId, string SongId, string SongName, string CcliNumber,
+    string? PresentationId, string? PresentationName);
 
 public partial class SharedAppState : ObservableObject
 {
@@ -19,6 +23,7 @@ public partial class SharedAppState : ObservableObject
     private readonly ConcurrentDictionary<string, ActiveSession> presentationActive = new();
     private readonly ConcurrentDictionary<string, DateTime> lastAccessed = new();
     private readonly ConcurrentDictionary<string, DateTime> expiredSessions = new();
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> ccliTimers = new();
 
     public static readonly LiveSlide DefaultSlide = new(
         LiveSlideStatus.ShowingPresentation,
@@ -40,6 +45,8 @@ public partial class SharedAppState : ObservableObject
     public void SetLiveSlide(string sessionId, LiveSlide slide)
     {
         TouchSession(sessionId);
+        CancelCcliTimer(sessionId);
+        StartCcliTimerIfNeeded(sessionId, slide);
         liveSlides[sessionId] = slide;
         OnPropertyChanged(sessionId);
     }
@@ -80,10 +87,10 @@ public partial class SharedAppState : ObservableObject
     public string? GetSessionOrganizationId(string sessionId) =>
         presentationActive.GetValueOrDefault(sessionId)?.OrganizationId;
 
-    public void ActivatePresentation(string sessionId, string organizationId, string? presentationId = null)
+    public void ActivatePresentation(string sessionId, string organizationId, string? presentationId = null, string? presentationName = null)
     {
         TouchSession(sessionId);
-        presentationActive[sessionId] = new ActiveSession(organizationId, presentationId);
+        presentationActive[sessionId] = new ActiveSession(organizationId, presentationId, presentationName);
         OnPropertyChanged(sessionId);
     }
 
@@ -97,11 +104,16 @@ public partial class SharedAppState : ObservableObject
     public bool IsPresentationActiveForSession(string sessionId, string presentationId) =>
         presentationActive.TryGetValue(sessionId, out var session) && session.PresentationId == presentationId;
 
-    public void UpdateActivePresentationId(string sessionId, string presentationId)
+    public void UpdateActivePresentationId(string sessionId, string presentationId, string? presentationName = null)
     {
         if (presentationActive.TryGetValue(sessionId, out var session) && session.PresentationId != presentationId)
-            presentationActive[sessionId] = session with { PresentationId = presentationId };
+            presentationActive[sessionId] = session with { PresentationId = presentationId, PresentationName = presentationName };
     }
+
+    /// <summary>
+    /// Raised when a song with a CCLI number has been displayed live for at least 10 seconds.
+    /// </summary>
+    public event Action<CcliSongDisplayedEvent>? CcliSongDisplayed;
 
     public event Action<string, int>? OrganizationSongFontSizeChanged;
 
@@ -127,6 +139,55 @@ public partial class SharedAppState : ObservableObject
         PresentationChanged?.Invoke(presentationId, senderSessionId);
     }
 
+    private void CancelCcliTimer(string sessionId)
+    {
+        if (ccliTimers.TryRemove(sessionId, out var cts))
+        {
+            cts.Cancel();
+            cts.Dispose();
+        }
+    }
+
+    private void StartCcliTimerIfNeeded(string sessionId, LiveSlide slide)
+    {
+        if (slide.Status != LiveSlideStatus.ShowingPresentation
+            || slide.ItemType != ProjectItemType.Song
+            || string.IsNullOrEmpty(slide.CcliNumber)
+            || string.IsNullOrEmpty(slide.SongId))
+            return;
+
+        var session = presentationActive.GetValueOrDefault(sessionId);
+        if (session is null) return;
+
+        var evt = new CcliSongDisplayedEvent(
+            session.OrganizationId,
+            slide.SongId,
+            slide.SongName ?? "",
+            slide.CcliNumber,
+            session.PresentationId,
+            session.PresentationName);
+
+        var cts = new CancellationTokenSource();
+        ccliTimers[sessionId] = cts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(10), cts.Token);
+                CcliSongDisplayed?.Invoke(evt);
+            }
+            catch (OperationCanceledException)
+            {
+                // Timer was cancelled — slide changed before 10 seconds
+            }
+            catch (ObjectDisposedException)
+            {
+                // CTS was disposed during cleanup
+            }
+        }, cts.Token);
+    }
+
     private void TouchSession(string sessionId)
     {
         var now = DateTime.UtcNow;
@@ -142,6 +203,7 @@ public partial class SharedAppState : ObservableObject
 
             var wasActive = presentationActive.ContainsKey(sessionId);
 
+            CancelCcliTimer(sessionId);
             liveSlides.TryRemove(sessionId, out _);
             activeOverlays.TryRemove(sessionId, out _);
             presentationActive.TryRemove(sessionId, out _);

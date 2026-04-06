@@ -5,6 +5,8 @@ public class OrganizationSetting
     public const string SongFontSize = "SongFontSize";
     public const int DefaultSongFontSize = 85;
 
+    public const string CcliCollectionEnabled = "CcliCollectionEnabled";
+
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string OrganizationId { get; set; } = "";
     public Organization Organization { get; set; } = null!;

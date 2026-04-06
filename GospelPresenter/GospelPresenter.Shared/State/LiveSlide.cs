@@ -9,7 +9,10 @@ public record LiveSlide(
     string? Credits,
     string? ImageUrl,
     SongPart? SongPart,
-    int SongFontSize = 85
+    int SongFontSize = 85,
+    string? SongId = null,
+    string? SongName = null,
+    string? CcliNumber = null
 );
 
 public record ActiveOverlay(string? Text, string? ImageUrl);

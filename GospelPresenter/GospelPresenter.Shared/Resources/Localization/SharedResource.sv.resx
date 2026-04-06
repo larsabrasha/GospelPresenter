@@ -1171,4 +1171,40 @@
   <data name="Entity.SongParts" xml:space="preserve">
     <value>sångdelar</value>
   </data>
+  <data name="Nav.CcliReport" xml:space="preserve">
+    <value>CCLI-rapport</value>
+  </data>
+  <data name="CcliReport.Title" xml:space="preserve">
+    <value>CCLI-rapport</value>
+  </data>
+  <data name="CcliReport.Empty" xml:space="preserve">
+    <value>Inga CCLI-poster</value>
+  </data>
+  <data name="CcliReport.EmptyDescription" xml:space="preserve">
+    <value>När sånger med CCLI-nummer visas live kommer de att registreras här för rapportering.</value>
+  </data>
+  <data name="CcliReport.CollectionEnabled" xml:space="preserve">
+    <value>Aktivera CCLI-datainsamling</value>
+  </data>
+  <data name="CcliReport.CollectionDescription" xml:space="preserve">
+    <value>Registrerar automatiskt vilka sånger med CCLI-nummer som visas under livepresentationer.</value>
+  </data>
+  <data name="CcliReport.Reported" xml:space="preserve">
+    <value>Rapporterad</value>
+  </data>
+  <data name="CcliReport.FilterAll" xml:space="preserve">
+    <value>Alla</value>
+  </data>
+  <data name="CcliReport.FilterUnreported" xml:space="preserve">
+    <value>Orapporterade</value>
+  </data>
+  <data name="CcliReport.FilterReported" xml:space="preserve">
+    <value>Rapporterade</value>
+  </data>
+  <data name="CcliReport.LoadMore" xml:space="preserve">
+    <value>Visa fler</value>
+  </data>
+  <data name="CcliReport.OtherPresentation" xml:space="preserve">
+    <value>Övrigt</value>
+  </data>
 </root>

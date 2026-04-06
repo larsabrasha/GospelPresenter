@@ -1171,4 +1171,40 @@
   <data name="Entity.SongParts" xml:space="preserve">
     <value>song parts</value>
   </data>
+  <data name="Nav.CcliReport" xml:space="preserve">
+    <value>CCLI Report</value>
+  </data>
+  <data name="CcliReport.Title" xml:space="preserve">
+    <value>CCLI Report</value>
+  </data>
+  <data name="CcliReport.Empty" xml:space="preserve">
+    <value>No CCLI entries</value>
+  </data>
+  <data name="CcliReport.EmptyDescription" xml:space="preserve">
+    <value>When songs with CCLI numbers are displayed live, they will be recorded here for reporting.</value>
+  </data>
+  <data name="CcliReport.CollectionEnabled" xml:space="preserve">
+    <value>Enable CCLI data collection</value>
+  </data>
+  <data name="CcliReport.CollectionDescription" xml:space="preserve">
+    <value>Automatically records which songs with CCLI numbers are shown during live presentations.</value>
+  </data>
+  <data name="CcliReport.Reported" xml:space="preserve">
+    <value>Reported</value>
+  </data>
+  <data name="CcliReport.FilterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="CcliReport.FilterUnreported" xml:space="preserve">
+    <value>Unreported</value>
+  </data>
+  <data name="CcliReport.FilterReported" xml:space="preserve">
+    <value>Reported</value>
+  </data>
+  <data name="CcliReport.LoadMore" xml:space="preserve">
+    <value>Load more</value>
+  </data>
+  <data name="CcliReport.OtherPresentation" xml:space="preserve">
+    <value>Other</value>
+  </data>
 </root>

@@ -684,7 +684,7 @@
         if (orgId is null) return;
 
         if (active)
-            SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId);
+            SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId, AppState.SelectedProject?.Name);
         else
             SharedAppState.DeactivatePresentation(AppState.SessionId);
     }
@@ -1206,6 +1206,9 @@
         string? credits = null;
         string? imageUrl = null;
         SongPart? songPart = null;
+        string? liveSongId = null;
+        string? liveSongName = null;
+        string? liveCcliNumber = null;
 
         switch (projectItem.Type)
         {
@@ -1229,6 +1232,9 @@
                     songPart = song.Parts[partIndex];
                     text = songPart.Content.Replace("\n", "<br>");
                     credits = FormatSongCredits(song);
+                    liveSongId = song.Id;
+                    liveSongName = song.Name;
+                    liveCcliNumber = song.Ccli;
                 }
 
                 break;
@@ -1262,7 +1268,7 @@
         }
 
         if (EffectiveId is not null)
-            SharedAppState.UpdateActivePresentationId(AppState.SessionId, EffectiveId);
+            SharedAppState.UpdateActivePresentationId(AppState.SessionId, EffectiveId, AppState.SelectedProject?.Name);
 
         SharedAppState.SetLiveSlide(AppState.SessionId, SharedAppState.GetLiveSlide(AppState.SessionId) with
         {
@@ -1274,7 +1280,10 @@
             Credits = credits,
             ImageUrl = imageUrl,
             SongPart = songPart,
-            SongFontSize = songFontSize
+            SongFontSize = songFontSize,
+            SongId = liveSongId,
+            SongName = liveSongName,
+            CcliNumber = liveCcliNumber
         });
     }
 

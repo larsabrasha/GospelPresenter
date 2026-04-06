@@ -1,0 +1,42 @@
+<div class="relative w-9 h-5 rounded-full shrink-0 @SwitchClass @Class"
+     role="switch"
+     aria-checked="@Value"
+     @onclick="Toggle"
+     @onclick:stopPropagation="@StopPropagation">
+    <div class="absolute top-0.5 size-4 rounded-full bg-white shadow @KnobClass"></div>
+</div>
+
+@code {
+    [Parameter] public bool Value { get; set; }
+    [Parameter] public EventCallback<bool> ValueChanged { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public bool StopPropagation { get; set; }
+
+    private bool previousValue;
+    private bool interacted;
+
+    protected override void OnParametersSet()
+    {
+        if (Value != previousValue)
+        {
+            interacted = true;
+            previousValue = Value;
+        }
+    }
+
+    private async Task Toggle()
+    {
+        await ValueChanged.InvokeAsync(!Value);
+    }
+
+    private string Transition => interacted ? " transition-colors duration-200" : "";
+    private string KnobTransition => interacted ? " transition-all duration-200" : "";
+
+    private string SwitchClass => Value
+        ? "bg-sky-500" + Transition
+        : "bg-neutral-300 dark:bg-neutral-500" + Transition;
+
+    private string KnobClass => Value
+        ? "left-4.5" + KnobTransition
+        : "left-0.5" + KnobTransition;
+}

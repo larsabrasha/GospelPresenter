@@ -16,6 +16,8 @@ public enum Permission
     ManageTemplates,
     ViewOrganizationAudios,
     ManageOrganizationAudios,
+    ViewCcliReport,
+    ManageCcliReport,
     ManageOrganizations,
     AssignSuperAdminRole,
     CrossOrganizationAccess,

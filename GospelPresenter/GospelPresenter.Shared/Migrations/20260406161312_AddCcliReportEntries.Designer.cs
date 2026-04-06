@@ -3,6 +3,7 @@ using System;
 using GospelPresenter.Shared.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GospelPresenter.Shared.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20260406161312_AddCcliReportEntries")]
+    partial class AddCcliReportEntries
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -42,14 +45,6 @@ namespace GospelPresenter.Shared.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PresentationId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PresentationName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
                     b.Property<bool>("Reported")
                         .HasColumnType("boolean");
 
@@ -67,7 +62,7 @@ namespace GospelPresenter.Shared.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrganizationId", "SongId", "Date", "PresentationId")
+                    b.HasIndex("OrganizationId", "SongId", "Date")
                         .IsUnique();
 
                     b.ToTable("CcliReportEntries");
