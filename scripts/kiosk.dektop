@@ -1,0 +1,4 @@
+[Desktop Entry]
+Type=Application
+Name=Gospel Presenter Kiosk
+Exec=/bin/bash -c 'while true; do chromium --password-store=basic --disable-gpu --kiosk --noerrdialogs --disable-infobars --disable-session-crashed-bubble --disable-restore-session-state --no-first-run --start-fullscreen --autoplay-policy=no-user-gesture-required --check-for-update-interval=31536000 --disable-features=Translate "http://192.168.1.211:5253/display?id=scene&name=Scene"; sleep 2; done'
