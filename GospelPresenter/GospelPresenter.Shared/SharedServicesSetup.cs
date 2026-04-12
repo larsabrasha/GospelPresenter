@@ -17,6 +17,8 @@ public static class SharedServicesSetup
         services.AddScoped<AppState>();
         services.AddScoped<ActiveOrganizationState>();
         services.AddSingleton(new SharedAppState(TimeSpan.FromMinutes(timeoutMinutes)));
+        services.AddSingleton<RemoteDisplayState>();
+        services.AddScoped<IRemoteDisplayService, RemoteDisplayService>();
         services.AddSingleton<IImageService, ImageService>();
         services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IImageResizeService, ImageResizeService>();

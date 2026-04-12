@@ -35,7 +35,8 @@ public static class PermissionMap
             Permission.ViewUsers,
             Permission.ManageUsers,
             Permission.ViewCcliReport,
-            Permission.ManageCcliReport
+            Permission.ManageCcliReport,
+            Permission.ManageRemoteDisplays
         ],
         [UserRole.SuperAdmin] = [..Enum.GetValues<Permission>()]
     };

@@ -1,0 +1,255 @@
+@page "/admin/displays"
+@attribute [Authorize(Policy = ManageRemoteDisplays)]
+
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.State
+
+@layout AdminLayout
+
+@inject IRemoteDisplayService RemoteDisplayService
+@inject ActiveOrganizationState OrgState
+@inject RemoteDisplayState RemoteDisplayState
+
+<PageContainer>
+    <div class="flex items-center justify-between px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.Displays.Title"]</div>
+        @if (displays is not null && displays.Count > 0)
+        {
+            <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+                <PlusSymbol Class="size-4"/>
+                @L["Admin.Displays.Add"]
+            </AppButton>
+        }
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        @if (displays is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+        }
+        else if (displays.Count == 0)
+        {
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <rect x="30" y="20" width="140" height="90" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <rect x="45" y="35" width="110" height="60" rx="2" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.4"/>
+                    <rect x="80" y="110" width="40" height="8" rx="2" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <rect x="60" y="118" width="80" height="6" rx="3" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <circle cx="155" cy="120" r="16" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Admin.Displays.NoDisplays"]</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                    @L["Admin.Displays.Description"]
+                </p>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+                    <PlusSymbol Class="size-4"/>
+                    @L["Admin.Displays.Add"]
+                </AppButton>
+            </div>
+        }
+        else
+        {
+            @foreach (var display in displays)
+            {
+                var isOnline = RemoteDisplayState.IsDisplayOnline(display.DisplayIdentifier);
+                var iconClass = isOnline ? "text-green-500" : "text-neutral-300 dark:text-neutral-600";
+                var statusClass = isOnline ? "text-green-600 dark:text-green-400" : "text-neutral-400 dark:text-neutral-500";
+                var statusText = isOnline ? L["Admin.Displays.Online"] : L["Admin.Displays.Offline"];
+
+                <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                    <div class="@iconClass">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+                            <path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Z"/>
+                            <path d="M8 13h4v2H8v-2Z"/>
+                            <path d="M6 16a1 1 0 0 0 0 2h8a1 1 0 1 0 0-2H6Z"/>
+                            @if (!isOnline)
+                            {
+                                <line x1="3" y1="2" x2="17" y2="18" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+                                <line x1="3" y1="2" x2="17" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            }
+                        </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate">@display.Name</div>
+                        <div class="text-xs text-neutral-400 dark:text-neutral-500 font-mono truncate">@display.DisplayIdentifier</div>
+                    </div>
+                    <div class="text-xs @statusClass">
+                        @statusText
+                    </div>
+                    <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmRemoveDisplay(display)" Class="text-xs">
+                        @L["Common.Delete"]
+                    </AppButton>
+                </div>
+            }
+        }
+    </div>
+</PageContainer>
+
+@if (deleteConfirmMessage is not null)
+{
+    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+                         IsDeleting="isDeleting"
+                         OnConfirm="ExecuteDelete"
+                         OnClose="() => displayToDelete = null"/>
+}
+
+@if (showCreateDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@L["Admin.Displays.AddTitle"]</div>
+            <FloatingInput @ref="identifierInput" Id="new-display-id"
+                           Label="@L["Admin.Displays.IdentifierPlaceholder"]"
+                           Value="@newIdentifier"
+                           OnInput="e => newIdentifier = e.Value?.ToString() ?? string.Empty"
+                           OnKeyDown="OnDialogKeyDown"/>
+            <FloatingInput Id="new-display-name"
+                           Label="@L["Admin.Displays.NamePlaceholder"]"
+                           Value="@newName"
+                           OnInput="e => newName = e.Value?.ToString() ?? string.Empty"
+                           OnKeyDown="OnDialogKeyDown"/>
+            <div class="flex justify-end gap-3">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary"
+                           Disabled="@(!CanAdd || adding)"
+                           Loading="@adding"
+                           OnClick="AddDisplay"
+                           title="Ctrl+Enter">
+                    @L["Admin.Displays.Add"]
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    private List<RemoteDisplay>? displays;
+    private bool showCreateDialog;
+    private string newIdentifier = "";
+    private string newName = "";
+    private bool adding;
+    private FloatingInput? identifierInput;
+    private bool shouldFocusIdentifier;
+    private RemoteDisplay? displayToDelete;
+    private bool isDeleting;
+
+    private MarkupString? deleteConfirmMessage => displayToDelete is not null
+        ? new MarkupString(L["Admin.Displays.ConfirmDelete", System.Net.WebUtility.HtmlEncode(displayToDelete.Name)])
+        : null;
+
+    private bool CanAdd => !string.IsNullOrWhiteSpace(newIdentifier) && !string.IsNullOrWhiteSpace(newName);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDisplays();
+    }
+
+    private async Task LoadDisplays()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        displays = await RemoteDisplayService.GetDisplaysAsync(orgId, caller);
+    }
+
+    private void ShowCreateDialog()
+    {
+        newIdentifier = "";
+        newName = "";
+        showCreateDialog = true;
+        shouldFocusIdentifier = true;
+    }
+
+    private void CloseDialog() => showCreateDialog = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldFocusIdentifier)
+        {
+            shouldFocusIdentifier = false;
+            if (identifierInput is not null)
+                try { await identifierInput.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnDialogKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey && CanAdd)
+        {
+            await AddDisplay();
+        }
+        else if (e.Key == "Enter" && e.ShiftKey && CanAdd)
+        {
+            await AddDisplayAndKeepOpen();
+        }
+        else if (e.Key == "Escape")
+        {
+            CloseDialog();
+        }
+    }
+
+    private async Task AddDisplay()
+    {
+        if (!CanAdd || adding) return;
+
+        adding = true;
+        StateHasChanged();
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        await RemoteDisplayService.AddDisplayAsync(orgId, newIdentifier.Trim(), newName.Trim(), caller);
+        adding = false;
+        showCreateDialog = false;
+
+        await LoadDisplays();
+    }
+
+    private async Task AddDisplayAndKeepOpen()
+    {
+        if (!CanAdd || adding) return;
+
+        adding = true;
+        StateHasChanged();
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        await RemoteDisplayService.AddDisplayAsync(orgId, newIdentifier.Trim(), newName.Trim(), caller);
+        adding = false;
+        newIdentifier = "";
+        newName = "";
+        shouldFocusIdentifier = true;
+
+        await LoadDisplays();
+    }
+
+    private void ConfirmRemoveDisplay(RemoteDisplay display) => displayToDelete = display;
+
+    private async Task ExecuteDelete()
+    {
+        if (displayToDelete is null || isDeleting) return;
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        isDeleting = true;
+        StateHasChanged();
+
+        await RemoteDisplayService.RemoveDisplayAsync(orgId, displayToDelete.Id, caller);
+        isDeleting = false;
+        displayToDelete = null;
+
+        await LoadDisplays();
+    }
+}

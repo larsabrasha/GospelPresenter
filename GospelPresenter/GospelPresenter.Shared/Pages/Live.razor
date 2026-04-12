@@ -40,17 +40,27 @@
 
     private bool fullscreenRequested;
     private string sessionId = "";
+    private string windowId = "";
 
     protected override void OnInitialized()
     {
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
-        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("session", out var session))
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("session", out var session))
         {
             sessionId = session.ToString();
         }
+        if (query.TryGetValue("windowId", out var wid))
+        {
+            windowId = wid.ToString();
+        }
+        if (query.TryGetValue("title", out var title))
+        {
+            JsRuntime.InvokeVoidAsync("eval", $"document.title = {System.Text.Json.JsonSerializer.Serialize(title.ToString())}");
+        }
 
         JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
-        JsRuntime.InvokeVoidAsync("initLiveViewListener", sessionId);
+        JsRuntime.InvokeVoidAsync("initLiveViewListener", sessionId, windowId);
 
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
@@ -73,7 +83,7 @@
     {
         if (sender is SharedAppState && e.PropertyName == sessionId)
         {
-            if (SharedAppState.IsSessionExpired(sessionId))
+            if (SharedAppState.IsSessionExpired(sessionId) || !SharedAppState.IsPresentationActive(sessionId))
             {
                 _ = InvokeAsync(async () =>
                 {

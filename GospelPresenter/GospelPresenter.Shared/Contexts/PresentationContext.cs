@@ -23,6 +23,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<McpApiKey> McpApiKeys { get; set; }
     public DbSet<OrganizationSetting> OrganizationSettings { get; set; }
     public DbSet<CcliReportEntry> CcliReportEntries { get; set; }
+    public DbSet<RemoteDisplay> RemoteDisplays { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -116,6 +117,13 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
             e.Property(c => c.SongName).HasMaxLength(AppConstraints.NameMaxLength);
             e.Property(c => c.CcliNumber).HasMaxLength(AppConstraints.SongCcliMaxLength);
             e.Property(c => c.PresentationName).HasMaxLength(AppConstraints.NameMaxLength);
+        });
+
+        modelBuilder.Entity<RemoteDisplay>(e =>
+        {
+            e.HasIndex(d => new { d.OrganizationId, d.DisplayIdentifier }).IsUnique();
+            e.Property(d => d.DisplayIdentifier).HasMaxLength(AppConstraints.NameMaxLength);
+            e.Property(d => d.Name).HasMaxLength(AppConstraints.NameMaxLength);
         });
 
         modelBuilder.Entity<User>()
