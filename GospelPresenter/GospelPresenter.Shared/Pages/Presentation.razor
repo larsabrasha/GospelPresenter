@@ -27,6 +27,7 @@
 @inject ToastService ToastService
 @inject ActiveOrganizationState OrgState
 @inject IOrganizationSettingService OrgSettingService
+@inject IRemoteDisplayService RemoteDisplayService
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -129,18 +130,17 @@
                         }
                     </div>
 
-                    <div id="live-view-container" class="p-3 hidden lg:flex items-center gap-2">
-                        @if (!SharedAppState.IsPresentationActive(AppState.SessionId))
+                    <div class="p-3 hidden lg:flex items-center gap-2">
+                        @if (!IsTemplateMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
                         {
-                            <a href="/live?session=@AppState.SessionId" target="_blank"
-                               @onclick="ResetLiveSlide"
-                               class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer pointer-events-auto bg-emerald-500 text-white hover:bg-emerald-600"
-                               title="@L["Presentation.StartPresentation"]">
+                            <button @onclick="StartPresentation"
+                                    class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer pointer-events-auto bg-emerald-500 text-white hover:bg-emerald-600"
+                                    title="@L["Presentation.StartPresentation"]">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
                                     <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
                                 </svg>
                                 <span class="text-sm font-medium">@L["Presentation.StartPresentation"]</span>
-                            </a>
+                            </button>
                         }
                     </div>
                 </div>
@@ -330,15 +330,14 @@
                     @if (!IsTemplateMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
                     {
                         <div class="lg:hidden pointer-events-auto">
-                            <a href="/live?session=@AppState.SessionId" target="_blank"
-                               @onclick="ResetLiveSlide"
-                               class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
-                               title="@L["Presentation.StartPresentation"]">
+                            <button @onclick="StartPresentation"
+                                    class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
+                                    title="@L["Presentation.StartPresentation"]">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
                                     <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
                                 </svg>
                                 <span class="text-sm font-medium">@L["Presentation.StartPresentation"]</span>
-                            </a>
+                            </button>
                         </div>
                     }
 
@@ -355,6 +354,8 @@
                                 BaseHeight="@AppState.BaseSlideHeight"
                                 OverlaySlides="@overlaySlides"
                                 ActiveOverlayId="@activeOverlayId"
+                                SessionId="@AppState.SessionId"
+                                SavedDisplays="@savedDisplays"
                                 OnClearSlide="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
                                 OnToggleOverlay="ToggleOverlay"
                                 OnStopPresentation="StopPresentation"/>
@@ -378,6 +379,8 @@
                             BaseHeight="@AppState.BaseSlideHeight"
                             OverlaySlides="@overlaySlides"
                             ActiveOverlayId="@activeOverlayId"
+                            SessionId="@AppState.SessionId"
+                            SavedDisplays="@savedDisplays"
                             ShowGrow
                             OnClearSlide="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
                             OnToggleOverlay="ToggleOverlay"
@@ -570,6 +573,7 @@
     private bool showSessionExpired;
 
     private List<OverlaySlide> overlaySlides = [];
+    private List<RemoteDisplay> savedDisplays = [];
     private string? activeOverlayId;
     private bool isEditingImageOrder;
     private bool imageSortableInitialized;
@@ -658,11 +662,6 @@
         if (firstRender)
         {
             dotNetRef = DotNetObjectReference.Create(this);
-            if (!IsTemplateMode)
-            {
-                var isActive = SharedAppState.IsPresentationActive(AppState.SessionId);
-                await JsRuntime.InvokeVoidAsync("initLiveViewButton", "live-view-container", dotNetRef, isActive, AppState.SessionId);
-            }
         }
 
         if (isEditingItemTitle)
@@ -677,16 +676,20 @@
         }
     }
 
-    [JSInvokable]
-    public void OnPresentationStateChanged(bool active)
+    private void StartPresentation()
     {
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        if (active)
-            SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId, AppState.SelectedProject?.Name);
-        else
-            SharedAppState.DeactivatePresentation(AppState.SessionId);
+        ResetLiveSlide();
+        SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId, AppState.SelectedProject?.Name);
+    }
+
+    private async Task StopPresentation()
+    {
+        await JsRuntime.InvokeVoidAsync("stopLivePresentation", AppState.SessionId);
+        ResetLiveSlide();
+        SharedAppState.DeactivatePresentation(AppState.SessionId);
     }
 
     private void ResetLiveSlide()
@@ -696,11 +699,6 @@
         {
             Status = LiveSlideStatus.ShowingBlackScreen
         });
-    }
-
-    private async Task StopPresentation()
-    {
-        await JsRuntime.InvokeVoidAsync("stopLivePresentation");
     }
 
     [JSInvokable]
@@ -1002,6 +1000,8 @@
         if (!IsTemplateMode)
         {
             overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
+
+            savedDisplays = await RemoteDisplayService.GetDisplaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
         }
 
         var liveItemId = SharedAppState.GetLiveSlide(AppState.SessionId).ProjectItemId;

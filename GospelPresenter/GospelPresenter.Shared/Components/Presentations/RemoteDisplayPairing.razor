@@ -1,0 +1,101 @@
+@using GospelPresenter.Shared.State
+
+@inject RemoteDisplayState RemoteDisplayState
+
+@{
+    var connectedDisplays = RemoteDisplayState.GetConnectedDisplays(SessionId)
+        .Where(d => !ExcludeDisplayIds.Contains(d.DisplayId)).ToList();
+}
+
+<div class="flex flex-col gap-2">
+    <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold mt-4">
+        @L["Display.RemoteDisplays"]
+    </div>
+
+    @if (connectedDisplays.Count > 0)
+    {
+        @for (var i = 0; i < connectedDisplays.Count; i++)
+        {
+            var display = connectedDisplays[i];
+            <div class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50">
+                <div class="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4 shrink-0">
+                        <path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Z"/>
+                        <path d="M8 13h4v2H8v-2Z"/>
+                        <path d="M6 16a1 1 0 0 0 0 2h8a1 1 0 1 0 0-2H6Z"/>
+                    </svg>
+                    <span>@display.Name</span>
+                </div>
+                <button @onclick="() => Disconnect(display.DisplayId)"
+                        class="cursor-pointer text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400"
+                        title="@L["Display.Disconnect"]">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                        <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/>
+                    </svg>
+                </button>
+            </div>
+        }
+    }
+
+    <div class="flex items-center gap-2">
+        <input type="text"
+               inputmode="numeric"
+               pattern="[0-9]*"
+               maxlength="4"
+               placeholder="0000"
+               @bind="code"
+               @bind:event="oninput"
+               @onkeydown="HandleKeyDown"
+               class="w-24 px-3 py-2 text-sm font-mono tracking-widest rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+        <AppButton Variant="ButtonVariant.Primary" OnClick="PairDisplay" Disabled="@(code.Length != 4)" Loading="@pairing">
+            <span>@L["Display.Connect"]</span>
+        </AppButton>
+    </div>
+
+    @if (errorMessage is not null)
+    {
+        <div class="text-sm text-red-500 dark:text-red-400">@errorMessage</div>
+    }
+</div>
+
+@code {
+    [Parameter] public required string SessionId { get; set; }
+    [Parameter] public HashSet<string> ExcludeDisplayIds { get; set; } = [];
+
+    private string code = "";
+    private string? errorMessage;
+    private bool pairing;
+
+    private async Task PairDisplay()
+    {
+        if (code.Length != 4) return;
+
+        pairing = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        await Task.Yield();
+
+        var success = RemoteDisplayState.PairDisplay(code, SessionId);
+        if (!success)
+        {
+            errorMessage = L["Display.InvalidCode"];
+        }
+
+        code = "";
+        pairing = false;
+    }
+
+    private void Disconnect(string displayId)
+    {
+        RemoteDisplayState.DisconnectDisplay(displayId);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && code.Length == 4)
+        {
+            await PairDisplay();
+        }
+    }
+}

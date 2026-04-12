@@ -22,4 +22,5 @@ public enum Permission
     AssignSuperAdminRole,
     CrossOrganizationAccess,
     ManageMcpApiKeys,
+    ManageRemoteDisplays,
 }

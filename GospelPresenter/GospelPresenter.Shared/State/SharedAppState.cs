@@ -92,6 +92,7 @@ public partial class SharedAppState : ObservableObject
         TouchSession(sessionId);
         presentationActive[sessionId] = new ActiveSession(organizationId, presentationId, presentationName);
         OnPropertyChanged(sessionId);
+        PresentationActivated?.Invoke(sessionId);
     }
 
     public void DeactivatePresentation(string sessionId)
@@ -99,6 +100,18 @@ public partial class SharedAppState : ObservableObject
         TouchSession(sessionId);
         presentationActive.TryRemove(sessionId, out _);
         OnPropertyChanged(sessionId);
+        PresentationDeactivated?.Invoke(sessionId);
+    }
+
+    public event Action<string>? PresentationActivated;
+    public event Action<string>? PresentationDeactivated;
+
+    public string? GetActiveSessionIdForOrganization(string organizationId)
+    {
+        return presentationActive
+            .Where(kvp => kvp.Value.OrganizationId == organizationId)
+            .Select(kvp => kvp.Key)
+            .FirstOrDefault();
     }
 
     public bool IsPresentationActiveForSession(string sessionId, string presentationId) =>

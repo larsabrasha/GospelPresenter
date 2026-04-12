@@ -54,7 +54,7 @@
 @code {
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
-    private DotNetObjectReference<MainLayout>? dotNetRef;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -110,21 +110,12 @@
         if (firstRender)
         {
             AppState.SessionId = await JsRuntime.InvokeAsync<string>("getOrCreateSessionId");
-            dotNetRef = DotNetObjectReference.Create(this);
-            await JsRuntime.InvokeVoidAsync("initLiveStateListener", AppState.SessionId, dotNetRef);
             StateHasChanged();
         }
     }
 
-    [JSInvokable]
-    public void OnLiveClosed()
-    {
-        SharedAppState.DeactivatePresentation(AppState.SessionId);
-    }
-
     public void Dispose()
     {
-        dotNetRef?.Dispose();
     }
 }
 

@@ -866,6 +866,9 @@
   <data name="Presentation.StopPresentation" xml:space="preserve">
     <value>Stop presentation</value>
   </data>
+  <data name="Presentation.OpenLiveView" xml:space="preserve">
+    <value>Open live view</value>
+  </data>
   <data name="Presentation.ManageOverlays" xml:space="preserve">
     <value>Manage overlays</value>
   </data>
@@ -1206,5 +1209,86 @@
   </data>
   <data name="CcliReport.OtherPresentation" xml:space="preserve">
     <value>Other</value>
+  </data>
+  <data name="Display.PairingCode" xml:space="preserve">
+    <value>Pairing code</value>
+  </data>
+  <data name="Display.WaitingForPairing" xml:space="preserve">
+    <value>Enter this code in Gospel Presenter to connect this display</value>
+  </data>
+  <data name="Display.RemoteDisplays" xml:space="preserve">
+    <value>Remote displays</value>
+  </data>
+  <data name="Display.ConnectedCount" xml:space="preserve">
+    <value>{0} display(s) connected</value>
+  </data>
+  <data name="Display.Connect" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="Display.InvalidCode" xml:space="preserve">
+    <value>Invalid or expired code</value>
+  </data>
+  <data name="Display.Disconnect" xml:space="preserve">
+    <value>Disconnect</value>
+  </data>
+  <data name="Display.StableIdInstructions" xml:space="preserve">
+    <value>Add this display under Settings &gt; Displays using the identifier above, then enable it from a presentation.</value>
+  </data>
+  <data name="Nav.Displays" xml:space="preserve">
+    <value>Displays</value>
+  </data>
+  <data name="Admin.Displays.Title" xml:space="preserve">
+    <value>Displays</value>
+  </data>
+  <data name="Admin.Displays.NoDisplays" xml:space="preserve">
+    <value>No displays</value>
+  </data>
+  <data name="Admin.Displays.Description" xml:space="preserve">
+    <value>Add remote displays that can be used to show presentations on external screens.</value>
+  </data>
+  <data name="Admin.Displays.AddTitle" xml:space="preserve">
+    <value>Add display</value>
+  </data>
+  <data name="Admin.Displays.IdentifierPlaceholder" xml:space="preserve">
+    <value>Display ID</value>
+  </data>
+  <data name="Admin.Displays.NamePlaceholder" xml:space="preserve">
+    <value>Name (e.g. Main hall)</value>
+  </data>
+  <data name="Admin.Displays.Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Admin.Displays.Online" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="Admin.Displays.Offline" xml:space="preserve">
+    <value>Offline</value>
+  </data>
+  <data name="Admin.Displays.ConfirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete the display "{0}"?</value>
+  </data>
+  <data name="LivePanel.Outputs" xml:space="preserve">
+    <value>Outputs</value>
+  </data>
+  <data name="LivePanel.LocalLiveView" xml:space="preserve">
+    <value>Window</value>
+  </data>
+  <data name="LivePanel.ManageDisplays" xml:space="preserve">
+    <value>Manage displays</value>
+  </data>
+  <data name="LivePanel.ExternalDisplay" xml:space="preserve">
+    <value>External display</value>
+  </data>
+  <data name="LivePanel.AddOutput" xml:space="preserve">
+    <value>Add output</value>
+  </data>
+  <data name="LivePanel.AddTempDisplay" xml:space="preserve">
+    <value>Temporary display</value>
+  </data>
+  <data name="LivePanel.AddTempDisplayTitle" xml:space="preserve">
+    <value>Connect temporary display</value>
+  </data>
+  <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
+    <value>Enter 4-digit code</value>
   </data>
 </root>

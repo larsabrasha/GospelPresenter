@@ -1,0 +1,264 @@
+@page "/display"
+@layout LiveLayout
+
+@inject AppState AppState
+@inject SharedAppState SharedAppState
+@inject RemoteDisplayState RemoteDisplayState
+@inject IJSRuntime JsRuntime
+@inject NavigationManager NavigationManager
+
+@using System.ComponentModel
+@using GospelPresenter.Shared.Components.Presentations
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.WebUtilities
+@implements IDisposable
+
+@{
+    EnsureValidCode();
+}
+
+@if (pairedSessionId is not null && SharedAppState.IsPresentationActive(pairedSessionId))
+{
+    var viewportWidth = AppState.PresentationViewport?.Width ?? 0;
+    var viewportHeight = AppState.PresentationViewport?.Height ?? 0;
+
+    var widthScale = (double)viewportWidth / AppState.BaseSlideWidth;
+    var heightScale = (double)viewportHeight / AppState.BaseSlideHeight;
+
+    var scale = Math.Min(widthScale, heightScale);
+
+    var liveSlide = SharedAppState.GetLiveSlide(pairedSessionId);
+    var activeOverlay = SharedAppState.GetActiveOverlay(pairedSessionId);
+
+    <div class="flex h-full bg-black text-white items-center justify-center" @onclick="RequestFullscreen">
+        <LiveDisplay
+            LiveSlide="@liveSlide"
+            Overlay="@activeOverlay"
+            Scale="@scale"
+            BaseWidth="@AppState.BaseSlideWidth"
+            BaseHeight="@AppState.BaseSlideHeight"/>
+    </div>
+}
+else if (pairedSessionId is not null)
+{
+    // Paired but presentation is stopped — show black screen
+    <div class="flex h-full bg-black items-center justify-center" @onclick="RequestFullscreen">
+    </div>
+}
+else if (stableDisplayId is not null)
+{
+    <div class="flex flex-col h-full bg-black text-white items-center justify-center">
+        <div class="flex-1 flex flex-col items-center justify-center gap-6">
+            @if (displayName is not null)
+            {
+                <div class="text-neutral-300 text-[3vw] font-semibold">@displayName</div>
+            }
+            <div class="text-neutral-600 text-[1.5vw] font-mono">@stableDisplayId</div>
+            <div class="text-neutral-500 text-[2vw] text-center max-w-[80vw] leading-snug">@L["Display.StableIdInstructions"]</div>
+        </div>
+        <div class="flex items-center gap-3 text-neutral-600 pb-8">
+            <LogoSymbol Class="size-8"/>
+            <span class="text-xl font-semibold tracking-wide">Gospel Presenter</span>
+        </div>
+    </div>
+}
+else
+{
+    // Ad-hoc display: show pairing code
+    <div class="flex flex-col h-full bg-black text-white items-center justify-center">
+        <div class="flex-1 flex flex-col items-center justify-center gap-6">
+            @if (displayName is not null)
+            {
+                <div class="text-neutral-300 text-[3vw] font-semibold">@displayName</div>
+            }
+            <div class="text-neutral-400 text-[2.5vw] tracking-widest uppercase">@L["Display.PairingCode"]</div>
+            <div class="text-[14vw] leading-none font-bold tracking-[0.3em] font-mono">@pairingCode</div>
+            <div class="text-neutral-500 text-[2.5vw] text-center max-w-3xl leading-snug">@L["Display.WaitingForPairing"]</div>
+        </div>
+        <div class="flex items-center gap-3 text-neutral-600 pb-8">
+            <LogoSymbol Class="size-8"/>
+            <span class="text-xl font-semibold tracking-wide">Gospel Presenter</span>
+        </div>
+    </div>
+}
+
+@code {
+    private string displayId = "";
+    private string? stableDisplayId;
+    private string pairingCode = "";
+    private string? pairedSessionId;
+    private string? displayName;
+    private bool fullscreenRequested;
+    private bool initialized;
+    private Timer? codeRefreshTimer;
+
+    private void RefreshCodeIfExpired(object? state)
+    {
+        if (pairedSessionId is not null) return;
+        if (stableDisplayId is not null) return;
+        if (RemoteDisplayState.IsCodeValid(pairingCode)) return;
+
+        pairingCode = RemoteDisplayState.GeneratePairingCode(displayId, displayName);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void EnsureValidCode()
+    {
+        if (!initialized) return;
+        if (pairedSessionId is not null) return;
+        if (stableDisplayId is not null) return;
+        if (RemoteDisplayState.IsCodeValid(pairingCode)) return;
+
+        pairingCode = RemoteDisplayState.GeneratePairingCode(displayId, displayName);
+    }
+
+    protected override void OnInitialized()
+    {
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("name", out var name))
+            displayName = name.ToString();
+
+        if (query.TryGetValue("id", out var id))
+        {
+            stableDisplayId = id.ToString();
+            displayId = stableDisplayId;
+        }
+
+        JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
+
+        RemoteDisplayState.DisplayPaired += OnDisplayPaired;
+        RemoteDisplayState.DisplayUnpaired += OnDisplayUnpaired;
+        SharedAppState.PresentationActivated += OnPresentationActivated;
+        AppState.PropertyChanged += OnPropertyChanged;
+        SharedAppState.PropertyChanged += OnPropertyChanged;
+
+        if (stableDisplayId is not null)
+        {
+            // Saved display: initialize immediately (no sessionStorage needed)
+            initialized = true;
+            RemoteDisplayState.RegisterDisplayOnline(displayId);
+
+            if (RemoteDisplayState.IsDisplayConnected(displayId))
+            {
+                pairedSessionId = RemoteDisplayState.GetSessionForDisplay(displayId);
+            }
+        }
+        // Ad-hoc displays are initialized in OnAfterRenderAsync after reading sessionStorage
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && stableDisplayId is null)
+        {
+            // Ad-hoc display: read or create displayId from sessionStorage
+            var savedId = await JsRuntime.InvokeAsync<string?>("sessionStorage.getItem", "ad-hoc-display-id");
+            if (!string.IsNullOrEmpty(savedId))
+            {
+                displayId = savedId;
+            }
+            else
+            {
+                displayId = Guid.NewGuid().ToString();
+                await JsRuntime.InvokeVoidAsync("sessionStorage.setItem", "ad-hoc-display-id", displayId);
+            }
+
+            RemoteDisplayState.RegisterDisplayOnline(displayId);
+
+            // Check if still paired from before reload
+            if (RemoteDisplayState.IsDisplayConnected(displayId))
+            {
+                pairedSessionId = RemoteDisplayState.GetSessionForDisplay(displayId);
+            }
+            else
+            {
+                pairingCode = RemoteDisplayState.GeneratePairingCode(displayId, displayName);
+                codeRefreshTimer = new Timer(RefreshCodeIfExpired, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+            }
+
+            initialized = true;
+            StateHasChanged();
+        }
+    }
+
+    private void OnPresentationActivated(string sessionId)
+    {
+        // If this is a saved display that just got enabled for this session, auto-connect
+        if (stableDisplayId is null) return;
+        if (pairedSessionId is not null) return;
+
+        if (RemoteDisplayState.IsDisplayConnected(displayId))
+        {
+            pairedSessionId = RemoteDisplayState.GetSessionForDisplay(displayId);
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnDisplayPaired(string pairedDisplayId)
+    {
+        if (pairedDisplayId != displayId) return;
+
+        pairedSessionId = RemoteDisplayState.GetSessionForDisplay(displayId);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnDisplayUnpaired(string unpairedDisplayId)
+    {
+        if (unpairedDisplayId != displayId) return;
+
+        pairedSessionId = null;
+
+        if (stableDisplayId is null)
+        {
+            pairingCode = RemoteDisplayState.GeneratePairingCode(displayId, displayName);
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (sender is SharedAppState && pairedSessionId is not null && e.PropertyName == pairedSessionId)
+        {
+            if (SharedAppState.IsSessionExpired(pairedSessionId))
+            {
+                RemoteDisplayState.DisconnectDisplay(displayId);
+                return;
+            }
+
+            RemoteDisplayState.TouchDisplay(displayId);
+            _ = InvokeAsync(StateHasChanged);
+        }
+        else if (e.PropertyName is nameof(AppState.PresentationViewport))
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task RequestFullscreen()
+    {
+        if (fullscreenRequested) return;
+        fullscreenRequested = true;
+        await JsRuntime.InvokeVoidAsync("eval", "document.documentElement.requestFullscreen?.() || document.documentElement.webkitRequestFullscreen?.()");
+    }
+
+    public void Dispose()
+    {
+        codeRefreshTimer?.Dispose();
+        RemoteDisplayState.DisplayPaired -= OnDisplayPaired;
+        RemoteDisplayState.DisplayUnpaired -= OnDisplayUnpaired;
+        SharedAppState.PresentationActivated -= OnPresentationActivated;
+        AppState.PropertyChanged -= OnPropertyChanged;
+        SharedAppState.PropertyChanged -= OnPropertyChanged;
+
+        // For stable displays, unregister online status (pairing is managed by the controller)
+        // For ad-hoc displays, don't unregister — displayId is persisted in sessionStorage
+        // and the display may reconnect after a reload
+        if (stableDisplayId is not null)
+        {
+            RemoteDisplayState.UnregisterDisplayOnline(displayId);
+        }
+    }
+}

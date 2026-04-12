@@ -212,108 +212,17 @@ window.scrollSidebarItemIntoView = function(itemId) {
 
 window.liveViewChannel = new BroadcastChannel('gospel-live');
 
-window.initLiveStateListener = function(sessionId, dotNetRef) {
-    if (window._liveStateListenerAttached) return;
-    window._liveStateListenerAttached = true;
-    window.liveViewChannel.addEventListener('message', function(e) {
-        if (e.data?.sessionId !== sessionId) return;
-        if (e.data.type === 'live-closed') {
-            window.presentationState.isLiveOpen = false;
-            dotNetRef.invokeMethodAsync('OnLiveClosed');
-        }
-    });
-}
+window.presentationState = { connection: null };
 
-window.presentationState = { connection: null, dotNetRef: null };
-
-window.setupPresentationConnection = function(state, connection, dotNetRef) {
-    state.connection = connection;
-    state.isLiveOpen = true;
-    sessionStorage.setItem('presentation-id', connection.id);
-    dotNetRef.invokeMethodAsync('OnPresentationStateChanged', true);
-
-    function onDisconnect() {
-        state.connection = null;
-        state.isLiveOpen = false;
-        sessionStorage.removeItem('presentation-id');
-        sessionStorage.removeItem('presentation-url');
-        window.liveViewChannel.postMessage({ type: 'live-closed', sessionId: state.sessionId });
-    }
-
-    connection.addEventListener('close', onDisconnect);
-    connection.addEventListener('terminate', onDisconnect);
-}
-
-window.initLiveViewButton = function(containerId, dotNetRef, isActive, sessionId) {
-    const state = window.presentationState;
-    state.dotNetRef = dotNetRef;
-    state.isLiveOpen = isActive;
-    state.sessionId = sessionId;
-
-    // Try to reconnect to an existing Presentation API session after reload
-    const savedPresentationId = sessionStorage.getItem('presentation-id');
-    const savedPresentationUrl = sessionStorage.getItem('presentation-url');
-    if (savedPresentationId && savedPresentationUrl && 'PresentationRequest' in window) {
-        const request = new PresentationRequest(savedPresentationUrl);
-        request.reconnect(savedPresentationId).then(connection => {
-            window.setupPresentationConnection(state, connection, dotNetRef);
-        }).catch(() => {
-            sessionStorage.removeItem('presentation-id');
-            sessionStorage.removeItem('presentation-url');
-            if (isActive) {
-                state.isLiveOpen = false;
-                window.liveViewChannel.postMessage({ type: 'live-closed', sessionId });
-            }
-        });
-    }
-
-    window.liveViewChannel.addEventListener('message', function(e) {
-        if (e.data?.sessionId !== sessionId) return;
-
-        if (e.data.type === 'live-opened') {
-            state.isLiveOpen = true;
-            dotNetRef.invokeMethodAsync('OnPresentationStateChanged', true);
-        }
-    });
-
-    document.addEventListener('click', function(e) {
-        const link = e.target.closest('a[href*="/live"]');
-        if (!link) return;
-
-        if (state.connection) {
-            e.preventDefault();
-            state.connection.terminate();
-            return;
-        }
-
-        if (state.isLiveOpen) {
-            e.preventDefault();
-            window.liveViewChannel.postMessage({ type: 'close', sessionId });
-            return;
-        }
-
-        if ('PresentationRequest' in window && window.screen.isExtended) {
-            e.preventDefault();
-
-            const url = link.href;
-            const request = new PresentationRequest(url);
-            request.start().then(connection => {
-                sessionStorage.setItem('presentation-url', url);
-                window.setupPresentationConnection(state, connection, dotNetRef);
-            }).catch(() => {
-                // User cancelled or Presentation API failed — do nothing
-            });
-        }
-    });
-}
-
-window.stopLivePresentation = function() {
+window.stopLivePresentation = function(sessionId) {
     var state = window.presentationState;
     if (state.connection) {
         state.connection.terminate();
-    } else if (state.isLiveOpen) {
-        window.liveViewChannel.postMessage({ type: 'close', sessionId: state.sessionId });
+        state.connection = null;
+        sessionStorage.removeItem('presentation-id');
+        sessionStorage.removeItem('presentation-url');
     }
+    window.liveViewChannel.postMessage({ type: 'close', sessionId: sessionId });
 }
 
 window.gospelPresenter = window.gospelPresenter || {};
@@ -585,19 +494,100 @@ window.positionDropdown = function(element) {
     }
 };
 
-window.initLiveViewListener = function(sessionId) {
-    window.liveViewChannel.postMessage({ type: 'live-opened', sessionId });
+window.initLiveViewListener = function(sessionId, windowId) {
     window.liveViewChannel.addEventListener('message', function(e) {
         if (e.data?.sessionId !== sessionId) return;
 
         if (e.data.type === 'close') {
-            window.liveViewChannel.postMessage({ type: 'live-closed', sessionId });
             window.close();
         }
     });
-    window.addEventListener('beforeunload', function() {
-        window.liveViewChannel.postMessage({ type: 'live-closed', sessionId });
+
+    window.addEventListener('pagehide', function() {
+        window.liveViewChannel.postMessage({
+            type: 'window-closed',
+            sessionId: sessionId,
+            windowId: windowId
+        });
     });
+}
+
+window.gospelPresenter.liveWindows = [];
+
+window.gospelPresenter.openLiveWindow = function(sessionId, windowId, title) {
+    var url = '/live?session=' + sessionId + '&windowId=' + windowId;
+    if (title) url += '&title=' + encodeURIComponent(title);
+    var win = window.open(url, '_blank');
+    if (!win) return false;
+
+    window.gospelPresenter.liveWindows.push({ ref: win, windowId: windowId });
+    return true;
+}
+
+window.gospelPresenter.closeLiveWindow = function(windowId) {
+    var entry = window.gospelPresenter.liveWindows.find(function(w) { return w && w.windowId === windowId; });
+    if (entry && entry.ref && !entry.ref.closed) {
+        entry.ref.close();
+    }
+    window.gospelPresenter.liveWindows = window.gospelPresenter.liveWindows.filter(function(w) { return w && w.windowId !== windowId; });
+}
+
+window.gospelPresenter.onLiveWindowClosed = function(dotNetRef) {
+    window.liveViewChannel.addEventListener('message', function(e) {
+        if (e.data?.type === 'window-closed' && e.data.windowId) {
+            window.gospelPresenter.liveWindows = window.gospelPresenter.liveWindows.filter(function(w) { return w && w.windowId !== e.data.windowId; });
+            dotNetRef.invokeMethodAsync('OnLiveWindowClosed', e.data.windowId);
+        }
+    });
+}
+
+window.gospelPresenter.saveOutputConfig = function(config) {
+    localStorage.setItem('output-config', JSON.stringify(config));
+}
+
+window.gospelPresenter.loadOutputConfig = function() {
+    var json = localStorage.getItem('output-config');
+    return json ? JSON.parse(json) : null;
+}
+
+window.gospelPresenter.isPresentationApiAvailable = function() {
+    return typeof PresentationRequest !== 'undefined' && !!navigator.presentation;
+}
+
+window.gospelPresenter.presentationConnections = [];
+
+window.gospelPresenter.startPresentation = function(sessionId, dotNetRef) {
+    var url = window.location.origin + '/live?session=' + sessionId;
+    var request = new PresentationRequest([url]);
+
+    return request.start().then(function(connection) {
+        var id = window.gospelPresenter.presentationConnections.length;
+        window.gospelPresenter.presentationConnections.push(connection);
+
+        var onClosed = function() {
+            window.gospelPresenter.presentationConnections[id] = null;
+            if (dotNetRef) {
+                dotNetRef.invokeMethodAsync('OnPresentationClosed', id);
+            }
+        };
+        connection.addEventListener('close', onClosed);
+        connection.addEventListener('terminate', onClosed);
+
+        return id;
+    });
+}
+
+window.gospelPresenter.stopPresentation = function(id) {
+    var conn = window.gospelPresenter.presentationConnections[id];
+    if (conn) {
+        conn.terminate();
+        window.gospelPresenter.presentationConnections[id] = null;
+    }
+}
+
+window.gospelPresenter.isPresentationActive = function(id) {
+    var conn = window.gospelPresenter.presentationConnections[id];
+    return conn != null && conn.state === 'connected';
 }
 
 window.gospelPresenter.formatTime = function(seconds) {

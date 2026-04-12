@@ -1,0 +1,160 @@
+@using GospelPresenter.Shared.State
+
+@inject RemoteDisplayState RemoteDisplayState
+
+<Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="OnClose">
+    <div class="p-6 space-y-4">
+        <div class="font-semibold text-lg">@L["LivePanel.AddTempDisplayTitle"]</div>
+        <div class="flex justify-center gap-3">
+            @for (var i = 0; i < 4; i++)
+            {
+                var index = i;
+                <input type="text"
+                       @ref="digitInputs[index]"
+                       inputmode="numeric"
+                       pattern="[0-9]*"
+                       maxlength="1"
+                       autocomplete="off"
+                       value="@GetDigit(index)"
+                       @oninput="e => OnDigitInput(index, e)"
+                       @onkeydown="e => OnDigitKeyDown(index, e)"
+                       class="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+            }
+        </div>
+        @if (error is not null)
+        {
+            <div class="text-sm text-red-500 dark:text-red-400">@error</div>
+        }
+        <div class="flex justify-end gap-3">
+            <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
+                @L["Common.Cancel"]
+            </AppButton>
+            <AppButton Variant="ButtonVariant.Primary" OnClick="Submit" Disabled="@(!IsComplete || pairing)" Loading="@pairing">
+                @L["Display.Connect"]
+            </AppButton>
+        </div>
+    </div>
+</Dialog>
+
+@code {
+    [Parameter] public required string SessionId { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback OnPaired { get; set; }
+
+    private char[] digits = new char[4];
+    private ElementReference[] digitInputs = new ElementReference[4];
+    private string? error;
+    private bool pairing;
+    private bool shouldFocus = true;
+
+    private string Code => new string(digits);
+    private bool IsComplete => digits.All(char.IsDigit);
+
+    private string GetDigit(int index) =>
+        digits[index] == '\0' ? "" : digits[index].ToString();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldFocus)
+        {
+            shouldFocus = false;
+            try { await digitInputs[0].FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnDigitInput(int index, ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        var parsed = value.Where(char.IsDigit).ToArray();
+
+        if (parsed.Length == 0)
+        {
+            digits[index] = '\0';
+            return;
+        }
+
+        if (parsed.Length > 1)
+        {
+            for (var i = 0; i < parsed.Length && index + i < 4; i++)
+            {
+                digits[index + i] = parsed[i];
+            }
+            var lastFilled = Math.Min(index + parsed.Length, 4) - 1;
+            if (IsComplete)
+            {
+                await Submit();
+            }
+            else if (lastFilled < 3)
+            {
+                await digitInputs[lastFilled + 1].FocusAsync();
+            }
+            return;
+        }
+
+        digits[index] = parsed[0];
+        if (index < 3)
+        {
+            await digitInputs[index + 1].FocusAsync();
+        }
+        else if (IsComplete)
+        {
+            await Submit();
+        }
+    }
+
+    private async Task OnDigitKeyDown(int index, KeyboardEventArgs e)
+    {
+        if (e.Key == "Backspace")
+        {
+            if (digits[index] != '\0')
+            {
+                digits[index] = '\0';
+            }
+            else if (index > 0)
+            {
+                digits[index - 1] = '\0';
+                await digitInputs[index - 1].FocusAsync();
+            }
+        }
+        else if (e.Key == "ArrowLeft" && index > 0)
+        {
+            await digitInputs[index - 1].FocusAsync();
+        }
+        else if (e.Key == "ArrowRight" && index < 3)
+        {
+            await digitInputs[index + 1].FocusAsync();
+        }
+        else if (e.Key == "Escape")
+        {
+            await OnClose.InvokeAsync();
+        }
+        else if (e.Key == "Enter" && IsComplete)
+        {
+            await Submit();
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (!IsComplete || pairing) return;
+
+        pairing = true;
+        error = null;
+        StateHasChanged();
+
+        await Task.Yield();
+
+        var success = RemoteDisplayState.PairDisplay(Code, SessionId);
+        if (success)
+        {
+            await OnPaired.InvokeAsync();
+        }
+        else
+        {
+            error = L["Display.InvalidCode"];
+        }
+
+        digits = new char[4];
+        pairing = false;
+    }
+}

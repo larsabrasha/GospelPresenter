@@ -866,6 +866,9 @@
   <data name="Presentation.StopPresentation" xml:space="preserve">
     <value>Avsluta presentation</value>
   </data>
+  <data name="Presentation.OpenLiveView" xml:space="preserve">
+    <value>Öppna live-vy</value>
+  </data>
   <data name="Presentation.ManageOverlays" xml:space="preserve">
     <value>Hantera overlays</value>
   </data>
@@ -1206,5 +1209,86 @@
   </data>
   <data name="CcliReport.OtherPresentation" xml:space="preserve">
     <value>Övrigt</value>
+  </data>
+  <data name="Display.PairingCode" xml:space="preserve">
+    <value>Parkopplingskod</value>
+  </data>
+  <data name="Display.WaitingForPairing" xml:space="preserve">
+    <value>Ange denna kod i Gospel Presenter för att ansluta denna skärm</value>
+  </data>
+  <data name="Display.RemoteDisplays" xml:space="preserve">
+    <value>Fjärrskärmar</value>
+  </data>
+  <data name="Display.ConnectedCount" xml:space="preserve">
+    <value>{0} skärm(ar) anslutna</value>
+  </data>
+  <data name="Display.Connect" xml:space="preserve">
+    <value>Anslut</value>
+  </data>
+  <data name="Display.InvalidCode" xml:space="preserve">
+    <value>Ogiltig eller utgången kod</value>
+  </data>
+  <data name="Display.Disconnect" xml:space="preserve">
+    <value>Koppla från</value>
+  </data>
+  <data name="Display.StableIdInstructions" xml:space="preserve">
+    <value>Lägg till denna skärm under Inställningar &gt; Skärmar med identifieraren ovan och aktivera den sedan från en presentation.</value>
+  </data>
+  <data name="Nav.Displays" xml:space="preserve">
+    <value>Skärmar</value>
+  </data>
+  <data name="Admin.Displays.Title" xml:space="preserve">
+    <value>Skärmar</value>
+  </data>
+  <data name="Admin.Displays.NoDisplays" xml:space="preserve">
+    <value>Inga skärmar</value>
+  </data>
+  <data name="Admin.Displays.Description" xml:space="preserve">
+    <value>Lägg till fjärrskärmar som kan användas för att visa presentationer på externa skärmar.</value>
+  </data>
+  <data name="Admin.Displays.AddTitle" xml:space="preserve">
+    <value>Lägg till skärm</value>
+  </data>
+  <data name="Admin.Displays.IdentifierPlaceholder" xml:space="preserve">
+    <value>Skärm-ID</value>
+  </data>
+  <data name="Admin.Displays.NamePlaceholder" xml:space="preserve">
+    <value>Namn (t.ex. Stora salen)</value>
+  </data>
+  <data name="Admin.Displays.Add" xml:space="preserve">
+    <value>Lägg till</value>
+  </data>
+  <data name="Admin.Displays.Online" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="Admin.Displays.Offline" xml:space="preserve">
+    <value>Offline</value>
+  </data>
+  <data name="Admin.Displays.ConfirmDelete" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort skärmen "{0}"?</value>
+  </data>
+  <data name="LivePanel.Outputs" xml:space="preserve">
+    <value>Utgångar</value>
+  </data>
+  <data name="LivePanel.LocalLiveView" xml:space="preserve">
+    <value>Fönster</value>
+  </data>
+  <data name="LivePanel.ManageDisplays" xml:space="preserve">
+    <value>Hantera skärmar</value>
+  </data>
+  <data name="LivePanel.ExternalDisplay" xml:space="preserve">
+    <value>Extern skärm</value>
+  </data>
+  <data name="LivePanel.AddOutput" xml:space="preserve">
+    <value>Lägg till utgång</value>
+  </data>
+  <data name="LivePanel.AddTempDisplay" xml:space="preserve">
+    <value>Tillfällig skärm</value>
+  </data>
+  <data name="LivePanel.AddTempDisplayTitle" xml:space="preserve">
+    <value>Anslut tillfällig skärm</value>
+  </data>
+  <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
+    <value>Ange 4-siffrig kod</value>
   </data>
 </root>

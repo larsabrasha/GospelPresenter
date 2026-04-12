@@ -26,6 +26,7 @@ public static class PermissionPolicies
     public const string AssignSuperAdminRole = "Permission:AssignSuperAdminRole";
     public const string CrossOrganizationAccess = "Permission:CrossOrganizationAccess";
     public const string ManageMcpApiKeys = "Permission:ManageMcpApiKeys";
+    public const string ManageRemoteDisplays = "Permission:ManageRemoteDisplays";
 
     public static string PolicyName(Permission permission) => $"Permission:{permission}";
 
