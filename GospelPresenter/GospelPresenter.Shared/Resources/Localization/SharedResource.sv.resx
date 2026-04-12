@@ -1288,6 +1288,9 @@
   <data name="LivePanel.AddTempDisplayTitle" xml:space="preserve">
     <value>Anslut tillfällig skärm</value>
   </data>
+  <data name="LivePanel.PairingCodeHint" xml:space="preserve">
+    <value>Ange koden som visas på skärmen</value>
+  </data>
   <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
     <value>Ange 4-siffrig kod</value>
   </data>
