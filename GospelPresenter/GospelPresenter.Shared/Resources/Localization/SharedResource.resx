@@ -1304,7 +1304,7 @@
     <value>Import Bible</value>
   </data>
   <data name="Bibles.ImportDescription" xml:space="preserve">
-    <value>Upload a Bible translation as a &lt;code&gt;.zip&lt;/code&gt; file.</value>
+    <value>Upload a Bible translation as a &lt;code&gt;.zip&lt;/code&gt; file (USX or USFM format).</value>
   </data>
   <data name="Bibles.ChooseFile" xml:space="preserve">
     <value>Choose file</value>
@@ -1329,6 +1329,9 @@
   </data>
   <data name="Bibles.Deleted" xml:space="preserve">
     <value>Bible deleted</value>
+  </data>
+  <data name="Bibles.ConfirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
   </data>
   <data name="Bibles.Verses" xml:space="preserve">
     <value>verses</value>

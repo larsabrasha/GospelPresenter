@@ -188,32 +188,58 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
 
         var prefix = FindRootPrefix(archive);
-
         var (abbreviation, name) = ReadBibleMetadata(archive, prefix);
+
+        var books = ParseUsxBooks(archive, prefix) ?? ParseUsfmBooks(archive);
+        if (books is null)
+            throw new InvalidOperationException("No USX or USFM files found in the zip file.");
+
+        var verses = books.SelectMany(BibleBookToVerses).ToList();
+        return (abbreviation, name, verses);
+    }
+
+    private static List<BibleBook>? ParseUsxBooks(ZipArchive archive, string prefix)
+    {
         var usxPrefix = FindUsxPrefix(archive, prefix);
+        if (usxPrefix is null) return null;
 
-        if (usxPrefix is null)
-            throw new InvalidOperationException("No USX folder found in the zip file.");
-
-        var verses = archive.Entries
+        return archive.Entries
             .Where(e => e.FullName.StartsWith(usxPrefix, StringComparison.OrdinalIgnoreCase)
                         && e.Name.EndsWith(".usx", StringComparison.OrdinalIgnoreCase)
                         && e.Length > 0)
             .Select(e =>
             {
                 using var stream = e.Open();
-                var doc = XDocument.Load(stream);
-                return UsxParser.ParseBook(doc);
+                return UsxParser.ParseBook(XDocument.Load(stream));
             })
-            .SelectMany(book => book.Chapters.SelectMany(chapter =>
-                chapter.Verses.Select(verse => new Verse(
-                    book.Code,
-                    chapter.Number,
-                    verse.Number,
-                    verse.Text))))
+            .ToList();
+    }
+
+    private static List<BibleBook>? ParseUsfmBooks(ZipArchive archive)
+    {
+        var entries = archive.Entries
+            .Where(e => (e.Name.EndsWith(".usfm", StringComparison.OrdinalIgnoreCase)
+                         || e.Name.EndsWith(".sfm", StringComparison.OrdinalIgnoreCase))
+                        && e.Length > 0)
             .ToList();
 
-        return (abbreviation, name, verses);
+        if (entries.Count == 0) return null;
+
+        return entries
+            .Select(e =>
+            {
+                using var stream = e.Open();
+                using var reader = new StreamReader(stream);
+                return UsfmParser.ParseBook(reader.ReadToEnd());
+            })
+            .ToList();
+    }
+
+    private static IEnumerable<Verse> BibleBookToVerses(BibleBook book)
+    {
+        return book.Chapters.SelectMany(chapter =>
+            chapter.Verses.Select(verse => new Verse(
+                book.Code, chapter.Number, verse.Number, verse.Text)));
     }
 
     private static string FindRootPrefix(ZipArchive archive)
@@ -231,10 +257,21 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
     private static (string Abbreviation, string Name) ReadBibleMetadata(ZipArchive archive, string prefix)
     {
         var metadataEntry = archive.GetEntry(prefix + "metadata.xml");
-        if (metadataEntry is null)
-            return ("unknown", "Unknown Bible");
+        if (metadataEntry is not null)
+            return ReadDbpMetadata(metadataEntry);
 
-        using var stream = metadataEntry.Open();
+        // Fall back to copr.htm (common in eBible.org USFM distributions)
+        var coprEntry = archive.Entries.FirstOrDefault(e =>
+            e.Name.Equals("copr.htm", StringComparison.OrdinalIgnoreCase));
+        if (coprEntry is not null)
+            return ReadCoprMetadata(coprEntry);
+
+        return ("UNKNOWN", "Unknown Bible");
+    }
+
+    private static (string Abbreviation, string Name) ReadDbpMetadata(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
         var doc = XDocument.Load(stream);
         var ns = doc.Root?.Name.Namespace ?? XNamespace.None;
         var identification = doc.Root?.Element(ns + "identification");
@@ -248,6 +285,34 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
                            ?? "UNKNOWN";
 
         return (abbreviation, name);
+    }
+
+    private static (string Abbreviation, string Name) ReadCoprMetadata(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
+        using var reader = new StreamReader(stream);
+        return ParseCoprHtml(reader.ReadToEnd());
+    }
+
+    internal static (string Abbreviation, string Name) ParseCoprHtml(string html)
+    {
+        var titleMatch = System.Text.RegularExpressions.Regex.Match(
+            html, @"<title>\s*(.+?)\s*</title>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var name = titleMatch.Success ? titleMatch.Groups[1].Value.Trim() : null;
+
+        var abbreviation = name is not null ? BuildAbbreviation(name) : null;
+
+        return (abbreviation ?? "UNKNOWN", name ?? "Unknown Bible");
+    }
+
+    internal static string? BuildAbbreviation(string name)
+    {
+        var initials = string.Concat(
+            name.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => char.IsUpper(w[0]))
+                .Select(w => w[0]));
+
+        return initials.Length >= 2 ? initials : null;
     }
 
     private static string? FindUsxPrefix(ZipArchive archive, string prefix)

@@ -1304,7 +1304,7 @@
     <value>Importera bibel</value>
   </data>
   <data name="Bibles.ImportDescription" xml:space="preserve">
-    <value>Ladda upp en bibelöversättning som en &lt;code&gt;.zip&lt;/code&gt;-fil.</value>
+    <value>Ladda upp en bibelöversättning som en &lt;code&gt;.zip&lt;/code&gt;-fil (USX- eller USFM-format).</value>
   </data>
   <data name="Bibles.ChooseFile" xml:space="preserve">
     <value>Välj fil</value>
@@ -1329,6 +1329,9 @@
   </data>
   <data name="Bibles.Deleted" xml:space="preserve">
     <value>Bibel borttagen</value>
+  </data>
+  <data name="Bibles.ConfirmDelete" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
   </data>
   <data name="Bibles.Verses" xml:space="preserve">
     <value>verser</value>

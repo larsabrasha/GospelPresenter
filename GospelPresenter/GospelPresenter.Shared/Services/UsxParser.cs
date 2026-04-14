@@ -156,7 +156,7 @@ public static class UsxParser
         }
     }
 
-    private static void AppendTrimmedText(string value, StringBuilder buffer)
+    internal static void AppendTrimmedText(string value, StringBuilder buffer)
     {
         var text = value.Replace("\n", " ").Trim();
         if (text.Length > 0)

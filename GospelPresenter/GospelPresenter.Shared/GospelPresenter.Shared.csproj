@@ -6,6 +6,10 @@
         <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="GospelPresenter.UnitTests" />
+    </ItemGroup>
+
     <PropertyGroup Label="Tailwind Properties">
         <TailwindVersion>v4.2.2</TailwindVersion>
         <TailwindConfigDir>$(MSBuildProjectDirectory)</TailwindConfigDir>
@@ -41,6 +45,7 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
+        <PackageReference Include="USFMToolsSharp" Version="1.18.0" />
     </ItemGroup>
 
     <ItemGroup>
