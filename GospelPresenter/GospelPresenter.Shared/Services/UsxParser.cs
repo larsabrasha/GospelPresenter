@@ -42,7 +42,11 @@ public static class UsxParser
     public static BibleBook ParseBook(string filePath)
     {
         var doc = XDocument.Load(filePath);
+        return ParseBook(doc);
+    }
 
+    public static BibleBook ParseBook(XDocument doc)
+    {
         // The book code (e.g. "MAT", "GEN") is an attribute on the <book> element
         var bookCode = doc.Root!.Element("book")?.Attribute("code")?.Value ?? "UNKNOWN";
 

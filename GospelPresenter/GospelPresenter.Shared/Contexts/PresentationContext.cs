@@ -24,6 +24,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<OrganizationSetting> OrganizationSettings { get; set; }
     public DbSet<CcliReportEntry> CcliReportEntries { get; set; }
     public DbSet<RemoteDisplay> RemoteDisplays { get; set; }
+    public DbSet<DbBible> Bibles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -124,6 +125,13 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
             e.HasIndex(d => new { d.OrganizationId, d.DisplayIdentifier }).IsUnique();
             e.Property(d => d.DisplayIdentifier).HasMaxLength(AppConstraints.NameMaxLength);
             e.Property(d => d.Name).HasMaxLength(AppConstraints.NameMaxLength);
+        });
+
+        modelBuilder.Entity<DbBible>(e =>
+        {
+            e.Property(b => b.Name).HasMaxLength(AppConstraints.NameMaxLength);
+            e.Property(b => b.Abbreviation).HasMaxLength(AppConstraints.BibleAbbreviationMaxLength);
+            e.HasIndex(b => new { b.OrganizationId, b.Abbreviation }).IsUnique();
         });
 
         modelBuilder.Entity<User>()

@@ -1,10 +1,12 @@
 @using GospelPresenter.Shared.Components.Presentations.AddItem
 @using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
 
 @inject IBibleService BibleService
 @inject IJSRuntime JsRuntime
+@inject ActiveOrganizationState OrgState
 
-@if (BibleService.Bibles.Count == 0)
+@if (orgBibles.Count == 0)
 {
     <div class="text-center text-neutral-400 text-sm py-8">
         @L["Bible.NoBible"]
@@ -41,7 +43,7 @@ else
                     <div class="relative">
                         <select class="appearance-none py-2.5 pl-4 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
                                 @onchange="OnBibleChanged">
-                            @foreach (var bible in BibleService.Bibles)
+                            @foreach (var bible in orgBibles)
                             {
                                 <option value="@bible.Id" selected="@(bible.Id == selectedBibleId)">@bible.Name</option>
                             }
@@ -74,13 +76,13 @@ else
             else
             {
                 <div class="mt-3 flex-1 min-h-0 flex flex-col">
-                    <BibleBookPicker BibleId="@selectedBibleId" OnPicked="StartBrowse"/>
+                    <BibleBookPicker BibleId="@selectedBibleId" OrganizationId="@organizationId" OnPicked="StartBrowse"/>
                 </div>
             }
         }
         else
         {
-            <BibleBrowsePicker BibleId="@selectedBibleId" InitialBook="@browseBook" OnBackClicked="OnBrowseBack" OnSelectionChanged="OnBrowseSelectionChanged"/>
+            <BibleBrowsePicker BibleId="@selectedBibleId" OrganizationId="@organizationId" InitialBook="@browseBook" OnBackClicked="OnBrowseBack" OnSelectionChanged="OnBrowseSelectionChanged"/>
         }
 
         @if (ShowAddButton)
@@ -104,7 +106,9 @@ else
 
     private ElementReference container;
     private ElementReference searchInput;
+    private string organizationId = "";
     private string selectedBibleId = "";
+    private IReadOnlyList<Bible> orgBibles = [];
     // Search state
     private string query = "";
     private List<Verse> results = [];
@@ -124,7 +128,9 @@ else
 
     protected override void OnInitialized()
     {
-        selectedBibleId = BibleService.Bibles.FirstOrDefault()?.Id ?? "";
+        organizationId = OrgState.ActiveOrganizationId ?? "";
+        orgBibles = BibleService.GetBibles(organizationId);
+        selectedBibleId = orgBibles.FirstOrDefault()?.Id ?? "";
     }
 
     private async Task OnKeyDown(KeyboardEventArgs e)
@@ -176,7 +182,7 @@ else
             return;
         }
 
-        var allResults = BibleService.Search(selectedBibleId, query).ToList();
+        var allResults = BibleService.Search(organizationId, selectedBibleId, query).ToList();
         totalCount = allResults.Count;
         results = allResults.Count > MaxResults ? allResults.Take(MaxResults).ToList() : allResults;
     }

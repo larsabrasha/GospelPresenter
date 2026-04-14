@@ -16,6 +16,7 @@
 
 @code {
     [Parameter, EditorRequired] public string BibleId { get; set; } = "";
+    [Parameter, EditorRequired] public string OrganizationId { get; set; } = "";
     [Parameter, EditorRequired] public string BookId { get; set; } = "";
     [Parameter] public EventCallback<int> OnPicked { get; set; }
 
@@ -27,7 +28,7 @@
         if (BookId != loadedBookId)
         {
             loadedBookId = BookId;
-            chapters = BibleService.GetChapters(BibleId, BookId).ToList();
+            chapters = BibleService.GetChapters(OrganizationId, BibleId, BookId).ToList();
         }
     }
 }

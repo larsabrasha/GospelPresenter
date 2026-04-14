@@ -224,6 +224,7 @@ try
 
     builder.Services.AddScoped<IPresentationService, PresentationService>();
     builder.Services.AddSingleton<ISongService, SongService>();
+    builder.Services.AddSingleton<IBibleService, BibleService>();
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IOrganizationImageService, OrganizationImageService>();
     builder.Services.AddScoped<IOrganizationAudioService, OrganizationAudioService>();
@@ -249,11 +250,9 @@ builder.Services.AddMetricServer(options =>
         await MockDataSeeder.SeedAsync(db);
     }
 
-    var biblesPath = app.Configuration.GetSection("Settings:BiblesPath").Value;
-    if (!string.IsNullOrEmpty(biblesPath))
     {
         var bibleService = app.Services.GetRequiredService<IBibleService>();
-        bibleService.LoadBibles(biblesPath);
+        await bibleService.LoadBiblesAsync();
     }
 
     {

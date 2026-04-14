@@ -29,6 +29,14 @@
                     </svg>
                     @L["Nav.Songs"]
                 </a>
+                <a href="/admin/bibles"
+                   @onclick="OnSidebarNavClick"
+                   class="@NavClass("/admin/bibles") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 shrink-0">
+                        <path d="M10.75 16.82A7.462 7.462 0 0 1 15 15.5c.71 0 1.396.098 2.046.282A.75.75 0 0 0 18 15.06V4.312a.75.75 0 0 0-.497-.708A8.96 8.96 0 0 0 15 3.25a8.963 8.963 0 0 0-4.25 1.063v12.507ZM9.25 4.313A8.963 8.963 0 0 0 5 3.25c-.866 0-1.706.122-2.503.352a.75.75 0 0 0-.497.708v10.75a.75.75 0 0 0 .954.721A7.462 7.462 0 0 1 5 15.5c1.579 0 3.042.487 4.25 1.32V4.313Z"/>
+                    </svg>
+                    @L["Nav.Bibles"]
+                </a>
                 <a href="/admin/overlays"
                    @onclick="OnSidebarNavClick"
                    class="@NavClass("/admin/overlays") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">

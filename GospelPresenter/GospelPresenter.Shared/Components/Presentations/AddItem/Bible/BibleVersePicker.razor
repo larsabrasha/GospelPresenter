@@ -22,6 +22,7 @@
 
 @code {
     [Parameter, EditorRequired] public string BibleId { get; set; } = "";
+    [Parameter, EditorRequired] public string OrganizationId { get; set; } = "";
     [Parameter, EditorRequired] public string BookId { get; set; } = "";
     [Parameter, EditorRequired] public int Chapter { get; set; }
     [Parameter] public int? StartChapter { get; set; }
@@ -38,7 +39,7 @@
         if (Chapter != loadedChapter)
         {
             loadedChapter = Chapter;
-            verses = BibleService.GetVerses(BibleId, BookId, Chapter).ToList();
+            verses = BibleService.GetVerses(OrganizationId, BibleId, BookId, Chapter).ToList();
         }
     }
 

@@ -44,6 +44,11 @@ public static class AppConstraints
     public const int MaxSettingsPerUser = 50;
     public const int MaxSettingsPerOrg = 50;
 
+    // Bible constraints
+    public const int BibleAbbreviationMaxLength = 50;
+    public const int MaxBiblesPerOrg = 10;
+    public const long MaxBibleFileSizeBytes = 50 * 1024 * 1024;
+
     // File sizes (bytes)
     public const long MaxImageFileSizeBytes = 10 * 1024 * 1024;
     public const long MaxAudioFileSizeBytes = 20 * 1024 * 1024;

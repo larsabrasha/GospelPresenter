@@ -16,7 +16,9 @@ public static class PermissionMap
             Permission.ManageSongs,
             Permission.ViewOverlays,
             Permission.ManageOverlays,
-            Permission.ViewTemplates
+            Permission.ViewTemplates,
+            Permission.ViewBibles,
+            Permission.ManageBibles
         ],
         [UserRole.Admin] =
         [
@@ -36,7 +38,9 @@ public static class PermissionMap
             Permission.ManageUsers,
             Permission.ViewCcliReport,
             Permission.ManageCcliReport,
-            Permission.ManageRemoteDisplays
+            Permission.ManageRemoteDisplays,
+            Permission.ViewBibles,
+            Permission.ManageBibles
         ],
         [UserRole.SuperAdmin] = [..Enum.GetValues<Permission>()]
     };

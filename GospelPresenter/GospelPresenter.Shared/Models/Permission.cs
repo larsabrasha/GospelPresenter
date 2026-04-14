@@ -23,4 +23,6 @@ public enum Permission
     CrossOrganizationAccess,
     ManageMcpApiKeys,
     ManageRemoteDisplays,
+    ViewBibles,
+    ManageBibles,
 }
