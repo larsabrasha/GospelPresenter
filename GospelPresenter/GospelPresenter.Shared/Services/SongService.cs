@@ -35,23 +35,26 @@ public interface ISongService
 
 public class SongService(IDbContextFactory<PresentationContext> dbContextFactory) : ISongService
 {
-    private readonly Dictionary<string, OrgSongCache> cacheByOrg = new();
+    private Dictionary<string, OrgSongCache> cacheByOrg = new();
 
-    private OrgSongCache GetOrCreateCache(string organizationId)
+    private void UpdateOrgCache(string organizationId, Action<OrgSongCache> mutator)
     {
-        if (!cacheByOrg.TryGetValue(organizationId, out var cache))
-        {
-            cache = new OrgSongCache();
-            cacheByOrg[organizationId] = cache;
-        }
-        return cache;
+        var newCache = new Dictionary<string, OrgSongCache>(cacheByOrg);
+        var orgCache = newCache.TryGetValue(organizationId, out var existing)
+            ? existing.Clone()
+            : new OrgSongCache();
+        mutator(orgCache);
+        orgCache.RebuildIndex();
+        newCache[organizationId] = orgCache;
+        Interlocked.Exchange(ref cacheByOrg, newCache);
     }
 
     public IReadOnlyList<Song> GetSongsByOrganization(string organizationId, CallerContext caller)
     {
         caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
-        return cacheByOrg.TryGetValue(organizationId, out var cache) ? cache.SongsSorted : [];
+        var snapshot = cacheByOrg;
+        return snapshot.TryGetValue(organizationId, out var cache) ? cache.SongsSorted : [];
     }
 
     public async Task LoadSongsAsync()
@@ -74,16 +77,22 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             .AsNoTracking()
             .ToListAsync();
 
-        cacheByOrg.Clear();
+        var newCache = new Dictionary<string, OrgSongCache>();
         foreach (var dbSong in dbSongs)
         {
             var song = ToStateSong(dbSong);
-            var cache = GetOrCreateCache(song.OrganizationId);
-            cache.SongsById[song.Id] = song;
+            if (!newCache.TryGetValue(song.OrganizationId, out var orgCache))
+            {
+                orgCache = new OrgSongCache();
+                newCache[song.OrganizationId] = orgCache;
+            }
+            orgCache.SongsById[song.Id] = song;
         }
 
-        foreach (var cache in cacheByOrg.Values)
+        foreach (var cache in newCache.Values)
             cache.RebuildIndex();
+
+        Interlocked.Exchange(ref cacheByOrg, newCache);
     }
 
     public async Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId, CallerContext caller)
@@ -219,11 +228,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         {
             song.DeletedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
-            if (cacheByOrg.TryGetValue(organizationId, out var cache))
-            {
-                cache.SongsById.Remove(id);
-                cache.RebuildIndex();
-            }
+            UpdateOrgCache(organizationId, c => c.SongsById.Remove(id));
         }
     }
 
@@ -249,9 +254,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         {
             song.DeletedAt = null;
             await db.SaveChangesAsync();
-            var cache = GetOrCreateCache(organizationId);
-            cache.SongsById[id] = ToStateSong(song);
-            cache.RebuildIndex();
+            var restored = ToStateSong(song);
+            UpdateOrgCache(organizationId, c => c.SongsById[id] = restored);
         }
     }
 
@@ -299,10 +303,12 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         if (trashed.Count > 0)
         {
             await db.SaveChangesAsync();
-            var cache = GetOrCreateCache(organizationId);
-            foreach (var song in trashed)
-                cache.SongsById[song.Id] = ToStateSong(song);
-            cache.RebuildIndex();
+            var restoredSongs = trashed.Select(s => ToStateSong(s)).ToList();
+            UpdateOrgCache(organizationId, c =>
+            {
+                foreach (var song in restoredSongs)
+                    c.SongsById[song.Id] = song;
+            });
         }
     }
 
@@ -326,10 +332,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        if (cacheByOrg.TryGetValue(organizationId, out var cache) && cache.SongsById.TryGetValue(id, out var existing))
+        var snapshot = cacheByOrg;
+        if (snapshot.TryGetValue(organizationId, out var cache) && cache.SongsById.TryGetValue(id, out var existing))
         {
-            cache.SongsById[id] = existing with { Name = name, Author = author, Publisher = publisher, Year = year, Ccli = ccli };
-            cache.RebuildIndex();
+            var updated = existing with { Name = name, Author = author, Publisher = publisher, Year = year, Ccli = ccli };
+            UpdateOrgCache(organizationId, c => c.SongsById[id] = updated);
         }
     }
 
@@ -577,9 +584,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await transaction.CommitAsync();
 
         var song = ToStateSong(dbSong);
-        var cache = GetOrCreateCache(organizationId);
-        cache.SongsById[song.Id] = song;
-        cache.RebuildIndex();
+        UpdateOrgCache(organizationId, c => c.SongsById[song.Id] = song);
 
         return song;
     }
@@ -631,7 +636,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     {
         caller.RequirePermission(Permission.ViewSongs);
         caller.RequireOrganizationAccess(organizationId);
-        return cacheByOrg.TryGetValue(organizationId, out var cache)
+        var snapshot = cacheByOrg;
+        return snapshot.TryGetValue(organizationId, out var cache)
             ? cache.SongsById.GetValueOrDefault(id)
             : null;
     }
@@ -643,7 +649,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         if (string.IsNullOrWhiteSpace(query))
             return GetSongsByOrganization(organizationId, caller);
 
-        if (!cacheByOrg.TryGetValue(organizationId, out var cache))
+        var snapshot = cacheByOrg;
+        if (!snapshot.TryGetValue(organizationId, out var cache))
             return [];
 
         var normalized = query.Normalize().ToLowerInvariant();
@@ -747,14 +754,19 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     protected void LoadTestSongs(Song[] songs)
     {
-        cacheByOrg.Clear();
+        var newCache = new Dictionary<string, OrgSongCache>();
         foreach (var song in songs)
         {
-            var cache = GetOrCreateCache(song.OrganizationId);
-            cache.SongsById[song.Id] = song;
+            if (!newCache.TryGetValue(song.OrganizationId, out var orgCache))
+            {
+                orgCache = new OrgSongCache();
+                newCache[song.OrganizationId] = orgCache;
+            }
+            orgCache.SongsById[song.Id] = song;
         }
-        foreach (var cache in cacheByOrg.Values)
+        foreach (var cache in newCache.Values)
             cache.RebuildIndex();
+        Interlocked.Exchange(ref cacheByOrg, newCache);
     }
 
     private async Task ReloadSong(string songId)
@@ -768,9 +780,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         if (dbSong is not null)
         {
             var song = ToStateSong(dbSong);
-            var cache = GetOrCreateCache(song.OrganizationId);
-            cache.SongsById[songId] = song;
-            cache.RebuildIndex();
+            UpdateOrgCache(song.OrganizationId, c => c.SongsById[songId] = song);
         }
     }
 
@@ -791,9 +801,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
     private class OrgSongCache
     {
-        public Dictionary<string, Song> SongsById { get; } = new();
+        public Dictionary<string, Song> SongsById { get; init; } = new();
         public List<Song> SongsSorted { get; private set; } = [];
         public List<SongSearchEntry> SearchIndex { get; private set; } = [];
+
+        public OrgSongCache Clone() => new() { SongsById = new Dictionary<string, Song>(SongsById) };
 
         public void RebuildIndex()
         {

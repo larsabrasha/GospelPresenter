@@ -27,21 +27,23 @@ public interface IBibleService
 
 public class BibleService(IDbContextFactory<PresentationContext> dbContextFactory, ILogger<BibleService> logger) : IBibleService
 {
-    private readonly Dictionary<string, Dictionary<string, Bible>> cacheByOrg = new();
+    private Dictionary<string, Dictionary<string, Bible>> cacheByOrg = new();
 
-    private Dictionary<string, Bible> GetOrCreateOrgCache(string organizationId)
+    private void UpdateOrgCache(string organizationId, Action<Dictionary<string, Bible>> mutator)
     {
-        if (!cacheByOrg.TryGetValue(organizationId, out var cache))
-        {
-            cache = new Dictionary<string, Bible>();
-            cacheByOrg[organizationId] = cache;
-        }
-        return cache;
+        var newCache = new Dictionary<string, Dictionary<string, Bible>>(cacheByOrg);
+        var orgCache = newCache.TryGetValue(organizationId, out var existing)
+            ? new Dictionary<string, Bible>(existing)
+            : new Dictionary<string, Bible>();
+        mutator(orgCache);
+        newCache[organizationId] = orgCache;
+        Interlocked.Exchange(ref cacheByOrg, newCache);
     }
 
     public IReadOnlyList<Bible> GetBibles(string organizationId)
     {
-        return cacheByOrg.TryGetValue(organizationId, out var cache)
+        var snapshot = cacheByOrg;
+        return snapshot.TryGetValue(organizationId, out var cache)
             ? cache.Values.ToList()
             : [];
     }
@@ -54,17 +56,24 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
             .AsNoTracking()
             .ToListAsync();
 
-        cacheByOrg.Clear();
+        var newCache = new Dictionary<string, Dictionary<string, Bible>>();
         foreach (var dbBible in dbBibles)
         {
             var verses = JsonSerializer.Deserialize<List<Verse>>(dbBible.VersesJson) ?? [];
             var bible = new Bible(dbBible.Abbreviation, dbBible.Name, verses);
 
-            GetOrCreateOrgCache(dbBible.OrganizationId)[bible.Id] = bible;
+            if (!newCache.TryGetValue(dbBible.OrganizationId, out var orgCache))
+            {
+                orgCache = new Dictionary<string, Bible>();
+                newCache[dbBible.OrganizationId] = orgCache;
+            }
+            orgCache[bible.Id] = bible;
 
             logger.LogInformation("Loaded bible {Name} ({Id}) with {Count} verses for org {OrgId}",
                 bible.Name, bible.Id, verses.Count, dbBible.OrganizationId);
         }
+
+        Interlocked.Exchange(ref cacheByOrg, newCache);
     }
 
     public async Task<ImportBibleResult> ImportBibleAsync(Stream zipStream, string organizationId, CallerContext caller)
@@ -113,7 +122,7 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
         }
 
         var bible = new Bible(abbreviation, name, verses);
-        GetOrCreateOrgCache(organizationId)[bible.Id] = bible;
+        UpdateOrgCache(organizationId, orgCache => orgCache[bible.Id] = bible);
 
         logger.LogInformation("Imported bible {Name} ({Abbreviation}) with {Count} verses for org {OrgId}",
             name, abbreviation, verses.Count, organizationId);
@@ -133,8 +142,7 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
 
         if (deleted == 0) return;
 
-        if (cacheByOrg.TryGetValue(organizationId, out var orgCache))
-            orgCache.Remove(abbreviation);
+        UpdateOrgCache(organizationId, orgCache => orgCache.Remove(abbreviation));
 
         logger.LogInformation("Deleted bible ({Abbreviation}) from org {OrgId}", abbreviation, organizationId);
     }
@@ -169,7 +177,8 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
 
     private Bible? FindBible(string organizationId, string bibleId)
     {
-        return cacheByOrg.TryGetValue(organizationId, out var orgCache)
+        var snapshot = cacheByOrg;
+        return snapshot.TryGetValue(organizationId, out var orgCache)
             ? orgCache.GetValueOrDefault(bibleId)
             : null;
     }
@@ -178,7 +187,6 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
     {
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
 
-        // Find the root prefix (files may be in a subdirectory)
         var prefix = FindRootPrefix(archive);
 
         var (abbreviation, name) = ReadBibleMetadata(archive, prefix);
@@ -210,7 +218,6 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
 
     private static string FindRootPrefix(ZipArchive archive)
     {
-        // Check if metadata.xml is at the root or inside a single subdirectory
         var metadataEntry = archive.Entries.FirstOrDefault(e =>
             e.Name.Equals("metadata.xml", StringComparison.OrdinalIgnoreCase));
 
@@ -245,7 +252,6 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
 
     private static string? FindUsxPrefix(ZipArchive archive, string prefix)
     {
-        // Prefer USX_1 (canonical books without deuterocanonical)
         var usx1 = prefix + "USX_1/";
         if (archive.Entries.Any(e => e.FullName.StartsWith(usx1, StringComparison.OrdinalIgnoreCase)))
             return usx1;
