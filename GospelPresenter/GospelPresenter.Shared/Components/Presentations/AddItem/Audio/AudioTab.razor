@@ -147,14 +147,14 @@ else
 
     private async Task HandleFilesSelected()
     {
-        if (isUploading) return;
+        if (isUploading || organizationId is null) return;
         uploadError = null;
         failedCount = 0;
         isUploading = true;
         StateHasChanged();
 
         dotNetRef ??= DotNetObjectReference.Create(this);
-        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, "/api/upload/org-audio", dotNetRef, AppConstraints.MaxAudioFileSizeBytes, AppConstraints.AllowedAudioTypes);
+        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, "/api/upload/org-audio", organizationId, dotNetRef, AppConstraints.MaxAudioFileSizeBytes, AppConstraints.AllowedAudioTypes);
     }
 
     [JSInvokable]

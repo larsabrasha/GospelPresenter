@@ -6,7 +6,7 @@ window.clickElement = function (element) {
     if (element) element.click();
 };
 
-window.uploadFiles = async function (inputElement, url, dotNetRef, maxFileSize, allowedTypes) {
+window.uploadFiles = async function (inputElement, url, organizationId, dotNetRef, maxFileSize, allowedTypes) {
     var files = inputElement.files;
     if (!files || files.length === 0) return;
 
@@ -24,6 +24,7 @@ window.uploadFiles = async function (inputElement, url, dotNetRef, maxFileSize, 
 
         var formData = new FormData();
         formData.append('file', files[i]);
+        if (organizationId) formData.append('organizationId', organizationId);
 
         try {
             var response = await fetch(url, {
@@ -46,13 +47,16 @@ window.uploadFiles = async function (inputElement, url, dotNetRef, maxFileSize, 
     inputElement.value = '';
 };
 
-window.uploadAllFiles = async function (inputElement, url, replaceExisting) {
+window.uploadAllFiles = async function (inputElement, url, organizationId, replaceExisting) {
     var files = inputElement.files;
     if (!files || files.length === 0) return null;
 
     var formData = new FormData();
     for (var i = 0; i < files.length; i++) {
         formData.append('file', files[i], files[i].name);
+    }
+    if (organizationId) {
+        formData.append('organizationId', organizationId);
     }
     if (replaceExisting) {
         formData.append('replaceExisting', 'true');

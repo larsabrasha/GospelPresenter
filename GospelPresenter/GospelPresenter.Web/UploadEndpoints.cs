@@ -17,11 +17,12 @@ public static class UploadEndpoints
             IImageResizeService imageResizeService,
             CancellationToken cancellationToken) =>
         {
-            var caller = GetCaller(context, out var orgId);
-            if (caller is null || orgId is null) return Results.Unauthorized();
+            var caller = GetCaller(context);
+            if (caller is null) return Results.Unauthorized();
 
-            var file = await GetRequiredFileAsync(context, cancellationToken);
+            var (file, orgId) = await ReadUploadAsync(context, cancellationToken);
             if (file is null) return Results.BadRequest();
+            if (orgId is null) return Results.BadRequest("Missing organizationId");
 
             if (file.Length > AppConstraints.MaxImageFileSizeBytes) return Results.BadRequest("File too large");
             if (!AppConstraints.AllowedImageTypes.Contains(file.ContentType)) return Results.BadRequest("Unsupported file type");
@@ -58,11 +59,12 @@ public static class UploadEndpoints
             IObjectStorageService storage,
             CancellationToken cancellationToken) =>
         {
-            var caller = GetCaller(context, out var orgId);
-            if (caller is null || orgId is null) return Results.Unauthorized();
+            var caller = GetCaller(context);
+            if (caller is null) return Results.Unauthorized();
 
-            var file = await GetRequiredFileAsync(context, cancellationToken);
+            var (file, orgId) = await ReadUploadAsync(context, cancellationToken);
             if (file is null) return Results.BadRequest();
+            if (orgId is null) return Results.BadRequest("Missing organizationId");
 
             if (file.Length > AppConstraints.MaxImageFileSizeBytes) return Results.BadRequest("File too large");
             if (!AppConstraints.AllowedImageTypes.Contains(file.ContentType)) return Results.BadRequest("Unsupported file type");
@@ -98,11 +100,12 @@ public static class UploadEndpoints
             IOrganizationAudioService audioService,
             CancellationToken cancellationToken) =>
         {
-            var caller = GetCaller(context, out var orgId);
-            if (caller is null || orgId is null) return Results.Unauthorized();
+            var caller = GetCaller(context);
+            if (caller is null) return Results.Unauthorized();
 
-            var file = await GetRequiredFileAsync(context, cancellationToken);
+            var (file, orgId) = await ReadUploadAsync(context, cancellationToken);
             if (file is null) return Results.BadRequest();
+            if (orgId is null) return Results.BadRequest("Missing organizationId");
 
             if (file.Length > AppConstraints.MaxAudioFileSizeBytes) return Results.BadRequest("File too large");
             if (!AppConstraints.AllowedAudioTypes.Contains(file.ContentType)) return Results.BadRequest("Unsupported file type");
@@ -128,11 +131,12 @@ public static class UploadEndpoints
             IBibleService bibleService,
             CancellationToken cancellationToken) =>
         {
-            var caller = GetCaller(context, out var orgId);
-            if (caller is null || orgId is null) return Results.Unauthorized();
+            var caller = GetCaller(context);
+            if (caller is null) return Results.Unauthorized();
 
-            var file = await GetRequiredFileAsync(context, cancellationToken);
+            var (file, orgId) = await ReadUploadAsync(context, cancellationToken);
             if (file is null) return Results.BadRequest();
+            if (orgId is null) return Results.BadRequest("Missing organizationId");
 
             if (file.Length > AppConstraints.MaxBibleFileSizeBytes) return Results.BadRequest("File too large");
             if (!file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return Results.BadRequest("Only .zip files are supported");
@@ -155,11 +159,14 @@ public static class UploadEndpoints
             ISongService songService,
             CancellationToken cancellationToken) =>
         {
-            var caller = GetCaller(context, out var orgId);
-            if (caller is null || orgId is null) return Results.Unauthorized();
+            var caller = GetCaller(context);
+            if (caller is null) return Results.Unauthorized();
 
             if (!context.Request.HasFormContentType) return Results.BadRequest();
             var form = await context.Request.ReadFormAsync(cancellationToken);
+
+            var orgId = form["organizationId"].ToString();
+            if (string.IsNullOrEmpty(orgId)) return Results.BadRequest("Missing organizationId");
 
             var files = new List<(string FileName, byte[] Data)>();
             foreach (var file in form.Files)
@@ -194,21 +201,23 @@ public static class UploadEndpoints
           .DisableAntiforgery();
     }
 
-    private static CallerContext? GetCaller(HttpContext context, out string? orgId)
+    private static CallerContext? GetCaller(HttpContext context)
     {
         var userId = context.User.FindFirst("user_id")?.Value;
-        orgId = context.User.FindFirst("organization_id")?.Value;
-        if (userId is null || orgId is null) return null;
+        if (userId is null) return null;
 
+        var orgId = context.User.FindFirst("organization_id")?.Value;
         var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
         return new CallerContext(userId, role, orgId);
     }
 
-    private static async Task<IFormFile?> GetRequiredFileAsync(HttpContext context, CancellationToken cancellationToken)
+    private static async Task<(IFormFile? File, string? OrganizationId)> ReadUploadAsync(HttpContext context, CancellationToken cancellationToken)
     {
-        if (!context.Request.HasFormContentType) return null;
+        if (!context.Request.HasFormContentType) return (null, null);
         var form = await context.Request.ReadFormAsync(cancellationToken);
         var file = form.Files.GetFile("file");
-        return file is null || file.Length == 0 ? null : file;
+        if (file is null || file.Length == 0) return (null, null);
+        var orgId = form["organizationId"].ToString();
+        return (file, string.IsNullOrEmpty(orgId) ? null : orgId);
     }
 }
