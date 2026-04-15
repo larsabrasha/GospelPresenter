@@ -126,8 +126,13 @@ public class RemoteDisplayState
         DisplayPaired?.Invoke(displayId);
     }
 
-    public void DisableDisplay(string displayId)
+    public void DisableDisplay(string displayId, string sessionId)
     {
+        // Only the owning session may disable the binding. Prevents a stale UI in
+        // session B from accidentally removing a binding that just moved to session A.
+        if (!displayToSession.TryGetValue(displayId, out var owner) || owner != sessionId)
+            return;
+
         if (displayToSession.TryRemove(displayId, out _))
         {
             displayPairedAt.TryRemove(displayId, out _);
@@ -139,6 +144,11 @@ public class RemoteDisplayState
     public bool IsDisplayConnected(string displayId)
     {
         return displayToSession.ContainsKey(displayId);
+    }
+
+    public bool IsDisplayConnectedToSession(string displayId, string sessionId)
+    {
+        return displayToSession.TryGetValue(displayId, out var owner) && owner == sessionId;
     }
 
     public bool IsDisplayOnline(string displayId)
@@ -156,7 +166,14 @@ public class RemoteDisplayState
     {
         if (onlineDisplays.TryRemove(displayId, out _))
         {
-            DisableDisplay(displayId);
+            // A physically offline display has no calling session — this is a
+            // legitimate force-removal that bypasses the ownership check.
+            if (displayToSession.TryRemove(displayId, out _))
+            {
+                displayPairedAt.TryRemove(displayId, out _);
+                displayLastActivity.TryRemove(displayId, out _);
+                DisplayUnpaired?.Invoke(displayId);
+            }
             DisplayWentOffline?.Invoke(displayId);
         }
     }

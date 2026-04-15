@@ -123,6 +123,33 @@ public static class UploadEndpoints
         }).RequireAuthorization()
           .DisableAntiforgery();
 
+        app.MapPost("/api/upload/import-bible", async (
+            HttpContext context,
+            IBibleService bibleService,
+            CancellationToken cancellationToken) =>
+        {
+            var caller = GetCaller(context, out var orgId);
+            if (caller is null || orgId is null) return Results.Unauthorized();
+
+            var file = await GetRequiredFileAsync(context, cancellationToken);
+            if (file is null) return Results.BadRequest();
+
+            if (file.Length > AppConstraints.MaxBibleFileSizeBytes) return Results.BadRequest("File too large");
+            if (!file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) return Results.BadRequest("Only .zip files are supported");
+
+            try
+            {
+                using var stream = file.OpenReadStream();
+                var result = await bibleService.ImportBibleAsync(stream, orgId, caller);
+                return Results.Ok(new { result.BibleName, result.VerseCount, result.Replaced });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(ex.Message);
+            }
+        }).RequireAuthorization()
+          .DisableAntiforgery();
+
         app.MapPost("/api/upload/import-songs", async (
             HttpContext context,
             ISongService songService,

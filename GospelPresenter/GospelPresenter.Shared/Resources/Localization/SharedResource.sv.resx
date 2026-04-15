@@ -119,6 +119,9 @@
   <data name="Nav.Songs" xml:space="preserve">
     <value>Sånger</value>
   </data>
+  <data name="Nav.Bibles" xml:space="preserve">
+    <value>Biblar</value>
+  </data>
   <data name="Nav.Overlays" xml:space="preserve">
     <value>Overlays</value>
   </data>
@@ -1293,5 +1296,47 @@
   </data>
   <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
     <value>Ange 4-siffrig kod</value>
+  </data>
+  <data name="Bibles.Title" xml:space="preserve">
+    <value>Biblar</value>
+  </data>
+  <data name="Bibles.ImportTitle" xml:space="preserve">
+    <value>Importera bibel</value>
+  </data>
+  <data name="Bibles.ImportDescription" xml:space="preserve">
+    <value>Ladda upp en bibelöversättning som en &lt;code&gt;.zip&lt;/code&gt;-fil (USX- eller USFM-format).</value>
+  </data>
+  <data name="Bibles.ChooseFile" xml:space="preserve">
+    <value>Välj fil</value>
+  </data>
+  <data name="Bibles.Importing" xml:space="preserve">
+    <value>Importerar...</value>
+  </data>
+  <data name="Bibles.ImportSuccess" xml:space="preserve">
+    <value>Importerade {0} med {1} verser.</value>
+  </data>
+  <data name="Bibles.ImportReplaced" xml:space="preserve">
+    <value>Uppdaterade {0} med {1} verser.</value>
+  </data>
+  <data name="Bibles.ImportError" xml:space="preserve">
+    <value>Importen misslyckades: {0}</value>
+  </data>
+  <data name="Bibles.AllBibles" xml:space="preserve">
+    <value>Installerade biblar</value>
+  </data>
+  <data name="Bibles.NoBibles" xml:space="preserve">
+    <value>Inga biblar installerade ännu.</value>
+  </data>
+  <data name="Bibles.Deleted" xml:space="preserve">
+    <value>Bibel borttagen</value>
+  </data>
+  <data name="Bibles.ConfirmDelete" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Bibles.Verses" xml:space="preserve">
+    <value>verser</value>
+  </data>
+  <data name="Bibles.Processing" xml:space="preserve">
+    <value>Bearbetar bibelfil...</value>
   </data>
 </root>

@@ -113,7 +113,7 @@ public sealed class PresentationTools(
         int verseStart,
         int verseEnd)
     {
-        var allVerses = bibleService.GetVerses(bibleId, bookId, chapter);
+        var allVerses = bibleService.GetVerses(OrgId, bibleId, bookId, chapter);
         var selectedVerses = allVerses
             .Where(v => v.VerseNumber >= verseStart && v.VerseNumber <= verseEnd)
             .ToList();

@@ -202,7 +202,7 @@ public class RemoteDisplayStateTests
     {
         state.EnableDisplay("display-1", "session-1");
 
-        state.DisableDisplay("display-1");
+        state.DisableDisplay("display-1", "session-1");
 
         state.IsDisplayConnected("display-1").ShouldBeFalse();
         state.GetSessionForDisplay("display-1").ShouldBeNull();
@@ -216,9 +216,24 @@ public class RemoteDisplayStateTests
         string? unpairedId = null;
         state.DisplayUnpaired += id => unpairedId = id;
 
-        state.DisableDisplay("display-1");
+        state.DisableDisplay("display-1", "session-1");
 
         unpairedId.ShouldBe("display-1");
+    }
+
+    [Fact]
+    public void DisableDisplay_FromNonOwningSession_DoesNothing()
+    {
+        state.EnableDisplay("display-1", "session-a");
+
+        string? unpairedId = null;
+        state.DisplayUnpaired += id => unpairedId = id;
+
+        state.DisableDisplay("display-1", "session-b");
+
+        state.IsDisplayConnected("display-1").ShouldBeTrue();
+        state.GetSessionForDisplay("display-1").ShouldBe("session-a");
+        unpairedId.ShouldBeNull();
     }
 
     [Fact]

@@ -36,6 +36,10 @@
       <Content Include="Resources\TST.usx">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+      <None Remove="Resources\TST.usfm" />
+      <Content Include="Resources\TST.usfm">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

@@ -1,0 +1,32 @@
+\id TST Test Bible Book
+\ide UTF-8
+\h Test Book
+\toc1 The Book of Tests
+\mt1 Test Book
+\c 1
+\s First Section
+\p
+\v 1 In the beginning there was a test.
+\v 2 And the test was good.
+\v 3 Then came \qt a quoted phrase\qt* within a verse.
+\p
+\v 4 This verse has a \f + footnote that should be excluded\f*footnote nearby.
+\v 5-6 This is a verse range spanning two verses.
+\c 2
+\s Poetry Section
+\p
+\v 1 A normal paragraph to start.
+\q1
+\v 2 This is a line of poetry,
+\q2 and it continues on a second line.
+\q1
+\v 3 Another poetic verse,
+\q2 with a nested \qt \add deeply nested\add* quote\qt* element.
+\p
+\v 4 Back to normal prose.
+\c 3
+\s Continuation Test
+\p
+\v 1 First verse of chapter three.
+\p Continuation text for verse one.
+\v 2 Second verse starts here.

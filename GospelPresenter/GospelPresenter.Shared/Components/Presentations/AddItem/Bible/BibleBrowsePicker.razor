@@ -72,16 +72,16 @@
     <div class="mt-3 flex-1 min-h-0 flex flex-col">
         @if (editing == EditPart.Book)
         {
-            <BibleBookPicker BibleId="@BibleId" OnPicked="PickBook"/>
+            <BibleBookPicker BibleId="@BibleId" OrganizationId="@OrganizationId" OnPicked="PickBook"/>
         }
         else if (editing is EditPart.StartChapter or EditPart.EndChapter)
         {
-            <BibleChapterPicker BibleId="@BibleId" BookId="@browseBook" OnPicked="PickChapter"/>
+            <BibleChapterPicker BibleId="@BibleId" OrganizationId="@OrganizationId" BookId="@browseBook" OnPicked="PickChapter"/>
         }
         else if (editing is EditPart.StartVerse or EditPart.EndVerse)
         {
             var chapter = editing == EditPart.StartVerse ? startChapter!.Value : endChapter!.Value;
-            <BibleVersePicker BibleId="@BibleId" BookId="@browseBook" Chapter="chapter"
+            <BibleVersePicker BibleId="@BibleId" OrganizationId="@OrganizationId" BookId="@browseBook" Chapter="chapter"
                               StartChapter="startChapter" StartVerse="startVerse"
                               EndChapter="endChapter" EndVerse="endVerse"
                               OnPicked="PickVerse"/>
@@ -91,6 +91,7 @@
 
 @code {
     [Parameter, EditorRequired] public string BibleId { get; set; } = "";
+    [Parameter, EditorRequired] public string OrganizationId { get; set; } = "";
     [Parameter, EditorRequired] public string InitialBook { get; set; } = "";
     [Parameter] public EventCallback OnBackClicked { get; set; }
     [Parameter] public EventCallback<SelectionState> OnSelectionChanged { get; set; }
@@ -147,7 +148,7 @@
         var verses = new List<Verse>();
         for (var ch = sc; ch <= ec; ch++)
         {
-            var chapterVs = BibleService.GetVerses(BibleId, browseBook, ch);
+            var chapterVs = BibleService.GetVerses(OrganizationId, BibleId, browseBook, ch);
             foreach (var v in chapterVs)
             {
                 if (ch == sc && v.VerseNumber < sv) continue;

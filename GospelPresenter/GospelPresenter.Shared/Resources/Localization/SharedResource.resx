@@ -119,6 +119,9 @@
   <data name="Nav.Songs" xml:space="preserve">
     <value>Songs</value>
   </data>
+  <data name="Nav.Bibles" xml:space="preserve">
+    <value>Bibles</value>
+  </data>
   <data name="Nav.Overlays" xml:space="preserve">
     <value>Overlays</value>
   </data>
@@ -1293,5 +1296,47 @@
   </data>
   <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
     <value>Enter 4-digit code</value>
+  </data>
+  <data name="Bibles.Title" xml:space="preserve">
+    <value>Bibles</value>
+  </data>
+  <data name="Bibles.ImportTitle" xml:space="preserve">
+    <value>Import Bible</value>
+  </data>
+  <data name="Bibles.ImportDescription" xml:space="preserve">
+    <value>Upload a Bible translation as a &lt;code&gt;.zip&lt;/code&gt; file (USX or USFM format).</value>
+  </data>
+  <data name="Bibles.ChooseFile" xml:space="preserve">
+    <value>Choose file</value>
+  </data>
+  <data name="Bibles.Importing" xml:space="preserve">
+    <value>Importing...</value>
+  </data>
+  <data name="Bibles.ImportSuccess" xml:space="preserve">
+    <value>Imported {0} with {1} verses.</value>
+  </data>
+  <data name="Bibles.ImportReplaced" xml:space="preserve">
+    <value>Updated {0} with {1} verses.</value>
+  </data>
+  <data name="Bibles.ImportError" xml:space="preserve">
+    <value>Import failed: {0}</value>
+  </data>
+  <data name="Bibles.AllBibles" xml:space="preserve">
+    <value>Installed Bibles</value>
+  </data>
+  <data name="Bibles.NoBibles" xml:space="preserve">
+    <value>No Bibles installed yet.</value>
+  </data>
+  <data name="Bibles.Deleted" xml:space="preserve">
+    <value>Bible deleted</value>
+  </data>
+  <data name="Bibles.ConfirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Bibles.Verses" xml:space="preserve">
+    <value>verses</value>
+  </data>
+  <data name="Bibles.Processing" xml:space="preserve">
+    <value>Processing Bible file...</value>
   </data>
 </root>

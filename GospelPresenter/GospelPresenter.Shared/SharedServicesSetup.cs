@@ -22,7 +22,6 @@ public static class SharedServicesSetup
         services.AddSingleton<IImageService, ImageService>();
         services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IImageResizeService, ImageResizeService>();
-        services.AddSingleton<IBibleService, BibleService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
 
         var s3Endpoint = configuration?.GetSection("S3")["Endpoint"];

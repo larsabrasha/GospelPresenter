@@ -27,6 +27,8 @@ public static class PermissionPolicies
     public const string CrossOrganizationAccess = "Permission:CrossOrganizationAccess";
     public const string ManageMcpApiKeys = "Permission:ManageMcpApiKeys";
     public const string ManageRemoteDisplays = "Permission:ManageRemoteDisplays";
+    public const string ViewBibles = "Permission:ViewBibles";
+    public const string ManageBibles = "Permission:ManageBibles";
 
     public static string PolicyName(Permission permission) => $"Permission:{permission}";
 

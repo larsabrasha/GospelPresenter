@@ -10,7 +10,7 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddServiceDefaults();
 
-builder.Services.AddDbContextPool<PresentationContext>(opt =>
+builder.Services.AddPooledDbContextFactory<PresentationContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("postgresdb")));
 
 builder.Services.AddSharedGospelPresenterServices(builder.Configuration);
