@@ -73,7 +73,7 @@
 
     @foreach (var display in SavedDisplays)
     {
-        var isEnabled = RemoteDisplayState.IsDisplayConnected(display.DisplayIdentifier);
+        var isEnabled = RemoteDisplayState.IsDisplayConnectedToSession(display.DisplayIdentifier, SessionId!);
         var isOnline = RemoteDisplayState.IsDisplayOnline(display.DisplayIdentifier);
         var iconColor = isEnabled ? "text-green-500" : isOnline ? "text-neutral-500 dark:text-neutral-400" : "text-neutral-300 dark:text-neutral-500";
         var disabled = !isOnline && !isEnabled;
@@ -151,7 +151,11 @@
             </button>
         </Trigger>
         <Menu>
-            <button @onclick="OpenLiveWindow"
+            <button type="button"
+                    onclick="gospelPresenter.openLiveWindowFromClick(this)"
+                    data-session-id="@SessionId"
+                    data-title-prefix="@L["LivePanel.LocalLiveView"]"
+                    data-next-index="@nextWindowIndex"
                     class="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 8.25V18a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18V8.25m-18 0V6a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 6v2.25m-18 0h18"/>
@@ -258,13 +262,13 @@
     {
         if (SessionId is null) return;
 
-        if (RemoteDisplayState.IsDisplayConnected(display.DisplayIdentifier))
+        if (RemoteDisplayState.IsDisplayConnectedToSession(display.DisplayIdentifier, SessionId!))
         {
-            RemoteDisplayState.DisableDisplay(display.DisplayIdentifier);
+            RemoteDisplayState.DisableDisplay(display.DisplayIdentifier, SessionId!);
         }
         else
         {
-            RemoteDisplayState.EnableDisplay(display.DisplayIdentifier, SessionId, display.Name);
+            RemoteDisplayState.EnableDisplay(display.DisplayIdentifier, SessionId!, display.Name);
         }
         await SaveOutputConfig();
     }
@@ -291,6 +295,21 @@
     }
 
     [JSInvokable]
+    public void OnLiveWindowOpened(string windowId)
+    {
+        // The synchronous JS click handler opened the window and now tells us
+        // to register it. The index passed to the new window's title matches
+        // the current value of nextWindowIndex (rendered as a data attribute).
+        var index = nextWindowIndex++;
+        liveWindows.Add(new LiveWindowEntry(windowId, index));
+        _ = InvokeAsync(async () =>
+        {
+            await SaveOutputConfig();
+            StateHasChanged();
+        });
+    }
+
+    [JSInvokable]
     public void OnLiveWindowClosed(string windowId)
     {
         liveWindows.RemoveAll(w => w.WindowId == windowId);
@@ -303,8 +322,9 @@
 
     private async Task SaveOutputConfig()
     {
+        if (SessionId is null) return;
         var enabledDisplayIds = SavedDisplays
-            .Where(d => RemoteDisplayState.IsDisplayConnected(d.DisplayIdentifier))
+            .Where(d => RemoteDisplayState.IsDisplayConnectedToSession(d.DisplayIdentifier, SessionId!))
             .Select(d => d.DisplayIdentifier)
             .ToArray();
         var config = new
@@ -328,6 +348,8 @@
                 foreach (var displayId in config.EnabledDisplayIds)
                 {
                     var display = SavedDisplays.FirstOrDefault(d => d.DisplayIdentifier == displayId);
+                    // Only restore if the display is not currently bound to any session —
+                    // we never want to steal a display from another active presentation on restore.
                     if (display is not null && RemoteDisplayState.IsDisplayOnline(displayId)
                         && !RemoteDisplayState.IsDisplayConnected(displayId))
                     {
@@ -404,6 +426,7 @@
             hasPresentationApi = await JsRuntime.InvokeAsync<bool>("gospelPresenter.isPresentationApiAvailable");
             windowCloseRef = DotNetObjectReference.Create(this);
             await JsRuntime.InvokeVoidAsync("gospelPresenter.onLiveWindowClosed", windowCloseRef);
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.setLivePanelRef", windowCloseRef);
             StateHasChanged();
         }
 

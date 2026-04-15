@@ -513,6 +513,11 @@ window.initLiveViewListener = function(sessionId, windowId) {
 }
 
 window.gospelPresenter.liveWindows = [];
+window.gospelPresenter.livePanelRef = null;
+
+window.gospelPresenter.setLivePanelRef = function(dotNetRef) {
+    window.gospelPresenter.livePanelRef = dotNetRef;
+}
 
 window.gospelPresenter.openLiveWindow = function(sessionId, windowId, title) {
     var url = '/live?session=' + sessionId + '&windowId=' + windowId;
@@ -522,6 +527,37 @@ window.gospelPresenter.openLiveWindow = function(sessionId, windowId, title) {
 
     window.gospelPresenter.liveWindows.push({ ref: win, windowId: windowId });
     return true;
+}
+
+// Opens the live window synchronously inside the click event so Safari does not
+// block it as a popup. Blazor Server's @onclick goes through SignalR and loses the
+// user-gesture context before window.open() runs.
+window.gospelPresenter.openLiveWindowFromClick = function(button) {
+    var sessionId = button.dataset.sessionId;
+    if (!sessionId) return;
+
+    var titlePrefix = button.dataset.titlePrefix || '';
+    var nextIndex = button.dataset.nextIndex || '';
+    var title = titlePrefix && nextIndex ? titlePrefix + ' (' + nextIndex + ')' : titlePrefix;
+
+    // Generate an 8-character hex id matching Guid.NewGuid().ToString("N")[..8]
+    var windowId = '';
+    var chars = '0123456789abcdef';
+    for (var i = 0; i < 8; i++) {
+        windowId += chars.charAt(Math.floor(Math.random() * 16));
+    }
+
+    var url = '/live?session=' + encodeURIComponent(sessionId) + '&windowId=' + windowId;
+    if (title) url += '&title=' + encodeURIComponent(title);
+
+    var win = window.open(url, '_blank');
+    if (!win) return;
+
+    window.gospelPresenter.liveWindows.push({ ref: win, windowId: windowId });
+
+    if (window.gospelPresenter.livePanelRef) {
+        window.gospelPresenter.livePanelRef.invokeMethodAsync('OnLiveWindowOpened', windowId);
+    }
 }
 
 window.gospelPresenter.closeLiveWindow = function(windowId) {
