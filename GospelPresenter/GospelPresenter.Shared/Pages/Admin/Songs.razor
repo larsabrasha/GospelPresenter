@@ -208,7 +208,7 @@
         try
         {
             var result = await JsRuntime.InvokeAsync<SongImportResponse?>(
-                "uploadAllFiles", fileInput, "/api/upload/import-songs", replaceExisting);
+                "uploadAllFiles", fileInput, "/api/upload/import-songs", organizationId, replaceExisting);
 
             if (result is null)
                 throw new InvalidOperationException("Upload failed");

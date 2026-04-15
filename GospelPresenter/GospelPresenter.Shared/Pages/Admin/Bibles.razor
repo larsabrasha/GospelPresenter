@@ -137,7 +137,7 @@
         try
         {
             var result = await JsRuntime.InvokeAsync<BibleImportResponse?>(
-                "uploadAllFiles", fileInput, "/api/upload/import-bible", false);
+                "uploadAllFiles", fileInput, "/api/upload/import-bible", organizationId, false);
 
             if (result is null)
                 throw new InvalidOperationException("Upload failed");

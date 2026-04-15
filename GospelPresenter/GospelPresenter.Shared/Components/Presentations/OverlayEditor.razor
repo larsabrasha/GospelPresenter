@@ -1,9 +1,11 @@
 @implements IDisposable
 
 @using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.State
 @using GospelPresenter.Shared.Utils
 
 @inject IJSRuntime JsRuntime
+@inject ActiveOrganizationState OrgState
 
 <div class="@Class">
     <div class="space-y-4">
@@ -91,10 +93,11 @@
     {
         if (string.IsNullOrWhiteSpace(Overlay.Title)) return;
         if (string.IsNullOrEmpty(Overlay.Id)) return;
+        if (OrgState.ActiveOrganizationId is null) return;
 
         Overlay.Title = Overlay.Title.Trim();
         dotNetRef ??= DotNetObjectReference.Create(this);
-        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, $"/api/upload/overlay-image/{Overlay.Id}", dotNetRef, AppConstraints.MaxImageFileSizeBytes, AppConstraints.AllowedImageTypes);
+        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, $"/api/upload/overlay-image/{Overlay.Id}", OrgState.ActiveOrganizationId, dotNetRef, AppConstraints.MaxImageFileSizeBytes, AppConstraints.AllowedImageTypes);
     }
 
     [JSInvokable]

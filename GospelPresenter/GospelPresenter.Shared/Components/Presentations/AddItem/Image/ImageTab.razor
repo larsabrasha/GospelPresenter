@@ -173,14 +173,14 @@ else
 
     private async Task HandleFilesSelected()
     {
-        if (isUploading) return;
+        if (isUploading || organizationId is null) return;
         uploadError = null;
         failedCount = 0;
         isUploading = true;
         StateHasChanged();
 
         dotNetRef ??= DotNetObjectReference.Create(this);
-        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, "/api/upload/org-image", dotNetRef, AppConstraints.MaxImageFileSizeBytes, AppConstraints.AllowedImageTypes);
+        await JsRuntime.InvokeVoidAsync("uploadFiles", fileInput, "/api/upload/org-image", organizationId, dotNetRef, AppConstraints.MaxImageFileSizeBytes, AppConstraints.AllowedImageTypes);
     }
 
     [JSInvokable]
