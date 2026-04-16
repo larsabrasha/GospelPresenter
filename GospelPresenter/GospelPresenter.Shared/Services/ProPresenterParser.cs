@@ -54,64 +54,57 @@ public static partial class ProPresenterParser
                 cuesById[cueId] = cue;
         }
 
-        // Index cue groups by group UUID
-        var cueGroupsByGroupId = new Dictionary<string, Presentation.Types.CueGroup>();
+        // Build unique parts per CueGroup (file order), tracking group → temp part IDs
+        var parts = new List<SongPart>();
+        var groupToTempPartIds = new Dictionary<string, List<string>>();
+
         foreach (var cueGroup in presentation.CueGroups)
         {
             var groupId = cueGroup.Group?.Uuid?.String;
-            if (!string.IsNullOrEmpty(groupId))
-                cueGroupsByGroupId[groupId] = cueGroup;
-        }
-
-        // Determine group order from selected arrangement, fallback to cue_groups order
-        var orderedGroups = GetOrderedGroups(presentation, cueGroupsByGroupId);
-
-        var parts = new List<SongPart>();
-        foreach (var cueGroup in orderedGroups)
-        {
             var label = cueGroup.Group?.Name;
             if (string.IsNullOrWhiteSpace(label)) label = null;
 
+            var groupPartIds = new List<string>();
             foreach (var cueId in cueGroup.CueIdentifiers)
             {
                 if (!cuesById.TryGetValue(cueId.String, out var cue)) continue;
-                ExtractSlideParts(cue, label, parts);
+                var tempId = parts.Count.ToString();
+                var extracted = ExtractSlideText(cue);
+                if (extracted is not null)
+                {
+                    parts.Add(new SongPart(tempId, null, label, null, extracted));
+                    groupPartIds.Add(tempId);
+                }
             }
+
+            if (!string.IsNullOrEmpty(groupId) && groupPartIds.Count > 0)
+                groupToTempPartIds[groupId] = groupPartIds;
         }
 
         if (parts.Count == 0) return null;
 
-        var id = Guid.NewGuid().ToString();
-        return new Song(id, title, author, publisher, null, ccli?.ToString(), parts);
-    }
-
-    private static List<Presentation.Types.CueGroup> GetOrderedGroups(
-        Presentation presentation,
-        Dictionary<string, Presentation.Types.CueGroup> cueGroupsByGroupId)
-    {
-        // If there's a selected arrangement, use its group order
-        var selectedId = presentation.SelectedArrangement?.String;
-        if (!string.IsNullOrEmpty(selectedId))
+        // Build arrangements from ProPresenter arrangements
+        var arrangements = new List<SongArrangement>();
+        foreach (var ppArrangement in presentation.Arrangements)
         {
-            var arrangement = presentation.Arrangements
-                .FirstOrDefault(a => a.Uuid?.String == selectedId);
-            if (arrangement is not null)
+            var arrPartIds = new List<string>();
+            foreach (var groupRef in ppArrangement.GroupIdentifiers)
             {
-                var ordered = new List<Presentation.Types.CueGroup>();
-                foreach (var groupId in arrangement.GroupIdentifiers)
-                {
-                    if (cueGroupsByGroupId.TryGetValue(groupId.String, out var cg))
-                        ordered.Add(cg);
-                }
-                if (ordered.Count > 0) return ordered;
+                if (groupToTempPartIds.TryGetValue(groupRef.String, out var tempIds))
+                    arrPartIds.AddRange(tempIds);
+            }
+            if (arrPartIds.Count > 0)
+            {
+                var arrName = string.IsNullOrWhiteSpace(ppArrangement.Name) ? null : ppArrangement.Name;
+                arrangements.Add(new SongArrangement(Guid.NewGuid().ToString(), arrName, arrPartIds));
             }
         }
 
-        // Fallback: cue_groups in file order
-        return presentation.CueGroups.ToList();
+        var id = Guid.NewGuid().ToString();
+        return new Song(id, title, author, publisher, null, ccli?.ToString(), parts, arrangements);
     }
 
-    private static void ExtractSlideParts(Cue cue, string? label, List<SongPart> parts)
+    private static string? ExtractSlideText(Cue cue)
     {
         foreach (var action in cue.Actions)
         {
@@ -128,9 +121,10 @@ public static partial class ProPresenterParser
 
                 var plain = RtfToPlainText(rtf);
                 if (!string.IsNullOrWhiteSpace(plain))
-                    parts.Add(new SongPart(label, plain));
+                    return plain;
             }
         }
+        return null;
     }
 
     private static readonly Encoding Windows1252 = InitWindows1252();

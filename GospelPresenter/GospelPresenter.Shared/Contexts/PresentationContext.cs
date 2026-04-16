@@ -25,6 +25,8 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<CcliReportEntry> CcliReportEntries { get; set; }
     public DbSet<RemoteDisplay> RemoteDisplays { get; set; }
     public DbSet<DbBible> Bibles { get; set; }
+    public DbSet<DbSongPartLabel> SongPartLabels { get; set; }
+    public DbSet<DbSongArrangement> SongArrangements { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -66,8 +68,22 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
 
         modelBuilder.Entity<DbSongPart>(e =>
         {
-            e.Property(p => p.Label).HasMaxLength(AppConstraints.SongPartLabelMaxLength);
             e.Property(p => p.Content).HasMaxLength(AppConstraints.SongPartContentMaxLength);
+            e.HasOne(p => p.Label).WithMany().HasForeignKey(p => p.LabelId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<DbSongPartLabel>(e =>
+        {
+            e.Property(l => l.Text).HasMaxLength(AppConstraints.SongPartLabelTextMaxLength);
+            e.Property(l => l.Color).HasMaxLength(AppConstraints.SongPartLabelColorMaxLength);
+            e.HasIndex(l => new { l.OrganizationId, l.Text }).IsUnique();
+        });
+
+        modelBuilder.Entity<DbSongArrangement>(e =>
+        {
+            e.Property(a => a.Name).HasMaxLength(AppConstraints.SongArrangementNameMaxLength);
+            e.Property(a => a.PartIdsJson).HasMaxLength(AppConstraints.SongArrangementPartIdsJsonMaxLength);
+            e.HasOne(a => a.Song).WithMany(s => s.Arrangements).HasForeignKey(a => a.SongId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<DbSongVersion>(e =>

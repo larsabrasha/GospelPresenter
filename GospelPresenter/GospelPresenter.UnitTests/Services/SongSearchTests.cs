@@ -12,7 +12,7 @@ public class SongSearchTests
 
     private static Song MakeSong(string name, string? author, params string[] parts) =>
         new(Guid.NewGuid().ToString(), name, author, null, null, null,
-            parts.Select(p => new SongPart(null, p)).ToList(), TestOrgId);
+            parts.Select(p => new SongPart("", null, null, null, p)).ToList(), [], TestOrgId);
 
     private static ISongService CreateService(params Song[] songs)
     {

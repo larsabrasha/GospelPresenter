@@ -1,14 +1,54 @@
+@using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.State
 
 @for (var i = 0; i < Parts.Count; i++)
 {
     var index = i;
     var part = Parts[i];
+    var selectedLabel = !string.IsNullOrEmpty(part.LabelId) ? AvailableLabels.FirstOrDefault(l => l.Id == part.LabelId) : null;
     <div @key="index" id="song-part-@index" class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-4 space-y-3">
         <div class="flex items-center gap-2">
-            <FloatingInput Id="@($"part-label-{index}")" Label="@L["SongParts.LabelPlaceholder"]"
-                           Class="flex-1" MaxLength="AppConstraints.SongPartLabelMaxLength"
-                           Value="@part.Label" OnInput="(e) => HandleLabelInput(index, e.Value?.ToString())"/>
+            <Dropdown Class="flex-1 max-w-[50%]" MenuClass="left-0 w-full max-h-60 overflow-y-auto">
+                <Trigger>
+                    <button type="button"
+                            class="w-full flex items-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600
+                                   bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100
+                                   px-3 py-2.5 text-sm text-left cursor-pointer
+                                   focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none">
+                        @if (selectedLabel is not null)
+                        {
+                            <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold text-white shrink-0" style="background-color: @selectedLabel.Color;">@selectedLabel.Text</span>
+                            <span class="flex-1"></span>
+                        }
+                        else
+                        {
+                            <span class="flex-1 truncate text-neutral-400">@L["SongParts.LabelNone"]</span>
+                        }
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 text-neutral-400 shrink-0">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                    </button>
+                </Trigger>
+                <Menu>
+                    <button type="button"
+                            @onclick="() => SelectLabel(index, null)"
+                            class="w-full flex items-center px-3 py-2 text-sm text-left
+                                   text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-600">
+                        @L["SongParts.LabelNone"]
+                    </button>
+                    @foreach (var label in AvailableLabels)
+                    {
+                        var lbl = label;
+                        var isSelected = lbl.Id == part.LabelId;
+                        <button type="button"
+                                @onclick="() => SelectLabel(index, lbl.Id)"
+                                class="@OptionClass(isSelected) w-full flex items-center px-3 py-1.5 text-left">
+                            <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold text-white" style="background-color: @lbl.Color;">@lbl.Text</span>
+                        </button>
+                    }
+                </Menu>
+            </Dropdown>
+            <div class="flex-1"></div>
             <div class="flex items-center gap-1">
                 <AppButton Variant="ButtonVariant.Icon" Disabled="@(index == 0)"
                            OnClick="() => OnMoveUp.InvokeAsync(index)"
@@ -26,10 +66,10 @@
                 </AppButton>
             </div>
         </div>
-        <FloatingTextarea Id="@($"part-content-{index}")" Label="@L["SongParts.TextPlaceholder"]"
+        <FloatingTextarea Id="@($"part-content-{index}")"
                           Value="@part.Content" MaxLength="AppConstraints.SongPartContentMaxLength"
                           OnInput="(e) => OnContentChanged.InvokeAsync(new PartContentChange(index, e.Value?.ToString() ?? string.Empty))"
-                          Rows="8"/>
+                          Rows="8" Label="" />
         <div class="flex justify-end">
             <AppButton Variant="ButtonVariant.Icon" OnClick="() => RequestDelete(index)"
                        Class="p-1.5 text-red-400 hover:text-red-600">
@@ -58,6 +98,7 @@
 
 @code {
     [Parameter, EditorRequired] public IList<SongPart> Parts { get; set; } = [];
+    [Parameter] public IReadOnlyList<DbSongPartLabel> AvailableLabels { get; set; } = [];
     [Parameter] public EventCallback<int> OnMoveUp { get; set; }
     [Parameter] public EventCallback<int> OnMoveDown { get; set; }
     [Parameter] public EventCallback<PartLabelChange> OnLabelChanged { get; set; }
@@ -68,19 +109,20 @@
     private int? deleteConfirmIndex;
     private MarkupString? deleteConfirmMessage;
     private bool isDeleting;
-    private readonly Dictionary<int, string?> localLabels = new();
 
-    private Task HandleLabelInput(int index, string? value)
+    private Task SelectLabel(int index, string? labelId)
     {
-        localLabels[index] = value;
-        return OnLabelChanged.InvokeAsync(new PartLabelChange(index, value));
+        return OnLabelChanged.InvokeAsync(new PartLabelChange(index, labelId));
     }
+
+    private static string OptionClass(bool isSelected) =>
+        isSelected
+            ? "bg-sky-50 dark:bg-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-900/50"
+            : "hover:bg-neutral-100 dark:hover:bg-neutral-600";
 
     private string GetCurrentLabel(int index)
     {
-        if (localLabels.TryGetValue(index, out var local) && !string.IsNullOrWhiteSpace(local))
-            return local;
-        return Parts[index].Label ?? L["SongParts.LabelPlaceholder"];
+        return Parts[index].Label ?? L["SongParts.LabelNone"];
     }
 
     private void RequestDelete(int index)
@@ -113,6 +155,6 @@
         }
     }
 
-    public record PartLabelChange(int Index, string? Label);
+    public record PartLabelChange(int Index, string? LabelId);
     public record PartContentChange(int Index, string Content);
 }

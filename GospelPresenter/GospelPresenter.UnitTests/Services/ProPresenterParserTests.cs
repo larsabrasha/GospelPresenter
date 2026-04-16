@@ -17,18 +17,18 @@ public class ProPresenterParserTests
     [
         new Song("1", "Ett utvalt folk förkunnar", TestAuthor, null, null, null,
         [
-            new SongPart("Verse 1", "Du har ett utvalt folk som förkunnar din ära"),
-            new SongPart("Chorus", "Vi prisar dig, vi tillber dig")
-        ]),
+            new SongPart("", null, "Verse 1", null, "Du har ett utvalt folk som förkunnar din ära"),
+            new SongPart("", null, "Chorus", null, "Vi prisar dig, vi tillber dig")
+        ], []),
         new Song("2", "Välsignelse över dig", TestAuthor, null, null, null,
         [
-            new SongPart("Verse 1", "Välsignelse över dig som tror"),
-            new SongPart("Verse 2", "Hans nåd är ny varje morgon")
-        ]),
+            new SongPart("", null, "Verse 1", null, "Välsignelse över dig som tror"),
+            new SongPart("", null, "Verse 2", null, "Hans nåd är ny varje morgon")
+        ], []),
         new Song("3", "Stor är din trofasthet", null, TestPublisher, null, TestCcliNumber,
         [
-            new SongPart("Verse 1", "Stor är din trofasthet, o Gud min Fader")
-        ])
+            new SongPart("", null, "Verse 1", null, "Stor är din trofasthet, o Gud min Fader")
+        ], [])
     ];
 
     [Fact]

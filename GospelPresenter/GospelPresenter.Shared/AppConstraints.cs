@@ -11,6 +11,8 @@ public static class AppConstraints
     public const int SongPublisherMaxLength = 200;
     public const int SongCcliMaxLength = 20;
     public const int SongPartLabelMaxLength = 50;
+    public const int SongPartLabelTextMaxLength = 50;
+    public const int SongPartLabelColorMaxLength = 7;
     public const int SongPartContentMaxLength = 5_000;
     public const int OverlayTitleMaxLength = 200;
     public const int OverlayContentMaxLength = 2_000;
@@ -31,8 +33,12 @@ public static class AppConstraints
     public const int MaxItemsPerPresentation = 100;
     public const int MaxPartsPerPresentationItem = 50;
     public const int MaxSongsPerOrg = 5_000;
+    public const int MaxSongPartLabelsPerOrg = 50;
     public const int MaxSongPartsPerSong = 50;
     public const int MaxSongVersionsPerSong = 50;
+    public const int MaxArrangementsPerSong = 10;
+    public const int SongArrangementNameMaxLength = 100;
+    public const int SongArrangementPartIdsJsonMaxLength = 5_000;
     public const int MaxOverlaysPerOrg = 200;
     public const int MaxUsersPerOrg = 100;
     public const int MaxOrganizationsTotal = 100;

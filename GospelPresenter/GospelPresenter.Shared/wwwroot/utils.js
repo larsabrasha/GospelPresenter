@@ -150,6 +150,31 @@ window.initSortableList = function (elementId, dotNetRef) {
     });
 }
 
+window.initArrangementSortable = function (elementId, dotNetRef, arrangementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    if (el._sortable) el._sortable.destroy();
+    el._sortable = new Sortable(el, {
+        animation: 150,
+        handle: '.drag-handle',
+        delay: 150,
+        delayOnTouchOnly: true,
+        touchStartThreshold: 5,
+        ghostClass: 'opacity-0',
+        onEnd: function (evt) {
+            if (evt.oldIndex !== evt.newIndex) {
+                var parent = evt.from;
+                if (evt.oldIndex < evt.newIndex) {
+                    parent.insertBefore(evt.item, parent.children[evt.oldIndex]);
+                } else {
+                    parent.insertBefore(evt.item, parent.children[evt.oldIndex + 1]);
+                }
+                dotNetRef.invokeMethodAsync('OnArrangementReordered', arrangementId, evt.oldIndex, evt.newIndex);
+            }
+        }
+    });
+}
+
 window.destroySortableList = function (elementId) {
     const el = document.getElementById(elementId);
     if (el && el._sortable) {

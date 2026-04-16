@@ -6,6 +6,7 @@ public class PresentationItem
     public string? SourceId { get; set; }
     public PresentationItemType Type { get; set; }
     public string Title { get; set; } = "";
+    public string? ArrangementId { get; set; }
     public int SortOrder { get; set; }
 
     public string PresentationId { get; set; } = "";

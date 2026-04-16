@@ -1,3 +1,4 @@
+@using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using GospelPresenter.Shared.Utils
@@ -5,6 +6,7 @@
 @implements IDisposable
 
 @inject ISongService SongService
+@inject ISongPartLabelService LabelService
 @inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
 
@@ -18,12 +20,18 @@
                           Ccli="@editCcli" CcliChanged="HandleCcliChanged"/>
 
         <SongPartsEditor Parts="song.Parts"
+                         AvailableLabels="availableLabels"
                          OnMoveUp="MovePartUp"
                          OnMoveDown="MovePartDown"
                          OnLabelChanged="HandleLabelChanged"
                          OnContentChanged="HandleContentChanged"
                          OnDelete="DeletePart"
                          OnAdd="AddPart"/>
+
+        <div class="pt-4">
+            <h2 class="text-lg font-bold text-neutral-800 dark:text-neutral-100 pb-3">@L["SongEditor.Arrangements"]</h2>
+            <SongArrangementEditor Song="song" OnArrangementChanged="HandleArrangementAction"/>
+        </div>
 
         <div class="flex items-center justify-between">
             @if (ChildContent is not null)
@@ -65,10 +73,16 @@
     private bool isDeleting;
     private readonly Debouncer saveDebounce = new();
     private readonly Debouncer partDebounce = new();
+    private List<DbSongPartLabel> availableLabels = [];
 
     private string? OrgId => OrgState.ActiveOrganizationId;
 
     private string loadedSongId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLabelsAsync();
+    }
 
     protected override void OnParametersSet()
     {
@@ -77,6 +91,19 @@
             loadedSongId = SongId;
             pendingParts.Clear();
             LoadSong();
+        }
+    }
+
+    private async Task LoadLabelsAsync()
+    {
+        if (OrgId is null) return;
+        try
+        {
+            availableLabels = await LabelService.GetLabelsAsync(OrgId, OrgState.ToCallerContext());
+        }
+        catch
+        {
+            availableLabels = [];
         }
     }
 
@@ -144,10 +171,16 @@
     private void HandleLabelChanged(SongPartsEditor.PartLabelChange change)
     {
         if (song is null || change.Index < 0 || change.Index >= song.Parts.Count) return;
-        var label = string.IsNullOrWhiteSpace(change.Label) ? null : change.Label;
-        song.Parts[change.Index] = song.Parts[change.Index] with { Label = label };
+        var labelId = string.IsNullOrEmpty(change.LabelId) ? null : change.LabelId;
+        var label = labelId is not null ? availableLabels.FirstOrDefault(l => l.Id == labelId) : null;
+        song.Parts[change.Index] = song.Parts[change.Index] with
+        {
+            LabelId = labelId,
+            Label = label?.Text,
+            LabelColor = label?.Color
+        };
         var pending = GetPendingPart(change.Index);
-        pending.Label = label;
+        pending.LabelId = labelId;
         partDebounce.Run(SavePendingParts);
     }
 
@@ -166,7 +199,7 @@
     {
         if (!pendingParts.TryGetValue(index, out var pending))
         {
-            pending = new PendingPartEdit { Label = song!.Parts[index].Label, Content = song.Parts[index].Content };
+            pending = new PendingPartEdit { LabelId = song!.Parts[index].LabelId, Content = song.Parts[index].Content };
             pendingParts[index] = pending;
         }
         return pending;
@@ -177,7 +210,7 @@
         if (song is null || OrgId is null) return;
         var edits = pendingParts.ToDictionary(
             kvp => kvp.Key,
-            kvp => (string.IsNullOrWhiteSpace(kvp.Value.Label) ? null : kvp.Value.Label.Trim(), kvp.Value.Content));
+            kvp => (kvp.Value.LabelId, kvp.Value.Content));
         pendingParts.Clear();
         await SongService.UpdateSongPartsAsync(song.Id, OrgId, edits, OrgState.ToCallerContext());
         song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
@@ -186,7 +219,7 @@
 
     private class PendingPartEdit
     {
-        public string? Label { get; set; }
+        public string? LabelId { get; set; }
         public string Content { get; set; } = "";
     }
 
@@ -225,6 +258,32 @@
         pendingParts.Clear();
         await SongService.MoveSongPartAsync(song.Id, OrgId, index, index + 1, OrgState.ToCallerContext());
         song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+    }
+
+    private async Task HandleArrangementAction(object actionObj)
+    {
+        if (song is null || OrgId is null || actionObj is not SongArrangementEditor.ArrangementAction action) return;
+
+        switch (action.Type)
+        {
+            case SongArrangementEditor.ArrangementActionType.Create:
+                await SongService.CreateSongArrangementAsync(song.Id, OrgId, action.Name, action.PartIds, OrgState.ToCallerContext());
+                song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+                await OnSaved.InvokeAsync();
+                break;
+            case SongArrangementEditor.ArrangementActionType.Update:
+                if (action.ArrangementId is null) return;
+                await SongService.UpdateSongArrangementAsync(song.Id, OrgId, action.ArrangementId, action.Name, action.PartIds, OrgState.ToCallerContext());
+                song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+                await OnSaved.InvokeAsync();
+                break;
+            case SongArrangementEditor.ArrangementActionType.Delete:
+                if (action.ArrangementId is null) return;
+                await SongService.DeleteSongArrangementAsync(song.Id, OrgId, action.ArrangementId, OrgState.ToCallerContext());
+                song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
+                await OnSaved.InvokeAsync();
+                break;
+        }
     }
 
     private void ConfirmDeleteSong()
