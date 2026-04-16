@@ -1,12 +1,10 @@
 namespace GospelPresenter.Shared.Models;
 
-public class DbSongPart
+public class DbSongArrangement
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string? LabelId { get; set; }
-    public DbSongPartLabel? Label { get; set; }
-    public string Content { get; set; } = "";
-    public int SortOrder { get; set; }
+    public string? Name { get; set; }
+    public string PartIdsJson { get; set; } = "[]";
 
     public string SongId { get; set; } = "";
     public DbSong Song { get; set; } = null!;

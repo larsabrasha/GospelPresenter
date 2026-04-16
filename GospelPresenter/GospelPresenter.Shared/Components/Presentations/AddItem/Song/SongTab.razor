@@ -100,8 +100,23 @@ else
                                 <PencilSymbol Class="size-4"/>
                             </AppButton>
                         </div>
+                        @if (selectedSong.Arrangements.Count > 1)
+                        {
+                            <div class="flex flex-wrap gap-1.5 mb-3 px-1">
+                                @foreach (var arr in selectedSong.Arrangements)
+                                {
+                                    var arrId = arr.Id;
+                                    var isActive = GetEffectiveArrangementId(selectedSong) == arrId;
+                                    <button type="button"
+                                            class="@(isActive ? "bg-sky-500 text-white" : "bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-300 dark:hover:bg-neutral-600") rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors"
+                                            @onclick="() => SelectArrangement(arrId)">
+                                        @(arr.Name ?? L["SongEditor.Arrangement"])
+                                    </button>
+                                }
+                            </div>
+                        }
                         <div class="flex flex-col gap-2">
-                            @foreach (var part in selectedSong.Parts)
+                            @foreach (var part in selectedSong.GetArrangedParts(GetEffectiveArrangementId(selectedSong)))
                             {
                                 <SongSlide
                                     ContentHtml="@(Highlight(part.Content).Replace("\n", "<br>"))"
@@ -163,8 +178,23 @@ else
                     @if (mobilePreviewWidth > 0)
                     {
                         var mobileScale = mobilePreviewWidth / AppState.BaseSlideWidth;
+                        @if (mobilePreviewSong.Arrangements.Count > 1)
+                        {
+                            <div class="flex flex-wrap gap-1.5 mb-3">
+                                @foreach (var arr in mobilePreviewSong.Arrangements)
+                                {
+                                    var arrId = arr.Id;
+                                    var isActive = GetEffectiveArrangementId(mobilePreviewSong) == arrId;
+                                    <button type="button"
+                                            class="@(isActive ? "bg-sky-500 text-white" : "bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-300 dark:hover:bg-neutral-600") rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors"
+                                            @onclick="() => SelectArrangement(arrId)">
+                                        @(arr.Name ?? L["SongEditor.Arrangement"])
+                                    </button>
+                                }
+                            </div>
+                        }
                         <div class="flex flex-col gap-2">
-                            @foreach (var part in mobilePreviewSong.Parts)
+                            @foreach (var part in mobilePreviewSong.GetArrangedParts(GetEffectiveArrangementId(mobilePreviewSong)))
                             {
                                 <SongSlide
                                     ContentHtml="@(part.Content.Replace("\n", "<br>"))"
@@ -212,8 +242,8 @@ else
 }
 
 @code {
-    [Parameter] public EventCallback<Song> OnAdd { get; set; }
-    [Parameter] public EventCallback<Song> OnAddKeepOpen { get; set; }
+    [Parameter] public EventCallback<SongAddRequest> OnAdd { get; set; }
+    [Parameter] public EventCallback<SongAddRequest> OnAddKeepOpen { get; set; }
     [Parameter] public AddMoreToggle AddMoreState { get; set; } = new();
     [Parameter] public EventCallback<string> OnEditSong { get; set; }
 
@@ -221,6 +251,7 @@ else
     private string[] searchTerms = [];
     private List<Song> results = [];
     private Song? selectedSong;
+    private string? selectedArrangementId;
     private double previewWidth;
     private double mobilePreviewWidth;
     private Song? mobilePreviewSong;
@@ -265,7 +296,7 @@ else
             isAdding = true;
             try
             {
-                await OnAddKeepOpen.InvokeAsync(selectedSong);
+                await OnAddKeepOpen.InvokeAsync(new SongAddRequest(selectedSong, GetEffectiveArrangementId(selectedSong)));
             }
             finally
             {
@@ -332,9 +363,23 @@ else
             "document.querySelector('[data-song-list]')?.scrollTo(0,0);document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
     }
 
+    private string? GetEffectiveArrangementId(Song song)
+    {
+        if (song.Arrangements.Count == 0) return null;
+        if (selectedArrangementId is not null && song.Arrangements.Any(a => a.Id == selectedArrangementId))
+            return selectedArrangementId;
+        return song.Arrangements[0].Id;
+    }
+
+    private void SelectArrangement(string? arrangementId)
+    {
+        selectedArrangementId = arrangementId;
+    }
+
     private async Task SelectSong(Song song)
     {
         selectedSong = song;
+        selectedArrangementId = song.Arrangements.Count > 0 ? song.Arrangements[0].Id : null;
         // On mobile, open full-screen preview
         var isMobile = await JsRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
         if (isMobile)
@@ -360,7 +405,7 @@ else
         {
             selectedSong = mobilePreviewSong;
             mobilePreviewSong = null;
-            await OnAdd.InvokeAsync(selectedSong);
+            await OnAdd.InvokeAsync(new SongAddRequest(selectedSong, GetEffectiveArrangementId(selectedSong)));
         }
         finally
         {
@@ -374,7 +419,7 @@ else
         isAdding = true;
         try
         {
-            await OnAdd.InvokeAsync(selectedSong);
+            await OnAdd.InvokeAsync(new SongAddRequest(selectedSong, GetEffectiveArrangementId(selectedSong)));
         }
         finally
         {

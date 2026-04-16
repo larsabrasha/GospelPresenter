@@ -3,6 +3,7 @@ using System;
 using GospelPresenter.Shared.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GospelPresenter.Shared.Migrations
 {
     [DbContext(typeof(PresentationContext))]
-    partial class PresentationContextModelSnapshot : ModelSnapshot
+    [Migration("20260416083745_AddSongPartLabels")]
+    partial class AddSongPartLabels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -144,31 +147,6 @@ namespace GospelPresenter.Shared.Migrations
                     b.HasIndex("OrganizationId");
 
                     b.ToTable("Songs");
-                });
-
-            modelBuilder.Entity("GospelPresenter.Shared.Models.DbSongArrangement", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("PartIdsJson")
-                        .IsRequired()
-                        .HasMaxLength(5000)
-                        .HasColumnType("character varying(5000)");
-
-                    b.Property<string>("SongId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SongId");
-
-                    b.ToTable("SongArrangements");
                 });
 
             modelBuilder.Entity("GospelPresenter.Shared.Models.DbSongPart", b =>
@@ -533,9 +511,6 @@ namespace GospelPresenter.Shared.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
-                    b.Property<string>("ArrangementId")
-                        .HasColumnType("text");
-
                     b.Property<string>("PresentationId")
                         .IsRequired()
                         .HasColumnType("text");
@@ -743,17 +718,6 @@ namespace GospelPresenter.Shared.Migrations
                     b.Navigation("Organization");
                 });
 
-            modelBuilder.Entity("GospelPresenter.Shared.Models.DbSongArrangement", b =>
-                {
-                    b.HasOne("GospelPresenter.Shared.Models.DbSong", "Song")
-                        .WithMany("Arrangements")
-                        .HasForeignKey("SongId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Song");
-                });
-
             modelBuilder.Entity("GospelPresenter.Shared.Models.DbSongPart", b =>
                 {
                     b.HasOne("GospelPresenter.Shared.Models.DbSongPartLabel", "Label")
@@ -945,8 +909,6 @@ namespace GospelPresenter.Shared.Migrations
 
             modelBuilder.Entity("GospelPresenter.Shared.Models.DbSong", b =>
                 {
-                    b.Navigation("Arrangements");
-
                     b.Navigation("Parts");
                 });
 

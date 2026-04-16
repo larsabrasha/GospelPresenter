@@ -15,4 +15,5 @@ public class DbSong
     public Organization Organization { get; set; } = null!;
 
     public List<DbSongPart> Parts { get; set; } = [];
+    public List<DbSongArrangement> Arrangements { get; set; } = [];
 }

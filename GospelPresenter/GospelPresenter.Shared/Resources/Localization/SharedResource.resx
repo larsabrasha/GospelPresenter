@@ -119,6 +119,9 @@
   <data name="Nav.Songs" xml:space="preserve">
     <value>Songs</value>
   </data>
+  <data name="Nav.Labels" xml:space="preserve">
+    <value>Labels</value>
+  </data>
   <data name="Nav.Bibles" xml:space="preserve">
     <value>Bibles</value>
   </data>
@@ -353,6 +356,9 @@
   <data name="SongParts.LabelPlaceholder" xml:space="preserve">
     <value>Label</value>
   </data>
+  <data name="SongParts.LabelNone" xml:space="preserve">
+    <value>Choose...</value>
+  </data>
   <data name="SongParts.DeleteConfirm" xml:space="preserve">
     <value>Delete?</value>
   </data>
@@ -361,6 +367,30 @@
   </data>
   <data name="SongParts.AddPart" xml:space="preserve">
     <value>Add part</value>
+  </data>
+  <data name="SongEditor.CreateArrangement" xml:space="preserve">
+    <value>Create arrangement</value>
+  </data>
+  <data name="SongEditor.DeleteArrangement" xml:space="preserve">
+    <value>Delete arrangement</value>
+  </data>
+  <data name="SongEditor.Arrangement" xml:space="preserve">
+    <value>Arrangement</value>
+  </data>
+  <data name="SongEditor.Arrangements" xml:space="preserve">
+    <value>Arrangements</value>
+  </data>
+  <data name="SongEditor.ArrangementStandard" xml:space="preserve">
+    <value>Standard</value>
+  </data>
+  <data name="SongEditor.InsertPart" xml:space="preserve">
+    <value>Insert part</value>
+  </data>
+  <data name="SongEditor.ArrangementName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="SongEditor.ConfirmDeleteArrangement" xml:space="preserve">
+    <value>Are you sure you want to delete this arrangement?</value>
   </data>
   <data name="SongFields.SongName" xml:space="preserve">
     <value>Song name</value>
@@ -1269,6 +1299,33 @@
   </data>
   <data name="Admin.Displays.ConfirmDelete" xml:space="preserve">
     <value>Are you sure you want to delete the display "{0}"?</value>
+  </data>
+  <data name="Admin.Labels.Title" xml:space="preserve">
+    <value>Labels</value>
+  </data>
+  <data name="Admin.Labels.Add" xml:space="preserve">
+    <value>Add label</value>
+  </data>
+  <data name="Admin.Labels.AddTitle" xml:space="preserve">
+    <value>New label</value>
+  </data>
+  <data name="Admin.Labels.EditTitle" xml:space="preserve">
+    <value>Edit label</value>
+  </data>
+  <data name="Admin.Labels.NoLabels" xml:space="preserve">
+    <value>No labels</value>
+  </data>
+  <data name="Admin.Labels.Description" xml:space="preserve">
+    <value>Create labels for song parts. Labels are shown on the presentation slides along with a color.</value>
+  </data>
+  <data name="Admin.Labels.TextPlaceholder" xml:space="preserve">
+    <value>Label text</value>
+  </data>
+  <data name="Admin.Labels.ColorLabel" xml:space="preserve">
+    <value>Color</value>
+  </data>
+  <data name="Admin.Labels.ConfirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete the label "{0}"?</value>
   </data>
   <data name="LivePanel.Outputs" xml:space="preserve">
     <value>Outputs</value>

@@ -1,0 +1,335 @@
+@page "/admin/labels"
+@attribute [Authorize(Policy = ManageSongs)]
+
+@using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+
+@layout AdminLayout
+
+@inject ISongPartLabelService LabelService
+@inject ActiveOrganizationState OrgState
+@inject ToastService ToastService
+
+<PageContainer>
+    <div class="flex items-center justify-between px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.Labels.Title"]</div>
+        @if (labels is not null && labels.Count > 0)
+        {
+            <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+                <PlusSymbol Class="size-4"/>
+                @L["Admin.Labels.Add"]
+            </AppButton>
+        }
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 overflow-hidden">
+        @if (labels is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+        }
+        else if (labels.Count == 0)
+        {
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <rect x="30" y="30" width="140" height="40" rx="20" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <circle cx="55" cy="50" r="10" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                    <line x1="75" y1="50" x2="145" y2="50" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                    <rect x="30" y="80" width="140" height="40" rx="20" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <circle cx="55" cy="100" r="10" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                    <line x1="75" y1="100" x2="130" y2="100" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                </svg>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Admin.Labels.NoLabels"]</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                    @L["Admin.Labels.Description"]
+                </p>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+                    <PlusSymbol Class="size-4"/>
+                    @L["Admin.Labels.Add"]
+                </AppButton>
+            </div>
+        }
+        else
+        {
+            @for (var i = 0; i < labels.Count; i++)
+            {
+                var index = i;
+                var label = labels[i];
+                <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                    <span class="rounded-full px-3 py-1 text-sm font-semibold text-white" style="background-color: @label.Color;">@label.Text</span>
+                    <div class="flex-1"></div>
+                    <div class="flex items-center gap-1">
+                        <AppButton Variant="ButtonVariant.Icon" Disabled="@(index == 0)"
+                                   OnClick="() => MoveUp(index)"
+                                   Class="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/>
+                            </svg>
+                        </AppButton>
+                        <AppButton Variant="ButtonVariant.Icon" Disabled="@(index == labels.Count - 1)"
+                                   OnClick="() => MoveDown(index)"
+                                   Class="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+                            </svg>
+                        </AppButton>
+                    </div>
+                    <AppButton Variant="ButtonVariant.Icon" OnClick="() => ShowEditDialog(label)"
+                               Class="p-1.5 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+                        </svg>
+                    </AppButton>
+                    <AppButton Variant="ButtonVariant.Icon" OnClick="() => ConfirmDelete(label)"
+                               Class="p-1.5 text-red-400 hover:text-red-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                        </svg>
+                    </AppButton>
+                </div>
+            }
+        }
+    </div>
+</PageContainer>
+
+@if (deleteConfirmMessage is not null)
+{
+    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+                         IsDeleting="isDeleting"
+                         OnConfirm="ExecuteDelete"
+                         OnClose="() => labelToDelete = null"/>
+}
+
+@if (showDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@(editingLabel is not null ? L["Admin.Labels.EditTitle"] : L["Admin.Labels.AddTitle"])</div>
+            <FloatingInput @ref="textInput" Id="label-text"
+                           Label="@L["Admin.Labels.TextPlaceholder"]"
+                           MaxLength="AppConstraints.SongPartLabelTextMaxLength"
+                           Value="@dialogText"
+                           OnInput="e => dialogText = e.Value?.ToString() ?? string.Empty"
+                           OnKeyDown="OnDialogKeyDown"/>
+            <div>
+                <label class="text-sm text-neutral-500 dark:text-neutral-400 mb-1 block">@L["Admin.Labels.ColorLabel"]</label>
+                <label class="block cursor-pointer">
+                    <div class="rounded-lg h-10 border border-neutral-300 dark:border-neutral-600"
+                         style="background-color: @dialogColor;"></div>
+                    <input type="color"
+                           class="w-full h-0 invisible"
+                           value="@dialogColor"
+                           @oninput="@(e => dialogColor = e.Value?.ToString() ?? "#6b7280")"
+                           @onchange="@(e => dialogColor = e.Value?.ToString() ?? "#6b7280")">
+                </label>
+            </div>
+            <div class="flex justify-end gap-3">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                @if (editingLabel is not null)
+                {
+                    <AppButton Variant="ButtonVariant.Primary"
+                               Disabled="@(!CanSave || saving)"
+                               Loading="@saving"
+                               OnClick="SaveEdit"
+                               title="Ctrl+Enter">
+                        @L["Common.Save"]
+                    </AppButton>
+                }
+                else
+                {
+                    <AppButton Variant="ButtonVariant.Primary"
+                               Disabled="@(!CanSave || saving)"
+                               Loading="@saving"
+                               OnClick="AddLabel"
+                               title="Ctrl+Enter">
+                        @L["Admin.Labels.Add"]
+                    </AppButton>
+                }
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    private List<DbSongPartLabel>? labels;
+    private bool showDialog;
+    private string dialogText = "";
+    private string dialogColor = "#6b7280";
+    private bool saving;
+    private FloatingInput? textInput;
+    private bool shouldFocusText;
+    private DbSongPartLabel? editingLabel;
+    private DbSongPartLabel? labelToDelete;
+    private bool isDeleting;
+
+    private MarkupString? deleteConfirmMessage => labelToDelete is not null
+        ? new MarkupString(L["Admin.Labels.ConfirmDelete", System.Net.WebUtility.HtmlEncode(labelToDelete.Text)])
+        : null;
+
+    private bool CanSave => !string.IsNullOrWhiteSpace(dialogText);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLabels();
+    }
+
+    private async Task LoadLabels()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        labels = await LabelService.GetLabelsAsync(orgId, caller);
+    }
+
+    private void ShowCreateDialog()
+    {
+        editingLabel = null;
+        dialogText = "";
+        dialogColor = "#6b7280";
+        showDialog = true;
+        shouldFocusText = true;
+    }
+
+    private void ShowEditDialog(DbSongPartLabel label)
+    {
+        editingLabel = label;
+        dialogText = label.Text;
+        dialogColor = label.Color;
+        showDialog = true;
+        shouldFocusText = true;
+    }
+
+    private void CloseDialog() => showDialog = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldFocusText)
+        {
+            shouldFocusText = false;
+            if (textInput is not null)
+                try { await textInput.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnDialogKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey && CanSave)
+        {
+            if (editingLabel is not null)
+                await SaveEdit();
+            else
+                await AddLabel();
+        }
+        else if (e.Key == "Enter" && e.ShiftKey && CanSave && editingLabel is null)
+        {
+            await AddLabelAndKeepOpen();
+        }
+        else if (e.Key == "Escape")
+        {
+            CloseDialog();
+        }
+    }
+
+    private async Task AddLabel()
+    {
+        if (!CanSave || saving) return;
+
+        saving = true;
+        StateHasChanged();
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        await LabelService.CreateLabelAsync(orgId, dialogText.Trim(), dialogColor, caller);
+        saving = false;
+        showDialog = false;
+
+        await LoadLabels();
+    }
+
+    private async Task AddLabelAndKeepOpen()
+    {
+        if (!CanSave || saving) return;
+
+        saving = true;
+        StateHasChanged();
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        await LabelService.CreateLabelAsync(orgId, dialogText.Trim(), dialogColor, caller);
+        saving = false;
+        dialogText = "";
+        dialogColor = "#6b7280";
+        shouldFocusText = true;
+
+        await LoadLabels();
+    }
+
+    private async Task SaveEdit()
+    {
+        if (!CanSave || saving || editingLabel is null) return;
+
+        saving = true;
+        StateHasChanged();
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        await LabelService.UpdateLabelAsync(orgId, editingLabel.Id, dialogText.Trim(), dialogColor, caller);
+        saving = false;
+        showDialog = false;
+
+        await LoadLabels();
+    }
+
+    private void ConfirmDelete(DbSongPartLabel label) => labelToDelete = label;
+
+    private async Task ExecuteDelete()
+    {
+        if (labelToDelete is null || isDeleting) return;
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        isDeleting = true;
+        StateHasChanged();
+
+        await LabelService.DeleteLabelAsync(orgId, labelToDelete.Id, caller);
+        isDeleting = false;
+        labelToDelete = null;
+
+        await LoadLabels();
+    }
+
+    private async Task MoveUp(int index)
+    {
+        if (labels is null || index <= 0) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        await LabelService.MoveLabelAsync(orgId, labels[index].Id, index, index - 1, caller);
+        await LoadLabels();
+    }
+
+    private async Task MoveDown(int index)
+    {
+        if (labels is null || index >= labels.Count - 1) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        await LabelService.MoveLabelAsync(orgId, labels[index].Id, index, index + 1, caller);
+        await LoadLabels();
+    }
+}

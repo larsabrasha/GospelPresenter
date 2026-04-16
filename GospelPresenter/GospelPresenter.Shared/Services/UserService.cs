@@ -71,7 +71,9 @@ public interface IUserService
     Task DeleteMcpApiKeyAsync(string id, CallerContext caller);
 }
 
-public class UserService(IDbContextFactory<PresentationContext> dbContextFactory) : IUserService
+public class UserService(
+    IDbContextFactory<PresentationContext> dbContextFactory,
+    ISongPartLabelService songPartLabelService) : IUserService
 {
     public async Task<User?> GetByLoginAsync(string provider, string providerSubjectId)
     {
@@ -377,6 +379,7 @@ public class UserService(IDbContextFactory<PresentationContext> dbContextFactory
         var org = new Organization { Name = name };
         context.Organizations.Add(org);
         await context.SaveChangesAsync();
+        await songPartLabelService.CreateDefaultLabelsAsync(org.Id);
         return org;
     }
 

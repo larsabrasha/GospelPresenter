@@ -183,14 +183,15 @@
                 <div class="@mainClass" id="main">
                     @if (SelectedSong is not null)
                     {
-                        @for (var i = 0; i < SelectedSong.Parts.Count; i++)
+                        var effectiveParts = EffectiveSongParts;
+                        @for (var i = 0; i < effectiveParts.Count; i++)
                         {
                             var partIndex = i;
                             <button @onclick="() => SetSelectedLiveSlide(AppState.SelectedProjectItem!.Id, partIndex)">
                                 <SongSlide
-                                    Content="@SelectedSong.Parts[i].Content"
-                                    Label="@SelectedSong.Parts[i].Label"
-                                    LabelColor="@SelectedSong.Parts[i].LabelColor"
+                                    Content="@effectiveParts[i].Content"
+                                    Label="@effectiveParts[i].Label"
+                                    LabelColor="@effectiveParts[i].LabelColor"
                                     Credits="@SongCredits"
                                     FontSize="@songFontSize"
                                     IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
@@ -565,6 +566,7 @@
     private bool isRemovingMultiple;
     private bool showDeleteConfirmation;
     private Song? SelectedSong { get; set; }
+    private IList<SongPart> EffectiveSongParts => SelectedSong is not null ? GetEffectiveSongParts(SelectedSong) : [];
     private string? SongCredits { get; set; }
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
@@ -1141,7 +1143,8 @@
                             songItem.SourceId ?? songItem.Id,
                             songItem.Title,
                             null, null, null, null,
-                            songItem.Parts.Select(p => new SongPart(null, p.Content)).ToList()
+                            songItem.Parts.Select(p => new SongPart("", null, null, null, p.Content)).ToList(),
+                            []
                         );
                     }
                 }
@@ -1224,12 +1227,15 @@
                     if (songItem is not null && songItem.Parts.Count > 0)
                     {
                         song = new Song(songItem.SourceId ?? songItem.Id, songItem.Title, null, null, null, null,
-                            songItem.Parts.Select(p => new SongPart(null, p.Content)).ToList());
+                            songItem.Parts.Select(p => new SongPart("", null, null, null, p.Content)).ToList(), []);
                     }
                 }
-                if (song is not null && partIndex < song.Parts.Count)
+                var songPresentationItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
+                var liveArrangementId = songPresentationItem?.ArrangementId ?? song?.Arrangements.FirstOrDefault()?.Id;
+                var songEffectiveParts = song is not null ? song.GetArrangedParts(liveArrangementId) : [];
+                if (song is not null && partIndex < songEffectiveParts.Count)
                 {
-                    songPart = song.Parts[partIndex];
+                    songPart = songEffectiveParts[partIndex];
                     text = songPart.Content.Replace("\n", "<br>");
                     credits = FormatSongCredits(song);
                     liveSongId = song.Id;
@@ -1507,6 +1513,15 @@
         showAddModal = false;
     }
 
+    private IList<SongPart> GetEffectiveSongParts(Song song)
+    {
+        var presentationItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem?.Id);
+        var arrangementId = presentationItem?.ArrangementId;
+        if (arrangementId is null && song.Arrangements.Count > 0)
+            arrangementId = song.Arrangements[0].Id;
+        return song.GetArrangedParts(arrangementId);
+    }
+
     private static string? FormatSongCredits(Song? song)
     {
         if (song is null) return null;
@@ -1577,18 +1592,18 @@
         ToastService.Show(L["Toast.BibleTextAdded", bibleText.Title]);
     }
 
-    private async Task HandleSongAdded(Song song)
+    private async Task HandleSongAdded(SongAddRequest request)
     {
         showAddModal = false;
-        await AddSong(song);
+        await AddSong(request.Song, request.ArrangementId);
     }
 
-    private async Task HandleSongAddedKeepOpen(Song song)
+    private async Task HandleSongAddedKeepOpen(SongAddRequest request)
     {
-        await AddSong(song);
+        await AddSong(request.Song, request.ArrangementId);
     }
 
-    private async Task AddSong(Song song)
+    private async Task AddSong(Song song, string? arrangementId = null)
     {
         var itemId = Guid.NewGuid().ToString();
         var projectItem = new ProjectItem
@@ -1604,7 +1619,8 @@
             Id = itemId,
             SourceId = song.Id,
             Type = PresentationItemType.Song,
-            Title = song.Name
+            Title = song.Name,
+            ArrangementId = arrangementId
         };
 
         InsertAfterSelected(loadedPresentation?.Items, presentationItem);

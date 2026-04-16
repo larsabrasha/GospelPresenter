@@ -58,8 +58,8 @@
 @code {
     [Parameter] public string InitialTab { get; set; } = "song";
     [Parameter] public EventCallback OnClose { get; set; }
-    [Parameter] public EventCallback<GospelPresenter.Shared.State.Song> OnSongAdded { get; set; }
-    [Parameter] public EventCallback<GospelPresenter.Shared.State.Song> OnSongAddedKeepOpen { get; set; }
+    [Parameter] public EventCallback<GospelPresenter.Shared.State.SongAddRequest> OnSongAdded { get; set; }
+    [Parameter] public EventCallback<GospelPresenter.Shared.State.SongAddRequest> OnSongAddedKeepOpen { get; set; }
     [Parameter] public EventCallback<List<Verse>> OnBibleVersesAdded { get; set; }
     [Parameter] public EventCallback<List<Verse>> OnBibleVersesAddedKeepOpen { get; set; }
     [Parameter] public EventCallback<List<OrganizationImage>> OnImagesAdded { get; set; }
@@ -73,7 +73,7 @@
     private SongTab? songTab;
 
     private string TabClass(string tab) =>
-        "flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all " +
+        "flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all whitespace-nowrap " +
         (activeTab == tab
             ? "bg-white dark:bg-neutral-600 shadow font-medium"
             : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400");
@@ -83,17 +83,17 @@
         activeTab = InitialTab;
     }
 
-    private async Task HandleSongAdd(GospelPresenter.Shared.State.Song song)
+    private async Task HandleSongAdd(GospelPresenter.Shared.State.SongAddRequest request)
     {
         if (addMoreState.Value)
-            await OnSongAddedKeepOpen.InvokeAsync(song);
+            await OnSongAddedKeepOpen.InvokeAsync(request);
         else
-            await OnSongAdded.InvokeAsync(song);
+            await OnSongAdded.InvokeAsync(request);
     }
 
-    private async Task HandleSongAddKeepOpen(GospelPresenter.Shared.State.Song song)
+    private async Task HandleSongAddKeepOpen(GospelPresenter.Shared.State.SongAddRequest request)
     {
-        await OnSongAddedKeepOpen.InvokeAsync(song);
+        await OnSongAddedKeepOpen.InvokeAsync(request);
     }
 
     private async Task HandleBibleAdd(List<Verse> verses)

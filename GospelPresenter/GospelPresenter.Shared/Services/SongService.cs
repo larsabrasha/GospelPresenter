@@ -22,15 +22,18 @@ public interface ISongService
     Task EmptyTrashAsync(string organizationId, CallerContext caller);
     Task RestoreAllFromTrashAsync(string organizationId, CallerContext caller);
     Task UpdateSongAsync(string id, string organizationId, string name, string? author, string? publisher, int? year, string? ccli, CallerContext caller);
-    Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? label, string content, CallerContext caller);
-    Task UpdateSongPartsAsync(string songId, string organizationId, IReadOnlyDictionary<int, (string? Label, string Content)> edits, CallerContext caller);
-    Task AddSongPartAsync(string songId, string organizationId, string? label, string content, CallerContext caller);
+    Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? labelId, string content, CallerContext caller);
+    Task UpdateSongPartsAsync(string songId, string organizationId, IReadOnlyDictionary<int, (string? LabelId, string Content)> edits, CallerContext caller);
+    Task AddSongPartAsync(string songId, string organizationId, string? labelId, string content, CallerContext caller);
     Task DeleteSongPartAsync(string songId, string organizationId, int partIndex, CallerContext caller);
     Task MoveSongPartAsync(string songId, string organizationId, int fromIndex, int toIndex, CallerContext caller);
     Task<List<SongVersionSummary>> GetVersionsAsync(string songId, string organizationId, CallerContext caller);
     Task<SongVersionDetail?> GetVersionAsync(string versionId, string organizationId, CallerContext caller);
     Task RestoreVersionAsync(string songId, string organizationId, string versionId, CallerContext caller);
     Task<Song> CreateSongAsync(string name, string? author, string? publisher, int? year, string? ccli, List<SongPart> parts, string organizationId, CallerContext caller);
+    Task CreateSongArrangementAsync(string songId, string organizationId, string? name, IList<string> partIds, CallerContext caller);
+    Task UpdateSongArrangementAsync(string songId, string organizationId, string arrangementId, string? name, IList<string> partIds, CallerContext caller);
+    Task DeleteSongArrangementAsync(string songId, string organizationId, string arrangementId, CallerContext caller);
 }
 
 public class SongService(IDbContextFactory<PresentationContext> dbContextFactory) : ISongService
@@ -73,6 +76,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var dbSongs = await db.Songs
             .Where(s => s.DeletedAt == null)
             .Include(s => s.Parts.OrderBy(p => p.SortOrder))
+                .ThenInclude(p => p.Label)
+            .Include(s => s.Arrangements)
             .OrderBy(s => s.Name)
             .AsNoTracking()
             .ToListAsync();
@@ -128,6 +133,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var songCount = existingSongs.Count;
         int imported = 0, replaced = 0, skipped = 0;
 
+        // Parse all files first to collect label texts
+        var parsedSongs = new List<Song>();
         foreach (var (fileName, data) in files)
         {
             var fallbackTitle = Path.GetFileNameWithoutExtension(fileName);
@@ -142,11 +149,19 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
                 Ccli = ValidationHelper.Truncate(parsed.Ccli, AppConstraints.SongCcliMaxLength),
                 Parts = parsed.Parts.Select(p => p with
                 {
-                    Label = ValidationHelper.Truncate(p.Label, AppConstraints.SongPartLabelMaxLength),
+                    Label = ValidationHelper.Truncate(p.Label, AppConstraints.SongPartLabelTextMaxLength),
                     Content = ValidationHelper.Truncate(p.Content, AppConstraints.SongPartContentMaxLength) ?? ""
                 }).Take(AppConstraints.MaxSongPartsPerSong).ToList()
             };
+            parsedSongs.Add(parsed);
+        }
 
+        // Resolve labels: look up existing or auto-create missing ones
+        var labelMap = await ResolveLabelsByTextAsync(db, organizationId,
+            parsedSongs.SelectMany(s => s.Parts).Select(p => p.Label).Where(l => l is not null).Cast<string>());
+
+        foreach (var parsed in parsedSongs)
+        {
             if (existingByName.TryGetValue(parsed.Name, out var existing))
             {
                 if (!replaceExisting)
@@ -160,14 +175,36 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
                 existing.Year = parsed.Year;
                 existing.Ccli = parsed.Ccli;
                 existing.Parts.Clear();
+                var existingTempToReal = new Dictionary<string, string>();
                 for (var i = 0; i < parsed.Parts.Count; i++)
                 {
-                    existing.Parts.Add(new Models.DbSongPart
+                    var dbPart = new Models.DbSongPart
                     {
-                        Label = parsed.Parts[i].Label,
+                        LabelId = parsed.Parts[i].Label is not null ? labelMap.GetValueOrDefault(parsed.Parts[i].Label!) : null,
                         Content = parsed.Parts[i].Content,
                         SortOrder = i
-                    });
+                    };
+                    existing.Parts.Add(dbPart);
+                    existingTempToReal[parsed.Parts[i].Id] = dbPart.Id;
+                }
+
+                // Replace arrangements
+                db.SongArrangements.RemoveRange(db.SongArrangements.Where(a => a.SongId == existing.Id));
+                foreach (var arr in parsed.Arrangements)
+                {
+                    var realPartIds = arr.PartIds
+                        .Where(id => existingTempToReal.ContainsKey(id))
+                        .Select(id => existingTempToReal[id])
+                        .ToList();
+                    if (realPartIds.Count > 0)
+                    {
+                        db.SongArrangements.Add(new Models.DbSongArrangement
+                        {
+                            Name = arr.Name,
+                            PartIdsJson = JsonSerializer.Serialize(realPartIds),
+                            SongId = existing.Id
+                        });
+                    }
                 }
 
                 replaced++;
@@ -190,14 +227,35 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
                     OrganizationId = organizationId
                 };
 
+                var tempToReal = new Dictionary<string, string>();
                 for (var i = 0; i < parsed.Parts.Count; i++)
                 {
-                    dbSong.Parts.Add(new Models.DbSongPart
+                    var dbPart = new Models.DbSongPart
                     {
-                        Label = parsed.Parts[i].Label,
+                        LabelId = parsed.Parts[i].Label is not null ? labelMap.GetValueOrDefault(parsed.Parts[i].Label!) : null,
                         Content = parsed.Parts[i].Content,
                         SortOrder = i
-                    });
+                    };
+                    dbSong.Parts.Add(dbPart);
+                    tempToReal[parsed.Parts[i].Id] = dbPart.Id;
+                }
+
+                // Create arrangements with mapped real part IDs
+                foreach (var arr in parsed.Arrangements)
+                {
+                    var realPartIds = arr.PartIds
+                        .Where(id => tempToReal.ContainsKey(id))
+                        .Select(id => tempToReal[id])
+                        .ToList();
+                    if (realPartIds.Count > 0)
+                    {
+                        dbSong.Arrangements.Add(new Models.DbSongArrangement
+                        {
+                            Name = arr.Name,
+                            PartIdsJson = JsonSerializer.Serialize(realPartIds),
+                            SongId = dbSong.Id
+                        });
+                    }
                 }
 
                 db.Songs.Add(dbSong);
@@ -249,7 +307,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId && s.DeletedAt != null);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId && s.DeletedAt != null);
         if (song is not null)
         {
             song.DeletedAt = null;
@@ -293,6 +351,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var trashed = await db.Songs
             .Where(s => s.DeletedAt != null && s.OrganizationId == organizationId)
             .Include(s => s.Parts.OrderBy(p => p.SortOrder))
+                .ThenInclude(p => p.Label)
             .ToListAsync();
 
         foreach (var song in trashed)
@@ -318,7 +377,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         caller.RequireOrganizationAccess(organizationId);
         ValidateSongFields(name, author, publisher, year, ccli);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label).FirstOrDefaultAsync(s => s.Id == id && s.OrganizationId == organizationId);
         if (song is null) return;
 
         await using var transaction = await db.Database.BeginTransactionAsync();
@@ -340,14 +399,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         }
     }
 
-    public async Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? label, string content, CallerContext caller)
+    public async Task UpdateSongPartAsync(string songId, string organizationId, int partIndex, string? labelId, string content, CallerContext caller)
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
-        ValidationHelper.RequireMaxLength(label, AppConstraints.SongPartLabelMaxLength, "Label");
         ValidationHelper.RequireMaxLength(content, AppConstraints.SongPartContentMaxLength, "Content");
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         var parts = song.Parts;
@@ -356,26 +414,25 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
 
-        parts[partIndex].Label = label;
+        parts[partIndex].LabelId = string.IsNullOrEmpty(labelId) ? null : labelId;
         parts[partIndex].Content = content;
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
     }
 
-    public async Task UpdateSongPartsAsync(string songId, string organizationId, IReadOnlyDictionary<int, (string? Label, string Content)> edits, CallerContext caller)
+    public async Task UpdateSongPartsAsync(string songId, string organizationId, IReadOnlyDictionary<int, (string? LabelId, string Content)> edits, CallerContext caller)
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         if (edits.Count == 0) return;
         foreach (var (_, edit) in edits)
         {
-            ValidationHelper.RequireMaxLength(edit.Label, AppConstraints.SongPartLabelMaxLength, "Label");
             ValidationHelper.RequireMaxLength(edit.Content, AppConstraints.SongPartContentMaxLength, "Content");
         }
 
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         var parts = song.Parts;
@@ -385,7 +442,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         foreach (var (index, edit) in edits)
         {
             if (index < 0 || index >= parts.Count) continue;
-            parts[index].Label = edit.Label;
+            parts[index].LabelId = string.IsNullOrEmpty(edit.LabelId) ? null : edit.LabelId;
             parts[index].Content = edit.Content;
         }
 
@@ -394,14 +451,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await ReloadSong(songId);
     }
 
-    public async Task AddSongPartAsync(string songId, string organizationId, string? label, string content, CallerContext caller)
+    public async Task AddSongPartAsync(string songId, string organizationId, string? labelId, string content, CallerContext caller)
     {
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
-        ValidationHelper.RequireMaxLength(label, AppConstraints.SongPartLabelMaxLength, "Label");
         ValidationHelper.RequireMaxLength(content, AppConstraints.SongPartContentMaxLength, "Content");
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
         if (song.Parts.Count >= AppConstraints.MaxSongPartsPerSong)
             throw new InvalidOperationException($"The maximum number of song parts ({AppConstraints.MaxSongPartsPerSong}) has been reached.");
@@ -413,7 +469,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         db.SongParts.Add(new Models.DbSongPart
         {
             SongId = songId,
-            Label = label,
+            LabelId = string.IsNullOrEmpty(labelId) ? null : labelId,
             Content = content,
             SortOrder = maxOrder + 1
         });
@@ -427,7 +483,10 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        var song = await db.Songs
+            .Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label)
+            .Include(s => s.Arrangements)
+            .FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         var parts = song.Parts;
@@ -436,10 +495,19 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await using var transaction = await db.Database.BeginTransactionAsync();
         await SaveVersionSnapshotAsync(db, song);
 
+        var deletedPartId = parts[partIndex].Id;
         db.SongParts.Remove(parts[partIndex]);
         parts.RemoveAt(partIndex);
         for (var i = 0; i < parts.Count; i++)
             parts[i].SortOrder = i;
+
+        // Remove deleted part from any arrangements
+        foreach (var arrangement in song.Arrangements)
+        {
+            var partIds = JsonSerializer.Deserialize<List<string>>(arrangement.PartIdsJson) ?? [];
+            if (partIds.Remove(deletedPartId))
+                arrangement.PartIdsJson = JsonSerializer.Serialize(partIds);
+        }
 
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
@@ -451,7 +519,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         caller.RequirePermission(Permission.ManageSongs);
         caller.RequireOrganizationAccess(organizationId);
         await using var db = await dbContextFactory.CreateDbContextAsync();
-        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        var song = await db.Songs.Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         var parts = song.Parts;
@@ -510,7 +578,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         var version = await db.SongVersions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == versionId && x.SongId == songId);
         if (version is null) return;
 
-        var song = await db.Songs.Include(s => s.Parts).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        var song = await db.Songs.Include(s => s.Parts).ThenInclude(p => p.Label).FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
 
         await using var transaction = await db.Database.BeginTransactionAsync();
@@ -520,6 +588,10 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
         var parts = JsonSerializer.Deserialize<List<SongPart>>(version.PartsJson) ?? [];
 
+        // Resolve label texts from the version to label IDs, auto-creating missing labels
+        var labelMap = await ResolveLabelsByTextAsync(db, organizationId,
+            parts.Select(p => p.Label).Where(l => l is not null).Cast<string>());
+
         song.Name = version.Name;
         song.Author = version.Author;
         song.Parts.Clear();
@@ -527,7 +599,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         {
             song.Parts.Add(new Models.DbSongPart
             {
-                Label = parts[i].Label,
+                LabelId = parts[i].Label is not null ? labelMap.GetValueOrDefault(parts[i].Label!) : null,
                 Content = parts[i].Content,
                 SortOrder = i
             });
@@ -557,6 +629,10 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             db.Songs.Where(s => s.OrganizationId == organizationId && s.DeletedAt == null),
             AppConstraints.MaxSongsPerOrg, "songs");
 
+        // Resolve label texts to label IDs, auto-creating missing labels
+        var labelMap = await ResolveLabelsByTextAsync(db, organizationId,
+            parts.Select(p => p.Label).Where(l => l is not null).Cast<string>());
+
         var dbSong = new Models.DbSong
         {
             Name = name,
@@ -571,7 +647,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         {
             dbSong.Parts.Add(new Models.DbSongPart
             {
-                Label = parts[i].Label,
+                LabelId = parts[i].Label is not null ? labelMap.GetValueOrDefault(parts[i].Label!) : null,
                 Content = parts[i].Content,
                 SortOrder = i
             });
@@ -583,10 +659,96 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        var song = ToStateSong(dbSong);
+        await ReloadSong(dbSong.Id);
+        var song = GetSongByIdInternal(dbSong.Id, organizationId) ?? ToStateSong(dbSong);
         UpdateOrgCache(organizationId, c => c.SongsById[song.Id] = song);
 
         return song;
+    }
+
+    public async Task CreateSongArrangementAsync(string songId, string organizationId, string? name, IList<string> partIds, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ManageSongs);
+        caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, AppConstraints.SongArrangementNameMaxLength, "Name");
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var song = await db.Songs
+            .Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label)
+            .Include(s => s.Arrangements)
+            .FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        if (song is null) return;
+        if (song.Arrangements.Count >= AppConstraints.MaxArrangementsPerSong)
+            throw new InvalidOperationException($"The maximum number of arrangements ({AppConstraints.MaxArrangementsPerSong}) has been reached.");
+
+        var validPartIds = song.Parts.Select(p => p.Id).ToHashSet();
+        var filtered = partIds.Where(id => validPartIds.Contains(id)).ToList();
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await SaveVersionSnapshotAsync(db, song);
+
+        db.SongArrangements.Add(new Models.DbSongArrangement
+        {
+            Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim(),
+            PartIdsJson = JsonSerializer.Serialize(filtered),
+            SongId = songId
+        });
+
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        await ReloadSong(songId);
+    }
+
+    public async Task UpdateSongArrangementAsync(string songId, string organizationId, string arrangementId, string? name, IList<string> partIds, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ManageSongs);
+        caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, AppConstraints.SongArrangementNameMaxLength, "Name");
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var song = await db.Songs
+            .Include(s => s.Parts.OrderBy(p => p.SortOrder))
+            .Include(s => s.Arrangements)
+            .FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        if (song is null) return;
+
+        var arrangement = song.Arrangements.FirstOrDefault(a => a.Id == arrangementId);
+        if (arrangement is null) return;
+
+        var validPartIds = song.Parts.Select(p => p.Id).ToHashSet();
+        var filtered = partIds.Where(id => validPartIds.Contains(id)).ToList();
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await SaveVersionSnapshotAsync(db, song);
+
+        arrangement.Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        arrangement.PartIdsJson = JsonSerializer.Serialize(filtered);
+
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        await ReloadSong(songId);
+    }
+
+    public async Task DeleteSongArrangementAsync(string songId, string organizationId, string arrangementId, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ManageSongs);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var db = await dbContextFactory.CreateDbContextAsync();
+        var song = await db.Songs
+            .Include(s => s.Parts.OrderBy(p => p.SortOrder)).ThenInclude(p => p.Label)
+            .Include(s => s.Arrangements)
+            .FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
+        if (song is null) return;
+
+        var arrangement = song.Arrangements.FirstOrDefault(a => a.Id == arrangementId);
+        if (arrangement is null) return;
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        await SaveVersionSnapshotAsync(db, song);
+
+        db.SongArrangements.Remove(arrangement);
+
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        await ReloadSong(songId);
     }
 
     private static readonly TimeSpan SessionWindow = TimeSpan.FromMinutes(30);
@@ -594,7 +756,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     private async Task SaveVersionSnapshotAsync(PresentationContext db, Models.DbSong song, bool forceNew = false)
     {
         var partsJson = JsonSerializer.Serialize(
-            song.Parts.Select(p => new SongPart(p.Label, p.Content)).ToList());
+            song.Parts.Select(p => new SongPart(p.Id, p.LabelId, p.Label?.Text, p.Label?.Color, p.Content)).ToList());
 
         if (!forceNew)
         {
@@ -774,6 +936,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         await using var db = await dbContextFactory.CreateDbContextAsync();
         var dbSong = await db.Songs
             .Include(s => s.Parts.OrderBy(p => p.SortOrder))
+                .ThenInclude(p => p.Label)
+            .Include(s => s.Arrangements)
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == songId);
 
@@ -784,13 +948,78 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         }
     }
 
+    private Song? GetSongByIdInternal(string id, string organizationId)
+    {
+        var snapshot = cacheByOrg;
+        return snapshot.TryGetValue(organizationId, out var cache)
+            ? cache.SongsById.GetValueOrDefault(id)
+            : null;
+    }
+
     private static Song ToStateSong(Models.DbSong dbSong)
     {
         var parts = dbSong.Parts
-            .Select(p => new SongPart(p.Label, p.Content))
+            .Select(p => new SongPart(p.Id, p.LabelId, p.Label?.Text, p.Label?.Color, p.Content))
             .ToList();
 
-        return new Song(dbSong.Id, dbSong.Name, dbSong.Author, dbSong.Publisher, dbSong.Year, dbSong.Ccli, parts, dbSong.OrganizationId);
+        var arrangements = dbSong.Arrangements
+            .Select(a => new SongArrangement(a.Id, a.Name, JsonSerializer.Deserialize<List<string>>(a.PartIdsJson) ?? []))
+            .ToList();
+
+        return new Song(dbSong.Id, dbSong.Name, dbSong.Author, dbSong.Publisher, dbSong.Year, dbSong.Ccli, parts, arrangements, dbSong.OrganizationId);
+    }
+
+    /// <summary>
+    /// Given a set of label texts, returns a mapping from text to label ID.
+    /// Auto-creates missing labels for the organization.
+    /// </summary>
+    private async Task<Dictionary<string, string>> ResolveLabelsByTextAsync(PresentationContext db, string organizationId, IEnumerable<string> labelTexts)
+    {
+        var uniqueTexts = labelTexts.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (uniqueTexts.Count == 0) return new Dictionary<string, string>();
+
+        var existingLabels = await db.SongPartLabels
+            .Where(l => l.OrganizationId == organizationId)
+            .ToListAsync();
+
+        var labelMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var label in existingLabels)
+            labelMap[label.Text] = label.Id;
+
+        var maxOrder = existingLabels.Count > 0 ? existingLabels.Max(l => l.SortOrder) : -1;
+
+        foreach (var text in uniqueTexts)
+        {
+            if (labelMap.ContainsKey(text)) continue;
+
+            var color = DefaultLabelColor(text);
+            var newLabel = new DbSongPartLabel
+            {
+                Text = text,
+                Color = color,
+                SortOrder = ++maxOrder,
+                OrganizationId = organizationId
+            };
+            db.SongPartLabels.Add(newLabel);
+            labelMap[text] = newLabel.Id;
+        }
+
+        return labelMap;
+    }
+
+    internal static string DefaultLabelColor(string labelText)
+    {
+        var upper = labelText.ToUpperInvariant();
+        return upper switch
+        {
+            var l when l.Contains("PRE-CHORUS") || l.Contains("PRE CHORUS") => "#db2777",
+            var l when l.Contains("CHORUS") || l.Contains("REFRÄNG") || l.Contains("REFRANG") => "#e85d04",
+            var l when l.Contains("VERSE") || l.Contains("VERS") => "#0284c7",
+            var l when l.Contains("BRIDGE") || l.Contains("BRYGGA") => "#7c3aed",
+            var l when l.Contains("TAG") || l.Contains("OUTRO") || l.Contains("ENDING") => "#059669",
+            var l when l.Contains("INTRO") => "#ca8a04",
+            _ => "#6b7280"
+        };
     }
 
     private record SongSearchEntry(

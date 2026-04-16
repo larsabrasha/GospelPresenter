@@ -37,8 +37,8 @@ public static class MockDataSeeder
             OrganizationId = org.Id,
             Parts =
             [
-                new DbSongPart { Label = "Vers 1", Content = "Amazing grace, how sweet the sound\nThat saved a wretch like me", SortOrder = 0 },
-                new DbSongPart { Label = "Vers 2", Content = "Through many dangers, toils and snares\nI have already come", SortOrder = 1 }
+                new DbSongPart { Content = "Amazing grace, how sweet the sound\nThat saved a wretch like me", SortOrder = 0 },
+                new DbSongPart { Content = "Through many dangers, toils and snares\nI have already come", SortOrder = 1 }
             ]
         };
         var song2 = new DbSong
@@ -47,9 +47,9 @@ public static class MockDataSeeder
             OrganizationId = org.Id,
             Parts =
             [
-                new DbSongPart { Label = "Vers 1", Content = "Härlig är jorden\nHärlig är Guds himmel\nSkön är själarnas pilgrimsgång", SortOrder = 0 },
-                new DbSongPart { Label = "Vers 2", Content = "Tidevarv komma\nTidevarv försvinna\nSläkten följa släktens gång", SortOrder = 1 },
-                new DbSongPart { Label = "Vers 3", Content = "Änglar den sjöngo\nFörst för markens herdar\nSkön är själarnas pilgrimsgång", SortOrder = 2 }
+                new DbSongPart { Content = "Härlig är jorden\nHärlig är Guds himmel\nSkön är själarnas pilgrimsgång", SortOrder = 0 },
+                new DbSongPart { Content = "Tidevarv komma\nTidevarv försvinna\nSläkten följa släktens gång", SortOrder = 1 },
+                new DbSongPart { Content = "Änglar den sjöngo\nFörst för markens herdar\nSkön är själarnas pilgrimsgång", SortOrder = 2 }
             ]
         };
         var song3 = new DbSong
@@ -58,8 +58,8 @@ public static class MockDataSeeder
             OrganizationId = org.Id,
             Parts =
             [
-                new DbSongPart { Label = "Vers 1", Content = "Bred dina vida vingar\nO Jesus, över mig\nOch låt mig stilla vila\nI skuggan utav dig", SortOrder = 0 },
-                new DbSongPart { Label = "Vers 2", Content = "Jag är så trött av världen\nOch trött av mig själv\nMen du, o Herre, ger mig\nDin frid vid livets älv", SortOrder = 1 }
+                new DbSongPart { Content = "Bred dina vida vingar\nO Jesus, över mig\nOch låt mig stilla vila\nI skuggan utav dig", SortOrder = 0 },
+                new DbSongPart { Content = "Jag är så trött av världen\nOch trött av mig själv\nMen du, o Herre, ger mig\nDin frid vid livets älv", SortOrder = 1 }
             ]
         };
         db.Songs.AddRange(song1, song2, song3);

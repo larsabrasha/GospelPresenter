@@ -36,7 +36,7 @@ public class UserServiceTests : IDisposable
             .UseSqlite(connection)
             .Options;
         factory = new TestDbContextFactory(options);
-        service = new UserService(factory);
+        service = new UserService(factory, new SongPartLabelService(factory));
 
         using var context = factory.CreateDbContext();
         context.Database.EnsureCreated();

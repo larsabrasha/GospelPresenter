@@ -119,6 +119,9 @@
   <data name="Nav.Songs" xml:space="preserve">
     <value>Sånger</value>
   </data>
+  <data name="Nav.Labels" xml:space="preserve">
+    <value>Etiketter</value>
+  </data>
   <data name="Nav.Bibles" xml:space="preserve">
     <value>Biblar</value>
   </data>
@@ -353,6 +356,9 @@
   <data name="SongParts.LabelPlaceholder" xml:space="preserve">
     <value>Etikett</value>
   </data>
+  <data name="SongParts.LabelNone" xml:space="preserve">
+    <value>Välj...</value>
+  </data>
   <data name="SongParts.DeleteConfirm" xml:space="preserve">
     <value>Ta bort?</value>
   </data>
@@ -361,6 +367,30 @@
   </data>
   <data name="SongParts.AddPart" xml:space="preserve">
     <value>Lägg till del</value>
+  </data>
+  <data name="SongEditor.CreateArrangement" xml:space="preserve">
+    <value>Skapa arrangemang</value>
+  </data>
+  <data name="SongEditor.DeleteArrangement" xml:space="preserve">
+    <value>Ta bort arrangemang</value>
+  </data>
+  <data name="SongEditor.Arrangement" xml:space="preserve">
+    <value>Arrangemang</value>
+  </data>
+  <data name="SongEditor.Arrangements" xml:space="preserve">
+    <value>Arrangemang</value>
+  </data>
+  <data name="SongEditor.ArrangementStandard" xml:space="preserve">
+    <value>Standard</value>
+  </data>
+  <data name="SongEditor.InsertPart" xml:space="preserve">
+    <value>Lägg till del</value>
+  </data>
+  <data name="SongEditor.ArrangementName" xml:space="preserve">
+    <value>Namn</value>
+  </data>
+  <data name="SongEditor.ConfirmDeleteArrangement" xml:space="preserve">
+    <value>Vill du ta bort arrangemanget?</value>
   </data>
   <data name="SongFields.SongName" xml:space="preserve">
     <value>Sångens namn</value>
@@ -1269,6 +1299,33 @@
   </data>
   <data name="Admin.Displays.ConfirmDelete" xml:space="preserve">
     <value>Är du säker på att du vill ta bort skärmen "{0}"?</value>
+  </data>
+  <data name="Admin.Labels.Title" xml:space="preserve">
+    <value>Etiketter</value>
+  </data>
+  <data name="Admin.Labels.Add" xml:space="preserve">
+    <value>Lägg till etikett</value>
+  </data>
+  <data name="Admin.Labels.AddTitle" xml:space="preserve">
+    <value>Ny etikett</value>
+  </data>
+  <data name="Admin.Labels.EditTitle" xml:space="preserve">
+    <value>Redigera etikett</value>
+  </data>
+  <data name="Admin.Labels.NoLabels" xml:space="preserve">
+    <value>Inga etiketter</value>
+  </data>
+  <data name="Admin.Labels.Description" xml:space="preserve">
+    <value>Skapa etiketter för sångdelar. Etiketter visas på presentationsbilderna tillsammans med en färg.</value>
+  </data>
+  <data name="Admin.Labels.TextPlaceholder" xml:space="preserve">
+    <value>Etiketttext</value>
+  </data>
+  <data name="Admin.Labels.ColorLabel" xml:space="preserve">
+    <value>Färg</value>
+  </data>
+  <data name="Admin.Labels.ConfirmDelete" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort etiketten "{0}"?</value>
   </data>
   <data name="LivePanel.Outputs" xml:space="preserve">
     <value>Utgångar</value>
