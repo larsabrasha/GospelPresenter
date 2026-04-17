@@ -7,8 +7,10 @@
     @if (isOpen)
     {
         <div class="fixed inset-0 z-[120]" @onclick="Close"></div>
-        <div @ref="menuRef" class="absolute top-full mt-1 z-[130] bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border-[0.5px] border-neutral-200 dark:border-neutral-600 overflow-hidden @MenuClass" @onclick="Close">
-            @Menu
+        <div @ref="menuRef" class="absolute top-full mt-1 z-[130] bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border-[0.5px] border-neutral-200 dark:border-neutral-600 overflow-hidden @MenuClass">
+            <div @onclick="Close">
+                @Menu
+            </div>
         </div>
     }
 </div>
