@@ -6,5 +6,7 @@ public record PresentationSummary(
     DateTimeOffset Date,
     int? ScheduledDayOfWeek = null,
     TimeOnly? ScheduledTime = null,
-    string? Location = null
+    string? Location = null,
+    DateOnly? EventDate = null,
+    TimeOnly? EventTime = null
 );
