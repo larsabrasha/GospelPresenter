@@ -163,7 +163,7 @@
                 }
 
                 @{
-                    var hasSlides = SelectedSong is not null || SelectedBibleText is not null || SelectedImage is not null;
+                    var hasSlides = SelectedSong is not null || SelectedBibleText is not null || SelectedImage is not null || SelectedSlides is not null;
                     var mainClass = hasSlides
                         ? "mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
                         : "flex items-center justify-center h-full overflow-auto";
@@ -193,7 +193,8 @@
                                     Label="@effectiveParts[i].Label"
                                     LabelColor="@effectiveParts[i].LabelColor"
                                     Credits="@SongCredits"
-                                    FontSize="@songFontSize"
+                                    ContentStyle="@songStyle"
+                                    CreditsStyle="@creditsStyle"
                                     IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
                                     IsLive="@isLiveShowing"
                                     BaseWidth="@AppState.BaseSlideWidth"
@@ -211,6 +212,8 @@
                                 <BibleTextSlide
                                     Content="@SelectedBibleText.Parts[i]"
                                     Credits="@SelectedBibleText.Title"
+                                    ContentStyle="@bibleStyle"
+                                    CreditsStyle="@bibleCreditsStyle"
                                     IsSelected="@(liveSlide.ProjectItemId == SelectedBibleText.Id && liveSlide.ItemPartIndex == i)"
                                     IsLive="@isLiveShowing"
                                     BaseWidth="@AppState.BaseSlideWidth"
@@ -270,6 +273,22 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
                                 </svg>
+                            </button>
+                        }
+                    }
+                    else if (SelectedSlides is not null)
+                    {
+                        @for (var i = 0; i < SelectedSlides.Urls.Count; i++)
+                        {
+                            var partIndex = i;
+                            <button @onclick="() => SetSelectedLiveSlide(SelectedSlides.Id, partIndex)">
+                                <ImageSlide
+                                    Url="@SelectedSlides.Urls[i]"
+                                    IsSelected="@(liveSlide.ProjectItemId == SelectedSlides.Id && liveSlide.ItemPartIndex == i)"
+                                    IsLive="@isLiveShowing"
+                                    BaseWidth="@AppState.BaseSlideWidth"
+                                    BaseHeight="@AppState.BaseSlideHeight"
+                                    Scale="@slideScale"/>
                             </button>
                         }
                     }
@@ -411,7 +430,7 @@
 
 @if (showSongEditor && AppState.SelectedProjectItem?.SourceId is not null)
 {
-    <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@CloseSongEditor">
+    <Modal Class="bg-white dark:bg-neutral-900 max-w-4xl" OnClose="@CloseSongEditor">
         <Title>
             <span>@L["Presentation.EditSong"]</span>
             <AutoSaveIndicator @ref="songEditorSaveIndicator" Class="absolute right-12 top-5"/>
@@ -427,6 +446,7 @@
 @if (showAddModal)
 {
     <AddItemModal OnClose="@CloseAddModal"
+                  PresentationId="@EffectiveId"
                   OnSongAdded="@HandleSongAdded"
                   OnSongAddedKeepOpen="@HandleSongAddedKeepOpen"
                   OnBibleVersesAdded="@HandleBibleVersesAdded"
@@ -434,7 +454,8 @@
                   OnImagesAdded="@HandleImagesAdded"
                   OnImagesAddedKeepOpen="@HandleImagesAddedKeepOpen"
                   OnAudiosAdded="@HandleAudiosAdded"
-                  OnAudiosAddedKeepOpen="@HandleAudiosAddedKeepOpen"/>
+                  OnAudiosAddedKeepOpen="@HandleAudiosAddedKeepOpen"
+                  OnSlidesAdded="@HandleSlidesAdded"/>
 }
 
 @if (showAddImagesToExisting)
@@ -560,7 +581,10 @@
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
-    private int songFontSize = Models.OrganizationSetting.DefaultSongFontSize;
+    private SlideTextStyle songStyle = SlideTextStyle.SongDefault;
+    private SlideTextStyle creditsStyle = SlideTextStyle.CreditsDefault;
+    private SlideTextStyle bibleStyle = SlideTextStyle.BibleDefault;
+    private SlideTextStyle bibleCreditsStyle = SlideTextStyle.CreditsDefault;
     private ProjectItem? itemToRemove;
     private List<ProjectItem>? itemsToRemove;
     private bool isRemovingMultiple;
@@ -571,6 +595,7 @@
     private BibleText? SelectedBibleText { get; set; }
     private Image? SelectedImage { get; set; }
     private Audio? SelectedAudio { get; set; }
+    private SlidesState? SelectedSlides { get; set; }
     private bool showAddModal;
     private bool showSessionExpired;
 
@@ -940,7 +965,7 @@
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PresentationChanged += OnPresentationChanged;
-        SharedAppState.OrganizationSongFontSizeChanged += OnSongFontSizeChanged;
+        SharedAppState.OrganizationSlideStylesChanged += OnSlideStylesChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -960,9 +985,29 @@
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        var fontSizeValue = await OrgSettingService.GetSettingAsync(orgId, Models.OrganizationSetting.SongFontSize, OrgState.ToCallerContext());
-        if (fontSizeValue is not null && int.TryParse(fontSizeValue, out var parsed))
-            songFontSize = parsed;
+        songStyle = await LoadSlideTextStyleAsync(orgId, SlideTextStyle.SongDefault,
+            Models.OrganizationSetting.SongFontSize,
+            Models.OrganizationSetting.SongFontFamily,
+            Models.OrganizationSetting.SongFontWeight,
+            Models.OrganizationSetting.SongLineHeight);
+
+        creditsStyle = await LoadSlideTextStyleAsync(orgId, SlideTextStyle.CreditsDefault,
+            Models.OrganizationSetting.CreditsFontSize,
+            Models.OrganizationSetting.CreditsFontFamily,
+            Models.OrganizationSetting.CreditsFontWeight,
+            Models.OrganizationSetting.CreditsLineHeight);
+
+        bibleStyle = await LoadSlideTextStyleAsync(orgId, SlideTextStyle.BibleDefault,
+            Models.OrganizationSetting.BibleFontSize,
+            Models.OrganizationSetting.BibleFontFamily,
+            Models.OrganizationSetting.BibleFontWeight,
+            Models.OrganizationSetting.BibleLineHeight);
+
+        bibleCreditsStyle = await LoadSlideTextStyleAsync(orgId, SlideTextStyle.CreditsDefault,
+            Models.OrganizationSetting.BibleCreditsFontSize,
+            Models.OrganizationSetting.BibleCreditsFontFamily,
+            Models.OrganizationSetting.BibleCreditsFontWeight,
+            Models.OrganizationSetting.BibleCreditsLineHeight);
 
         loadedPresentation = IsTemplateMode
             ? await PresentationService.GetTemplateByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext())
@@ -993,6 +1038,7 @@
                     PresentationItemType.BibleText => ProjectItemType.BibleText,
                     PresentationItemType.Image => ProjectItemType.Image,
                     PresentationItemType.Audio => ProjectItemType.Audio,
+                    PresentationItemType.Slides => ProjectItemType.Slides,
                     _ => ProjectItemType.Song
                 },
                 Title = item.Title
@@ -1062,17 +1108,31 @@
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
-        SharedAppState.OrganizationSongFontSizeChanged -= OnSongFontSizeChanged;
+        SharedAppState.OrganizationSlideStylesChanged -= OnSlideStylesChanged;
         dotNetRef?.Dispose();
     }
 
-    private void OnSongFontSizeChanged(string organizationId, int fontSize)
+    private void OnSlideStylesChanged(
+        string organizationId,
+        SlideTextStyle newSongStyle,
+        SlideTextStyle newCreditsStyle,
+        SlideTextStyle newBibleStyle,
+        SlideTextStyle newBibleCreditsStyle)
     {
         if (organizationId != OrgState.ActiveOrganizationId) return;
-        songFontSize = fontSize;
+        songStyle = newSongStyle;
+        creditsStyle = newCreditsStyle;
+        bibleStyle = newBibleStyle;
+        bibleCreditsStyle = newBibleCreditsStyle;
 
         var current = SharedAppState.GetLiveSlide(AppState.SessionId);
-        SharedAppState.SetLiveSlide(AppState.SessionId, current with { SongFontSize = fontSize });
+        SharedAppState.SetLiveSlide(AppState.SessionId, current with
+        {
+            SongStyle = newSongStyle,
+            CreditsStyle = newCreditsStyle,
+            BibleStyle = newBibleStyle,
+            BibleCreditsStyle = newBibleCreditsStyle
+        });
     }
 
     private async void OnPresentationChanged(string presentationId, string? senderSessionId)
@@ -1123,6 +1183,7 @@
         SelectedBibleText = null;
         SelectedImage = null;
         SelectedAudio = null;
+        SelectedSlides = null;
         isEditingImageOrder = false;
         isEditingItemTitle = false;
         imageSortableInitialized = false;
@@ -1197,6 +1258,18 @@
                     SelectedAudio = new Audio(audioItem.Id, audioParts);
                 }
                 break;
+            case ProjectItemType.Slides:
+                var slidesItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                if (slidesItem is not null && slidesItem.SourceId is not null)
+                {
+                    var urls = slidesItem.Parts.OrderBy(p => p.SortOrder)
+                        .Select(p => int.TryParse(p.Content, out var pageIdx) ? ImageUrlHelper.SlidesPageUrl(slidesItem.SourceId, pageIdx) : null)
+                        .Where(u => u is not null)
+                        .Select(u => u!)
+                        .ToList();
+                    SelectedSlides = new SlidesState(slidesItem.Id, slidesItem.SourceId, urls);
+                }
+                break;
         }
     }
 
@@ -1269,6 +1342,20 @@
             }
             case ProjectItemType.Audio:
                 return;
+            case ProjectItemType.Slides:
+            {
+                var slidesPresItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
+                var slidesSourceId = slidesPresItem?.SourceId;
+                if (slidesSourceId is not null && slidesPresItem?.Parts is not null)
+                {
+                    var orderedParts = slidesPresItem.Parts.OrderBy(p => p.SortOrder).ToList();
+                    if (partIndex < orderedParts.Count && int.TryParse(orderedParts[partIndex].Content, out var pageIndex))
+                    {
+                        imageUrl = ImageUrlHelper.LiveSlidesPageUrl(AppState.SessionId, slidesSourceId, pageIndex);
+                    }
+                }
+                break;
+            }
             default:
                 return;
         }
@@ -1286,7 +1373,10 @@
             Credits = credits,
             ImageUrl = imageUrl,
             SongPart = songPart,
-            SongFontSize = songFontSize,
+            SongStyle = songStyle,
+            CreditsStyle = creditsStyle,
+            BibleStyle = bibleStyle,
+            BibleCreditsStyle = bibleCreditsStyle,
             SongId = liveSongId,
             SongName = liveSongName,
             CcliNumber = liveCcliNumber
@@ -1520,6 +1610,30 @@
         if (arrangementId is null && song.Arrangements.Count > 0)
             arrangementId = song.Arrangements[0].Id;
         return song.GetArrangedParts(arrangementId);
+    }
+
+    private async Task<SlideTextStyle> LoadSlideTextStyleAsync(
+        string orgId,
+        SlideTextStyle fallback,
+        string fontSizeKey,
+        string fontFamilyKey,
+        string fontWeightKey,
+        string lineHeightKey)
+    {
+        var ctx = OrgState.ToCallerContext();
+        var sizeValue = await OrgSettingService.GetSettingAsync(orgId, fontSizeKey, ctx);
+        var familyValue = await OrgSettingService.GetSettingAsync(orgId, fontFamilyKey, ctx);
+        var weightValue = await OrgSettingService.GetSettingAsync(orgId, fontWeightKey, ctx);
+        var lineHeightValue = await OrgSettingService.GetSettingAsync(orgId, lineHeightKey, ctx);
+
+        var size = int.TryParse(sizeValue, out var s) ? s : fallback.FontSize;
+        var family = string.IsNullOrEmpty(familyValue) ? fallback.FontFamily : familyValue;
+        var weight = int.TryParse(weightValue, out var w) ? w : fallback.FontWeight;
+        var lineHeight = double.TryParse(lineHeightValue, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lh)
+            ? lh
+            : fallback.LineHeight;
+
+        return new SlideTextStyle(size, family, weight, lineHeight);
     }
 
     private static string? FormatSongCredits(Song? song)
@@ -1769,6 +1883,51 @@
         ToastService.Show(audios.Count == 1
             ? L["Toast.AudioAdded", audios[0].FileName]
             : L["Toast.AudiosAdded", audios.Count]);
+    }
+
+    private async Task HandleSlidesAdded(SlidesAddResult result)
+    {
+        showAddModal = false;
+
+        var parts = Enumerable.Range(0, result.PageCount).Select(i => new PresentationItemPart
+        {
+            Id = Guid.NewGuid().ToString(),
+            Content = i.ToString(),
+            SortOrder = i,
+            PresentationItemId = result.PresentationItemId
+        }).ToList();
+
+        var presentationItem = new PresentationItem
+        {
+            Id = result.PresentationItemId,
+            SourceId = result.SlidesId,
+            Type = PresentationItemType.Slides,
+            Title = result.FileName,
+            Parts = parts,
+            PresentationId = EffectiveId ?? ""
+        };
+
+        var projectItem = new ProjectItem
+        {
+            Id = result.PresentationItemId,
+            SourceId = result.SlidesId,
+            Type = ProjectItemType.Slides,
+            Title = result.FileName
+        };
+
+        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
+        AppState.SelectedProjectItem = projectItem;
+
+        if (inserted && EffectiveId is not null)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await ReorderAfterInsert(orgId);
+        }
+
+        NotifyPresentationChanged();
+        ToastService.Show(L["Toast.SlidesAdded", result.FileName]);
     }
 
     private bool InsertAfterSelected<T>(IList<T>? list, T item) where T : class

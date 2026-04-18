@@ -105,13 +105,16 @@
     <value>My profile</value>
   </data>
   <data name="Nav.Dashboard" xml:space="preserve">
-    <value>Home</value>
+    <value>Presentations</value>
   </data>
   <data name="Nav.Media" xml:space="preserve">
     <value>Content</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
     <value>Settings</value>
+  </data>
+  <data name="Nav.MoreSettings" xml:space="preserve">
+    <value>More settings</value>
   </data>
   <data name="Nav.Logout" xml:space="preserve">
     <value>Log out</value>
@@ -127,6 +130,12 @@
   </data>
   <data name="Nav.Overlays" xml:space="preserve">
     <value>Overlays</value>
+  </data>
+  <data name="Nav.Images" xml:space="preserve">
+    <value>Images</value>
+  </data>
+  <data name="Nav.Audios" xml:space="preserve">
+    <value>Audio</value>
   </data>
   <data name="Nav.Users" xml:space="preserve">
     <value>Users</value>
@@ -426,7 +435,7 @@
     <value>Save song</value>
   </data>
   <data name="Bible.NoBible" xml:space="preserve">
-    <value>No Bible loaded</value>
+    <value>No Bibles uploaded</value>
   </data>
   <data name="Bible.NoVersesFound" xml:space="preserve">
     <value>No verses found</value>
@@ -444,7 +453,7 @@
     <value>Could not load images</value>
   </data>
   <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Upload images</value>
+    <value>Upload</value>
   </data>
   <data name="ImageTab.Uploading" xml:space="preserve">
     <value>Uploading...</value>
@@ -457,6 +466,30 @@
   </data>
   <data name="ImageTab.ConfirmDelete" xml:space="preserve">
     <value>Do you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Images.Title" xml:space="preserve">
+    <value>Images</value>
+  </data>
+  <data name="Images.AllImages" xml:space="preserve">
+    <value>All images</value>
+  </data>
+  <data name="Images.NoImages" xml:space="preserve">
+    <value>No images uploaded yet</value>
+  </data>
+  <data name="Images.NoImagesFound" xml:space="preserve">
+    <value>No images match your search</value>
+  </data>
+  <data name="Audios.Title" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="Audios.AllAudios" xml:space="preserve">
+    <value>All audio files</value>
+  </data>
+  <data name="Audios.NoAudios" xml:space="preserve">
+    <value>No audio uploaded yet</value>
+  </data>
+  <data name="Audios.NoAudiosFound" xml:space="preserve">
+    <value>No audio matches your search</value>
   </data>
   <data name="Users.Title" xml:space="preserve">
     <value>Users</value>
@@ -863,6 +896,30 @@
   <data name="AudioTab.ConfirmDelete" xml:space="preserve">
     <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
   </data>
+  <data name="SlidesTab.Title" xml:space="preserve">
+    <value>PowerPoint</value>
+  </data>
+  <data name="SlidesTab.Upload" xml:space="preserve">
+    <value>Upload PDF</value>
+  </data>
+  <data name="SlidesTab.Uploading" xml:space="preserve">
+    <value>Uploading...</value>
+  </data>
+  <data name="SlidesTab.HelpText" xml:space="preserve">
+    <value>&lt;p&gt;Export your presentation as a PDF from PowerPoint, Keynote, Google Slides, or Pages before uploading.&lt;/p&gt;&lt;p&gt;Animations and videos will not be included.&lt;/p&gt;&lt;p&gt;The file is saved only in this presentation.&lt;/p&gt;</value>
+  </data>
+  <data name="SlidesTab.TooManyPages" xml:space="preserve">
+    <value>PDF has too many pages. Maximum is 100 pages.</value>
+  </data>
+  <data name="SlidesTab.UploadError" xml:space="preserve">
+    <value>Could not upload the file. Please try again.</value>
+  </data>
+  <data name="Sidebar.Slides" xml:space="preserve">
+    <value>PowerPoint</value>
+  </data>
+  <data name="Toast.SlidesAdded" xml:space="preserve">
+    <value>Added {0}</value>
+  </data>
   <data name="Toast.AudioAdded" xml:space="preserve">
     <value>Added {0}</value>
   </data>
@@ -1084,17 +1141,86 @@
   <data name="SlideSettings.Title" xml:space="preserve">
     <value>Slide settings</value>
   </data>
-  <data name="SlideSettings.SongFontSize" xml:space="preserve">
-    <value>Song text font size</value>
+  <data name="SlideSettings.SongSlides" xml:space="preserve">
+    <value>Song slides</value>
   </data>
-  <data name="SlideSettings.SongFontSizeDescription" xml:space="preserve">
-    <value>Size of the main text in song slides. Default is 85 px.</value>
+  <data name="SlideSettings.BibleSlides" xml:space="preserve">
+    <value>Bible slides</value>
+  </data>
+  <data name="SlideSettings.MainText" xml:space="preserve">
+    <value>Main text</value>
+  </data>
+  <data name="SlideSettings.Credits" xml:space="preserve">
+    <value>Credits</value>
+  </data>
+  <data name="SlideSettings.FontFamily" xml:space="preserve">
+    <value>Font family</value>
+  </data>
+  <data name="SlideSettings.FontWeight" xml:space="preserve">
+    <value>Font weight</value>
+  </data>
+  <data name="SlideSettings.FontSize" xml:space="preserve">
+    <value>Font size</value>
+  </data>
+  <data name="SlideSettings.LineHeight" xml:space="preserve">
+    <value>Line height</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Tahoma" xml:space="preserve">
+    <value>Tahoma</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Inter" xml:space="preserve">
+    <value>Inter</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Lato" xml:space="preserve">
+    <value>Lato</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Montserrat" xml:space="preserve">
+    <value>Montserrat</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Oswald" xml:space="preserve">
+    <value>Oswald</value>
+  </data>
+  <data name="SlideSettings.FontFamily.PlayfairDisplay" xml:space="preserve">
+    <value>Playfair Display</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Merriweather" xml:space="preserve">
+    <value>Merriweather</value>
+  </data>
+  <data name="SlideSettings.FontWeight.Light" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="SlideSettings.FontWeight.Regular" xml:space="preserve">
+    <value>Regular</value>
+  </data>
+  <data name="SlideSettings.FontWeight.Medium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="SlideSettings.FontWeight.SemiBold" xml:space="preserve">
+    <value>Semi-bold</value>
+  </data>
+  <data name="SlideSettings.FontWeight.Bold" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="SlideSettings.FontWeight.ExtraBold" xml:space="preserve">
+    <value>Extra bold</value>
   </data>
   <data name="SlideSettings.Preview" xml:space="preserve">
     <value>Preview</value>
   </data>
   <data name="SlideSettings.SaveError" xml:space="preserve">
     <value>Could not save the setting</value>
+  </data>
+  <data name="SlideSettings.CopyFromSong" xml:space="preserve">
+    <value>Copy settings from Song</value>
+  </data>
+  <data name="SlideSettings.Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="SlideSettings.BiblePreviewText" xml:space="preserve">
+    <value>&lt;sup class="opacity-40"&gt;16&lt;/sup&gt;&#160;For God so loved the world that he&lt;br&gt;gave his one and only Son, that whoever&lt;br&gt;believes in him shall not perish&lt;br&gt;but have eternal life.</value>
+  </data>
+  <data name="SlideSettings.BiblePreviewCredits" xml:space="preserve">
+    <value>John 3:16</value>
   </data>
   <data name="Presentation.EditSong" xml:space="preserve">
     <value>Edit</value>

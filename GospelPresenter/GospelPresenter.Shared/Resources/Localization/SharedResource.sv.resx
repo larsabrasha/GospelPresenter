@@ -105,13 +105,16 @@
     <value>Min profil</value>
   </data>
   <data name="Nav.Dashboard" xml:space="preserve">
-    <value>Hem</value>
+    <value>Presentationer</value>
   </data>
   <data name="Nav.Media" xml:space="preserve">
     <value>Innehåll</value>
   </data>
   <data name="Nav.Administration" xml:space="preserve">
     <value>Inställningar</value>
+  </data>
+  <data name="Nav.MoreSettings" xml:space="preserve">
+    <value>Fler inställningar</value>
   </data>
   <data name="Nav.Logout" xml:space="preserve">
     <value>Logga ut</value>
@@ -127,6 +130,12 @@
   </data>
   <data name="Nav.Overlays" xml:space="preserve">
     <value>Overlays</value>
+  </data>
+  <data name="Nav.Images" xml:space="preserve">
+    <value>Bilder</value>
+  </data>
+  <data name="Nav.Audios" xml:space="preserve">
+    <value>Ljud</value>
   </data>
   <data name="Nav.Users" xml:space="preserve">
     <value>Användare</value>
@@ -426,7 +435,7 @@
     <value>Spara sång</value>
   </data>
   <data name="Bible.NoBible" xml:space="preserve">
-    <value>Ingen bibel laddad</value>
+    <value>Inga biblar uppladdade</value>
   </data>
   <data name="Bible.NoVersesFound" xml:space="preserve">
     <value>Inga verser hittades</value>
@@ -444,7 +453,7 @@
     <value>Kunde inte ladda bilder</value>
   </data>
   <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Ladda upp bilder</value>
+    <value>Ladda upp</value>
   </data>
   <data name="ImageTab.Uploading" xml:space="preserve">
     <value>Laddar upp...</value>
@@ -457,6 +466,30 @@
   </data>
   <data name="ImageTab.ConfirmDelete" xml:space="preserve">
     <value>Vill du radera &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+  </data>
+  <data name="Images.Title" xml:space="preserve">
+    <value>Bilder</value>
+  </data>
+  <data name="Images.AllImages" xml:space="preserve">
+    <value>Alla bilder</value>
+  </data>
+  <data name="Images.NoImages" xml:space="preserve">
+    <value>Inga bilder uppladdade än</value>
+  </data>
+  <data name="Images.NoImagesFound" xml:space="preserve">
+    <value>Inga bilder matchar din sökning</value>
+  </data>
+  <data name="Audios.Title" xml:space="preserve">
+    <value>Ljud</value>
+  </data>
+  <data name="Audios.AllAudios" xml:space="preserve">
+    <value>Alla ljudfiler</value>
+  </data>
+  <data name="Audios.NoAudios" xml:space="preserve">
+    <value>Inga ljudfiler uppladdade än</value>
+  </data>
+  <data name="Audios.NoAudiosFound" xml:space="preserve">
+    <value>Inga ljudfiler matchar din sökning</value>
   </data>
   <data name="Users.Title" xml:space="preserve">
     <value>Användare</value>
@@ -863,6 +896,30 @@
   <data name="AudioTab.ConfirmDelete" xml:space="preserve">
     <value>Vill du verkligen ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
   </data>
+  <data name="SlidesTab.Title" xml:space="preserve">
+    <value>PowerPoint</value>
+  </data>
+  <data name="SlidesTab.Upload" xml:space="preserve">
+    <value>Ladda upp PDF</value>
+  </data>
+  <data name="SlidesTab.Uploading" xml:space="preserve">
+    <value>Laddar upp...</value>
+  </data>
+  <data name="SlidesTab.HelpText" xml:space="preserve">
+    <value>&lt;p&gt;Exportera din presentation som PDF från PowerPoint, Keynote, Google Slides eller Pages innan du laddar upp.&lt;/p&gt;&lt;p&gt;Animeringar och videor följer inte med.&lt;/p&gt;&lt;p&gt;Filen sparas bara i den här presentationen.&lt;/p&gt;</value>
+  </data>
+  <data name="SlidesTab.TooManyPages" xml:space="preserve">
+    <value>PDF:en har för många sidor. Maximum är 100 sidor.</value>
+  </data>
+  <data name="SlidesTab.UploadError" xml:space="preserve">
+    <value>Kunde inte ladda upp filen. Försök igen.</value>
+  </data>
+  <data name="Sidebar.Slides" xml:space="preserve">
+    <value>PowerPoint</value>
+  </data>
+  <data name="Toast.SlidesAdded" xml:space="preserve">
+    <value>Lade till {0}</value>
+  </data>
   <data name="Toast.AudioAdded" xml:space="preserve">
     <value>Lade till {0}</value>
   </data>
@@ -1084,17 +1141,86 @@
   <data name="SlideSettings.Title" xml:space="preserve">
     <value>Slide-inställningar</value>
   </data>
-  <data name="SlideSettings.SongFontSize" xml:space="preserve">
-    <value>Fontstorlek för sångtext</value>
+  <data name="SlideSettings.SongSlides" xml:space="preserve">
+    <value>Sång-slides</value>
   </data>
-  <data name="SlideSettings.SongFontSizeDescription" xml:space="preserve">
-    <value>Storlek på huvudtexten i sång-slides. Standard är 85 px.</value>
+  <data name="SlideSettings.BibleSlides" xml:space="preserve">
+    <value>Bibel-slides</value>
+  </data>
+  <data name="SlideSettings.MainText" xml:space="preserve">
+    <value>Huvudtext</value>
+  </data>
+  <data name="SlideSettings.Credits" xml:space="preserve">
+    <value>Credits</value>
+  </data>
+  <data name="SlideSettings.FontFamily" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="SlideSettings.FontWeight" xml:space="preserve">
+    <value>Fontvikt</value>
+  </data>
+  <data name="SlideSettings.FontSize" xml:space="preserve">
+    <value>Fontstorlek</value>
+  </data>
+  <data name="SlideSettings.LineHeight" xml:space="preserve">
+    <value>Radavstånd</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Tahoma" xml:space="preserve">
+    <value>Tahoma</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Inter" xml:space="preserve">
+    <value>Inter</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Lato" xml:space="preserve">
+    <value>Lato</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Montserrat" xml:space="preserve">
+    <value>Montserrat</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Oswald" xml:space="preserve">
+    <value>Oswald</value>
+  </data>
+  <data name="SlideSettings.FontFamily.PlayfairDisplay" xml:space="preserve">
+    <value>Playfair Display</value>
+  </data>
+  <data name="SlideSettings.FontFamily.Merriweather" xml:space="preserve">
+    <value>Merriweather</value>
+  </data>
+  <data name="SlideSettings.FontWeight.Light" xml:space="preserve">
+    <value>Tunn</value>
+  </data>
+  <data name="SlideSettings.FontWeight.Regular" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="SlideSettings.FontWeight.Medium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="SlideSettings.FontWeight.SemiBold" xml:space="preserve">
+    <value>Halvfet</value>
+  </data>
+  <data name="SlideSettings.FontWeight.Bold" xml:space="preserve">
+    <value>Fet</value>
+  </data>
+  <data name="SlideSettings.FontWeight.ExtraBold" xml:space="preserve">
+    <value>Extra fet</value>
   </data>
   <data name="SlideSettings.Preview" xml:space="preserve">
     <value>Förhandsgranskning</value>
   </data>
   <data name="SlideSettings.SaveError" xml:space="preserve">
     <value>Kunde inte spara inställningen</value>
+  </data>
+  <data name="SlideSettings.CopyFromSong" xml:space="preserve">
+    <value>Kopiera inställningar från Sång</value>
+  </data>
+  <data name="SlideSettings.Reset" xml:space="preserve">
+    <value>Återställ</value>
+  </data>
+  <data name="SlideSettings.BiblePreviewText" xml:space="preserve">
+    <value>&lt;sup class="opacity-40"&gt;16&lt;/sup&gt;&#160;Ty så älskade Gud världen att han&lt;br&gt;utgav sin enfödde Son, för att var&lt;br&gt;och en som tror på honom inte ska&lt;br&gt;gå förlorad utan ha evigt liv.</value>
+  </data>
+  <data name="SlideSettings.BiblePreviewCredits" xml:space="preserve">
+    <value>Johannes 3:16</value>
   </data>
   <data name="Presentation.EditSong" xml:space="preserve">
     <value>Redigera</value>

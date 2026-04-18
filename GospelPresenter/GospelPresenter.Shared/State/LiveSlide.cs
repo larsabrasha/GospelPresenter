@@ -9,7 +9,10 @@ public record LiveSlide(
     string? Credits,
     string? ImageUrl,
     SongPart? SongPart,
-    int SongFontSize = 85,
+    SlideTextStyle? SongStyle = null,
+    SlideTextStyle? CreditsStyle = null,
+    SlideTextStyle? BibleStyle = null,
+    SlideTextStyle? BibleCreditsStyle = null,
     string? SongId = null,
     string? SongName = null,
     string? CcliNumber = null

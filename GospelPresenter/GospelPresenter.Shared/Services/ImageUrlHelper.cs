@@ -35,4 +35,16 @@ public static class ImageUrlHelper
 
     public static string OrgAudioPrefix(string organizationId, string audioId)
         => $"org/{organizationId}/audios/{audioId}/";
+
+    public static string SlidesPageUrl(string slidesId, int page)
+        => $"/api/images/slides/{slidesId}/{page}";
+
+    public static string LiveSlidesPageUrl(string sessionId, string slidesId, int page)
+        => $"/api/live-images/{sessionId}/slides/{slidesId}/{page}";
+
+    public static string SlidesPageKey(string organizationId, string slidesId, int page)
+        => $"org/{organizationId}/slides/{slidesId}/page-{page}.webp";
+
+    public static string SlidesPrefix(string organizationId, string slidesId)
+        => $"org/{organizationId}/slides/{slidesId}/";
 }

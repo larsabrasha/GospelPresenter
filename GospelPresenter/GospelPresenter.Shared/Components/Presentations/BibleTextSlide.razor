@@ -1,3 +1,5 @@
+@using GospelPresenter.Shared.State
+
 <Slide
     IsSelected="@IsSelected"
     IsLive="@IsLive"
@@ -5,10 +7,11 @@
     BaseWidth="@BaseWidth"
     BaseHeight="@BaseHeight"
     Scale="@Scale">
-    <div>@((MarkupString)Content)</div>
+    <div style="@EffectiveContentStyle.ToCss()">@((MarkupString)Content)</div>
     @if (!string.IsNullOrEmpty(Credits))
     {
-        <div class="absolute bottom-8 left-20 text-[40px] text-white/40 text-left">
+        <div class="absolute bottom-8 left-20 text-white/40 text-left"
+             style="@EffectiveCreditsStyle.ToCss()">
             @Credits
         </div>
     }
@@ -20,7 +23,12 @@
     [Parameter] public bool? IsSelected { get; set; }
     [Parameter] public bool IsLive { get; set; }
     [Parameter] public string? Class { get; set; }
+    [Parameter] public SlideTextStyle? ContentStyle { get; set; }
+    [Parameter] public SlideTextStyle? CreditsStyle { get; set; }
     [Parameter] public required int BaseWidth { get; set; }
     [Parameter] public required int BaseHeight { get; set; }
     [Parameter] public required double Scale { get; set; }
+
+    private SlideTextStyle EffectiveContentStyle => ContentStyle ?? SlideTextStyle.BibleDefault;
+    private SlideTextStyle EffectiveCreditsStyle => CreditsStyle ?? SlideTextStyle.CreditsDefault;
 }

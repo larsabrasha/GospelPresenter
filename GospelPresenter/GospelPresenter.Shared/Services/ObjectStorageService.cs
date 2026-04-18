@@ -12,6 +12,7 @@ public interface IObjectStorageService
     Task<(Stream Stream, string ContentType)?> GetAsync(string key, CancellationToken cancellationToken = default);
     Task DeleteAsync(string key, CancellationToken cancellationToken = default);
     Task DeleteByPrefixAsync(string prefix, CancellationToken cancellationToken = default);
+    Task CopyByPrefixAsync(string sourcePrefix, string destPrefix, CancellationToken cancellationToken = default);
 }
 
 public class ObjectStorageService : IObjectStorageService, IDisposable
@@ -110,6 +111,30 @@ public class ObjectStorageService : IObjectStorageService, IDisposable
         logger.LogDebug("Deleted {Count} objects with prefix {Prefix}", totalDeleted, prefix);
     }
 
+    public async Task CopyByPrefixAsync(string sourcePrefix, string destPrefix, CancellationToken cancellationToken = default)
+    {
+        var request = new ListObjectsV2Request { BucketName = bucketName, Prefix = sourcePrefix };
+        ListObjectsV2Response response;
+        do
+        {
+            response = await client.ListObjectsV2Async(request, cancellationToken);
+            foreach (var obj in response.S3Objects)
+            {
+                var destKey = destPrefix + obj.Key[sourcePrefix.Length..];
+                await client.CopyObjectAsync(new CopyObjectRequest
+                {
+                    SourceBucket = bucketName,
+                    SourceKey = obj.Key,
+                    DestinationBucket = bucketName,
+                    DestinationKey = destKey
+                }, cancellationToken);
+            }
+            request.ContinuationToken = response.NextContinuationToken;
+        } while (response.IsTruncated == true);
+
+        logger.LogDebug("Copied objects from {Source} to {Dest}", sourcePrefix, destPrefix);
+    }
+
     public void Dispose()
     {
         client.Dispose();
@@ -135,5 +160,8 @@ public class NullObjectStorageService : IObjectStorageService
         => throw NotConfigured();
 
     public Task DeleteByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
+        => throw NotConfigured();
+
+    public Task CopyByPrefixAsync(string sourcePrefix, string destPrefix, CancellationToken cancellationToken = default)
         => throw NotConfigured();
 }

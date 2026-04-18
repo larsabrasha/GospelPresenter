@@ -230,6 +230,8 @@ try
     builder.Services.AddScoped<IOrganizationAudioService, OrganizationAudioService>();
     builder.Services.AddScoped<IOrganizationSettingService, OrganizationSettingService>();
     builder.Services.AddSingleton<ICcliReportService, CcliReportService>();
+    builder.Services.AddSingleton<IPdfRenderService, PdfRenderService>();
+    builder.Services.AddScoped<IPresentationSlidesService, PresentationSlidesService>();
     builder.Services.AddHostedService<GospelPresenter.Web.Services.CcliReportBackgroundService>();
 
 #if !DEBUG
@@ -489,7 +491,66 @@ builder.Services.AddMetricServer(options =>
         return Results.File(stream, contentType);
     }).RequireAuthorization();
 
+    app.MapGet("/api/images/slides/{slidesId}/{page}", async (
+        string slidesId, int page,
+        HttpContext context,
+        IObjectStorageService storage,
+        IPresentationSlidesService slidesService) =>
+    {
+        var userId = context.User.FindFirst("user_id")?.Value;
+        if (userId is null) return Results.Unauthorized();
+
+        var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
+        var orgId = context.User.FindFirst("organization_id")?.Value;
+        if (orgId is null) return Results.Forbid();
+
+        var caller = new CallerContext(userId, role, orgId);
+
+        try
+        {
+            await slidesService.GetByIdAsync(slidesId, orgId, caller);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Results.Forbid();
+        }
+        catch (InvalidOperationException)
+        {
+            return Results.NotFound();
+        }
+
+        var s3Key = ImageUrlHelper.SlidesPageKey(orgId, slidesId, page);
+        var result = await storage.GetAsync(s3Key);
+        if (result is null) return Results.NotFound();
+
+        var (stream, contentType) = result.Value;
+        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        return Results.File(stream, contentType);
+    }).RequireAuthorization();
+
     app.MapUploadEndpoints();
+
+    // Unauthenticated slides endpoint for the live view — served while the session's presentation is active.
+    app.MapGet("/api/live-images/{sessionId}/slides/{slidesId}/{page}", async (
+        string sessionId, string slidesId, int page,
+        HttpContext context,
+        SharedAppState sharedAppState,
+        IObjectStorageService storage) =>
+    {
+        if (!sharedAppState.IsPresentationActive(sessionId))
+            return Results.NotFound();
+
+        var orgId = sharedAppState.GetSessionOrganizationId(sessionId);
+        if (orgId is null) return Results.NotFound();
+
+        var s3Key = ImageUrlHelper.SlidesPageKey(orgId, slidesId, page);
+        var result = await storage.GetAsync(s3Key);
+        if (result is null) return Results.NotFound();
+
+        var (stream, contentType) = result.Value;
+        context.Response.Headers.CacheControl = "public, max-age=3600";
+        return Results.File(stream, contentType);
+    }).AllowAnonymous();
 
     // Unauthenticated endpoint for the live view — only serves images while the session's presentation is active.
     // Org isolation is enforced by the S3 key structure: org/{orgId}/..., so an image from

@@ -475,6 +475,9 @@ public class UserService(
         }
         else
         {
+            if (!await context.Users.AnyAsync(u => u.Id == userId))
+                return;
+
             await ValidationHelper.RequireMaxCountAsync(
                 context.UserSettings.Where(us => us.UserId == userId),
                 AppConstraints.MaxSettingsPerUser, "settings");

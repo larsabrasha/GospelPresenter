@@ -268,9 +268,37 @@ public class PresentationService(
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        await context.PresentationItems
+        var item = await context.PresentationItems
             .Where(x => x.PresentationId == presentationId && x.Id == itemId && x.Presentation.OrganizationId == organizationId)
-            .ExecuteDeleteAsync(cancellationToken);
+            .Select(x => new { x.Type, x.SourceId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (item is null) return;
+
+        var isSlides = item.Type == PresentationItemType.Slides && item.SourceId is not null;
+
+        if (isSlides)
+        {
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+            await context.PresentationItems
+                .Where(x => x.Id == itemId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await context.PresentationSlides
+                .Where(s => s.Id == item.SourceId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
+
+            await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, item.SourceId!), cancellationToken);
+        }
+        else
+        {
+            await context.PresentationItems
+                .Where(x => x.Id == itemId)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
     }
 
     public async Task RemoveItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default)
@@ -278,6 +306,13 @@ public class PresentationService(
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var slidesIds = await context.PresentationItems
+            .Where(x => itemIds.Contains(x.Id) && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId
+                && x.Type == PresentationItemType.Slides && x.SourceId != null)
+            .Select(x => x.SourceId!)
+            .ToListAsync(cancellationToken);
+
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         await context.PresentationItemParts
@@ -288,7 +323,17 @@ public class PresentationService(
             .Where(x => itemIds.Contains(x.Id) && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
             .ExecuteDeleteAsync(cancellationToken);
 
+        if (slidesIds.Count > 0)
+        {
+            await context.PresentationSlides
+                .Where(s => slidesIds.Contains(s.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
+
+        foreach (var slidesId in slidesIds)
+            await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, slidesId), cancellationToken);
     }
 
     public async Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default)
@@ -312,6 +357,13 @@ public class PresentationService(
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var slidesIds = await context.PresentationItems
+            .Where(x => x.PresentationId == id && x.Presentation.OrganizationId == organizationId
+                && x.Type == PresentationItemType.Slides && x.SourceId != null)
+            .Select(x => x.SourceId!)
+            .ToListAsync(cancellationToken);
+
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         await context.PresentationItemParts
@@ -322,11 +374,21 @@ public class PresentationService(
             .Where(x => x.PresentationId == id)
             .ExecuteDeleteAsync(cancellationToken);
 
+        if (slidesIds.Count > 0)
+        {
+            await context.PresentationSlides
+                .Where(s => slidesIds.Contains(s.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
         await context.Presentations
             .Where(x => x.Id == id && x.OrganizationId == organizationId)
             .ExecuteDeleteAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
+
+        foreach (var slidesId in slidesIds)
+            await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, slidesId), cancellationToken);
     }
 
     public async Task<IList<PresentationSummary>> GetRecentTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -493,12 +555,41 @@ public class PresentationService(
 
         context.Presentations.Add(presentation);
 
+        var templateSlidesIds = template.Items
+            .Where(i => i.Type == PresentationItemType.Slides && i.SourceId is not null)
+            .Select(i => i.SourceId!)
+            .ToList();
+
+        var slidesBySourceId = templateSlidesIds.Count > 0
+            ? await context.PresentationSlides
+                .Where(s => templateSlidesIds.Contains(s.Id))
+                .ToDictionaryAsync(s => s.Id, cancellationToken)
+            : [];
+
+        var slidesToCopy = new List<(string OldId, string NewId)>();
+
         foreach (var sourceItem in template.Items)
         {
+            string? newSourceId = sourceItem.SourceId;
+
+            if (sourceItem.Type == PresentationItemType.Slides && sourceItem.SourceId is not null
+                && slidesBySourceId.TryGetValue(sourceItem.SourceId, out var templateSlides))
+            {
+                var newSlides = new PresentationSlides
+                {
+                    FileName = templateSlides.FileName,
+                    PageCount = templateSlides.PageCount,
+                    PresentationId = presentation.Id
+                };
+                context.PresentationSlides.Add(newSlides);
+                slidesToCopy.Add((sourceItem.SourceId, newSlides.Id));
+                newSourceId = newSlides.Id;
+            }
+
             var newItem = new PresentationItem
             {
                 Id = Guid.NewGuid().ToString(),
-                SourceId = sourceItem.SourceId,
+                SourceId = newSourceId,
                 Type = sourceItem.Type,
                 Title = sourceItem.Title,
                 SortOrder = sourceItem.SortOrder,
@@ -523,6 +614,12 @@ public class PresentationService(
 
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        foreach (var (oldId, newId) in slidesToCopy)
+            await storage.CopyByPrefixAsync(
+                ImageUrlHelper.SlidesPrefix(organizationId, oldId),
+                ImageUrlHelper.SlidesPrefix(organizationId, newId),
+                cancellationToken);
 
         return presentation;
     }
@@ -564,6 +661,13 @@ public class PresentationService(
         caller.RequirePermission(Permission.ManageTemplates);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var slidesIds = await context.PresentationItems
+            .Where(x => x.PresentationId == id && x.Presentation.OrganizationId == organizationId
+                && x.Type == PresentationItemType.Slides && x.SourceId != null)
+            .Select(x => x.SourceId!)
+            .ToListAsync(cancellationToken);
+
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         await context.PresentationItemParts
@@ -574,11 +678,21 @@ public class PresentationService(
             .Where(x => x.PresentationId == id)
             .ExecuteDeleteAsync(cancellationToken);
 
+        if (slidesIds.Count > 0)
+        {
+            await context.PresentationSlides
+                .Where(s => slidesIds.Contains(s.Id))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
         await context.Presentations
             .Where(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate)
             .ExecuteDeleteAsync(cancellationToken);
 
         await transaction.CommitAsync(cancellationToken);
+
+        foreach (var slidesId in slidesIds)
+            await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, slidesId), cancellationToken);
     }
 
     public async Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)

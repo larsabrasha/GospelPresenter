@@ -128,11 +128,16 @@ public partial class SharedAppState : ObservableObject
     /// </summary>
     public event Action<CcliSongDisplayedEvent>? CcliSongDisplayed;
 
-    public event Action<string, int>? OrganizationSongFontSizeChanged;
+    public event Action<string, SlideTextStyle, SlideTextStyle, SlideTextStyle, SlideTextStyle>? OrganizationSlideStylesChanged;
 
-    public void NotifyOrganizationSongFontSizeChanged(string organizationId, int fontSize)
+    public void NotifyOrganizationSlideStylesChanged(
+        string organizationId,
+        SlideTextStyle songStyle,
+        SlideTextStyle creditsStyle,
+        SlideTextStyle bibleStyle,
+        SlideTextStyle bibleCreditsStyle)
     {
-        OrganizationSongFontSizeChanged?.Invoke(organizationId, fontSize);
+        OrganizationSlideStylesChanged?.Invoke(organizationId, songStyle, creditsStyle, bibleStyle, bibleCreditsStyle);
     }
 
     public bool IsSessionExpired(string sessionId) =>

@@ -122,7 +122,7 @@ else
                                     ContentHtml="@(Highlight(part.Content).Replace("\n", "<br>"))"
                                     Label="@part.Label"
                                     LabelColor="@part.LabelColor"
-                                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                    Class="border-t-[0.5px] border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
                                     Scale="@previewScale"/>
@@ -200,7 +200,7 @@ else
                                     ContentHtml="@(part.Content.Replace("\n", "<br>"))"
                                     Label="@part.Label"
                                     LabelColor="@part.LabelColor"
-                                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                    Class="border-t-[0.5px] border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
                                     BaseWidth="@AppState.BaseSlideWidth"
                                     BaseHeight="@AppState.BaseSlideHeight"
                                     Scale="@mobileScale"/>
@@ -208,7 +208,7 @@ else
                         </div>
                     }
                 </div>
-                <div class="shrink-0 flex items-center justify-between gap-4 px-4 py-3 border-t border-neutral-200 dark:border-neutral-700">
+                <div class="shrink-0 flex items-center justify-between gap-4 px-4 py-3 border-t-[0.5px] border-neutral-200 dark:border-neutral-700">
                     <div class="shrink-0 whitespace-nowrap">
                         <AddMoreCheckbox State="AddMoreState"/>
                     </div>

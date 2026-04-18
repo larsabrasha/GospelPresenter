@@ -58,14 +58,20 @@ public static class AppConstraints
     // File sizes (bytes)
     public const long MaxImageFileSizeBytes = 10 * 1024 * 1024;
     public const long MaxAudioFileSizeBytes = 20 * 1024 * 1024;
+    public const long MaxSlidesFileSizeBytes = 50 * 1024 * 1024;
+
+    // Slides constraints
+    public const int MaxSlidesPageCount = 100;
 
     // Allowed content types
     public static readonly IReadOnlySet<string> AllowedImageTypes = new HashSet<string> { "image/jpeg", "image/png", "image/webp", "image/gif" };
     public static readonly IReadOnlySet<string> AllowedAudioTypes = new HashSet<string> { "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/webm", "audio/x-m4a" };
+    public static readonly IReadOnlySet<string> AllowedSlidesTypes = new HashSet<string> { "application/pdf" };
 
     // Accept strings for file inputs
     public const string ImageAccept = "image/jpeg,image/png,image/webp,image/gif";
     public const string AudioAccept = "audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm,audio/x-m4a";
+    public const string SlidesAccept = "application/pdf";
 
     // JS file-read sentinel values (must match utils.js readFileAsDataUrl)
     public const string FileReadUnsupportedType = "unsupported-type";

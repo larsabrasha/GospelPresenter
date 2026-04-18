@@ -2,6 +2,8 @@
 @attribute [Authorize(Policy = ManageTemplates)]
 @implements IDisposable
 
+@using System.Globalization
+@using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Models
@@ -20,58 +22,140 @@
 <PageContainer>
     <DetailHeader @ref="header" Title="@L["SlideSettings.Title"].Value" Class="px-5"/>
 
-    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t border-white dark:border-neutral-700 p-5 space-y-6">
-        <div>
-            <label class="block text-sm font-medium mb-1">@L["SlideSettings.SongFontSize"]</label>
-            <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-3">@L["SlideSettings.SongFontSizeDescription"]</p>
+    <div class="px-5 mb-8 flex justify-center">
+        <PillTabs Class="!bg-neutral-200 dark:!bg-neutral-700">
+            <button type="button" @onclick='() => activeTab = "song"' class="@TabClass("song")">@L["SlideSettings.SongSlides"]</button>
+            <button type="button" @onclick='() => activeTab = "bible"' class="@TabClass("bible")">@L["SlideSettings.BibleSlides"]</button>
+        </PillTabs>
+    </div>
 
-            <div class="flex items-center gap-4">
-                <input type="range"
-                       min="40"
-                       max="150"
-                       step="5"
-                       value="@fontSize"
-                       @oninput="OnFontSizeInput"
-                       class="flex-1 accent-sky-500" />
-                <span class="text-sm font-mono w-16 text-right">@(fontSize) px</span>
-            </div>
+    <div class="lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start">
+        <div class="space-y-4">
+            @if (activeTab == "song")
+            {
+                <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700">
+                    <SlideStyleSection Title="@L["SlideSettings.MainText"].Value"
+                                       Style="@songStyle"
+                                       StyleChanged="UpdateSongStyle"
+                                       FontSizeMin="SongFontSizeMin"
+                                       FontSizeMax="SongFontSizeMax"/>
+                </div>
+                <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700">
+                    <SlideStyleSection Title="@L["SlideSettings.Credits"].Value"
+                                       Style="@creditsStyle"
+                                       StyleChanged="UpdateCreditsStyle"
+                                       FontSizeMin="CreditsFontSizeMin"
+                                       FontSizeMax="CreditsFontSizeMax"/>
+                </div>
+                <div class="flex justify-end">
+                    <AppButton Variant="ButtonVariant.Cancel" OnClick="ResetSongStyles">@L["SlideSettings.Reset"]</AppButton>
+                </div>
+            }
+            else
+            {
+                <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700">
+                    <SlideStyleSection Title="@L["SlideSettings.MainText"].Value"
+                                       Style="@bibleStyle"
+                                       StyleChanged="UpdateBibleStyle"
+                                       FontSizeMin="SongFontSizeMin"
+                                       FontSizeMax="SongFontSizeMax"/>
+                </div>
+                <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700">
+                    <SlideStyleSection Title="@L["SlideSettings.Credits"].Value"
+                                       Style="@bibleCreditsStyle"
+                                       StyleChanged="UpdateBibleCreditsStyle"
+                                       FontSizeMin="CreditsFontSizeMin"
+                                       FontSizeMax="CreditsFontSizeMax"/>
+                </div>
+                <div class="flex justify-end">
+                    <AppButton Variant="ButtonVariant.Cancel" OnClick="ResetBibleStyles">@L["SlideSettings.Reset"]</AppButton>
+                </div>
+            }
         </div>
 
-        <div>
-            <label class="block text-sm font-medium mb-3">@L["SlideSettings.Preview"]</label>
-            <div @ref="previewContainer" class="flex justify-center">
-                <SongSlide
-                    Content="@previewText"
-                    FontSize="@fontSize"
-                    Label="Vers 1"
-                    LabelColor="#3b82f6"
-                    Class="border-t border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
-                    BaseWidth="1920"
-                    BaseHeight="1080"
-                    Scale="@previewScale" />
+        <div class="px-5 lg:px-0 mt-6 lg:mt-0 lg:sticky lg:top-4">
+            <label class="block text-sm font-medium mb-3 text-neutral-500 dark:text-neutral-400">@L["SlideSettings.Preview"]</label>
+            <div @ref="previewContainer">
+                @if (activeTab == "song")
+                {
+                    <SongSlide
+                        Content="@songPreviewText"
+                        Credits="@songPreviewCredits"
+                        ContentStyle="@songStyle"
+                        CreditsStyle="@creditsStyle"
+                        Class="border-t-[0.5px] border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                        BaseWidth="1920"
+                        BaseHeight="1080"
+                        Scale="@previewScale"/>
+                }
+                else
+                {
+                    <BibleTextSlide
+                        Content="@biblePreviewText"
+                        Credits="@biblePreviewCredits"
+                        ContentStyle="@bibleStyle"
+                        CreditsStyle="@bibleCreditsStyle"
+                        Class="border-t-[0.5px] border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                        BaseWidth="1920"
+                        BaseHeight="1080"
+                        Scale="@previewScale"/>
+                }
             </div>
         </div>
     </div>
 </PageContainer>
 
 @code {
-    private int fontSize = OrganizationSetting.DefaultSongFontSize;
+    private SlideTextStyle songStyle = SlideTextStyle.SongDefault;
+    private SlideTextStyle creditsStyle = SlideTextStyle.CreditsDefault;
+    private SlideTextStyle bibleStyle = SlideTextStyle.BibleDefault;
+    private SlideTextStyle bibleCreditsStyle = SlideTextStyle.CreditsDefault;
+
+    private string activeTab = "song";
     private ElementReference previewContainer;
     private double previewScale = 0.3;
     private DetailHeader? header;
     private readonly Debouncer saveDebounce = new();
 
-    private const string previewText = "Amazing grace\nhow sweet the sound\nthat saved a wretch like me";
+    private const string songPreviewText = "Amazing grace\nhow sweet the sound\nthat saved a wretch like me";
+    private const string songPreviewCredits = "John Newton · 1779";
+    private string biblePreviewText => L["SlideSettings.BiblePreviewText"].Value;
+    private string biblePreviewCredits => L["SlideSettings.BiblePreviewCredits"].Value;
     private const int BaseSlideWidth = 1920;
+
+    private const int SongFontSizeMin = 40;
+    private const int SongFontSizeMax = 150;
+    private const int CreditsFontSizeMin = 20;
+    private const int CreditsFontSizeMax = 80;
 
     protected override async Task OnInitializedAsync()
     {
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        var value = await OrgSettingService.GetSettingAsync(orgId, OrganizationSetting.SongFontSize, OrgState.ToCallerContext());
-        if (value is not null && int.TryParse(value, out var parsed))
-            fontSize = parsed;
+        songStyle = await LoadStyleAsync(orgId, SlideTextStyle.SongDefault,
+            OrganizationSetting.SongFontSize,
+            OrganizationSetting.SongFontFamily,
+            OrganizationSetting.SongFontWeight,
+            OrganizationSetting.SongLineHeight);
+
+        creditsStyle = await LoadStyleAsync(orgId, SlideTextStyle.CreditsDefault,
+            OrganizationSetting.CreditsFontSize,
+            OrganizationSetting.CreditsFontFamily,
+            OrganizationSetting.CreditsFontWeight,
+            OrganizationSetting.CreditsLineHeight);
+
+        bibleStyle = await LoadStyleAsync(orgId, SlideTextStyle.BibleDefault,
+            OrganizationSetting.BibleFontSize,
+            OrganizationSetting.BibleFontFamily,
+            OrganizationSetting.BibleFontWeight,
+            OrganizationSetting.BibleLineHeight);
+
+        bibleCreditsStyle = await LoadStyleAsync(orgId, SlideTextStyle.CreditsDefault,
+            OrganizationSetting.BibleCreditsFontSize,
+            OrganizationSetting.BibleCreditsFontFamily,
+            OrganizationSetting.BibleCreditsFontWeight,
+            OrganizationSetting.BibleCreditsLineHeight);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -87,13 +171,42 @@
         }
     }
 
-    private void OnFontSizeInput(ChangeEventArgs e)
+    private void UpdateSongStyle(SlideTextStyle newStyle) { songStyle = newStyle; saveDebounce.Run(SaveAsync); }
+    private void UpdateCreditsStyle(SlideTextStyle newStyle) { creditsStyle = newStyle; saveDebounce.Run(SaveAsync); }
+    private void UpdateBibleStyle(SlideTextStyle newStyle) { bibleStyle = newStyle; saveDebounce.Run(SaveAsync); }
+    private void UpdateBibleCreditsStyle(SlideTextStyle newStyle) { bibleCreditsStyle = newStyle; saveDebounce.Run(SaveAsync); }
+
+    private void ResetSongStyles() { songStyle = SlideTextStyle.SongDefault; creditsStyle = SlideTextStyle.CreditsDefault; saveDebounce.Run(SaveAsync); }
+    private void ResetBibleStyles() { bibleStyle = SlideTextStyle.BibleDefault; bibleCreditsStyle = SlideTextStyle.CreditsDefault; saveDebounce.Run(SaveAsync); }
+
+    private string TabClass(string tab) =>
+        "flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all whitespace-nowrap " +
+        (activeTab == tab
+            ? "bg-white dark:bg-neutral-600 dark:text-white shadow font-medium"
+            : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400");
+
+    private async Task<SlideTextStyle> LoadStyleAsync(
+        string orgId,
+        SlideTextStyle fallback,
+        string fontSizeKey,
+        string fontFamilyKey,
+        string fontWeightKey,
+        string lineHeightKey)
     {
-        if (int.TryParse(e.Value?.ToString(), out var value))
-        {
-            fontSize = value;
-            saveDebounce.Run(SaveAsync);
-        }
+        var ctx = OrgState.ToCallerContext();
+        var sizeValue = await OrgSettingService.GetSettingAsync(orgId, fontSizeKey, ctx);
+        var familyValue = await OrgSettingService.GetSettingAsync(orgId, fontFamilyKey, ctx);
+        var weightValue = await OrgSettingService.GetSettingAsync(orgId, fontWeightKey, ctx);
+        var lineHeightValue = await OrgSettingService.GetSettingAsync(orgId, lineHeightKey, ctx);
+
+        var size = int.TryParse(sizeValue, out var s) ? s : fallback.FontSize;
+        var family = string.IsNullOrEmpty(familyValue) ? fallback.FontFamily : familyValue;
+        var weight = int.TryParse(weightValue, out var w) ? w : fallback.FontWeight;
+        var lineHeight = double.TryParse(lineHeightValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var lh)
+            ? lh
+            : fallback.LineHeight;
+
+        return new SlideTextStyle(size, family, weight, lineHeight);
     }
 
     private async Task SaveAsync()
@@ -103,8 +216,28 @@
 
         try
         {
-            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.SongFontSize, fontSize.ToString(), OrgState.ToCallerContext());
-            SharedAppState.NotifyOrganizationSongFontSizeChanged(orgId, fontSize);
+            var ctx = OrgState.ToCallerContext();
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.SongFontSize, songStyle.FontSize.ToString(CultureInfo.InvariantCulture), ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.SongFontFamily, songStyle.FontFamily, ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.SongFontWeight, songStyle.FontWeight.ToString(CultureInfo.InvariantCulture), ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.SongLineHeight, songStyle.LineHeight.ToString(CultureInfo.InvariantCulture), ctx);
+
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.CreditsFontSize, creditsStyle.FontSize.ToString(CultureInfo.InvariantCulture), ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.CreditsFontFamily, creditsStyle.FontFamily, ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.CreditsFontWeight, creditsStyle.FontWeight.ToString(CultureInfo.InvariantCulture), ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.CreditsLineHeight, creditsStyle.LineHeight.ToString(CultureInfo.InvariantCulture), ctx);
+
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.BibleFontSize, bibleStyle.FontSize.ToString(CultureInfo.InvariantCulture), ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.BibleFontFamily, bibleStyle.FontFamily, ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.BibleFontWeight, bibleStyle.FontWeight.ToString(CultureInfo.InvariantCulture), ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.BibleLineHeight, bibleStyle.LineHeight.ToString(CultureInfo.InvariantCulture), ctx);
+
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.BibleCreditsFontSize, bibleCreditsStyle.FontSize.ToString(CultureInfo.InvariantCulture), ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.BibleCreditsFontFamily, bibleCreditsStyle.FontFamily, ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.BibleCreditsFontWeight, bibleCreditsStyle.FontWeight.ToString(CultureInfo.InvariantCulture), ctx);
+            await OrgSettingService.SetSettingAsync(orgId, OrganizationSetting.BibleCreditsLineHeight, bibleCreditsStyle.LineHeight.ToString(CultureInfo.InvariantCulture), ctx);
+
+            SharedAppState.NotifyOrganizationSlideStylesChanged(orgId, songStyle, creditsStyle, bibleStyle, bibleCreditsStyle);
             header?.ShowSaved();
         }
         catch

@@ -5,7 +5,8 @@
     <SongSlide
         Content="@LiveSlide.SongPart.Content"
         Credits="@LiveSlide.Credits"
-        FontSize="@LiveSlide.SongFontSize"
+        ContentStyle="@LiveSlide.SongStyle"
+        CreditsStyle="@LiveSlide.CreditsStyle"
         Class="@Class"
         BaseWidth="@BaseWidth"
         BaseHeight="@BaseHeight"
@@ -16,12 +17,14 @@ else if (LiveSlide.ItemType == ProjectItemType.BibleText && LiveSlide.Text is no
     <BibleTextSlide
         Content="@LiveSlide.Text"
         Credits="@LiveSlide.Credits"
+        ContentStyle="@LiveSlide.BibleStyle"
+        CreditsStyle="@LiveSlide.BibleCreditsStyle"
         Class="@Class"
         BaseWidth="@BaseWidth"
         BaseHeight="@BaseHeight"
         Scale="@Scale"/>
 }
-else if (LiveSlide.ItemType == ProjectItemType.Image && LiveSlide.ImageUrl is not null)
+else if ((LiveSlide.ItemType == ProjectItemType.Image || LiveSlide.ItemType == ProjectItemType.Slides) && LiveSlide.ImageUrl is not null)
 {
     <ImageSlide
         Url="@LiveSlide.ImageUrl"

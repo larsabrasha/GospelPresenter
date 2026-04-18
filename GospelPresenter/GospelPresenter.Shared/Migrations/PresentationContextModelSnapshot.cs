@@ -585,6 +585,33 @@ namespace GospelPresenter.Shared.Migrations
                     b.ToTable("PresentationItemParts");
                 });
 
+            modelBuilder.Entity("GospelPresenter.Shared.Models.PresentationSlides", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("PageCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PresentationId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PresentationId");
+
+                    b.ToTable("PresentationSlides");
+                });
+
             modelBuilder.Entity("GospelPresenter.Shared.Models.RemoteDisplay", b =>
                 {
                     b.Property<string>("Id")
@@ -901,6 +928,17 @@ namespace GospelPresenter.Shared.Migrations
                     b.Navigation("PresentationItem");
                 });
 
+            modelBuilder.Entity("GospelPresenter.Shared.Models.PresentationSlides", b =>
+                {
+                    b.HasOne("GospelPresenter.Shared.Models.Presentation", "Presentation")
+                        .WithMany("SlideDecks")
+                        .HasForeignKey("PresentationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Presentation");
+                });
+
             modelBuilder.Entity("GospelPresenter.Shared.Models.RemoteDisplay", b =>
                 {
                     b.HasOne("GospelPresenter.Shared.Models.Organization", "Organization")
@@ -960,6 +998,8 @@ namespace GospelPresenter.Shared.Migrations
             modelBuilder.Entity("GospelPresenter.Shared.Models.Presentation", b =>
                 {
                     b.Navigation("Items");
+
+                    b.Navigation("SlideDecks");
                 });
 
             modelBuilder.Entity("GospelPresenter.Shared.Models.PresentationItem", b =>

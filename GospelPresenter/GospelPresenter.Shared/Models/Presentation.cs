@@ -25,4 +25,5 @@ public class Presentation
     public Organization Organization { get; set; } = null!;
 
     public List<PresentationItem> Items { get; set; } = [];
+    public List<PresentationSlides> SlideDecks { get; set; } = [];
 }

@@ -7,5 +7,6 @@ public enum ButtonVariant
     Neutral,
     Cancel,
     Danger,
-    Icon
+    Icon,
+    DangerIcon
 }
