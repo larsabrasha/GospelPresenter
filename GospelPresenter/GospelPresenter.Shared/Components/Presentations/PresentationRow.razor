@@ -1,0 +1,44 @@
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.State
+
+@inject SharedAppState SharedAppState
+@inject AppState AppState
+
+<a href="/presentations/@Presentation.Id"
+   class="flex items-center px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+    <div class="flex-1 min-w-0">
+        <div class="truncate">@Presentation.Name</div>
+        @{
+            var subtitle = BuildSubtitle();
+        }
+        @if (subtitle.Length > 0)
+        {
+            <div class="text-xs text-neutral-400 dark:text-neutral-500 truncate">@subtitle</div>
+        }
+    </div>
+    @if (SharedAppState.IsPresentationActiveForSession(AppState.SessionId, Presentation.Id))
+    {
+        <span class="inline-flex items-center gap-1 bg-red-500 text-white text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
+            <span class="size-1.5 rounded-full bg-white animate-pulse"></span>
+            @L["Dashboard.Live"]
+        </span>
+    }
+</a>
+
+@code {
+    [Parameter, EditorRequired] public PresentationSummary Presentation { get; set; } = null!;
+    [Parameter] public bool ShowDate { get; set; } = true;
+    [Parameter] public bool ShowYear { get; set; }
+
+    private string BuildSubtitle()
+    {
+        var parts = new List<string>();
+        if (ShowDate && Presentation.EventDate is { } date)
+            parts.Add(date.ToString(ShowYear ? "ddd d MMM yyyy" : "ddd d MMM"));
+        if (Presentation.EventTime is { } time)
+            parts.Add(time.ToString("HH:mm"));
+        if (!string.IsNullOrWhiteSpace(Presentation.Location))
+            parts.Add(Presentation.Location);
+        return string.Join(" \u00b7 ", parts);
+    }
+}

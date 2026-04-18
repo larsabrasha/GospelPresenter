@@ -1120,7 +1120,44 @@
   </data>
   <data name="Dashboard.Live" xml:space="preserve">
     <value>Live</value>
-  </data>  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
+  </data>
+  <data name="Dashboard.Today" xml:space="preserve">
+    <value>Idag</value>
+  </data>
+  <data name="Dashboard.Upcoming" xml:space="preserve">
+    <value>Kommande</value>
+  </data>
+  <data name="Dashboard.Previous" xml:space="preserve">
+    <value>Tidigare</value>
+  </data>
+  <data name="Dashboard.AllPresentations" xml:space="preserve">
+    <value>Alla presentationer</value>
+  </data>
+  <data name="Presentations.Title" xml:space="preserve">
+    <value>Alla presentationer</value>
+  </data>
+  <data name="Presentations.Empty" xml:space="preserve">
+    <value>Inga presentationer</value>
+  </data>
+  <data name="Presentations.Description" xml:space="preserve">
+    <value>Alla dina presentationer.</value>
+  </data>
+  <data name="Presentations.SortBy" xml:space="preserve">
+    <value>Sortera efter</value>
+  </data>
+  <data name="Presentations.Sort.UpdatedDesc" xml:space="preserve">
+    <value>Senast ändrad</value>
+  </data>
+  <data name="Presentations.Sort.NameAsc" xml:space="preserve">
+    <value>Namn (A–Ö)</value>
+  </data>
+  <data name="Presentations.Sort.EventDateDesc" xml:space="preserve">
+    <value>Datum (nyast först)</value>
+  </data>
+  <data name="Presentations.Sort.EventDateAsc" xml:space="preserve">
+    <value>Datum (äldst först)</value>
+  </data>
+  <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
     <value>Spara som mall</value>
   </data>
   <data name="Sidebar.DeleteTemplate" xml:space="preserve">

@@ -1,0 +1,129 @@
+@page "/presentations"
+@attribute [Authorize(Policy = ViewPresentations)]
+
+@using System.ComponentModel
+@using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Components.Presentations
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+
+@inject IPresentationService PresentationService
+@inject ActiveOrganizationState OrgState
+@inject SharedAppState SharedAppState
+@inject AppState AppState
+
+@implements IDisposable
+
+<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+
+    <div class="relative flex items-center justify-between px-5 gap-3">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Presentations.Title"]</div>
+        <Dropdown MenuClass="right-0 w-56">
+            <Trigger>
+                <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12"/>
+                    </svg>
+                    <span>@L[$"Presentations.Sort.{sort}"]</span>
+                </button>
+            </Trigger>
+            <Menu>
+                @foreach (var option in Enum.GetValues<PresentationSortOrder>())
+                {
+                    var isActive = option == sort;
+                    <button type="button"
+                            @onclick="() => SetSortAsync(option)"
+                            class="@($"flex items-center justify-between gap-3 w-full text-left px-4 py-3 text-sm cursor-pointer {(isActive ? "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300" : "text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600")}")">
+                        <span>@L[$"Presentations.Sort.{option}"]</span>
+                        @if (isActive)
+                        {
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4 shrink-0">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
+                            </svg>
+                        }
+                    </button>
+                }
+            </Menu>
+        </Dropdown>
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+        <Virtualize @ref="virtualize"
+                    ItemsProvider="LoadItems"
+                    Context="presentation"
+                    ItemSize="56">
+            <ItemContent>
+                <PresentationRow Presentation="presentation" ShowYear="true"/>
+            </ItemContent>
+            <Placeholder>
+                <div class="flex items-center px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                    <div class="flex-1 min-w-0 animate-pulse">
+                        <div class="h-4 w-48 rounded bg-neutral-200 dark:bg-neutral-700"></div>
+                    </div>
+                </div>
+            </Placeholder>
+            <EmptyContent>
+                <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                        <rect x="55" y="12" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+                        <rect x="35" y="22" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <line x1="55" y1="50" x2="115" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+                        <line x1="55" y1="70" x2="110" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                        <line x1="55" y1="83" x2="100" y2="83" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.25"/>
+                        <line x1="55" y1="96" x2="105" y2="96" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+                    </svg>
+                    <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Presentations.Empty"]</h2>
+                    <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">
+                        @L["Presentations.Description"]
+                    </p>
+                </div>
+            </EmptyContent>
+        </Virtualize>
+    </div>
+
+</div>
+
+@code {
+    private Virtualize<PresentationSummary>? virtualize;
+    private PresentationSortOrder sort = PresentationSortOrder.UpdatedDesc;
+
+    protected override void OnInitialized()
+    {
+        SharedAppState.PropertyChanged += OnSharedStateChanged;
+    }
+
+    private async ValueTask<ItemsProviderResult<PresentationSummary>> LoadItems(ItemsProviderRequest request)
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null)
+            return new ItemsProviderResult<PresentationSummary>(Array.Empty<PresentationSummary>(), 0);
+
+        var page = await PresentationService.GetPresentationSummariesPageAsync(
+            orgId, request.StartIndex, request.Count, sort,
+            OrgState.ToCallerContext(), request.CancellationToken);
+
+        return new ItemsProviderResult<PresentationSummary>(page.Items, page.TotalCount);
+    }
+
+    private async Task SetSortAsync(PresentationSortOrder newSort)
+    {
+        if (newSort == sort) return;
+        sort = newSort;
+        if (virtualize is not null)
+            await virtualize.RefreshDataAsync();
+    }
+
+    private void OnSharedStateChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == AppState.SessionId)
+            _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        SharedAppState.PropertyChanged -= OnSharedStateChanged;
+    }
+}

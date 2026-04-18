@@ -4,9 +4,28 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Shared.Services;
 
+public record DashboardPresentations(
+    IList<PresentationSummary> Today,
+    IList<PresentationSummary> Upcoming,
+    IList<PresentationSummary> Previous);
+
+public record PresentationSummaryPage(
+    IReadOnlyList<PresentationSummary> Items,
+    int TotalCount);
+
+public enum PresentationSortOrder
+{
+    UpdatedDesc,
+    NameAsc,
+    EventDateDesc,
+    EventDateAsc
+}
+
 public interface IPresentationService
 {
     Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<DashboardPresentations> GetDashboardPresentationsAsync(string organizationId, DateOnly today, CallerContext caller, CancellationToken cancellationToken = default);
+    Task<PresentationSummaryPage> GetPresentationSummariesPageAsync(string organizationId, int skip, int take, PresentationSortOrder sort, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation?> GetTemplateByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default);
@@ -55,6 +74,85 @@ public class PresentationService(
             .ToListAsync(cancellationToken);
 
         return presentations;
+    }
+
+    public async Task<DashboardPresentations> GetDashboardPresentationsAsync(string organizationId, DateOnly today, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ViewPresentations);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var orgPresentations = context.Presentations
+            .Where(x => x.OrganizationId == organizationId && !x.IsTemplate);
+
+        var todayList = await orgPresentations
+            .Where(x => x.EventDate == today)
+            .OrderBy(x => x.EventTime ?? TimeOnly.MaxValue)
+            .ThenByDescending(x => x.UpdatedAt)
+            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt) { Location = x.EventLocation, EventDate = x.EventDate, EventTime = x.EventTime })
+            .ToListAsync(cancellationToken);
+
+        var upcomingList = await orgPresentations
+            .Where(x => x.EventDate > today)
+            .OrderBy(x => x.EventDate)
+            .ThenBy(x => x.EventTime ?? TimeOnly.MaxValue)
+            .Take(5)
+            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt) { Location = x.EventLocation, EventDate = x.EventDate, EventTime = x.EventTime })
+            .ToListAsync(cancellationToken);
+
+        var previousList = await orgPresentations
+            .Where(x => x.EventDate == null || x.EventDate < today)
+            .OrderByDescending(x => x.EventDate.HasValue)
+            .ThenByDescending(x => x.EventDate)
+            .ThenByDescending(x => x.EventTime ?? TimeOnly.MinValue)
+            .ThenByDescending(x => x.UpdatedAt)
+            .Take(5)
+            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt) { Location = x.EventLocation, EventDate = x.EventDate, EventTime = x.EventTime })
+            .ToListAsync(cancellationToken);
+
+        return new DashboardPresentations(todayList, upcomingList, previousList);
+    }
+
+    public async Task<PresentationSummaryPage> GetPresentationSummariesPageAsync(string organizationId, int skip, int take, PresentationSortOrder sort, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ViewPresentations);
+        caller.RequireOrganizationAccess(organizationId);
+
+        skip = Math.Max(0, skip);
+        take = Math.Clamp(take, 1, 200);
+
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var query = context.Presentations
+            .Where(x => x.OrganizationId == organizationId && !x.IsTemplate);
+
+        var total = await query.CountAsync(cancellationToken);
+
+        var ordered = sort switch
+        {
+            PresentationSortOrder.NameAsc => query
+                .OrderBy(x => x.Name)
+                .ThenByDescending(x => x.UpdatedAt),
+            PresentationSortOrder.EventDateDesc => query
+                .OrderByDescending(x => x.EventDate.HasValue)
+                .ThenByDescending(x => x.EventDate)
+                .ThenByDescending(x => x.EventTime ?? TimeOnly.MinValue)
+                .ThenByDescending(x => x.UpdatedAt),
+            PresentationSortOrder.EventDateAsc => query
+                .OrderByDescending(x => x.EventDate.HasValue)
+                .ThenBy(x => x.EventDate)
+                .ThenBy(x => x.EventTime ?? TimeOnly.MaxValue)
+                .ThenByDescending(x => x.UpdatedAt),
+            _ => query.OrderByDescending(x => x.UpdatedAt)
+        };
+
+        var items = await ordered
+            .Skip(skip)
+            .Take(take)
+            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt) { Location = x.EventLocation, EventDate = x.EventDate, EventTime = x.EventTime })
+            .ToListAsync(cancellationToken);
+
+        return new PresentationSummaryPage(items, total);
     }
 
     public async Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)

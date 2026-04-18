@@ -14,7 +14,7 @@
 
     <div class="relative flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Dashboard.Presentations"]</div>
-        @if (recentPresentations is not null && recentPresentations.Count > 0)
+        @if (hasAny)
         {
             <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center">
                 <PlusSymbol Class="size-4 mr-2"/>@L["Dashboard.Create"]
@@ -22,55 +22,54 @@
         }
     </div>
 
-    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
-        <div>
-            @if (recentPresentations is null)
-            {
-                <div class="px-4 py-3 text-neutral-400">@L["Common.Loading"]</div>
-            }
-            else if (recentPresentations.Count == 0)
-            {
-                <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
-                        <rect x="55" y="12" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
-                        <rect x="35" y="22" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                        <line x1="55" y1="50" x2="115" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
-                        <line x1="55" y1="70" x2="110" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
-                        <line x1="55" y1="83" x2="100" y2="83" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.25"/>
-                        <line x1="55" y1="96" x2="105" y2="96" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
-                        <circle cx="155" cy="130" r="18" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                        <line x1="155" y1="121" x2="155" y2="139" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                        <line x1="146" y1="130" x2="164" y2="130" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                    </svg>
-                    <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Dashboard.NoPresentations"]</h2>
-                    <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
-                        @L["Dashboard.Description"]
-                    </p>
-                    <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center gap-1.5">
-                        <PlusSymbol Class="size-4"/>
-                        @L["Dashboard.Create"]
-                    </AppButton>
-                </div>
-            }
-            else
-            {
-                @foreach (var presentation in recentPresentations)
-                {
-                    <a href="/presentations/@presentation.Id"
-                       class="flex items-center px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
-                        <span class="flex-1">@presentation.Name</span>
-                        @if (SharedAppState.IsPresentationActiveForSession(AppState.SessionId, presentation.Id))
-                        {
-                            <span class="inline-flex items-center gap-1 bg-red-500 text-white text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
-                                <span class="size-1.5 rounded-full bg-white animate-pulse"></span>
-                                @L["Dashboard.Live"]
-                            </span>
-                        }
-                    </a>
-                }
-            }
+    @if (dashboard is null)
+    {
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+            <div class="px-4 py-3 text-neutral-400">@L["Common.Loading"]</div>
         </div>
-    </div>
+    }
+    else if (!hasAny)
+    {
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <rect x="55" y="12" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+                    <rect x="35" y="22" width="100" height="130" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <line x1="55" y1="50" x2="115" y2="50" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+                    <line x1="55" y1="70" x2="110" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                    <line x1="55" y1="83" x2="100" y2="83" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.25"/>
+                    <line x1="55" y1="96" x2="105" y2="96" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+                    <circle cx="155" cy="130" r="18" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <line x1="155" y1="121" x2="155" y2="139" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    <line x1="146" y1="130" x2="164" y2="130" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                </svg>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Dashboard.NoPresentations"]</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                    @L["Dashboard.Description"]
+                </p>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center gap-1.5">
+                    <PlusSymbol Class="size-4"/>
+                    @L["Dashboard.Create"]
+                </AppButton>
+            </div>
+        </div>
+    }
+    else
+    {
+        <PresentationSection Title="@L["Dashboard.Today"]" Presentations="dashboard.Today" ShowDate="false"/>
+        <PresentationSection Title="@L["Dashboard.Upcoming"]" Presentations="dashboard.Upcoming"/>
+        <PresentationSection Title="@L["Dashboard.Previous"]" Presentations="dashboard.Previous"/>
+
+        <div class="px-5">
+            <a href="/presentations"
+               class="inline-flex items-center gap-1 text-sm text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 no-underline">
+                @L["Dashboard.AllPresentations"]
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+                </svg>
+            </a>
+        </div>
+    }
 
 </div>
 
@@ -136,7 +135,7 @@
 
 @code {
 
-    private IList<PresentationSummary>? recentPresentations;
+    private DashboardPresentations? dashboard;
     private IList<PresentationSummary>? recentTemplates;
     private bool showPicker;
     private bool showCreateDialog;
@@ -146,6 +145,8 @@
     private TimeOnly? prefillTime;
     private string? prefillLocation;
 
+    private bool hasAny => dashboard is { } d && (d.Today.Count + d.Upcoming.Count + d.Previous.Count) > 0;
+
     protected override async Task OnInitializedAsync()
     {
         SharedAppState.PropertyChanged += OnSharedStateChanged;
@@ -154,10 +155,11 @@
         if (orgId is null) return;
 
         var caller = OrgState.ToCallerContext();
-        var presentationsTask = PresentationService.GetRecentPresentationSummariesAsync(orgId, caller);
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var dashboardTask = PresentationService.GetDashboardPresentationsAsync(orgId, today, caller);
         var templatesTask = PresentationService.GetRecentTemplateSummariesAsync(orgId, caller);
-        await Task.WhenAll(presentationsTask, templatesTask);
-        recentPresentations = await presentationsTask;
+        await Task.WhenAll(dashboardTask, templatesTask);
+        dashboard = await dashboardTask;
         recentTemplates = await templatesTask;
     }
 
