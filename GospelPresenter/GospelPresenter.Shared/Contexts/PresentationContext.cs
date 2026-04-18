@@ -27,6 +27,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<DbBible> Bibles { get; set; }
     public DbSet<DbSongPartLabel> SongPartLabels { get; set; }
     public DbSet<DbSongArrangement> SongArrangements { get; set; }
+    public DbSet<PresentationSlides> PresentationSlides { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +98,11 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
         {
             e.Property(o => o.Title).HasMaxLength(AppConstraints.OverlayTitleMaxLength);
             e.Property(o => o.Content).HasMaxLength(AppConstraints.OverlayContentMaxLength);
+        });
+
+        modelBuilder.Entity<PresentationSlides>(e =>
+        {
+            e.Property(s => s.FileName).HasMaxLength(AppConstraints.FileNameMaxLength);
         });
 
         modelBuilder.Entity<OrganizationImage>(e =>

@@ -25,5 +25,6 @@ public enum ProjectItemType
     Song,
     BibleText,
     Image,
-    Audio
+    Audio,
+    Slides
 }

@@ -27,7 +27,7 @@
     }
     <div
         class="origin-top-left flex items-center justify-center px-20 pt-20 pb-36 relative overflow-hidden"
-        style="font-size: @(FormattableString.Invariant($"{FontSize}px")); width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
+        style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
         @ChildContent
     </div>
 </div>
@@ -36,13 +36,12 @@
     [Parameter] public required double Scale { get; set; }
     [Parameter] public required int BaseWidth { get; set; }
     [Parameter] public required int BaseHeight { get; set; }
-    [Parameter] public int FontSize { get; set; } = 85;
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public bool? IsSelected { get; set; }
     [Parameter] public bool IsLive { get; set; }
 
-    private const string BaseClass = "border-t border-neutral-800/90 bg-black rounded-2xl outline-4 m-1 text-white cursor-pointer";
+    private const string BaseClass = "border-t-[0.5px] border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer";
     private const string SelectedClass = "outline-sky-500 hover:outline-sky-500";
     private const string LiveSelectedClass = "outline-red-500 hover:outline-red-500";
     private const string NotSelectedClass = "outline-transparent hover:outline-sky-500";

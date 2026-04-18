@@ -3,6 +3,7 @@
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Song
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Image
 @using GospelPresenter.Shared.Components.Presentations.AddItem.Audio
+@using GospelPresenter.Shared.Components.Presentations.AddItem.Slides
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
@@ -37,6 +38,10 @@
                     <SpeakerWaveSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Audio"]
                 </button>
+                <button class="@TabClass("slides")" @onclick="@(() => activeTab = "slides")">
+                    <RectangleStackSymbol Class="hidden md:block size-4"/>
+                    @L["Sidebar.Slides"]
+                </button>
             </PillTabs>
         </div>
 
@@ -52,11 +57,15 @@
         <div class="@(editingSongId is null && activeTab == "audio" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
             <AudioTab OnAdd="@HandleAudioAdd" OnAddKeepOpen="@HandleAudioAddKeepOpen" AddMoreState="@addMoreState"/>
         </div>
+        <div class="@(editingSongId is null && activeTab == "slides" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
+            <SlidesTab PresentationId="@PresentationId" OnAdded="@HandleSlidesAdded"/>
+        </div>
     </Body>
 </Modal>
 
 @code {
     [Parameter] public string InitialTab { get; set; } = "song";
+    [Parameter] public string PresentationId { get; set; } = "";
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<GospelPresenter.Shared.State.SongAddRequest> OnSongAdded { get; set; }
     [Parameter] public EventCallback<GospelPresenter.Shared.State.SongAddRequest> OnSongAddedKeepOpen { get; set; }
@@ -66,6 +75,7 @@
     [Parameter] public EventCallback<List<OrganizationImage>> OnImagesAddedKeepOpen { get; set; }
     [Parameter] public EventCallback<List<OrganizationAudio>> OnAudiosAdded { get; set; }
     [Parameter] public EventCallback<List<OrganizationAudio>> OnAudiosAddedKeepOpen { get; set; }
+    [Parameter] public EventCallback<SlidesAddResult> OnSlidesAdded { get; set; }
 
     private string activeTab = "song";
     private AddMoreToggle addMoreState = new();
@@ -75,7 +85,7 @@
     private string TabClass(string tab) =>
         "flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all whitespace-nowrap " +
         (activeTab == tab
-            ? "bg-white dark:bg-neutral-600 shadow font-medium"
+            ? "bg-white dark:bg-neutral-600 dark:text-white shadow font-medium"
             : "hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400");
 
     protected override void OnInitialized()
@@ -151,5 +161,10 @@
     {
         editingSongId = null;
         songTab?.NotifyEditComplete(null);
+    }
+
+    private async Task HandleSlidesAdded(SlidesAddResult result)
+    {
+        await OnSlidesAdded.InvokeAsync(result);
     }
 }

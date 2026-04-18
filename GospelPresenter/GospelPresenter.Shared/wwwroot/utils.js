@@ -75,6 +75,27 @@ window.uploadAllFiles = async function (inputElement, url, organizationId, repla
     }
 };
 
+window.uploadSlides = async function (inputElement, url, organizationId, dotNetRef) {
+    var file = inputElement.files && inputElement.files[0];
+    if (!file) return;
+
+    var formData = new FormData();
+    formData.append('file', file);
+    if (organizationId) formData.append('organizationId', organizationId);
+
+    try {
+        var response = await fetch(url, { method: 'POST', body: formData });
+        inputElement.value = '';
+        if (response.ok) {
+            await dotNetRef.invokeMethodAsync('OnSlidesUploaded', await response.text());
+        } else {
+            await dotNetRef.invokeMethodAsync('OnSlidesUploadFailed', await response.text() || 'error');
+        }
+    } catch (e) {
+        await dotNetRef.invokeMethodAsync('OnSlidesUploadFailed', 'network-error');
+    }
+};
+
 window.readFileAsDataUrl = function (inputElement, maxFileSize, allowedTypes) {
     var file = inputElement.files && inputElement.files[0];
     if (!file) return Promise.resolve(null);

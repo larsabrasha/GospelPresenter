@@ -126,6 +126,57 @@ public static class UploadEndpoints
         }).RequireAuthorization()
           .DisableAntiforgery();
 
+        app.MapPost("/api/upload/presentation-slides/{presentationId}", async (
+            string presentationId,
+            HttpContext context,
+            IPdfRenderService pdfRenderService,
+            IPresentationSlidesService slidesService,
+            CancellationToken cancellationToken) =>
+        {
+            var caller = GetCaller(context);
+            if (caller is null) return Results.Unauthorized();
+
+            var (file, orgId) = await ReadUploadAsync(context, cancellationToken);
+            if (file is null) return Results.BadRequest();
+            if (orgId is null) return Results.BadRequest("Missing organizationId");
+
+            if (file.Length > AppConstraints.MaxSlidesFileSizeBytes) return Results.BadRequest("File too large");
+            if (!AppConstraints.AllowedSlidesTypes.Contains(file.ContentType)) return Results.BadRequest("Unsupported file type");
+            if (file.FileName.Length > AppConstraints.FileNameMaxLength) return Results.BadRequest("File name too long");
+
+            IReadOnlyList<RenderedPage> pages;
+            try
+            {
+                using var stream = file.OpenReadStream();
+                pages = pdfRenderService.RenderPdf(stream, AppConstraints.MaxSlidesPageCount);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(ex.Message);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return Results.BadRequest($"PDF has too many pages. Maximum allowed is {AppConstraints.MaxSlidesPageCount}.");
+            }
+
+            try
+            {
+                var (slides, item) = await slidesService.AddSlidesAsync(orgId, presentationId, file.FileName, pages, caller, cancellationToken);
+                return Results.Ok(new
+                {
+                    PresentationItemId = item.Id,
+                    SlidesId = slides.Id,
+                    FileName = slides.FileName,
+                    PageCount = slides.PageCount
+                });
+            }
+            catch (NotSupportedException)
+            {
+                return Results.StatusCode(503);
+            }
+        }).RequireAuthorization()
+          .DisableAntiforgery();
+
         app.MapPost("/api/upload/import-bible", async (
             HttpContext context,
             IBibleService bibleService,
