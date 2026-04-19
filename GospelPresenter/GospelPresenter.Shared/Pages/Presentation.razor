@@ -32,14 +32,20 @@
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
     var statusBarStyle = $"padding-top: {statusBarHeight}px";
-    var liveSlide = SharedAppState.GetLiveSlide(AppState.SessionId);
-    var isLiveShowing = SharedAppState.IsPresentationActive(AppState.SessionId) && liveSlide.Status != LiveSlideStatus.ShowingBlackScreen;
+    var liveSlide = SharedAppState.GetLiveSlide(EffectiveSessionId);
+    var isLiveShowing = SharedAppState.IsPresentationActive(EffectiveSessionId) && liveSlide.Status != LiveSlideStatus.ShowingBlackScreen;
 }
 <div class="flex flex-col h-full relative dark:text-neutral-200 dark:bg-neutral-800" style="@statusBarStyle">
     @if (IsTemplateMode)
     {
         <div class="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">
             @L["Templates.EditingBanner"]
+        </div>
+    }
+    @if (IsRemoteMode)
+    {
+        <div class="bg-amber-500 text-white text-center py-1.5 text-sm font-medium shrink-0">
+            @L["RemoteControl.Banner"]
         </div>
     }
     <div class="flex flex-1 min-h-0 relative">
@@ -131,7 +137,7 @@
                     </div>
 
                     <div class="p-3 hidden lg:flex items-center gap-2">
-                        @if (!IsTemplateMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+                        @if (!IsTemplateMode && !IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
                         {
                             <button @onclick="StartPresentation"
                                     class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer pointer-events-auto bg-emerald-500 text-white hover:bg-emerald-600"
@@ -167,8 +173,20 @@
                     var mainClass = hasSlides
                         ? "mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
                         : "flex items-center justify-center h-full overflow-auto";
+                    var remoteNotReady = IsRemoteMode && !IsRemoteReady;
+                    var remoteNoSession = IsRemoteMode && _presenterSessionId is null;
                 }
-                @if (SelectedAudio is not null)
+                @if (remoteNotReady)
+                {
+                    <div class="flex items-center justify-center h-full text-center px-6 pt-16">
+                        <div class="space-y-2">
+                            <div class="text-neutral-400 dark:text-neutral-500 text-sm">
+                                @(remoteNoSession ? L["RemoteControl.NoActivePresentation"] : L["RemoteControl.NotEnabled"])
+                            </div>
+                        </div>
+                    </div>
+                }
+                else if (SelectedAudio is not null)
                 {
                     <div id="audio-container" class="flex flex-col gap-3 w-full sm:max-w-lg sm:mx-auto px-3 pt-16 overflow-auto">
                         @for (var i = 0; i < SelectedAudio.Parts.Count; i++)
@@ -347,7 +365,7 @@
                         <MenuToggleButton OnClick="() => AppState.IsMenuVisible = true"/>
                     </div>
 
-                    @if (!IsTemplateMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+                    @if (!IsTemplateMode && !IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
                     {
                         <div class="lg:hidden pointer-events-auto">
                             <button @onclick="StartPresentation"
@@ -361,9 +379,9 @@
                         </div>
                     }
 
-                    @if (!IsTemplateMode && SharedAppState.IsPresentationActive(AppState.SessionId))
+                    @if (!IsTemplateMode && IsRemoteReady && SharedAppState.IsPresentationActive(EffectiveSessionId))
                     {
-                        var activeOverlay = SharedAppState.GetActiveOverlay(AppState.SessionId);
+                        var activeOverlay = SharedAppState.GetActiveOverlay(EffectiveSessionId);
 
                         <div class="pointer-events-auto ml-auto lg:hidden bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 flex flex-col gap-3">
                             <LivePanel
@@ -374,9 +392,9 @@
                                 BaseHeight="@AppState.BaseSlideHeight"
                                 OverlaySlides="@overlaySlides"
                                 ActiveOverlayId="@activeOverlayId"
-                                SessionId="@AppState.SessionId"
+                                SessionId="@EffectiveSessionId"
                                 SavedDisplays="@savedDisplays"
-                                OnClearSlide="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
+                                OnClearSlide="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
                                 OnToggleOverlay="ToggleOverlay"
                                 OnStopPresentation="StopPresentation"/>
                         </div>
@@ -385,9 +403,9 @@
 
             </div>
 
-            @if (!IsTemplateMode && SharedAppState.IsPresentationActive(AppState.SessionId))
+            @if (!IsTemplateMode && IsRemoteReady && SharedAppState.IsPresentationActive(EffectiveSessionId))
             {
-                var activeOverlayDesktop = SharedAppState.GetActiveOverlay(AppState.SessionId);
+                var activeOverlayDesktop = SharedAppState.GetActiveOverlay(EffectiveSessionId);
 
                 <div class="hidden lg:flex flex-col shrink-0 w-72 h-full bg-white dark:bg-neutral-800 overflow-auto shadow-xl">
                     <div class="p-4 flex flex-col gap-3 h-full">
@@ -399,10 +417,10 @@
                             BaseHeight="@AppState.BaseSlideHeight"
                             OverlaySlides="@overlaySlides"
                             ActiveOverlayId="@activeOverlayId"
-                            SessionId="@AppState.SessionId"
+                            SessionId="@EffectiveSessionId"
                             SavedDisplays="@savedDisplays"
                             ShowGrow
-                            OnClearSlide="() => SharedAppState.ToggleBlackScreen(AppState.SessionId)"
+                            OnClearSlide="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
                             OnToggleOverlay="ToggleOverlay"
                             OnStopPresentation="StopPresentation"/>
                     </div>
@@ -576,8 +594,18 @@
     [Parameter] public string? PresentationId { get; set; }
     [Parameter] public string? TemplateId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "remote")]
+    public bool Remote { get; set; }
+
     private bool IsTemplateMode => TemplateId is not null;
+    private bool IsRemoteMode => Remote && !IsTemplateMode;
     private string? EffectiveId => TemplateId ?? PresentationId;
+
+    private string? _presenterSessionId;
+    private string EffectiveSessionId =>
+        IsRemoteMode && _presenterSessionId is not null ? _presenterSessionId : AppState.SessionId;
+    private bool IsRemoteReady => !IsRemoteMode ||
+        (_presenterSessionId is not null && SharedAppState.IsRemoteControlEnabled(_presenterSessionId));
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
@@ -714,15 +742,15 @@
 
     private async Task StopPresentation()
     {
-        await JsRuntime.InvokeVoidAsync("stopLivePresentation", AppState.SessionId);
+        await JsRuntime.InvokeVoidAsync("stopLivePresentation", EffectiveSessionId);
         ResetLiveSlide();
-        SharedAppState.DeactivatePresentation(AppState.SessionId);
+        SharedAppState.DeactivatePresentation(EffectiveSessionId);
     }
 
     private void ResetLiveSlide()
     {
-        var current = SharedAppState.GetLiveSlide(AppState.SessionId);
-        SharedAppState.SetLiveSlide(AppState.SessionId, current with
+        var current = SharedAppState.GetLiveSlide(EffectiveSessionId);
+        SharedAppState.SetLiveSlide(EffectiveSessionId, current with
         {
             Status = LiveSlideStatus.ShowingBlackScreen
         });
@@ -966,10 +994,19 @@
         SharedAppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PresentationChanged += OnPresentationChanged;
         SharedAppState.OrganizationSlideStylesChanged += OnSlideStylesChanged;
+        SharedAppState.PresentationDeactivated += OnPresenterDeactivated;
     }
 
     protected override async Task OnParametersSetAsync()
     {
+        if (IsRemoteMode)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            _presenterSessionId = orgId is not null
+                ? SharedAppState.GetActiveSessionIdForOrganization(orgId)
+                : null;
+        }
+
         if (EffectiveId == loadedPresentationId) return;
         loadedPresentationId = EffectiveId;
 
@@ -1052,7 +1089,7 @@
             savedDisplays = await RemoteDisplayService.GetDisplaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
         }
 
-        var liveItemId = SharedAppState.GetLiveSlide(AppState.SessionId).ProjectItemId;
+        var liveItemId = SharedAppState.GetLiveSlide(EffectiveSessionId).ProjectItemId;
         var activeItem = liveItemId is not null
             ? AppState.SelectedProject.Items.FirstOrDefault(x => x.Id == liveItemId)
             : null;
@@ -1109,7 +1146,17 @@
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
         SharedAppState.OrganizationSlideStylesChanged -= OnSlideStylesChanged;
+        SharedAppState.PresentationDeactivated -= OnPresenterDeactivated;
         dotNetRef?.Dispose();
+    }
+
+    private void OnPresenterDeactivated(string sessionId)
+    {
+        if (IsRemoteMode && sessionId == _presenterSessionId)
+        {
+            _presenterSessionId = null;
+            _ = InvokeAsync(StateHasChanged);
+        }
     }
 
     private void OnSlideStylesChanged(
@@ -1125,8 +1172,8 @@
         bibleStyle = newBibleStyle;
         bibleCreditsStyle = newBibleCreditsStyle;
 
-        var current = SharedAppState.GetLiveSlide(AppState.SessionId);
-        SharedAppState.SetLiveSlide(AppState.SessionId, current with
+        var current = SharedAppState.GetLiveSlide(EffectiveSessionId);
+        SharedAppState.SetLiveSlide(EffectiveSessionId, current with
         {
             SongStyle = newSongStyle,
             CreditsStyle = newCreditsStyle,
@@ -1172,6 +1219,10 @@
                 SharedAppState.ClearSessionExpired(AppState.SessionId);
             }
 
+            _ = InvokeAsync(StateHasChanged);
+        }
+        else if (sender is SharedAppState && IsRemoteMode && e.PropertyName == _presenterSessionId)
+        {
             _ = InvokeAsync(StateHasChanged);
         }
     }
@@ -1324,7 +1375,7 @@
                 var parts = imageItem?.Parts.OrderBy(p => p.SortOrder).ToList();
                 if (parts is not null && partIndex < parts.Count)
                 {
-                    imageUrl = ImageUrlHelper.LiveOrgImageUrl(AppState.SessionId, parts[partIndex].Content, "full");
+                    imageUrl = ImageUrlHelper.LiveOrgImageUrl(EffectiveSessionId, parts[partIndex].Content, "full");
                 }
 
                 break;
@@ -1351,7 +1402,7 @@
                     var orderedParts = slidesPresItem.Parts.OrderBy(p => p.SortOrder).ToList();
                     if (partIndex < orderedParts.Count && int.TryParse(orderedParts[partIndex].Content, out var pageIndex))
                     {
-                        imageUrl = ImageUrlHelper.LiveSlidesPageUrl(AppState.SessionId, slidesSourceId, pageIndex);
+                        imageUrl = ImageUrlHelper.LiveSlidesPageUrl(EffectiveSessionId, slidesSourceId, pageIndex);
                     }
                 }
                 break;
@@ -1361,9 +1412,9 @@
         }
 
         if (EffectiveId is not null)
-            SharedAppState.UpdateActivePresentationId(AppState.SessionId, EffectiveId, AppState.SelectedProject?.Name);
+            SharedAppState.UpdateActivePresentationId(EffectiveSessionId, EffectiveId, AppState.SelectedProject?.Name);
 
-        SharedAppState.SetLiveSlide(AppState.SessionId, SharedAppState.GetLiveSlide(AppState.SessionId) with
+        SharedAppState.SetLiveSlide(EffectiveSessionId, SharedAppState.GetLiveSlide(EffectiveSessionId) with
         {
             Status = LiveSlideStatus.ShowingPresentation,
             ItemType = projectItem.Type,
@@ -1398,7 +1449,7 @@
         if (activeOverlayId == overlay.Id)
         {
             activeOverlayId = null;
-            SharedAppState.ClearOverlay(AppState.SessionId);
+            SharedAppState.ClearOverlay(EffectiveSessionId);
         }
         else
         {
@@ -1406,9 +1457,9 @@
             string? imageUrl = null;
             if (overlay.HasImage)
             {
-                imageUrl = ImageUrlHelper.LiveOverlayImageUrl(AppState.SessionId, overlay.Id);
+                imageUrl = ImageUrlHelper.LiveOverlayImageUrl(EffectiveSessionId, overlay.Id);
             }
-            SharedAppState.SetOverlay(AppState.SessionId, overlay.Content, imageUrl);
+            SharedAppState.SetOverlay(EffectiveSessionId, overlay.Content, imageUrl);
         }
     }
 
@@ -1421,7 +1472,7 @@
         if (activeOverlayId is not null && overlaySlides.All(o => o.Id != activeOverlayId))
         {
             activeOverlayId = null;
-            SharedAppState.ClearOverlay(AppState.SessionId);
+            SharedAppState.ClearOverlay(EffectiveSessionId);
         }
     }
 
