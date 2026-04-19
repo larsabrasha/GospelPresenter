@@ -56,7 +56,7 @@
             <div id="persistent-audio-container" class="hidden">
                 @foreach (var part in nonLiveAudio.Parts)
                 {
-                    <AudioPlayerEngine AudioElementId="@($"session-audio-{part.PartId}")" Url="@part.Url" ContainerId="persistent-audio-container"/>
+                    <AudioPlayerEngine AudioElementId="@($"session-audio-{part.PartId}")" Url="@part.Url" ContainerId="persistent-audio-container" Muted="@IsRemoteMode"/>
                 }
             </div>
         }
