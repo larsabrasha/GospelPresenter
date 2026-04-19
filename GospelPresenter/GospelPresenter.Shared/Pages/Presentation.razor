@@ -48,6 +48,19 @@
             @L["RemoteControl.Banner"]
         </div>
     }
+    @if (!IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+    {
+        var nonLiveAudio = SharedAppState.GetSessionAudio(AppState.SessionId);
+        @if (nonLiveAudio is not null)
+        {
+            <div id="persistent-audio-container" class="hidden">
+                @foreach (var part in nonLiveAudio.Parts)
+                {
+                    <AudioPlayerEngine AudioElementId="@($"session-audio-{part.PartId}")" Url="@part.Url" ContainerId="persistent-audio-container"/>
+                }
+            </div>
+        }
+    }
     <div class="flex flex-1 min-h-0 relative">
     @{
         var menuBackdropVisibilityClass = AppState.IsMenuVisible ? "visible opacity-100" : "invisible opacity-0";
@@ -192,10 +205,6 @@
                         @foreach (var part in SelectedAudio.Parts)
                         {
                             var elementId = $"session-audio-{part.PartId}";
-                            @if (!SharedAppState.IsPresentationActive(AppState.SessionId))
-                            {
-                                <AudioPlayerEngine AudioElementId="@elementId" Url="@part.Url" ContainerId="audio-container"/>
-                            }
                             <AudioPlayer AudioElementId="@elementId" FileName="@part.FileName"/>
                         }
                     </div>
@@ -1148,6 +1157,8 @@
 
     public void Dispose()
     {
+        if (!IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+            SharedAppState.SetSessionAudio(AppState.SessionId, null);
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
@@ -1318,8 +1329,7 @@
                     else
                     {
                         SelectedAudio = audio;
-                        if (SharedAppState.IsPresentationActive(AppState.SessionId))
-                            SharedAppState.SetSessionAudio(AppState.SessionId, audio);
+                        SharedAppState.SetSessionAudio(AppState.SessionId, audio);
                     }
                 }
                 break;
