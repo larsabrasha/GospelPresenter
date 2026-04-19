@@ -9,6 +9,8 @@ public record CcliSongDisplayedEvent(
     string OrganizationId, string SongId, string SongName, string CcliNumber,
     string? PresentationId, string? PresentationName);
 
+public record AudioCommand(string Action, string AudioElementId, double? Position);
+
 public partial class SharedAppState : ObservableObject
 {
     private readonly TimeSpan sessionTimeout;
@@ -26,6 +28,7 @@ public partial class SharedAppState : ObservableObject
     private readonly ConcurrentDictionary<string, CancellationTokenSource> ccliTimers = new();
     private readonly ConcurrentDictionary<string, bool> remoteControlEnabled = new();
     private readonly ConcurrentDictionary<string, Audio> sessionAudio = new();
+    private readonly ConcurrentDictionary<string, AudioCommand> pendingAudioCommands = new();
 
     public static readonly LiveSlide DefaultSlide = new(
         LiveSlideStatus.ShowingPresentation,
@@ -103,6 +106,7 @@ public partial class SharedAppState : ObservableObject
         presentationActive.TryRemove(sessionId, out _);
         remoteControlEnabled.TryRemove(sessionId, out _);
         sessionAudio.TryRemove(sessionId, out _);
+        pendingAudioCommands.TryRemove(sessionId, out _);
         OnPropertyChanged(sessionId);
         PresentationDeactivated?.Invoke(sessionId);
     }
@@ -133,6 +137,18 @@ public partial class SharedAppState : ObservableObject
 
     public Audio? GetSessionAudio(string sessionId) =>
         sessionAudio.GetValueOrDefault(sessionId);
+
+    public void SetAudioCommand(string sessionId, AudioCommand command)
+    {
+        pendingAudioCommands[sessionId] = command;
+        OnPropertyChanged(sessionId);
+    }
+
+    public AudioCommand? TakeAudioCommand(string sessionId)
+    {
+        pendingAudioCommands.TryRemove(sessionId, out var cmd);
+        return cmd;
+    }
 
     public ActiveSession? GetActiveSession(string sessionId) =>
         presentationActive.GetValueOrDefault(sessionId);
@@ -261,6 +277,7 @@ public partial class SharedAppState : ObservableObject
             presentationActive.TryRemove(sessionId, out _);
             remoteControlEnabled.TryRemove(sessionId, out _);
             sessionAudio.TryRemove(sessionId, out _);
+            pendingAudioCommands.TryRemove(sessionId, out _);
             lastAccessed.TryRemove(sessionId, out _);
 
             if (wasActive)
