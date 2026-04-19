@@ -1097,6 +1097,15 @@
   <data name="Templates.EditingBanner" xml:space="preserve">
     <value>Du redigerar en mall</value>
   </data>
+  <data name="RemoteControl.Banner" xml:space="preserve">
+    <value>Fjärrstyrningsläge – du styr en aktiv presentation</value>
+  </data>
+  <data name="RemoteControl.NoActivePresentation" xml:space="preserve">
+    <value>Ingen aktiv presentation just nu</value>
+  </data>
+  <data name="RemoteControl.NotEnabled" xml:space="preserve">
+    <value>Fjärrstyrning är inte aktiverad av presentatören</value>
+  </data>
   <data name="Templates.DeleteConfirm" xml:space="preserve">
     <value>Är du säker på att du vill ta bort mallen?</value>
   </data>
@@ -1120,6 +1129,18 @@
   </data>
   <data name="Dashboard.Live" xml:space="preserve">
     <value>Live</value>
+  </data>
+  <data name="Dashboard.LiveNow" xml:space="preserve">
+    <value>Visas just nu</value>
+  </data>
+  <data name="Dashboard.LiveNowUnknown" xml:space="preserve">
+    <value>Aktiv presentation</value>
+  </data>
+  <data name="Dashboard.TakeControl" xml:space="preserve">
+    <value>Ta kontroll</value>
+  </data>
+  <data name="LivePanel.RemoteControl" xml:space="preserve">
+    <value>Tillåt fjärrstyrning</value>
   </data>
   <data name="Dashboard.Today" xml:space="preserve">
     <value>Idag</value>

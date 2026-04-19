@@ -24,6 +24,7 @@ public partial class SharedAppState : ObservableObject
     private readonly ConcurrentDictionary<string, DateTime> lastAccessed = new();
     private readonly ConcurrentDictionary<string, DateTime> expiredSessions = new();
     private readonly ConcurrentDictionary<string, CancellationTokenSource> ccliTimers = new();
+    private readonly ConcurrentDictionary<string, bool> remoteControlEnabled = new();
 
     public static readonly LiveSlide DefaultSlide = new(
         LiveSlideStatus.ShowingPresentation,
@@ -99,9 +100,28 @@ public partial class SharedAppState : ObservableObject
     {
         TouchSession(sessionId);
         presentationActive.TryRemove(sessionId, out _);
+        remoteControlEnabled.TryRemove(sessionId, out _);
         OnPropertyChanged(sessionId);
         PresentationDeactivated?.Invoke(sessionId);
     }
+
+    public void EnableRemoteControl(string sessionId)
+    {
+        remoteControlEnabled[sessionId] = true;
+        OnPropertyChanged(sessionId);
+    }
+
+    public void DisableRemoteControl(string sessionId)
+    {
+        remoteControlEnabled.TryRemove(sessionId, out _);
+        OnPropertyChanged(sessionId);
+    }
+
+    public bool IsRemoteControlEnabled(string sessionId) =>
+        remoteControlEnabled.GetValueOrDefault(sessionId, false);
+
+    public ActiveSession? GetActiveSession(string sessionId) =>
+        presentationActive.GetValueOrDefault(sessionId);
 
     public event Action<string>? PresentationActivated;
     public event Action<string>? PresentationDeactivated;
@@ -225,6 +245,7 @@ public partial class SharedAppState : ObservableObject
             liveSlides.TryRemove(sessionId, out _);
             activeOverlays.TryRemove(sessionId, out _);
             presentationActive.TryRemove(sessionId, out _);
+            remoteControlEnabled.TryRemove(sessionId, out _);
             lastAccessed.TryRemove(sessionId, out _);
 
             if (wasActive)
