@@ -189,10 +189,14 @@
                 else if (SelectedAudio is not null)
                 {
                     <div id="audio-container" class="flex flex-col gap-3 w-full sm:max-w-lg sm:mx-auto px-3 pt-16 overflow-auto">
-                        @for (var i = 0; i < SelectedAudio.Parts.Count; i++)
+                        @foreach (var part in SelectedAudio.Parts)
                         {
-                            var part = SelectedAudio.Parts[i];
-                            <AudioPlayer AudioElementId="@($"audio-player-{i}")" FileName="@part.FileName" Url="@part.Url"/>
+                            var elementId = $"session-audio-{part.PartId}";
+                            @if (!SharedAppState.IsPresentationActive(AppState.SessionId))
+                            {
+                                <AudioPlayerEngine AudioElementId="@elementId" Url="@part.Url" ContainerId="audio-container"/>
+                            }
+                            <AudioPlayer AudioElementId="@elementId" FileName="@part.FileName"/>
                         }
                     </div>
                 }
@@ -1311,10 +1315,12 @@
                     var audio = new Audio(audioItem.Id, audioParts);
                     if (IsRemoteMode && _presenterSessionId is not null)
                         SharedAppState.SetSessionAudio(_presenterSessionId, audio);
-                    else if (SharedAppState.IsPresentationActive(AppState.SessionId))
-                        SharedAppState.SetSessionAudio(AppState.SessionId, audio);
                     else
+                    {
                         SelectedAudio = audio;
+                        if (SharedAppState.IsPresentationActive(AppState.SessionId))
+                            SharedAppState.SetSessionAudio(AppState.SessionId, audio);
+                    }
                 }
                 break;
             case ProjectItemType.Slides:

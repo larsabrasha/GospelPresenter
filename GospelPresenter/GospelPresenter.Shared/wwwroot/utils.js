@@ -784,6 +784,25 @@ window.gospelPresenter.onAudioTimeUpdate = function(audioId) {
     gospelPresenter.updateAudioUI(audioId, audio.currentTime, audio.duration);
 };
 
+window.gospelPresenter.syncAudioUi = function(audioId) {
+    var audio = document.getElementById(audioId);
+    if (!audio) return;
+    var playIcon = document.getElementById(audioId + '-play-icon');
+    var pauseIcon = document.getElementById(audioId + '-pause-icon');
+    if (!audio.paused) {
+        if (playIcon) playIcon.classList.add('hidden');
+        if (pauseIcon) pauseIcon.classList.remove('hidden');
+    } else {
+        if (playIcon) playIcon.classList.remove('hidden');
+        if (pauseIcon) pauseIcon.classList.add('hidden');
+    }
+    if (audio.duration) {
+        gospelPresenter.updateAudioUI(audioId, audio.currentTime, audio.duration);
+        var duration = document.getElementById(audioId + '-duration');
+        if (duration) duration.textContent = gospelPresenter.formatTime(audio.duration);
+    }
+};
+
 window.gospelPresenter.onAudioMetadata = function(audioId) {
     var audio = document.getElementById(audioId);
     if (!audio) return;
