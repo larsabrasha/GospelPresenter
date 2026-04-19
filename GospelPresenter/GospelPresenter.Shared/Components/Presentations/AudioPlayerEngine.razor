@@ -1,0 +1,12 @@
+<audio id="@AudioElementId" preload="metadata" src="@Url"
+       onplay="this.volume = 1; gospelPresenter.onAudioPlay('@AudioElementId', '@ContainerId')"
+       onpause="gospelPresenter.onAudioPause('@AudioElementId')"
+       ontimeupdate="gospelPresenter.onAudioTimeUpdate('@AudioElementId')"
+       onloadedmetadata="gospelPresenter.onAudioMetadata('@AudioElementId')"
+       class="hidden"/>
+
+@code {
+    [Parameter, EditorRequired] public string AudioElementId { get; set; } = "";
+    [Parameter, EditorRequired] public string Url { get; set; } = "";
+    [Parameter] public string ContainerId { get; set; } = "audio-container";
+}
