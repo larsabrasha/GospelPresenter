@@ -1241,6 +1241,9 @@
         isEditingItemTitle = false;
         imageSortableInitialized = false;
 
+        if (IsRemoteMode && _presenterSessionId is not null)
+            SharedAppState.SetRemoteAudio(_presenterSessionId, null);
+
         switch (AppState.SelectedProjectItem?.Type)
         {
             case ProjectItemType.Song:
@@ -1308,7 +1311,11 @@
                             return new AudioPart(p.Id, audioId, fileName, ImageUrlHelper.OrgAudioUrl(audioId));
                         })
                         .ToList();
-                    SelectedAudio = new Audio(audioItem.Id, audioParts);
+                    var audio = new Audio(audioItem.Id, audioParts);
+                    if (IsRemoteMode && _presenterSessionId is not null)
+                        SharedAppState.SetRemoteAudio(_presenterSessionId, audio);
+                    else
+                        SelectedAudio = audio;
                 }
                 break;
             case ProjectItemType.Slides:
