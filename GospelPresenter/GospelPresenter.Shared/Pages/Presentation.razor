@@ -48,7 +48,7 @@
             @L["RemoteControl.Banner"]
         </div>
     }
-    @if (!IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+    @if (!SharedAppState.IsPresentationActive(AppState.SessionId))
     {
         var nonLiveAudio = SharedAppState.GetSessionAudio(AppState.SessionId);
         @if (nonLiveAudio is not null)
@@ -760,6 +760,8 @@
         await JsRuntime.InvokeVoidAsync("stopLivePresentation", EffectiveSessionId);
         ResetLiveSlide();
         SharedAppState.DeactivatePresentation(EffectiveSessionId);
+        if (SelectedAudio is not null)
+            SharedAppState.SetSessionAudio(AppState.SessionId, SelectedAudio);
     }
 
     private void ResetLiveSlide()
@@ -1157,7 +1159,7 @@
 
     public void Dispose()
     {
-        if (!IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+        if (!SharedAppState.IsPresentationActive(AppState.SessionId))
             SharedAppState.SetSessionAudio(AppState.SessionId, null);
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
@@ -1324,13 +1326,10 @@
                         })
                         .ToList();
                     var audio = new Audio(audioItem.Id, audioParts);
+                    SelectedAudio = audio;
                     if (IsRemoteMode && _presenterSessionId is not null)
                         SharedAppState.SetSessionAudio(_presenterSessionId, audio);
-                    else
-                    {
-                        SelectedAudio = audio;
-                        SharedAppState.SetSessionAudio(AppState.SessionId, audio);
-                    }
+                    SharedAppState.SetSessionAudio(AppState.SessionId, audio);
                 }
                 break;
             case ProjectItemType.Slides:
