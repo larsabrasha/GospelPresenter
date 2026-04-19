@@ -682,7 +682,27 @@ window.gospelPresenter.formatTime = function(seconds) {
     return mins + ':' + (secs < 10 ? '0' : '') + secs;
 };
 
+window.gospelPresenter._audioRelay = null;
+
+window.gospelPresenter.registerAudioRelay = function(dotnetRef) {
+    window.gospelPresenter._audioRelay = dotnetRef;
+};
+
+window.gospelPresenter.unregisterAudioRelay = function() {
+    window.gospelPresenter._audioRelay = null;
+};
+
+window.gospelPresenter.executeAudioCommand = function(action, audioId, position) {
+    var audio = document.getElementById(audioId);
+    if (!audio) return;
+    if (action === 'toggle') { if (audio.paused) audio.play(); else audio.pause(); }
+    else if (action === 'seek' && position != null) { audio.currentTime = position; }
+    else if (action === 'fade') { gospelPresenter.fadeOutAudio(audio, null); }
+};
+
 window.gospelPresenter.toggleAudio = function(audioId) {
+    if (window.gospelPresenter._audioRelay)
+        window.gospelPresenter._audioRelay.invokeMethodAsync('OnRemoteAudioCommand', 'toggle', audioId, null);
     var audio = document.getElementById(audioId);
     if (!audio) return;
     if (audio.paused) audio.play();
@@ -735,6 +755,8 @@ window.gospelPresenter.startSeek = function(audioId, event, bar) {
         if (debounceTimer) clearTimeout(debounceTimer);
         audio._seeking = false;
         audio.volume = originalVolume;
+        if (window.gospelPresenter._audioRelay)
+            window.gospelPresenter._audioRelay.invokeMethodAsync('OnRemoteAudioCommand', 'seek', audioId, audio.currentTime);
     }
 
     document.addEventListener('mousemove', onMove);
@@ -835,6 +857,8 @@ window.gospelPresenter.fadeOutAudio = function(audioElement, button, durationMs)
     durationMs = durationMs || 5000;
     if (audioElement.paused) return;
     if (audioElement._fadeInterval) return;
+    if (window.gospelPresenter._audioRelay)
+        window.gospelPresenter._audioRelay.invokeMethodAsync('OnRemoteAudioCommand', 'fade', audioElement.id, null);
 
     var startVolume = audioElement.volume;
     var startTime = Date.now();
