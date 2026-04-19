@@ -1,4 +1,5 @@
 @using GospelPresenter.Shared.Components.Symbols
+@inject IJSRuntime JsRuntime
 
 <div class="w-full bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-sm">
     <div class="flex items-center justify-between mb-3">
@@ -43,20 +44,18 @@
         </div>
     </div>
 
-    <audio id="@audioElementId" preload="metadata" src="@Url"
-           onplay="this.volume = 1; gospelPresenter.onAudioPlay('@audioElementId', '@ContainerId')"
-           onpause="gospelPresenter.onAudioPause('@audioElementId')"
-           ontimeupdate="gospelPresenter.onAudioTimeUpdate('@audioElementId')"
-           onloadedmetadata="gospelPresenter.onAudioMetadata('@audioElementId')"
-           class="hidden"/>
 </div>
 
 @code {
     [Parameter, EditorRequired] public string AudioElementId { get; set; } = "";
     [Parameter, EditorRequired] public string FileName { get; set; } = "";
-    [Parameter, EditorRequired] public string Url { get; set; } = "";
-    [Parameter] public string ContainerId { get; set; } = "audio-container";
 
     private string audioElementId => AudioElementId;
     private string fadeButtonId => $"fade-btn-{AudioElementId}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.syncAudioUi", audioElementId);
+    }
 }
