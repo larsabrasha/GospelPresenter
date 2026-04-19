@@ -22,6 +22,31 @@
         }
     </div>
 
+    @if (liveSessionId is not null)
+    {
+        var liveSession = SharedAppState.GetActiveSession(liveSessionId);
+        var livePresentationId = liveSession?.PresentationId;
+        var livePresentationName = liveSession?.PresentationName;
+        <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800 overflow-hidden">
+            <div class="px-4 py-3 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="inline-block size-2 rounded-full bg-emerald-500 shrink-0 animate-pulse"></span>
+                    <div class="min-w-0">
+                        <div class="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">@L["Dashboard.LiveNow"]</div>
+                        <div class="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">@(livePresentationName ?? L["Dashboard.LiveNowUnknown"])</div>
+                    </div>
+                </div>
+                @if (livePresentationId is not null)
+                {
+                    <a href="/presentations/@livePresentationId?remote=true"
+                       class="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 no-underline">
+                        @L["Dashboard.TakeControl"]
+                    </a>
+                }
+            </div>
+        </div>
+    }
+
     @if (dashboard is null)
     {
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
@@ -147,9 +172,23 @@
 
     private bool hasAny => dashboard is { } d && (d.Today.Count + d.Upcoming.Count + d.Previous.Count) > 0;
 
+    private string? liveSessionId
+    {
+        get
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is null) return null;
+            var sessionId = SharedAppState.GetActiveSessionIdForOrganization(orgId);
+            if (sessionId is null || !SharedAppState.IsRemoteControlEnabled(sessionId)) return null;
+            return sessionId;
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         SharedAppState.PropertyChanged += OnSharedStateChanged;
+        SharedAppState.PresentationActivated += OnPresentationActivatedOrDeactivated;
+        SharedAppState.PresentationDeactivated += OnPresentationActivatedOrDeactivated;
 
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
@@ -258,12 +297,18 @@
 
     private void OnSharedStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == AppState.SessionId)
-            _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnPresentationActivatedOrDeactivated(string sessionId)
+    {
+        _ = InvokeAsync(StateHasChanged);
     }
 
     public void Dispose()
     {
         SharedAppState.PropertyChanged -= OnSharedStateChanged;
+        SharedAppState.PresentationActivated -= OnPresentationActivatedOrDeactivated;
+        SharedAppState.PresentationDeactivated -= OnPresentationActivatedOrDeactivated;
     }
 }

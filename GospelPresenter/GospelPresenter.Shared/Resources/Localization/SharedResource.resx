@@ -1097,6 +1097,15 @@
   <data name="Templates.EditingBanner" xml:space="preserve">
     <value>You are editing a template</value>
   </data>
+  <data name="RemoteControl.Banner" xml:space="preserve">
+    <value>Remote control mode – you are controlling a live presentation</value>
+  </data>
+  <data name="RemoteControl.NoActivePresentation" xml:space="preserve">
+    <value>No active presentation right now</value>
+  </data>
+  <data name="RemoteControl.NotEnabled" xml:space="preserve">
+    <value>Remote control has not been enabled by the presenter</value>
+  </data>
   <data name="Templates.DeleteConfirm" xml:space="preserve">
     <value>Are you sure you want to delete this template?</value>
   </data>
@@ -1120,6 +1129,18 @@
   </data>
   <data name="Dashboard.Live" xml:space="preserve">
     <value>Live</value>
+  </data>
+  <data name="Dashboard.LiveNow" xml:space="preserve">
+    <value>Showing now</value>
+  </data>
+  <data name="Dashboard.LiveNowUnknown" xml:space="preserve">
+    <value>Active presentation</value>
+  </data>
+  <data name="Dashboard.TakeControl" xml:space="preserve">
+    <value>Take control</value>
+  </data>
+  <data name="LivePanel.RemoteControl" xml:space="preserve">
+    <value>Allow remote control</value>
   </data>
   <data name="Dashboard.Today" xml:space="preserve">
     <value>Today</value>
