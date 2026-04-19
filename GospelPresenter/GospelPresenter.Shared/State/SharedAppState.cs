@@ -25,7 +25,7 @@ public partial class SharedAppState : ObservableObject
     private readonly ConcurrentDictionary<string, DateTime> expiredSessions = new();
     private readonly ConcurrentDictionary<string, CancellationTokenSource> ccliTimers = new();
     private readonly ConcurrentDictionary<string, bool> remoteControlEnabled = new();
-    private readonly ConcurrentDictionary<string, Audio> remoteAudio = new();
+    private readonly ConcurrentDictionary<string, Audio> sessionAudio = new();
 
     public static readonly LiveSlide DefaultSlide = new(
         LiveSlideStatus.ShowingPresentation,
@@ -102,7 +102,7 @@ public partial class SharedAppState : ObservableObject
         TouchSession(sessionId);
         presentationActive.TryRemove(sessionId, out _);
         remoteControlEnabled.TryRemove(sessionId, out _);
-        remoteAudio.TryRemove(sessionId, out _);
+        sessionAudio.TryRemove(sessionId, out _);
         OnPropertyChanged(sessionId);
         PresentationDeactivated?.Invoke(sessionId);
     }
@@ -122,17 +122,17 @@ public partial class SharedAppState : ObservableObject
     public bool IsRemoteControlEnabled(string sessionId) =>
         remoteControlEnabled.GetValueOrDefault(sessionId, false);
 
-    public void SetRemoteAudio(string sessionId, Audio? audio)
+    public void SetSessionAudio(string sessionId, Audio? audio)
     {
         if (audio is null)
-            remoteAudio.TryRemove(sessionId, out _);
+            sessionAudio.TryRemove(sessionId, out _);
         else
-            remoteAudio[sessionId] = audio;
+            sessionAudio[sessionId] = audio;
         OnPropertyChanged(sessionId);
     }
 
-    public Audio? GetRemoteAudio(string sessionId) =>
-        remoteAudio.GetValueOrDefault(sessionId);
+    public Audio? GetSessionAudio(string sessionId) =>
+        sessionAudio.GetValueOrDefault(sessionId);
 
     public ActiveSession? GetActiveSession(string sessionId) =>
         presentationActive.GetValueOrDefault(sessionId);
@@ -260,7 +260,7 @@ public partial class SharedAppState : ObservableObject
             activeOverlays.TryRemove(sessionId, out _);
             presentationActive.TryRemove(sessionId, out _);
             remoteControlEnabled.TryRemove(sessionId, out _);
-            remoteAudio.TryRemove(sessionId, out _);
+            sessionAudio.TryRemove(sessionId, out _);
             lastAccessed.TryRemove(sessionId, out _);
 
             if (wasActive)

@@ -196,7 +196,7 @@
 
 @{
     var remoteAudioItem = SessionId is not null && !IsRemoteController
-        ? SharedAppState.GetRemoteAudio(SessionId)
+        ? SharedAppState.GetSessionAudio(SessionId)
         : null;
 }
 @if (remoteAudioItem is not null)
