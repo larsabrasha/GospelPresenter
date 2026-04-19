@@ -48,7 +48,7 @@
             @L["RemoteControl.Banner"]
         </div>
     }
-    @if (!IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+    @if (!SharedAppState.IsPresentationActive(AppState.SessionId))
     {
         var nonLiveAudio = SharedAppState.GetSessionAudio(AppState.SessionId);
         @if (nonLiveAudio is not null)
@@ -56,7 +56,7 @@
             <div id="persistent-audio-container" class="hidden">
                 @foreach (var part in nonLiveAudio.Parts)
                 {
-                    <AudioPlayerEngine AudioElementId="@($"session-audio-{part.PartId}")" Url="@part.Url" ContainerId="persistent-audio-container"/>
+                    <AudioPlayerEngine AudioElementId="@($"session-audio-{part.PartId}")" Url="@part.Url" ContainerId="persistent-audio-container" Muted="@IsRemoteMode"/>
                 }
             </div>
         }
@@ -732,6 +732,8 @@
         if (firstRender)
         {
             dotNetRef = DotNetObjectReference.Create(this);
+            if (IsRemoteMode)
+                await JsRuntime.InvokeVoidAsync("gospelPresenter.registerAudioRelay", dotNetRef);
         }
 
         if (isEditingItemTitle)
@@ -760,6 +762,8 @@
         await JsRuntime.InvokeVoidAsync("stopLivePresentation", EffectiveSessionId);
         ResetLiveSlide();
         SharedAppState.DeactivatePresentation(EffectiveSessionId);
+        if (SelectedAudio is not null)
+            SharedAppState.SetSessionAudio(AppState.SessionId, SelectedAudio);
     }
 
     private void ResetLiveSlide()
@@ -1155,10 +1159,19 @@
         ToastService.Show(L["Toast.SavedAsTemplate"]);
     }
 
+    [JSInvokable]
+    public void OnRemoteAudioCommand(string action, string audioElementId, double? position)
+    {
+        if (!IsRemoteMode || _presenterSessionId is null) return;
+        SharedAppState.SetAudioCommand(_presenterSessionId, new AudioCommand(action, audioElementId, position));
+    }
+
     public void Dispose()
     {
-        if (!IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
+        if (!SharedAppState.IsPresentationActive(AppState.SessionId))
             SharedAppState.SetSessionAudio(AppState.SessionId, null);
+        if (IsRemoteMode)
+            _ = JsRuntime.InvokeVoidAsync("gospelPresenter.unregisterAudioRelay").AsTask();
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
@@ -1235,6 +1248,11 @@
                 showSessionExpired = true;
                 SharedAppState.ClearSessionExpired(AppState.SessionId);
             }
+
+            var cmd = SharedAppState.TakeAudioCommand(AppState.SessionId);
+            if (cmd is not null && !IsRemoteMode)
+                _ = InvokeAsync(() => JsRuntime.InvokeVoidAsync(
+                    "gospelPresenter.executeAudioCommand", cmd.Action, cmd.AudioElementId, cmd.Position).AsTask());
 
             _ = InvokeAsync(StateHasChanged);
         }
@@ -1324,13 +1342,10 @@
                         })
                         .ToList();
                     var audio = new Audio(audioItem.Id, audioParts);
+                    SelectedAudio = audio;
                     if (IsRemoteMode && _presenterSessionId is not null)
                         SharedAppState.SetSessionAudio(_presenterSessionId, audio);
-                    else
-                    {
-                        SelectedAudio = audio;
-                        SharedAppState.SetSessionAudio(AppState.SessionId, audio);
-                    }
+                    SharedAppState.SetSessionAudio(AppState.SessionId, audio);
                 }
                 break;
             case ProjectItemType.Slides:

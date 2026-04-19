@@ -1,4 +1,5 @@
 <audio id="@AudioElementId" preload="metadata" src="@Url"
+       muted="@(Muted ? "" : null)"
        onplay="this.volume = 1; gospelPresenter.onAudioPlay('@AudioElementId', '@ContainerId')"
        onpause="gospelPresenter.onAudioPause('@AudioElementId')"
        ontimeupdate="gospelPresenter.onAudioTimeUpdate('@AudioElementId')"
@@ -9,4 +10,5 @@
     [Parameter, EditorRequired] public string AudioElementId { get; set; } = "";
     [Parameter, EditorRequired] public string Url { get; set; } = "";
     [Parameter] public string ContainerId { get; set; } = "audio-container";
+    [Parameter] public bool Muted { get; set; }
 }
