@@ -614,8 +614,14 @@ builder.Services.AddMetricServer(options =>
         if (result is null) return Results.NotFound();
 
         var (stream, contentType) = result.Value;
+        // Buffer into MemoryStream so the response supports range requests.
+        // iOS Safari requires range request support (206 Partial Content) to play audio.
+        // The S3 response stream is not seekable, so we buffer it first.
+        var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        ms.Seek(0, SeekOrigin.Begin);
         context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-        return Results.File(stream, contentType);
+        return Results.File(ms, contentType, enableRangeProcessing: true);
     }).RequireAuthorization();
 
     // MCP API key authentication middleware

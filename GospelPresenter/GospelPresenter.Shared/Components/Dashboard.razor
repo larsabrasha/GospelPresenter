@@ -180,6 +180,7 @@
             if (orgId is null) return null;
             var sessionId = SharedAppState.GetActiveSessionIdForOrganization(orgId);
             if (sessionId is null || !SharedAppState.IsRemoteControlEnabled(sessionId)) return null;
+            if (sessionId == AppState.SessionId) return null;
             return sessionId;
         }
     }
