@@ -194,6 +194,25 @@
     }
 }
 
+@{
+    var remoteAudioItem = SessionId is not null && !IsRemoteController
+        ? SharedAppState.GetSessionAudio(SessionId)
+        : null;
+}
+@if (remoteAudioItem is not null)
+{
+    <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold mt-4 mb-2">
+        @L["LivePanel.RemoteAudio"]
+    </div>
+    <div id="live-panel-audio-container">
+        @for (var i = 0; i < remoteAudioItem.Parts.Count; i++)
+        {
+            var part = remoteAudioItem.Parts[i];
+            <AudioPlayer AudioElementId="@($"live-panel-audio-{i}")" FileName="@part.FileName" Url="@part.Url" ContainerId="live-panel-audio-container"/>
+        }
+    </div>
+}
+
 @if (ShowGrow)
 {
     <div class="grow"></div>

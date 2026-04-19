@@ -1308,7 +1308,13 @@
                             return new AudioPart(p.Id, audioId, fileName, ImageUrlHelper.OrgAudioUrl(audioId));
                         })
                         .ToList();
-                    SelectedAudio = new Audio(audioItem.Id, audioParts);
+                    var audio = new Audio(audioItem.Id, audioParts);
+                    if (IsRemoteMode && _presenterSessionId is not null)
+                        SharedAppState.SetSessionAudio(_presenterSessionId, audio);
+                    else if (SharedAppState.IsPresentationActive(AppState.SessionId))
+                        SharedAppState.SetSessionAudio(AppState.SessionId, audio);
+                    else
+                        SelectedAudio = audio;
                 }
                 break;
             case ProjectItemType.Slides:

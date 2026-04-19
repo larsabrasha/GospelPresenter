@@ -1142,6 +1142,9 @@
   <data name="LivePanel.RemoteControl" xml:space="preserve">
     <value>Tillåt fjärrstyrning</value>
   </data>
+  <data name="LivePanel.RemoteAudio" xml:space="preserve">
+    <value>Ljud</value>
+  </data>
   <data name="Dashboard.Today" xml:space="preserve">
     <value>Idag</value>
   </data>
