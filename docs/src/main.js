@@ -14,10 +14,10 @@ if (location.pathname === "/" && !localStorage.getItem("lang")) {
 const navbar = document.getElementById("navbar");
 window.addEventListener("scroll", () => {
   const scrolled = window.scrollY > 10;
-  navbar.classList.toggle("bg-white/80", scrolled);
-  navbar.classList.toggle("dark:bg-neutral-900/80", scrolled);
-  navbar.classList.toggle("backdrop-blur-sm", scrolled);
-});
+  navbar.classList.toggle("bg-white/95", scrolled);
+  navbar.classList.toggle("dark:bg-neutral-900/95", scrolled);
+  navbar.classList.toggle("shadow-sm", scrolled);
+}, { passive: true });
 
 // Mark manual language choice when clicking a language link
 document.querySelectorAll("[data-lang]").forEach((el) => {

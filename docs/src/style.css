@@ -50,6 +50,7 @@
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
+  will-change: transform;
 }
 
 .animated-bg::before {
@@ -78,7 +79,7 @@
   border-radius: 50%;
   top: 100px;
   left: 50%;
-  transform: translateX(-50%);
+  will-change: transform;
   animation: blob-3 20s ease-in-out infinite;
   pointer-events: none;
 }
