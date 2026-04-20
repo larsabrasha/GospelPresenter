@@ -1,4 +1,5 @@
 import "./style.css";
+import "./carousel.js";
 
 // Redirect to preferred language if on default path
 // Skip if the user has previously chosen a language manually

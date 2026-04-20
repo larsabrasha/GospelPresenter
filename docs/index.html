@@ -53,15 +53,39 @@
           <a href="https://app.gospelpresenter.com" class="bg-sky-500 rounded-full px-12 py-3 text-white uppercase font-bold hover:bg-sky-600">{{openApp}}</a>
         </div>
 
-        <div class="pb-10">
-          <picture class="block dark:hidden">
-            <source srcset="/screenshot-light.webp, /screenshot-light@2x.webp 2x" alt="Screenshot of Gospel Presenter" />
-            <img src="/screenshot-light.png" alt="Screenshot of Gospel Presenter" />
-          </picture>
-          <picture class="hidden dark:block">
-            <source srcset="/screenshot-dark.webp, /screenshot-dark@2x.webp 2x" alt="Screenshot of Gospel Presenter" />
-            <img src="/screenshot-dark.png" alt="Screenshot of Gospel Presenter" />
-          </picture>
+        <div id="screenshot-carousel" class="pb-10">
+          <div class="flex items-center gap-2">
+            <button id="carousel-prev" class="shrink-0 p-2 rounded-full bg-white dark:bg-neutral-800 shadow text-neutral-600 dark:text-neutral-300 hover:text-sky-500 dark:hover:text-sky-400 cursor-pointer transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
+            </button>
+            <div id="carousel-viewport" class="flex-1 overflow-hidden">
+              <div id="carousel-container" class="flex touch-pan-y"></div>
+            </div>
+            <button id="carousel-next" class="shrink-0 p-2 rounded-full bg-white dark:bg-neutral-800 shadow text-neutral-600 dark:text-neutral-300 hover:text-sky-500 dark:hover:text-sky-400 cursor-pointer transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+            </button>
+          </div>
+
+          <div id="carousel-pills" class="flex justify-center gap-1.5 mt-6"></div>
+
+          <div class="flex justify-center gap-2 mt-10">
+            <div class="flex gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-full p-1">
+              <button data-viewport="desktop" title="{{carousel_desktop}}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/></svg>
+              </button>
+<button data-viewport="mobile" title="{{carousel_mobile}}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 9h3"/></svg>
+              </button>
+            </div>
+            <div class="flex gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-full p-1">
+              <button data-theme="light" title="{{carousel_light}}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/></svg>
+              </button>
+              <button data-theme="dark" title="{{carousel_dark}}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></svg>
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Features -->
@@ -151,7 +175,7 @@
         <p class="pb-4 max-w-prose text-slate-600 dark:text-slate-400">{{about1}}</p>
         <p class="pb-12 max-w-prose text-slate-600 dark:text-slate-400">{{about2}}</p>
         <a href="https://github.com/larsabrasha/GospelPresenter" class="inline-flex items-center gap-2 bg-sky-500 rounded-full px-7 py-3 text-white font-bold hover:bg-sky-600 w-fit">
-          <img src="/github-mark.svg" class="w-5 h-5 invert" alt="GitHub logo" />
+          <img src="/github-mark.svg" class="w-5 h-5 brightness-0 invert" alt="GitHub logo" />
           <span>{{viewOnGitHub}}</span>
         </a>
       </div>

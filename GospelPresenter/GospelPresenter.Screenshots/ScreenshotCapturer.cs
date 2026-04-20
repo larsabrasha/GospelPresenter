@@ -1,4 +1,5 @@
 using Microsoft.Playwright;
+using SkiaSharp;
 
 namespace GospelPresenter.Screenshots;
 
@@ -10,7 +11,6 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
     static readonly (string Name, int Width, int Height)[] Viewports =
     [
         ("desktop", 1440, 900),
-        ("tablet", 820, 1180),
         ("mobile", 390, 844)
     ];
 
@@ -19,9 +19,10 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
     [
         ("home", "/"),
         ("presentation", "/presentations/{presentationId}"),
+        ("presentation-live", "/presentations/{presentationId}"),
         ("songs", "/admin/songs"),
-        ("settings", "/settings"),
-        ("live", "/live")
+        ("add-song", "/presentations/{presentationId}"),
+        ("bible", "/presentations/{presentationId}"),
     ];
 
     public async Task<int> RunAsync()
@@ -46,11 +47,17 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
         await BrowserHelpers.WaitForWebAppAsync(options.BaseUrl, cancellationToken: cancellationToken);
 
         var domain = new Uri(options.BaseUrl).Host;
-        var presentationId = await BrowserHelpers.DiscoverPresentationIdAsync(browser, options.BaseUrl, domain);
-        Console.WriteLine($"Discovered presentation ID: {presentationId}");
+
+        var presentationIds = new Dictionary<string, string>();
+        foreach (var lang in Languages)
+        {
+            var id = await BrowserHelpers.DiscoverPresentationIdAsync(browser, options.BaseUrl, domain, lang);
+            presentationIds[lang] = id;
+            Console.WriteLine($"Discovered presentation ID ({lang}): {id}");
+        }
         Console.WriteLine();
 
-        var failures = await CaptureAllAsync(browser, domain, presentationId, cancellationToken);
+        var failures = await CaptureAllAsync(browser, domain, presentationIds, cancellationToken);
 
         return failures.Count > 0 ? 1 : 0;
     }
@@ -69,7 +76,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
     }
 
     async Task<List<(string FileName, string Error)>> CaptureAllAsync(
-        IBrowser browser, string domain, string presentationId, CancellationToken ct)
+        IBrowser browser, string domain, Dictionary<string, string> presentationIds, CancellationToken ct)
     {
         var total = Pages.Length * Languages.Length * Themes.Length * Viewports.Length;
         var completed = new int[] { 0 };
@@ -88,6 +95,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
             new ParallelOptions { MaxDegreeOfParallelism = options.Parallel, CancellationToken = ct },
             async (combo, token) =>
             {
+                var presentationId = presentationIds[combo.lang];
                 await CaptureContextAsync(
                     browser, domain, presentationId, baseUri,
                     combo.lang, combo.theme, total,
@@ -156,7 +164,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    var fileName = $"{page.Name}_{lang}_{theme}_{viewport.Name}.png";
+                    var fileName = $"{page.Name}_{lang}_{theme}_{viewport.Name}.webp";
                     var filePath = Path.Combine(options.Output, fileName);
 
                     int current;
@@ -164,9 +172,11 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
 
                     Console.Write($"[{current}/{total}] {fileName} ... ");
 
+                    var interaction = BuildInteraction(page.Name, lang);
+
                     try
                     {
-                        await TakeScreenshotAsync(browserPage, url, viewport, filePath);
+                        await TakeScreenshotAsync(browserPage, url, viewport, filePath, interaction);
                         Console.WriteLine("done");
                     }
                     catch (Exception firstEx)
@@ -175,7 +185,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
 
                         try
                         {
-                            await TakeScreenshotAsync(browserPage, url, viewport, filePath);
+                            await TakeScreenshotAsync(browserPage, url, viewport, filePath, interaction);
                             Console.WriteLine("done (retry)");
                         }
                         catch (Exception retryEx)
@@ -198,6 +208,13 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
             {
                 Name = ".AspNetCore.Culture",
                 Value = $"c={lang}|uic={lang}",
+                Domain = domain,
+                Path = "/"
+            },
+            new Cookie
+            {
+                Name = "mock-user-id",
+                Value = lang == "sv" ? "mock-user-sv" : "mock-user-en",
                 Domain = domain,
                 Path = "/"
             }
@@ -234,8 +251,80 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
         return page;
     }
 
+    static Func<IPage, Task>? BuildInteraction(string pageName, string lang) => pageName switch
+    {
+        "presentation" => async p =>
+        {
+            // Click the first song item in the sidebar to show slide previews
+            var firstItem = p.Locator("[data-id]").First;
+            await firstItem.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(400);
+        },
+        "presentation-live" => async p =>
+        {
+            // Click the first sidebar item to select it
+            var firstItem = p.Locator("[data-id]").First;
+            await firstItem.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(300);
+
+            // Start the presentation if not already running (button is absent when presentation is active)
+            var startButtons = lang == "sv"
+                ? p.Locator("button[title='Starta presentation']")
+                : p.Locator("button[title='Start presentation']");
+            if (await startButtons.CountAsync() > 0)
+            {
+                await startButtons.First.ClickAsync(new LocatorClickOptions { Force = true });
+                await p.WaitForTimeoutAsync(500);
+            }
+
+            // Click the first slide to make it live
+            var firstSlide = p.Locator("#main button").First;
+            await firstSlide.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(500);
+        },
+        "add-song" => async p =>
+        {
+            // Open the add-item modal (Songs tab is default)
+            var addButton = lang == "sv"
+                ? p.Locator("button:has-text('Lägg till')").First
+                : p.Locator("button:has-text('Add')").First;
+            await addButton.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(400);
+
+            var songTab = lang == "sv"
+                ? p.Locator("button:has-text('Sånger')").First
+                : p.Locator("button:has-text('Songs')").First;
+            await songTab.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(300);
+
+            // Search for a term that returns multiple results
+            var searchInput = lang == "sv"
+                ? p.Locator("input[placeholder*='Sök']").First
+                : p.Locator("input[placeholder*='Search']").First;
+            await searchInput.FillAsync(lang == "sv" ? "Gud" : "grace");
+            await p.WaitForTimeoutAsync(500);
+        },
+        "bible" => async p =>
+        {
+            // Open the add-item modal and switch to the Bible tab
+            var addButton = lang == "sv"
+                ? p.Locator("button:has-text('Lägg till')").First
+                : p.Locator("button:has-text('Add')").First;
+            await addButton.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(400);
+
+            var bibleTab = lang == "sv"
+                ? p.Locator("button:has-text('Bibeltext')").First
+                : p.Locator("button:has-text('Bible')").First;
+            await bibleTab.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(600);
+        },
+        _ => null
+    };
+
     static async Task TakeScreenshotAsync(
-        IPage page, string url, (string Name, int Width, int Height) viewport, string filePath)
+        IPage page, string url, (string Name, int Width, int Height) viewport, string filePath,
+        Func<IPage, Task>? interactionAsync = null)
     {
         await page.SetViewportSizeAsync(viewport.Width, viewport.Height);
 
@@ -246,10 +335,20 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
 
         await BrowserHelpers.WaitForBlazorAsync(page);
 
-        await page.ScreenshotAsync(new PageScreenshotOptions
+        if (interactionAsync != null)
+            await interactionAsync(page);
+
+        await page.Mouse.MoveAsync(0, 0);
+
+        var pngBytes = await page.ScreenshotAsync(new PageScreenshotOptions
         {
-            Path = filePath,
             FullPage = false
         });
+
+        using var bitmap = SKBitmap.Decode(pngBytes);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Webp, 85);
+        await using var fileStream = File.Create(filePath);
+        data.SaveTo(fileStream);
     }
 }
