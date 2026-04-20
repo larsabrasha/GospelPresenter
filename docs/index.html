@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-white dark:bg-neutral-900 dark:text-white">
+<html lang="en" class="bg-white dark:bg-neutral-900 dark:text-white scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
@@ -14,7 +14,7 @@
   <body>
     <div class="min-h-dvh animated-bg">
       <div class="blob-3"></div>
-      <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-colors duration-300">
+      <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-colors duration-300 navbar-material">
         <div class="flex items-center justify-between mx-auto max-w-5xl p-3">
         <div class="flex items-center space-x-1">
           <div class="text-sky-500 w-8">
@@ -45,28 +45,31 @@
         </div>
       </nav>
 
-      <div class="relative z-10 max-w-5xl mx-auto flex flex-col p-3">
+      <div class="relative z-10 max-w-5xl mx-auto flex flex-col px-5 py-3 sm:px-3">
         <h1 class="text-center text-7xl sm:text-8xl font-bold pt-25 pb-15 bg-gradient-to-r from-sky-500 to-sky-400 bg-clip-text text-transparent">Gospel Presenter</h1>
         <div class="text-center text-3xl/10 sm:text-4xl/12 font-medium text-slate-600 dark:text-slate-400 max-w-180 mx-auto">{{tagline}}</div>
 
         <div class="mx-auto py-20">
-          <a href="https://app.gospelpresenter.com" class="bg-sky-500 rounded-full px-12 py-3 text-white uppercase font-bold hover:bg-sky-600">{{openApp}}</a>
+          <a href="#get-started" class="bg-sky-500 rounded-full px-12 py-3 text-white uppercase font-bold hover:bg-sky-600">{{openApp}}</a>
         </div>
 
         <div id="screenshot-carousel" class="pb-10">
-          <div class="flex items-center gap-2">
-            <button id="carousel-prev" class="shrink-0 p-2 rounded-full bg-white dark:bg-neutral-800 shadow text-neutral-600 dark:text-neutral-300 hover:text-sky-500 dark:hover:text-sky-400 cursor-pointer transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
-            </button>
-            <div id="carousel-viewport" class="flex-1 overflow-hidden">
+          <div class="relative">
+            <div id="carousel-viewport" class="overflow-hidden">
               <div id="carousel-container" class="flex"></div>
             </div>
-            <button id="carousel-next" class="shrink-0 p-2 rounded-full bg-white dark:bg-neutral-800 shadow text-neutral-600 dark:text-neutral-300 hover:text-sky-500 dark:hover:text-sky-400 cursor-pointer transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
-            </button>
+            <div class="absolute bottom-3 left-0 right-0 flex items-center justify-center pointer-events-none">
+              <div id="carousel-pills" class="flex gap-1.5 pointer-events-auto"></div>
+              <div class="absolute right-16 hidden sm:flex items-center gap-0.5 pointer-events-auto">
+                <button id="carousel-prev" class="cursor-pointer transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-7"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/></svg>
+                </button>
+                <button id="carousel-next" class="cursor-pointer transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-7"><path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5"/></svg>
+                </button>
+              </div>
+            </div>
           </div>
-
-          <div id="carousel-pills" class="flex justify-center gap-1.5 mt-6"></div>
 
           <div class="flex justify-center gap-2 mt-10">
             <div class="flex gap-1 bg-neutral-100 dark:bg-neutral-800 rounded-full p-1">
@@ -89,7 +92,7 @@
         </div>
 
         <!-- Features -->
-        <div class="py-16">
+        <div id="features" class="py-16">
           <h2 class="text-3xl font-bold text-center pb-12 text-sky-500">{{featuresTitle}}</h2>
 
           <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -169,18 +172,26 @@
       </div>
     </div>
 
-    <div class="bg-slate-50 dark:bg-[#252729] p-3 border-t border-slate-100 dark:border-[#333]">
-      <div id="get-started" class="max-w-5xl mx-auto flex flex-col p-3 pb-100">
-        <h1 class="text-xl font-bold py-8 text-sky-500">{{aboutTitle}}</h1>
-        <p class="pb-4 max-w-prose text-slate-600 dark:text-slate-400">{{about1}}</p>
-        <p class="pb-12 max-w-prose text-slate-600 dark:text-slate-400">{{about2}}</p>
-        <a href="https://github.com/larsabrasha/GospelPresenter" class="inline-flex items-center gap-2 bg-sky-500 rounded-full px-7 py-3 text-white font-bold hover:bg-sky-600 w-fit">
-          <img src="/github-mark.svg" class="w-5 h-5 brightness-0 invert" alt="GitHub logo" />
-          <span>{{viewOnGitHub}}</span>
-        </a>
+    <div class="bg-slate-50 dark:bg-[#252729] px-5 py-3 sm:px-3 border-t border-slate-100 dark:border-[#333]">
+      <!-- Get Started -->
+      <div id="get-started" class="max-w-prose mx-auto py-24">
+        <h2 class="text-3xl font-bold pb-6 text-sky-500 text-center">{{gettingStartedTitle}}</h2>
+        <p class="pb-4 text-slate-600 dark:text-slate-400">{{gettingStarted1}}</p>
+        <p class="pb-4 text-slate-600 dark:text-slate-400">{{gettingStarted2}}</p>
+        <p class="pb-4 text-slate-600 dark:text-slate-400">{{gettingStarted3}}</p>
+        <p class="pb-10 text-slate-600 dark:text-slate-400">{{gettingStarted4}}</p>
+        <div class="flex flex-col items-center gap-10">
+          <a href="https://github.com/larsabrasha/GospelPresenter" class="inline-flex items-center gap-2 bg-white dark:bg-neutral-800 border border-slate-200 dark:border-neutral-700 rounded-full px-7 py-3 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-50 dark:hover:bg-neutral-700">
+            <img src="/github-mark.svg" class="w-5 h-5 dark:invert" alt="GitHub logo" />
+            <span>{{viewOnGitHub}}</span>
+          </a>
+          <a href="https://app.gospelpresenter.com" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-sky-500 rounded-full px-7 py-3 text-white font-bold hover:bg-sky-600">
+            {{launch}}
+          </a>
+        </div>
       </div>
 
-      <div class="flex justify-center py-6 opacity-20 dark:opacity-15">
+<div class="flex justify-center py-6 opacity-20 dark:opacity-15">
         <svg viewBox="0 0 48 48" class="w-8 h-8" fill="#9ca3af">
           <!-- Left ear -->
           <path d="M8 20 L4 4 L18 14 Z"/>
