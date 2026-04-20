@@ -10,34 +10,112 @@ const PAGES = ['presentation', 'presentation-live', 'home', 'songs', 'add-song',
 
 const lang = location.pathname.startsWith('/sv') ? 'sv' : 'en';
 
-let viewport = 'desktop';
+let viewport = window.matchMedia('(max-width: 640px)').matches ? 'mobile' : 'desktop';
 let theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
-// Build slides
+const CROSSFADE_MS = 400;
+const IMG_CLASS = 'absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-full max-h-full w-auto h-auto rounded-[18px] shadow-xl outline outline-[0.5px] outline-black/5';
+
+// Build slides — each slide has two stacked images (CSS grid) for crossfade
 const container = document.getElementById('carousel-container');
-const slideImgs = PAGES.map((_, i) => {
+const slidePairs = PAGES.map((_, i) => {
   const slide = document.createElement('div');
   slide.className = 'embla__slide flex-none w-full px-10';
   const wrapper = document.createElement('div');
-  wrapper.className = 'w-full h-[500px] flex items-center justify-center py-6';
-  const img = document.createElement('img');
-  img.className = 'max-w-full max-h-full w-auto h-auto rounded-2xl shadow-xl';
-  img.alt = 'Screenshot of Gospel Presenter';
-  img.loading = i === 0 ? 'eager' : 'lazy';
-  img.decoding = 'async';
-  if (i === 0) img.fetchPriority = 'high';
-  wrapper.appendChild(img);
+  wrapper.className = 'relative w-full h-[600px]';
+  const inner = document.createElement('div');
+  inner.className = 'absolute top-4 bottom-10 left-2 right-2';
+  wrapper.appendChild(inner);
+
+  const makeImg = (eager) => {
+    const img = document.createElement('img');
+    img.className = IMG_CLASS;
+    img.alt = 'Screenshot of Gospel Presenter';
+    img.loading = eager ? 'eager' : 'lazy';
+    img.decoding = 'async';
+    if (eager) img.fetchPriority = 'high';
+    return img;
+  };
+
+  const front = makeImg(i === 0);
+  const back = makeImg(false);
+  back.style.opacity = '0';
+
+  inner.appendChild(back);
+  inner.appendChild(front);
   slide.appendChild(wrapper);
   container.appendChild(slide);
-  return img;
+  return { front, back };
 });
 
-function updateAllImages() {
-  PAGES.forEach((page, i) => {
-    const key = `./screenshots/${page}_${lang}_${theme}_${viewport}.webp`;
-    const url = screenshots[key];
-    if (url) slideImgs[i].src = url;
+let activeController = null;
+
+function setTransition(img, enabled) {
+  img.style.transition = enabled ? `opacity ${CROSSFADE_MS}ms ease-in-out` : 'none';
+}
+
+async function updateAllImages() {
+  if (activeController) activeController.abort();
+  const controller = new AbortController();
+  activeController = controller;
+  const { signal } = controller;
+
+  // Immediately settle any in-progress animation
+  slidePairs.forEach(({ front, back }) => {
+    if (back.src) front.src = back.src;
+    setTransition(front, false);
+    setTransition(back, false);
+    front.style.opacity = '1';
+    back.style.opacity = '0';
+    back.removeAttribute('src');
   });
+
+  const newUrls = PAGES.map(page => screenshots[`./screenshots/${page}_${lang}_${theme}_${viewport}.webp`]);
+  const isFirstLoad = !slidePairs[0].front.src;
+
+  await Promise.all(newUrls.map(url => {
+    if (!url) return Promise.resolve();
+    const tmp = new Image();
+    tmp.src = url;
+    return tmp.decode().catch(() => {});
+  }));
+  if (signal.aborted) return;
+
+  if (isFirstLoad) {
+    slidePairs.forEach(({ front }, i) => { if (newUrls[i]) front.src = newUrls[i]; });
+    activeController = null;
+    return;
+  }
+
+  // Load new images into back layer (still invisible)
+  slidePairs.forEach(({ back }, i) => { if (newUrls[i]) back.src = newUrls[i]; });
+
+  // Wait a frame so browser commits back at opacity:0 before transitioning
+  await new Promise(r => requestAnimationFrame(r));
+  if (signal.aborted) return;
+
+  // Crossfade
+  slidePairs.forEach(({ front, back }) => {
+    setTransition(front, true);
+    setTransition(back, true);
+    back.style.opacity = '1';
+    front.style.opacity = '0';
+  });
+
+  await new Promise(r => setTimeout(r, CROSSFADE_MS));
+  if (signal.aborted) return;
+
+  // Reset layers without animation
+  slidePairs.forEach(({ front, back }) => {
+    setTransition(front, false);
+    setTransition(back, false);
+    front.src = back.src;
+    front.style.opacity = '1';
+    back.style.opacity = '0';
+    back.removeAttribute('src');
+  });
+
+  activeController = null;
 }
 
 // Init Embla
@@ -67,15 +145,13 @@ function updatePills() {
 
 const prevBtn = document.getElementById('carousel-prev');
 const nextBtn = document.getElementById('carousel-next');
-const BASE_ARROW = 'shrink-0 p-2 rounded-full bg-white dark:bg-neutral-800 shadow cursor-pointer transition-colors';
-
 function updateArrows() {
   const canPrev = embla.canScrollPrev();
   const canNext = embla.canScrollNext();
   prevBtn.disabled = !canPrev;
-  prevBtn.className = `${BASE_ARROW} ${canPrev ? 'text-neutral-600 dark:text-neutral-300 hover:text-sky-500 dark:hover:text-sky-400' : 'text-neutral-300 dark:text-neutral-600'}`;
+  prevBtn.className = `cursor-pointer transition-colors ${canPrev ? 'text-neutral-500 dark:text-neutral-400 hover:text-sky-500 dark:hover:text-sky-400' : 'text-neutral-300 dark:text-neutral-600'}`;
   nextBtn.disabled = !canNext;
-  nextBtn.className = `${BASE_ARROW} ${canNext ? 'text-neutral-600 dark:text-neutral-300 hover:text-sky-500 dark:hover:text-sky-400' : 'text-neutral-300 dark:text-neutral-600'}`;
+  nextBtn.className = `cursor-pointer transition-colors ${canNext ? 'text-neutral-500 dark:text-neutral-400 hover:text-sky-500 dark:hover:text-sky-400' : 'text-neutral-300 dark:text-neutral-600'}`;
 }
 
 embla.on('select', () => { updatePills(); updateArrows(); });
