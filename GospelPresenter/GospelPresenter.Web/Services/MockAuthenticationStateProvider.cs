@@ -1,24 +1,26 @@
 using System.Security.Claims;
 using GospelPresenter.Shared.Models;
-using GospelPresenter.Shared.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace GospelPresenter.Web.Services;
 
 /// <summary>
-/// Authentication state provider for mock mode that auto-authenticates with the mock user.
-/// Used when no database connection string is configured.
+/// Authentication state provider for mock mode. Reads the authenticated user from
+/// the HTTP context (set by the mock auto-sign-in middleware in Program.cs).
 /// </summary>
-public class MockAuthenticationStateProvider : AuthenticationStateProvider
+public class MockAuthenticationStateProvider(IHttpContextAccessor httpContextAccessor) : AuthenticationStateProvider
 {
-    private readonly AuthenticationState state;
+    private readonly AuthenticationState state = new(
+        httpContextAccessor.HttpContext?.User ?? new ClaimsPrincipal(new ClaimsIdentity()));
 
-    public MockAuthenticationStateProvider(IUserService userService)
+    public override Task<AuthenticationState> GetAuthenticationStateAsync()
+        => Task.FromResult(state);
+
+    public static ClaimsPrincipal CreatePrincipal(User user)
     {
-        var user = userService.GetByLoginAsync("mock", "mock").GetAwaiter().GetResult();
         var claims = new List<Claim>
         {
-            new(ClaimTypes.Name, user!.Name),
+            new(ClaimTypes.Name, user.Name),
             new(ClaimTypes.Email, user.Email),
             new(ClaimTypes.Role, user.Role.ToString()),
             new("user_id", user.Id),
@@ -28,10 +30,6 @@ public class MockAuthenticationStateProvider : AuthenticationStateProvider
         if (user.OrganizationId is not null)
             claims.Add(new Claim("organization_id", user.OrganizationId));
 
-        var identity = new ClaimsIdentity(claims, "Mock");
-        state = new AuthenticationState(new ClaimsPrincipal(identity));
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, "Mock"));
     }
-
-    public override Task<AuthenticationState> GetAuthenticationStateAsync()
-        => Task.FromResult(state);
 }

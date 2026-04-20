@@ -24,5 +24,11 @@
   "aboutTitle": "Om",
   "about1": "Gospel Presenter är ett gratis presentationsverktyg med öppen källkod byggt för kyrkor. Det gör det enkelt att visa sångtexter och bibelverser på en extern skärm eller projektor under gudstjänster.",
   "about2": "Projektet är öppen källkod. Besök GitHub-repositoryt för instruktioner om hur du självhostar.",
-  "viewOnGitHub": "Visa på GitHub"
+  "viewOnGitHub": "Visa på GitHub",
+  "carousel_desktop": "Desktop",
+  "carousel_tablet": "Surfplatta",
+  "carousel_mobile": "Mobil",
+  "carousel_system": "System",
+  "carousel_light": "Ljust",
+  "carousel_dark": "Mörkt"
 }

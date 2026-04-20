@@ -8,12 +8,9 @@
    class="flex items-center px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
     <div class="flex-1 min-w-0">
         <div class="truncate">@Presentation.Name</div>
-        @{
-            var subtitle = BuildSubtitle();
-        }
         @if (subtitle.Length > 0)
         {
-            <div class="text-xs text-neutral-400 dark:text-neutral-500 truncate">@subtitle</div>
+            <div class="text-xs text-neutral-400 dark:text-neutral-500 truncate" title="@subtitleTitle">@subtitle</div>
         }
     </div>
     @if (SharedAppState.IsPresentationActiveForSession(AppState.SessionId, Presentation.Id))
@@ -30,15 +27,32 @@
     [Parameter] public bool ShowDate { get; set; } = true;
     [Parameter] public bool ShowYear { get; set; }
 
-    private string BuildSubtitle()
+    private string subtitle = "";
+    private string subtitleTitle = "";
+
+    protected override void OnParametersSet()
     {
         var parts = new List<string>();
+        string? fullDate = null;
+
         if (ShowDate && Presentation.EventDate is { } date)
-            parts.Add(date.ToString(ShowYear ? "ddd d MMM yyyy" : "ddd d MMM"));
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            fullDate = date.ToString(ShowYear ? "dddd d MMMM yyyy" : "dddd d MMMM");
+            if (date == today)
+                parts.Add(L["Dashboard.Today"]);
+            else if (date == today.AddDays(1))
+                parts.Add(L["Dashboard.Tomorrow"]);
+            else
+                parts.Add(date.ToString(ShowYear ? "ddd d MMMM yyyy" : "ddd d MMMM"));
+        }
+
         if (Presentation.EventTime is { } time)
             parts.Add(time.ToString("HH:mm"));
         if (!string.IsNullOrWhiteSpace(Presentation.Location))
             parts.Add(Presentation.Location);
-        return string.Join(" \u00b7 ", parts);
+
+        subtitle = string.Join(" \u00b7 ", parts);
+        subtitleTitle = fullDate ?? "";
     }
 }

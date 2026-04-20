@@ -167,7 +167,7 @@ try
     {
         Log.Warning("No authentication provider configured — using mock authentication");
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-            .AddCookie();
+            .AddCookie(options => { options.LoginPath = "/mock-login"; });
         builder.Services.AddScoped<AuthenticationStateProvider, MockAuthenticationStateProvider>();
         builder.Services.AddSingleton<IAuthProviderService, MockAuthProviderService>();
     }
@@ -288,18 +288,38 @@ builder.Services.AddMetricServer(options =>
 
     if (isMockMode)
     {
-        // Auto-sign in the mock user via cookie so the HTTP pipeline
-        // (middleware, endpoints with RequireAuthorization) also sees
-        // an authenticated user — not just Blazor components.
+        // Mock sign-in middleware: if "mock-user-id" cookie is set (e.g. by the screenshot tool),
+        // auto-sign in as that user. Otherwise redirect to /mock-login for manual org selection.
         app.Use(async (context, next) =>
         {
             if (context.User.Identity?.IsAuthenticated != true)
             {
-                var authStateProvider = context.RequestServices.GetRequiredService<AuthenticationStateProvider>();
-                var authState = await authStateProvider.GetAuthenticationStateAsync();
-                await context.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    authState.User);
+                var mockUserId = context.Request.Cookies["mock-user-id"];
+                if (mockUserId is not null)
+                {
+                    var subjectId = mockUserId == "mock-user-en" ? "mock-en" : "mock-sv";
+                    var userService = context.RequestServices.GetRequiredService<IUserService>();
+                    var user = await userService.GetByLoginAsync("mock", subjectId);
+                    if (user is not null)
+                    {
+                        var principal = MockAuthenticationStateProvider.CreatePrincipal(user);
+                        context.User = principal;
+                        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+                    }
+                }
+                else
+                {
+                    var path = context.Request.Path.Value ?? "";
+                    var isMockAuthPath = path.StartsWith("/mock-login", StringComparison.OrdinalIgnoreCase)
+                                     || path.StartsWith("/mock-signin", StringComparison.OrdinalIgnoreCase)
+                                     || path.StartsWith("/_", StringComparison.OrdinalIgnoreCase)
+                                     || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase);
+                    if (!isMockAuthPath)
+                    {
+                        context.Response.Redirect("/mock-login");
+                        return;
+                    }
+                }
             }
             await next(context);
         });
@@ -376,6 +396,27 @@ builder.Services.AddMetricServer(options =>
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode()
         .AddAdditionalAssemblies(typeof(GospelPresenter.Shared._Imports).Assembly);
+
+    if (isMockMode)
+    {
+        app.MapGet("/mock-signin/{userId}", async (string userId, IUserService userService, HttpContext context) =>
+        {
+            if (context.User.Identity?.IsAuthenticated == true)
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            var subjectId = userId == "mock-user-en" ? "mock-en" : "mock-sv";
+            var user = await userService.GetByLoginAsync("mock", subjectId);
+            if (user is null) return Results.NotFound();
+
+            var principal = MockAuthenticationStateProvider.CreatePrincipal(user);
+            await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+            context.Response.Cookies.Append("mock-user-id", userId,
+                new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true });
+
+            return Results.Redirect("/");
+        }).AllowAnonymous();
+    }
 
     app.MapGet("/signin", (string? returnUrl, string? provider, IAuthProviderService authProviders) =>
     {

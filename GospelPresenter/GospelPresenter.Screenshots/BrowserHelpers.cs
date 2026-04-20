@@ -60,20 +60,15 @@ static class BrowserHelpers
         await page.WaitForTimeoutAsync(500);
     }
 
-    public static async Task<string> DiscoverPresentationIdAsync(IBrowser browser, string baseUrl, string domain)
+    public static async Task<string> DiscoverPresentationIdAsync(IBrowser browser, string baseUrl, string domain, string lang = "en")
     {
         await using var context = await browser.NewContextAsync();
 
-        // Set culture cookie so the page loads correctly even if auth depends on it
+        var mockUserId = lang == "sv" ? "mock-user-sv" : "mock-user-en";
         await context.AddCookiesAsync(
         [
-            new Cookie
-            {
-                Name = ".AspNetCore.Culture",
-                Value = "c=en|uic=en",
-                Domain = domain,
-                Path = "/"
-            }
+            new Cookie { Name = ".AspNetCore.Culture", Value = $"c={lang}|uic={lang}", Domain = domain, Path = "/" },
+            new Cookie { Name = "mock-user-id", Value = mockUserId, Domain = domain, Path = "/" }
         ]);
 
         var page = await context.NewPageAsync();

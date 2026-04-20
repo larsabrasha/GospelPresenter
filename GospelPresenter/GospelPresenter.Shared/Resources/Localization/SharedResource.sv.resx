@@ -1148,6 +1148,9 @@
   <data name="Dashboard.Today" xml:space="preserve">
     <value>Idag</value>
   </data>
+  <data name="Dashboard.Tomorrow" xml:space="preserve">
+    <value>Imorgon</value>
+  </data>
   <data name="Dashboard.Upcoming" xml:space="preserve">
     <value>Kommande</value>
   </data>
@@ -1473,7 +1476,7 @@
     <value>Skärm-ID</value>
   </data>
   <data name="Admin.Displays.NamePlaceholder" xml:space="preserve">
-    <value>Namn (t.ex. Stora salen)</value>
+    <value>Namn</value>
   </data>
   <data name="Admin.Displays.Add" xml:space="preserve">
     <value>Lägg till</value>

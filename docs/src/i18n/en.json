@@ -24,5 +24,11 @@
   "aboutTitle": "About",
   "about1": "Gospel Presenter is a free and open-source presentation tool built for churches. It makes it easy to display song lyrics and Bible verses on a second screen or projector during services.",
   "about2": "The project is open source. Visit the GitHub repository for instructions on how to self-host.",
-  "viewOnGitHub": "View on GitHub"
+  "viewOnGitHub": "View on GitHub",
+  "carousel_desktop": "Desktop",
+  "carousel_tablet": "Tablet",
+  "carousel_mobile": "Mobile",
+  "carousel_system": "System",
+  "carousel_light": "Light",
+  "carousel_dark": "Dark"
 }
