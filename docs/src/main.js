@@ -16,6 +16,7 @@ window.addEventListener("scroll", () => {
   const scrolled = window.scrollY > 10;
   navbar.classList.toggle("bg-white/95", scrolled);
   navbar.classList.toggle("dark:bg-neutral-900/95", scrolled);
+  navbar.classList.toggle("backdrop-blur-sm", scrolled);
   navbar.classList.toggle("shadow-sm", scrolled);
 }, { passive: true });
 
