@@ -223,7 +223,6 @@
                                     Content="@effectiveParts[i].Content"
                                     Label="@effectiveParts[i].Label"
                                     LabelColor="@effectiveParts[i].LabelColor"
-                                    Credits="@SongCredits"
                                     ContentStyle="@songStyle"
                                     CreditsStyle="@creditsStyle"
                                     IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
@@ -242,7 +241,6 @@
                             <button @onclick="() => SetSelectedLiveSlide(SelectedBibleText.Id, partIndex)">
                                 <BibleTextSlide
                                     Content="@SelectedBibleText.Parts[i]"
-                                    Credits="@SelectedBibleText.Title"
                                     ContentStyle="@bibleStyle"
                                     CreditsStyle="@bibleCreditsStyle"
                                     IsSelected="@(liveSlide.ProjectItemId == SelectedBibleText.Id && liveSlide.ItemPartIndex == i)"
@@ -396,7 +394,7 @@
                     {
                         var activeOverlay = SharedAppState.GetActiveOverlay(EffectiveSessionId);
 
-                        <div class="pointer-events-auto ml-auto lg:hidden bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 flex flex-col gap-3 max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain">
+                        <div class="pointer-events-auto ml-auto lg:hidden bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm rounded-2xl shadow-xl p-4 flex flex-col gap-3 max-h-[calc(100dvh-7rem)] overflow-hidden">
                             <LivePanel
                                 LiveSlide="@liveSlide"
                                 ActiveOverlay="@activeOverlay"

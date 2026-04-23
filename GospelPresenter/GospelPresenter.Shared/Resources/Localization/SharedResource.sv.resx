@@ -1532,6 +1532,12 @@
   <data name="LivePanel.AddOutput" xml:space="preserve">
     <value>Lägg till utgång</value>
   </data>
+  <data name="LivePanel.CloseWindow" xml:space="preserve">
+    <value>Stäng fönster</value>
+  </data>
+  <data name="LivePanel.NowShowing" xml:space="preserve">
+    <value>Nu visas</value>
+  </data>
   <data name="LivePanel.AddTempDisplay" xml:space="preserve">
     <value>Tillfällig skärm</value>
   </data>

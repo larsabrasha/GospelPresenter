@@ -544,6 +544,84 @@ window.positionDropdown = function(element) {
     }
 };
 
+// Find the nearest ancestor that establishes a containing block for
+// position: fixed descendants (transform, filter, backdrop-filter, perspective,
+// will-change on any of these, or contain: layout/paint/strict).
+function findFixedContainingBlock(el) {
+    var parent = el.parentElement;
+    while (parent && parent !== document.documentElement) {
+        var style = getComputedStyle(parent);
+        if (style.transform !== 'none' ||
+            style.filter !== 'none' ||
+            style.backdropFilter !== 'none' ||
+            style.perspective !== 'none' ||
+            style.contain.indexOf('layout') !== -1 ||
+            style.contain.indexOf('paint') !== -1 ||
+            style.contain.indexOf('strict') !== -1 ||
+            /transform|filter|backdrop-filter|perspective/.test(style.willChange)) {
+            return parent;
+        }
+        parent = parent.parentElement;
+    }
+    return null;
+}
+
+window.positionDropdownPortal = function(menuEl, triggerEl) {
+    if (!menuEl || !triggerEl) return;
+
+    // Reset previous inline adjustments
+    menuEl.style.removeProperty('top');
+    menuEl.style.removeProperty('bottom');
+    menuEl.style.removeProperty('left');
+    menuEl.style.removeProperty('width');
+    menuEl.style.removeProperty('max-height');
+    menuEl.style.removeProperty('overflow-y');
+
+    var triggerRect = triggerEl.getBoundingClientRect();
+    var viewportHeight = window.innerHeight;
+    var margin = 8;
+    var spacing = 4;
+
+    // If an ancestor establishes a containing block for fixed positioning
+    // (e.g. backdrop-filter on a parent), position coordinates must be
+    // adjusted relative to that ancestor, not the viewport.
+    var cb = findFixedContainingBlock(menuEl);
+    var cbTop = 0;
+    var cbLeft = 0;
+    var cbBottom = viewportHeight;
+    if (cb) {
+        var cbRect = cb.getBoundingClientRect();
+        cbTop = cbRect.top;
+        cbLeft = cbRect.left;
+        cbBottom = cbRect.bottom;
+    }
+
+    // Match trigger width, align to its left edge
+    menuEl.style.width = triggerRect.width + 'px';
+    menuEl.style.left = (triggerRect.left - cbLeft) + 'px';
+    menuEl.style.top = (triggerRect.bottom - cbTop + spacing) + 'px';
+
+    var menuRect = menuEl.getBoundingClientRect();
+    if (menuRect.bottom <= viewportHeight - margin) return;
+
+    var spaceAbove = triggerRect.top;
+    var spaceBelow = viewportHeight - triggerRect.bottom;
+
+    if (spaceAbove > spaceBelow) {
+        // Flip to open upward
+        menuEl.style.top = 'auto';
+        menuEl.style.bottom = (cbBottom - triggerRect.top + spacing) + 'px';
+        if (menuRect.height > spaceAbove - margin - spacing) {
+            menuEl.style.maxHeight = (spaceAbove - margin - spacing) + 'px';
+            menuEl.style.overflowY = 'auto';
+        }
+    } else {
+        // Keep below but constrain height
+        menuEl.style.maxHeight = (spaceBelow - margin - spacing) + 'px';
+        menuEl.style.overflowY = 'auto';
+    }
+};
+
 window.initLiveViewListener = function(sessionId, windowId) {
     window.liveViewChannel.addEventListener('message', function(e) {
         if (e.data?.sessionId !== sessionId) return;
