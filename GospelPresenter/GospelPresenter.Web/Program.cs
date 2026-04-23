@@ -310,11 +310,13 @@ builder.Services.AddMetricServer(options =>
                 else
                 {
                     var path = context.Request.Path.Value ?? "";
-                    var isMockAuthPath = path.StartsWith("/mock-login", StringComparison.OrdinalIgnoreCase)
+                    var isPublicPath = path.StartsWith("/mock-login", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/mock-signin", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/_", StringComparison.OrdinalIgnoreCase)
-                                     || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase);
-                    if (!isMockAuthPath)
+                                     || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+                                     || path.Equals("/live", StringComparison.OrdinalIgnoreCase)
+                                     || path.Equals("/display", StringComparison.OrdinalIgnoreCase);
+                    if (!isPublicPath)
                     {
                         context.Response.Redirect("/mock-login");
                         return;

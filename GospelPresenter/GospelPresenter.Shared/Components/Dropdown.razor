@@ -1,13 +1,13 @@
 @inject IJSRuntime JsRuntime
 
 <div class="relative @Class" @onclick:stopPropagation="true" @onfocusout="OnFocusOut">
-    <div @onclick="Toggle">
+    <div @ref="triggerRef" @onclick="Toggle">
         @Trigger
     </div>
     @if (isOpen)
     {
         <div class="fixed inset-0 z-[120]" @onclick="Close"></div>
-        <div @ref="menuRef" class="absolute top-full mt-1 z-[130] bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border-[0.5px] border-neutral-200 dark:border-neutral-600 overflow-hidden @MenuClass">
+        <div @ref="menuRef" class="@(Portal ? "fixed" : "absolute top-full mt-1") z-[130] bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border-[0.5px] border-neutral-200 dark:border-neutral-600 overflow-hidden @MenuClass">
             <div @onclick="Close">
                 @Menu
             </div>
@@ -20,9 +20,11 @@
     [Parameter] public RenderFragment? Menu { get; set; }
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? MenuClass { get; set; }
+    [Parameter] public bool Portal { get; set; }
 
     private bool isOpen;
     private bool needsPositioning;
+    private ElementReference triggerRef;
     private ElementReference menuRef;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -30,7 +32,14 @@
         if (needsPositioning)
         {
             needsPositioning = false;
-            await JsRuntime.InvokeVoidAsync("positionDropdown", menuRef);
+            if (Portal)
+            {
+                await JsRuntime.InvokeVoidAsync("positionDropdownPortal", menuRef, triggerRef);
+            }
+            else
+            {
+                await JsRuntime.InvokeVoidAsync("positionDropdown", menuRef);
+            }
         }
     }
 

@@ -1532,6 +1532,12 @@
   <data name="LivePanel.AddOutput" xml:space="preserve">
     <value>Add output</value>
   </data>
+  <data name="LivePanel.CloseWindow" xml:space="preserve">
+    <value>Close window</value>
+  </data>
+  <data name="LivePanel.NowShowing" xml:space="preserve">
+    <value>Now showing</value>
+  </data>
   <data name="LivePanel.AddTempDisplay" xml:space="preserve">
     <value>Temporary display</value>
   </data>
@@ -1543,6 +1549,12 @@
   </data>
   <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
     <value>Enter 4-digit code</value>
+  </data>
+  <data name="LivePanel.ToggleCollapsed" xml:space="preserve">
+    <value>Toggle live panel</value>
+  </data>
+  <data name="LivePanel.RemoteControlSection" xml:space="preserve">
+    <value>Remote control</value>
   </data>
   <data name="Bibles.Title" xml:space="preserve">
     <value>Bibles</value>
