@@ -11,7 +11,23 @@
     var isBlackScreen = LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
 }
 
-<div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">Nu visas</div>
+@if (Collapsible)
+{
+    <button @onclick="ToggleCollapsed"
+            aria-expanded="@(!isCollapsed)"
+            aria-label="@L["LivePanel.ToggleCollapsed"]"
+            class="cursor-pointer flex items-center justify-between w-auto text-left -mx-4 -mt-4 px-4 pt-4 pb-2 -mb-2">
+        <span class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">Nu visas</span>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+             class="size-4 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 @(isCollapsed ? "rotate-180" : "")">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+        </svg>
+    </button>
+}
+else
+{
+    <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">Nu visas</div>
+}
 
 <div class="flex justify-center">
     <LiveDisplay
@@ -22,6 +38,9 @@
         BaseHeight="@BaseHeight"
         Class="rounded-lg"/>
 </div>
+
+<div class="grid transition-[grid-template-rows] duration-300 ease-in-out @(Collapsible && isCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]") @(ShowGrow ? "grow min-h-0" : "")">
+    <div class="overflow-hidden flex flex-col gap-3 min-h-0 px-1 -mx-1">
 
 <button @onclick="OnClearSlide"
         class="cursor-pointer flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600 @(isBlackScreen ? "invisible pointer-events-none" : "")"
@@ -34,24 +53,47 @@
 
 @if (OverlaySlides.Count > 0)
 {
-    <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold mt-4">Overlays</div>
-    @foreach (var overlay in OverlaySlides)
-    {
-        var isActive = ActiveOverlayId == overlay.Id;
-        <button @onclick="() => OnToggleOverlay.InvokeAsync(overlay)"
-                class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-neutral-600 dark:text-neutral-300 @(isActive ? "bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "bg-neutral-100 dark:bg-neutral-700/50")"
-                title="@overlay.Title">
-            <span class="truncate">@overlay.Title</span>
-            <ToggleSwitch Value="@isActive"/>
+    <div>
+        <button @onclick="() => isOverlaysCollapsed = !isOverlaysCollapsed"
+                aria-expanded="@(!isOverlaysCollapsed)"
+                class="cursor-pointer flex items-center gap-2 w-full text-left py-2 -my-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                 class="size-3 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 @(isOverlaysCollapsed ? "-rotate-90" : "")">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+            <span class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">Overlays</span>
         </button>
-    }
+        <div class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isOverlaysCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
+            <div class="overflow-hidden flex flex-col gap-3 min-h-0 pt-3 pb-0.5 px-0.5 -mx-0.5 -mb-0.5">
+                @foreach (var overlay in OverlaySlides)
+                {
+                    var isActive = ActiveOverlayId == overlay.Id;
+                    <button @onclick="() => OnToggleOverlay.InvokeAsync(overlay)"
+                            class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-neutral-600 dark:text-neutral-300 @(isActive ? "bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "bg-neutral-100 dark:bg-neutral-700/50")"
+                            title="@overlay.Title">
+                        <span class="truncate">@overlay.Title</span>
+                        <ToggleSwitch Value="@isActive"/>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
 }
 
 @if (SessionId is not null)
 {
-    <div class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold mt-4 mb-2">
-        @L["LivePanel.Outputs"]
-    </div>
+    <div>
+        <button @onclick="() => isOutputsCollapsed = !isOutputsCollapsed"
+                aria-expanded="@(!isOutputsCollapsed)"
+                class="cursor-pointer flex items-center gap-2 w-full text-left py-2 -my-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                 class="size-3 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 @(isOutputsCollapsed ? "-rotate-90" : "")">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+            <span class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">@L["LivePanel.Outputs"]</span>
+        </button>
+        <div class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isOutputsCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
+            <div class="overflow-hidden flex flex-col gap-3 min-h-0 pt-3 pb-0.5 px-0.5 -mx-0.5 -mb-0.5">
 
     @if (hasPresentationApi)
     {
@@ -172,26 +214,42 @@
             </button>
         </Menu>
     </Dropdown>
+
+            </div>
+        </div>
+    </div>
 }
 
-@if (SessionId is not null)
+@if (SessionId is not null && !IsRemoteController)
 {
     var isRemoteEnabled = SharedAppState.IsRemoteControlEnabled(SessionId);
-    @if (!IsRemoteController)
-    {
-        <button @onclick="ToggleRemoteControl"
-                class="cursor-pointer flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm @(isRemoteEnabled ? "text-neutral-600 dark:text-neutral-300 bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700/50")">
-            <div class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/>
-                </svg>
-                <span>@L["LivePanel.RemoteControl"]</span>
-            </div>
-            <div class="pointer-events-none">
-                <ToggleSwitch Value="@isRemoteEnabled"/>
-            </div>
+    <div>
+        <button @onclick="() => isRemoteCollapsed = !isRemoteCollapsed"
+                aria-expanded="@(!isRemoteCollapsed)"
+                class="cursor-pointer flex items-center gap-2 w-full text-left py-2 -my-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                 class="size-3 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 @(isRemoteCollapsed ? "-rotate-90" : "")">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+            <span class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">@L["LivePanel.RemoteControlSection"]</span>
         </button>
-    }
+        <div class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isRemoteCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
+            <div class="overflow-hidden flex flex-col gap-3 min-h-0 pt-3 pb-0.5 px-0.5 -mx-0.5 -mb-0.5">
+                <button @onclick="ToggleRemoteControl"
+                        class="cursor-pointer flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm @(isRemoteEnabled ? "text-neutral-600 dark:text-neutral-300 bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700/50")">
+                    <div class="flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/>
+                        </svg>
+                        <span>@L["LivePanel.RemoteControl"]</span>
+                    </div>
+                    <div class="pointer-events-none">
+                        <ToggleSwitch Value="@isRemoteEnabled"/>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
 }
 
 @if (SessionId is not null && !IsRemoteController)
@@ -223,6 +281,9 @@
     <span class="text-sm font-medium">@L["Presentation.StopPresentation"]</span>
 </button>
 
+    </div>
+</div>
+
 @if (showPairingDialog)
 {
     <PairingCodeDialog SessionId="@(SessionId!)" OnClose="ClosePairingDialog" OnPaired="ClosePairingDialog"/>
@@ -240,9 +301,16 @@
     [Parameter] public EventCallback<OverlaySlide> OnToggleOverlay { get; set; }
     [Parameter] public EventCallback OnStopPresentation { get; set; }
     [Parameter] public bool ShowGrow { get; set; }
+    [Parameter] public bool Collapsible { get; set; }
     [Parameter] public string? SessionId { get; set; }
     [Parameter] public bool IsRemoteController { get; set; }
     [Parameter] public List<RemoteDisplay> SavedDisplays { get; set; } = [];
+
+    private bool isCollapsed;
+    private bool isOverlaysCollapsed;
+    private bool isOutputsCollapsed;
+    private bool isRemoteCollapsed;
+    private void ToggleCollapsed() => isCollapsed = !isCollapsed;
 
     private HashSet<string> savedDisplayIds => SavedDisplays.Select(d => d.DisplayIdentifier).ToHashSet();
 
