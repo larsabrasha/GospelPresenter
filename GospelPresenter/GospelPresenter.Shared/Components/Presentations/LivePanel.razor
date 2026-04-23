@@ -59,15 +59,16 @@ else
                     Class="rounded-lg"/>
             </div>
 
-            <button @onclick="OnClearSlide"
-                    class="text-xs cursor-pointer flex items-center justify-center gap-2 px-3 py-2 mx-1 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600 @(isBlackScreen ? "invisible pointer-events-none" : "")"
-                    title="@L["Presentation.ClearSlide"]">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
-                     stroke="currentColor" class="size-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
-                </svg>
-                <span>@L["Presentation.ClearSlide"]</span>
-            </button>
+            <div class="mx-1 @(isBlackScreen ? "invisible pointer-events-none" : "")">
+                <AppButton Variant="ButtonVariant.Secondary" OnClick="OnClearSlide"
+                           Class="w-full flex items-center justify-center gap-1.5" Title="@L["Presentation.ClearSlide"]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                         stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                    <span>@L["Presentation.ClearSlide"]</span>
+                </AppButton>
+            </div>
         </div>
 
         @if (OverlaySlides.Count > 0)

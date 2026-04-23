@@ -279,7 +279,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
 
             // Click the first slide to make it live
             var firstSlide = p.Locator("#main button").First;
-            await firstSlide.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
+            await firstSlide.ClickAsync(new LocatorClickOptions { Timeout = 5_000, Force = true });
             await p.WaitForTimeoutAsync(500);
         },
         "add-song" => async p =>
