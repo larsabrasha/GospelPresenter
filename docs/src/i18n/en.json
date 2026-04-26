@@ -61,7 +61,7 @@
   "faq_q12": "Can I customize fonts, colors, and backgrounds?",
   "faq_a12": "You can choose font family, weight, text size, and line height for song lyrics and Bible verses. Colors and customizable backgrounds are not yet implemented but are in the pipeline.",
   "faq_q13": "Can multiple people control the presentation at the same time?",
-  "faq_a13": "Yes. You can control it from any device on the network — computer, phone, or tablet — and you can also hand off control to another device mid-service.",
+  "faq_a13": "Yes. You can control it from any device with a browser — computer, phone, or tablet. This works over a local network or over the internet, depending on how the server is exposed. You can also hand off control to another device mid-service.",
   "faq_q14": "Which languages does the interface have, and where is our data stored?",
   "faq_a14": "The interface is currently available in English and Swedish. All data — songs, presentations, images, and uploaded files — is stored on your own server (PostgreSQL plus an S3-compatible object store). No data is sent to us or any third party.",
   "faq_q15": "What does \"Alpha\" mean?",

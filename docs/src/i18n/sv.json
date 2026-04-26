@@ -61,7 +61,7 @@
   "faq_q12": "Kan jag anpassa typsnitt, färger och bakgrunder?",
   "faq_a12": "Du kan välja typsnitt, tjocklek, textstorlek och radhöjd för sångtext och bibelverser. Färger och anpassningsbara bakgrunder är ännu inte implementerade men ligger i pipeline.",
   "faq_q13": "Kan flera personer styra presentationen samtidigt?",
-  "faq_a13": "Ja. Du kan styra från valfri enhet i nätverket – dator, mobil eller surfplatta – och även lämna över kontrollen till en annan enhet mitt under gudstjänsten.",
+  "faq_a13": "Ja. Du kan styra från valfri enhet med webbläsare – dator, mobil eller surfplatta. Det fungerar både över lokalt nätverk och över internet, beroende på hur servern är tillgänglig. Du kan även lämna över kontrollen till en annan enhet mitt under gudstjänsten.",
   "faq_q14": "Vilka språk har gränssnittet och var lagras vår data?",
   "faq_a14": "Gränssnittet finns idag på engelska och svenska. All data – sånger, presentationer, bilder och uppladdade filer – lagras på din egen server (PostgreSQL plus ett S3-kompatibelt objektlager). Ingen data skickas till oss eller någon tredje part.",
   "faq_q15": "Vad innebär \"Alpha\"?",
