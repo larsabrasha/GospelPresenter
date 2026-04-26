@@ -67,5 +67,7 @@
   "faq_q15": "What does \"Alpha\" mean?",
   "faq_a15": "Gospel Presenter is under active development. That means features are added continuously, things may change, and bugs may occur. Feel free to try the tool, but expect it to still be maturing. Feedback helps us prioritize.",
   "faq_q16": "How can I contribute or report bugs?",
-  "faq_a16": "All development happens openly on GitHub. There you can report bugs, suggest features, or contribute code. Pull requests and feedback are welcome."
+  "faq_a16": "All development happens openly on GitHub. There you can report bugs, suggest features, or contribute code. Pull requests and feedback are welcome.",
+  "faq_q17": "Are there any experimental or AI-related features?",
+  "faq_a17": "Yes. Gospel Presenter has a built-in MCP server (Model Context Protocol) that lets AI assistants like Claude work directly with your presentations — for example listing, creating, or editing them, fetching song lyrics, or searching the Bible. That means you can use AI to quickly put together a presentation based on the day's sermon or song repertoire. The feature is experimental and under development."
 }
