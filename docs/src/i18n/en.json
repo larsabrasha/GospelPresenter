@@ -61,11 +61,15 @@
   "faq_q12": "Can I customize fonts, colors, and backgrounds?",
   "faq_a12": "You can choose font family, weight, text size, and line height for song lyrics and Bible verses. Colors and customizable backgrounds are not yet implemented but are in the pipeline.",
   "faq_q13": "Can multiple people control the presentation at the same time?",
-  "faq_a13": "Yes. You can control it from any device on the network — computer, phone, or tablet — and you can also hand off control to another device mid-service.",
-  "faq_q14": "Which languages does the interface have, and where is our data stored?",
-  "faq_a14": "The interface is currently available in English and Swedish. All data — songs, presentations, images, and uploaded files — is stored on your own server (PostgreSQL plus an S3-compatible object store). No data is sent to us or any third party.",
-  "faq_q15": "What does \"Alpha\" mean?",
-  "faq_a15": "Gospel Presenter is under active development. That means features are added continuously, things may change, and bugs may occur. Feel free to try the tool, but expect it to still be maturing. Feedback helps us prioritize.",
-  "faq_q16": "How can I contribute or report bugs?",
-  "faq_a16": "All development happens openly on GitHub. There you can report bugs, suggest features, or contribute code. Pull requests and feedback are welcome."
+  "faq_a13": "Yes. You can control it from any device with a browser — computer, phone, or tablet. This works over a local network or over the internet, depending on how the server is exposed. You can also hand off control to another device mid-service.",
+  "faq_q14": "Which languages does the interface support?",
+  "faq_a14": "The interface is currently available in English and Swedish.",
+  "faq_q15": "Where is our data stored?",
+  "faq_a15": "All data — songs, presentations, images, and uploaded files — is stored on your own server (PostgreSQL plus an S3-compatible object store). No data is sent to us or any third party.",
+  "faq_q16": "What does \"Alpha\" mean?",
+  "faq_a16": "Gospel Presenter is under active development. That means features are added continuously, things may change, and bugs may occur. Feel free to try the tool, but expect it to still be maturing. Feedback helps us prioritize.",
+  "faq_q17": "How can I contribute or report bugs?",
+  "faq_a17": "All development happens openly on GitHub. There you can report bugs, suggest features, or contribute code. Pull requests and feedback are welcome.",
+  "faq_q18": "Are there any experimental or AI-related features?",
+  "faq_a18": "Yes. Gospel Presenter has a built-in MCP server (Model Context Protocol) that lets AI assistants like Claude work directly with your presentations — for example listing, creating, or editing them, fetching song lyrics, or searching the Bible. That means you can use AI to quickly put together a presentation based on the day's sermon or song repertoire. The feature is experimental and under development."
 }
