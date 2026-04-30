@@ -5,6 +5,7 @@
 @using GospelPresenter.Shared.State
 
 @inject IPresentationService PresentationService
+@inject IOnboardingService OnboardingService
 @inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
 @inject SharedAppState SharedAppState
@@ -22,11 +23,10 @@
         }
     </div>
 
-    @if (liveSessionId is not null)
+    @foreach (var (sessionId, session) in liveSessions)
     {
-        var liveSession = SharedAppState.GetActiveSession(liveSessionId);
-        var livePresentationId = liveSession?.PresentationId;
-        var livePresentationName = liveSession?.PresentationName;
+        var livePresentationId = session.PresentationId;
+        var livePresentationName = session.PresentationName;
         <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800 overflow-hidden">
             <div class="px-4 py-3 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2 min-w-0">
@@ -155,6 +155,11 @@
                                OnClose="CancelCreate"/>
 }
 
+@if (showWelcomeModal)
+{
+    <WelcomeModal OnClose="DismissWelcomeAsync"/>
+}
+
 @using System.ComponentModel
 @implements IDisposable
 
@@ -164,6 +169,7 @@
     private IList<PresentationSummary>? recentTemplates;
     private bool showPicker;
     private bool showCreateDialog;
+    private bool showWelcomeModal;
     private PresentationSummary? selectedTemplate;
     private string newPresentationName = "";
     private DateOnly? prefillDate;
@@ -172,16 +178,17 @@
 
     private bool hasAny => dashboard is { } d && (d.Today.Count + d.Upcoming.Count + d.Previous.Count) > 0;
 
-    private string? liveSessionId
+    private IReadOnlyList<(string SessionId, ActiveSession Session)> liveSessions
     {
         get
         {
             var orgId = OrgState.ActiveOrganizationId;
-            if (orgId is null) return null;
-            var sessionId = SharedAppState.GetActiveSessionIdForOrganization(orgId);
-            if (sessionId is null || !SharedAppState.IsRemoteControlEnabled(sessionId)) return null;
-            if (sessionId == AppState.SessionId) return null;
-            return sessionId;
+            if (orgId is null) return [];
+            return SharedAppState.GetRemoteEnabledSessionsForOrganization(orgId)
+                .Where(s => s.SessionId != AppState.SessionId)
+                .OrderBy(s => s.Session.PresentationName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(s => s.SessionId, StringComparer.Ordinal)
+                .ToList();
         }
     }
 
@@ -201,6 +208,20 @@
         await Task.WhenAll(dashboardTask, templatesTask);
         dashboard = await dashboardTask;
         recentTemplates = await templatesTask;
+
+        if (OrgState.UserId is { } userId)
+        {
+            showWelcomeModal = await OnboardingService.ShouldShowWelcomeAsync(userId, caller);
+        }
+    }
+
+    private async Task DismissWelcomeAsync()
+    {
+        showWelcomeModal = false;
+        if (OrgState.UserId is { } userId)
+        {
+            await OnboardingService.MarkWelcomeShownAsync(userId, OrgState.ToCallerContext());
+        }
     }
 
     private void OpenNewPresentationPicker()

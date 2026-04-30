@@ -1,6 +1,3 @@
-@using System.Text.RegularExpressions
-@using QRCoder
-
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
 
@@ -10,12 +7,7 @@
 
         <div class="space-y-2">
             <div class="flex justify-center">
-                <div class="bg-white p-3 rounded-lg w-44 h-44 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
-                    @if (qrSvg is not null)
-                    {
-                        @((MarkupString)qrSvg)
-                    }
-                </div>
+                <QrCode Value="@remoteUrl"/>
             </div>
             <div class="text-sm text-neutral-500 dark:text-neutral-400 text-center">@L["LivePanel.RemoteControlScanQrHint"]</div>
         </div>
@@ -106,7 +98,6 @@
     [Parameter] public EventCallback OnClose { get; set; }
 
     private string remoteUrl = "";
-    private string? qrSvg;
     private bool isCopyLinkCollapsed = true;
     private bool isOpenAppCollapsed = true;
 
@@ -114,30 +105,10 @@
     {
         var baseUri = new Uri(NavigationManager.BaseUri);
         remoteUrl = new Uri(baseUri, $"presentations/{PresentationId}?remote=true").ToString();
-        qrSvg = BuildQrSvg(remoteUrl);
     }
 
     private void OnCopyUrl()
     {
         ToastService.Show(L["Toast.LinkCopied"]);
-    }
-
-    private static readonly Regex SvgRootRegex = new(
-        @"<svg(?<attrs>[^>]*?\bwidth=""(?<w>\d+)""\s+height=""(?<h>\d+)""[^>]*?)>",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static string BuildQrSvg(string url)
-    {
-        using var qrGenerator = new QRCodeGenerator();
-        using var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
-        var svgQrCode = new SvgQRCode(qrData);
-        var svg = svgQrCode.GetGraphic(4);
-
-        // QRCoder emits fixed width/height but no viewBox, so CSS-driven sizing
-        // crops the QR instead of scaling it. Inject a viewBox so it scales.
-        return SvgRootRegex.Replace(
-            svg,
-            m => $"<svg{m.Groups["attrs"].Value} viewBox=\"0 0 {m.Groups["w"].Value} {m.Groups["h"].Value}\">",
-            count: 1);
     }
 }

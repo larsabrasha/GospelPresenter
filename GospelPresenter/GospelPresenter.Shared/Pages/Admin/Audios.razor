@@ -82,9 +82,10 @@
         }
         else if (audios.Count == 0)
         {
-            <div class="flex flex-col items-center justify-center text-neutral-400 text-sm py-12 select-none">
+            <div class="flex flex-col items-center justify-center text-center text-sm py-12 px-6 select-none">
                 <SpeakerWaveSymbol Class="size-12 mb-3 text-neutral-300 dark:text-neutral-600"/>
-                <p class="text-neutral-400 dark:text-neutral-500">@L["Audios.NoAudios"]</p>
+                <p class="font-medium text-neutral-500 dark:text-neutral-400 mb-1">@L["Audios.NoAudios"]</p>
+                <p class="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">@L["Audios.NoAudiosHint"]</p>
             </div>
         }
         else if (displayedAudios.Count == 0)

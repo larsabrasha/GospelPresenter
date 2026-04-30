@@ -1012,6 +1012,7 @@
         SharedAppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PresentationChanged += OnPresentationChanged;
         SharedAppState.OrganizationSlideStylesChanged += OnSlideStylesChanged;
+        SharedAppState.PresentationActivated += OnPresenterActivated;
         SharedAppState.PresentationDeactivated += OnPresenterDeactivated;
     }
 
@@ -1020,9 +1021,12 @@
         if (IsRemoteMode)
         {
             var orgId = OrgState.ActiveOrganizationId;
-            _presenterSessionId = orgId is not null
-                ? SharedAppState.GetActiveSessionIdForOrganization(orgId)
+            _presenterSessionId = orgId is not null && PresentationId is not null
+                ? SharedAppState.GetActiveSessionIdForPresentation(orgId, PresentationId)
                 : null;
+            Logger.LogDebug(
+                "Remote viewer resolving presenter session: viewerSessionId={ViewerSessionId} orgId={OrgId} presentationId={PresentationId} resolvedPresenterSessionId={PresenterSessionId} isRemoteReady={IsRemoteReady}",
+                AppState.SessionId, orgId, PresentationId, _presenterSessionId, IsRemoteReady);
         }
 
         if (EffectiveId == loadedPresentationId) return;
@@ -1175,8 +1179,22 @@
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
         SharedAppState.OrganizationSlideStylesChanged -= OnSlideStylesChanged;
+        SharedAppState.PresentationActivated -= OnPresenterActivated;
         SharedAppState.PresentationDeactivated -= OnPresenterDeactivated;
         dotNetRef?.Dispose();
+    }
+
+    private void OnPresenterActivated(string sessionId)
+    {
+        if (!IsRemoteMode || PresentationId is null) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        var resolved = SharedAppState.GetActiveSessionIdForPresentation(orgId, PresentationId);
+        if (resolved == _presenterSessionId) return;
+
+        _presenterSessionId = resolved;
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private void OnPresenterDeactivated(string sessionId)

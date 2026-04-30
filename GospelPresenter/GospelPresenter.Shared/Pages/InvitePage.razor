@@ -67,7 +67,12 @@
     }
     else
     {
-        <div class="text-lg dark:text-neutral-100 mb-4">@((MarkupString)L["Invite.Welcome", userName ?? string.Empty].Value)</div>
+        <div class="text-lg dark:text-neutral-100 text-center px-4">@((MarkupString)L["Invite.Welcome", userName ?? string.Empty].Value)</div>
+        @if (!string.IsNullOrWhiteSpace(organizationName))
+        {
+            <div class="text-sm text-neutral-500 dark:text-neutral-400 mt-1 text-center px-4">@((MarkupString)L["Invite.OrganizationLine", organizationName].Value)</div>
+        }
+        <div class="text-sm text-neutral-500 dark:text-neutral-400 mt-4 mb-2 text-center px-4">@L["Invite.ChooseSignIn"]</div>
 
         <div class="flex flex-col p-3 w-full sm:w-140 items-center gap-3">
             @{ var providers = AuthProviders.EnabledProviders; }
@@ -127,6 +132,7 @@
     private bool expired;
     private bool showMore;
     private string? userName;
+    private string? organizationName;
 
     private static string ButtonClass(string providerId) => providerId switch
     {
@@ -145,5 +151,6 @@
         }
         valid = true;
         userName = invite.User.Name;
+        organizationName = invite.User.Organization?.Name;
     }
 }

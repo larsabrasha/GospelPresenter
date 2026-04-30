@@ -1,0 +1,42 @@
+@using System.Text.RegularExpressions
+@using QRCoder
+
+<div class="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+    @if (svg is not null)
+    {
+        @((MarkupString)svg)
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public required string Value { get; set; }
+
+    private string? svg;
+    private string? lastValue;
+
+    protected override void OnParametersSet()
+    {
+        if (Value == lastValue) return;
+        lastValue = Value;
+        svg = BuildQrSvg(Value);
+    }
+
+    private static readonly Regex SvgRootRegex = new(
+        @"<svg(?<attrs>[^>]*?\bwidth=""(?<w>\d+)""\s+height=""(?<h>\d+)""[^>]*?)>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static string BuildQrSvg(string url)
+    {
+        using var qrGenerator = new QRCodeGenerator();
+        using var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
+        var svgQrCode = new SvgQRCode(qrData);
+        var svgString = svgQrCode.GetGraphic(4);
+
+        // QRCoder emits fixed width/height but no viewBox, so CSS-driven sizing
+        // crops the QR instead of scaling it. Inject a viewBox so it scales.
+        return SvgRootRegex.Replace(
+            svgString,
+            m => $"<svg{m.Groups["attrs"].Value} viewBox=\"0 0 {m.Groups["w"].Value} {m.Groups["h"].Value}\">",
+            count: 1);
+    }
+}

@@ -3,6 +3,7 @@ using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace GospelPresenter.Shared;
 
@@ -16,7 +17,9 @@ public static class SharedServicesSetup
         services.AddScoped<ToastService>();
         services.AddScoped<AppState>();
         services.AddScoped<ActiveOrganizationState>();
-        services.AddSingleton(new SharedAppState(TimeSpan.FromMinutes(timeoutMinutes)));
+        services.AddSingleton<SharedAppState>(sp => new SharedAppState(
+            TimeSpan.FromMinutes(timeoutMinutes),
+            sp.GetRequiredService<ILogger<SharedAppState>>()));
         services.AddSingleton<RemoteDisplayState>();
         services.AddScoped<IRemoteDisplayService, RemoteDisplayService>();
         services.AddScoped<ISongPartLabelService, SongPartLabelService>();

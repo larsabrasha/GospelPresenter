@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GospelPresenter.Shared.State;
 
@@ -14,10 +16,16 @@ public record AudioCommand(string Action, string AudioElementId, double? Positio
 public partial class SharedAppState : ObservableObject
 {
     private readonly TimeSpan sessionTimeout;
+    private readonly ILogger<SharedAppState> logger;
 
-    public SharedAppState(TimeSpan sessionTimeout)
+    public SharedAppState(TimeSpan sessionTimeout) : this(sessionTimeout, NullLogger<SharedAppState>.Instance)
+    {
+    }
+
+    public SharedAppState(TimeSpan sessionTimeout, ILogger<SharedAppState> logger)
     {
         this.sessionTimeout = sessionTimeout;
+        this.logger = logger;
     }
 
     private readonly ConcurrentDictionary<string, LiveSlide> liveSlides = new();
@@ -96,6 +104,9 @@ public partial class SharedAppState : ObservableObject
     {
         TouchSession(sessionId);
         presentationActive[sessionId] = new ActiveSession(organizationId, presentationId, presentationName);
+        logger.LogDebug(
+            "ActivatePresentation sessionId={SessionId} organizationId={OrganizationId} presentationId={PresentationId} activeCount={ActiveCount}",
+            sessionId, organizationId, presentationId, presentationActive.Count);
         OnPropertyChanged(sessionId);
         PresentationActivated?.Invoke(sessionId);
     }
@@ -103,23 +114,37 @@ public partial class SharedAppState : ObservableObject
     public void DeactivatePresentation(string sessionId)
     {
         TouchSession(sessionId);
-        presentationActive.TryRemove(sessionId, out _);
-        remoteControlEnabled.TryRemove(sessionId, out _);
+        var hadActive = presentationActive.TryRemove(sessionId, out _);
+        var wasRemoteEnabled = remoteControlEnabled.ContainsKey(sessionId);
+        // NOTE: remoteControlEnabled is intentionally preserved here so the
+        // user's explicit "remote control" choice survives a Stop→Start cycle
+        // within the same session. Disabling is via DisableRemoteControl only.
         sessionAudio.TryRemove(sessionId, out _);
         pendingAudioCommands.TryRemove(sessionId, out _);
+        logger.LogDebug(
+            "DeactivatePresentation sessionId={SessionId} hadActivePresentation={HadActive} remoteControlWasEnabled={RemoteControlWasEnabled}",
+            sessionId, hadActive, wasRemoteEnabled);
         OnPropertyChanged(sessionId);
         PresentationDeactivated?.Invoke(sessionId);
     }
 
     public void EnableRemoteControl(string sessionId)
     {
+        TouchSession(sessionId);
         remoteControlEnabled[sessionId] = true;
+        var hasActivePresentation = presentationActive.ContainsKey(sessionId);
+        logger.LogDebug(
+            "EnableRemoteControl sessionId={SessionId} hasActivePresentation={HasActivePresentation}",
+            sessionId, hasActivePresentation);
         OnPropertyChanged(sessionId);
     }
 
     public void DisableRemoteControl(string sessionId)
     {
-        remoteControlEnabled.TryRemove(sessionId, out _);
+        var removed = remoteControlEnabled.TryRemove(sessionId, out _);
+        logger.LogDebug(
+            "DisableRemoteControl sessionId={SessionId} hadEntry={HadEntry}",
+            sessionId, removed);
         OnPropertyChanged(sessionId);
     }
 
@@ -156,12 +181,26 @@ public partial class SharedAppState : ObservableObject
     public event Action<string>? PresentationActivated;
     public event Action<string>? PresentationDeactivated;
 
-    public string? GetActiveSessionIdForOrganization(string organizationId)
+    public string? GetActiveSessionIdForPresentation(string organizationId, string presentationId)
     {
-        return presentationActive
-            .Where(kvp => kvp.Value.OrganizationId == organizationId)
+        var resolved = presentationActive
+            .Where(kvp => kvp.Value.OrganizationId == organizationId
+                       && kvp.Value.PresentationId == presentationId)
             .Select(kvp => kvp.Key)
             .FirstOrDefault();
+        logger.LogDebug(
+            "GetActiveSessionIdForPresentation organizationId={OrganizationId} presentationId={PresentationId} resolvedSessionId={ResolvedSessionId}",
+            organizationId, presentationId, resolved);
+        return resolved;
+    }
+
+    public IReadOnlyList<(string SessionId, ActiveSession Session)> GetRemoteEnabledSessionsForOrganization(string organizationId)
+    {
+        return presentationActive
+            .Where(kvp => kvp.Value.OrganizationId == organizationId
+                       && IsRemoteControlEnabled(kvp.Key))
+            .Select(kvp => (kvp.Key, kvp.Value))
+            .ToList();
     }
 
     public bool IsPresentationActiveForSession(string sessionId, string presentationId) =>
@@ -270,6 +309,7 @@ public partial class SharedAppState : ObservableObject
             if (now - accessed <= sessionTimeout) continue;
 
             var wasActive = presentationActive.ContainsKey(sessionId);
+            var wasRemoteEnabled = remoteControlEnabled.ContainsKey(sessionId);
 
             CancelCcliTimer(sessionId);
             liveSlides.TryRemove(sessionId, out _);
@@ -279,6 +319,13 @@ public partial class SharedAppState : ObservableObject
             sessionAudio.TryRemove(sessionId, out _);
             pendingAudioCommands.TryRemove(sessionId, out _);
             lastAccessed.TryRemove(sessionId, out _);
+
+            if (wasActive || wasRemoteEnabled)
+            {
+                logger.LogDebug(
+                    "CleanupStaleSessions evicted sessionId={SessionId} ageSeconds={AgeSeconds} wasActive={WasActive} wasRemoteEnabled={WasRemoteEnabled}",
+                    sessionId, (int)(now - accessed).TotalSeconds, wasActive, wasRemoteEnabled);
+            }
 
             if (wasActive)
             {

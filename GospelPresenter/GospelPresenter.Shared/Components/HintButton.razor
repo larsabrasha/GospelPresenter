@@ -1,0 +1,22 @@
+<button type="button"
+        class="size-4 flex items-center justify-center rounded-full text-[10px] font-semibold border cursor-pointer transition-colors @ActiveClass"
+        title="@Title"
+        @onclick="HandleClickAsync">
+    i
+</button>
+
+@code {
+    [Parameter] public bool Active { get; set; }
+    [Parameter] public EventCallback<bool> ActiveChanged { get; set; }
+    [Parameter] public string? Title { get; set; }
+
+    private string ActiveClass => Active
+        ? "bg-sky-500 border-sky-500 text-white"
+        : "border-neutral-300 dark:border-neutral-500 text-neutral-400 dark:text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300";
+
+    private async Task HandleClickAsync()
+    {
+        Active = !Active;
+        await ActiveChanged.InvokeAsync(Active);
+    }
+}

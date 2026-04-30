@@ -1,6 +1,4 @@
-@using System.Text.RegularExpressions
 @using GospelPresenter.Shared.State
-@using QRCoder
 @implements IDisposable
 
 @inject RemoteDisplayState RemoteDisplayState
@@ -29,12 +27,7 @@
                 <div class="font-medium text-sm text-neutral-800 dark:text-neutral-100">@L["LivePanel.PairScanQrTitle"]</div>
                 <div class="text-sm text-neutral-500 dark:text-neutral-400">@L["LivePanel.PairScanQrHint"]</div>
                 <div class="flex justify-center">
-                    <div class="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
-                        @if (qrSvg is not null)
-                        {
-                            @((MarkupString)qrSvg)
-                        }
-                    </div>
+                    <QrCode Value="@pairingUrl"/>
                 </div>
             </div>
 
@@ -113,7 +106,7 @@
 
     private string? currentToken;
     private string displayUrl = "";
-    private string? qrSvg;
+    private string pairingUrl = "";
     private Timer? tokenRefreshTimer;
 
     private string Code => new string(digits);
@@ -158,30 +151,9 @@
             RemoteDisplayState.InvalidatePairingToken(currentToken);
 
         currentToken = RemoteDisplayState.GeneratePairingToken(SessionId);
-
-        var pairingUrl = $"{displayUrl}?token={currentToken}";
-        qrSvg = BuildQrSvg(pairingUrl);
+        pairingUrl = $"{displayUrl}?token={currentToken}";
 
         _ = InvokeAsync(StateHasChanged);
-    }
-
-    private static readonly Regex SvgRootRegex = new(
-        @"<svg(?<attrs>[^>]*?\bwidth=""(?<w>\d+)""\s+height=""(?<h>\d+)""[^>]*?)>",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static string BuildQrSvg(string url)
-    {
-        using var qrGenerator = new QRCodeGenerator();
-        using var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
-        var svgQrCode = new SvgQRCode(qrData);
-        var svg = svgQrCode.GetGraphic(4);
-
-        // QRCoder emits fixed width/height but no viewBox, so CSS-driven sizing
-        // crops the QR instead of scaling it. Inject a viewBox so it scales.
-        return SvgRootRegex.Replace(
-            svg,
-            m => $"<svg{m.Groups["attrs"].Value} viewBox=\"0 0 {m.Groups["w"].Value} {m.Groups["h"].Value}\">",
-            count: 1);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
