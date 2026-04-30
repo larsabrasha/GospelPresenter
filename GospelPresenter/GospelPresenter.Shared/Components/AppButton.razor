@@ -14,7 +14,7 @@ else if (AsLabel)
 else
 {
     <button type="@(Type ?? "button")" disabled="@(Disabled || Loading)" title="@Title"
-            class="@CombinedClass" @onclick="OnClick">
+            class="@CombinedClass" @onclick="OnClick" data-copy-text="@CopyText">
         @if (Loading)
         {
             <svg class="animate-spin size-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -39,6 +39,7 @@ else
     [Parameter] public string? Type { get; set; }
     [Parameter] public bool AsLabel { get; set; }
     [Parameter] public bool Filled { get; set; }
+    [Parameter] public string? CopyText { get; set; }
 
     private string BaseClasses => Variant switch
     {

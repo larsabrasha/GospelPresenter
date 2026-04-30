@@ -38,6 +38,9 @@
   <data name="Common.Cancel" xml:space="preserve">
     <value>Avbryt</value>
   </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>Stäng</value>
+  </data>
   <data name="Common.Save" xml:space="preserve">
     <value>Spara</value>
   </data>
@@ -1560,10 +1563,19 @@
     <value>eller</value>
   </data>
   <data name="LivePanel.PairManualTitle" xml:space="preserve">
-    <value>Eller skriv in koden manuellt</value>
+    <value>Eller anslut manuellt</value>
   </data>
-  <data name="LivePanel.PairManualHint" xml:space="preserve">
-    <value>Öppna adressen nedan på skärmenheten och skriv in koden som visas där.</value>
+  <data name="LivePanel.PairManualStep1" xml:space="preserve">
+    <value>Öppna adressen på enheten du vill använda som skärm</value>
+  </data>
+  <data name="LivePanel.PairManualStep2" xml:space="preserve">
+    <value>Skriv koden som visas där</value>
+  </data>
+  <data name="LivePanel.PairSuccessTitle" xml:space="preserve">
+    <value>Skärmen är ansluten</value>
+  </data>
+  <data name="LivePanel.PairSuccessHint" xml:space="preserve">
+    <value>Enheten är nu ansluten och visar live-vyn.</value>
   </data>
   <data name="LivePanel.ToggleCollapsed" xml:space="preserve">
     <value>Fäll in eller ut live-vyn</value>

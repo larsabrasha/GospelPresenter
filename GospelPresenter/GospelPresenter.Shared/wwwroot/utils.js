@@ -115,6 +115,34 @@ window.copyToClipboard = function (text) {
     return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return false; });
 };
 
+// Synchronous copy handler bound to data-copy-text. Runs inside the click event
+// so the call is treated as user-initiated — required by browsers because Blazor
+// Server's SignalR roundtrip would otherwise lose the user gesture context.
+function fallbackCopyText(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+}
+
+document.addEventListener('click', function (e) {
+    var target = e.target && e.target.closest ? e.target.closest('[data-copy-text]') : null;
+    if (!target) return;
+    var text = target.getAttribute('data-copy-text');
+    if (text === null) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function () { fallbackCopyText(text); });
+    } else {
+        fallbackCopyText(text);
+    }
+}, true);
+
 window.setTheme = function (theme) {
     localStorage.setItem('theme', theme);
     applyTheme();
