@@ -38,6 +38,9 @@
   <data name="Common.Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
+  <data name="Common.Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
   <data name="Common.Save" xml:space="preserve">
     <value>Save</value>
   </data>
@@ -1560,10 +1563,19 @@
     <value>or</value>
   </data>
   <data name="LivePanel.PairManualTitle" xml:space="preserve">
-    <value>Or enter the code manually</value>
+    <value>Or connect manually</value>
   </data>
-  <data name="LivePanel.PairManualHint" xml:space="preserve">
-    <value>Open the URL below on the screen device and enter the code shown there.</value>
+  <data name="LivePanel.PairManualStep1" xml:space="preserve">
+    <value>Open the URL on the device you want to use as a screen</value>
+  </data>
+  <data name="LivePanel.PairManualStep2" xml:space="preserve">
+    <value>Enter the code shown there</value>
+  </data>
+  <data name="LivePanel.PairSuccessTitle" xml:space="preserve">
+    <value>Display connected</value>
+  </data>
+  <data name="LivePanel.PairSuccessHint" xml:space="preserve">
+    <value>The device is now connected and will mirror the live view.</value>
   </data>
   <data name="LivePanel.ToggleCollapsed" xml:space="preserve">
     <value>Toggle live panel</value>

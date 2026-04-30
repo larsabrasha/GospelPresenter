@@ -1,76 +1,106 @@
+@using System.Text.RegularExpressions
 @using GospelPresenter.Shared.State
 @using QRCoder
 @implements IDisposable
 
 @inject RemoteDisplayState RemoteDisplayState
 @inject NavigationManager NavigationManager
+@inject ToastService ToastService
 
-<Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="OnClose">
-    <div class="p-6 space-y-5">
-        <div class="font-semibold text-lg">@L["LivePanel.AddTempDisplayTitle"]</div>
+<Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="OnClose" ShowCloseButton="true">
+    <div class="max-h-[90svh] overflow-y-auto p-6 space-y-5">
+        @if (paired)
+        {
+            <div class="flex flex-col items-center text-center gap-4 py-4">
+                <div class="size-20 rounded-full bg-green-500 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor" class="size-12 text-white">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                    </svg>
+                </div>
+                <div class="font-semibold text-lg">@L["LivePanel.PairSuccessTitle"]</div>
+                <div class="text-sm text-neutral-500 dark:text-neutral-400">@L["LivePanel.PairSuccessHint"]</div>
+            </div>
+        }
+        else
+        {
+            <div class="font-semibold text-lg pr-10">@L["LivePanel.AddTempDisplayTitle"]</div>
 
-        <div class="space-y-3">
-            <div class="font-medium text-sm text-neutral-800 dark:text-neutral-100">@L["LivePanel.PairScanQrTitle"]</div>
-            <div class="text-sm text-neutral-500 dark:text-neutral-400">@L["LivePanel.PairScanQrHint"]</div>
-            <div class="flex justify-center">
-                <div class="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
-                    @if (qrSvg is not null)
-                    {
-                        @((MarkupString)qrSvg)
-                    }
+            <div class="space-y-3">
+                <div class="font-medium text-sm text-neutral-800 dark:text-neutral-100">@L["LivePanel.PairScanQrTitle"]</div>
+                <div class="text-sm text-neutral-500 dark:text-neutral-400">@L["LivePanel.PairScanQrHint"]</div>
+                <div class="flex justify-center">
+                    <div class="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+                        @if (qrSvg is not null)
+                        {
+                            @((MarkupString)qrSvg)
+                        }
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="flex items-center gap-3">
-            <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700"></div>
-            <span class="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">@L["LivePanel.PairOr"]</span>
-            <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700"></div>
-        </div>
-
-        <div class="space-y-3">
-            <div class="font-medium text-sm text-neutral-800 dark:text-neutral-100">@L["LivePanel.PairManualTitle"]</div>
-            <div class="text-sm text-neutral-500 dark:text-neutral-400">@L["LivePanel.PairManualHint"]</div>
-            <div class="flex justify-center">
-                <code class="px-3 py-1.5 rounded-md bg-neutral-100 dark:bg-neutral-700 text-sm font-mono text-neutral-800 dark:text-neutral-100 select-all break-all">@displayUrl</code>
+            <div class="flex items-center gap-3">
+                <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700"></div>
+                <span class="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">@L["LivePanel.PairOr"]</span>
+                <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700"></div>
             </div>
-            <div class="flex justify-center gap-3">
-                @for (var i = 0; i < 4; i++)
-                {
-                    var index = i;
-                    <input type="text"
-                           @ref="digitInputs[index]"
-                           inputmode="numeric"
-                           pattern="[0-9]*"
-                           maxlength="1"
-                           autocomplete="off"
-                           value="@GetDigit(index)"
-                           @oninput="e => OnDigitInput(index, e)"
-                           @onkeydown="e => OnDigitKeyDown(index, e)"
-                           class="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-                }
-            </div>
-        </div>
 
-        @if (error is not null)
-        {
-            <div class="text-sm text-red-500 dark:text-red-400">@error</div>
+            <div class="space-y-4">
+                <div class="font-medium text-sm text-neutral-800 dark:text-neutral-100">@L["LivePanel.PairManualTitle"]</div>
+
+                <div class="space-y-2">
+                    <div class="flex items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
+                        <span class="size-5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-semibold flex-shrink-0">1</span>
+                        <span>@L["LivePanel.PairManualStep1"]</span>
+                    </div>
+                    <div class="flex items-stretch gap-2 pl-7">
+                        <input type="text" readonly value="@displayUrl"
+                               class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-sm font-mono text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-600 select-all focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                        <AppButton Variant="ButtonVariant.Neutral" CopyText="@displayUrl" OnClick="OnCopyUrl"
+                                   Title="@L["UserDetail.Copy"]"
+                                   Class="!px-3 !py-2 !rounded-lg flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1Z"/>
+                                <path d="M4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z"/>
+                            </svg>
+                        </AppButton>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
+                        <span class="size-5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-semibold flex-shrink-0">2</span>
+                        <span>@L["LivePanel.PairManualStep2"]</span>
+                    </div>
+                    <div class="flex gap-3 pl-7 pt-1">
+                        @for (var i = 0; i < 4; i++)
+                        {
+                            var index = i;
+                            <input type="text"
+                                   @ref="digitInputs[index]"
+                                   inputmode="numeric"
+                                   pattern="[0-9]*"
+                                   maxlength="1"
+                                   autocomplete="off"
+                                   value="@GetDigit(index)"
+                                   @oninput="e => OnDigitInput(index, e)"
+                                   @onkeydown="e => OnDigitKeyDown(index, e)"
+                                   class="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @if (error is not null)
+            {
+                <div class="text-sm text-red-500 dark:text-red-400">@error</div>
+            }
         }
-        <div class="flex justify-end gap-3">
-            <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
-                @L["Common.Cancel"]
-            </AppButton>
-            <AppButton Variant="ButtonVariant.Primary" OnClick="Submit" Disabled="@(!IsComplete || pairing)" Loading="@pairing">
-                @L["Display.Connect"]
-            </AppButton>
-        </div>
     </div>
 </Dialog>
 
 @code {
     [Parameter] public required string SessionId { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
-    [Parameter] public EventCallback OnPaired { get; set; }
 
     private static readonly TimeSpan TokenRefreshInterval = TimeSpan.FromMinutes(8);
 
@@ -78,6 +108,7 @@
     private ElementReference[] digitInputs = new ElementReference[4];
     private string? error;
     private bool pairing;
+    private bool paired;
     private bool shouldFocus = true;
 
     private string? currentToken;
@@ -96,8 +127,29 @@
         var baseUri = new Uri(NavigationManager.BaseUri);
         displayUrl = new Uri(baseUri, "display").ToString().TrimEnd('/');
 
+        RemoteDisplayState.DisplayPaired += OnDisplayPaired;
         RegenerateToken();
         tokenRefreshTimer = new Timer(_ => RegenerateToken(), null, TokenRefreshInterval, TokenRefreshInterval);
+    }
+
+    private void OnDisplayPaired(string displayId)
+    {
+        if (paired) return;
+        if (RemoteDisplayState.GetSessionForDisplay(displayId) != SessionId) return;
+
+        _ = InvokeAsync(() =>
+        {
+            if (paired) return;
+            paired = true;
+            tokenRefreshTimer?.Dispose();
+            tokenRefreshTimer = null;
+            if (currentToken is not null)
+            {
+                RemoteDisplayState.InvalidatePairingToken(currentToken);
+                currentToken = null;
+            }
+            StateHasChanged();
+        });
     }
 
     private void RegenerateToken()
@@ -113,12 +165,23 @@
         _ = InvokeAsync(StateHasChanged);
     }
 
+    private static readonly Regex SvgRootRegex = new(
+        @"<svg(?<attrs>[^>]*?\bwidth=""(?<w>\d+)""\s+height=""(?<h>\d+)""[^>]*?)>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static string BuildQrSvg(string url)
     {
         using var qrGenerator = new QRCodeGenerator();
         using var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
         var svgQrCode = new SvgQRCode(qrData);
-        return svgQrCode.GetGraphic(4);
+        var svg = svgQrCode.GetGraphic(4);
+
+        // QRCoder emits fixed width/height but no viewBox, so CSS-driven sizing
+        // crops the QR instead of scaling it. Inject a viewBox so it scales.
+        return SvgRootRegex.Replace(
+            svg,
+            m => $"<svg{m.Groups["attrs"].Value} viewBox=\"0 0 {m.Groups["w"].Value} {m.Groups["h"].Value}\">",
+            count: 1);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -202,6 +265,11 @@
         }
     }
 
+    private void OnCopyUrl()
+    {
+        ToastService.Show(L["Toast.LinkCopied"]);
+    }
+
     private async Task Submit()
     {
         if (!IsComplete || pairing) return;
@@ -215,7 +283,14 @@
         var success = RemoteDisplayState.PairDisplay(Code, SessionId);
         if (success)
         {
-            await OnPaired.InvokeAsync();
+            paired = true;
+            tokenRefreshTimer?.Dispose();
+            tokenRefreshTimer = null;
+            if (currentToken is not null)
+            {
+                RemoteDisplayState.InvalidatePairingToken(currentToken);
+                currentToken = null;
+            }
         }
         else
         {
@@ -228,6 +303,7 @@
 
     public void Dispose()
     {
+        RemoteDisplayState.DisplayPaired -= OnDisplayPaired;
         tokenRefreshTimer?.Dispose();
         if (currentToken is not null)
             RemoteDisplayState.InvalidatePairingToken(currentToken);
