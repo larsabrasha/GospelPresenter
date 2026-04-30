@@ -242,11 +242,11 @@
                 }
                 else
                 {
-                    <button class="text-sm text-center w-full bg-neutral-50 dark:bg-neutral-700 px-4 py-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer flex items-center justify-center gap-2"
-                            @onclick="OnAddClicked">
+                    <AppButton Variant="ButtonVariant.Secondary" OnClick="OnAddClicked"
+                               Class="w-full flex items-center justify-center gap-2">
                         <PlusSymbol Class="size-4"/>
                         @L["Common.Add"]
-                    </button>
+                    </AppButton>
                 }
             </div>
         </div>
