@@ -296,20 +296,32 @@ else
                     class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isRemoteCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
                     <div class="overflow-hidden min-h-0">
                         <div class="flex flex-col gap-3 p-1 pt-3">
-                            <button @onclick="ToggleRemoteControl"
-                                    class="cursor-pointer flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm @(isRemoteEnabled ? "text-neutral-600 dark:text-neutral-300 bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700/50")">
-                                <div class="flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                         stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                              d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/>
+                            <div class="flex items-center gap-2">
+                                <button @onclick="ToggleRemoteControl"
+                                        class="cursor-pointer flex-1 flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm @(isRemoteEnabled ? "text-neutral-600 dark:text-neutral-300 bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700/50")">
+                                    <div class="flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                             stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                  d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"/>
+                                        </svg>
+                                        <span>@L["LivePanel.RemoteControl"]</span>
+                                    </div>
+                                    <div class="pointer-events-none">
+                                        <ToggleSwitch Value="@isRemoteEnabled"/>
+                                    </div>
+                                </button>
+                                <button @onclick="ShowRemoteControlInfoDialog"
+                                        disabled="@(!isRemoteEnabled)"
+                                        class="size-8 flex items-center justify-center rounded-lg shrink-0 transition-colors @(isRemoteEnabled ? "cursor-pointer text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/30 hover:bg-sky-200 dark:hover:bg-sky-900/50" : "cursor-default text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-700/50 opacity-50")"
+                                        title="@L["LivePanel.RemoteControlShowInfo"]"
+                                        aria-label="@L["LivePanel.RemoteControlShowInfo"]">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z"/>
                                     </svg>
-                                    <span>@L["LivePanel.RemoteControl"]</span>
-                                </div>
-                                <div class="pointer-events-none">
-                                    <ToggleSwitch Value="@isRemoteEnabled"/>
-                                </div>
-                            </button>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -350,6 +362,11 @@ else
 @if (showPairingDialog)
 {
     <PairingCodeDialog SessionId="@(SessionId!)" OnClose="ClosePairingDialog"/>
+}
+
+@if (showRemoteControlInfoDialog && remoteControlPresentationId is not null)
+{
+    <RemoteControlInfoDialog PresentationId="@remoteControlPresentationId" PresentationName="@remoteControlPresentationName" OnClose="CloseRemoteControlInfoDialog"/>
 }
 
 @code {
@@ -608,13 +625,39 @@ else
 
     private void ClosePairingDialog() => showPairingDialog = false;
 
+    private bool showRemoteControlInfoDialog;
+    private bool hasAutoShownRemoteControlInfoDialog;
+    private string? remoteControlPresentationId;
+    private string? remoteControlPresentationName;
+
     private void ToggleRemoteControl()
     {
         if (SessionId is null) return;
         if (SharedAppState.IsRemoteControlEnabled(SessionId))
+        {
             SharedAppState.DisableRemoteControl(SessionId);
+        }
         else
+        {
             SharedAppState.EnableRemoteControl(SessionId);
+            if (!hasAutoShownRemoteControlInfoDialog)
+            {
+                hasAutoShownRemoteControlInfoDialog = true;
+                ShowRemoteControlInfoDialog();
+            }
+        }
     }
+
+    private void ShowRemoteControlInfoDialog()
+    {
+        if (SessionId is null) return;
+        var session = SharedAppState.GetActiveSession(SessionId);
+        if (session?.PresentationId is null) return;
+        remoteControlPresentationId = session.PresentationId;
+        remoteControlPresentationName = session.PresentationName;
+        showRemoteControlInfoDialog = true;
+    }
+
+    private void CloseRemoteControlInfoDialog() => showRemoteControlInfoDialog = false;
 
 }

@@ -107,9 +107,6 @@
   <data name="Nav.MyProfile" xml:space="preserve">
     <value>My profile</value>
   </data>
-  <data name="Nav.Dashboard" xml:space="preserve">
-    <value>Presentations</value>
-  </data>
   <data name="Nav.Media" xml:space="preserve">
     <value>Content</value>
   </data>
@@ -1144,6 +1141,24 @@
   </data>
   <data name="LivePanel.RemoteControl" xml:space="preserve">
     <value>Allow remote control</value>
+  </data>
+  <data name="LivePanel.RemoteControlInfoTitle" xml:space="preserve">
+    <value>Remote control the presentation</value>
+  </data>
+  <data name="LivePanel.RemoteControlScanQrHint" xml:space="preserve">
+    <value>Scan with the camera on the device you want to control from.</value>
+  </data>
+  <data name="LivePanel.RemoteControlOrCopyUrl" xml:space="preserve">
+    <value>Copy the link</value>
+  </data>
+  <data name="LivePanel.RemoteControlOpenAppTitle" xml:space="preserve">
+    <value>Open the app on another device</value>
+  </data>
+  <data name="LivePanel.RemoteControlOpenAppHint" xml:space="preserve">
+    <value>Open the app and click "Take control" on the live presentation in the dashboard.</value>
+  </data>
+  <data name="LivePanel.RemoteControlShowInfo" xml:space="preserve">
+    <value>Show remote control info</value>
   </data>
   <data name="LivePanel.RemoteAudio" xml:space="preserve">
     <value>Audio</value>
