@@ -1,27 +1,57 @@
 @using GospelPresenter.Shared.State
+@using QRCoder
+@implements IDisposable
 
 @inject RemoteDisplayState RemoteDisplayState
+@inject NavigationManager NavigationManager
 
 <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="OnClose">
-    <div class="p-6 space-y-4">
+    <div class="p-6 space-y-5">
         <div class="font-semibold text-lg">@L["LivePanel.AddTempDisplayTitle"]</div>
-        <div class="text-sm text-neutral-500 dark:text-neutral-400">@L["LivePanel.PairingCodeHint"]</div>
-        <div class="flex justify-center gap-3">
-            @for (var i = 0; i < 4; i++)
-            {
-                var index = i;
-                <input type="text"
-                       @ref="digitInputs[index]"
-                       inputmode="numeric"
-                       pattern="[0-9]*"
-                       maxlength="1"
-                       autocomplete="off"
-                       value="@GetDigit(index)"
-                       @oninput="e => OnDigitInput(index, e)"
-                       @onkeydown="e => OnDigitKeyDown(index, e)"
-                       class="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
-            }
+
+        <div class="space-y-3">
+            <div class="font-medium text-sm text-neutral-800 dark:text-neutral-100">@L["LivePanel.PairScanQrTitle"]</div>
+            <div class="text-sm text-neutral-500 dark:text-neutral-400">@L["LivePanel.PairScanQrHint"]</div>
+            <div class="flex justify-center">
+                <div class="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+                    @if (qrSvg is not null)
+                    {
+                        @((MarkupString)qrSvg)
+                    }
+                </div>
+            </div>
         </div>
+
+        <div class="flex items-center gap-3">
+            <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700"></div>
+            <span class="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">@L["LivePanel.PairOr"]</span>
+            <div class="h-px flex-1 bg-neutral-200 dark:bg-neutral-700"></div>
+        </div>
+
+        <div class="space-y-3">
+            <div class="font-medium text-sm text-neutral-800 dark:text-neutral-100">@L["LivePanel.PairManualTitle"]</div>
+            <div class="text-sm text-neutral-500 dark:text-neutral-400">@L["LivePanel.PairManualHint"]</div>
+            <div class="flex justify-center">
+                <code class="px-3 py-1.5 rounded-md bg-neutral-100 dark:bg-neutral-700 text-sm font-mono text-neutral-800 dark:text-neutral-100 select-all break-all">@displayUrl</code>
+            </div>
+            <div class="flex justify-center gap-3">
+                @for (var i = 0; i < 4; i++)
+                {
+                    var index = i;
+                    <input type="text"
+                           @ref="digitInputs[index]"
+                           inputmode="numeric"
+                           pattern="[0-9]*"
+                           maxlength="1"
+                           autocomplete="off"
+                           value="@GetDigit(index)"
+                           @oninput="e => OnDigitInput(index, e)"
+                           @onkeydown="e => OnDigitKeyDown(index, e)"
+                           class="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                }
+            </div>
+        </div>
+
         @if (error is not null)
         {
             <div class="text-sm text-red-500 dark:text-red-400">@error</div>
@@ -42,17 +72,54 @@
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback OnPaired { get; set; }
 
+    private static readonly TimeSpan TokenRefreshInterval = TimeSpan.FromMinutes(8);
+
     private char[] digits = new char[4];
     private ElementReference[] digitInputs = new ElementReference[4];
     private string? error;
     private bool pairing;
     private bool shouldFocus = true;
 
+    private string? currentToken;
+    private string displayUrl = "";
+    private string? qrSvg;
+    private Timer? tokenRefreshTimer;
+
     private string Code => new string(digits);
     private bool IsComplete => digits.All(char.IsDigit);
 
     private string GetDigit(int index) =>
         digits[index] == '\0' ? "" : digits[index].ToString();
+
+    protected override void OnInitialized()
+    {
+        var baseUri = new Uri(NavigationManager.BaseUri);
+        displayUrl = new Uri(baseUri, "display").ToString().TrimEnd('/');
+
+        RegenerateToken();
+        tokenRefreshTimer = new Timer(_ => RegenerateToken(), null, TokenRefreshInterval, TokenRefreshInterval);
+    }
+
+    private void RegenerateToken()
+    {
+        if (currentToken is not null)
+            RemoteDisplayState.InvalidatePairingToken(currentToken);
+
+        currentToken = RemoteDisplayState.GeneratePairingToken(SessionId);
+
+        var pairingUrl = $"{displayUrl}?token={currentToken}";
+        qrSvg = BuildQrSvg(pairingUrl);
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static string BuildQrSvg(string url)
+    {
+        using var qrGenerator = new QRCodeGenerator();
+        using var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
+        var svgQrCode = new SvgQRCode(qrData);
+        return svgQrCode.GetGraphic(4);
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -157,5 +224,12 @@
 
         digits = new char[4];
         pairing = false;
+    }
+
+    public void Dispose()
+    {
+        tokenRefreshTimer?.Dispose();
+        if (currentToken is not null)
+            RemoteDisplayState.InvalidatePairingToken(currentToken);
     }
 }

@@ -5,6 +5,8 @@ namespace GospelPresenter.Shared.State;
 
 public record PairingEntry(string DisplayId, DateTime CreatedAt);
 
+public record PairingTokenEntry(string SessionId, DateTime CreatedAt);
+
 public record ConnectedDisplay(string DisplayId, string Name);
 
 public class RemoteDisplayState
@@ -13,6 +15,7 @@ public class RemoteDisplayState
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromHours(4);
 
     private readonly ConcurrentDictionary<string, PairingEntry> pairingCodes = new();
+    private readonly ConcurrentDictionary<string, PairingTokenEntry> pairingTokens = new();
     private readonly ConcurrentDictionary<string, string> displayToSession = new();
     private readonly ConcurrentDictionary<string, string> displayToCode = new();
     private readonly ConcurrentDictionary<string, string> displayToName = new();
@@ -53,6 +56,43 @@ public class RemoteDisplayState
 
         displayToCode[displayId] = code;
         return code;
+    }
+
+    public string GeneratePairingToken(string sessionId)
+    {
+        CleanupExpiredTokens();
+
+        var bytes = RandomNumberGenerator.GetBytes(32);
+        var token = Convert.ToBase64String(bytes)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
+
+        pairingTokens[token] = new PairingTokenEntry(sessionId, DateTime.UtcNow);
+        return token;
+    }
+
+    public void InvalidatePairingToken(string token)
+    {
+        pairingTokens.TryRemove(token, out _);
+    }
+
+    public bool ConsumePairingToken(string token, string displayId, string? displayName = null)
+    {
+        if (!pairingTokens.TryRemove(token, out var entry))
+            return false;
+
+        if (DateTime.UtcNow - entry.CreatedAt > CodeExpiration)
+            return false;
+
+        var now = DateTime.UtcNow;
+        displayToSession[displayId] = entry.SessionId;
+        displayPairedAt[displayId] = now;
+        displayLastActivity[displayId] = now;
+        if (displayName is not null)
+            displayToName[displayId] = displayName;
+        DisplayPaired?.Invoke(displayId);
+        return true;
     }
 
     public bool PairDisplay(string code, string sessionId, string? name = null)
@@ -210,6 +250,16 @@ public class RemoteDisplayState
                 pairingCodes.TryRemove(code, out _);
                 displayToCode.TryRemove(entry.DisplayId, out _);
             }
+        }
+    }
+
+    private void CleanupExpiredTokens()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var (token, entry) in pairingTokens)
+        {
+            if (now - entry.CreatedAt > CodeExpiration)
+                pairingTokens.TryRemove(token, out _);
         }
     }
 }

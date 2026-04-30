@@ -1550,6 +1550,21 @@
   <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
     <value>Enter 4-digit code</value>
   </data>
+  <data name="LivePanel.PairScanQrTitle" xml:space="preserve">
+    <value>Scan the QR code</value>
+  </data>
+  <data name="LivePanel.PairScanQrHint" xml:space="preserve">
+    <value>Scan with the camera on the device you want to use as a display — it connects automatically.</value>
+  </data>
+  <data name="LivePanel.PairOr" xml:space="preserve">
+    <value>or</value>
+  </data>
+  <data name="LivePanel.PairManualTitle" xml:space="preserve">
+    <value>Or enter the code manually</value>
+  </data>
+  <data name="LivePanel.PairManualHint" xml:space="preserve">
+    <value>Open the URL below on the screen device and enter the code shown there.</value>
+  </data>
   <data name="LivePanel.ToggleCollapsed" xml:space="preserve">
     <value>Toggle live panel</value>
   </data>
