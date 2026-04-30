@@ -89,6 +89,7 @@ else
     private string pairingCode = "";
     private string? pairedSessionId;
     private string? displayName;
+    private string? autoPairToken;
     private bool fullscreenRequested;
     private bool initialized;
     private Timer? codeRefreshTimer;
@@ -125,6 +126,10 @@ else
         {
             stableDisplayId = id.ToString();
             displayId = stableDisplayId;
+        }
+        else if (query.TryGetValue("token", out var token))
+        {
+            autoPairToken = token.ToString();
         }
 
         JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
@@ -167,7 +172,14 @@ else
 
             RemoteDisplayState.RegisterDisplayOnline(displayId);
 
-            // Check if still paired from before reload
+            if (autoPairToken is not null)
+            {
+                RemoteDisplayState.ConsumePairingToken(autoPairToken, displayId, displayName);
+                autoPairToken = null;
+                await JsRuntime.InvokeVoidAsync("history.replaceState", null, "", "/display");
+            }
+
+            // Check if still paired (either from before reload or via auto-pair token)
             if (RemoteDisplayState.IsDisplayConnected(displayId))
             {
                 pairedSessionId = RemoteDisplayState.GetSessionForDisplay(displayId);

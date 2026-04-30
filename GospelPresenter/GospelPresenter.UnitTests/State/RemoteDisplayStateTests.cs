@@ -241,4 +241,66 @@ public class RemoteDisplayStateTests
     {
         state.IsDisplayConnected("unknown").ShouldBeFalse();
     }
+
+    [Fact]
+    public void GeneratePairingToken_ReturnsUniqueTokens()
+    {
+        var token1 = state.GeneratePairingToken("session-1");
+        var token2 = state.GeneratePairingToken("session-1");
+
+        token1.ShouldNotBe(token2);
+        token1.Length.ShouldBeGreaterThan(20);
+    }
+
+    [Fact]
+    public void ConsumePairingToken_WithValidToken_BindsDisplayToSession()
+    {
+        var token = state.GeneratePairingToken("session-1");
+
+        var result = state.ConsumePairingToken(token, "display-1", "Main Hall");
+
+        result.ShouldBeTrue();
+        state.GetSessionForDisplay("display-1").ShouldBe("session-1");
+        state.GetDisplayName("display-1").ShouldBe("Main Hall");
+    }
+
+    [Fact]
+    public void ConsumePairingToken_WithInvalidToken_ReturnsFalse()
+    {
+        var result = state.ConsumePairingToken("not-a-real-token", "display-1");
+
+        result.ShouldBeFalse();
+        state.IsDisplayConnected("display-1").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ConsumePairingToken_SameTokenTwice_FailsSecondTime()
+    {
+        var token = state.GeneratePairingToken("session-1");
+
+        state.ConsumePairingToken(token, "display-1").ShouldBeTrue();
+        state.ConsumePairingToken(token, "display-2").ShouldBeFalse();
+    }
+
+    [Fact]
+    public void ConsumePairingToken_FiresDisplayPairedEvent()
+    {
+        string? pairedId = null;
+        state.DisplayPaired += id => pairedId = id;
+
+        var token = state.GeneratePairingToken("session-1");
+        state.ConsumePairingToken(token, "display-1");
+
+        pairedId.ShouldBe("display-1");
+    }
+
+    [Fact]
+    public void InvalidatePairingToken_PreventsConsumption()
+    {
+        var token = state.GeneratePairingToken("session-1");
+
+        state.InvalidatePairingToken(token);
+
+        state.ConsumePairingToken(token, "display-1").ShouldBeFalse();
+    }
 }

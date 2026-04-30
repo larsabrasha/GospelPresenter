@@ -1550,6 +1550,21 @@
   <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
     <value>Ange 4-siffrig kod</value>
   </data>
+  <data name="LivePanel.PairScanQrTitle" xml:space="preserve">
+    <value>Skanna QR-koden</value>
+  </data>
+  <data name="LivePanel.PairScanQrHint" xml:space="preserve">
+    <value>Skanna med kameran på enheten du vill använda som skärm — den ansluts automatiskt.</value>
+  </data>
+  <data name="LivePanel.PairOr" xml:space="preserve">
+    <value>eller</value>
+  </data>
+  <data name="LivePanel.PairManualTitle" xml:space="preserve">
+    <value>Eller skriv in koden manuellt</value>
+  </data>
+  <data name="LivePanel.PairManualHint" xml:space="preserve">
+    <value>Öppna adressen nedan på skärmenheten och skriv in koden som visas där.</value>
+  </data>
   <data name="LivePanel.ToggleCollapsed" xml:space="preserve">
     <value>Fäll in eller ut live-vyn</value>
   </data>
