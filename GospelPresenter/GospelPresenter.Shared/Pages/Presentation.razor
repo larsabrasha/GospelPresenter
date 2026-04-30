@@ -1023,6 +1023,9 @@
             _presenterSessionId = orgId is not null
                 ? SharedAppState.GetActiveSessionIdForOrganization(orgId)
                 : null;
+            Logger.LogDebug(
+                "Remote viewer resolving presenter session: viewerSessionId={ViewerSessionId} orgId={OrgId} presentationId={PresentationId} resolvedPresenterSessionId={PresenterSessionId} isRemoteReady={IsRemoteReady}",
+                AppState.SessionId, orgId, PresentationId, _presenterSessionId, IsRemoteReady);
         }
 
         if (EffectiveId == loadedPresentationId) return;

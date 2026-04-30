@@ -144,7 +144,8 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
 
         modelBuilder.Entity<RemoteDisplay>(e =>
         {
-            e.HasIndex(d => new { d.OrganizationId, d.DisplayIdentifier }).IsUnique();
+            e.HasIndex(d => d.DisplayIdentifier).IsUnique();
+            e.HasIndex(d => d.OrganizationId);
             e.Property(d => d.DisplayIdentifier).HasMaxLength(AppConstraints.NameMaxLength);
             e.Property(d => d.Name).HasMaxLength(AppConstraints.NameMaxLength);
         });

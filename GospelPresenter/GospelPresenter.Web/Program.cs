@@ -226,6 +226,7 @@ try
     builder.Services.AddSingleton<ISongService, SongService>();
     builder.Services.AddSingleton<IBibleService, BibleService>();
     builder.Services.AddScoped<IUserService, UserService>();
+    builder.Services.AddScoped<IOnboardingService, OnboardingService>();
     builder.Services.AddScoped<IOrganizationImageService, OrganizationImageService>();
     builder.Services.AddScoped<IOrganizationAudioService, OrganizationAudioService>();
     builder.Services.AddScoped<IOrganizationSettingService, OrganizationSettingService>();

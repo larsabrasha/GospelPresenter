@@ -68,9 +68,6 @@
   <data name="Common.Remove" xml:space="preserve">
     <value>Radera</value>
   </data>
-  <data name="Common.Back" xml:space="preserve">
-    <value>Tillbaka</value>
-  </data>
   <data name="Common.Add" xml:space="preserve">
     <value>Lägg till</value>
   </data>
@@ -107,14 +104,8 @@
   <data name="Nav.MyProfile" xml:space="preserve">
     <value>Min profil</value>
   </data>
-  <data name="Nav.Media" xml:space="preserve">
-    <value>Innehåll</value>
-  </data>
   <data name="Nav.Administration" xml:space="preserve">
     <value>Inställningar</value>
-  </data>
-  <data name="Nav.MoreSettings" xml:space="preserve">
-    <value>Fler inställningar</value>
   </data>
   <data name="Nav.Logout" xml:space="preserve">
     <value>Logga ut</value>
@@ -143,9 +134,6 @@
   <data name="Nav.Organizations" xml:space="preserve">
     <value>Organisationer</value>
   </data>
-  <data name="Nav.Experimental" xml:space="preserve">
-    <value>Experimentellt</value>
-  </data>
   <data name="Nav.ApiKeys" xml:space="preserve">
     <value>MCP API-nycklar</value>
   </data>
@@ -162,7 +150,7 @@
     <value>Inga presentationer ännu</value>
   </data>
   <data name="Dashboard.Description" xml:space="preserve">
-    <value>Skapa en presentation för att komma igång med din gudstjänst.</value>
+    <value>Här samlar du presentationer för gudstjänster, möten och samlingar. Varje presentation kan innehålla sånger, bibeltexter, bilder och ljud.</value>
   </data>
   <data name="Dashboard.Create" xml:space="preserve">
     <value>Skapa</value>
@@ -170,26 +158,14 @@
   <data name="Dashboard.CreateTitle" xml:space="preserve">
     <value>Skapa presentation</value>
   </data>
-  <data name="Dashboard.Sunday" xml:space="preserve">
-    <value>Gudstjänst</value>
-  </data>
   <data name="Dashboard.DefaultName" xml:space="preserve">
     <value>Presentation</value>
   </data>
   <data name="Presentation.EmptyHint" xml:space="preserve">
-    <value>Tryck på &lt;strong&gt;Lägg till&lt;/strong&gt; i sidomenyn för att lägga till sånger, bibeltexter eller bilder.</value>
+    <value>Klicka på &lt;strong&gt;Lägg till&lt;/strong&gt; i sidopanelen för att lägga till sånger, bibeltexter, bilder, ljud eller PowerPoint-presentationer.</value>
   </data>
   <data name="Presentation.ClearSlide" xml:space="preserve">
     <value>Rensa</value>
-  </data>
-  <data name="Presentation.AddSong" xml:space="preserve">
-    <value>Lägg till sång</value>
-  </data>
-  <data name="Presentation.AddBibleText" xml:space="preserve">
-    <value>Lägg till bibeltext</value>
-  </data>
-  <data name="Presentation.AddImages" xml:space="preserve">
-    <value>Lägg till bilder</value>
   </data>
   <data name="Presentation.DeletePresentation" xml:space="preserve">
     <value>Radera presentation</value>
@@ -234,7 +210,16 @@
     <value>Papperskorg</value>
   </data>
   <data name="Songs.NoSongsImported" xml:space="preserve">
-    <value>Inga sånger importerade ännu.</value>
+    <value>Inga sånger i biblioteket ännu</value>
+  </data>
+  <data name="Songs.NoSongsHint" xml:space="preserve">
+    <value>Skapa en sång manuellt eller importera från ProPresenter (.pro-filer) ovan.</value>
+  </data>
+  <data name="Images.NoImagesHint" xml:space="preserve">
+    <value>Ladda upp bilder för att visa under presentationer, t.ex. logotyper eller bakgrunder.</value>
+  </data>
+  <data name="Audios.NoAudiosHint" xml:space="preserve">
+    <value>Ladda upp ljudfiler för att spela upp under presentationer.</value>
   </data>
   <data name="Songs.NoSongsFound" xml:space="preserve">
     <value>Inga sånger hittades</value>
@@ -250,9 +235,6 @@
   </data>
   <data name="Songs.ReplaceDuplicates" xml:space="preserve">
     <value>Ersätt dubbletter</value>
-  </data>
-  <data name="Songs.NoProFiles" xml:space="preserve">
-    <value>Inga .pro-filer hittades.</value>
   </data>
   <data name="Songs.ImportError" xml:space="preserve">
     <value>Fel vid import: {0}</value>
@@ -277,9 +259,6 @@
   </data>
   <data name="Songs.SkippedPlural" xml:space="preserve">
     <value>{0} överhoppade (fanns redan)</value>
-  </data>
-  <data name="Songs.ReadingFiles" xml:space="preserve">
-    <value>Läser filer... {0} av {1}</value>
   </data>
   <data name="Songs.ProcessingFiles" xml:space="preserve">
     <value>Bearbetar filer...</value>
@@ -362,17 +341,8 @@
   <data name="SongHistory.ConfirmRestore" xml:space="preserve">
     <value>Vill du återställa sången till versionen från &lt;strong&gt;{0}&lt;/strong&gt;? Den nuvarande versionen sparas i historiken.</value>
   </data>
-  <data name="SongParts.LabelPlaceholder" xml:space="preserve">
-    <value>Etikett</value>
-  </data>
   <data name="SongParts.LabelNone" xml:space="preserve">
     <value>Välj...</value>
-  </data>
-  <data name="SongParts.DeleteConfirm" xml:space="preserve">
-    <value>Ta bort?</value>
-  </data>
-  <data name="SongParts.TextPlaceholder" xml:space="preserve">
-    <value>Text</value>
   </data>
   <data name="SongParts.AddPart" xml:space="preserve">
     <value>Lägg till del</value>
@@ -380,17 +350,11 @@
   <data name="SongEditor.CreateArrangement" xml:space="preserve">
     <value>Skapa arrangemang</value>
   </data>
-  <data name="SongEditor.DeleteArrangement" xml:space="preserve">
-    <value>Ta bort arrangemang</value>
-  </data>
   <data name="SongEditor.Arrangement" xml:space="preserve">
     <value>Arrangemang</value>
   </data>
   <data name="SongEditor.Arrangements" xml:space="preserve">
     <value>Arrangemang</value>
-  </data>
-  <data name="SongEditor.ArrangementStandard" xml:space="preserve">
-    <value>Standard</value>
   </data>
   <data name="SongEditor.InsertPart" xml:space="preserve">
     <value>Lägg till del</value>
@@ -401,13 +365,7 @@
   <data name="SongEditor.ConfirmDeleteArrangement" xml:space="preserve">
     <value>Vill du ta bort arrangemanget?</value>
   </data>
-  <data name="SongFields.SongName" xml:space="preserve">
-    <value>Sångens namn</value>
-  </data>
   <data name="SongFields.Artist" xml:space="preserve">
-    <value>Upphovspersoner</value>
-  </data>
-  <data name="SongFields.ArtistPlaceholder" xml:space="preserve">
     <value>Upphovspersoner</value>
   </data>
   <data name="SongFields.Publisher" xml:space="preserve">
@@ -416,11 +374,14 @@
   <data name="SongFields.Year" xml:space="preserve">
     <value>År</value>
   </data>
-  <data name="SongFields.CcliNumber" xml:space="preserve">
-    <value>CCLI-nummer</value>
-  </data>
   <data name="SongTab.NoSongs" xml:space="preserve">
-    <value>Inga sånger laddade</value>
+    <value>Inga sånger i biblioteket ännu</value>
+  </data>
+  <data name="SongTab.SearchPlaceholder" xml:space="preserve">
+    <value>Sök på titel, författare eller textrad</value>
+  </data>
+  <data name="BibleTab.SearchPlaceholder" xml:space="preserve">
+    <value>Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)</value>
   </data>
   <data name="SongTab.ManageSongs" xml:space="preserve">
     <value>Hantera sånger</value>
@@ -430,9 +391,6 @@
   </data>
   <data name="SongTab.NoSongsFound" xml:space="preserve">
     <value>Inga sånger hittades</value>
-  </data>
-  <data name="CreateSong.SaveSong" xml:space="preserve">
-    <value>Spara sång</value>
   </data>
   <data name="Bible.NoBible" xml:space="preserve">
     <value>Inga biblar uppladdade</value>
@@ -454,9 +412,6 @@
   </data>
   <data name="ImageTab.Upload" xml:space="preserve">
     <value>Ladda upp</value>
-  </data>
-  <data name="ImageTab.Uploading" xml:space="preserve">
-    <value>Laddar upp...</value>
   </data>
   <data name="ImageTab.NoImages" xml:space="preserve">
     <value>Inga bilder uppladdade</value>
@@ -602,17 +557,11 @@
   <data name="OverlayEditor.TextContent" xml:space="preserve">
     <value>Textinnehåll</value>
   </data>
-  <data name="OverlayEditor.TextPlaceholder" xml:space="preserve">
-    <value>Text som visas i overlayen (valfritt)</value>
-  </data>
   <data name="OverlayEditor.ImageOptional" xml:space="preserve">
     <value>Bild (valfritt)</value>
   </data>
   <data name="OverlayEditor.Preview" xml:space="preserve">
     <value>Förhandsgranskning</value>
-  </data>
-  <data name="OverlayEditor.ConfirmDelete" xml:space="preserve">
-    <value>Bekräfta borttagning</value>
   </data>
   <data name="Orgs.Title" xml:space="preserve">
     <value>Organisationer</value>
@@ -740,9 +689,6 @@
   <data name="Setup.YourName" xml:space="preserve">
     <value>Ditt namn</value>
   </data>
-  <data name="Setup.NamePlaceholder" xml:space="preserve">
-    <value>Förnamn Efternamn</value>
-  </data>
   <data name="Setup.NameRequired" xml:space="preserve">
     <value>Namn måste fyllas i.</value>
   </data>
@@ -765,10 +711,13 @@
     <value>Kontakta din administratör för att få en ny inbjudan.</value>
   </data>
   <data name="Invite.Welcome" xml:space="preserve">
-    <value>Välkommen &lt;strong&gt;{0}&lt;/strong&gt;! Välj hur du vill logga in:</value>
+    <value>Välkommen &lt;strong&gt;{0}&lt;/strong&gt;!</value>
   </data>
-  <data name="Invite.PocketId" xml:space="preserve">
-    <value>Pocket ID</value>
+  <data name="Invite.OrganizationLine" xml:space="preserve">
+    <value>Du har bjudits in till &lt;strong&gt;{0}&lt;/strong&gt;.</value>
+  </data>
+  <data name="Invite.ChooseSignIn" xml:space="preserve">
+    <value>Välj hur du vill logga in</value>
   </data>
   <data name="Profile.Title" xml:space="preserve">
     <value>Min profil</value>
@@ -788,9 +737,6 @@
   <data name="SongHistory.Yesterday" xml:space="preserve">
     <value>Igår {0}</value>
   </data>
-  <data name="UserDetail.LoginMethods" xml:space="preserve">
-    <value>Inloggningsmetoder</value>
-  </data>
   <data name="UserDetail.LessThanADay" xml:space="preserve">
     <value>mindre än en dag</value>
   </data>
@@ -808,9 +754,6 @@
   </data>
   <data name="OrgDetail.ImageTooLarge" xml:space="preserve">
     <value>Bilden får vara max 10 MB.</value>
-  </data>
-  <data name="CreateSong.DefaultVerse" xml:space="preserve">
-    <value>Vers {0}</value>
   </data>
   <data name="Bible.OldTestament" xml:space="preserve">
     <value>Gamla testamentet</value>
@@ -836,15 +779,6 @@
   <data name="Bible.ShowingResults" xml:space="preserve">
     <value>Visar {0} av {1} verser</value>
   </data>
-  <data name="ImageTab.UnsupportedFormat" xml:space="preserve">
-    <value>Bildformatet stöds inte. Använd JPG, PNG, WebP eller GIF.</value>
-  </data>
-  <data name="ImageTab.ImageTooLarge" xml:space="preserve">
-    <value>Bilden får inte vara större än 10 MB</value>
-  </data>
-  <data name="ImageTab.UploadError" xml:space="preserve">
-    <value>Kunde inte ladda upp bilden</value>
-  </data>
   <data name="ImageTab.UploadingProgress" xml:space="preserve">
     <value>Laddar upp {0} av {1}...</value>
   </data>
@@ -857,9 +791,6 @@
   <data name="Sidebar.Audio" xml:space="preserve">
     <value>Ljud</value>
   </data>
-  <data name="Presentation.AddAudio" xml:space="preserve">
-    <value>Lägg till ljud</value>
-  </data>
   <data name="AudioTab.Upload" xml:space="preserve">
     <value>Ladda upp</value>
   </data>
@@ -871,12 +802,6 @@
   </data>
   <data name="AudioTab.NoAudio" xml:space="preserve">
     <value>Inga ljudfiler uppladdade</value>
-  </data>
-  <data name="AudioTab.UnsupportedFormat" xml:space="preserve">
-    <value>Ljudformatet stöds inte</value>
-  </data>
-  <data name="AudioTab.AudioTooLarge" xml:space="preserve">
-    <value>Filen är för stor (max 50 MB)</value>
   </data>
   <data name="AudioTab.UploadingProgress" xml:space="preserve">
     <value>Laddar upp {0} av {1}...</value>
@@ -895,9 +820,6 @@
   </data>
   <data name="AudioTab.ConfirmDelete" xml:space="preserve">
     <value>Vill du verkligen ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
-  </data>
-  <data name="SlidesTab.Title" xml:space="preserve">
-    <value>PowerPoint</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
     <value>Ladda upp PDF</value>
@@ -955,12 +877,6 @@
   </data>
   <data name="Presentation.StopPresentation" xml:space="preserve">
     <value>Avsluta presentation</value>
-  </data>
-  <data name="Presentation.OpenLiveView" xml:space="preserve">
-    <value>Öppna live-vy</value>
-  </data>
-  <data name="Presentation.ManageOverlays" xml:space="preserve">
-    <value>Hantera overlays</value>
   </data>
   <data name="Presentation.SessionExpired" xml:space="preserve">
     <value>Visningen avslutades</value>
@@ -1055,9 +971,6 @@
   <data name="ApiKeys.User" xml:space="preserve">
     <value>Användare</value>
   </data>
-  <data name="ApiKeys.NamePlaceholder" xml:space="preserve">
-    <value>t.ex. Claude Desktop</value>
-  </data>
   <data name="ApiKeys.Description" xml:space="preserve">
     <value>MCP API-nycklar gör det möjligt för AI-assistenter att hantera presentationer, söka sånger och lägga till bibeltexter via &lt;a href="https://modelcontextprotocol.io" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline"&gt;Model Context Protocol (MCP)&lt;/a&gt;.</value>
   </data>
@@ -1115,12 +1028,6 @@
   <data name="Templates.CreateTitle" xml:space="preserve">
     <value>Skapa mall</value>
   </data>
-  <data name="Dashboard.Recent" xml:space="preserve">
-    <value>Senaste</value>
-  </data>
-  <data name="Dashboard.PickerDescription" xml:space="preserve">
-    <value>Börja från grunden eller välj en mall. Mallens innehåll kopieras till din nya presentation.</value>
-  </data>
   <data name="Dashboard.BlankPresentation" xml:space="preserve">
     <value>Tom presentation</value>
   </data>
@@ -1160,9 +1067,6 @@
   <data name="LivePanel.RemoteControlShowInfo" xml:space="preserve">
     <value>Visa info om fjärrstyrning</value>
   </data>
-  <data name="LivePanel.RemoteAudio" xml:space="preserve">
-    <value>Ljud</value>
-  </data>
   <data name="Dashboard.Today" xml:space="preserve">
     <value>Idag</value>
   </data>
@@ -1186,9 +1090,6 @@
   </data>
   <data name="Presentations.Description" xml:space="preserve">
     <value>Alla dina presentationer.</value>
-  </data>
-  <data name="Presentations.SortBy" xml:space="preserve">
-    <value>Sortera efter</value>
   </data>
   <data name="Presentations.Sort.UpdatedDesc" xml:space="preserve">
     <value>Senast ändrad</value>
@@ -1289,12 +1190,6 @@
   <data name="SlideSettings.Preview" xml:space="preserve">
     <value>Förhandsgranskning</value>
   </data>
-  <data name="SlideSettings.SaveError" xml:space="preserve">
-    <value>Kunde inte spara inställningen</value>
-  </data>
-  <data name="SlideSettings.CopyFromSong" xml:space="preserve">
-    <value>Kopiera inställningar från Sång</value>
-  </data>
   <data name="SlideSettings.Reset" xml:space="preserve">
     <value>Återställ</value>
   </data>
@@ -1310,9 +1205,6 @@
   <data name="Common.Menu" xml:space="preserve">
     <value>Meny</value>
   </data>
-  <data name="Sidebar.ChangeSchedule" xml:space="preserve">
-    <value>Ändra dag och tid</value>
-  </data>
   <data name="Sidebar.EditDetails" xml:space="preserve">
     <value>Redigera detaljer</value>
   </data>
@@ -1324,15 +1216,6 @@
   </data>
   <data name="Schedule.NoDay" xml:space="preserve">
     <value>Ingen dag vald</value>
-  </data>
-  <data name="Sidebar.ChangeEvent" xml:space="preserve">
-    <value>Ändra datum, tid och plats</value>
-  </data>
-  <data name="Event.Date" xml:space="preserve">
-    <value>Datum</value>
-  </data>
-  <data name="Event.Time" xml:space="preserve">
-    <value>Tid</value>
   </data>
   <data name="Event.Location" xml:space="preserve">
     <value>Plats</value>
@@ -1357,63 +1240,6 @@
   </data>
   <data name="Weekday.6" xml:space="preserve">
     <value>Lördag</value>
-  </data>
-  <data name="Error.TextTooLong" xml:space="preserve">
-    <value>Texten i '{0}' är för lång (max {1} tecken).</value>
-  </data>
-  <data name="Error.LimitReached" xml:space="preserve">
-    <value>Det maximala antalet {0} har nåtts ({1}).</value>
-  </data>
-  <data name="Error.FileTooLarge" xml:space="preserve">
-    <value>Filen är för stor (max {0} MB).</value>
-  </data>
-  <data name="Error.YearOutOfRange" xml:space="preserve">
-    <value>Året måste vara mellan {0} och {1}.</value>
-  </data>
-  <data name="Entity.Songs" xml:space="preserve">
-    <value>sånger</value>
-  </data>
-  <data name="Entity.Presentations" xml:space="preserve">
-    <value>presentationer</value>
-  </data>
-  <data name="Entity.Templates" xml:space="preserve">
-    <value>mallar</value>
-  </data>
-  <data name="Entity.Overlays" xml:space="preserve">
-    <value>overlays</value>
-  </data>
-  <data name="Entity.Users" xml:space="preserve">
-    <value>användare</value>
-  </data>
-  <data name="Entity.Organizations" xml:space="preserve">
-    <value>organisationer</value>
-  </data>
-  <data name="Entity.Images" xml:space="preserve">
-    <value>bilder</value>
-  </data>
-  <data name="Entity.AudioFiles" xml:space="preserve">
-    <value>ljudfiler</value>
-  </data>
-  <data name="Entity.ApiKeys" xml:space="preserve">
-    <value>API-nycklar</value>
-  </data>
-  <data name="Entity.Invites" xml:space="preserve">
-    <value>inbjudningar</value>
-  </data>
-  <data name="Entity.Logins" xml:space="preserve">
-    <value>inloggningar</value>
-  </data>
-  <data name="Entity.Settings" xml:space="preserve">
-    <value>inställningar</value>
-  </data>
-  <data name="Entity.Items" xml:space="preserve">
-    <value>objekt</value>
-  </data>
-  <data name="Entity.Parts" xml:space="preserve">
-    <value>delar</value>
-  </data>
-  <data name="Entity.SongParts" xml:space="preserve">
-    <value>sångdelar</value>
   </data>
   <data name="Nav.CcliReport" xml:space="preserve">
     <value>CCLI-rapport</value>
@@ -1460,9 +1286,6 @@
   <data name="Display.RemoteDisplays" xml:space="preserve">
     <value>Fjärrskärmar</value>
   </data>
-  <data name="Display.ConnectedCount" xml:space="preserve">
-    <value>{0} skärm(ar) anslutna</value>
-  </data>
   <data name="Display.Connect" xml:space="preserve">
     <value>Anslut</value>
   </data>
@@ -1482,13 +1305,25 @@
     <value>Skärmar</value>
   </data>
   <data name="Admin.Displays.NoDisplays" xml:space="preserve">
-    <value>Inga skärmar</value>
+    <value>Inga skärmar tillagda</value>
   </data>
   <data name="Admin.Displays.Description" xml:space="preserve">
-    <value>Lägg till fjärrskärmar som kan användas för att visa presentationer på externa skärmar.</value>
+    <value>En skärm är en extern enhet (TV, projektor, dator) som visar din presentation. Lägg till permanenta skärmar här för att snabbt kunna ansluta till dem igen.</value>
   </data>
   <data name="Admin.Displays.AddTitle" xml:space="preserve">
     <value>Lägg till skärm</value>
+  </data>
+  <data name="Admin.Displays.AddDescription" xml:space="preserve">
+    <value>Välj ett namn som hjälper dig känna igen skärmen, t.ex. ”Projektor i kyrksalen”. När du klickar Lägg till får du en länk att öppna på enheten.</value>
+  </data>
+  <data name="Admin.Displays.ShowLink" xml:space="preserve">
+    <value>Visa länk</value>
+  </data>
+  <data name="Admin.Displays.ShowLinkDescription" xml:space="preserve">
+    <value>Öppna denna länk på enheten som ska visa innehållet.</value>
+  </data>
+  <data name="Admin.Displays.ScanQrHint" xml:space="preserve">
+    <value>Skanna med kameran på enheten som ska visa innehållet.</value>
   </data>
   <data name="Admin.Displays.IdentifierPlaceholder" xml:space="preserve">
     <value>Skärm-ID</value>
@@ -1541,9 +1376,6 @@
   <data name="LivePanel.LocalLiveView" xml:space="preserve">
     <value>Fönster</value>
   </data>
-  <data name="LivePanel.ManageDisplays" xml:space="preserve">
-    <value>Hantera skärmar</value>
-  </data>
   <data name="LivePanel.ExternalDisplay" xml:space="preserve">
     <value>Extern skärm</value>
   </data>
@@ -1561,12 +1393,6 @@
   </data>
   <data name="LivePanel.AddTempDisplayTitle" xml:space="preserve">
     <value>Anslut tillfällig skärm</value>
-  </data>
-  <data name="LivePanel.PairingCodeHint" xml:space="preserve">
-    <value>Ange koden som visas på skärmen</value>
-  </data>
-  <data name="LivePanel.PairingCodePlaceholder" xml:space="preserve">
-    <value>Ange 4-siffrig kod</value>
   </data>
   <data name="LivePanel.PairScanQrTitle" xml:space="preserve">
     <value>Skanna QR-koden</value>
@@ -1597,6 +1423,15 @@
   </data>
   <data name="LivePanel.RemoteControlSection" xml:space="preserve">
     <value>Fjärrstyrning</value>
+  </data>
+  <data name="LivePanel.OverlaysHint" xml:space="preserve">
+    <value>Slå på en overlay för att visa text över presentationen, t.ex. välkomstmeddelande eller offerinformation.</value>
+  </data>
+  <data name="LivePanel.OutputsHint" xml:space="preserve">
+    <value>En utgång är en extern skärm (TV, projektor) som visar presentationen. Lägg till en lokal vy eller en separat enhet via parkod.</value>
+  </data>
+  <data name="LivePanel.RemoteControlHint" xml:space="preserve">
+    <value>Slå på för att styra presentationen från en mobil eller surfplatta. En QR-kod visas när du slår på.</value>
   </data>
   <data name="Bibles.Title" xml:space="preserve">
     <value>Biblar</value>
@@ -1639,5 +1474,14 @@
   </data>
   <data name="Bibles.Processing" xml:space="preserve">
     <value>Bearbetar bibelfil...</value>
+  </data>
+  <data name="Onboarding.Welcome.Step1.Title" xml:space="preserve">
+    <value>Välkommen till Gospel Presenter</value>
+  </data>
+  <data name="Onboarding.Welcome.Step1.Body" xml:space="preserve">
+    <value>Gospel Presenter hjälper dig att visa sånger, bibeltexter och bilder på storbild under gudstjänster och möten.</value>
+  </data>
+  <data name="Onboarding.Welcome.GetStarted" xml:space="preserve">
+    <value>Kom igång</value>
   </data>
 </root>

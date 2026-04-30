@@ -1,0 +1,24 @@
+@using GospelPresenter.Shared.Components.Symbols
+
+<Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" ShowCloseButton="true" OnClose="HandleCloseAsync">
+    <div class="p-6 sm:p-8 flex flex-col gap-6">
+        <div class="flex flex-col items-center text-center gap-4">
+            <LogoSymbol Class="size-16 text-sky-500"/>
+            <h2 class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">@L["Onboarding.Welcome.Step1.Title"]</h2>
+            <p class="text-neutral-600 dark:text-neutral-300 leading-relaxed">@L["Onboarding.Welcome.Step1.Body"]</p>
+        </div>
+
+        <div class="flex items-center justify-center">
+            <AppButton Variant="ButtonVariant.Primary" OnClick="HandleCloseAsync">@L["Onboarding.Welcome.GetStarted"]</AppButton>
+        </div>
+    </div>
+</Dialog>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private async Task HandleCloseAsync()
+    {
+        await OnClose.InvokeAsync();
+    }
+}

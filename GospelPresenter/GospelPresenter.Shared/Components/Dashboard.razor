@@ -5,6 +5,7 @@
 @using GospelPresenter.Shared.State
 
 @inject IPresentationService PresentationService
+@inject IOnboardingService OnboardingService
 @inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
 @inject SharedAppState SharedAppState
@@ -155,6 +156,11 @@
                                OnClose="CancelCreate"/>
 }
 
+@if (showWelcomeModal)
+{
+    <WelcomeModal OnClose="DismissWelcomeAsync"/>
+}
+
 @using System.ComponentModel
 @implements IDisposable
 
@@ -164,6 +170,7 @@
     private IList<PresentationSummary>? recentTemplates;
     private bool showPicker;
     private bool showCreateDialog;
+    private bool showWelcomeModal;
     private PresentationSummary? selectedTemplate;
     private string newPresentationName = "";
     private DateOnly? prefillDate;
@@ -201,6 +208,20 @@
         await Task.WhenAll(dashboardTask, templatesTask);
         dashboard = await dashboardTask;
         recentTemplates = await templatesTask;
+
+        if (OrgState.UserId is { } userId)
+        {
+            showWelcomeModal = await OnboardingService.ShouldShowWelcomeAsync(userId, caller);
+        }
+    }
+
+    private async Task DismissWelcomeAsync()
+    {
+        showWelcomeModal = false;
+        if (OrgState.UserId is { } userId)
+        {
+            await OnboardingService.MarkWelcomeShownAsync(userId, OrgState.ToCallerContext());
+        }
     }
 
     private void OpenNewPresentationPicker()
