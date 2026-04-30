@@ -1152,10 +1152,10 @@
     <value>Kopiera länken</value>
   </data>
   <data name="LivePanel.RemoteControlOpenAppTitle" xml:space="preserve">
-    <value>Öppna appen på en annan enhet</value>
+    <value>Öppna Gospel Presenter på en annan enhet</value>
   </data>
   <data name="LivePanel.RemoteControlOpenAppHint" xml:space="preserve">
-    <value>Öppna appen och tryck på "Ta kontroll" på live-presentationen i dashboarden.</value>
+    <value>Öppna Gospel Presenter och tryck på "Ta kontroll" på den live-presentation du vill styra.</value>
   </data>
   <data name="LivePanel.RemoteControlShowInfo" xml:space="preserve">
     <value>Visa info om fjärrstyrning</value>

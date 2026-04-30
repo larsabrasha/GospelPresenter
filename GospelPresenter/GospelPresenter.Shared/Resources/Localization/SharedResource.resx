@@ -1152,10 +1152,10 @@
     <value>Copy the link</value>
   </data>
   <data name="LivePanel.RemoteControlOpenAppTitle" xml:space="preserve">
-    <value>Open the app on another device</value>
+    <value>Open Gospel Presenter on another device</value>
   </data>
   <data name="LivePanel.RemoteControlOpenAppHint" xml:space="preserve">
-    <value>Open the app and click "Take control" on the live presentation in the dashboard.</value>
+    <value>Open Gospel Presenter and click "Take control" on the live presentation you want to control.</value>
   </data>
   <data name="LivePanel.RemoteControlShowInfo" xml:space="preserve">
     <value>Show remote control info</value>
