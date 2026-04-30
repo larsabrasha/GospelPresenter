@@ -1,12 +1,10 @@
 @page "/admin/displays"
 @attribute [Authorize(Policy = ManageRemoteDisplays)]
 
-@using System.Text.RegularExpressions
 @using GospelPresenter.Shared.Components.Symbols
 @using GospelPresenter.Shared.Layout
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.State
-@using QRCoder
 
 @layout AdminLayout
 
@@ -139,16 +137,13 @@
 @if (displayToShow is not null)
 {
     var showUrl = BuildDisplayUrl(displayToShow.DisplayIdentifier, displayToShow.Name);
-    var qrSvg = BuildQrSvg(showUrl);
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="() => displayToShow = null" ShowCloseButton="true">
         <div class="p-6 space-y-5">
             <div class="font-semibold text-lg pr-10">@displayToShow.Name</div>
 
             <div class="space-y-2">
                 <div class="flex justify-center">
-                    <div class="bg-white p-3 rounded-lg w-44 h-44 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
-                        @((MarkupString)qrSvg)
-                    </div>
+                    <QrCode Value="@showUrl"/>
                 </div>
                 <div class="text-sm text-neutral-500 dark:text-neutral-400 text-center">@L["Admin.Displays.ScanQrHint"]</div>
             </div>
@@ -206,25 +201,6 @@
         if (!string.IsNullOrWhiteSpace(name))
             parts.Add($"name={Uri.EscapeDataString(name.Trim())}");
         return parts.Count > 0 ? $"{baseUrl}?{string.Join("&", parts)}" : baseUrl;
-    }
-
-    private static readonly Regex SvgRootRegex = new(
-        @"<svg(?<attrs>[^>]*?\bwidth=""(?<w>\d+)""\s+height=""(?<h>\d+)""[^>]*?)>",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-    private static string BuildQrSvg(string url)
-    {
-        using var qrGenerator = new QRCodeGenerator();
-        using var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
-        var svgQrCode = new SvgQRCode(qrData);
-        var svg = svgQrCode.GetGraphic(4);
-
-        // QRCoder emits fixed width/height but no viewBox, so CSS-driven sizing
-        // crops the QR instead of scaling it. Inject a viewBox so it scales.
-        return SvgRootRegex.Replace(
-            svg,
-            m => $"<svg{m.Groups["attrs"].Value} viewBox=\"0 0 {m.Groups["w"].Value} {m.Groups["h"].Value}\">",
-            count: 1);
     }
 
     private void OnCopyUrl() => ToastService.Show(L["Toast.LinkCopied"]);

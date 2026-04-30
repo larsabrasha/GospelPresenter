@@ -181,19 +181,26 @@ public partial class SharedAppState : ObservableObject
     public event Action<string>? PresentationActivated;
     public event Action<string>? PresentationDeactivated;
 
-    public string? GetActiveSessionIdForOrganization(string organizationId)
+    public string? GetActiveSessionIdForPresentation(string organizationId, string presentationId)
     {
-        var matches = presentationActive
-            .Where(kvp => kvp.Value.OrganizationId == organizationId)
+        var resolved = presentationActive
+            .Where(kvp => kvp.Value.OrganizationId == organizationId
+                       && kvp.Value.PresentationId == presentationId)
             .Select(kvp => kvp.Key)
-            .ToList();
-
-        var resolved = matches.FirstOrDefault();
-        var remoteEnabled = resolved is not null && IsRemoteControlEnabled(resolved);
+            .FirstOrDefault();
         logger.LogDebug(
-            "GetActiveSessionIdForOrganization organizationId={OrganizationId} resolvedSessionId={ResolvedSessionId} matchCount={MatchCount} remoteControlEnabled={RemoteControlEnabled}",
-            organizationId, resolved, matches.Count, remoteEnabled);
+            "GetActiveSessionIdForPresentation organizationId={OrganizationId} presentationId={PresentationId} resolvedSessionId={ResolvedSessionId}",
+            organizationId, presentationId, resolved);
         return resolved;
+    }
+
+    public IReadOnlyList<(string SessionId, ActiveSession Session)> GetRemoteEnabledSessionsForOrganization(string organizationId)
+    {
+        return presentationActive
+            .Where(kvp => kvp.Value.OrganizationId == organizationId
+                       && IsRemoteControlEnabled(kvp.Key))
+            .Select(kvp => (kvp.Key, kvp.Value))
+            .ToList();
     }
 
     public bool IsPresentationActiveForSession(string sessionId, string presentationId) =>
