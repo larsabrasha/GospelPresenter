@@ -6,7 +6,7 @@ const screenshots = import.meta.glob('./screenshots/*.webp', {
   import: 'default',
 });
 
-const PAGES = ['presentation', 'presentation-live', 'home', 'songs', 'add-song', 'bible'];
+const PAGES = ['presentation', 'presentation-live', 'stage', 'home', 'songs', 'add-song', 'bible'];
 
 const lang = location.pathname.startsWith('/sv') ? 'sv' : 'en';
 

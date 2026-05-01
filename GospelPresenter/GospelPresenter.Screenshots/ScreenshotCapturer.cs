@@ -20,6 +20,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
         ("home", "/"),
         ("presentation", "/presentations/{presentationId}"),
         ("presentation-live", "/presentations/{presentationId}"),
+        ("stage", "/presentations/{presentationId}?stage=true"),
         ("songs", "/admin/songs"),
         ("add-song", "/presentations/{presentationId}"),
         ("bible", "/presentations/{presentationId}"),
@@ -323,6 +324,14 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
                 : p.Locator("button:has-text('Bible')").First;
             await bibleTab.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
             await p.WaitForTimeoutAsync(600);
+        },
+        "stage" => async p =>
+        {
+            // Stage mode follows the live slide set by an earlier presentation-live
+            // capture, so we just wait for the slide strip to render.
+            await p.Locator("#stage-slide-strip").First.WaitForAsync(
+                new LocatorWaitForOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(400);
         },
         _ => null
     };
