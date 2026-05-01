@@ -1523,4 +1523,10 @@
   <data name="StageMode.SlidesInSong" xml:space="preserve">
     <value>Slides</value>
   </data>
+  <data name="StageMode.Overlays" xml:space="preserve">
+    <value>Overlays</value>
+  </data>
+  <data name="StageMode.ToggleOverlays" xml:space="preserve">
+    <value>Visa/dölj overlays</value>
+  </data>
 </root>

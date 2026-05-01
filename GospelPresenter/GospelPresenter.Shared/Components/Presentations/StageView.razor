@@ -8,9 +8,8 @@
 @inject AppState AppState
 
 @{
-    var liveSlideRaw = SharedAppState.GetLiveSlide(SessionId);
     // Stage view never shows credits — they're for the audience screen only.
-    var liveSlide = liveSlideRaw with { Credits = null };
+    var liveSlide = SharedAppState.GetLiveSlide(SessionId) with { Credits = null };
     var activeOverlay = SharedAppState.GetActiveOverlay(SessionId);
     var isBlackScreen = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
     var partCount = GetPartCount();
@@ -24,7 +23,7 @@
      tabindex="-1">
 
     <!-- Top bar -->
-    <div class="shrink-0 flex items-center gap-2 px-3 py-2 bg-neutral-950 border-b border-neutral-800">
+    <div class="shrink-0 relative flex items-center gap-2 px-3 py-2 bg-neutral-950 border-b border-neutral-800">
         <button @onclick="HandleExit"
                 class="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-neutral-800 text-sm shrink-0"
                 title="@L["StageMode.Exit"]"
@@ -36,7 +35,7 @@
         </button>
 
         <button @onclick="() => showItemDrawer = true"
-                class="cursor-pointer flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 rounded-lg hover:bg-neutral-800"
+                class="cursor-pointer absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[60%] flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-neutral-800"
                 title="@L["StageMode.SwitchSong"]">
             <span class="truncate text-base font-semibold">
                 @(SelectedItem?.Title ?? L["StageMode.NoItemSelected"])
@@ -46,7 +45,21 @@
             </svg>
         </button>
 
-        <div class="w-12 shrink-0"></div>
+        @if (OverlaySlides.Count > 0)
+        {
+            var hasActiveOverlay = !string.IsNullOrEmpty(ActiveOverlayId);
+            <button @onclick="() => showOverlayDrawer = true"
+                    class="cursor-pointer ml-auto relative flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg shrink-0 hover:bg-neutral-800 text-neutral-200 text-sm"
+                    title="@L["StageMode.ToggleOverlays"]"
+                    aria-label="@L["StageMode.ToggleOverlays"]">
+                <SquaresOverlapSymbol Class="size-5"/>
+                <span class="hidden sm:inline">@L["StageMode.Overlays"]</span>
+                @if (hasActiveOverlay)
+                {
+                    <span class="absolute top-0.5 right-0.5 size-2.5 rounded-full bg-sky-500"></span>
+                }
+            </button>
+        }
     </div>
 
     <!-- Main content area: current + next.
@@ -175,6 +188,40 @@
 
 </div>
 
+<!-- Overlays drawer (bottom sheet) -->
+@if (showOverlayDrawer)
+{
+    <div class="fixed inset-0 z-60 flex items-end sm:items-center justify-center"
+         @onclick="() => showOverlayDrawer = false">
+        <div class="absolute inset-0 bg-black/60"></div>
+        <div class="relative w-full sm:max-w-lg bg-neutral-900 text-white rounded-t-2xl sm:rounded-2xl max-h-[80vh] flex flex-col shadow-2xl"
+             @onclick:stopPropagation="true">
+            <div class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-neutral-800">
+                <h2 class="text-base font-semibold">@L["StageMode.Overlays"]</h2>
+                <button @onclick="() => showOverlayDrawer = false"
+                        class="cursor-pointer p-2 rounded-full hover:bg-neutral-800"
+                        aria-label="@L["Common.Close"]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2">
+                @foreach (var overlay in OverlaySlides)
+                {
+                    var isActive = ActiveOverlayId == overlay.Id;
+                    <button @onclick="() => OnToggleOverlay.InvokeAsync(overlay)"
+                            class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm @(isActive ? "bg-sky-900/30 ring-1 ring-sky-500 text-white" : "bg-neutral-800 text-neutral-200 hover:bg-neutral-700")"
+                            title="@overlay.Title">
+                        <span class="truncate">@overlay.Title</span>
+                        <ToggleSwitch Value="@isActive"/>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
 <!-- Item picker drawer (bottom sheet) -->
 @if (showItemDrawer)
 {
@@ -252,12 +299,16 @@
     [Parameter] public SlideTextStyle CreditsStyle { get; set; } = SlideTextStyle.CreditsDefault;
     [Parameter] public SlideTextStyle BibleStyle { get; set; } = SlideTextStyle.BibleDefault;
     [Parameter] public SlideTextStyle BibleCreditsStyle { get; set; } = SlideTextStyle.CreditsDefault;
+    [Parameter] public IList<OverlaySlide> OverlaySlides { get; set; } = [];
+    [Parameter] public string? ActiveOverlayId { get; set; }
     [Parameter] public EventCallback<(string ItemId, int PartIndex)> OnSelectSlide { get; set; }
     [Parameter] public EventCallback<ProjectItem> OnSelectItem { get; set; }
+    [Parameter] public EventCallback<OverlaySlide> OnToggleOverlay { get; set; }
     [Parameter] public EventCallback OnClearScreen { get; set; }
     [Parameter] public EventCallback OnExit { get; set; }
 
     private bool showItemDrawer;
+    private bool showOverlayDrawer;
     private DotNetObjectReference<StageView>? dotNetRef;
     private bool keysInstalled;
     private string? lastScrolledPartKey;
@@ -451,7 +502,8 @@
                 await OnClearScreen.InvokeAsync();
                 break;
             case "exit":
-                if (showItemDrawer) showItemDrawer = false;
+                if (showOverlayDrawer) showOverlayDrawer = false;
+                else if (showItemDrawer) showItemDrawer = false;
                 else await OnExit.InvokeAsync();
                 break;
         }

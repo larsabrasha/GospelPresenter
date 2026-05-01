@@ -54,8 +54,11 @@
         CreditsStyle="@creditsStyle"
         BibleStyle="@bibleStyle"
         BibleCreditsStyle="@bibleCreditsStyle"
+        OverlaySlides="@overlaySlides"
+        ActiveOverlayId="@activeOverlayId"
         OnSelectSlide="HandleStageSelectSlide"
         OnSelectItem="HandleStageSelectItem"
+        OnToggleOverlay="ToggleOverlay"
         OnClearScreen="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
         OnExit="ExitStageMode"/>
 }
@@ -88,15 +91,21 @@
     }
     <div class="flex flex-1 min-h-0 relative">
     @{
-        var menuBackdropVisibilityClass = AppState.IsMenuVisible ? "visible opacity-100" : "invisible opacity-0";
-        var menuVisibilityClass = AppState.IsMenuVisible ? "visible translate-x-0" : "invisible -translate-x-full";
+        // When stage mode is active the StageView covers everything as a fixed overlay,
+        // but the sidebar/backdrop sit at higher z-indexes than the stage view to support
+        // the regular mobile menu. Force them hidden in stage mode so they can't leak
+        // through when the viewport shrinks below the lg breakpoint.
+        var menuOpen = AppState.IsMenuVisible && !IsStageReady;
+        var menuBackdropVisibilityClass = menuOpen ? "visible opacity-100" : "invisible opacity-0";
+        var menuVisibilityClass = menuOpen ? "visible translate-x-0" : "invisible -translate-x-full";
+        var sidebarLgVisibilityClass = IsStageReady ? "" : "lg:visible lg:translate-x-0";
     }
     <div
         class="bg-black/30 z-100 absolute top-0 bottom-0 left-0 right-0 transition-opacity lg:invisible @menuBackdropVisibilityClass"
         @onclick="() => AppState.IsMenuVisible = false">
     </div>
     <div
-        class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-10 lg:shadow-xl lg:visible lg:translate-x-0 @menuVisibilityClass">
+        class="w-[var(--navmenu-width)] duration-200 ease-in-out shrink-0 overflow-auto h-full bg-white dark:bg-neutral-800 absolute top-0 bottom-0 left-0 z-110 shadow-xl lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-10 lg:shadow-xl @sidebarLgVisibilityClass @menuVisibilityClass">
         <Sidebar OnAddRequested="@OpenAddModal"
                  OnRemoveRequested="@ConfirmRemoveItem"
                  OnRemoveMultipleRequested="@ConfirmRemoveMultipleItems"
@@ -1372,12 +1381,28 @@
                 _ = InvokeAsync(() => JsRuntime.InvokeVoidAsync(
                     "gospelPresenter.executeAudioCommand", cmd.Action, cmd.AudioElementId, cmd.Position).AsTask());
 
+            SyncStageSelectionFromLiveSlide();
             _ = InvokeAsync(StateHasChanged);
         }
         else if (sender is SharedAppState && IsRemoteMode && e.PropertyName == _presenterSessionId)
         {
+            SyncStageSelectionFromLiveSlide();
             _ = InvokeAsync(StateHasChanged);
         }
+    }
+
+    // Stage mode follows the live slide: when another device switches song or
+    // slide via SharedAppState, mirror that into the local SelectedProjectItem
+    // so the strip and next-slide preview show the right item.
+    private void SyncStageSelectionFromLiveSlide()
+    {
+        if (!IsStageMode) return;
+        var live = SharedAppState.GetLiveSlide(EffectiveSessionId);
+        if (live.ProjectItemId is null) return;
+        if (live.ProjectItemId == AppState.SelectedProjectItem?.Id) return;
+        var item = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == live.ProjectItemId);
+        if (item is null) return;
+        AppState.SelectedProjectItem = item;
     }
 
     private async Task GetDataForSelectedItem()
