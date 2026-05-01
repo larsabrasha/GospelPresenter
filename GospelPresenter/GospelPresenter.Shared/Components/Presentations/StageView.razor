@@ -23,7 +23,7 @@
      tabindex="-1">
 
     <!-- Top bar -->
-    <div class="shrink-0 flex items-center gap-2 px-3 py-2 bg-neutral-950 border-b border-neutral-800">
+    <div class="shrink-0 relative flex items-center gap-2 px-3 py-2 bg-neutral-950 border-b border-neutral-800">
         <button @onclick="HandleExit"
                 class="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-neutral-800 text-sm shrink-0"
                 title="@L["StageMode.Exit"]"
@@ -35,7 +35,7 @@
         </button>
 
         <button @onclick="() => showItemDrawer = true"
-                class="cursor-pointer flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 rounded-lg hover:bg-neutral-800"
+                class="cursor-pointer absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[60%] flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-neutral-800"
                 title="@L["StageMode.SwitchSong"]">
             <span class="truncate text-base font-semibold">
                 @(SelectedItem?.Title ?? L["StageMode.NoItemSelected"])
@@ -44,8 +44,6 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
             </svg>
         </button>
-
-        <div class="w-12 shrink-0"></div>
     </div>
 
     <!-- Main content area: current + next.
@@ -97,7 +95,7 @@
                             BaseWidth="@BaseWidth"
                             BaseHeight="@BaseHeight"
                             Class="rounded-lg shadow-2xl"/>
-                        @if (partLabel is not null)
+                        @if (partLabel is not null && !isBlackScreen)
                         {
                             <div class="absolute top-2 right-2 text-xs font-semibold uppercase tracking-wide rounded-full px-3 py-1 pointer-events-none shadow-md"
                                  style="background-color: @(partLabel.Value.Color); color: white;">
