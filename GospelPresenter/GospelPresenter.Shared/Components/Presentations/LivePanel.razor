@@ -71,44 +71,6 @@ else
             </div>
         </div>
 
-        @if (OverlaySlides.Count > 0)
-        {
-            <div class="mt-3">
-                <div class="flex items-center gap-2">
-                    <button @onclick="() => isOverlaysCollapsed = !isOverlaysCollapsed"
-                            aria-expanded="@(!isOverlaysCollapsed)"
-                            class="cursor-pointer flex items-center gap-2 flex-1 text-left py-2 -my-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
-                             stroke="currentColor"
-                             class="size-3 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 @(isOverlaysCollapsed ? "-rotate-90" : "")">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-                        </svg>
-                        <span
-                            class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">@L["Overlays.Title"]</span>
-                    </button>
-                    <HintButton @bind-Active="showOverlaysInfo" Title="@L["LivePanel.OverlaysHint"]"/>
-                </div>
-                <HintPanel Show="showOverlaysInfo" Text="@L["LivePanel.OverlaysHint"]"/>
-                <div
-                    class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isOverlaysCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
-                    <div class="overflow-hidden min-h-0">
-                        <div class="flex flex-col gap-3 pt-3 p-1">
-                            @foreach (var overlay in OverlaySlides)
-                            {
-                                var isActive = ActiveOverlayId == overlay.Id;
-                                <button @onclick="() => OnToggleOverlay.InvokeAsync(overlay)"
-                                        class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-neutral-600 dark:text-neutral-300 @(isActive ? "bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "bg-neutral-100 dark:bg-neutral-700/50")"
-                                        title="@overlay.Title">
-                                    <span class="truncate">@overlay.Title</span>
-                                    <ToggleSwitch Value="@isActive"/>
-                                </button>
-                            }
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
-
         @if (SessionId is not null)
         {
             <div class="mt-3">
@@ -284,6 +246,44 @@ else
             </div>
         }
 
+        @if (OverlaySlides.Count > 0)
+        {
+            <div class="mt-3">
+                <div class="flex items-center gap-2">
+                    <button @onclick="() => isOverlaysCollapsed = !isOverlaysCollapsed"
+                            aria-expanded="@(!isOverlaysCollapsed)"
+                            class="cursor-pointer flex items-center gap-2 flex-1 text-left py-2 -my-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                             stroke="currentColor"
+                             class="size-3 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 @(isOverlaysCollapsed ? "-rotate-90" : "")">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+                        </svg>
+                        <span
+                            class="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">@L["Overlays.Title"]</span>
+                    </button>
+                    <HintButton @bind-Active="showOverlaysInfo" Title="@L["LivePanel.OverlaysHint"]"/>
+                </div>
+                <HintPanel Show="showOverlaysInfo" Text="@L["LivePanel.OverlaysHint"]"/>
+                <div
+                    class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isOverlaysCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
+                    <div class="overflow-hidden min-h-0">
+                        <div class="flex flex-col gap-3 pt-3 p-1">
+                            @foreach (var overlay in OverlaySlides)
+                            {
+                                var isActive = ActiveOverlayId == overlay.Id;
+                                <button @onclick="() => OnToggleOverlay.InvokeAsync(overlay)"
+                                        class="cursor-pointer flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-sm text-neutral-600 dark:text-neutral-300 @(isActive ? "bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "bg-neutral-100 dark:bg-neutral-700/50")"
+                                        title="@overlay.Title">
+                                    <span class="truncate">@overlay.Title</span>
+                                    <ToggleSwitch Value="@isActive"/>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
         @if (SessionId is not null && !IsRemoteController)
         {
             var isRemoteEnabled = SharedAppState.IsRemoteControlEnabled(SessionId);
@@ -354,6 +354,15 @@ else
             }
         }
 
+        <button @onclick="OnEnterStageMode"
+                class="mt-3 px-4 py-2.5 rounded-full flex items-center justify-center gap-2 shadow-sm cursor-pointer bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600"
+                title="@L["StageMode.Enter"]">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="size-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"/>
+            </svg>
+            <span class="text-sm font-medium">@L["StageMode.Enter"]</span>
+        </button>
+
     </div>
 
     <button @onclick="OnStopPresentation"
@@ -391,6 +400,7 @@ else
     [Parameter] public EventCallback OnClearSlide { get; set; }
     [Parameter] public EventCallback<OverlaySlide> OnToggleOverlay { get; set; }
     [Parameter] public EventCallback OnStopPresentation { get; set; }
+    [Parameter] public EventCallback OnEnterStageMode { get; set; }
     [Parameter] public bool ShowGrow { get; set; }
     [Parameter] public bool Collapsible { get; set; }
     [Parameter] public string? SessionId { get; set; }
@@ -398,12 +408,12 @@ else
     [Parameter] public List<RemoteDisplay> SavedDisplays { get; set; } = [];
 
     private bool isCollapsed;
-    private bool isOverlaysCollapsed;
+    private bool isOverlaysCollapsed = true;
     private bool showOverlaysInfo;
     private bool showOutputsInfo;
     private bool showRemoteInfo;
     private bool isOutputsCollapsed;
-    private bool isRemoteCollapsed;
+    private bool isRemoteCollapsed = true;
     private void ToggleCollapsed() => isCollapsed = !isCollapsed;
 
     private HashSet<string> savedDisplayIds => SavedDisplays.Select(d => d.DisplayIdentifier).ToHashSet();

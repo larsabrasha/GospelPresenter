@@ -988,3 +988,70 @@ window.gospelPresenter.fadeOutAudio = function(audioElement, button, durationMs)
         }
     }, 50);
 };
+
+// Stage mode helpers ----------------------------------------------------------
+
+window.gospelPresenter._stageKeyHandler = null;
+
+window.gospelPresenter.installStageKeys = function(dotNetRef) {
+    if (window.gospelPresenter._stageKeyHandler) {
+        document.removeEventListener('keydown', window.gospelPresenter._stageKeyHandler);
+    }
+    window.gospelPresenter._stageKeyHandler = function(e) {
+        var target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+            return;
+        }
+        var action = null;
+        switch (e.key) {
+            case 'ArrowRight':
+            case 'PageDown':
+            case ' ':
+                action = 'next'; break;
+            case 'ArrowLeft':
+            case 'PageUp':
+                action = 'prev'; break;
+            case '.':
+            case 'b':
+            case 'B':
+                action = 'clear'; break;
+            case 'Escape':
+                action = 'exit'; break;
+        }
+        if (!action) return;
+        e.preventDefault();
+        dotNetRef.invokeMethodAsync('OnStageKey', action);
+    };
+    document.addEventListener('keydown', window.gospelPresenter._stageKeyHandler);
+};
+
+window.gospelPresenter.uninstallStageKeys = function() {
+    if (window.gospelPresenter._stageKeyHandler) {
+        document.removeEventListener('keydown', window.gospelPresenter._stageKeyHandler);
+        window.gospelPresenter._stageKeyHandler = null;
+    }
+};
+
+window.gospelPresenter.scrollStageStripToPart = function(stripId, partIndex) {
+    var strip = document.getElementById(stripId);
+    if (!strip) return;
+    var btn = strip.querySelector('[data-part-index="' + partIndex + '"]');
+    if (!btn) return;
+    var stripRect = strip.getBoundingClientRect();
+    var btnRect = btn.getBoundingClientRect();
+    var target = btn.offsetLeft - (stripRect.width / 2) + (btnRect.width / 2);
+    strip.scrollTo({ left: target, behavior: 'smooth' });
+};
+
+window.gospelPresenter.setStagePreference = function(scope, on) {
+    try {
+        var key = 'stage-mode-' + scope;
+        if (on) localStorage.setItem(key, '1');
+        else localStorage.removeItem(key);
+    } catch { }
+};
+
+window.gospelPresenter.getStagePreference = function(scope) {
+    try { return localStorage.getItem('stage-mode-' + scope) === '1'; }
+    catch { return false; }
+};

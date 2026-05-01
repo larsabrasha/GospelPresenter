@@ -1,0 +1,468 @@
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.State
+
+@implements IAsyncDisposable
+
+@inject IJSRuntime JsRuntime
+@inject SharedAppState SharedAppState
+@inject AppState AppState
+
+@{
+    var liveSlideRaw = SharedAppState.GetLiveSlide(SessionId);
+    // Stage view never shows credits — they're for the audience screen only.
+    var liveSlide = liveSlideRaw with { Credits = null };
+    var activeOverlay = SharedAppState.GetActiveOverlay(SessionId);
+    var isBlackScreen = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
+    var partCount = GetPartCount();
+    var currentPartIndex = liveSlide.ProjectItemId == SelectedItem?.Id ? (liveSlide.ItemPartIndex ?? -1) : -1;
+    var nextPartIndex = currentPartIndex >= 0 && currentPartIndex < partCount - 1 ? currentPartIndex + 1 : -1;
+
+    var scales = ComputeScales();
+}
+
+<div class="fixed inset-0 z-50 bg-neutral-900 text-white flex flex-col select-none"
+     tabindex="-1">
+
+    <!-- Top bar -->
+    <div class="shrink-0 flex items-center gap-2 px-3 py-2 bg-neutral-950 border-b border-neutral-800">
+        <button @onclick="HandleExit"
+                class="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-neutral-800 text-sm shrink-0"
+                title="@L["StageMode.Exit"]"
+                aria-label="@L["StageMode.Exit"]">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5"/>
+            </svg>
+            <span class="hidden sm:inline">@L["StageMode.Exit"]</span>
+        </button>
+
+        <button @onclick="() => showItemDrawer = true"
+                class="cursor-pointer flex-1 min-w-0 flex items-center justify-center gap-2 px-3 py-2 rounded-lg hover:bg-neutral-800"
+                title="@L["StageMode.SwitchSong"]">
+            <span class="truncate text-base font-semibold">
+                @(SelectedItem?.Title ?? L["StageMode.NoItemSelected"])
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0 text-neutral-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+        </button>
+
+        <div class="w-12 shrink-0"></div>
+    </div>
+
+    <!-- Main content area: current + next.
+         Mobile portrait (<sm): stacked vertically.
+         sm+ (mobile landscape, tablet, desktop): two columns side by side. -->
+    <div class="flex-1 min-h-0 flex flex-col sm:flex-row gap-3 p-3 overflow-hidden">
+
+        <!-- Current slide -->
+        <div class="flex-1 min-h-0 flex flex-col items-center justify-center min-w-0">
+            @if (SelectedItem is null)
+            {
+                <div></div>
+            }
+            else if (SelectedAudio is not null)
+            {
+                <div class="flex flex-col items-center gap-2">
+                    <div class="text-[10px] uppercase tracking-widest text-neutral-500 font-semibold self-start">
+                        @L["LivePanel.NowShowing"]
+                    </div>
+                    <div class="relative">
+                        <LiveDisplay
+                            LiveSlide="@liveSlide"
+                            Overlay="@activeOverlay"
+                            Scale="@scales.Current"
+                            BaseWidth="@BaseWidth"
+                            BaseHeight="@BaseHeight"
+                            Class="rounded-lg shadow-2xl"/>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-neutral-400 pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 opacity-70">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/>
+                            </svg>
+                            <div class="text-xs">@L["StageMode.AudioPlaying"]</div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                var partLabel = GetCurrentPartLabel(currentPartIndex);
+                <div class="flex flex-col items-center gap-2">
+                    <div class="text-[10px] uppercase tracking-widest text-neutral-500 font-semibold self-start">
+                        @L["LivePanel.NowShowing"]
+                    </div>
+                    <div class="relative">
+                        <LiveDisplay
+                            LiveSlide="@liveSlide"
+                            Overlay="@activeOverlay"
+                            Scale="@scales.Current"
+                            BaseWidth="@BaseWidth"
+                            BaseHeight="@BaseHeight"
+                            Class="rounded-lg shadow-2xl"/>
+                        @if (partLabel is not null && !isBlackScreen)
+                        {
+                            <div class="absolute top-2 right-2 text-xs font-semibold uppercase tracking-wide rounded-full px-3 py-1 pointer-events-none shadow-md"
+                                 style="background-color: @(partLabel.Value.Color); color: white;">
+                                @partLabel.Value.Text
+                            </div>
+                        }
+                    </div>
+                    <button @onclick="HandleClear"
+                            class="cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shrink-0 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 mt-1 @(isBlackScreen ? "invisible pointer-events-none" : "")"
+                            title="@L["StageMode.ClearScreen"]">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                        <span>@L["StageMode.ClearScreen"]</span>
+                    </button>
+                </div>
+            }
+        </div>
+
+        <!-- Next slide preview -->
+        @if (SelectedItem is not null && SelectedAudio is null)
+        {
+            <div class="shrink-0 flex flex-col items-center sm:justify-center sm:w-2/5 lg:w-1/3">
+                <div class="text-[10px] uppercase tracking-widest text-neutral-500 mb-2 font-semibold self-start">
+                    @L["StageMode.NextSlide"]
+                </div>
+                @{
+                    var nextWidth = FormattableString.Invariant($"{BaseWidth * scales.Next}px");
+                    var nextHeight = FormattableString.Invariant($"{BaseHeight * scales.Next}px");
+                }
+                @if (nextPartIndex >= 0)
+                {
+                    <button @onclick="() => OnSelectSlide.InvokeAsync((SelectedItem!.Id, nextPartIndex))"
+                            class="block shrink-0 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-sky-400 transition-all"
+                            style="width: @nextWidth; height: @nextHeight;"
+                            title="@L["StageMode.NextSlide"]">
+                        @RenderSlideAtIndex(nextPartIndex, scales.Next)
+                    </button>
+                }
+                else
+                {
+                    <div class="block shrink-0" style="width: @nextWidth; height: @nextHeight;" aria-hidden="true"></div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Slide strip -->
+    @if (SelectedItem is not null && SelectedAudio is null && partCount > 0)
+    {
+        <div class="shrink-0 bg-neutral-950 border-t border-neutral-800 px-3 py-3 overflow-x-auto" id="stage-slide-strip">
+            <div class="flex gap-2 items-center">
+                @for (var i = 0; i < partCount; i++)
+                {
+                    var partIndex = i;
+                    var isActive = partIndex == currentPartIndex;
+                    var isLiveOnStrip = isActive && !isBlackScreen && liveSlide.ProjectItemId == SelectedItem.Id;
+                    <button @onclick="() => OnSelectSlide.InvokeAsync((SelectedItem.Id, partIndex))"
+                            data-part-index="@partIndex"
+                            class="relative shrink-0 cursor-pointer rounded-md transition-opacity p-0.5 outline-3 @(isLiveOnStrip ? "outline-red-500" : "outline-transparent") @(isActive && !isLiveOnStrip ? "ring-2 ring-sky-400" : "") @(isActive ? "" : "opacity-70 hover:opacity-100")">
+                        @RenderSlideAtIndex(partIndex, scales.Strip)
+                        @if (isLiveOnStrip)
+                        {
+                            <div class="absolute top-1 left-1 flex items-center gap-1 bg-red-500 text-white text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full pointer-events-none">
+                                <span class="size-1 rounded-full bg-white animate-pulse"></span>
+                                Live
+                            </div>
+                        }
+                    </button>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+<!-- Item picker drawer (bottom sheet) -->
+@if (showItemDrawer)
+{
+    <div class="fixed inset-0 z-60 flex items-end sm:items-center justify-center"
+         @onclick="() => showItemDrawer = false">
+        <div class="absolute inset-0 bg-black/60"></div>
+        <div class="relative w-full sm:max-w-lg bg-neutral-900 text-white rounded-t-2xl sm:rounded-2xl max-h-[80vh] flex flex-col shadow-2xl"
+             @onclick:stopPropagation="true">
+            <div class="shrink-0 flex items-center justify-between px-4 py-3 border-b border-neutral-800">
+                <h2 class="text-base font-semibold">@L["StageMode.NoItemSelected"]</h2>
+                <button @onclick="() => showItemDrawer = false"
+                        class="cursor-pointer p-2 rounded-full hover:bg-neutral-800"
+                        aria-label="@L["Common.Close"]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 min-h-0 overflow-y-auto py-2">
+                @if (Items.Count == 0)
+                {
+                    <div class="px-4 py-8 text-center text-neutral-500 text-sm">
+                        @L["StageMode.NoItemsInPresentation"]
+                    </div>
+                }
+                else
+                {
+                    @foreach (var item in Items)
+                    {
+                        var isSelected = SelectedItem?.Id == item.Id;
+                        <button @onclick="() => OnPickItem(item)"
+                                class="w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer @(isSelected ? "bg-sky-600 text-white" : "text-neutral-200 hover:bg-neutral-800")">
+                            <div class="size-4 shrink-0">
+                                @switch (item.Type)
+                                {
+                                    case ProjectItemType.Song:
+                                        <MusicalNoteSymbol Class="size-4"/>
+                                        break;
+                                    case ProjectItemType.BibleText:
+                                        <BookOpenSymbol Class="size-4"/>
+                                        break;
+                                    case ProjectItemType.Image:
+                                        <PhotoSymbol Class="size-4"/>
+                                        break;
+                                    case ProjectItemType.Audio:
+                                        <SpeakerWaveSymbol Class="size-4"/>
+                                        break;
+                                    case ProjectItemType.Slides:
+                                        <RectangleStackSymbol Class="size-4"/>
+                                        break;
+                                }
+                            </div>
+                            <span class="truncate">@item.Title</span>
+                        </button>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public required string SessionId { get; set; }
+    [Parameter] public required int BaseWidth { get; set; }
+    [Parameter] public required int BaseHeight { get; set; }
+    [Parameter] public required IList<ProjectItem> Items { get; set; }
+    [Parameter] public ProjectItem? SelectedItem { get; set; }
+    [Parameter] public Song? SelectedSong { get; set; }
+    [Parameter] public IList<SongPart> SongParts { get; set; } = [];
+    [Parameter] public BibleText? SelectedBibleText { get; set; }
+    [Parameter] public Image? SelectedImage { get; set; }
+    [Parameter] public Audio? SelectedAudio { get; set; }
+    [Parameter] public SlidesState? SelectedSlides { get; set; }
+    [Parameter] public SlideTextStyle SongStyle { get; set; } = SlideTextStyle.SongDefault;
+    [Parameter] public SlideTextStyle CreditsStyle { get; set; } = SlideTextStyle.CreditsDefault;
+    [Parameter] public SlideTextStyle BibleStyle { get; set; } = SlideTextStyle.BibleDefault;
+    [Parameter] public SlideTextStyle BibleCreditsStyle { get; set; } = SlideTextStyle.CreditsDefault;
+    [Parameter] public EventCallback<(string ItemId, int PartIndex)> OnSelectSlide { get; set; }
+    [Parameter] public EventCallback<ProjectItem> OnSelectItem { get; set; }
+    [Parameter] public EventCallback OnClearScreen { get; set; }
+    [Parameter] public EventCallback OnExit { get; set; }
+
+    private bool showItemDrawer;
+    private DotNetObjectReference<StageView>? dotNetRef;
+    private bool keysInstalled;
+    private string? lastScrolledPartKey;
+
+    private record StageScales(double Current, double Next, double Strip);
+
+    private StageScales ComputeScales()
+    {
+        var vw = AppState.MainViewport?.Width ?? 1280;
+        var vh = AppState.MainViewport?.Height ?? 720;
+
+        // Reserved space: top bar (~56) + slide strip (~140) + paddings/gaps (~40)
+        const int reservedHeight = 240;
+        const int reservedHorizontalPadding = 48;
+        var availableHeight = Math.Max(200, vh - reservedHeight);
+        var availableWidth = Math.Max(320, vw - reservedHorizontalPadding);
+
+        double currentScale;
+        double nextScale;
+
+        if (vw < 640)
+        {
+            // Mobile portrait — stacked. Current ~50% of available height, next ~25%.
+            var currentMaxHeight = availableHeight * 0.62;
+            var currentByHeight = currentMaxHeight / BaseHeight;
+            var currentByWidth = availableWidth / (double)BaseWidth;
+            currentScale = Math.Min(currentByHeight, currentByWidth);
+
+            var nextMaxHeight = availableHeight * 0.30;
+            var nextByHeight = nextMaxHeight / BaseHeight;
+            var nextByWidth = (availableWidth * 0.85) / BaseWidth;
+            nextScale = Math.Min(nextByHeight, nextByWidth);
+        }
+        else
+        {
+            // Side-by-side. Current ~60% width, next ~38% width (with gap).
+            var currentMaxWidth = availableWidth * 0.58;
+            var currentByWidth = currentMaxWidth / BaseWidth;
+            var currentByHeight = availableHeight / (double)BaseHeight;
+            currentScale = Math.Min(currentByWidth, currentByHeight);
+
+            var nextMaxWidth = availableWidth * 0.36;
+            var nextByWidth = nextMaxWidth / BaseWidth;
+            var nextByHeight = (availableHeight * 0.85) / BaseHeight;
+            nextScale = Math.Min(nextByWidth, nextByHeight);
+        }
+
+        // Strip thumbnails — fixed-ish height target (~110px).
+        const int stripTargetHeight = 110;
+        var stripScale = stripTargetHeight / (double)BaseHeight;
+
+        // Clamp to sensible bounds.
+        currentScale = Math.Clamp(currentScale, 0.05, 0.9);
+        nextScale = Math.Clamp(nextScale, 0.04, 0.5);
+        stripScale = Math.Clamp(stripScale, 0.04, 0.18);
+
+        return new StageScales(currentScale, nextScale, stripScale);
+    }
+
+    private (string Text, string Color)? GetCurrentPartLabel(int partIndex)
+    {
+        if (partIndex < 0) return null;
+        if (SelectedSong is not null && partIndex < SongParts.Count)
+        {
+            var p = SongParts[partIndex];
+            if (!string.IsNullOrEmpty(p.Label))
+                return (p.Label, p.LabelColor ?? "#737373");
+        }
+        return null;
+    }
+
+    private int GetPartCount()
+    {
+        if (SelectedSong is not null) return SongParts.Count;
+        if (SelectedBibleText is not null) return SelectedBibleText.Parts.Count;
+        if (SelectedImage is not null) return SelectedImage.Urls.Count;
+        if (SelectedSlides is not null) return SelectedSlides.Urls.Count;
+        return 0;
+    }
+
+    private RenderFragment RenderSlideAtIndex(int index, double scale) => builder =>
+    {
+        if (SelectedSong is not null && index < SongParts.Count)
+        {
+            var p = SongParts[index];
+            builder.OpenComponent<SongSlide>(0);
+            builder.AddAttribute(1, nameof(SongSlide.Content), p.Content);
+            builder.AddAttribute(2, nameof(SongSlide.Label), p.Label);
+            builder.AddAttribute(3, nameof(SongSlide.LabelColor), p.LabelColor);
+            builder.AddAttribute(4, nameof(SongSlide.ContentStyle), SongStyle);
+            builder.AddAttribute(5, nameof(SongSlide.CreditsStyle), CreditsStyle);
+            builder.AddAttribute(6, nameof(SongSlide.IsSelected), false);
+            builder.AddAttribute(7, nameof(SongSlide.IsLive), false);
+            builder.AddAttribute(8, nameof(SongSlide.BaseWidth), BaseWidth);
+            builder.AddAttribute(9, nameof(SongSlide.BaseHeight), BaseHeight);
+            builder.AddAttribute(10, nameof(SongSlide.Scale), scale);
+            builder.CloseComponent();
+        }
+        else if (SelectedBibleText is not null && index < SelectedBibleText.Parts.Count)
+        {
+            builder.OpenComponent<BibleTextSlide>(0);
+            builder.AddAttribute(1, nameof(BibleTextSlide.Content), SelectedBibleText.Parts[index]);
+            builder.AddAttribute(2, nameof(BibleTextSlide.ContentStyle), BibleStyle);
+            builder.AddAttribute(3, nameof(BibleTextSlide.CreditsStyle), BibleCreditsStyle);
+            builder.AddAttribute(4, nameof(BibleTextSlide.IsSelected), false);
+            builder.AddAttribute(5, nameof(BibleTextSlide.IsLive), false);
+            builder.AddAttribute(6, nameof(BibleTextSlide.BaseWidth), BaseWidth);
+            builder.AddAttribute(7, nameof(BibleTextSlide.BaseHeight), BaseHeight);
+            builder.AddAttribute(8, nameof(BibleTextSlide.Scale), scale);
+            builder.CloseComponent();
+        }
+        else if (SelectedImage is not null && index < SelectedImage.Urls.Count)
+        {
+            builder.OpenComponent<ImageSlide>(0);
+            builder.AddAttribute(1, nameof(ImageSlide.Url), SelectedImage.Urls[index]);
+            builder.AddAttribute(2, nameof(ImageSlide.IsSelected), false);
+            builder.AddAttribute(3, nameof(ImageSlide.IsLive), false);
+            builder.AddAttribute(4, nameof(ImageSlide.BaseWidth), BaseWidth);
+            builder.AddAttribute(5, nameof(ImageSlide.BaseHeight), BaseHeight);
+            builder.AddAttribute(6, nameof(ImageSlide.Scale), scale);
+            builder.CloseComponent();
+        }
+        else if (SelectedSlides is not null && index < SelectedSlides.Urls.Count)
+        {
+            builder.OpenComponent<ImageSlide>(0);
+            builder.AddAttribute(1, nameof(ImageSlide.Url), SelectedSlides.Urls[index]);
+            builder.AddAttribute(2, nameof(ImageSlide.IsSelected), false);
+            builder.AddAttribute(3, nameof(ImageSlide.IsLive), false);
+            builder.AddAttribute(4, nameof(ImageSlide.BaseWidth), BaseWidth);
+            builder.AddAttribute(5, nameof(ImageSlide.BaseHeight), BaseHeight);
+            builder.AddAttribute(6, nameof(ImageSlide.Scale), scale);
+            builder.CloseComponent();
+        }
+    };
+
+    private async Task OnPickItem(ProjectItem item)
+    {
+        showItemDrawer = false;
+        await OnSelectItem.InvokeAsync(item);
+    }
+
+    private async Task HandleClear() => await OnClearScreen.InvokeAsync();
+    private async Task HandleExit() => await OnExit.InvokeAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.installStageKeys", dotNetRef); keysInstalled = true; } catch { }
+
+            // Nothing selected on entry → open the picker straight away so the leader can act.
+            if (SelectedItem is null && Items.Count > 0)
+            {
+                showItemDrawer = true;
+                StateHasChanged();
+            }
+        }
+
+        // Auto-scroll the strip so the active slide stays in view when it changes.
+        var liveSlide = SharedAppState.GetLiveSlide(SessionId);
+        var partIndex = liveSlide.ProjectItemId == SelectedItem?.Id ? (liveSlide.ItemPartIndex ?? -1) : -1;
+        var key = $"{SelectedItem?.Id}-{partIndex}";
+        if (partIndex >= 0 && key != lastScrolledPartKey)
+        {
+            lastScrolledPartKey = key;
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.scrollStageStripToPart", "stage-slide-strip", partIndex); } catch { }
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnStageKey(string action)
+    {
+        var liveSlide = SharedAppState.GetLiveSlide(SessionId);
+        var current = liveSlide.ProjectItemId == SelectedItem?.Id ? (liveSlide.ItemPartIndex ?? -1) : -1;
+        var partCount = GetPartCount();
+
+        switch (action)
+        {
+            case "next":
+                if (SelectedItem is not null && current >= 0 && current < partCount - 1)
+                    await OnSelectSlide.InvokeAsync((SelectedItem.Id, current + 1));
+                else if (SelectedItem is not null && current < 0 && partCount > 0)
+                    await OnSelectSlide.InvokeAsync((SelectedItem.Id, 0));
+                break;
+            case "prev":
+                if (SelectedItem is not null && current > 0)
+                    await OnSelectSlide.InvokeAsync((SelectedItem.Id, current - 1));
+                break;
+            case "clear":
+                await OnClearScreen.InvokeAsync();
+                break;
+            case "exit":
+                if (showItemDrawer) showItemDrawer = false;
+                else await OnExit.InvokeAsync();
+                break;
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (keysInstalled)
+        {
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.uninstallStageKeys"); } catch { }
+        }
+        dotNetRef?.Dispose();
+    }
+}
