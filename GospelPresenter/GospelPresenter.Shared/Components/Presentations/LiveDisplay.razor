@@ -7,7 +7,7 @@
     var h = FormattableString.Invariant($"{Scale * BaseHeight}px");
 }
 
-<div class="relative bg-black overflow-hidden @Class" style="width: @w; height: @h;">
+<div class="relative isolate bg-black overflow-hidden @Class" style="width: @w; height: @h;">
     <LiveSlideView
         LiveSlide="@LiveSlide"
         Class="bg-black overflow-hidden text-white"

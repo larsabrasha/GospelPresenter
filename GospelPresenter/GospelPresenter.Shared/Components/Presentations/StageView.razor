@@ -8,17 +8,10 @@
 @inject AppState AppState
 
 @{
-    var liveSlideRaw = SharedAppState.GetLiveSlide(SessionId);
-    var isBlackScreen = liveSlideRaw.Status == LiveSlideStatus.ShowingBlackScreen;
     // Stage view never shows credits — they're for the audience screen only.
-    // When the audience screen is cleared, the operator should still see the
-    // cued slide so they keep context; a badge below conveys the cleared state.
-    var liveSlide = liveSlideRaw with
-    {
-        Credits = null,
-        Status = isBlackScreen ? LiveSlideStatus.ShowingPresentation : liveSlideRaw.Status,
-    };
+    var liveSlide = SharedAppState.GetLiveSlide(SessionId) with { Credits = null };
     var activeOverlay = SharedAppState.GetActiveOverlay(SessionId);
+    var isBlackScreen = liveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
     var partCount = GetPartCount();
     var currentPartIndex = liveSlide.ProjectItemId == SelectedItem?.Id ? (liveSlide.ItemPartIndex ?? -1) : -1;
     var nextPartIndex = currentPartIndex >= 0 && currentPartIndex < partCount - 1 ? currentPartIndex + 1 : -1;
@@ -103,7 +96,7 @@
                             Scale="@scales.Current"
                             BaseWidth="@BaseWidth"
                             BaseHeight="@BaseHeight"
-                            Class="@($"rounded-lg shadow-2xl {(isBlackScreen ? "opacity-60" : "")}")"/>
+                            Class="rounded-lg shadow-2xl"/>
                         @if (partLabel is not null)
                         {
                             <div class="absolute top-2 right-2 text-xs font-semibold uppercase tracking-wide rounded-full px-3 py-1 pointer-events-none shadow-md"
@@ -111,33 +104,14 @@
                                 @partLabel.Value.Text
                             </div>
                         }
-                        @if (isBlackScreen)
-                        {
-                            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span class="bg-amber-500/95 text-white text-xs font-semibold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-lg">
-                                    @L["StageMode.ScreenIsBlank"]
-                                </span>
-                            </div>
-                        }
                     </div>
                     <button @onclick="HandleClear"
-                            class="cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shrink-0 mt-1 @(isBlackScreen ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-neutral-800 hover:bg-neutral-700 text-neutral-200")"
-                            title="@(isBlackScreen ? L["StageMode.RestoreScreen"] : L["StageMode.ClearScreen"])">
-                        @if (isBlackScreen)
-                        {
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
-                            </svg>
-                            <span>@L["StageMode.RestoreScreen"]</span>
-                        }
-                        else
-                        {
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
-                            </svg>
-                            <span>@L["StageMode.ClearScreen"]</span>
-                        }
+                            class="cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shrink-0 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 mt-1 @(isBlackScreen ? "invisible pointer-events-none" : "")"
+                            title="@L["StageMode.ClearScreen"]">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                        </svg>
+                        <span>@L["StageMode.ClearScreen"]</span>
                     </button>
                 </div>
             }
