@@ -1372,12 +1372,28 @@
                 _ = InvokeAsync(() => JsRuntime.InvokeVoidAsync(
                     "gospelPresenter.executeAudioCommand", cmd.Action, cmd.AudioElementId, cmd.Position).AsTask());
 
+            SyncStageSelectionFromLiveSlide();
             _ = InvokeAsync(StateHasChanged);
         }
         else if (sender is SharedAppState && IsRemoteMode && e.PropertyName == _presenterSessionId)
         {
+            SyncStageSelectionFromLiveSlide();
             _ = InvokeAsync(StateHasChanged);
         }
+    }
+
+    // Stage mode follows the live slide: when another device switches song or
+    // slide via SharedAppState, mirror that into the local SelectedProjectItem
+    // so the strip and next-slide preview show the right item.
+    private void SyncStageSelectionFromLiveSlide()
+    {
+        if (!IsStageMode) return;
+        var live = SharedAppState.GetLiveSlide(EffectiveSessionId);
+        if (live.ProjectItemId is null) return;
+        if (live.ProjectItemId == AppState.SelectedProjectItem?.Id) return;
+        var item = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == live.ProjectItemId);
+        if (item is null) return;
+        AppState.SelectedProjectItem = item;
     }
 
     private async Task GetDataForSelectedItem()
