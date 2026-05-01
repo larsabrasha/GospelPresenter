@@ -54,8 +54,11 @@
         CreditsStyle="@creditsStyle"
         BibleStyle="@bibleStyle"
         BibleCreditsStyle="@bibleCreditsStyle"
+        OverlaySlides="@overlaySlides"
+        ActiveOverlayId="@activeOverlayId"
         OnSelectSlide="HandleStageSelectSlide"
         OnSelectItem="HandleStageSelectItem"
+        OnToggleOverlay="ToggleOverlay"
         OnClearScreen="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
         OnExit="ExitStageMode"/>
 }
