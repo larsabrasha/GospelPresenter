@@ -653,7 +653,6 @@
     private bool IsTemplateMode => TemplateId is not null;
     private bool IsRemoteMode => Remote && !IsTemplateMode;
     private bool IsStageMode => Stage && !IsTemplateMode;
-    private string StagePreferenceScope => IsRemoteMode ? "remote" : "local";
     private string? EffectiveId => TemplateId ?? PresentationId;
 
     private string? _presenterSessionId;
@@ -777,26 +776,6 @@
             dotNetRef = DotNetObjectReference.Create(this);
             if (IsRemoteMode)
                 await JsRuntime.InvokeVoidAsync("gospelPresenter.registerAudioRelay", dotNetRef);
-
-            if (IsStageMode)
-            {
-                try { await JsRuntime.InvokeVoidAsync("gospelPresenter.setStagePreference", StagePreferenceScope, true); } catch { }
-            }
-            else if (!IsTemplateMode)
-            {
-                try
-                {
-                    var prefer = await JsRuntime.InvokeAsync<bool>("gospelPresenter.getStagePreference", StagePreferenceScope);
-                    if (prefer)
-                    {
-                        var basePath = $"/presentations/{PresentationId}";
-                        var url = IsRemoteMode ? $"{basePath}?remote=true&stage=true" : $"{basePath}?stage=true";
-                        NavigationManager.NavigateTo(url, replace: true);
-                        return;
-                    }
-                }
-                catch { }
-            }
         }
 
         if (isEditingItemTitle)
@@ -850,9 +829,8 @@
         }
     }
 
-    private async Task ExitStageMode()
+    private void ExitStageMode()
     {
-        try { await JsRuntime.InvokeVoidAsync("gospelPresenter.setStagePreference", StagePreferenceScope, false); } catch { }
         var basePath = IsTemplateMode ? $"/templates/{TemplateId}" : $"/presentations/{PresentationId}";
         var url = IsRemoteMode ? $"{basePath}?remote=true" : basePath;
         NavigationManager.NavigateTo(url);
