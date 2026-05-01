@@ -2,8 +2,11 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
 
-dotnet run \
-  --project "$SCRIPT_DIR/GospelPresenter/GospelPresenter.Screenshots" \
-  -- \
-  --output "$SCRIPT_DIR/docs/src/screenshots"
+trap 'docker compose -f docker-compose.screenshots.yml down --remove-orphans' EXIT
+
+docker compose -f docker-compose.screenshots.yml up \
+  --build \
+  --abort-on-container-exit \
+  --exit-code-from screenshots

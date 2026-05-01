@@ -4,6 +4,26 @@ namespace GospelPresenter.Screenshots;
 
 static class BrowserHelpers
 {
+    // Polyfill crypto.randomUUID so it works when the page is served over plain HTTP
+    // (e.g. the app reached via a docker-compose service hostname instead of localhost).
+    // Browsers only expose crypto.randomUUID in secure contexts; crypto.getRandomValues
+    // is available everywhere and is sufficient for a v4 UUID.
+    const string CryptoRandomUuidPolyfill = """
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID !== 'function') {
+            crypto.randomUUID = function () {
+                const bytes = new Uint8Array(16);
+                crypto.getRandomValues(bytes);
+                bytes[6] = (bytes[6] & 0x0f) | 0x40;
+                bytes[8] = (bytes[8] & 0x3f) | 0x80;
+                const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+                return hex.slice(0,8) + '-' + hex.slice(8,12) + '-' + hex.slice(12,16) + '-' + hex.slice(16,20) + '-' + hex.slice(20);
+            };
+        }
+        """;
+
+    public static Task AddBrowserPolyfillsAsync(IBrowserContext context) =>
+        context.AddInitScriptAsync(CryptoRandomUuidPolyfill);
+
     public static async Task WaitForWebAppAsync(string baseUrl, int timeoutSeconds = 60,
         CancellationToken cancellationToken = default)
     {
@@ -63,6 +83,7 @@ static class BrowserHelpers
     public static async Task<string> DiscoverPresentationIdAsync(IBrowser browser, string baseUrl, string domain, string lang = "en")
     {
         await using var context = await browser.NewContextAsync();
+        await AddBrowserPolyfillsAsync(context);
 
         var mockUserId = lang == "sv" ? "mock-user-sv" : "mock-user-en";
         await context.AddCookiesAsync(

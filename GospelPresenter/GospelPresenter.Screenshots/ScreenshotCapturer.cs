@@ -20,6 +20,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
         ("home", "/"),
         ("presentation", "/presentations/{presentationId}"),
         ("presentation-live", "/presentations/{presentationId}"),
+        ("stage", "/presentations/{presentationId}?stage=true"),
         ("songs", "/admin/songs"),
         ("add-song", "/presentations/{presentationId}"),
         ("bible", "/presentations/{presentationId}"),
@@ -41,7 +42,11 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
-            Headless = !options.Headed
+            Headless = !options.Headed,
+            // Treat the base URL as a secure context so that browser APIs like
+            // crypto.randomUUID work over plain HTTP (e.g. when the app is reached
+            // via a docker-compose service hostname instead of localhost).
+            Args = [$"--unsafely-treat-insecure-origin-as-secure={options.BaseUrl.TrimEnd('/')}"]
         });
 
         await BrowserHelpers.WaitForWebAppAsync(options.BaseUrl, cancellationToken: cancellationToken);
@@ -153,6 +158,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
 
         await using (context)
         {
+            await BrowserHelpers.AddBrowserPolyfillsAsync(context);
             var browserPage = await SetupContextAsync(context, domain, lang, theme, setupWarnings, lockObj);
 
             foreach (var page in Pages)
@@ -318,6 +324,14 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
                 : p.Locator("button:has-text('Bible')").First;
             await bibleTab.ClickAsync(new LocatorClickOptions { Timeout = 5_000 });
             await p.WaitForTimeoutAsync(600);
+        },
+        "stage" => async p =>
+        {
+            // Stage mode follows the live slide set by an earlier presentation-live
+            // capture, so we just wait for the slide strip to render.
+            await p.Locator("#stage-slide-strip").First.WaitForAsync(
+                new LocatorWaitForOptions { Timeout = 5_000 });
+            await p.WaitForTimeoutAsync(400);
         },
         _ => null
     };

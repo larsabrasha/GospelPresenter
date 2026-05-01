@@ -1043,15 +1043,3 @@ window.gospelPresenter.scrollStageStripToPart = function(stripId, partIndex) {
     strip.scrollTo({ left: target, behavior: 'smooth' });
 };
 
-window.gospelPresenter.setStagePreference = function(scope, on) {
-    try {
-        var key = 'stage-mode-' + scope;
-        if (on) localStorage.setItem(key, '1');
-        else localStorage.removeItem(key);
-    } catch { }
-};
-
-window.gospelPresenter.getStagePreference = function(scope) {
-    try { return localStorage.getItem('stage-mode-' + scope) === '1'; }
-    catch { return false; }
-};
