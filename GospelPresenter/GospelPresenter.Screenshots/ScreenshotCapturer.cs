@@ -41,7 +41,11 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
-            Headless = !options.Headed
+            Headless = !options.Headed,
+            // Treat the base URL as a secure context so that browser APIs like
+            // crypto.randomUUID work over plain HTTP (e.g. when the app is reached
+            // via a docker-compose service hostname instead of localhost).
+            Args = [$"--unsafely-treat-insecure-origin-as-secure={options.BaseUrl.TrimEnd('/')}"]
         });
 
         await BrowserHelpers.WaitForWebAppAsync(options.BaseUrl, cancellationToken: cancellationToken);
@@ -153,6 +157,7 @@ class ScreenshotCapturer(Options options, CancellationToken cancellationToken)
 
         await using (context)
         {
+            await BrowserHelpers.AddBrowserPolyfillsAsync(context);
             var browserPage = await SetupContextAsync(context, domain, lang, theme, setupWarnings, lockObj);
 
             foreach (var page in Pages)

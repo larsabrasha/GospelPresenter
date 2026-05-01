@@ -1,0 +1,21 @@
+services:
+  web:
+    platform: linux/amd64
+    build:
+      context: ./GospelPresenter
+      dockerfile: GospelPresenter.Web/Dockerfile
+    container_name: gospelpresenter-screenshots-web
+    user: root
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+
+  screenshots:
+    build:
+      context: ./GospelPresenter
+      dockerfile: GospelPresenter.Screenshots/Dockerfile
+    container_name: gospelpresenter-screenshots-runner
+    depends_on:
+      - web
+    command: ["--base-url", "http://web:8080", "--output", "/screenshots"]
+    volumes:
+      - ./docs/src/screenshots:/screenshots
