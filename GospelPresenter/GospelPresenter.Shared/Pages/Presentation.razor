@@ -35,6 +35,31 @@
     var liveSlide = SharedAppState.GetLiveSlide(EffectiveSessionId);
     var isLiveShowing = SharedAppState.IsPresentationActive(EffectiveSessionId) && liveSlide.Status != LiveSlideStatus.ShowingBlackScreen;
 }
+
+@if (IsStageReady && AppState.SelectedProject is not null)
+{
+    <StageView
+        SessionId="@EffectiveSessionId"
+        BaseWidth="@AppState.BaseSlideWidth"
+        BaseHeight="@AppState.BaseSlideHeight"
+        Items="@AppState.SelectedProject.Items"
+        SelectedItem="@AppState.SelectedProjectItem"
+        SelectedSong="@SelectedSong"
+        SongParts="@EffectiveSongParts"
+        SelectedBibleText="@SelectedBibleText"
+        SelectedImage="@SelectedImage"
+        SelectedAudio="@SelectedAudio"
+        SelectedSlides="@SelectedSlides"
+        SongStyle="@songStyle"
+        CreditsStyle="@creditsStyle"
+        BibleStyle="@bibleStyle"
+        BibleCreditsStyle="@bibleCreditsStyle"
+        OnSelectSlide="HandleStageSelectSlide"
+        OnSelectItem="HandleStageSelectItem"
+        OnClearScreen="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
+        OnExit="ExitStageMode"/>
+}
+
 <div class="flex flex-col h-full relative dark:text-neutral-200 dark:bg-neutral-800" style="@statusBarStyle">
     @if (IsTemplateMode)
     {
@@ -409,7 +434,8 @@
                                 Collapsible
                                 OnClearSlide="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
                                 OnToggleOverlay="ToggleOverlay"
-                                OnStopPresentation="StopPresentation"/>
+                                OnStopPresentation="StopPresentation"
+                                OnEnterStageMode="EnterStageMode"/>
                         </div>
                     }
                 </div>
@@ -436,7 +462,8 @@
                             ShowGrow
                             OnClearSlide="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
                             OnToggleOverlay="ToggleOverlay"
-                            OnStopPresentation="StopPresentation"/>
+                            OnStopPresentation="StopPresentation"
+                            OnEnterStageMode="EnterStageMode"/>
                     </div>
                 </div>
             }
@@ -611,8 +638,13 @@
     [SupplyParameterFromQuery(Name = "remote")]
     public bool Remote { get; set; }
 
+    [SupplyParameterFromQuery(Name = "stage")]
+    public bool Stage { get; set; }
+
     private bool IsTemplateMode => TemplateId is not null;
     private bool IsRemoteMode => Remote && !IsTemplateMode;
+    private bool IsStageMode => Stage && !IsTemplateMode;
+    private string StagePreferenceScope => IsRemoteMode ? "remote" : "local";
     private string? EffectiveId => TemplateId ?? PresentationId;
 
     private string? _presenterSessionId;
@@ -620,6 +652,9 @@
         IsRemoteMode && _presenterSessionId is not null ? _presenterSessionId : AppState.SessionId;
     private bool IsRemoteReady => !IsRemoteMode ||
         (_presenterSessionId is not null && SharedAppState.IsRemoteControlEnabled(_presenterSessionId));
+    private bool IsStageReady => IsStageMode
+        && IsRemoteReady
+        && SharedAppState.IsPresentationActive(EffectiveSessionId);
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
@@ -733,6 +768,26 @@
             dotNetRef = DotNetObjectReference.Create(this);
             if (IsRemoteMode)
                 await JsRuntime.InvokeVoidAsync("gospelPresenter.registerAudioRelay", dotNetRef);
+
+            if (IsStageMode)
+            {
+                try { await JsRuntime.InvokeVoidAsync("gospelPresenter.setStagePreference", StagePreferenceScope, true); } catch { }
+            }
+            else if (!IsTemplateMode)
+            {
+                try
+                {
+                    var prefer = await JsRuntime.InvokeAsync<bool>("gospelPresenter.getStagePreference", StagePreferenceScope);
+                    if (prefer)
+                    {
+                        var basePath = $"/presentations/{PresentationId}";
+                        var url = IsRemoteMode ? $"{basePath}?remote=true&stage=true" : $"{basePath}?stage=true";
+                        NavigationManager.NavigateTo(url, replace: true);
+                        return;
+                    }
+                }
+                catch { }
+            }
         }
 
         if (isEditingItemTitle)
@@ -754,6 +809,52 @@
 
         ResetLiveSlide();
         SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId, AppState.SelectedProject?.Name);
+    }
+
+    private async Task HandleStageSelectSlide((string ItemId, int PartIndex) selection)
+    {
+        if (AppState.SelectedProjectItem?.Id != selection.ItemId)
+        {
+            var item = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == selection.ItemId);
+            if (item is null) return;
+            AppState.SelectedProjectItem = item;
+            // Wait for OnPropertyChanged → GetDataForSelectedItem to populate Selected* fields.
+            await Task.Yield();
+        }
+        SetSelectedLiveSlide(selection.ItemId, selection.PartIndex);
+    }
+
+    private async Task HandleStageSelectItem(ProjectItem item)
+    {
+        AppState.SelectedProjectItem = item;
+        await Task.Yield();
+        if (item.Type == ProjectItemType.Audio)
+        {
+            // Audio has no slides — black out the screen so audio plays without a stale slide.
+            var current = SharedAppState.GetLiveSlide(EffectiveSessionId);
+            SharedAppState.SetLiveSlide(EffectiveSessionId, current with { Status = LiveSlideStatus.ShowingBlackScreen });
+        }
+        else
+        {
+            // Auto-pick the first slide so the leader doesn't need a second tap.
+            SetSelectedLiveSlide(item.Id, 0);
+        }
+    }
+
+    private async Task ExitStageMode()
+    {
+        try { await JsRuntime.InvokeVoidAsync("gospelPresenter.setStagePreference", StagePreferenceScope, false); } catch { }
+        var basePath = IsTemplateMode ? $"/templates/{TemplateId}" : $"/presentations/{PresentationId}";
+        var url = IsRemoteMode ? $"{basePath}?remote=true" : basePath;
+        NavigationManager.NavigateTo(url);
+    }
+
+    private void EnterStageMode()
+    {
+        if (PresentationId is null) return;
+        var basePath = $"/presentations/{PresentationId}";
+        var url = IsRemoteMode ? $"{basePath}?remote=true&stage=true" : $"{basePath}?stage=true";
+        NavigationManager.NavigateTo(url);
     }
 
     private async Task StopPresentation()

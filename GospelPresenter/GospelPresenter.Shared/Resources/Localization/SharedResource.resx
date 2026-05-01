@@ -1484,4 +1484,43 @@
   <data name="Onboarding.Welcome.GetStarted" xml:space="preserve">
     <value>Get started</value>
   </data>
+  <data name="StageMode.Enter" xml:space="preserve">
+    <value>Stage mode</value>
+  </data>
+  <data name="StageMode.Exit" xml:space="preserve">
+    <value>Exit stage mode</value>
+  </data>
+  <data name="StageMode.SwitchSong" xml:space="preserve">
+    <value>Switch</value>
+  </data>
+  <data name="StageMode.NextSlide" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="StageMode.NoNextSlide" xml:space="preserve">
+    <value>Last slide</value>
+  </data>
+  <data name="StageMode.ScreenIsBlank" xml:space="preserve">
+    <value>Screen is blank</value>
+  </data>
+  <data name="StageMode.RestoreScreen" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="StageMode.ClearScreen" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="StageMode.NoItemSelected" xml:space="preserve">
+    <value>Pick</value>
+  </data>
+  <data name="StageMode.NoItemsInPresentation" xml:space="preserve">
+    <value>The presentation is empty</value>
+  </data>
+  <data name="StageMode.PresentationNotActive" xml:space="preserve">
+    <value>Presentation is not running</value>
+  </data>
+  <data name="StageMode.AudioPlaying" xml:space="preserve">
+    <value>Audio is playing</value>
+  </data>
+  <data name="StageMode.SlidesInSong" xml:space="preserve">
+    <value>Slides</value>
+  </data>
 </root>

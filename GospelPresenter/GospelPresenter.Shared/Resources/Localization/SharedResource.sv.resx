@@ -1484,4 +1484,43 @@
   <data name="Onboarding.Welcome.GetStarted" xml:space="preserve">
     <value>Kom igång</value>
   </data>
+  <data name="StageMode.Enter" xml:space="preserve">
+    <value>Scenläge</value>
+  </data>
+  <data name="StageMode.Exit" xml:space="preserve">
+    <value>Lämna scenläge</value>
+  </data>
+  <data name="StageMode.SwitchSong" xml:space="preserve">
+    <value>Byt</value>
+  </data>
+  <data name="StageMode.NextSlide" xml:space="preserve">
+    <value>Nästa</value>
+  </data>
+  <data name="StageMode.NoNextSlide" xml:space="preserve">
+    <value>Sista sliden</value>
+  </data>
+  <data name="StageMode.ScreenIsBlank" xml:space="preserve">
+    <value>Skärmen är släckt</value>
+  </data>
+  <data name="StageMode.RestoreScreen" xml:space="preserve">
+    <value>Visa</value>
+  </data>
+  <data name="StageMode.ClearScreen" xml:space="preserve">
+    <value>Rensa</value>
+  </data>
+  <data name="StageMode.NoItemSelected" xml:space="preserve">
+    <value>Välj</value>
+  </data>
+  <data name="StageMode.NoItemsInPresentation" xml:space="preserve">
+    <value>Presentationen är tom</value>
+  </data>
+  <data name="StageMode.PresentationNotActive" xml:space="preserve">
+    <value>Presentationen är inte startad</value>
+  </data>
+  <data name="StageMode.AudioPlaying" xml:space="preserve">
+    <value>Ljud spelas</value>
+  </data>
+  <data name="StageMode.SlidesInSong" xml:space="preserve">
+    <value>Slides</value>
+  </data>
 </root>
