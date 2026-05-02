@@ -822,16 +822,16 @@
     <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
-    <value>Upload PDF</value>
+    <value>Upload slides</value>
   </data>
   <data name="SlidesTab.Uploading" xml:space="preserve">
     <value>Uploading...</value>
   </data>
   <data name="SlidesTab.HelpText" xml:space="preserve">
-    <value>&lt;p&gt;Export your presentation as a PDF from PowerPoint, Keynote, Google Slides, or Pages before uploading.&lt;/p&gt;&lt;p&gt;Animations and videos will not be included.&lt;/p&gt;&lt;p&gt;The file is saved only in this presentation.&lt;/p&gt;</value>
+    <value>&lt;p&gt;Upload a PowerPoint or PDF file. Keynote, Google Slides, and Pages can be exported to PDF before uploading.&lt;/p&gt;&lt;p&gt;Animations and videos will not be included.&lt;/p&gt;&lt;p&gt;The file is saved only in this presentation.&lt;/p&gt;</value>
   </data>
   <data name="SlidesTab.TooManyPages" xml:space="preserve">
-    <value>PDF has too many pages. Maximum is 100 pages.</value>
+    <value>The file has too many pages. Maximum is 100 pages.</value>
   </data>
   <data name="SlidesTab.UploadError" xml:space="preserve">
     <value>Could not upload the file. Please try again.</value>

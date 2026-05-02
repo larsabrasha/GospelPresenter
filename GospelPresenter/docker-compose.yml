@@ -31,6 +31,20 @@ services:
       timeout: 5s
       retries: 5
 
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: gospelpresenter-gotenberg
+    restart: always
+    command:
+      - gotenberg
+      - --api-timeout=120s
+      - --libreoffice-restart-after=10
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   migrations:
     image: ghcr.io/larsabrasha/gospelpresenter-migrations:release
     container_name: gospelpresenter-migrations
@@ -72,12 +86,15 @@ services:
       Authentication__Google__Enabled: ${GOOGLE_ENABLED:-false}
       Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Gotenberg__Endpoint: http://gotenberg:3000
     volumes:
       - data-protection-keys:/app/data-protection-keys
       - ./bibles:/app/data/bibles:ro
     depends_on:
       migrations:
         condition: service_completed_successfully
+      gotenberg:
+        condition: service_healthy
 
 volumes:
   postgres-data:

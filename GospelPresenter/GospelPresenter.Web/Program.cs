@@ -233,6 +233,22 @@ try
     builder.Services.AddSingleton<ICcliReportService, CcliReportService>();
     builder.Services.AddSingleton<IPdfRenderService, PdfRenderService>();
     builder.Services.AddScoped<IPresentationSlidesService, PresentationSlidesService>();
+
+    var gotenbergEndpoint = builder.Configuration.GetValue<string>("Gotenberg:Endpoint");
+    if (!string.IsNullOrWhiteSpace(gotenbergEndpoint))
+    {
+        builder.Services.AddHttpClient(GotenbergPowerPointConverter.HttpClientName, client =>
+        {
+            client.BaseAddress = new Uri(gotenbergEndpoint);
+            client.Timeout = TimeSpan.FromSeconds(120);
+        });
+    }
+    else
+    {
+        // Register an empty client so IPowerPointConverter.IsConfigured returns false.
+        builder.Services.AddHttpClient(GotenbergPowerPointConverter.HttpClientName);
+    }
+    builder.Services.AddSingleton<IPowerPointConverter, GotenbergPowerPointConverter>();
     builder.Services.AddHostedService<GospelPresenter.Web.Services.CcliReportBackgroundService>();
 
 #if !DEBUG

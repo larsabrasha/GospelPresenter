@@ -40,11 +40,20 @@ var migrations = builder
     .WithEnvironment("S3__AdminEndpoint", garageAdminEndpoint)
     .WithEnvironment("S3__AdminToken", "gospelpresenter-admin-token");
 
+var gotenberg = builder
+    .AddContainer("gotenberg", "gotenberg/gotenberg", "8")
+    .WithArgs("gotenberg", "--api-timeout=120s", "--libreoffice-restart-after=10")
+    .WithHttpEndpoint(targetPort: 3000, name: "http")
+    .WithLifetime(ContainerLifetime.Persistent);
+
+var gotenbergEndpoint = gotenberg.GetEndpoint("http");
+
 builder
     .AddProject<Projects.GospelPresenter_Web>("gospelpresenter-web")
     .WithReference(postgresdb)
     .WaitForCompletion(migrations)
-    .WithS3Environment(garageEndpoint, garageAccessKey, garageSecretKey);
+    .WithS3Environment(garageEndpoint, garageAccessKey, garageSecretKey)
+    .WithEnvironment("Gotenberg__Endpoint", gotenbergEndpoint);
 
 builder.Build().Run();
 
