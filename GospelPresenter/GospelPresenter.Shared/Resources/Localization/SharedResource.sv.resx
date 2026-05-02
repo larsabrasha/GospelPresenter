@@ -822,16 +822,16 @@
     <value>Vill du verkligen ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
-    <value>Ladda upp PDF</value>
+    <value>Ladda upp bildspel</value>
   </data>
   <data name="SlidesTab.Uploading" xml:space="preserve">
     <value>Laddar upp...</value>
   </data>
   <data name="SlidesTab.HelpText" xml:space="preserve">
-    <value>&lt;p&gt;Exportera din presentation som PDF från PowerPoint, Keynote, Google Slides eller Pages innan du laddar upp.&lt;/p&gt;&lt;p&gt;Animeringar och videor följer inte med.&lt;/p&gt;&lt;p&gt;Filen sparas bara i den här presentationen.&lt;/p&gt;</value>
+    <value>&lt;p&gt;Ladda upp en PowerPoint- eller PDF-fil. Keynote, Google Slides och Pages kan exporteras till PDF innan uppladdning.&lt;/p&gt;&lt;p&gt;Animeringar och videor följer inte med.&lt;/p&gt;&lt;p&gt;Filen sparas bara i den här presentationen.&lt;/p&gt;</value>
   </data>
   <data name="SlidesTab.TooManyPages" xml:space="preserve">
-    <value>PDF:en har för många sidor. Maximum är 100 sidor.</value>
+    <value>Filen har för många sidor. Maximum är 100 sidor.</value>
   </data>
   <data name="SlidesTab.UploadError" xml:space="preserve">
     <value>Kunde inte ladda upp filen. Försök igen.</value>
