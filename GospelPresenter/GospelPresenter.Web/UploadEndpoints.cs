@@ -130,6 +130,7 @@ public static class UploadEndpoints
             string presentationId,
             HttpContext context,
             IPdfRenderService pdfRenderService,
+            IPowerPointConverter powerPointConverter,
             IPresentationSlidesService slidesService,
             CancellationToken cancellationToken) =>
         {
@@ -144,11 +145,28 @@ public static class UploadEndpoints
             if (!AppConstraints.AllowedSlidesTypes.Contains(file.ContentType)) return Results.BadRequest("Unsupported file type");
             if (file.FileName.Length > AppConstraints.FileNameMaxLength) return Results.BadRequest("File name too long");
 
+            var isPowerPoint = AppConstraints.PowerPointContentTypes.Contains(file.ContentType);
+            if (isPowerPoint && !powerPointConverter.IsConfigured)
+                return Results.StatusCode(503);
+
             IReadOnlyList<RenderedPage> pages;
             try
             {
-                using var stream = file.OpenReadStream();
-                pages = pdfRenderService.RenderPdf(stream, AppConstraints.MaxSlidesPageCount);
+                Stream pdfStream;
+                if (isPowerPoint)
+                {
+                    using var input = file.OpenReadStream();
+                    pdfStream = await powerPointConverter.ConvertToPdfAsync(input, file.FileName, cancellationToken);
+                }
+                else
+                {
+                    pdfStream = file.OpenReadStream();
+                }
+
+                using (pdfStream)
+                {
+                    pages = pdfRenderService.RenderPdf(pdfStream, AppConstraints.MaxSlidesPageCount);
+                }
             }
             catch (InvalidOperationException ex)
             {
@@ -156,7 +174,7 @@ public static class UploadEndpoints
             }
             catch (ArgumentOutOfRangeException)
             {
-                return Results.BadRequest($"PDF has too many pages. Maximum allowed is {AppConstraints.MaxSlidesPageCount}.");
+                return Results.BadRequest($"File has too many pages. Maximum allowed is {AppConstraints.MaxSlidesPageCount}.");
             }
 
             try
