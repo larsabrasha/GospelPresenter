@@ -485,6 +485,14 @@ public static class MockDataSeeder
             VersesJson = BuildBibleVersesJson(svBookCodes),
             VerseCount = svBookCodes.Length
         });
+
+        db.RemoteDisplays.Add(new RemoteDisplay
+        {
+            OrganizationId = org.Id,
+            DisplayIdentifier = "storsal",
+            Name = "Storsalen",
+            CreatedAt = now
+        });
     }
 
     static void SeedEnglish(PresentationContext db, DateTimeOffset now)
@@ -914,6 +922,14 @@ public static class MockDataSeeder
             OrganizationId = org.Id,
             VersesJson = BuildBibleVersesJson(enBookCodes),
             VerseCount = enBookCodes.Length
+        });
+
+        db.RemoteDisplays.Add(new RemoteDisplay
+        {
+            OrganizationId = org.Id,
+            DisplayIdentifier = "sanctry",
+            Name = "Sanctuary",
+            CreatedAt = now
         });
     }
 

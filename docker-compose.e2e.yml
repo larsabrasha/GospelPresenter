@@ -1,0 +1,20 @@
+services:
+  web:
+    platform: linux/amd64
+    build:
+      context: ./GospelPresenter
+      dockerfile: GospelPresenter.Web/Dockerfile
+    container_name: gospelpresenter-e2e-web
+    user: root
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+
+  e2e:
+    build:
+      context: ./GospelPresenter
+      dockerfile: GospelPresenter.E2ETests/Dockerfile
+    container_name: gospelpresenter-e2e-runner
+    depends_on:
+      - web
+    environment:
+      E2E_BASE_URL: http://web:8080
