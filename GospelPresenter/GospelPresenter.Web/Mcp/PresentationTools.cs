@@ -140,4 +140,75 @@ public sealed class PresentationTools(
         sharedAppState.NotifyPresentationChanged(presentationId);
         return JsonSerializer.Serialize(new { success = true, itemId = item.Id, title });
     }
+
+    [McpServerTool(Name = "rename_presentation"), Description("Rename a presentation")]
+    public async Task<string> RenamePresentation(string presentationId, string name)
+    {
+        await presentationService.RenamePresentationAsync(OrgId, presentationId, name, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
+        return JsonSerializer.Serialize(new { success = true });
+    }
+
+    [McpServerTool(Name = "reorder_items"), Description("Reorder the items in a presentation. Provide all item IDs in the desired order.")]
+    public async Task<string> ReorderItems(string presentationId, List<string> itemIds)
+    {
+        await presentationService.ReorderItemsAsync(OrgId, presentationId, itemIds, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
+        return JsonSerializer.Serialize(new { success = true });
+    }
+
+    [McpServerTool(Name = "rename_item"), Description("Rename an item in a presentation")]
+    public async Task<string> RenameItem(string presentationId, string itemId, string title)
+    {
+        await presentationService.RenameItemAsync(OrgId, presentationId, itemId, title, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
+        return JsonSerializer.Serialize(new { success = true });
+    }
+
+    [McpServerTool(Name = "remove_item"), Description("Remove an item from a presentation")]
+    public async Task<string> RemoveItem(string presentationId, string itemId)
+    {
+        await presentationService.RemoveItemAsync(OrgId, presentationId, itemId, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
+        return JsonSerializer.Serialize(new { success = true });
+    }
+
+    [McpServerTool(Name = "update_item_arrangement"), Description("Set or clear the song arrangement for an item. Pass null arrangementId to clear.")]
+    public async Task<string> UpdateItemArrangement(string presentationId, string itemId, string? arrangementId = null)
+    {
+        await presentationService.UpdateItemArrangementAsync(OrgId, presentationId, itemId, arrangementId, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
+        return JsonSerializer.Serialize(new { success = true });
+    }
+
+    [McpServerTool(Name = "reorder_item_parts"), Description("Reorder the parts within a presentation item. Provide all part IDs in the desired order.")]
+    public async Task<string> ReorderItemParts(string presentationId, string itemId, List<string> partIds)
+    {
+        await presentationService.ReorderItemPartsAsync(OrgId, presentationId, itemId, partIds, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
+        return JsonSerializer.Serialize(new { success = true });
+    }
+
+    [McpServerTool(Name = "remove_item_part"), Description("Remove a part from a presentation item")]
+    public async Task<string> RemoveItemPart(string presentationId, string itemId, string partId)
+    {
+        await presentationService.RemoveItemPartAsync(OrgId, presentationId, itemId, partId, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
+        return JsonSerializer.Serialize(new { success = true });
+    }
+
+    [McpServerTool(Name = "update_presentation_event"), Description("Update event metadata on a presentation. date format: yyyy-MM-dd. time format: HH:mm. Pass null to clear a field.")]
+    public async Task<string> UpdatePresentationEvent(
+        string presentationId,
+        string? date = null,
+        string? time = null,
+        string? location = null,
+        string? description = null)
+    {
+        DateOnly? eventDate = string.IsNullOrWhiteSpace(date) ? null : DateOnly.Parse(date);
+        TimeOnly? eventTime = string.IsNullOrWhiteSpace(time) ? null : TimeOnly.Parse(time);
+        await presentationService.UpdatePresentationEventAsync(OrgId, presentationId, eventDate, eventTime, location, description, Caller);
+        sharedAppState.NotifyPresentationChanged(presentationId);
+        return JsonSerializer.Serialize(new { success = true });
+    }
 }
