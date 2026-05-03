@@ -5,7 +5,7 @@ public static class AppConstraints
     // Text lengths
     public const int NameMaxLength = 200;
     public const int EmailMaxLength = 320;
-    public const int DescriptionMaxLength = 500;
+    public const int DescriptionMaxLength = 5_000;
     public const int LocationMaxLength = 100;
     public const int SongAuthorMaxLength = 200;
     public const int SongPublisherMaxLength = 200;

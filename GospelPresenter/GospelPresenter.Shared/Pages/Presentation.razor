@@ -1175,6 +1175,7 @@
             EventDate = loadedPresentation.EventDate,
             EventTime = loadedPresentation.EventTime,
             EventLocation = loadedPresentation.EventLocation,
+            Description = loadedPresentation.Description,
             Items = loadedPresentation.Items.Select(item => new ProjectItem
             {
                 Id = item.Id,
@@ -1219,7 +1220,7 @@
             orgId, loadedPresentation.Id, schedule.DayOfWeek, schedule.Time, schedule.Location, OrgState.ToCallerContext());
     }
 
-    private async Task HandleEventChanged((DateOnly? Date, TimeOnly? Time, string? Location) ev)
+    private async Task HandleEventChanged((DateOnly? Date, TimeOnly? Time, string? Location, string? Description) ev)
     {
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null || loadedPresentation is null) return;
@@ -1227,9 +1228,10 @@
         loadedPresentation.EventDate = ev.Date;
         loadedPresentation.EventTime = ev.Time;
         loadedPresentation.EventLocation = ev.Location;
+        loadedPresentation.Description = ev.Description;
 
         await PresentationService.UpdatePresentationEventAsync(
-            orgId, loadedPresentation.Id, ev.Date, ev.Time, ev.Location, OrgState.ToCallerContext());
+            orgId, loadedPresentation.Id, ev.Date, ev.Time, ev.Location, ev.Description, OrgState.ToCallerContext());
     }
 
     private void ConfirmSaveAsTemplate()

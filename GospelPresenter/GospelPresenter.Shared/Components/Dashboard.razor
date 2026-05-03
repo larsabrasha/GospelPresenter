@@ -296,7 +296,7 @@
         selectedTemplate = null;
     }
 
-    private async Task CreateAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location) details)
+    private async Task CreateAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description) details)
     {
         var orgId = OrgState.ActiveOrganizationId ?? "default";
         var userId = OrgState.UserId ?? "default";
@@ -306,12 +306,12 @@
         if (selectedTemplate is not null)
         {
             presentation = await PresentationService.CreatePresentationFromTemplateAsync(
-                selectedTemplate.Id, details.Name, orgId, userId, caller, details.Date, details.Time, details.Location);
+                selectedTemplate.Id, details.Name, orgId, userId, caller, details.Date, details.Time, details.Location, details.Description);
         }
         else
         {
             presentation = await PresentationService.CreatePresentationAsync(
-                details.Name, orgId, userId, caller, details.Date, details.Time, details.Location);
+                details.Name, orgId, userId, caller, details.Date, details.Time, details.Location, details.Description);
         }
 
         NavigationManager.NavigateTo($"/presentations/{presentation.Id}");
