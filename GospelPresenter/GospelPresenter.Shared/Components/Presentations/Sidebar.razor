@@ -260,6 +260,7 @@
                                Date="@(AppState.SelectedProject?.EventDate)"
                                Time="@(AppState.SelectedProject?.EventTime)"
                                Location="@(AppState.SelectedProject?.EventLocation)"
+                               Description="@(AppState.SelectedProject?.Description)"
                                OnSave="SavePresentationDetailsAsync"
                                OnClose="() => showPresentationDetailsDialog = false"/>
 }
@@ -285,7 +286,7 @@
     [Parameter] public bool IsTemplateMode { get; set; }
     [Parameter] public EventCallback OnSaveAsTemplate { get; set; }
     [Parameter] public EventCallback<(int? DayOfWeek, TimeOnly? Time, string? Location)> OnScheduleChanged { get; set; }
-    [Parameter] public EventCallback<(DateOnly? Date, TimeOnly? Time, string? Location)> OnEventChanged { get; set; }
+    [Parameter] public EventCallback<(DateOnly? Date, TimeOnly? Time, string? Location, string? Description)> OnEventChanged { get; set; }
 
     private bool showPresentationDetailsDialog;
     private bool showTemplateDetailsDialog;
@@ -434,7 +435,7 @@
         return parts.Count > 0 ? string.Join(" ", parts) : null;
     }
 
-    private async Task SavePresentationDetailsAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location) details)
+    private async Task SavePresentationDetailsAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description) details)
     {
         showPresentationDetailsDialog = false;
         if (AppState.SelectedProject is null) return;
@@ -444,12 +445,13 @@
         AppState.SelectedProject.EventDate = details.Date;
         AppState.SelectedProject.EventTime = details.Time;
         AppState.SelectedProject.EventLocation = details.Location;
+        AppState.SelectedProject.Description = details.Description;
 
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is not null && nameChanged)
             await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, details.Name, OrgState.ToCallerContext());
 
-        await OnEventChanged.InvokeAsync((details.Date, details.Time, details.Location));
+        await OnEventChanged.InvokeAsync((details.Date, details.Time, details.Location, details.Description));
     }
 
     private async Task RequestRemoveItem(ProjectItem item)

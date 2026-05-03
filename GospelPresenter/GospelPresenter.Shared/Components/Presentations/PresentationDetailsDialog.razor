@@ -21,6 +21,10 @@
             </SimpleInput>
         </div>
 
+        <FloatingTextarea Id="presentation-description" Label="@L["Event.Description"]"
+                          Value="@selectedDescription" OnInput="HandleDescriptionChange"
+                          MaxLength="AppConstraints.DescriptionMaxLength" Rows="4"/>
+
         <div class="flex justify-end gap-3">
             <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
                 @L["Common.Cancel"]
@@ -39,7 +43,8 @@
     [Parameter] public DateOnly? Date { get; set; }
     [Parameter] public TimeOnly? Time { get; set; }
     [Parameter] public string? Location { get; set; }
-    [Parameter, EditorRequired] public EventCallback<(string Name, DateOnly? Date, TimeOnly? Time, string? Location)> OnSave { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter, EditorRequired] public EventCallback<(string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description)> OnSave { get; set; }
     [Parameter, EditorRequired] public EventCallback OnClose { get; set; }
     [Parameter] public string? SaveText { get; set; }
     [Parameter] public string? SaveLoadingText { get; set; }
@@ -48,6 +53,7 @@
     private string selectedDate = "";
     private string selectedTime = "";
     private string selectedLocation = "";
+    private string selectedDescription = "";
     private bool isSaving;
     private FloatingInput? nameInput;
 
@@ -57,6 +63,7 @@
         selectedDate = Date?.ToString("yyyy-MM-dd") ?? "";
         selectedTime = Time?.ToString("HH:mm") ?? "";
         selectedLocation = Location ?? "";
+        selectedDescription = Description ?? "";
         SaveText ??= L["Common.Save"];
     }
 
@@ -64,6 +71,7 @@
     private void HandleDateChange(ChangeEventArgs e) => selectedDate = e.Value?.ToString() ?? "";
     private void HandleTimeChange(ChangeEventArgs e) => selectedTime = e.Value?.ToString() ?? "";
     private void HandleLocationChange(ChangeEventArgs e) => selectedLocation = e.Value?.ToString() ?? "";
+    private void HandleDescriptionChange(ChangeEventArgs e) => selectedDescription = e.Value?.ToString() ?? "";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -92,8 +100,9 @@
             DateOnly? date = DateOnly.TryParse(selectedDate, out var d) ? d : null;
             TimeOnly? time = TimeOnly.TryParse(selectedTime, out var t) ? t : null;
             string? location = string.IsNullOrWhiteSpace(selectedLocation) ? null : selectedLocation.Trim();
+            string? description = string.IsNullOrWhiteSpace(selectedDescription) ? null : selectedDescription.Trim();
 
-            await OnSave.InvokeAsync((trimmed, date, time, location));
+            await OnSave.InvokeAsync((trimmed, date, time, location, description));
         }
         finally
         {

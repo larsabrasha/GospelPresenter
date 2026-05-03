@@ -28,7 +28,7 @@ public interface IPresentationService
     Task<PresentationSummaryPage> GetPresentationSummariesPageAsync(string organizationId, int skip, int take, PresentationSortOrder sort, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation?> GetTemplateByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
-    Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default);
+    Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, string? description = null, CancellationToken cancellationToken = default);
     Task AddItemAsync(string organizationId, string presentationId, PresentationItem item, CallerContext caller, CancellationToken cancellationToken = default);
     Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default);
     Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default);
@@ -44,10 +44,10 @@ public interface IPresentationService
     Task<IList<PresentationSummary>> GetRecentTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<IList<PresentationSummary>> GetAllTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation> SaveAsTemplateAsync(string presentationId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
-    Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default);
+    Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, string? description = null, CancellationToken cancellationToken = default);
     Task<Presentation> CreateTemplateAsync(string name, string organizationId, string userId, CallerContext caller, int? scheduledDayOfWeek = null, TimeOnly? scheduledTime = null, string? location = null, CancellationToken cancellationToken = default);
     Task UpdateTemplateScheduleAsync(string organizationId, string templateId, int? dayOfWeek, TimeOnly? time, string? location, CallerContext caller, CancellationToken cancellationToken = default);
-    Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, CallerContext caller, CancellationToken cancellationToken = default);
+    Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, string? description, CallerContext caller, CancellationToken cancellationToken = default);
     Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
     Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
@@ -180,12 +180,13 @@ public class PresentationService(
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default)
+    public async Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, string? description = null, CancellationToken cancellationToken = default)
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
         ValidationHelper.RequireMaxLength(eventLocation, AppConstraints.LocationMaxLength, "Location");
+        ValidationHelper.RequireMaxLength(description, AppConstraints.DescriptionMaxLength, "Description");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await ValidationHelper.RequireMaxCountAsync(
             context.Presentations.Where(x => x.OrganizationId == organizationId && !x.IsTemplate),
@@ -207,6 +208,7 @@ public class PresentationService(
             EventDate = eventDate,
             EventTime = eventTime,
             EventLocation = eventLocation,
+            Description = description,
             CreatedAt = now,
             CreatedBy = userId,
             UpdatedAt = now,
@@ -615,13 +617,14 @@ public class PresentationService(
         return template;
     }
 
-    public async Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, CancellationToken cancellationToken = default)
+    public async Task<Presentation> CreatePresentationFromTemplateAsync(string templateId, string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, string? description = null, CancellationToken cancellationToken = default)
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequirePermission(Permission.ViewTemplates);
         caller.RequireOrganizationAccess(organizationId);
         ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
         ValidationHelper.RequireMaxLength(eventLocation, AppConstraints.LocationMaxLength, "Location");
+        ValidationHelper.RequireMaxLength(description, AppConstraints.DescriptionMaxLength, "Description");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await ValidationHelper.RequireMaxCountAsync(
             context.Presentations.Where(x => x.OrganizationId == organizationId && !x.IsTemplate),
@@ -645,6 +648,7 @@ public class PresentationService(
             EventDate = eventDate,
             EventTime = eventTime,
             EventLocation = eventLocation,
+            Description = description,
             CreatedAt = now,
             CreatedBy = userId,
             UpdatedAt = now,
@@ -738,11 +742,12 @@ public class PresentationService(
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 
-    public async Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, CallerContext caller, CancellationToken cancellationToken = default)
+    public async Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, string? description, CallerContext caller, CancellationToken cancellationToken = default)
     {
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         ValidationHelper.RequireMaxLength(location, AppConstraints.LocationMaxLength, "Location");
+        ValidationHelper.RequireMaxLength(description, AppConstraints.DescriptionMaxLength, "Description");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.Presentations
@@ -751,6 +756,7 @@ public class PresentationService(
                 .SetProperty(p => p.EventDate, date)
                 .SetProperty(p => p.EventTime, time)
                 .SetProperty(p => p.EventLocation, location)
+                .SetProperty(p => p.Description, description)
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 

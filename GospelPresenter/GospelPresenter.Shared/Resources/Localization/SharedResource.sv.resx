@@ -1220,6 +1220,9 @@
   <data name="Event.Location" xml:space="preserve">
     <value>Plats</value>
   </data>
+  <data name="Event.Description" xml:space="preserve">
+    <value>Beskrivning</value>
+  </data>
   <data name="Weekday.0" xml:space="preserve">
     <value>Söndag</value>
   </data>
