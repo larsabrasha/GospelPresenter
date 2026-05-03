@@ -233,6 +233,7 @@ try
     builder.Services.AddSingleton<ICcliReportService, CcliReportService>();
     builder.Services.AddSingleton<IPdfRenderService, PdfRenderService>();
     builder.Services.AddScoped<IPresentationSlidesService, PresentationSlidesService>();
+    builder.Services.AddScoped<ICalendarFeedService, CalendarFeedService>();
 
     var gotenbergEndpoint = builder.Configuration.GetValue<string>("Gotenberg:Endpoint");
     if (!string.IsNullOrWhiteSpace(gotenbergEndpoint))
@@ -331,6 +332,7 @@ builder.Services.AddMetricServer(options =>
                                      || path.StartsWith("/mock-signin", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/_", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
+                                     || path.StartsWith("/api/calendar/", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/live", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/display", StringComparison.OrdinalIgnoreCase);
                     if (!isPublicPath)
@@ -683,6 +685,8 @@ builder.Services.AddMetricServer(options =>
         context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
         return Results.File(ms, contentType, enableRangeProcessing: true);
     }).RequireAuthorization();
+
+    app.MapCalendarEndpoints();
 
     // MCP API key authentication middleware
     app.Use(async (context, next) =>

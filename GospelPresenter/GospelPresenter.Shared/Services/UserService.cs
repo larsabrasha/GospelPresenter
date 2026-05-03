@@ -69,6 +69,12 @@ public interface IUserService
     Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller);
     Task<(McpApiKey ApiKey, string PlaintextKey)> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller);
     Task DeleteMcpApiKeyAsync(string id, CallerContext caller);
+
+    Task<List<CalendarSubscription>> GetCalendarSubscriptionsAsync(string userId, string organizationId, CallerContext caller);
+    Task<(CalendarSubscription Subscription, string PlaintextToken)> CreateCalendarSubscriptionAsync(string name, string userId, string organizationId, CallerContext caller);
+    Task DeleteCalendarSubscriptionAsync(string id, CallerContext caller);
+    Task<CalendarSubscription?> FindCalendarSubscriptionByTokenAsync(string token);
+    Task TouchCalendarSubscriptionAsync(string id);
 }
 
 public class UserService(
@@ -543,5 +549,66 @@ public class UserService(
         if (key is null) return;
         caller.RequireOrganizationAccess(key.OrganizationId);
         await context.McpApiKeys.Where(k => k.Id == id).ExecuteDeleteAsync();
+    }
+
+    public async Task<List<CalendarSubscription>> GetCalendarSubscriptionsAsync(string userId, string organizationId, CallerContext caller)
+    {
+        caller.RequireOrganizationAccess(organizationId);
+        caller.RequireUserAccess(userId);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.CalendarSubscriptions
+            .Where(s => s.UserId == userId && s.OrganizationId == organizationId)
+            .OrderByDescending(s => s.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<(CalendarSubscription Subscription, string PlaintextToken)> CreateCalendarSubscriptionAsync(string name, string userId, string organizationId, CallerContext caller)
+    {
+        caller.RequireOrganizationAccess(organizationId);
+        caller.RequireUserAccess(userId);
+        ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        await ValidationHelper.RequireMaxCountAsync(
+            context.CalendarSubscriptions.Where(s => s.UserId == userId),
+            AppConstraints.MaxCalendarSubscriptionsPerUser, "Calendar subscriptions");
+        var plaintext = CalendarSubscription.GenerateToken();
+        var subscription = new CalendarSubscription
+        {
+            Name = name,
+            UserId = userId,
+            OrganizationId = organizationId,
+            TokenHash = CalendarSubscription.HashToken(plaintext)
+        };
+        context.CalendarSubscriptions.Add(subscription);
+        await context.SaveChangesAsync();
+        return (subscription, plaintext);
+    }
+
+    public async Task DeleteCalendarSubscriptionAsync(string id, CallerContext caller)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        var subscription = await context.CalendarSubscriptions.FirstOrDefaultAsync(s => s.Id == id);
+        if (subscription is null) return;
+        caller.RequireOrganizationAccess(subscription.OrganizationId);
+        caller.RequireUserAccess(subscription.UserId);
+        await context.CalendarSubscriptions.Where(s => s.Id == id).ExecuteDeleteAsync();
+    }
+
+    public async Task<CalendarSubscription?> FindCalendarSubscriptionByTokenAsync(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return null;
+        var hash = CalendarSubscription.HashToken(token);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.CalendarSubscriptions
+            .Include(s => s.Organization)
+            .FirstOrDefaultAsync(s => s.TokenHash == hash);
+    }
+
+    public async Task TouchCalendarSubscriptionAsync(string id)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        await context.CalendarSubscriptions
+            .Where(s => s.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.LastAccessedAt, DateTime.UtcNow));
     }
 }

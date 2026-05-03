@@ -28,6 +28,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<DbSongPartLabel> SongPartLabels { get; set; }
     public DbSet<DbSongArrangement> SongArrangements { get; set; }
     public DbSet<PresentationSlides> PresentationSlides { get; set; }
+    public DbSet<CalendarSubscription> CalendarSubscriptions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -176,6 +177,15 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
         modelBuilder.Entity<McpApiKey>()
             .HasIndex(k => k.KeyHash)
             .IsUnique();
+
+        modelBuilder.Entity<CalendarSubscription>(e =>
+        {
+            e.Property(s => s.Name).HasMaxLength(AppConstraints.NameMaxLength);
+            e.HasIndex(s => s.TokenHash).IsUnique();
+            e.HasIndex(s => new { s.UserId, s.OrganizationId });
+            e.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(s => s.Organization).WithMany().HasForeignKey(s => s.OrganizationId).OnDelete(DeleteBehavior.Cascade);
+        });
 
         // SQLite does not support DateTimeOffset in ORDER BY — store as ticks (long)
         if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
