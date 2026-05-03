@@ -1,3 +1,4 @@
+using System.Text;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using Ical.Net;
@@ -10,7 +11,7 @@ namespace GospelPresenter.Shared.Services;
 
 public interface ICalendarFeedService
 {
-    Task<string> BuildIcsAsync(string organizationId, CancellationToken cancellationToken = default);
+    Task<string> BuildIcsAsync(string organizationId, string? baseUrl, CancellationToken cancellationToken = default);
 }
 
 public class CalendarFeedService(IDbContextFactory<PresentationContext> dbContextFactory) : ICalendarFeedService
@@ -18,7 +19,7 @@ public class CalendarFeedService(IDbContextFactory<PresentationContext> dbContex
     private const int LookbackDays = 30;
     private const int DefaultDurationHours = 1;
 
-    public async Task<string> BuildIcsAsync(string organizationId, CancellationToken cancellationToken = default)
+    public async Task<string> BuildIcsAsync(string organizationId, string? baseUrl, CancellationToken cancellationToken = default)
     {
         var lookbackThreshold = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-LookbackDays));
 
@@ -30,6 +31,7 @@ public class CalendarFeedService(IDbContextFactory<PresentationContext> dbContex
 
         var presentations = await context.Presentations
             .AsNoTracking()
+            .Include(p => p.Items.OrderBy(i => i.SortOrder))
             .Where(p => p.OrganizationId == organizationId
                         && !p.IsTemplate
                         && p.EventDate != null
@@ -43,16 +45,18 @@ public class CalendarFeedService(IDbContextFactory<PresentationContext> dbContex
             organization is null ? "Gospel Presenter" : $"Gospel Presenter — {organization.Name}");
         calendar.AddProperty("X-WR-CALDESC", "Kommande presentationer");
 
+        var trimmedBaseUrl = baseUrl?.TrimEnd('/');
+
         foreach (var presentation in presentations)
         {
-            calendar.Events.Add(BuildEvent(presentation));
+            calendar.Events.Add(BuildEvent(presentation, trimmedBaseUrl));
         }
 
         var serializer = new CalendarSerializer();
         return serializer.SerializeToString(calendar);
     }
 
-    private static CalendarEvent BuildEvent(Presentation presentation)
+    private static CalendarEvent BuildEvent(Presentation presentation, string? baseUrl)
     {
         var eventDate = presentation.EventDate!.Value;
         var calEvent = new CalendarEvent
@@ -63,10 +67,15 @@ public class CalendarFeedService(IDbContextFactory<PresentationContext> dbContex
             LastModified = new CalDateTime(presentation.UpdatedAt.UtcDateTime, "UTC"),
         };
 
-        if (!string.IsNullOrWhiteSpace(presentation.Description))
-            calEvent.Description = presentation.Description;
         if (!string.IsNullOrWhiteSpace(presentation.EventLocation))
             calEvent.Location = presentation.EventLocation;
+
+        var description = BuildDescription(presentation, baseUrl);
+        if (description.Length > 0)
+            calEvent.Description = description;
+
+        if (baseUrl is not null && Uri.TryCreate($"{baseUrl}/presentations/{presentation.Id}", UriKind.Absolute, out var uri))
+            calEvent.Url = uri;
 
         if (presentation.EventTime is { } eventTime)
         {
@@ -89,4 +98,52 @@ public class CalendarFeedService(IDbContextFactory<PresentationContext> dbContex
 
         return calEvent;
     }
+
+    private static string BuildDescription(Presentation presentation, string? baseUrl)
+    {
+        var sb = new StringBuilder();
+
+        if (!string.IsNullOrWhiteSpace(presentation.Description))
+        {
+            sb.Append(presentation.Description.Trim());
+            sb.Append('\n');
+            sb.Append('\n');
+        }
+
+        foreach (var item in presentation.Items)
+        {
+            sb.Append(IconFor(item.Type));
+            sb.Append(' ');
+            sb.Append(string.IsNullOrWhiteSpace(item.Title) ? FallbackTitleFor(item.Type) : item.Title);
+            sb.Append('\n');
+        }
+
+        if (baseUrl is not null)
+        {
+            if (sb.Length > 0) sb.Append('\n');
+            sb.Append($"{baseUrl}/presentations/{presentation.Id}");
+        }
+
+        return sb.ToString().TrimEnd('\n');
+    }
+
+    private static string IconFor(PresentationItemType type) => type switch
+    {
+        PresentationItemType.Song => "🎵",
+        PresentationItemType.BibleText => "📖",
+        PresentationItemType.Image => "🖼️",
+        PresentationItemType.Audio => "🔊",
+        PresentationItemType.Slides => "📊",
+        _ => "•"
+    };
+
+    private static string FallbackTitleFor(PresentationItemType type) => type switch
+    {
+        PresentationItemType.Song => "Sång",
+        PresentationItemType.BibleText => "Bibeltext",
+        PresentationItemType.Image => "Bild",
+        PresentationItemType.Audio => "Ljud",
+        PresentationItemType.Slides => "Slides",
+        _ => type.ToString()
+    };
 }

@@ -44,7 +44,7 @@ public class CalendarFeedServiceTests : IDisposable
         AddPresentation("upcoming", "Upcoming", today.AddDays(7), new TimeOnly(18, 0));
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldContain("SUMMARY:Recent");
@@ -59,7 +59,7 @@ public class CalendarFeedServiceTests : IDisposable
         AddPresentation("ancient", "Ancient", today.AddDays(-31), new TimeOnly(11, 0));
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldNotContain("SUMMARY:Ancient");
@@ -72,7 +72,7 @@ public class CalendarFeedServiceTests : IDisposable
         AddPresentation("undated", "Undated", null, null);
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldNotContain("SUMMARY:Undated");
@@ -86,7 +86,7 @@ public class CalendarFeedServiceTests : IDisposable
         AddPresentation("template", "Template", today.AddDays(7), new TimeOnly(11, 0), isTemplate: true);
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldNotContain("SUMMARY:Template");
@@ -106,7 +106,7 @@ public class CalendarFeedServiceTests : IDisposable
         AddPresentation("other", "OtherOrgEvent", today.AddDays(7), new TimeOnly(11, 0), organizationId: otherOrg.Id);
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldNotContain("SUMMARY:OtherOrgEvent");
@@ -120,7 +120,7 @@ public class CalendarFeedServiceTests : IDisposable
             new DateOnly(2099, 6, 15), new TimeOnly(14, 30));
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert — floating time has no Z suffix and no TZID
         ics.ShouldContain("DTSTART:20990615T143000");
@@ -134,7 +134,7 @@ public class CalendarFeedServiceTests : IDisposable
         AddPresentation("allday", "All Day", new DateOnly(2099, 6, 15), eventTime: null);
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldContain("DTSTART;VALUE=DATE:20990615");
@@ -149,7 +149,7 @@ public class CalendarFeedServiceTests : IDisposable
         AddPresentation("stable-id", "Stable", today.AddDays(7), new TimeOnly(11, 0));
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldContain("UID:presentation-stable-id@gospelpresenter");
@@ -159,7 +159,7 @@ public class CalendarFeedServiceTests : IDisposable
     public async Task BuildIcsAsync_IncludesOrganizationNameInCalName()
     {
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldContain("X-WR-CALNAME:Gospel Presenter — Test Church");
@@ -174,18 +174,98 @@ public class CalendarFeedServiceTests : IDisposable
             location: "Main Hall", description: "Sunday service");
 
         // Act
-        var ics = await service.BuildIcsAsync(org.Id);
+        var ics = await service.BuildIcsAsync(org.Id, null);
 
         // Assert
         ics.ShouldContain("LOCATION:Main Hall");
         ics.ShouldContain("DESCRIPTION:Sunday service");
     }
 
+    [Fact]
+    public async Task BuildIcsAsync_RendersItemsWithIconsInDescription()
+    {
+        // Arrange
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        AddPresentation("with-items", "Sunday Service", today.AddDays(7), new TimeOnly(11, 0), items:
+        [
+            (PresentationItemType.Song, "Amazing Grace"),
+            (PresentationItemType.BibleText, "John 3:16"),
+            (PresentationItemType.Audio, "Intro music"),
+            (PresentationItemType.Slides, "Sermon"),
+            (PresentationItemType.Image, "Closing image")
+        ]);
+
+        // Act
+        var ics = Unfold(await service.BuildIcsAsync(org.Id, null));
+
+        // Assert
+        ics.ShouldContain("🎵 Amazing Grace");
+        ics.ShouldContain("📖 John 3:16");
+        ics.ShouldContain("🔊 Intro music");
+        ics.ShouldContain("📊 Sermon");
+        ics.ShouldContain("🖼️ Closing image");
+    }
+
+    // RFC 5545 line folding: CRLF followed by whitespace must be removed before reading content.
+    private static string Unfold(string ics) => ics.Replace("\r\n ", "").Replace("\r\n\t", "");
+
+    [Fact]
+    public async Task BuildIcsAsync_PreservesItemSortOrder()
+    {
+        // Arrange
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        AddPresentation("ordered", "Service", today.AddDays(7), new TimeOnly(11, 0), items:
+        [
+            (PresentationItemType.Song, "Second song"),
+            (PresentationItemType.Song, "First song")
+        ], sortOrders: [1, 0]);
+
+        // Act
+        var ics = await service.BuildIcsAsync(org.Id, null);
+
+        // Assert — first song appears before second in the description
+        var firstIdx = ics.IndexOf("First song", StringComparison.Ordinal);
+        var secondIdx = ics.IndexOf("Second song", StringComparison.Ordinal);
+        firstIdx.ShouldBeGreaterThan(0);
+        secondIdx.ShouldBeGreaterThan(firstIdx);
+    }
+
+    [Fact]
+    public async Task BuildIcsAsync_IncludesPresentationLinkWhenBaseUrlProvided()
+    {
+        // Arrange
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        AddPresentation("linked", "Service", today.AddDays(7), new TimeOnly(11, 0));
+
+        // Act
+        var ics = await service.BuildIcsAsync(org.Id, "https://app.example.com");
+
+        // Assert
+        ics.ShouldContain("https://app.example.com/presentations/linked");
+        ics.ShouldContain("URL");
+    }
+
+    [Fact]
+    public async Task BuildIcsAsync_OmitsLinkWhenBaseUrlIsNull()
+    {
+        // Arrange
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        AddPresentation("nolink", "Service", today.AddDays(7), new TimeOnly(11, 0));
+
+        // Act
+        var ics = await service.BuildIcsAsync(org.Id, null);
+
+        // Assert
+        ics.ShouldNotContain("/presentations/nolink");
+    }
+
     private void AddPresentation(string id, string name, DateOnly? eventDate, TimeOnly? eventTime,
-        string? location = null, string? description = null, bool isTemplate = false, string? organizationId = null)
+        string? location = null, string? description = null, bool isTemplate = false, string? organizationId = null,
+        IReadOnlyList<(PresentationItemType Type, string Title)>? items = null,
+        IReadOnlyList<int>? sortOrders = null)
     {
         using var context = factory.CreateDbContext();
-        context.Presentations.Add(new Presentation
+        var presentation = new Presentation
         {
             Id = id,
             Name = name,
@@ -199,7 +279,21 @@ public class CalendarFeedServiceTests : IDisposable
             Description = description,
             IsTemplate = isTemplate,
             OrganizationId = organizationId ?? org.Id
-        });
+        };
+        context.Presentations.Add(presentation);
+        if (items is not null)
+        {
+            for (var i = 0; i < items.Count; i++)
+            {
+                context.PresentationItems.Add(new PresentationItem
+                {
+                    PresentationId = id,
+                    Type = items[i].Type,
+                    Title = items[i].Title,
+                    SortOrder = sortOrders is not null ? sortOrders[i] : i
+                });
+            }
+        }
         context.SaveChanges();
     }
 

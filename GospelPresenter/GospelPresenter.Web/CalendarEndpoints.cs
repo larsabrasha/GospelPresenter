@@ -11,6 +11,7 @@ public static class CalendarEndpoints
     {
         app.MapGet("/api/calendar/{token}.ics", async (
             string token,
+            HttpContext httpContext,
             [FromServices] IUserService userService,
             [FromServices] ICalendarFeedService feedService,
             [FromServices] ILogger<Program> logger,
@@ -20,10 +21,13 @@ public static class CalendarEndpoints
             if (subscription is null)
                 return Results.NotFound();
 
+            var request = httpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+
             string ics;
             try
             {
-                ics = await feedService.BuildIcsAsync(subscription.OrganizationId, cancellationToken);
+                ics = await feedService.BuildIcsAsync(subscription.OrganizationId, baseUrl, cancellationToken);
             }
             catch (Exception ex)
             {
