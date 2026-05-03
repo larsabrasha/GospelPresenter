@@ -1529,4 +1529,49 @@
   <data name="StageMode.ToggleOverlays" xml:space="preserve">
     <value>Visa/dölj overlays</value>
   </data>
+  <data name="Calendar.Title" xml:space="preserve">
+    <value>Kalenderprenumeration</value>
+  </data>
+  <data name="Calendar.Description" xml:space="preserve">
+    <value>Prenumerera på kommande presentationer från din mobil eller dators kalenderapp. Länken är personlig — den som har den kan läsa din organisations händelser.</value>
+  </data>
+  <data name="Calendar.Create" xml:space="preserve">
+    <value>Skapa kalenderlänk</value>
+  </data>
+  <data name="Calendar.CreateTitle" xml:space="preserve">
+    <value>Skapa kalenderlänk</value>
+  </data>
+  <data name="Calendar.Empty" xml:space="preserve">
+    <value>Inga kalenderlänkar</value>
+  </data>
+  <data name="Calendar.EmptyDescription" xml:space="preserve">
+    <value>Skapa en länk för att prenumerera på dina presentationer från din kalenderapp.</value>
+  </data>
+  <data name="Calendar.LastAccessed" xml:space="preserve">
+    <value>Senast hämtad: {0}</value>
+  </data>
+  <data name="Calendar.NeverAccessed" xml:space="preserve">
+    <value>Inte hämtad ännu</value>
+  </data>
+  <data name="Calendar.Created" xml:space="preserve">
+    <value>Kalenderlänk skapad</value>
+  </data>
+  <data name="Calendar.CreatedDescription" xml:space="preserve">
+    <value>Kopiera länken nu eller öppna den direkt i din kalenderapp. Den visas inte igen.</value>
+  </data>
+  <data name="Calendar.OpenInCalendar" xml:space="preserve">
+    <value>Lägg till i kalender</value>
+  </data>
+  <data name="Calendar.ConfirmDeleteTitle" xml:space="preserve">
+    <value>Ta bort kalenderlänk</value>
+  </data>
+  <data name="Calendar.ConfirmDeleteMessage" xml:space="preserve">
+    <value>Är du säker på att du vill ta bort kalenderlänken "{0}"? Den som använder den slutar få uppdateringar.</value>
+  </data>
+  <data name="Calendar.Deleted" xml:space="preserve">
+    <value>Kalenderlänk borttagen</value>
+  </data>
+  <data name="Calendar.LinkCopied" xml:space="preserve">
+    <value>Kalenderlänk kopierad</value>
+  </data>
 </root>

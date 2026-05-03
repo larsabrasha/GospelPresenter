@@ -14,6 +14,7 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 @inject ActiveOrganizationState OrgState
+@inject ToastService Toast
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <DetailHeader @ref="header" Title="@L["Profile.Title"]" Class="px-5"/>
@@ -56,6 +57,77 @@
             <FloatingInput Id="profile-email" Label="@L["Common.Email"]" Type="email"
                            Value="@user.Email" Disabled/>
         </div>
+
+        <div class="flex items-center justify-between px-5">
+            <div class="text-xl font-bold dark:text-neutral-100">@L["Calendar.Title"]</div>
+            @if (calendarSubscriptions is not null && calendarSubscriptions.Count > 0)
+            {
+                <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateCalendarDialog" Class="flex items-center">
+                    <PlusSymbol Class="size-4 mr-2"/>@L["Calendar.Create"]
+                </AppButton>
+            }
+        </div>
+
+        <div class="px-5 pb-2 text-sm text-neutral-500 dark:text-neutral-400">
+            <p>@L["Calendar.Description"]</p>
+        </div>
+
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+            @if (calendarSubscriptions is null)
+            {
+                <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+            }
+            else if (calendarSubscriptions.Count == 0)
+            {
+                <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                        <rect x="40" y="40" width="120" height="100" rx="10" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <line x1="40" y1="68" x2="160" y2="68" stroke="currentColor" stroke-width="2"/>
+                        <line x1="65" y1="30" x2="65" y2="50" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="135" y1="30" x2="135" y2="50" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="75" cy="92" r="4" fill="currentColor"/>
+                        <circle cx="100" cy="92" r="4" fill="currentColor"/>
+                        <circle cx="125" cy="92" r="4" fill="currentColor"/>
+                        <circle cx="75" cy="115" r="4" fill="currentColor" opacity="0.5"/>
+                        <circle cx="100" cy="115" r="4" fill="currentColor" opacity="0.5"/>
+                    </svg>
+                    <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Calendar.Empty"]</h2>
+                    <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                        @L["Calendar.EmptyDescription"]
+                    </p>
+                    <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateCalendarDialog" Class="flex items-center gap-1.5">
+                        <PlusSymbol Class="size-4"/>
+                        @L["Calendar.Create"]
+                    </AppButton>
+                </div>
+            }
+            else
+            {
+                @foreach (var subscription in calendarSubscriptions)
+                {
+                    <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium">@subscription.Name</div>
+                            <div class="text-xs text-neutral-400">
+                                @subscription.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd")
+                                &middot;
+                                @if (subscription.LastAccessedAt.HasValue)
+                                {
+                                    @L["Calendar.LastAccessed", subscription.LastAccessedAt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")]
+                                }
+                                else
+                                {
+                                    @L["Calendar.NeverAccessed"]
+                                }
+                            </div>
+                        </div>
+                        <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmDeleteCalendarSubscription(subscription)" Class="px-3 py-1.5">
+                            @L["Common.Delete"]
+                        </AppButton>
+                    </div>
+                }
+            }
+        </div>
     }
 </div>
 
@@ -71,6 +143,61 @@
                 </AppButton>
                 <AppButton Variant="ButtonVariant.Danger" Filled OnClick="ExecuteConfirmAction">
                     @confirmButtonText
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@if (showCreateCalendarDialog)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseCreateCalendarDialog">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@L["Calendar.CreateTitle"]</div>
+            <FloatingInput @ref="calendarNameInput" Id="calendar-subscription-name" Label="@L["Common.Name"]"
+                           Value="@editCalendarName" OnInput="(e) => editCalendarName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnCreateCalendarKeyDown"
+                           MaxLength="AppConstraints.NameMaxLength"/>
+            <div class="flex justify-end gap-3">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseCreateCalendarDialog">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Primary"
+                           Disabled="@(isCreatingCalendar || string.IsNullOrWhiteSpace(editCalendarName))"
+                           OnClick="CreateCalendarSubscription">
+                    @(isCreatingCalendar ? L["Common.Creating"] : L["Common.Create"])
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@if (createdCalendarUrl is not null)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="() => createdCalendarUrl = null">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@L["Calendar.Created"]</div>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">@L["Calendar.CreatedDescription"]</p>
+            <div class="flex items-center gap-2">
+                <input type="text" readonly value="@createdCalendarUrl"
+                       class="flex-1 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-600 text-sm border border-neutral-200 dark:border-neutral-500 select-all"/>
+                <button class="px-3 self-stretch rounded-lg bg-neutral-200 dark:bg-neutral-500 cursor-pointer hover:bg-neutral-300 dark:hover:bg-neutral-400"
+                        title="@L["UserDetail.Copy"]"
+                        data-copy-text="@createdCalendarUrl"
+                        @onclick="CopyCalendarUrl">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                        <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1Z"/>
+                        <path d="M4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex justify-end gap-3">
+                <a href="@createdCalendarWebcalUrl" class="inline-flex">
+                    <AppButton Variant="ButtonVariant.Secondary">
+                        @L["Calendar.OpenInCalendar"]
+                    </AppButton>
+                </a>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="() => createdCalendarUrl = null">
+                    @L["Common.OK"]
                 </AppButton>
             </div>
         </div>
@@ -114,6 +241,15 @@
     private string confirmMessage = "";
     private string confirmButtonText = "";
 
+    private List<CalendarSubscription>? calendarSubscriptions;
+    private bool showCreateCalendarDialog;
+    private bool isCreatingCalendar;
+    private string editCalendarName = "";
+    private string? createdCalendarUrl;
+    private string? createdCalendarWebcalUrl;
+    private FloatingInput? calendarNameInput;
+    private bool shouldFocusCalendarName;
+
     protected override async Task OnInitializedAsync()
     {
         if (AuthState is not null)
@@ -131,6 +267,16 @@
             return;
         }
         editName = user.Name;
+
+        await LoadCalendarSubscriptions();
+    }
+
+    private async Task LoadCalendarSubscriptions()
+    {
+        if (userId is null) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+        calendarSubscriptions = await UserService.GetCalendarSubscriptionsAsync(userId, orgId, OrgState.ToCallerContext());
     }
 
     private readonly Utils.Debouncer saveDebounce = new();
@@ -238,5 +384,75 @@
         await UserService.UpdateProfileImageAsync(userId, null, null, OrgState.ToCallerContext());
         user = await UserService.GetByIdAsync(userId, OrgState.ToCallerContext());
         WeakReferenceMessenger.Default.Send(new CurrentUserChangedMessage());
+    }
+
+    private void ShowCreateCalendarDialog()
+    {
+        editCalendarName = "";
+        showCreateCalendarDialog = true;
+        shouldFocusCalendarName = true;
+    }
+
+    private void CloseCreateCalendarDialog() => showCreateCalendarDialog = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldFocusCalendarName)
+        {
+            shouldFocusCalendarName = false;
+            if (calendarNameInput is not null)
+                try { await calendarNameInput.FocusAsync(); } catch { }
+        }
+    }
+
+    private async Task OnCreateCalendarKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(editCalendarName))
+            await CreateCalendarSubscription();
+        else if (e.Key == "Escape")
+            CloseCreateCalendarDialog();
+    }
+
+    private async Task CreateCalendarSubscription()
+    {
+        if (isCreatingCalendar || string.IsNullOrWhiteSpace(editCalendarName) || userId is null) return;
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        isCreatingCalendar = true;
+        try
+        {
+            var (_, plaintext) = await UserService.CreateCalendarSubscriptionAsync(
+                editCalendarName.Trim(), userId, orgId, OrgState.ToCallerContext());
+            var baseUri = NavigationManager.BaseUri.TrimEnd('/');
+            createdCalendarUrl = $"{baseUri}/api/calendar/{plaintext}.ics";
+            createdCalendarWebcalUrl = createdCalendarUrl
+                .Replace("https://", "webcal://")
+                .Replace("http://", "webcal://");
+            await LoadCalendarSubscriptions();
+        }
+        finally
+        {
+            isCreatingCalendar = false;
+            showCreateCalendarDialog = false;
+        }
+    }
+
+    private void CopyCalendarUrl()
+    {
+        if (createdCalendarUrl is null) return;
+        Toast.Show(L["Calendar.LinkCopied"]);
+    }
+
+    private void ConfirmDeleteCalendarSubscription(CalendarSubscription subscription) => ShowConfirm(
+        L["Calendar.ConfirmDeleteTitle"],
+        L["Calendar.ConfirmDeleteMessage", subscription.Name],
+        () => DeleteCalendarSubscription(subscription));
+
+    private async Task DeleteCalendarSubscription(CalendarSubscription subscription)
+    {
+        await UserService.DeleteCalendarSubscriptionAsync(subscription.Id, OrgState.ToCallerContext());
+        calendarSubscriptions?.Remove(subscription);
+        Toast.Show(L["Calendar.Deleted"]);
     }
 }

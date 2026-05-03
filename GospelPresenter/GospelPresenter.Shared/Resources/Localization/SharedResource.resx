@@ -1529,4 +1529,49 @@
   <data name="StageMode.ToggleOverlays" xml:space="preserve">
     <value>Toggle overlays</value>
   </data>
+  <data name="Calendar.Title" xml:space="preserve">
+    <value>Calendar subscription</value>
+  </data>
+  <data name="Calendar.Description" xml:space="preserve">
+    <value>Subscribe to upcoming presentations from your phone or computer's calendar app. The link is personal — anyone with it can read your organization's events.</value>
+  </data>
+  <data name="Calendar.Create" xml:space="preserve">
+    <value>Create calendar link</value>
+  </data>
+  <data name="Calendar.CreateTitle" xml:space="preserve">
+    <value>Create calendar link</value>
+  </data>
+  <data name="Calendar.Empty" xml:space="preserve">
+    <value>No calendar links</value>
+  </data>
+  <data name="Calendar.EmptyDescription" xml:space="preserve">
+    <value>Create a link to subscribe to your presentations from your calendar app.</value>
+  </data>
+  <data name="Calendar.LastAccessed" xml:space="preserve">
+    <value>Last accessed: {0}</value>
+  </data>
+  <data name="Calendar.NeverAccessed" xml:space="preserve">
+    <value>Not yet accessed</value>
+  </data>
+  <data name="Calendar.Created" xml:space="preserve">
+    <value>Calendar link created</value>
+  </data>
+  <data name="Calendar.CreatedDescription" xml:space="preserve">
+    <value>Copy this link now or open it directly in your calendar app. It will not be shown again.</value>
+  </data>
+  <data name="Calendar.OpenInCalendar" xml:space="preserve">
+    <value>Add to calendar</value>
+  </data>
+  <data name="Calendar.ConfirmDeleteTitle" xml:space="preserve">
+    <value>Delete calendar link</value>
+  </data>
+  <data name="Calendar.ConfirmDeleteMessage" xml:space="preserve">
+    <value>Are you sure you want to delete the calendar link "{0}"? Anyone using it will stop receiving updates.</value>
+  </data>
+  <data name="Calendar.Deleted" xml:space="preserve">
+    <value>Calendar link deleted</value>
+  </data>
+  <data name="Calendar.LinkCopied" xml:space="preserve">
+    <value>Calendar link copied</value>
+  </data>
 </root>
