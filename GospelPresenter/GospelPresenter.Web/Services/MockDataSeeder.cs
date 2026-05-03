@@ -1,5 +1,7 @@
+using System.Globalization;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Web.Services;
@@ -19,6 +21,17 @@ public static class MockDataSeeder
         await db.SaveChangesAsync();
     }
 
+    // Mark the welcome modal as already seen so screenshots and dev sessions don't open with it.
+    static void SuppressWelcomeModal(PresentationContext db, string userId, DateTimeOffset now)
+    {
+        db.UserSettings.Add(new UserSetting
+        {
+            UserId = userId,
+            Key = OnboardingService.WelcomeShownAtKey,
+            Value = now.ToString("O", CultureInfo.InvariantCulture)
+        });
+    }
+
     static void SeedSwedish(PresentationContext db, DateTimeOffset now)
     {
         var org = new Organization { Id = "mock-org-sv", Name = "Foo Bar Kyrka" };
@@ -34,6 +47,8 @@ public static class MockDataSeeder
             Logins = [new UserLogin { Provider = "mock", ProviderSubjectId = "mock-sv" }]
         };
         db.Users.Add(user);
+
+        SuppressWelcomeModal(db, user.Id, now);
 
         // Song part labels
         var vers = new DbSongPartLabel { Id = "sv-label-vers", Text = "Vers", Color = "#3b82f6", SortOrder = 0, OrganizationId = org.Id };
@@ -502,6 +517,8 @@ public static class MockDataSeeder
             Logins = [new UserLogin { Provider = "mock", ProviderSubjectId = "mock-en" }]
         };
         db.Users.Add(user);
+
+        SuppressWelcomeModal(db, user.Id, now);
 
         // Song part labels
         var verse = new DbSongPartLabel { Id = "en-label-verse", Text = "Verse", Color = "#3b82f6", SortOrder = 0, OrganizationId = org.Id };
