@@ -128,6 +128,10 @@
 
                     <div @key="item.Id" data-id="@item.Id"
                          class="flex items-center mx-2 rounded-lg text-sm group scroll-mb-16 @itemClass">
+                        @{
+                            var isLive = LiveProjectItemId is not null && item.Id == LiveProjectItemId;
+                        }
+                        <div class="ml-2 -mr-2 size-2 shrink-0 rounded-full @(isLive ? "bg-red-500 animate-pulse" : "")"></div>
                         @if (isEditMode)
                         {
                             var isChecked = selectedItemIds.Contains(item.Id);
@@ -287,6 +291,7 @@
     [Parameter] public EventCallback OnSaveAsTemplate { get; set; }
     [Parameter] public EventCallback<(int? DayOfWeek, TimeOnly? Time, string? Location)> OnScheduleChanged { get; set; }
     [Parameter] public EventCallback<(DateOnly? Date, TimeOnly? Time, string? Location, string? Description)> OnEventChanged { get; set; }
+    [Parameter] public string? LiveProjectItemId { get; set; }
 
     private bool showPresentationDetailsDialog;
     private bool showTemplateDetailsDialog;

@@ -114,7 +114,8 @@
                  IsTemplateMode="@IsTemplateMode"
                  OnSaveAsTemplate="@ConfirmSaveAsTemplate"
                  OnScheduleChanged="@HandleScheduleChanged"
-                 OnEventChanged="@HandleEventChanged"/>
+                 OnEventChanged="@HandleEventChanged"
+                 LiveProjectItemId="@SidebarLiveProjectItemId"/>
 
     </div>
 
@@ -663,6 +664,16 @@
     private bool IsStageReady => IsStageMode
         && IsRemoteReady
         && SharedAppState.IsPresentationActive(EffectiveSessionId);
+
+    private string? SidebarLiveProjectItemId
+    {
+        get
+        {
+            if (!SharedAppState.IsPresentationActive(EffectiveSessionId)) return null;
+            var slide = SharedAppState.GetLiveSlide(EffectiveSessionId);
+            return slide.Status == LiveSlideStatus.ShowingPresentation ? slide.ProjectItemId : null;
+        }
+    }
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
