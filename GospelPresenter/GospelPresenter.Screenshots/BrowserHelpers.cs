@@ -100,10 +100,10 @@ static class BrowserHelpers
         // Wait for the presentation link to appear in the DOM.
         // This requires the app to be running in mock mode (auto-signs in).
         // If auth is required, this will time out on the login page.
-        var link = page.Locator("a[href^='/presentations/']").First;
+        var links = page.Locator("a[href^='/presentations/']");
         try
         {
-            await link.WaitForAsync(new LocatorWaitForOptions { Timeout = 10_000 });
+            await links.First.WaitForAsync(new LocatorWaitForOptions { Timeout = 10_000 });
         }
         catch (TimeoutException)
         {
@@ -112,13 +112,46 @@ static class BrowserHelpers
                 "Make sure the app is running in mock mode (auto-sign-in) and has at least one presentation.");
         }
 
-        var href = await link.GetAttributeAsync("href")
-            ?? throw new InvalidOperationException("Presentation link found but has no href attribute.");
+        var ids = (await links.EvaluateAllAsync<string[]>(
+                "nodes => nodes.map(n => n.getAttribute('href'))"))
+            .Where(href => !string.IsNullOrEmpty(href))
+            .Select(ExtractId)
+            .Distinct()
+            .ToList();
+
+        // The newest presentation is not necessarily planned yet — the seed data deliberately
+        // includes an empty upcoming service. Capturing the presentation, live and stage pages
+        // needs one with items, so take the first that actually has any.
+        foreach (var id in ids)
+        {
+            await page.GotoAsync($"{baseUrl.TrimEnd('/')}/presentations/{id}",
+                new PageGotoOptions { WaitUntil = WaitUntilState.Load });
+
+            try
+            {
+                await page.Locator("[data-id]").First.WaitForAsync(
+                    new LocatorWaitForOptions { Timeout = 5_000 });
+            }
+            catch (TimeoutException)
+            {
+                continue;
+            }
+
+            await page.CloseAsync();
+            return id;
+        }
 
         await page.CloseAsync();
 
-        // href is like "/presentations/{guid}" — strip query/fragment before extracting the ID
-        var path = new Uri(href, UriKind.Relative).ToString().Split('?')[0].Split('#')[0];
+        throw new InvalidOperationException(
+            $"None of the {ids.Count} presentations on the home page contain any items, so the " +
+            "presentation, live and stage pages cannot be captured.");
+    }
+
+    // href is like "/presentations/{id}" — strip query/fragment before extracting the ID
+    static string ExtractId(string? href)
+    {
+        var path = new Uri(href!, UriKind.Relative).ToString().Split('?')[0].Split('#')[0];
         return path.TrimEnd('/').Split('/').Last();
     }
 }
