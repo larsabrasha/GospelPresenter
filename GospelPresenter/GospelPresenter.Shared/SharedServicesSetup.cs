@@ -12,6 +12,7 @@ public static class SharedServicesSetup
     public static void AddSharedGospelPresenterServices(this IServiceCollection services, IConfiguration? configuration = null)
     {
         var timeoutMinutes = configuration?.GetValue("Settings:SessionTimeoutMinutes", 240) ?? 240;
+        var maxPublicViewers = configuration?.GetValue("Settings:PublicOutputMaxViewers", 500) ?? 500;
 
         services.AddLocalization(options => options.ResourcesPath = "Resources");
         services.AddScoped<ToastService>();
@@ -21,6 +22,8 @@ public static class SharedServicesSetup
             TimeSpan.FromMinutes(timeoutMinutes),
             sp.GetRequiredService<ILogger<SharedAppState>>()));
         services.AddSingleton<RemoteDisplayState>();
+        services.AddSingleton<PublicOutputState>(_ => new PublicOutputState(maxPublicViewers));
+        services.AddSingleton<PublicOutputBroadcaster>();
         services.AddScoped<IRemoteDisplayService, RemoteDisplayService>();
         services.AddScoped<ISongPartLabelService, SongPartLabelService>();
         services.AddSingleton<IImageService, ImageService>();

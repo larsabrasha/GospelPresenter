@@ -411,3 +411,6 @@ GospelPresenter/songs
 GospelPresenter/GospelPresenter.Web/gospelpresenter-mock.db*
 
 GospelPresenter/.env
+
+# Local MCP server config — contains API keys
+.mcp.json

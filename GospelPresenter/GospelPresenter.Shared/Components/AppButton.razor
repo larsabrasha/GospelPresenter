@@ -1,6 +1,6 @@
 @if (Href is not null)
 {
-    <a href="@Href" target="@Target" title="@Title"
+    <a href="@Href" target="@Target" title="@Title" download="@Download"
        class="@CombinedClass">
         @ChildContent
     </a>
@@ -35,6 +35,7 @@ else
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Href { get; set; }
     [Parameter] public string? Target { get; set; }
+    [Parameter] public string? Download { get; set; }
     [Parameter] public string? Title { get; set; }
     [Parameter] public string? Type { get; set; }
     [Parameter] public bool AsLabel { get; set; }
