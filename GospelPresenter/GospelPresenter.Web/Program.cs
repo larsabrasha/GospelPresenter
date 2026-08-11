@@ -265,9 +265,8 @@ builder.Services.AddMetricServer(options =>
     {
         await using var scope = app.Services.CreateAsyncScope();
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PresentationContext>>();
-        await using var db = await dbFactory.CreateDbContextAsync();
-        await db.Database.EnsureCreatedAsync();
-        await MockDataSeeder.SeedAsync(db);
+        await MockDatabaseInitializer.InitializeAsync(
+            dbFactory, app.Services.GetRequiredService<ILogger<Program>>());
     }
 
     {
@@ -333,6 +332,8 @@ builder.Services.AddMetricServer(options =>
                                      || path.StartsWith("/_", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/health", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/api/calendar/", StringComparison.OrdinalIgnoreCase)
+                                     || path.StartsWith("/watch/", StringComparison.OrdinalIgnoreCase)
+                                     || path.StartsWith("/api/watch/", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/live", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/display", StringComparison.OrdinalIgnoreCase);
                     if (!isPublicPath)
@@ -687,6 +688,11 @@ builder.Services.AddMetricServer(options =>
     }).RequireAuthorization();
 
     app.MapCalendarEndpoints();
+    app.MapPublicOutputEndpoints();
+
+    // Resolve the broadcaster eagerly: it subscribes to live-state events in its constructor,
+    // and a lazily created singleton would miss every change until the first visitor connected.
+    app.Services.GetRequiredService<PublicOutputBroadcaster>();
 
     // MCP API key authentication middleware
     app.Use(async (context, next) =>

@@ -1346,6 +1346,54 @@
   <data name="Admin.Displays.ConfirmDelete" xml:space="preserve">
     <value>Är du säker på att du vill ta bort skärmen "{0}"?</value>
   </data>
+  <data name="Admin.PublicOutputs.Title" xml:space="preserve">
+    <value>Publika utgångar</value>
+  </data>
+  <data name="Admin.PublicOutputs.Add" xml:space="preserve">
+    <value>Lägg till publik utgång</value>
+  </data>
+  <data name="Admin.PublicOutputs.AddTitle" xml:space="preserve">
+    <value>Ny publik utgång</value>
+  </data>
+  <data name="Admin.PublicOutputs.AddDescription" xml:space="preserve">
+    <value>En publik utgång ger dig en QR-kod som besökare kan skanna för att följa presentationen på sin egen telefon. Alla som har koden kan se sändningen när en presentation sänder till utgången.</value>
+  </data>
+  <data name="Admin.PublicOutputs.Empty" xml:space="preserve">
+    <value>Inga publika utgångar</value>
+  </data>
+  <data name="Admin.PublicOutputs.Description" xml:space="preserve">
+    <value>Låt besökare följa med på sin egen enhet genom att skanna en QR-kod.</value>
+  </data>
+  <data name="Admin.PublicOutputs.Viewers" xml:space="preserve">
+    <value>{0} enheter</value>
+  </data>
+  <data name="Admin.PublicOutputs.ViewersOne" xml:space="preserve">
+    <value>{0} enhet</value>
+  </data>
+  <data name="Admin.PublicOutputs.BroadcastingFrom" xml:space="preserve">
+    <value>Sänder från {0}</value>
+  </data>
+  <data name="Admin.PublicOutputs.ShowQr" xml:space="preserve">
+    <value>Visa QR-kod</value>
+  </data>
+  <data name="Admin.PublicOutputs.ScanQrHint" xml:space="preserve">
+    <value>Besökare skannar den här koden för att följa presentationen på sin egen enhet.</value>
+  </data>
+  <data name="Admin.PublicOutputs.DownloadQr" xml:space="preserve">
+    <value>Ladda ner som bild</value>
+  </data>
+  <data name="Admin.PublicOutputs.Regenerate" xml:space="preserve">
+    <value>Ny kod</value>
+  </data>
+  <data name="Admin.PublicOutputs.RegenerateDescription" xml:space="preserve">
+    <value>Om koden har spridits dit den inte hör hemma kan du byta ut den mot en ny.</value>
+  </data>
+  <data name="Admin.PublicOutputs.RegenerateWarning" xml:space="preserve">
+    <value>"{0}" får en helt ny kod. Alla utskrivna skyltar och sparade länkar slutar fungera, och alla som tittar just nu kopplas bort. Detta kan inte ångras.</value>
+  </data>
+  <data name="Admin.PublicOutputs.RegenerateDone" xml:space="preserve">
+    <value>Ny kod skapad</value>
+  </data>
   <data name="Admin.Labels.Title" xml:space="preserve">
     <value>Etiketter</value>
   </data>
@@ -1432,6 +1480,33 @@
   </data>
   <data name="LivePanel.OutputsHint" xml:space="preserve">
     <value>En utgång är en extern skärm (TV, projektor) som visar presentationen. Lägg till en lokal vy eller en separat enhet via parkod.</value>
+  </data>
+  <data name="LivePanel.PublicOutputViewers" xml:space="preserve">
+    <value>{0} enheter</value>
+  </data>
+  <data name="LivePanel.PublicOutputViewersOne" xml:space="preserve">
+    <value>{0} enhet</value>
+  </data>
+  <data name="LivePanel.PublicOutputBusy" xml:space="preserve">
+    <value>Sänder från {0}</value>
+  </data>
+  <data name="LivePanel.TakeOverTitle" xml:space="preserve">
+    <value>Ta över utgången?</value>
+  </data>
+  <data name="LivePanel.TakeOverMessage" xml:space="preserve">
+    <value>"{0}" sänder till "{1}". Bara en presentation åt gången kan sända till en utgång. Om du tar över följer alla som tittar den här presentationen i stället.</value>
+  </data>
+  <data name="LivePanel.TakeOverMessageUnknown" xml:space="preserve">
+    <value>En annan presentation sänder till "{0}". Bara en presentation åt gången kan sända till en utgång. Om du tar över följer alla som tittar den här presentationen i stället.</value>
+  </data>
+  <data name="LivePanel.TakeOverConfirm" xml:space="preserve">
+    <value>Ta över</value>
+  </data>
+  <data name="Watch.Waiting" xml:space="preserve">
+    <value>Väntar på att sändningen ska börja</value>
+  </data>
+  <data name="Watch.Full" xml:space="preserve">
+    <value>För många enheter tittar just nu. Försök igen om en liten stund.</value>
   </data>
   <data name="LivePanel.RemoteControlHint" xml:space="preserve">
     <value>Slå på för att styra presentationen från en mobil eller surfplatta. En QR-kod visas när du slår på.</value>

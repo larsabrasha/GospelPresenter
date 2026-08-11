@@ -1,0 +1,102 @@
+@using GospelPresenter.Shared.State
+
+@*
+    Renders a live slide for a public output (a visitor's own phone or tablet).
+
+    Unlike LiveSlideView this does NOT use Slide.razor's fixed 1920x1080 canvas. The server
+    renders one HTML fragment that is shared by every viewer of the output, so it cannot know
+    anyone's viewport and cannot compute a scale. Instead the text reflows and CSS sizes it from
+    the viewport, which is also the only way to get readable text on a phone held upright:
+    letterboxing a 16:9 canvas into a portrait screen leaves the text at about 17px.
+
+    The organisation's font family, weight and line height are honoured. Only the absolute pixel
+    size is replaced — by a viewport-relative size that is capped at the configured size, so a
+    desktop viewer sees the slide as designed while a phone gets larger text.
+*@
+
+<div class="absolute inset-0 flex flex-col overflow-hidden">
+    <div class="flex-1 min-w-0 min-h-0 flex items-center justify-center overflow-y-auto">
+        @if (LiveSlide.ItemType == ProjectItemType.Song && LiveSlide.SongPart is not null)
+        {
+            <div class="w-full px-[5vw] py-[4vh] text-center text-white break-words"
+                 style="@ResponsiveTextCss(LiveSlide.SongStyle ?? SlideTextStyle.SongDefault)">
+                @((MarkupString)SongContentHtml)
+            </div>
+        }
+        else if (LiveSlide.ItemType == ProjectItemType.BibleText && LiveSlide.Text is not null)
+        {
+            <div class="w-full px-[5vw] py-[4vh] text-center text-white break-words"
+                 style="@ResponsiveTextCss(LiveSlide.BibleStyle ?? SlideTextStyle.BibleDefault)">
+                @((MarkupString)LiveSlide.Text)
+            </div>
+        }
+        else if (IsImageItem && LiveSlide.ImageUrl is not null)
+        {
+            <img src="@LiveSlide.ImageUrl" alt=""
+                 class="w-full h-full object-contain select-none"/>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(LiveSlide.Credits))
+    {
+        <div class="shrink-0 px-[5vw] pb-[3vh] text-center text-white/40"
+             style="@ResponsiveTextCss(CreditsStyle, MinFontSizePx: 11)">
+            @LiveSlide.Credits
+        </div>
+    }
+
+    @if (Overlay is not null)
+    {
+        <div class="absolute inset-0 pointer-events-none" style="z-index: 50">
+            @if (Overlay.ImageUrl is not null)
+            {
+                <img src="@Overlay.ImageUrl" alt=""
+                     class="absolute inset-0 w-full h-full object-contain"/>
+            }
+            @if (Overlay.Text is not null)
+            {
+                <div class="absolute top-[4vh] left-0 right-0 px-[5vw] text-center text-white/60 whitespace-pre-line"
+                     style="@ResponsiveTextCss(SlideTextStyle.CreditsDefault, MinFontSizePx: 11) text-shadow: 0 1px 4px rgba(0,0,0,0.6);">
+                    @Overlay.Text
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public required LiveSlide LiveSlide { get; set; }
+    [Parameter] public ActiveOverlay? Overlay { get; set; }
+
+    // The slide canvas the configured font sizes are expressed against.
+    private const double BaseSlideWidth = 1920.0;
+    private const double BaseSlideHeight = 1080.0;
+
+    // How much larger the text is relative to its share of the slide width. Without this a
+    // phone in portrait renders the default 85px song text at about 17px, which the audience
+    // this feature exists for cannot read.
+    private const double ViewportBoost = 1.6;
+
+    private bool IsImageItem =>
+        LiveSlide.ItemType is ProjectItemType.Image or ProjectItemType.Slides;
+
+    private string SongContentHtml =>
+        LiveSlide.SongPart?.Content?.Replace("\n", "<br>") ?? "";
+
+    private SlideTextStyle CreditsStyle =>
+        (LiveSlide.ItemType == ProjectItemType.BibleText
+            ? LiveSlide.BibleCreditsStyle
+            : LiveSlide.CreditsStyle) ?? SlideTextStyle.CreditsDefault;
+
+    private static string ResponsiveTextCss(SlideTextStyle style, double MinFontSizePx = 18)
+    {
+        // Width drives readability on a phone; height keeps a long verse from being pushed off
+        // a short window. The height share is not boosted — it mirrors what the slide was
+        // designed to fit on the 1080px canvas, so a wide desktop window looks as intended.
+        var vw = style.FontSize / BaseSlideWidth * 100 * ViewportBoost;
+        var vh = style.FontSize / BaseSlideHeight * 100;
+
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $"font-family: {style.FontFamily}; font-weight: {style.FontWeight}; line-height: {style.LineHeight}; font-size: clamp({MinFontSizePx}px, min({vw:0.##}vw, {vh:0.##}vh), {style.FontSize}px);");
+    }
+}
