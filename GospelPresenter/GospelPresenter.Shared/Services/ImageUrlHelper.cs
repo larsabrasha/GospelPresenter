@@ -16,6 +16,23 @@ public static class ImageUrlHelper
     public static string LiveOverlayImageUrl(string sessionId, string overlayId)
         => $"/api/live-images/{sessionId}/overlay/{overlayId}/image";
 
+    // Public output (watch) URLs (unauthenticated, keyed on the output code rather than the
+    // session id, so the operator's session id is never published to the visitors' devices —
+    // and so that switching the output off stops the images immediately).
+    public static string LiveImagePrefix(string sessionId)
+        => $"/api/live-images/{sessionId}/";
+
+    public static string WatchImagePrefix(string outputCode)
+        => $"/api/watch/{outputCode}/image/";
+
+    /// <summary>
+    /// Rewrites a live image URL so it is served through a public output's proxy instead.
+    /// The live URL layout is fixed, so replacing the prefix covers org images, overlays
+    /// and imported presentation pages alike.
+    /// </summary>
+    public static string? ToWatchUrl(string? liveUrl, string sessionId, string outputCode)
+        => liveUrl?.Replace(LiveImagePrefix(sessionId), WatchImagePrefix(outputCode), StringComparison.Ordinal);
+
     // S3 object keys (used by services and API endpoints)
     public static string OrgImageKey(string organizationId, string imageId, string variant)
         => $"org/{organizationId}/images/{imageId}/{variant}";

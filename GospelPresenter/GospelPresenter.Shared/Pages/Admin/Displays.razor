@@ -11,15 +11,18 @@
 @inject IRemoteDisplayService RemoteDisplayService
 @inject ActiveOrganizationState OrgState
 @inject RemoteDisplayState RemoteDisplayState
+@inject SharedAppState SharedAppState
+@inject PublicOutputState PublicOutputState
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
 
 <PageContainer>
+    @* ---------- Screens: a physical device that reports itself online ---------- *@
     <div class="flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.Displays.Title"]</div>
-        @if (displays is not null && displays.Count > 0)
+        @if (Screens.Count > 0)
         {
-            <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+            <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.Screen)" Class="flex items-center gap-1.5">
                 <PlusSymbol Class="size-4"/>
                 @L["Admin.Displays.Add"]
             </AppButton>
@@ -31,7 +34,7 @@
         {
             <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
         }
-        else if (displays.Count == 0)
+        else if (Screens.Count == 0)
         {
             <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
@@ -47,7 +50,7 @@
                 <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
                     @L["Admin.Displays.Description"]
                 </p>
-                <AppButton Variant="ButtonVariant.Primary" OnClick="ShowCreateDialog" Class="flex items-center gap-1.5">
+                <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.Screen)" Class="flex items-center gap-1.5">
                     <PlusSymbol Class="size-4"/>
                     @L["Admin.Displays.Add"]
                 </AppButton>
@@ -55,14 +58,14 @@
         }
         else
         {
-            @foreach (var display in displays)
+            @foreach (var display in Screens)
             {
                 var isOnline = RemoteDisplayState.IsDisplayOnline(display.DisplayIdentifier);
                 var iconClass = isOnline ? "text-green-500" : "text-neutral-300 dark:text-neutral-600";
                 var statusClass = isOnline ? "text-green-600 dark:text-green-400" : "text-neutral-400 dark:text-neutral-500";
                 var statusText = isOnline ? L["Admin.Displays.Online"] : L["Admin.Displays.Offline"];
 
-                <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                <div class="flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
                     <div class="@iconClass">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
                             <path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Z"/>
@@ -95,6 +98,87 @@
             }
         }
     </div>
+
+    @* ---------- Public outputs: a channel any number of visitors can watch ---------- *@
+    <div class="flex items-center justify-between px-5 pt-6">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.PublicOutputs.Title"]</div>
+        @if (PublicOutputs.Count > 0)
+        {
+            <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.PublicQr)" Class="flex items-center gap-1.5">
+                <PlusSymbol Class="size-4"/>
+                @L["Admin.PublicOutputs.Add"]
+            </AppButton>
+        }
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+        @if (displays is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+        }
+        else if (PublicOutputs.Count == 0)
+        {
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <rect x="55" y="15" width="90" height="90" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <rect x="68" y="28" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <rect x="112" y="28" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <rect x="68" y="72" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <rect x="98" y="58" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+                    <rect x="112" y="72" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+                    <rect x="124" y="84" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+                    <rect x="82" y="115" width="36" height="34" rx="5" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <line x1="94" y1="143" x2="106" y2="143" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Admin.PublicOutputs.Empty"]</h2>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                    @L["Admin.PublicOutputs.Description"]
+                </p>
+                <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.PublicQr)" Class="flex items-center gap-1.5">
+                    <PlusSymbol Class="size-4"/>
+                    @L["Admin.PublicOutputs.Add"]
+                </AppButton>
+            </div>
+        }
+        else
+        {
+            @foreach (var output in PublicOutputs)
+            {
+                var viewers = PublicOutputState.GetViewerCount(output.DisplayIdentifier);
+                var broadcastingFrom = BroadcastingPresentationName(output.DisplayIdentifier);
+                var isBroadcasting = broadcastingFrom is not null;
+
+                <div class="flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                    <div class="@(isBroadcasting ? "text-green-500" : "text-neutral-300 dark:text-neutral-600")">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+                            <path d="M3 3h5v5H3V3Zm1.5 1.5v2h2v-2h-2ZM12 3h5v5h-5V3Zm1.5 1.5v2h2v-2h-2ZM3 12h5v5H3v-5Zm1.5 1.5v2h2v-2h-2ZM12 12h1.5v1.5H12V12Zm3.5 0H17v1.5h-1.5V12ZM12 15.5h1.5V17H12v-1.5Zm3.5 0H17V17h-1.5v-1.5ZM9.5 3H11v1.5H9.5V3Zm0 3H11v1.5H9.5V6Zm0 3H11v1.5H9.5V9ZM3 9.5h1.5V11H3V9.5Zm3.5 0H8V11H6.5V9.5Zm6.5 0h1.5V11H13V9.5Zm3 0H17V11h-1V9.5Z"/>
+                        </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate">@output.Name</div>
+                        @if (isBroadcasting)
+                        {
+                            <div class="text-xs text-neutral-400 dark:text-neutral-500 truncate">
+                                @L["Admin.PublicOutputs.BroadcastingFrom", broadcastingFrom!]
+                            </div>
+                        }
+                    </div>
+                    <div class="text-xs @(viewers > 0 ? "text-green-600 dark:text-green-400" : "text-neutral-400 dark:text-neutral-500")">
+                        @ViewerCountText(viewers)
+                    </div>
+                    <AppButton Variant="ButtonVariant.Neutral" OnClick="() => publicOutputToShow = output" Class="text-xs flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5">
+                            <path d="M3 3h5v5H3V3Zm1.5 1.5v2h2v-2h-2ZM12 3h5v5h-5V3Zm1.5 1.5v2h2v-2h-2ZM3 12h5v5H3v-5Zm1.5 1.5v2h2v-2h-2ZM12 12h1.5v1.5H12V12Zm3.5 0H17v1.5h-1.5V12ZM12 15.5h1.5V17H12v-1.5Zm3.5 0H17V17h-1.5v-1.5ZM9.5 3H11v1.5H9.5V3Zm0 3H11v1.5H9.5V6Zm0 3H11v1.5H9.5V9ZM3 9.5h1.5V11H3V9.5Zm3.5 0H8V11H6.5V9.5Zm6.5 0h1.5V11H13V9.5Zm3 0H17V11h-1V9.5Z"/>
+                        </svg>
+                        @L["Admin.PublicOutputs.ShowQr"]
+                    </AppButton>
+                    <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmRemoveDisplay(output)" Class="text-xs">
+                        @L["Common.Delete"]
+                    </AppButton>
+                </div>
+            }
+        }
+    </div>
 </PageContainer>
 
 @if (deleteConfirmMessage is not null)
@@ -107,11 +191,14 @@
 
 @if (showCreateDialog)
 {
+    var isPublic = newKind == OutputKind.PublicQr;
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CloseDialog">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["Admin.Displays.AddTitle"]</div>
+            <div class="font-semibold text-lg">
+                @(isPublic ? L["Admin.PublicOutputs.AddTitle"] : L["Admin.Displays.AddTitle"])
+            </div>
             <p class="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">
-                @L["Admin.Displays.AddDescription"]
+                @(isPublic ? L["Admin.PublicOutputs.AddDescription"] : L["Admin.Displays.AddDescription"])
             </p>
             <FloatingInput @ref="nameInput" Id="new-display-name"
                            Label="@L["Admin.Displays.NamePlaceholder"]"
@@ -127,7 +214,7 @@
                            Loading="@adding"
                            OnClick="AddDisplay"
                            title="Ctrl+Enter">
-                    @L["Admin.Displays.Add"]
+                    @(isPublic ? L["Admin.PublicOutputs.Add"] : L["Admin.Displays.Add"])
                 </AppButton>
             </div>
         </div>
@@ -175,22 +262,126 @@
     </Dialog>
 }
 
+@if (publicOutputToShow is not null)
+{
+    var watchUrl = BuildWatchUrl(publicOutputToShow.DisplayIdentifier);
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="() => publicOutputToShow = null" ShowCloseButton="true">
+        <div class="p-6 space-y-5">
+            <div class="font-semibold text-lg pr-10">@publicOutputToShow.Name</div>
+
+            <div class="space-y-2">
+                <div class="flex justify-center">
+                    <QrCode Value="@watchUrl"/>
+                </div>
+                <div class="text-sm text-neutral-500 dark:text-neutral-400 text-center">
+                    @L["Admin.PublicOutputs.ScanQrHint"]
+                </div>
+            </div>
+
+            <div class="flex justify-center">
+                <AppButton Variant="ButtonVariant.Secondary"
+                           Href="@QrCodeImage.ToPngDataUrl(watchUrl)"
+                           Download="@($"qr-{publicOutputToShow.DisplayIdentifier}.png")"
+                           Class="text-xs flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                    </svg>
+                    @L["Admin.PublicOutputs.DownloadQr"]
+                </AppButton>
+            </div>
+
+            <div class="space-y-2">
+                <div class="flex items-stretch gap-2">
+                    <input id="show-watch-link" type="text" readonly value="@watchUrl"
+                           class="flex-1 min-w-0 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-sm font-mono text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-600 select-all focus:outline-none focus:ring-2 focus:ring-sky-500"/>
+                    <AppButton Variant="ButtonVariant.Neutral" CopyText="@watchUrl" OnClick="OnCopyUrl"
+                               Title="@L["UserDetail.Copy"]"
+                               Class="!px-3 !py-2 !rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                            <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1Z"/>
+                            <path d="M4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z"/>
+                        </svg>
+                    </AppButton>
+                </div>
+            </div>
+
+            <div class="!mt-8 pt-4 border-t border-neutral-200 dark:border-neutral-700 space-y-3">
+                <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                    @L["Admin.PublicOutputs.RegenerateDescription"]
+                </p>
+                <AppButton Variant="ButtonVariant.Danger"
+                           OnClick="() => outputToRegenerate = publicOutputToShow"
+                           Class="text-xs">
+                    @L["Admin.PublicOutputs.Regenerate"]
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@if (outputToRegenerate is not null)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-md" OnClose="() => outputToRegenerate = null">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@L["Admin.PublicOutputs.Regenerate"]</div>
+            <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                @L["Admin.PublicOutputs.RegenerateWarning", outputToRegenerate.Name]
+            </p>
+            <div class="flex justify-end gap-3">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="() => outputToRegenerate = null">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled
+                           Disabled="regenerating" Loading="regenerating"
+                           OnClick="ExecuteRegenerate">
+                    @L["Admin.PublicOutputs.Regenerate"]
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
 @code {
     private List<RemoteDisplay>? displays;
     private bool showCreateDialog;
+    private OutputKind newKind = OutputKind.Screen;
     private string newName = "";
     private bool adding;
     private FloatingInput? nameInput;
     private bool shouldFocusName;
     private RemoteDisplay? displayToDelete;
     private RemoteDisplay? displayToShow;
+    private RemoteDisplay? publicOutputToShow;
+    private RemoteDisplay? outputToRegenerate;
     private bool isDeleting;
+    private bool regenerating;
+
+    private List<RemoteDisplay> Screens =>
+        displays?.Where(d => d.Kind == OutputKind.Screen).ToList() ?? [];
+
+    private List<RemoteDisplay> PublicOutputs =>
+        displays?.Where(d => d.Kind == OutputKind.PublicQr).ToList() ?? [];
 
     private MarkupString? deleteConfirmMessage => displayToDelete is not null
         ? new MarkupString(L["Admin.Displays.ConfirmDelete", System.Net.WebUtility.HtmlEncode(displayToDelete.Name)])
         : null;
 
     private bool CanAdd => !string.IsNullOrWhiteSpace(newName);
+
+    private string ViewerCountText(int viewers) => viewers == 1
+        ? L["Admin.PublicOutputs.ViewersOne", viewers]
+        : L["Admin.PublicOutputs.Viewers", viewers];
+
+    /// <summary>The name of the presentation currently broadcasting to an output, if any.</summary>
+    private string? BroadcastingPresentationName(string identifier)
+    {
+        var sessionId = RemoteDisplayState.GetSessionForDisplay(identifier);
+        if (sessionId is null) return null;
+
+        var session = SharedAppState.GetActiveSession(sessionId);
+        return session?.PresentationName;
+    }
 
     private string BuildDisplayUrl(string identifier, string name)
     {
@@ -202,6 +393,9 @@
             parts.Add($"name={Uri.EscapeDataString(name.Trim())}");
         return parts.Count > 0 ? $"{baseUrl}?{string.Join("&", parts)}" : baseUrl;
     }
+
+    private string BuildWatchUrl(string identifier) =>
+        $"{NavigationManager.BaseUri.TrimEnd('/')}/watch/{Uri.EscapeDataString(identifier.Trim())}";
 
     private void OnCopyUrl() => ToastService.Show(L["Toast.LinkCopied"]);
 
@@ -219,9 +413,10 @@
         displays = await RemoteDisplayService.GetDisplaysAsync(orgId, caller);
     }
 
-    private void ShowCreateDialog()
+    private void ShowCreateDialog(OutputKind kind)
     {
         newName = "";
+        newKind = kind;
         showCreateDialog = true;
         shouldFocusName = true;
     }
@@ -261,12 +456,17 @@
         var caller = OrgState.ToCallerContext();
         if (orgId is null || caller is null) return;
 
-        var added = await RemoteDisplayService.AddDisplayAsync(orgId, newName.Trim(), caller);
+        var kind = newKind;
+        var added = await RemoteDisplayService.AddDisplayAsync(orgId, newName.Trim(), caller, kind);
         adding = false;
         showCreateDialog = false;
 
         await LoadDisplays();
-        displayToShow = added;
+
+        if (kind == OutputKind.PublicQr)
+            publicOutputToShow = added;
+        else
+            displayToShow = added;
     }
 
     private void ConfirmRemoveDisplay(RemoteDisplay display) => displayToDelete = display;
@@ -282,10 +482,53 @@
         isDeleting = true;
         StateHasChanged();
 
+        var identifier = displayToDelete.DisplayIdentifier;
         await RemoteDisplayService.RemoveDisplayAsync(orgId, displayToDelete.Id, caller);
+        DisconnectOutput(identifier);
+
         isDeleting = false;
         displayToDelete = null;
 
         await LoadDisplays();
+    }
+
+    private async Task ExecuteRegenerate()
+    {
+        if (outputToRegenerate is null || regenerating) return;
+
+        var orgId = OrgState.ActiveOrganizationId;
+        var caller = OrgState.ToCallerContext();
+        if (orgId is null || caller is null) return;
+
+        regenerating = true;
+        StateHasChanged();
+
+        var previousIdentifier = outputToRegenerate.DisplayIdentifier;
+        try
+        {
+            await RemoteDisplayService.RegenerateIdentifierAsync(orgId, outputToRegenerate.Id, caller);
+            DisconnectOutput(previousIdentifier);
+            ToastService.Show(L["Admin.PublicOutputs.RegenerateDone"]);
+        }
+        catch (Exception)
+        {
+            ToastService.Show(L["Common.ErrorOccurred"]);
+        }
+
+        regenerating = false;
+        outputToRegenerate = null;
+        publicOutputToShow = null;
+
+        await LoadDisplays();
+    }
+
+    /// <summary>
+    /// Drops everyone still attached to an output identifier that no longer exists, so a code
+    /// that was deleted or replaced stops working immediately rather than at the next timeout.
+    /// </summary>
+    private void DisconnectOutput(string identifier)
+    {
+        PublicOutputState.RemoveAllViewers(identifier);
+        RemoteDisplayState.DisconnectDisplay(identifier);
     }
 }

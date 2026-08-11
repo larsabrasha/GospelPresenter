@@ -147,6 +147,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
         {
             e.HasIndex(d => d.DisplayIdentifier).IsUnique();
             e.HasIndex(d => d.OrganizationId);
+            e.HasIndex(d => new { d.OrganizationId, d.Kind });
             e.Property(d => d.DisplayIdentifier).HasMaxLength(AppConstraints.NameMaxLength);
             e.Property(d => d.Name).HasMaxLength(AppConstraints.NameMaxLength);
         });

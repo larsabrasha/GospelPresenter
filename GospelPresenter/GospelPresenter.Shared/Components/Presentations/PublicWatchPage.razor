@@ -1,0 +1,139 @@
+@using System.Globalization
+
+@*
+    The complete HTML document served at /watch/{code} to a visitor who scanned a public output's
+    QR code.
+
+    This is deliberately NOT a routed Razor page: App.razor mounts the whole router with
+    <Routes @@rendermode="InteractiveServer">, so any routed page would open a Blazor circuit per
+    viewer. A congregation's worth of circuits is both expensive and fragile — a phone that locks
+    its screen kills the socket and Blazor eventually gives up reconnecting. Instead the endpoint
+    renders this document once per request and the page follows the presentation over SSE, which
+    the browser reconnects on its own for free.
+
+    Localised text lives here, in the per-request shell, rather than in the pushed fragments:
+    the fragments are rendered once and shared by every viewer, so they cannot be localised.
+*@
+
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" class="h-dvh bg-black">
+<head>
+    <meta charset="utf-8"/>
+    @* Zooming is intentionally allowed here, unlike in the operator app: a visitor may want to
+       enlarge an imported presentation page, which cannot reflow. *@
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="robots" content="noindex, nofollow"/>
+    <meta name="theme-color" content="#000000"/>
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <title>@Title</title>
+    <link rel="stylesheet" href="/_content/GospelPresenter.Shared/tailwind-output.css"/>
+    <link rel="stylesheet" href="/_content/GospelPresenter.Shared/app.css"/>
+    <link rel="icon" type="image/png" href="/images/favicon-196.png"/>
+</head>
+<body class="h-dvh bg-black overflow-hidden" data-code="@Code">
+
+<div class="relative h-dvh w-screen bg-black">
+    @* The live slide fragment is swapped in here as the presentation advances. *@
+    <div id="slide" class="absolute inset-0" hidden></div>
+
+    @* Shown before the broadcast starts, while it is paused, and after it stops. A visitor's
+       phone must never go completely blank — an all-black page is indistinguishable from a
+       broken one, and they would reload or give up. *@
+    <div id="idle" class="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8 text-center">
+        @* Three pulsing dots rather than a symbol. Anything resembling a signal or wifi glyph
+           reads as an instruction to connect to something — with the organisation's name above
+           it, the screen looked like a network the visitor had to join. *@
+        <div class="flex items-center gap-2">
+            <span class="size-2 rounded-full bg-white/30 animate-pulse"></span>
+            <span class="size-2 rounded-full bg-white/30 animate-pulse" style="animation-delay: 300ms"></span>
+            <span class="size-2 rounded-full bg-white/30 animate-pulse" style="animation-delay: 600ms"></span>
+        </div>
+        @* The output's name, not the organisation's: it tells the visitor which broadcast they
+           are on, which is the question someone who just scanned a code actually has. *@
+        @if (!string.IsNullOrWhiteSpace(IdleHeading))
+        {
+            <div class="text-white/50 text-lg font-medium">@IdleHeading</div>
+        }
+        <div class="text-white/30 text-sm">@L["Watch.Waiting"]</div>
+    </div>
+
+    @* Shown when the output has reached its viewer cap. *@
+    <div id="full" class="absolute inset-0 flex items-center justify-center px-8 text-center" hidden>
+        <div class="text-white/50 text-sm">@L["Watch.Full"]</div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var code = document.body.dataset.code;
+        var slide = document.getElementById('slide');
+        var idle = document.getElementById('idle');
+        var full = document.getElementById('full');
+
+        function newViewerId() {
+            if (window.crypto && window.crypto.getRandomValues) {
+                var bytes = new Uint8Array(8);
+                window.crypto.getRandomValues(bytes);
+                return Array.from(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+            }
+            return String(Date.now()) + Math.random().toString(16).slice(2);
+        }
+
+        // Kept in sessionStorage, not localStorage: it survives a reload so the operator's
+        // viewer count does not double-count, but it disappears with the tab and leaves no
+        // lasting identifier on a visitor's device.
+        var viewerId = sessionStorage.getItem('watch-viewer-id');
+        if (!viewerId) {
+            viewerId = newViewerId();
+            sessionStorage.setItem('watch-viewer-id', viewerId);
+        }
+
+        function showSlide(html) {
+            slide.innerHTML = html;
+            slide.hidden = false;
+            idle.hidden = true;
+        }
+
+        function showIdle() {
+            slide.hidden = true;
+            slide.innerHTML = '';
+            idle.hidden = false;
+        }
+
+        var source = new EventSource('/api/watch/' + encodeURIComponent(code) +
+            '/stream?v=' + encodeURIComponent(viewerId));
+
+        source.addEventListener('slide', function (e) {
+            showSlide(JSON.parse(e.data));
+        });
+
+        source.addEventListener('idle', function () {
+            showIdle();
+        });
+
+        source.addEventListener('full', function () {
+            source.close();
+            slide.hidden = true;
+            idle.hidden = true;
+            full.hidden = false;
+        });
+    })();
+</script>
+
+</body>
+</html>
+
+@code {
+    [Parameter] public required string Code { get; set; }
+    [Parameter] public string? OrganizationName { get; set; }
+    [Parameter] public string? OutputName { get; set; }
+
+    private string? IdleHeading =>
+        string.IsNullOrWhiteSpace(OutputName) ? OrganizationName : OutputName;
+
+    // The browser tab is where the organisation's name belongs: it identifies the page from
+    // outside, in a tab strip or a bookmark, where "Follow along" would say nothing.
+    private string Title =>
+        string.IsNullOrWhiteSpace(OrganizationName) ? "Gospel Presenter" : OrganizationName;
+}

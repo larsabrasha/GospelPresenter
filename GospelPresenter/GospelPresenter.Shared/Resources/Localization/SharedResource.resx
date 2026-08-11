@@ -1346,6 +1346,54 @@
   <data name="Admin.Displays.ConfirmDelete" xml:space="preserve">
     <value>Are you sure you want to delete the display "{0}"?</value>
   </data>
+  <data name="Admin.PublicOutputs.Title" xml:space="preserve">
+    <value>Public outputs</value>
+  </data>
+  <data name="Admin.PublicOutputs.Add" xml:space="preserve">
+    <value>Add public output</value>
+  </data>
+  <data name="Admin.PublicOutputs.AddTitle" xml:space="preserve">
+    <value>New public output</value>
+  </data>
+  <data name="Admin.PublicOutputs.AddDescription" xml:space="preserve">
+    <value>A public output gives you a QR code that visitors can scan to follow the presentation on their own phone. Anyone with the code can watch while a presentation is broadcasting to the output.</value>
+  </data>
+  <data name="Admin.PublicOutputs.Empty" xml:space="preserve">
+    <value>No public outputs</value>
+  </data>
+  <data name="Admin.PublicOutputs.Description" xml:space="preserve">
+    <value>Let visitors follow along on their own device by scanning a QR code.</value>
+  </data>
+  <data name="Admin.PublicOutputs.Viewers" xml:space="preserve">
+    <value>{0} devices</value>
+  </data>
+  <data name="Admin.PublicOutputs.ViewersOne" xml:space="preserve">
+    <value>{0} device</value>
+  </data>
+  <data name="Admin.PublicOutputs.BroadcastingFrom" xml:space="preserve">
+    <value>Broadcasting from {0}</value>
+  </data>
+  <data name="Admin.PublicOutputs.ShowQr" xml:space="preserve">
+    <value>Show QR code</value>
+  </data>
+  <data name="Admin.PublicOutputs.ScanQrHint" xml:space="preserve">
+    <value>Visitors scan this code to follow the presentation on their own device.</value>
+  </data>
+  <data name="Admin.PublicOutputs.DownloadQr" xml:space="preserve">
+    <value>Download as image</value>
+  </data>
+  <data name="Admin.PublicOutputs.Regenerate" xml:space="preserve">
+    <value>New code</value>
+  </data>
+  <data name="Admin.PublicOutputs.RegenerateDescription" xml:space="preserve">
+    <value>If the code has been shared where it does not belong, you can replace it with a new one.</value>
+  </data>
+  <data name="Admin.PublicOutputs.RegenerateWarning" xml:space="preserve">
+    <value>"{0}" gets a brand new code. Every printed sign and saved link stops working, and everyone currently watching is disconnected. This cannot be undone.</value>
+  </data>
+  <data name="Admin.PublicOutputs.RegenerateDone" xml:space="preserve">
+    <value>New code created</value>
+  </data>
   <data name="Admin.Labels.Title" xml:space="preserve">
     <value>Labels</value>
   </data>
@@ -1432,6 +1480,33 @@
   </data>
   <data name="LivePanel.OutputsHint" xml:space="preserve">
     <value>An output is an external screen (TV, projector) that shows the presentation. Add a local view or a separate device via pairing code.</value>
+  </data>
+  <data name="LivePanel.PublicOutputViewers" xml:space="preserve">
+    <value>{0} devices</value>
+  </data>
+  <data name="LivePanel.PublicOutputViewersOne" xml:space="preserve">
+    <value>{0} device</value>
+  </data>
+  <data name="LivePanel.PublicOutputBusy" xml:space="preserve">
+    <value>Broadcasting from {0}</value>
+  </data>
+  <data name="LivePanel.TakeOverTitle" xml:space="preserve">
+    <value>Take over the output?</value>
+  </data>
+  <data name="LivePanel.TakeOverMessage" xml:space="preserve">
+    <value>"{0}" is broadcasting to "{1}". Only one presentation at a time can broadcast to an output. If you take it over, everyone watching follows this presentation instead.</value>
+  </data>
+  <data name="LivePanel.TakeOverMessageUnknown" xml:space="preserve">
+    <value>Another presentation is broadcasting to "{0}". Only one presentation at a time can broadcast to an output. If you take it over, everyone watching follows this presentation instead.</value>
+  </data>
+  <data name="LivePanel.TakeOverConfirm" xml:space="preserve">
+    <value>Take over</value>
+  </data>
+  <data name="Watch.Waiting" xml:space="preserve">
+    <value>Waiting for the broadcast to start</value>
+  </data>
+  <data name="Watch.Full" xml:space="preserve">
+    <value>Too many devices are watching right now. Please try again in a moment.</value>
   </data>
   <data name="LivePanel.RemoteControlHint" xml:space="preserve">
     <value>Turn on to control the presentation from a phone or tablet. A QR code appears when enabled.</value>
