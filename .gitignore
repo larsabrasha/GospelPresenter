@@ -414,3 +414,6 @@ GospelPresenter/.env
 
 # Local MCP server config — contains API keys
 .mcp.json
+
+# Screenshot tool output — the copies that ship are in docs/src/screenshots
+GospelPresenter/GospelPresenter.Screenshots/screenshots/
