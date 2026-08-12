@@ -95,7 +95,7 @@
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["OrgDetail.DeleteOrg"]</div>
             <p class="text-sm text-neutral-600 dark:text-neutral-300">
-                @((MarkupString)L["OrgDetail.ConfirmDeleteOrg", organization?.Name ?? string.Empty].Value)
+                <LocalizedEmphasis Key="OrgDetail.ConfirmDeleteOrg" Value="@(organization?.Name ?? string.Empty)"/>
             </p>
             <div class="text-sm text-neutral-600 dark:text-neutral-300 space-y-1">
                 <p class="font-medium">@L["OrgDetail.WillBeDeleted"]</p>
@@ -109,7 +109,7 @@
             </div>
             <div class="space-y-1">
                 <label class="text-sm text-neutral-600 dark:text-neutral-300">
-                    @((MarkupString)L["OrgDetail.TypeToConfirm", organization?.Name ?? string.Empty].Value)
+                    <LocalizedEmphasis Key="OrgDetail.TypeToConfirm" Value="@(organization?.Name ?? string.Empty)"/>
                 </label>
                 <input @bind="deleteConfirmText" @bind:event="oninput"
                        class="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"

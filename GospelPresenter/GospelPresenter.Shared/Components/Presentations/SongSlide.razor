@@ -7,7 +7,20 @@
     BaseWidth="@BaseWidth"
     BaseHeight="@BaseHeight"
     Scale="@Scale">
-    <div style="@EffectiveContentStyle.ToCss()">@((MarkupString)ResolvedHtml)</div>
+    @* Song lyrics are rendered as text, not markup, so the framework HTML-encodes them and
+       user-authored content cannot inject script. Line breaks come from white-space: pre-wrap
+       instead of <br>. ContentHtml is the one markup path, and its only producer is
+       SearchHighlighter, which encodes every segment itself. *@
+    <div class="whitespace-pre-wrap" style="@EffectiveContentStyle.ToCss()">
+        @if (ContentHtml is not null)
+        {
+            @((MarkupString)ContentHtml)
+        }
+        else
+        {
+            @Content
+        }
+    </div>
     @if (!string.IsNullOrEmpty(Label))
     {
         <div class="absolute top-6 right-10 text-[48px] font-semibold rounded-full px-8 py-1"
@@ -27,8 +40,6 @@
 @code {
     [Parameter] public string? Content { get; set; }
     [Parameter] public string? ContentHtml { get; set; }
-
-    private string ResolvedHtml => ContentHtml ?? SlideText.PlainToHtml(Content);
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? LabelColor { get; set; }
     [Parameter] public string? Credits { get; set; }

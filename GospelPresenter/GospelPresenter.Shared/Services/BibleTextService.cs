@@ -1,3 +1,4 @@
+using System.Net;
 using GospelPresenter.Shared.State;
 
 namespace GospelPresenter.Shared.Services;
@@ -45,82 +46,87 @@ public class BibleTextService : IBibleTextService
         return $"{bookName} {first.Chapter}:{first.VerseNumber} - {BibleBookNames.GetSwedishName(last.BookId)} {last.Chapter}:{last.VerseNumber}";
     }
 
+    /// <summary>
+    /// A single word of verse text, preceded by a verse marker when it is the first word of a
+    /// verse. Slides are split on these, measuring plain text, and the HTML is generated once at
+    /// the end. That way verse text is encoded exactly once and no markup-aware code ever sees
+    /// user-authored content.
+    /// </summary>
+    private readonly record struct SlideWord(int? VerseNumber, string Text)
+    {
+        /// Characters this word contributes on screen: the text itself plus, for the first word
+        /// of a verse, the verse digits and the non-breaking space that follows them.
+        public int PlainLength =>
+            Text.Length + (VerseNumber is { } number ? number.ToString().Length + 1 : 0);
+
+        public string ToHtml() =>
+            VerseNumber is { } number
+                ? $"<sup class=\"opacity-40\">{number}</sup>\u00a0{WebUtility.HtmlEncode(Text)}"
+                : WebUtility.HtmlEncode(Text);
+    }
+
     private static List<string> BuildSlides(List<Verse> verses)
     {
-        // Verse text is HTML-encoded so any markup it contains is shown literally rather than
-        // interpreted -- the <sup>/<div> wrappers below are the only HTML on a slide. Encoding
-        // also keeps the tag-aware word splitting below from mistaking a '<' in the text for a tag.
-        var fullText = string.Join(" ", verses.Select(v =>
-            $"<sup class=\"opacity-40\">{v.VerseNumber}</sup>\u00a0{System.Net.WebUtility.HtmlEncode(v.Text)}"));
+        var words = ToWords(verses);
+        if (words.Count == 0) return [];
 
-        var totalPlainLength = PlainTextLength(fullText);
+        // The space between two words counts as one character, as it did when a slide was
+        // measured as one joined string.
+        var totalPlainLength = words.Sum(word => word.PlainLength) + words.Count - 1;
         var slideCount = Math.Max(1, (int)Math.Ceiling((double)totalPlainLength / MaxCharsPerSlide));
         var targetPerSlide = (int)Math.Ceiling((double)totalPlainLength / slideCount);
 
         var slides = new List<string>();
-        var words = SplitOutsideTags(fullText);
-        var current = "";
+        var current = new List<SlideWord>();
+        var currentLength = 0;
 
         foreach (var word in words)
         {
-            var candidate = current.Length == 0 ? word : $"{current} {word}";
-            var plainLength = PlainTextLength(candidate);
+            var candidateLength = current.Count == 0
+                ? word.PlainLength
+                : currentLength + 1 + word.PlainLength;
 
-            if (plainLength > targetPerSlide && current.Length > 0 && slides.Count < slideCount - 1)
+            if (candidateLength > targetPerSlide && current.Count > 0 && slides.Count < slideCount - 1)
             {
-                slides.Add($"<div class=\"text-left\">{current}</div>");
-                current = word;
+                slides.Add(RenderSlide(current));
+                current.Clear();
+                current.Add(word);
+                currentLength = word.PlainLength;
             }
             else
             {
-                current = candidate;
+                current.Add(word);
+                currentLength = candidateLength;
             }
         }
 
-        if (current.Length > 0)
-            slides.Add($"<div class=\"text-left\">{current}</div>");
+        if (current.Count > 0)
+            slides.Add(RenderSlide(current));
 
         return slides;
     }
 
-    private static List<string> SplitOutsideTags(string html)
+    private static List<SlideWord> ToWords(List<Verse> verses)
     {
-        var words = new List<string>();
-        var current = new System.Text.StringBuilder();
-        var inTag = false;
+        var words = new List<SlideWord>();
 
-        foreach (var c in html)
+        foreach (var verse in verses)
         {
-            if (c == '<') inTag = true;
-            else if (c == '>') inTag = false;
+            var parts = verse.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                words.Add(new SlideWord(verse.VerseNumber, ""));
+                continue;
+            }
 
-            if (c == ' ' && !inTag && current.Length > 0)
-            {
-                words.Add(current.ToString());
-                current.Clear();
-            }
-            else
-            {
-                current.Append(c);
-            }
+            words.Add(new SlideWord(verse.VerseNumber, parts[0]));
+            for (var i = 1; i < parts.Length; i++)
+                words.Add(new SlideWord(null, parts[i]));
         }
-
-        if (current.Length > 0)
-            words.Add(current.ToString());
 
         return words;
     }
 
-    private static int PlainTextLength(string html)
-    {
-        var inTag = false;
-        var count = 0;
-        foreach (var c in html)
-        {
-            if (c == '<') inTag = true;
-            else if (c == '>') inTag = false;
-            else if (!inTag) count++;
-        }
-        return count;
-    }
+    private static string RenderSlide(List<SlideWord> words) =>
+        $"<div class=\"text-left\">{string.Join(" ", words.Select(word => word.ToHtml()))}</div>";
 }

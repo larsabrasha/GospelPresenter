@@ -67,10 +67,10 @@
     }
     else
     {
-        <div class="text-lg dark:text-neutral-100 text-center px-4">@((MarkupString)L["Invite.Welcome", userName ?? string.Empty].Value)</div>
+        <div class="text-lg dark:text-neutral-100 text-center px-4"><LocalizedEmphasis Key="Invite.Welcome" Value="@(userName ?? string.Empty)"/></div>
         @if (!string.IsNullOrWhiteSpace(organizationName))
         {
-            <div class="text-sm text-neutral-500 dark:text-neutral-400 mt-1 text-center px-4">@((MarkupString)L["Invite.OrganizationLine", organizationName].Value)</div>
+            <div class="text-sm text-neutral-500 dark:text-neutral-400 mt-1 text-center px-4"><LocalizedEmphasis Key="Invite.OrganizationLine" Value="@organizationName"/></div>
         }
         <div class="text-sm text-neutral-500 dark:text-neutral-400 mt-4 mb-2 text-center px-4">@L["Invite.ChooseSignIn"]</div>
 

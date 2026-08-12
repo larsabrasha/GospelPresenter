@@ -420,7 +420,7 @@
     <value>Radera bild</value>
   </data>
   <data name="ImageTab.ConfirmDelete" xml:space="preserve">
-    <value>Vill du radera &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Vill du radera {0}?</value>
   </data>
   <data name="Images.Title" xml:space="preserve">
     <value>Bilder</value>
@@ -600,7 +600,7 @@
     <value>Inga medlemmar ännu</value>
   </data>
   <data name="OrgDetail.ConfirmDeleteOrg" xml:space="preserve">
-    <value>Är du säker på att du vill ta bort &lt;strong&gt;{0}&lt;/strong&gt;? Detta kan inte ångras.</value>
+    <value>Är du säker på att du vill ta bort {0}? Detta kan inte ångras.</value>
   </data>
   <data name="OrgDetail.WillBeDeleted" xml:space="preserve">
     <value>Följande kommer att tas bort permanent:</value>
@@ -621,7 +621,7 @@
     <value>Alla uppladdade bilder</value>
   </data>
   <data name="OrgDetail.TypeToConfirm" xml:space="preserve">
-    <value>Skriv &lt;strong&gt;{0}&lt;/strong&gt; för att bekräfta:</value>
+    <value>Skriv {0} för att bekräfta:</value>
   </data>
   <data name="OrgDetail.CropLogo" xml:space="preserve">
     <value>Beskär logga</value>
@@ -711,10 +711,10 @@
     <value>Kontakta din administratör för att få en ny inbjudan.</value>
   </data>
   <data name="Invite.Welcome" xml:space="preserve">
-    <value>Välkommen &lt;strong&gt;{0}&lt;/strong&gt;!</value>
+    <value>Välkommen {0}!</value>
   </data>
   <data name="Invite.OrganizationLine" xml:space="preserve">
-    <value>Du har bjudits in till &lt;strong&gt;{0}&lt;/strong&gt;.</value>
+    <value>Du har bjudits in till {0}.</value>
   </data>
   <data name="Invite.ChooseSignIn" xml:space="preserve">
     <value>Välj hur du vill logga in</value>
@@ -819,7 +819,7 @@
     <value>Ta bort ljudfil</value>
   </data>
   <data name="AudioTab.ConfirmDelete" xml:space="preserve">
-    <value>Vill du verkligen ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Vill du verkligen ta bort {0}?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
     <value>Ladda upp bildspel</value>
@@ -885,10 +885,10 @@
     <value>Presentationen stängdes automatiskt på grund av inaktivitet.</value>
   </data>
   <data name="Presentation.ConfirmRemoveItem" xml:space="preserve">
-    <value>Vill du ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Vill du ta bort {0}?</value>
   </data>
   <data name="Presentation.ConfirmDeletePresentation" xml:space="preserve">
-    <value>Vill du radera &lt;strong&gt;{0}&lt;/strong&gt;? Detta kan inte ångras.</value>
+    <value>Vill du radera {0}? Detta kan inte ångras.</value>
   </data>
   <data name="Common.Options" xml:space="preserve">
     <value>Alternativ</value>

@@ -420,7 +420,7 @@
     <value>Delete image</value>
   </data>
   <data name="ImageTab.ConfirmDelete" xml:space="preserve">
-    <value>Do you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Do you want to delete {0}?</value>
   </data>
   <data name="Images.Title" xml:space="preserve">
     <value>Images</value>
@@ -600,7 +600,7 @@
     <value>No members yet</value>
   </data>
   <data name="OrgDetail.ConfirmDeleteOrg" xml:space="preserve">
-    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;? This cannot be undone.</value>
+    <value>Are you sure you want to delete {0}? This cannot be undone.</value>
   </data>
   <data name="OrgDetail.WillBeDeleted" xml:space="preserve">
     <value>The following will be permanently deleted:</value>
@@ -621,7 +621,7 @@
     <value>All uploaded images</value>
   </data>
   <data name="OrgDetail.TypeToConfirm" xml:space="preserve">
-    <value>Type &lt;strong&gt;{0}&lt;/strong&gt; to confirm:</value>
+    <value>Type {0} to confirm:</value>
   </data>
   <data name="OrgDetail.CropLogo" xml:space="preserve">
     <value>Crop logo</value>
@@ -711,10 +711,10 @@
     <value>Contact your administrator to get a new invitation.</value>
   </data>
   <data name="Invite.Welcome" xml:space="preserve">
-    <value>Welcome &lt;strong&gt;{0}&lt;/strong&gt;!</value>
+    <value>Welcome {0}!</value>
   </data>
   <data name="Invite.OrganizationLine" xml:space="preserve">
-    <value>You have been invited to &lt;strong&gt;{0}&lt;/strong&gt;.</value>
+    <value>You have been invited to {0}.</value>
   </data>
   <data name="Invite.ChooseSignIn" xml:space="preserve">
     <value>Choose how to sign in</value>
@@ -819,7 +819,7 @@
     <value>Delete audio file</value>
   </data>
   <data name="AudioTab.ConfirmDelete" xml:space="preserve">
-    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Are you sure you want to delete {0}?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
     <value>Upload slides</value>
@@ -885,10 +885,10 @@
     <value>The presentation was automatically closed due to inactivity.</value>
   </data>
   <data name="Presentation.ConfirmRemoveItem" xml:space="preserve">
-    <value>Do you want to remove &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Do you want to remove {0}?</value>
   </data>
   <data name="Presentation.ConfirmDeletePresentation" xml:space="preserve">
-    <value>Do you want to delete &lt;strong&gt;{0}&lt;/strong&gt;? This cannot be undone.</value>
+    <value>Do you want to delete {0}? This cannot be undone.</value>
   </data>
   <data name="Common.Options" xml:space="preserve">
     <value>Options</value>
