@@ -197,7 +197,7 @@ else
                             @foreach (var part in mobilePreviewSong.GetArrangedParts(GetEffectiveArrangementId(mobilePreviewSong)))
                             {
                                 <SongSlide
-                                    ContentHtml="@(part.Content.Replace("\n", "<br>"))"
+                                    ContentHtml="@(SlideText.PlainToHtml(part.Content))"
                                     Label="@part.Label"
                                     LabelColor="@part.LabelColor"
                                     Class="border-t-[0.5px] border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"

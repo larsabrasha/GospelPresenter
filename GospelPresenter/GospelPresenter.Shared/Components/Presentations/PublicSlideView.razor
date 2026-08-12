@@ -81,7 +81,7 @@
         LiveSlide.ItemType is ProjectItemType.Image or ProjectItemType.Slides;
 
     private string SongContentHtml =>
-        LiveSlide.SongPart?.Content?.Replace("\n", "<br>") ?? "";
+        SlideText.PlainToHtml(LiveSlide.SongPart?.Content);
 
     private SlideTextStyle CreditsStyle =>
         (LiveSlide.ItemType == ProjectItemType.BibleText

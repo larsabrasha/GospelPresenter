@@ -227,6 +227,14 @@ public class PresentationService(
         caller.RequireOrganizationAccess(organizationId);
         ValidationHelper.RequireMaxLength(item.Title, AppConstraints.NameMaxLength, "Title");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        // RequireOrganizationAccess only proves the caller owns organizationId; it does not prove
+        // the target presentation does. Verify the presentation belongs to the org before inserting,
+        // otherwise a caller could add items to another organization's presentation by its id.
+        var presentationExists = await context.Presentations
+            .AnyAsync(p => p.Id == presentationId && p.OrganizationId == organizationId, cancellationToken);
+        if (!presentationExists) throw new InvalidOperationException("Presentation not found.");
+
         await ValidationHelper.RequireMaxCountAsync(
             context.PresentationItems.Where(x => x.PresentationId == presentationId),
             AppConstraints.MaxItemsPerPresentation, "items", cancellationToken);
@@ -312,6 +320,15 @@ public class PresentationService(
         foreach (var part in parts)
             ValidationHelper.RequireMaxLength(part.Content, AppConstraints.PresentationItemPartContentMaxLength, "Content");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        // Verify the target item (and its presentation) belongs to the caller's org before inserting;
+        // RequireOrganizationAccess above only validates the caller's own org, not the item's owner.
+        var itemExists = await context.PresentationItems
+            .AnyAsync(x => x.Id == itemId
+                           && x.PresentationId == presentationId
+                           && x.Presentation.OrganizationId == organizationId, cancellationToken);
+        if (!itemExists) throw new InvalidOperationException("Presentation item not found.");
+
         var existingCount = await context.PresentationItemParts
             .CountAsync(x => x.PresentationItemId == itemId, cancellationToken);
         if (existingCount + parts.Count > AppConstraints.MaxPartsPerPresentationItem)

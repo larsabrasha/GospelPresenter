@@ -47,8 +47,11 @@ public class BibleTextService : IBibleTextService
 
     private static List<string> BuildSlides(List<Verse> verses)
     {
+        // Verse text is HTML-encoded so any markup it contains is shown literally rather than
+        // interpreted -- the <sup>/<div> wrappers below are the only HTML on a slide. Encoding
+        // also keeps the tag-aware word splitting below from mistaking a '<' in the text for a tag.
         var fullText = string.Join(" ", verses.Select(v =>
-            $"<sup class=\"opacity-40\">{v.VerseNumber}</sup>\u00a0{v.Text}"));
+            $"<sup class=\"opacity-40\">{v.VerseNumber}</sup>\u00a0{System.Net.WebUtility.HtmlEncode(v.Text)}"));
 
         var totalPlainLength = PlainTextLength(fullText);
         var slideCount = Math.Max(1, (int)Math.Ceiling((double)totalPlainLength / MaxCharsPerSlide));

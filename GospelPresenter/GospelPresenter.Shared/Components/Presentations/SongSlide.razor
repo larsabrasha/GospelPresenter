@@ -28,7 +28,7 @@
     [Parameter] public string? Content { get; set; }
     [Parameter] public string? ContentHtml { get; set; }
 
-    private string ResolvedHtml => ContentHtml ?? Content?.Replace("\n", "<br>") ?? "";
+    private string ResolvedHtml => ContentHtml ?? SlideText.PlainToHtml(Content);
     [Parameter] public string? Label { get; set; }
     [Parameter] public string? LabelColor { get; set; }
     [Parameter] public string? Credits { get; set; }
