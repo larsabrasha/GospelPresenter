@@ -320,6 +320,9 @@
   <data name="SongTrash.ConfirmRestore" xml:space="preserve">
     <value>Vill du återställa {0}?</value>
   </data>
+  <data name="SongTrash.ConfirmRestoreAll" xml:space="preserve">
+    <value>Vill du återställa alla {0} sånger i papperskorgen?</value>
+  </data>
   <data name="SongTrash.ConfirmPermanentDelete" xml:space="preserve">
     <value>Vill du ta bort {0} permanent?</value>
   </data>

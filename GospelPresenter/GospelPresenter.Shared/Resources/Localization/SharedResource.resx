@@ -320,6 +320,9 @@
   <data name="SongTrash.ConfirmRestore" xml:space="preserve">
     <value>Do you want to restore {0}?</value>
   </data>
+  <data name="SongTrash.ConfirmRestoreAll" xml:space="preserve">
+    <value>Do you want to restore all {0} songs in the trash?</value>
+  </data>
   <data name="SongTrash.ConfirmPermanentDelete" xml:space="preserve">
     <value>Do you want to permanently delete {0}?</value>
   </data>
