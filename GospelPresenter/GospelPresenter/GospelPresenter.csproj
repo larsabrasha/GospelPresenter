@@ -49,6 +49,10 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.1" />
         <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'" />
         <PackageReference Include="NeoSmart.Caching.Sqlite.AspNetCore" Version="9.0.1" />
+        <!-- Pinned above the versions NeoSmart.Caching.Sqlite resolves transitively:
+             GHSA-2m69-gcr7-jv3q. -->
+        <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+        <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.android" Version="2.1.12" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
         <PackageReference Include="Serilog" Version="4.3.1" />
         <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
