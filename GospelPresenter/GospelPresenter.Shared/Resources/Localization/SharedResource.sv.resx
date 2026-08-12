@@ -279,10 +279,10 @@
     <value>Historik</value>
   </data>
   <data name="SongDetail.ConfirmDeletePart" xml:space="preserve">
-    <value>Vill du ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Vill du ta bort {0}?</value>
   </data>
   <data name="SongDetail.ConfirmTrashSong" xml:space="preserve">
-    <value>Vill du flytta &lt;strong&gt;{0}&lt;/strong&gt; till papperskorgen? Sången raderas permanent efter 30 dagar.</value>
+    <value>Vill du flytta {0} till papperskorgen? Sången raderas permanent efter 30 dagar.</value>
   </data>
   <data name="SongTrash.Title" xml:space="preserve">
     <value>Papperskorg</value>
@@ -318,10 +318,10 @@
     <value>Återställer...</value>
   </data>
   <data name="SongTrash.ConfirmRestore" xml:space="preserve">
-    <value>Vill du återställa &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Vill du återställa {0}?</value>
   </data>
   <data name="SongTrash.ConfirmPermanentDelete" xml:space="preserve">
-    <value>Vill du ta bort &lt;strong&gt;{0}&lt;/strong&gt; permanent?</value>
+    <value>Vill du ta bort {0} permanent?</value>
   </data>
   <data name="SongTrash.ConfirmEmptyTrash" xml:space="preserve">
     <value>Vill du ta bort alla {0} sånger i papperskorgen permanent?</value>
@@ -339,7 +339,7 @@
     <value>Återställ version</value>
   </data>
   <data name="SongHistory.ConfirmRestore" xml:space="preserve">
-    <value>Vill du återställa sången till versionen från &lt;strong&gt;{0}&lt;/strong&gt;? Den nuvarande versionen sparas i historiken.</value>
+    <value>Vill du återställa sången till versionen från {0}? Den nuvarande versionen sparas i historiken.</value>
   </data>
   <data name="SongParts.LabelNone" xml:space="preserve">
     <value>Välj...</value>
@@ -540,7 +540,7 @@
     <value>Inga overlays</value>
   </data>
   <data name="Overlays.ConfirmDelete" xml:space="preserve">
-    <value>Är du säker på att du vill ta bort overlayen "{0}"?</value>
+    <value>Är du säker på att du vill ta bort overlayen {0}?</value>
   </data>
   <data name="Overlays.Description" xml:space="preserve">
     <value>Overlays visas ovanpå den aktiva bilden under en presentation, t.ex. ett Swish-nummer vid kollekt.</value>
@@ -1344,7 +1344,7 @@
     <value>Offline</value>
   </data>
   <data name="Admin.Displays.ConfirmDelete" xml:space="preserve">
-    <value>Är du säker på att du vill ta bort skärmen "{0}"?</value>
+    <value>Är du säker på att du vill ta bort skärmen {0}?</value>
   </data>
   <data name="Admin.PublicOutputs.Title" xml:space="preserve">
     <value>Publika utgångar</value>
@@ -1419,7 +1419,7 @@
     <value>Färg</value>
   </data>
   <data name="Admin.Labels.ConfirmDelete" xml:space="preserve">
-    <value>Är du säker på att du vill ta bort etiketten "{0}"?</value>
+    <value>Är du säker på att du vill ta bort etiketten {0}?</value>
   </data>
   <data name="LivePanel.Outputs" xml:space="preserve">
     <value>Utgångar</value>
@@ -1545,7 +1545,7 @@
     <value>Bibel borttagen</value>
   </data>
   <data name="Bibles.ConfirmDelete" xml:space="preserve">
-    <value>Är du säker på att du vill ta bort &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Är du säker på att du vill ta bort {0}?</value>
   </data>
   <data name="Bibles.Verses" xml:space="preserve">
     <value>verser</value>

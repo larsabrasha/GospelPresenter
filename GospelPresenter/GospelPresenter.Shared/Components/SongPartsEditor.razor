@@ -88,9 +88,10 @@
     @L["SongParts.AddPart"]
 </AppButton>
 
-@if (deleteConfirmMessage is not null)
+@if (deleteConfirmIndex is not null)
 {
-    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+    <ConfirmDeleteDialog MessageKey="SongDetail.ConfirmDeletePart"
+                         MessageValue="@GetCurrentLabel(deleteConfirmIndex.Value)"
                          IsDeleting="isDeleting"
                          OnConfirm="ExecuteDelete"
                          OnClose="CancelDelete"/>
@@ -107,7 +108,6 @@
     [Parameter] public EventCallback OnAdd { get; set; }
 
     private int? deleteConfirmIndex;
-    private MarkupString? deleteConfirmMessage;
     private bool isDeleting;
 
     private Task SelectLabel(int index, string? labelId)
@@ -128,14 +128,11 @@
     private void RequestDelete(int index)
     {
         deleteConfirmIndex = index;
-        var label = GetCurrentLabel(index);
-        deleteConfirmMessage = new MarkupString(L["SongDetail.ConfirmDeletePart", System.Net.WebUtility.HtmlEncode(label)]);
     }
 
     private void CancelDelete()
     {
         deleteConfirmIndex = null;
-        deleteConfirmMessage = null;
     }
 
     private async Task ExecuteDelete()
@@ -146,7 +143,6 @@
         {
             var index = deleteConfirmIndex.Value;
             deleteConfirmIndex = null;
-            deleteConfirmMessage = null;
             await OnDelete.InvokeAsync(index);
         }
         finally

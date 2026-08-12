@@ -181,9 +181,9 @@
     </div>
 </PageContainer>
 
-@if (deleteConfirmMessage is not null)
+@if (displayToDelete is not null)
 {
-    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+    <ConfirmDeleteDialog MessageKey="Admin.Displays.ConfirmDelete" MessageValue="@displayToDelete.Name"
                          IsDeleting="isDeleting"
                          OnConfirm="ExecuteDelete"
                          OnClose="() => displayToDelete = null"/>
@@ -362,10 +362,6 @@
 
     private List<RemoteDisplay> PublicOutputs =>
         displays?.Where(d => d.Kind == OutputKind.PublicQr).ToList() ?? [];
-
-    private MarkupString? deleteConfirmMessage => displayToDelete is not null
-        ? new MarkupString(L["Admin.Displays.ConfirmDelete", System.Net.WebUtility.HtmlEncode(displayToDelete.Name)])
-        : null;
 
     private bool CanAdd => !string.IsNullOrWhiteSpace(newName);
 

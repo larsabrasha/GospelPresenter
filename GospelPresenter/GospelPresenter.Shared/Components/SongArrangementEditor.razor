@@ -119,7 +119,7 @@ else
 
 @if (deleteConfirmArrangementId is not null)
 {
-    <ConfirmDeleteDialog Message="@(new MarkupString(L["SongEditor.ConfirmDeleteArrangement"]))"
+    <ConfirmDeleteDialog MessageKey="SongEditor.ConfirmDeleteArrangement"
                          IsDeleting="isDeleting"
                          OnConfirm="ExecuteDeleteArrangement"
                          OnClose="CancelDeleteArrangement"/>

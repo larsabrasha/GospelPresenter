@@ -90,9 +90,9 @@
     </div>
 </PageContainer>
 
-@if (deleteConfirmMessage is not null)
+@if (bibleToDelete is not null)
 {
-    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+    <ConfirmDeleteDialog MessageKey="Bibles.ConfirmDelete" MessageValue="@bibleToDelete.Name"
                          IsDeleting="isDeleting"
                          OnConfirm="ExecuteDelete"
                          OnClose="() => bibleToDelete = null"/>
@@ -106,10 +106,6 @@
     private string? organizationId;
     private ElementReference fileInput;
     private Bible? bibleToDelete;
-
-    private MarkupString? deleteConfirmMessage => bibleToDelete is not null
-        ? new MarkupString(L["Bibles.ConfirmDelete", System.Net.WebUtility.HtmlEncode(bibleToDelete.Name)])
-        : null;
 
     private IReadOnlyList<Bible> orgBibles = [];
 
