@@ -224,6 +224,52 @@ public class UserServiceTests : IDisposable
             () => service.CreateMcpApiKeyAsync(ApiKeyName, user.Id, org.Id, caller));
     }
 
+    [Fact]
+    public async Task UserExistsAsync_ForExistingUser_ReturnsTrue()
+    {
+        // Act
+        var exists = await service.UserExistsAsync(user.Id);
+
+        // Assert
+        exists.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task UserExistsAsync_ForUnknownUser_ReturnsFalse()
+    {
+        // Act
+        var exists = await service.UserExistsAsync(UnknownUserId);
+
+        // Assert
+        exists.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task UserExistsAsync_AfterUserIsDeleted_ReturnsFalse()
+    {
+        // Arrange -- a deleted user must stop revalidating, which is what ends their live session
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        await service.DeleteUserAsync(user.Id, CallerFor(superAdmin));
+
+        // Act
+        var exists = await service.UserExistsAsync(user.Id);
+
+        // Assert
+        exists.ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task UserExistsAsync_WithBlankId_ReturnsFalse(string id)
+    {
+        // Act
+        var exists = await service.UserExistsAsync(id);
+
+        // Assert
+        exists.ShouldBeFalse();
+    }
+
     private User AddUserInNewOrganization()
     {
         var otherOrg = new Organization { Name = OtherOrgName };

@@ -20,6 +20,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using Prometheus;
 using System.Security.Claims;
 using Serilog;
@@ -85,6 +87,12 @@ try
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.LoginPath = "/login";
+
+                // Reject the cookie of a user whose account no longer exists. The circuit-level
+                // check in RevalidatingAuthStateProvider only runs once a minute and starts over
+                // on every reload, so without this a deleted user keeps a usable window until the
+                // cookie expires (SessionTimeoutMinutes, four hours by default).
+                options.Events.OnValidatePrincipal = RejectDeletedUser;
             });
 
         if (oidcConfigured)
@@ -174,7 +182,12 @@ try
     {
         Log.Warning("No authentication provider configured — using mock authentication");
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-            .AddCookie(options => { options.LoginPath = "/mock-login"; });
+            .AddCookie(options =>
+            {
+                options.LoginPath = "/mock-login";
+                // Same session rule as the real providers: a deleted account stops working here too.
+                options.Events.OnValidatePrincipal = RejectDeletedUser;
+            });
         builder.Services.AddScoped<AuthenticationStateProvider, MockAuthenticationStateProvider>();
         builder.Services.AddSingleton<IAuthProviderService, MockAuthProviderService>();
     }
@@ -229,6 +242,7 @@ try
             opt.UseSqlite("Data Source=gospelpresenter-mock.db"));
     }
 
+    builder.Services.AddMemoryCache();
     builder.Services.AddScoped<IPresentationService, PresentationService>();
     builder.Services.AddSingleton<ISongService, SongService>();
     builder.Services.AddSingleton<IBibleService, BibleService>();
@@ -776,6 +790,54 @@ static string? ResolveScheme(string? provider, IAuthProviderService authProvider
     return null;
 }
 
+static async Task RejectDeletedUser(CookieValidatePrincipalContext context)
+{
+    var userId = context.Principal?.FindFirstValue("user_id");
+    if (string.IsNullOrEmpty(userId))
+        return;
+
+    var services = context.HttpContext.RequestServices;
+    var cache = services.GetRequiredService<IMemoryCache>();
+    var cacheKey = $"user-exists:{userId}";
+    var cacheDuration = TimeSpan.FromSeconds(
+        services.GetRequiredService<IOptions<Settings>>().Value.SessionRevalidationCacheSeconds);
+
+    // This event fires for every request carrying the cookie — including each static asset, since
+    // UseAuthentication runs before the static-file endpoints. Caching the "still exists" answer
+    // keeps one page load to a single query instead of one per file. Only the positive answer is
+    // cached: a rejected user is signed out on the spot, so there is nothing to remember.
+    var cachingEnabled = cacheDuration > TimeSpan.Zero;
+    if (cachingEnabled && cache.TryGetValue(cacheKey, out _))
+        return;
+
+    var userService = services.GetRequiredService<IUserService>();
+    try
+    {
+        if (await userService.UserExistsAsync(userId, context.HttpContext.RequestAborted))
+        {
+            if (cachingEnabled)
+                cache.Set(cacheKey, true, cacheDuration);
+            return;
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        // The client went away mid-request; there is no session left to protect.
+        return;
+    }
+    catch (Exception ex)
+    {
+        // Keep the session if the database is unreachable — signing everyone out during a database
+        // blip would interrupt a service in progress, and the app cannot show content without it.
+        Log.Warning(ex, "Could not verify that user {UserId} still exists; keeping the session", userId);
+        return;
+    }
+
+    Log.Information("Rejecting session for user {UserId}: the account no longer exists", userId);
+    context.RejectPrincipal();
+    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+}
+
 static async Task HandleAuthenticatedUser(
     HttpContext httpContext,
     ClaimsPrincipal? principal,
@@ -863,3 +925,6 @@ static async Task<byte[]?> DownloadImage(IHttpClientFactory httpClientFactory, s
         return null;
     }
 }
+
+// Exposed so the integration tests can boot the real application through WebApplicationFactory.
+public partial class Program;
