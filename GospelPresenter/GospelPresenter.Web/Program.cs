@@ -405,6 +405,19 @@ builder.Services.AddMetricServer(options =>
 
     app.UseAntiforgery();
 
+    // Restores a stored language for a browser that has no culture cookie yet. A browser that has
+    // one never reaches the lookup, so only users with nothing stored do — and for them it would
+    // otherwise repeat on every single request, including every static asset, since
+    // UseAuthentication runs before the static-file endpoints. Remembering the miss collapses that
+    // to one query.
+    //
+    // Picking a language is unaffected: /culture writes the cookie in the same response as it
+    // stores the setting, so that browser short-circuits from then on. The one case a remembered
+    // miss delays is a second browser signed in as the same user, which keeps its old culture
+    // until the entry expires.
+    var noStoredLanguageCacheDuration = TimeSpan.FromSeconds(
+        app.Services.GetRequiredService<IOptions<Settings>>().Value.PreferredLanguageCacheSeconds);
+
     app.Use(async (context, next) =>
     {
         if (context.User.Identity?.IsAuthenticated == true
@@ -413,19 +426,28 @@ builder.Services.AddMetricServer(options =>
             var userId = context.User.FindFirst("user_id")?.Value;
             if (userId is not null)
             {
-                var userService = context.RequestServices.GetRequiredService<IUserService>();
-                var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
-                var orgId = context.User.FindFirst("organization_id")?.Value;
-                var caller = new CallerContext(userId, role, orgId);
-                var lang = await userService.GetUserSettingAsync(userId, UserSetting.PreferredLanguage, caller);
-                if (lang is not null)
+                var cache = context.RequestServices.GetRequiredService<IMemoryCache>();
+                var cacheKey = $"no-preferred-language:{userId}";
+
+                if (!cache.TryGetValue(cacheKey, out _))
                 {
-                    context.Response.Cookies.Append(
-                        CookieRequestCultureProvider.DefaultCookieName,
-                        CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(lang)),
-                        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true });
-                    context.Response.Redirect(context.Request.Path + context.Request.QueryString);
-                    return;
+                    var userService = context.RequestServices.GetRequiredService<IUserService>();
+                    var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
+                    var orgId = context.User.FindFirst("organization_id")?.Value;
+                    var caller = new CallerContext(userId, role, orgId);
+                    var lang = await userService.GetUserSettingAsync(userId, UserSetting.PreferredLanguage, caller);
+                    if (lang is not null)
+                    {
+                        context.Response.Cookies.Append(
+                            CookieRequestCultureProvider.DefaultCookieName,
+                            CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(lang)),
+                            new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true });
+                        context.Response.Redirect(context.Request.Path + context.Request.QueryString);
+                        return;
+                    }
+
+                    if (noStoredLanguageCacheDuration > TimeSpan.Zero)
+                        cache.Set(cacheKey, true, noStoredLanguageCacheDuration);
                 }
             }
         }

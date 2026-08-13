@@ -1,5 +1,6 @@
 using System.Net;
 using GospelPresenter.Shared.Contexts;
+using GospelPresenter.Shared.Models;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.Testing.Handlers;
@@ -34,11 +35,20 @@ public class WebAppFixture : WebApplicationFactory<Program>
     private static readonly Uri BaseAddress = new("https://localhost/");
 
     private readonly SqliteConnection connection;
+    private CookieContainerHandler? cookies;
 
     public DatabaseQueryCounter Queries { get; } = new();
 
+    /// <summary>The cookies the client currently holds, after any redirects have been followed.</summary>
+    public CookieCollection CurrentCookies => cookies is null
+        ? []
+        : cookies.Container.GetCookies(BaseAddress);
+
     /// <summary>Zero disables the revalidation cache, so every request asks the database.</summary>
     public int RevalidationCacheSeconds { get; init; } = 30;
+
+    /// <summary>Zero disables the preferred-language cache, so every request asks the database.</summary>
+    public int PreferredLanguageCacheSeconds { get; init; } = 300;
 
     public WebAppFixture()
     {
@@ -51,6 +61,7 @@ public class WebAppFixture : WebApplicationFactory<Program>
         builder.UseEnvironment(Environments.Development);
         builder.UseSetting("ConnectionStrings:postgresdb", "");
         builder.UseSetting("Settings:SessionRevalidationCacheSeconds", RevalidationCacheSeconds.ToString());
+        builder.UseSetting("Settings:PreferredLanguageCacheSeconds", PreferredLanguageCacheSeconds.ToString());
 
         builder.ConfigureTestServices(services =>
         {
@@ -74,7 +85,7 @@ public class WebAppFixture : WebApplicationFactory<Program>
     {
         // Redirect handler first, cookie handler inside it: the sign-in endpoint answers with a 302
         // carrying the authentication cookie, and only the inner handler sees that response.
-        var cookies = new CookieContainerHandler();
+        cookies = new CookieContainerHandler();
         var client = CreateDefaultClient(BaseAddress, new RedirectHandler(), cookies);
 
         var response = await client.GetAsync($"/mock-signin/{MockUserId}");
@@ -91,6 +102,19 @@ public class WebAppFixture : WebApplicationFactory<Program>
                 cookie.Expired = true;
 
         return client;
+    }
+
+    public async Task SetPreferredLanguageAsync(string language)
+    {
+        await using var context = Services.GetRequiredService<IDbContextFactory<PresentationContext>>()
+            .CreateDbContext();
+        context.UserSettings.Add(new UserSetting
+        {
+            UserId = MockUserId,
+            Key = UserSetting.PreferredLanguage,
+            Value = language
+        });
+        await context.SaveChangesAsync();
     }
 
     public async Task DeleteMockUserAsync()
