@@ -525,6 +525,16 @@ public class UserService(
         caller.RequireOrganizationAccess(organizationId);
         ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync();
+
+        // The key authenticates as this user in this organization, so the two have to belong
+        // together. RequireOrganizationAccess only proves the caller owns organizationId -- it
+        // says nothing about the user the key is minted for, and the user list is filtered in the
+        // UI only. Without this, a key could be issued against a user from another organization,
+        // and everything done with it would be recorded as that user.
+        var userInOrganization = await context.Users
+            .AnyAsync(u => u.Id == userId && u.OrganizationId == organizationId);
+        if (!userInOrganization) throw new InvalidOperationException("User not found.");
+
         await ValidationHelper.RequireMaxCountAsync(
             context.McpApiKeys.Where(k => k.UserId == userId),
             AppConstraints.MaxApiKeysPerUser, "API keys");

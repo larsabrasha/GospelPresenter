@@ -18,9 +18,11 @@
     <div class="flex-1 min-w-0 min-h-0 flex items-center justify-center overflow-y-auto">
         @if (LiveSlide.ItemType == ProjectItemType.Song && LiveSlide.SongPart is not null)
         {
-            <div class="w-full px-[5vw] py-[4vh] text-center text-white break-words"
+            @* Rendered as text so the framework encodes it: this view is served to anonymous
+               visitors, so song content must never be able to inject markup here. *@
+            <div class="w-full px-[5vw] py-[4vh] text-center text-white break-words whitespace-pre-wrap"
                  style="@ResponsiveTextCss(LiveSlide.SongStyle ?? SlideTextStyle.SongDefault)">
-                @((MarkupString)SongContentHtml)
+                @LiveSlide.SongPart.Content
             </div>
         }
         else if (LiveSlide.ItemType == ProjectItemType.BibleText && LiveSlide.Text is not null)
@@ -79,9 +81,6 @@
 
     private bool IsImageItem =>
         LiveSlide.ItemType is ProjectItemType.Image or ProjectItemType.Slides;
-
-    private string SongContentHtml =>
-        LiveSlide.SongPart?.Content?.Replace("\n", "<br>") ?? "";
 
     private SlideTextStyle CreditsStyle =>
         (LiveSlide.ItemType == ProjectItemType.BibleText

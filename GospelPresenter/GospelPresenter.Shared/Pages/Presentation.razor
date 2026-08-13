@@ -560,7 +560,7 @@
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelRemove">
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["Common.Delete"]</div>
-            <div>@((MarkupString)L["Presentation.ConfirmRemoveItem", itemToRemove.Title].Value)</div>
+            <div><LocalizedEmphasis Key="Presentation.ConfirmRemoveItem" Value="@itemToRemove.Title"/></div>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelRemove">
                     @L["Common.Cancel"]
@@ -613,7 +613,7 @@
                 }
                 else
                 {
-                    @((MarkupString)L["Presentation.ConfirmDeletePresentation", AppState.SelectedProject?.Name ?? ""].Value)
+                    <LocalizedEmphasis Key="Presentation.ConfirmDeletePresentation" Value="@(AppState.SelectedProject?.Name ?? "")"/>
                 }
             </div>
             <div class="flex justify-end gap-3">
@@ -1533,7 +1533,9 @@
                 if (song is not null && partIndex < songEffectiveParts.Count)
                 {
                     songPart = songEffectiveParts[partIndex];
-                    text = songPart.Content.Replace("\n", "<br>");
+                    // Plain text, not HTML: LiveSlide.Text is rendered as markup for Bible
+                    // slides, so song content must never be turned into markup here.
+                    text = songPart.Content;
                     credits = FormatSongCredits(song);
                     liveSongId = song.Id;
                     liveSongName = song.Name;

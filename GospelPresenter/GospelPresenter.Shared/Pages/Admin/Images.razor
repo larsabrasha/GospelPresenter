@@ -137,7 +137,7 @@
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDelete">
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["ImageTab.DeleteImage"]</div>
-            <div>@((MarkupString)L["ImageTab.ConfirmDelete", imageToDelete.FileName].Value)</div>
+            <div><LocalizedEmphasis Key="ImageTab.ConfirmDelete" Value="@imageToDelete.FileName"/></div>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDelete">
                     @L["Common.Cancel"]

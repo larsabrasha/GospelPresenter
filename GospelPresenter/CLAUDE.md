@@ -58,7 +58,8 @@
 ## Language
 - All UI text must be localized using `IStringLocalizer<SharedResource> L` (injected via `_Imports.razor`).
 - Use `@L["Key"]` in Razor templates and `L["Key"]` in `@code` blocks. For formatted strings, use `L["Key", arg1, arg2]`.
-- When rendering HTML from localized strings, use `@((MarkupString)L["Key"].Value)`.
+- When a localized string with no arguments contains markup, render it with `@((MarkupString)L["Key"].Value)`.
+- Never pass user-authored data (names, titles, filenames) as an argument to a localized string that is rendered as a `MarkupString` — the argument is not encoded and the markup executes. Keep markup out of the `.resx` value and render it in Razor instead, so the framework encodes the value: use `<LocalizedEmphasis Key="..." Value="@name"/>` for the common "…<strong>{0}</strong>…" case.
 - Translations are stored in `.resx` files under `GospelPresenter.Shared/Resources/`: `SharedResource.resx` (English) and `SharedResource.sv.resx` (Swedish).
 - The app defaults to the browser's `Accept-Language` header, with English as the fallback language.
 - Never hardcode UI-visible strings — always add them to both `.resx` files.

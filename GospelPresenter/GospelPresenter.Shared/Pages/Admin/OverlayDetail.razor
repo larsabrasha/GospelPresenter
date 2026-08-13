@@ -35,12 +35,12 @@
     }
 </PageContainer>
 
-@if (deleteConfirmMessage is not null)
+@if (showDeleteConfirm)
 {
-    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+    <ConfirmDeleteDialog MessageKey="Overlays.ConfirmDelete" MessageValue="@overlay?.Title"
                          IsDeleting="isDeleting"
                          OnConfirm="ExecuteDelete"
-                         OnClose="() => deleteConfirmMessage = null"/>
+                         OnClose="() => showDeleteConfirm = false"/>
 }
 
 @code {
@@ -49,7 +49,7 @@
     private OverlaySlide? overlay;
     private string? organizationId;
     private DetailHeader? header;
-    private MarkupString? deleteConfirmMessage;
+    private bool showDeleteConfirm;
     private bool isDeleting;
 
     protected override async Task OnInitializedAsync()
@@ -76,7 +76,7 @@
 
     private void ConfirmDelete()
     {
-        deleteConfirmMessage = new MarkupString(L["Overlays.ConfirmDelete", System.Net.WebUtility.HtmlEncode(overlay?.Title ?? "")]);
+        showDeleteConfirm = true;
     }
 
     private async Task ExecuteDelete()
