@@ -311,6 +311,7 @@
     private bool showOverlayDrawer;
     private DotNetObjectReference<StageView>? dotNetRef;
     private bool keysInstalled;
+    private bool wakeLockRequested;
     private string? lastScrolledPartKey;
 
     private record StageScales(double Current, double Next, double Strip);
@@ -460,6 +461,10 @@
             dotNetRef = DotNetObjectReference.Create(this);
             try { await JsRuntime.InvokeVoidAsync("gospelPresenter.installStageKeys", dotNetRef); keysInstalled = true; } catch { }
 
+            // Stage mode is driven by keys, often from a foot pedal, so the device must not fall
+            // asleep between presses.
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.requestStageWakeLock"); wakeLockRequested = true; } catch { }
+
             // Nothing selected on entry → open the picker straight away so the leader can act.
             if (SelectedItem is null && Items.Count > 0)
             {
@@ -514,6 +519,10 @@
         if (keysInstalled)
         {
             try { await JsRuntime.InvokeVoidAsync("gospelPresenter.uninstallStageKeys"); } catch { }
+        }
+        if (wakeLockRequested)
+        {
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseStageWakeLock"); } catch { }
         }
         dotNetRef?.Dispose();
     }
