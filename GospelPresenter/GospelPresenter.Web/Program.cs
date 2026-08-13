@@ -53,6 +53,13 @@ try
     var connectionString = builder.Configuration.GetConnectionString("postgresdb");
     var isMockMode = string.IsNullOrEmpty(connectionString);
 
+    // Mock mode wires up anonymous, credential-free sign-in as a seeded Admin (see /mock-signin
+    // and the mock-user-id middleware below). It must never activate in Production: a misconfigured
+    // or missing connection string would otherwise silently turn the app into an open door. Fail fast.
+    if (isMockMode && builder.Environment.IsProduction())
+        throw new InvalidOperationException(
+            "No database connection string ('postgresdb') is configured. Mock authentication is disabled in Production — configure the database connection.");
+
     if (!isMockMode)
     {
         var authOptions = builder.Configuration.GetSection("Authentication").Get<GospelPresenter.Web.Configuration.AuthenticationOptions>()

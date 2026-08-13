@@ -12,9 +12,9 @@
     </div>
 </div>
 
-@if (deleteConfirmMessage is not null)
+@if (showDeleteConfirm)
 {
-    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+    <ConfirmDeleteDialog MessageKey="Overlays.ConfirmDelete" MessageValue="@Overlay.Title"
                          IsDeleting="isDeleting"
                          OnConfirm="ExecuteDelete"
                          OnClose="CancelDelete"/>
@@ -27,17 +27,17 @@
     [Parameter, EditorRequired] public EventCallback OnDeleted { get; set; }
 
     private DetailHeader? header;
-    private MarkupString? deleteConfirmMessage;
+    private bool showDeleteConfirm;
     private bool isDeleting;
 
     private void ConfirmDelete()
     {
-        deleteConfirmMessage = new MarkupString(L["Overlays.ConfirmDelete", System.Net.WebUtility.HtmlEncode(Overlay.Title) ?? ""]);
+        showDeleteConfirm = true;
     }
 
     private void CancelDelete()
     {
-        deleteConfirmMessage = null;
+        showDeleteConfirm = false;
     }
 
     private async Task ExecuteDelete()
@@ -47,7 +47,7 @@
         try
         {
             await OnDeleted.InvokeAsync();
-            deleteConfirmMessage = null;
+            showDeleteConfirm = false;
         }
         finally
         {

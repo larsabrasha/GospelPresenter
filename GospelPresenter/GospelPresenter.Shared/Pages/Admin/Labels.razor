@@ -94,9 +94,9 @@
     </div>
 </PageContainer>
 
-@if (deleteConfirmMessage is not null)
+@if (labelToDelete is not null)
 {
-    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+    <ConfirmDeleteDialog MessageKey="Admin.Labels.ConfirmDelete" MessageValue="@labelToDelete.Text"
                          IsDeleting="isDeleting"
                          OnConfirm="ExecuteDelete"
                          OnClose="() => labelToDelete = null"/>
@@ -165,10 +165,6 @@
     private DbSongPartLabel? editingLabel;
     private DbSongPartLabel? labelToDelete;
     private bool isDeleting;
-
-    private MarkupString? deleteConfirmMessage => labelToDelete is not null
-        ? new MarkupString(L["Admin.Labels.ConfirmDelete", System.Net.WebUtility.HtmlEncode(labelToDelete.Text)])
-        : null;
 
     private bool CanSave => !string.IsNullOrWhiteSpace(dialogText);
 

@@ -49,9 +49,9 @@
     </div>
 }
 
-@if (deleteConfirmMessage is not null)
+@if (showDeleteConfirm)
 {
-    <ConfirmDeleteDialog Message="deleteConfirmMessage.Value"
+    <ConfirmDeleteDialog MessageKey="SongDetail.ConfirmTrashSong" MessageValue="@song?.Name"
                          IsDeleting="isDeleting"
                          OnConfirm="ExecuteDelete"
                          OnClose="CancelDelete"/>
@@ -69,7 +69,7 @@
     private string? editPublisher;
     private int? editYear;
     private string? editCcli;
-    private MarkupString? deleteConfirmMessage;
+    private bool showDeleteConfirm;
     private bool isDeleting;
     private readonly Debouncer saveDebounce = new();
     private readonly Debouncer partDebounce = new();
@@ -288,12 +288,12 @@
 
     private void ConfirmDeleteSong()
     {
-        deleteConfirmMessage = new MarkupString(L["SongDetail.ConfirmTrashSong", System.Net.WebUtility.HtmlEncode(song?.Name) ?? string.Empty]);
+        showDeleteConfirm = true;
     }
 
     private void CancelDelete()
     {
-        deleteConfirmMessage = null;
+        showDeleteConfirm = false;
     }
 
     private async Task ExecuteDelete()
@@ -303,7 +303,7 @@
         try
         {
             await SongService.DeleteSongAsync(song.Id, OrgId, OrgState.ToCallerContext());
-            deleteConfirmMessage = null;
+            showDeleteConfirm = false;
             await OnDeleted.InvokeAsync();
         }
         finally

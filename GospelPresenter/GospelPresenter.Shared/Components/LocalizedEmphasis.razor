@@ -1,0 +1,22 @@
+@* Renders a localized string whose {0} placeholder is filled with a user-authored value,
+   emphasized. The value is rendered as text so the framework HTML-encodes it — keeping the
+   markup here instead of inside the translation is what makes that possible, and it keeps
+   .resx files free of markup. Strings without a placeholder render as-is. *@
+
+@{
+    var text = L[Key].Value;
+    var segments = text.Split("{0}");
+}
+@if (segments.Length == 1)
+{
+    @text
+}
+else
+{
+    @segments[0]<strong>@Value</strong>@(string.Concat(segments.Skip(1)))
+}
+
+@code {
+    [Parameter] public required string Key { get; set; }
+    [Parameter] public string? Value { get; set; }
+}

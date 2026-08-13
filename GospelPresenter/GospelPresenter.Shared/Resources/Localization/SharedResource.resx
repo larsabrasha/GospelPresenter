@@ -279,10 +279,10 @@
     <value>History</value>
   </data>
   <data name="SongDetail.ConfirmDeletePart" xml:space="preserve">
-    <value>Do you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Do you want to delete {0}?</value>
   </data>
   <data name="SongDetail.ConfirmTrashSong" xml:space="preserve">
-    <value>Do you want to move &lt;strong&gt;{0}&lt;/strong&gt; to trash? The song will be permanently deleted after 30 days.</value>
+    <value>Do you want to move {0} to trash? The song will be permanently deleted after 30 days.</value>
   </data>
   <data name="SongTrash.Title" xml:space="preserve">
     <value>Trash</value>
@@ -318,10 +318,13 @@
     <value>Restoring...</value>
   </data>
   <data name="SongTrash.ConfirmRestore" xml:space="preserve">
-    <value>Do you want to restore &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Do you want to restore {0}?</value>
+  </data>
+  <data name="SongTrash.ConfirmRestoreAll" xml:space="preserve">
+    <value>Do you want to restore all {0} songs in the trash?</value>
   </data>
   <data name="SongTrash.ConfirmPermanentDelete" xml:space="preserve">
-    <value>Do you want to permanently delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Do you want to permanently delete {0}?</value>
   </data>
   <data name="SongTrash.ConfirmEmptyTrash" xml:space="preserve">
     <value>Do you want to permanently delete all {0} songs in the trash?</value>
@@ -339,7 +342,7 @@
     <value>Restore version</value>
   </data>
   <data name="SongHistory.ConfirmRestore" xml:space="preserve">
-    <value>Do you want to restore the song to the version from &lt;strong&gt;{0}&lt;/strong&gt;? The current version will be saved in the history.</value>
+    <value>Do you want to restore the song to the version from {0}? The current version will be saved in the history.</value>
   </data>
   <data name="SongParts.LabelNone" xml:space="preserve">
     <value>Choose...</value>
@@ -420,7 +423,7 @@
     <value>Delete image</value>
   </data>
   <data name="ImageTab.ConfirmDelete" xml:space="preserve">
-    <value>Do you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Do you want to delete {0}?</value>
   </data>
   <data name="Images.Title" xml:space="preserve">
     <value>Images</value>
@@ -540,7 +543,7 @@
     <value>No overlays</value>
   </data>
   <data name="Overlays.ConfirmDelete" xml:space="preserve">
-    <value>Are you sure you want to delete the overlay "{0}"?</value>
+    <value>Are you sure you want to delete the overlay {0}?</value>
   </data>
   <data name="Overlays.Description" xml:space="preserve">
     <value>Overlays are shown on top of the active slide during a presentation, e.g. a payment QR code during offering.</value>
@@ -600,7 +603,7 @@
     <value>No members yet</value>
   </data>
   <data name="OrgDetail.ConfirmDeleteOrg" xml:space="preserve">
-    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;? This cannot be undone.</value>
+    <value>Are you sure you want to delete {0}? This cannot be undone.</value>
   </data>
   <data name="OrgDetail.WillBeDeleted" xml:space="preserve">
     <value>The following will be permanently deleted:</value>
@@ -621,7 +624,7 @@
     <value>All uploaded images</value>
   </data>
   <data name="OrgDetail.TypeToConfirm" xml:space="preserve">
-    <value>Type &lt;strong&gt;{0}&lt;/strong&gt; to confirm:</value>
+    <value>Type {0} to confirm:</value>
   </data>
   <data name="OrgDetail.CropLogo" xml:space="preserve">
     <value>Crop logo</value>
@@ -711,10 +714,10 @@
     <value>Contact your administrator to get a new invitation.</value>
   </data>
   <data name="Invite.Welcome" xml:space="preserve">
-    <value>Welcome &lt;strong&gt;{0}&lt;/strong&gt;!</value>
+    <value>Welcome {0}!</value>
   </data>
   <data name="Invite.OrganizationLine" xml:space="preserve">
-    <value>You have been invited to &lt;strong&gt;{0}&lt;/strong&gt;.</value>
+    <value>You have been invited to {0}.</value>
   </data>
   <data name="Invite.ChooseSignIn" xml:space="preserve">
     <value>Choose how to sign in</value>
@@ -819,7 +822,7 @@
     <value>Delete audio file</value>
   </data>
   <data name="AudioTab.ConfirmDelete" xml:space="preserve">
-    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Are you sure you want to delete {0}?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
     <value>Upload slides</value>
@@ -885,10 +888,10 @@
     <value>The presentation was automatically closed due to inactivity.</value>
   </data>
   <data name="Presentation.ConfirmRemoveItem" xml:space="preserve">
-    <value>Do you want to remove &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Do you want to remove {0}?</value>
   </data>
   <data name="Presentation.ConfirmDeletePresentation" xml:space="preserve">
-    <value>Do you want to delete &lt;strong&gt;{0}&lt;/strong&gt;? This cannot be undone.</value>
+    <value>Do you want to delete {0}? This cannot be undone.</value>
   </data>
   <data name="Common.Options" xml:space="preserve">
     <value>Options</value>
@@ -1344,7 +1347,7 @@
     <value>Offline</value>
   </data>
   <data name="Admin.Displays.ConfirmDelete" xml:space="preserve">
-    <value>Are you sure you want to delete the display "{0}"?</value>
+    <value>Are you sure you want to delete the display {0}?</value>
   </data>
   <data name="Admin.PublicOutputs.Title" xml:space="preserve">
     <value>Public outputs</value>
@@ -1419,7 +1422,7 @@
     <value>Color</value>
   </data>
   <data name="Admin.Labels.ConfirmDelete" xml:space="preserve">
-    <value>Are you sure you want to delete the label "{0}"?</value>
+    <value>Are you sure you want to delete the label {0}?</value>
   </data>
   <data name="LivePanel.Outputs" xml:space="preserve">
     <value>Outputs</value>
@@ -1545,7 +1548,7 @@
     <value>Bible deleted</value>
   </data>
   <data name="Bibles.ConfirmDelete" xml:space="preserve">
-    <value>Are you sure you want to delete &lt;strong&gt;{0}&lt;/strong&gt;?</value>
+    <value>Are you sure you want to delete {0}?</value>
   </data>
   <data name="Bibles.Verses" xml:space="preserve">
     <value>verses</value>

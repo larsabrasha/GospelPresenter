@@ -13,6 +13,9 @@
     <ItemGroup>
         <PackageReference Include="Aspire.Hosting.AppHost" Version="13.1.2" />
         <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.1.2" />
+        <!-- Pinned above the version Aspire resolves transitively: GHSA-hv8m-jj95-wg3x and
+             others. Kept on 2.x because 3.x is a breaking change for Aspire. -->
+        <PackageReference Include="MessagePack" Version="2.5.302" />
     </ItemGroup>
 
     <ItemGroup>
