@@ -1003,12 +1003,18 @@ window.gospelPresenter.installStageKeys = function(dotNetRef) {
             return;
         }
         var action = null;
+        // Foot pedals and presentation clickers are HID keyboards. Which keys they send is
+        // switchable on the pedal itself, so cover the modes they ship with: right/left arrows,
+        // down/up arrows, page down/up, space and enter.
         switch (e.key) {
             case 'ArrowRight':
+            case 'ArrowDown':
             case 'PageDown':
             case ' ':
+            case 'Enter':
                 action = 'next'; break;
             case 'ArrowLeft':
+            case 'ArrowUp':
             case 'PageUp':
                 action = 'prev'; break;
             case '.':
@@ -1029,6 +1035,55 @@ window.gospelPresenter.uninstallStageKeys = function() {
     if (window.gospelPresenter._stageKeyHandler) {
         document.removeEventListener('keydown', window.gospelPresenter._stageKeyHandler);
         window.gospelPresenter._stageKeyHandler = null;
+    }
+};
+
+// Keeps the screen awake while stage mode is open. A phone that locks its screen drops the
+// Blazor circuit, and a foot pedal cannot wake it again — it only sends a keystroke to a
+// sleeping device. Without this the pedal works in a demo and stops working mid-talk.
+window.gospelPresenter._stageWakeLock = null;
+window.gospelPresenter._stageWakeLockVisibilityHandler = null;
+
+window.gospelPresenter.requestStageWakeLock = async function() {
+    if (!('wakeLock' in navigator)) return;
+
+    var acquire = async function() {
+        try {
+            var lock = await navigator.wakeLock.request('screen');
+            window.gospelPresenter._stageWakeLock = lock;
+            // The system may drop the lock on its own; forget it so we can take it again.
+            lock.addEventListener('release', function() {
+                window.gospelPresenter._stageWakeLock = null;
+            });
+        } catch (e) {
+            // Denied, for example by battery saver. Stage mode still works, the screen just
+            // sleeps as usual.
+            window.gospelPresenter._stageWakeLock = null;
+        }
+    };
+
+    await acquire();
+
+    // The lock is always released while the page is hidden, so take it again on return.
+    if (!window.gospelPresenter._stageWakeLockVisibilityHandler) {
+        window.gospelPresenter._stageWakeLockVisibilityHandler = function() {
+            if (document.visibilityState === 'visible' && !window.gospelPresenter._stageWakeLock) {
+                acquire();
+            }
+        };
+        document.addEventListener('visibilitychange', window.gospelPresenter._stageWakeLockVisibilityHandler);
+    }
+};
+
+window.gospelPresenter.releaseStageWakeLock = function() {
+    if (window.gospelPresenter._stageWakeLockVisibilityHandler) {
+        document.removeEventListener('visibilitychange', window.gospelPresenter._stageWakeLockVisibilityHandler);
+        window.gospelPresenter._stageWakeLockVisibilityHandler = null;
+    }
+    var lock = window.gospelPresenter._stageWakeLock;
+    window.gospelPresenter._stageWakeLock = null;
+    if (lock) {
+        try { lock.release(); } catch (e) { }
     }
 };
 
