@@ -296,7 +296,7 @@
         selectedTemplate = null;
     }
 
-    private async Task CreateAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description) details)
+    private async Task CreateAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description, string? ThemeId) details)
     {
         var orgId = OrgState.ActiveOrganizationId ?? "default";
         var userId = OrgState.UserId ?? "default";

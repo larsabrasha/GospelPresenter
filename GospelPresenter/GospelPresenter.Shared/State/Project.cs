@@ -10,6 +10,10 @@ public class Project
     public TimeOnly? EventTime { get; set; }
     public string? EventLocation { get; set; }
     public string? Description { get; set; }
+
+    /// <summary>Null means the presentation follows the organisation's default theme.</summary>
+    public string? ThemeId { get; set; }
+
     public IList<ProjectItem> Items { get; set; } = [];
 }
 

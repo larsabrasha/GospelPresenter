@@ -29,6 +29,8 @@ public static class PermissionPolicies
     public const string ManageRemoteDisplays = "Permission:ManageRemoteDisplays";
     public const string ViewBibles = "Permission:ViewBibles";
     public const string ManageBibles = "Permission:ManageBibles";
+    public const string ViewThemes = "Permission:ViewThemes";
+    public const string ManageThemes = "Permission:ManageThemes";
 
     public static string PolicyName(Permission permission) => $"Permission:{permission}";
 

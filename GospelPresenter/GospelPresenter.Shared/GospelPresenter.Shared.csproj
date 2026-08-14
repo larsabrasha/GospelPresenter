@@ -62,4 +62,10 @@
         </Content>
     </ItemGroup>
 
+    <!-- Built-in theme art is embedded rather than a static web asset, so the migration service and the
+         tests can read the same bytes the web app serves. See ThemeAssetService. -->
+    <ItemGroup>
+        <EmbeddedResource Include="Themes\**\*.webp"/>
+    </ItemGroup>
+
 </Project>

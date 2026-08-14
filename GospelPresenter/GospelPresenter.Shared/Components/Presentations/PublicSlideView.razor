@@ -1,3 +1,4 @@
+@using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 
 @*
@@ -9,26 +10,32 @@
     the viewport, which is also the only way to get readable text on a phone held upright:
     letterboxing a 16:9 canvas into a portrait screen leaves the text at about 17px.
 
-    The organisation's font family, weight and line height are honoured. Only the absolute pixel
-    size is replaced — by a viewport-relative size that is capped at the configured size, so a
+    The theme's fonts, weights, line heights, colours and background are honoured. Only the absolute
+    pixel size is replaced — by a viewport-relative size that is capped at the theme's size, so a
     desktop viewer sees the slide as designed while a phone gets larger text.
 *@
 
-<div class="absolute inset-0 flex flex-col overflow-hidden">
+@{
+    var theme = LiveSlide.Theme ?? SlideTheme.Fallback;
+    var background = theme.BackgroundFor(LiveSlide.ItemType);
+    var backgroundCss = background.ToCss(ImageUrlHelper.ThemeBackgroundUrl(background.Image));
+}
+
+<div class="absolute inset-0 flex flex-col overflow-hidden" style="@backgroundCss">
     <div class="flex-1 min-w-0 min-h-0 flex items-center justify-center overflow-y-auto">
         @if (LiveSlide.ItemType == ProjectItemType.Song && LiveSlide.SongPart is not null)
         {
             @* Rendered as text so the framework encodes it: this view is served to anonymous
                visitors, so song content must never be able to inject markup here. *@
-            <div class="w-full px-[5vw] py-[4vh] text-center text-white break-words whitespace-pre-wrap"
-                 style="@ResponsiveTextCss(LiveSlide.SongStyle ?? SlideTextStyle.SongDefault)">
+            <div class="w-full px-[5vw] py-[4vh] break-words whitespace-pre-wrap"
+                 style="@ResponsiveTextCss(theme.Song.MainText)">
                 @LiveSlide.SongPart.Content
             </div>
         }
         else if (LiveSlide.ItemType == ProjectItemType.BibleText && LiveSlide.Text is not null)
         {
-            <div class="w-full px-[5vw] py-[4vh] text-center text-white break-words"
-                 style="@ResponsiveTextCss(LiveSlide.BibleStyle ?? SlideTextStyle.BibleDefault)">
+            <div class="w-full px-[5vw] py-[4vh] break-words"
+                 style="@ResponsiveTextCss(theme.BibleText.MainText)">
                 @((MarkupString)LiveSlide.Text)
             </div>
         }
@@ -41,8 +48,7 @@
 
     @if (!string.IsNullOrEmpty(LiveSlide.Credits))
     {
-        <div class="shrink-0 px-[5vw] pb-[3vh] text-center text-white/40"
-             style="@ResponsiveTextCss(CreditsStyle, MinFontSizePx: 11)">
+        <div class="shrink-0 px-[5vw] pb-[3vh]" style="@ResponsiveTextCss(CreditsStyle, MinFontSizePx: 11)">
             @LiveSlide.Credits
         </div>
     }
@@ -57,8 +63,10 @@
             }
             @if (Overlay.Text is not null)
             {
+                @* Overlays are outside the theme: they sit on top of unknown content and keep a
+                   legibility-first style of their own. *@
                 <div class="absolute top-[4vh] left-0 right-0 px-[5vw] text-center text-white/60 whitespace-pre-line"
-                     style="@ResponsiveTextCss(SlideTextStyle.CreditsDefault, MinFontSizePx: 11) text-shadow: 0 1px 4px rgba(0,0,0,0.6);">
+                     style="@ResponsiveTextCss(OverlayStyle, MinFontSizePx: 11) color: rgba(255, 255, 255, 0.6); text-shadow: 0 1px 4px rgba(0,0,0,0.6);">
                     @Overlay.Text
                 </div>
             }
@@ -82,10 +90,16 @@
     private bool IsImageItem =>
         LiveSlide.ItemType is ProjectItemType.Image or ProjectItemType.Slides;
 
-    private SlideTextStyle CreditsStyle =>
-        (LiveSlide.ItemType == ProjectItemType.BibleText
-            ? LiveSlide.BibleCreditsStyle
-            : LiveSlide.CreditsStyle) ?? SlideTextStyle.CreditsDefault;
+    private SlideTextStyle CreditsStyle
+    {
+        get
+        {
+            var theme = LiveSlide.Theme ?? SlideTheme.Fallback;
+            return theme.TextStyleFor(LiveSlide.ItemType)?.Credits ?? theme.Song.Credits;
+        }
+    }
+
+    private static SlideTextStyle OverlayStyle => new() { FontSize = 40 };
 
     private static string ResponsiveTextCss(SlideTextStyle style, double MinFontSizePx = 18)
     {
@@ -95,7 +109,9 @@
         var vw = style.FontSize / BaseSlideWidth * 100 * ViewportBoost;
         var vh = style.FontSize / BaseSlideHeight * 100;
 
-        return string.Create(System.Globalization.CultureInfo.InvariantCulture,
-            $"font-family: {style.FontFamily}; font-weight: {style.FontWeight}; line-height: {style.LineHeight}; font-size: clamp({MinFontSizePx}px, min({vw:0.##}vw, {vh:0.##}vh), {style.FontSize}px);");
+        // The theme's own CSS comes first and the responsive size overrides the fixed one it
+        // contains, which is the only property this view replaces.
+        return style.ToCss() + string.Create(System.Globalization.CultureInfo.InvariantCulture,
+            $" font-size: clamp({MinFontSizePx}px, min({vw:0.##}vw, {vh:0.##}vh), {style.FontSize}px);");
     }
 }

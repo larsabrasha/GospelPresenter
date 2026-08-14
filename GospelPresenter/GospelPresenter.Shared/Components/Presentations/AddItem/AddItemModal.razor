@@ -46,7 +46,7 @@
         </div>
 
         <div class="@(editingSongId is null && activeTab == "song" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
-            <SongTab @ref="songTab" OnAdd="@HandleSongAdd" OnAddKeepOpen="@HandleSongAddKeepOpen" AddMoreState="@addMoreState" OnEditSong="EnterSongEdit"/>
+            <SongTab @ref="songTab" OnAdd="@HandleSongAdd" OnAddKeepOpen="@HandleSongAddKeepOpen" AddMoreState="@addMoreState" OnEditSong="EnterSongEdit" Theme="@Theme"/>
         </div>
         <div class="@(editingSongId is null && activeTab == "bible" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
             <BibleTextTab OnAdd="@HandleBibleAdd" OnAddKeepOpen="@HandleBibleAddKeepOpen" AddMoreState="@addMoreState"/>
@@ -66,6 +66,9 @@
 @code {
     [Parameter] public string InitialTab { get; set; } = "song";
     [Parameter] public string PresentationId { get; set; } = "";
+
+    /// <summary>The presentation's theme, so song previews look like the slides that will be added.</summary>
+    [Parameter] public GospelPresenter.Shared.State.SlideTheme Theme { get; set; } = GospelPresenter.Shared.State.SlideTheme.Fallback;
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<GospelPresenter.Shared.State.SongAddRequest> OnSongAdded { get; set; }
     [Parameter] public EventCallback<GospelPresenter.Shared.State.SongAddRequest> OnSongAddedKeepOpen { get; set; }

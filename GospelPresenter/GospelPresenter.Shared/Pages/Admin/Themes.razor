@@ -1,0 +1,152 @@
+@page "/admin/themes"
+@attribute [Authorize(Policy = ManageThemes)]
+
+@using GospelPresenter.Shared.Components.Presentations
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject IThemeService ThemeService
+@inject ActiveOrganizationState OrgState
+@inject ToastService ToastService
+@inject IJSRuntime JsRuntime
+
+<PageContainer>
+    <div class="px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.Themes.Title"]</div>
+        <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1 max-w-2xl leading-relaxed">
+            @L["Admin.Themes.Description"]
+        </p>
+    </div>
+
+    @if (themes is null)
+    {
+        <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+    }
+    else
+    {
+        <div class="grid gap-4 sm:grid-cols-2" @ref="previewGrid">
+            @foreach (var theme in themes)
+            {
+                var isDefault = theme.Id == defaultThemeId;
+                <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+                    <SongSlide
+                        Content="@previewText"
+                        Credits="@PreviewCredits"
+                        Style="@theme.Definition.Song"
+                        Class="rounded-none overflow-hidden w-full"
+                        BaseWidth="1920"
+                        BaseHeight="1080"
+                        Scale="@previewScale"/>
+
+                    @* Name and description get the full width; the action sits on its own row so cards with
+                       long descriptions do not squeeze the text into a column. *@
+                    <div class="px-5 py-4">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-semibold">@ThemeName(theme)</span>
+                            @if (isDefault)
+                            {
+                                <span class="text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
+                                    @L["Admin.Themes.IsDefault"]
+                                </span>
+                            }
+                        </div>
+                        <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1 leading-relaxed">
+                            @ThemeDescription(theme)
+                        </p>
+
+                        @if (!isDefault)
+                        {
+                            <div class="flex justify-end mt-3">
+                                <AppButton Variant="ButtonVariant.Primary"
+                                           Disabled="@(savingThemeId is not null)"
+                                           OnClick="() => SetDefaultAsync(theme.Id)">
+                                    @L["Admin.Themes.SetAsDefault"]
+                                </AppButton>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</PageContainer>
+
+@code {
+    private List<Theme>? themes;
+    private string? defaultThemeId;
+    private string? savingThemeId;
+    private ElementReference previewGrid;
+    private double previewScale = 0.25;
+
+    private const int BaseSlideWidth = 1920;
+
+    /// <summary>Matches the gap-4 on the grid above.</summary>
+    private const double GridGapPx = 16;
+    private const string previewText = "Amazing grace\nhow sweet the sound";
+    private string PreviewCredits => L["Admin.Themes.PreviewCredits"].Value;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        var caller = OrgState.ToCallerContext();
+        themes = await ThemeService.GetThemesAsync(orgId, caller);
+        defaultThemeId = await ThemeService.GetOrganizationDefaultIdAsync(orgId, caller)
+                         ?? BuiltInThemes.ClassicId;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || themes is null) return;
+
+        // The previews are real slides on the 1920px canvas, scaled to whatever width the grid gives
+        // them, so what is shown here is what the projector will show.
+        var width = await JsRuntime.InvokeAsync<double>("getElementWidth", previewGrid);
+        if (width <= 0) return;
+
+        // The grid width includes the gap between columns, which is not available to a card.
+        var columns = width >= 640 ? 2 : 1;
+        var cardWidth = (width - GridGapPx * (columns - 1)) / columns;
+        previewScale = cardWidth / BaseSlideWidth;
+        StateHasChanged();
+    }
+
+    private async Task SetDefaultAsync(string themeId)
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is null) return;
+
+        savingThemeId = themeId;
+        var previous = defaultThemeId;
+        defaultThemeId = themeId;
+
+        try
+        {
+            await ThemeService.SetOrganizationDefaultAsync(orgId, themeId, OrgState.ToCallerContext());
+            ToastService.Show(L["Admin.Themes.DefaultSaved"]);
+        }
+        catch (Exception)
+        {
+            defaultThemeId = previous;
+            ToastService.Show(L["Admin.Themes.SaveFailed"]);
+        }
+        finally
+        {
+            savingThemeId = null;
+        }
+    }
+
+    // Built-in themes are named in the resource files by convention; an organisation's own theme carries
+    // the name its author typed.
+    private string ThemeName(Theme theme) =>
+        theme.IsBuiltIn ? L[$"Theme.Name.{theme.Id}"].Value : theme.Name;
+
+    private string ThemeDescription(Theme theme) =>
+        theme.IsBuiltIn ? L[$"Theme.Description.{theme.Id}"].Value : "";
+}

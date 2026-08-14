@@ -53,6 +53,27 @@ public static class ImageUrlHelper
     public static string OrgAudioPrefix(string organizationId, string audioId)
         => $"org/{organizationId}/audios/{audioId}/";
 
+    /// <summary>
+    /// The URL for a theme's background image. Built-in theme art is product graphics rather than
+    /// congregation data, so it is served unauthenticated and cached hard, with a content hash baked
+    /// into the asset path because built-in themes are updated in place.
+    ///
+    /// Organisation-owned backgrounds will need the live/watch proxy treatment the way other uploaded
+    /// images do, which is why the theme stores a discriminated reference instead of a URL. No theme
+    /// produces that kind yet.
+    /// </summary>
+    public static string? ThemeBackgroundUrl(State.SlideBackgroundImage? image, string variant = "full") => image switch
+    {
+        null => null,
+        { Source: State.SlideImageSource.BuiltInAsset } =>
+            $"/api/theme-images/{image.Value}-{variant}-{image.ContentHash}.webp",
+        _ => null
+    };
+
+    /// <summary>The object key a built-in theme asset is uploaded to. Mirrors the URL, hash included.</summary>
+    public static string ThemeAssetKey(string assetPath, string variant, string contentHash)
+        => $"themes/{assetPath}-{variant}-{contentHash}.webp";
+
     public static string SlidesPageUrl(string slidesId, int page)
         => $"/api/images/slides/{slidesId}/{page}";
 

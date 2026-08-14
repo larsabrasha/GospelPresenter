@@ -355,6 +355,9 @@ builder.Services.AddMetricServer(options =>
                                      || path.StartsWith("/api/calendar/", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/watch/", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/api/watch/", StringComparison.OrdinalIgnoreCase)
+                                     // Product graphics with no organisation behind them; the projector
+                                     // and the public output fetch them without signing in.
+                                     || path.StartsWith("/api/theme-images/", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/live", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/display", StringComparison.OrdinalIgnoreCase);
                     if (!isPublicPath)
@@ -633,6 +636,46 @@ builder.Services.AddMetricServer(options =>
         context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
         return Results.File(stream, contentType);
     }).RequireAuthorization();
+
+    // Built-in theme art. Product graphics rather than congregation data, so it is anonymous and cached
+    // hard — the projector, the operator's browser and every visitor's phone all fetch the same file. The
+    // URL carries a content hash, which is what allows immutable caching of a theme we update in place.
+    app.MapGet("/api/theme-images/{slug}/{fileName}", async (
+        string slug, string fileName,
+        HttpContext context,
+        IObjectStorageService storage,
+        IThemeAssetService themeAssets) =>
+    {
+        var assetPath = ThemeAssetService.AssetPathFromRequest(slug, fileName);
+        if (assetPath is null) return Results.NotFound();
+
+        var variant = fileName.Contains("-thumb-", StringComparison.Ordinal) ? "thumb" : "full";
+        var hash = themeAssets.ComputeContentHash(assetPath);
+        if (hash is null) return Results.NotFound();
+
+        // Object storage is the delivery path; the copy embedded in the application is the source of
+        // truth. Development, the tests and the screenshot tool have no storage configured at all, and
+        // the unconfigured implementation throws rather than returning nothing.
+        try
+        {
+            var stored = await storage.GetAsync(ImageUrlHelper.ThemeAssetKey(assetPath, variant, hash));
+            if (stored is not null)
+            {
+                context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+                return Results.File(stored.Value.Stream, stored.Value.ContentType);
+            }
+        }
+        catch (NotSupportedException)
+        {
+            // No object storage in this environment.
+        }
+
+        var bytes = themeAssets.ReadAsset(assetPath);
+        if (bytes is null) return Results.NotFound();
+
+        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        return Results.File(bytes, "image/webp");
+    }).AllowAnonymous();
 
     app.MapUploadEndpoints();
 

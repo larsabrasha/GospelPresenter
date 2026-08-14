@@ -12,6 +12,7 @@
 @inject ISongService SongService
 @inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
+@inject IThemeService ThemeService
 
 <PageContainer MaxWidthClass="max-w-[1200px]">
     <DetailHeader BackHref="@($"/admin/songs/{SongId}")" Title="@L["SongHistory.Title"].Value" Class="px-5"/>
@@ -72,7 +73,8 @@
                                 Content="@part.Content"
                                 Label="@part.Label"
                                 LabelColor="@part.LabelColor"
-                                Class="border-t-[0.5px] border-neutral-800/90 bg-black rounded-2xl overflow-hidden text-white"
+                                Style="@theme.Song"
+                                Class="border-t-[0.5px] border-neutral-800/90 rounded-2xl overflow-hidden"
                                 BaseWidth="1920"
                                 BaseHeight="1080"
                                 Scale="0.25"/>
@@ -115,6 +117,9 @@
     private bool restoreConfirm;
     private bool isRestoring;
 
+    // No presentation here, so previews use the organisation's default theme.
+    private SlideTheme theme = SlideTheme.Fallback;
+
     protected override async Task OnInitializedAsync()
     {
         var song = SongService.GetSongById(SongId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
@@ -126,6 +131,7 @@
 
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
+        theme = await ThemeService.GetOrganizationDefaultAsync(orgId, OrgState.ToCallerContext());
         versions = await SongService.GetVersionsAsync(SongId, orgId, OrgState.ToCallerContext());
         if (versions.Count > 0)
             await SelectVersion(versions[0].Id);

@@ -217,17 +217,15 @@ public partial class SharedAppState : ObservableObject
     /// </summary>
     public event Action<CcliSongDisplayedEvent>? CcliSongDisplayed;
 
-    public event Action<string, SlideTextStyle, SlideTextStyle, SlideTextStyle, SlideTextStyle>? OrganizationSlideStylesChanged;
+    /// <summary>
+    /// Raised when a presentation's theme changes, so an operator switching theme mid-service is reflected
+    /// on the projectors, in stage mode and on the public output immediately.
+    /// Parameters: presentationId, the resolved theme.
+    /// </summary>
+    public event Action<string, SlideTheme>? PresentationThemeChanged;
 
-    public void NotifyOrganizationSlideStylesChanged(
-        string organizationId,
-        SlideTextStyle songStyle,
-        SlideTextStyle creditsStyle,
-        SlideTextStyle bibleStyle,
-        SlideTextStyle bibleCreditsStyle)
-    {
-        OrganizationSlideStylesChanged?.Invoke(organizationId, songStyle, creditsStyle, bibleStyle, bibleCreditsStyle);
-    }
+    public void NotifyPresentationThemeChanged(string presentationId, SlideTheme theme) =>
+        PresentationThemeChanged?.Invoke(presentationId, theme);
 
     public bool IsSessionExpired(string sessionId) =>
         expiredSessions.ContainsKey(sessionId);
