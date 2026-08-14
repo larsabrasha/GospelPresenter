@@ -16,6 +16,7 @@ builder.Services.AddPooledDbContextFactory<PresentationContext>(opt =>
 builder.Services.AddSharedGospelPresenterServices(builder.Configuration);
 builder.Services.AddSingleton<GarageInitializer>();
 builder.Services.AddSingleton<ImageDataMigrator>();
+builder.Services.AddSingleton<ThemeAssetUploader>();
 
 builder.Services.AddHostedService<MigrationService>();
 
@@ -77,6 +78,28 @@ internal class MigrationService(
             {
                 await context.Database.MigrateAsync(stoppingToken);
             });
+
+            // The built-in themes live in code and are upserted after every migration, so improving
+            // one ships with the application instead of requiring a migration of its own.
+            await strategy.ExecuteAsync(async () =>
+            {
+                await BuiltInThemeSeeder.SeedAsync(context, stoppingToken);
+            });
+
+            // Their background art is copied to object storage for delivery. Not fatal if it fails: the
+            // endpoint falls back to the copy embedded in the application.
+            if (storage is not null)
+            {
+                try
+                {
+                    var uploader = scope.ServiceProvider.GetRequiredService<ThemeAssetUploader>();
+                    await uploader.UploadAsync(storage, stoppingToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Theme asset upload failed — assets will be served from the application");
+                }
+            }
 
             logger.LogInformation("Migration Service is finished");
         }

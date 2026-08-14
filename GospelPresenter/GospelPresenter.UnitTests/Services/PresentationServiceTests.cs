@@ -72,6 +72,83 @@ public class PresentationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdatePresentationThemeAsync_WithABuiltInTheme_StoresIt()
+    {
+        // Arrange
+        await SeedBuiltInThemesAsync();
+
+        // Act
+        await service.UpdatePresentationThemeAsync(orgA.Id, PresentationAId, BuiltInThemes.ClassicId, callerA);
+
+        // Assert
+        await using var context = await factory.CreateDbContextAsync();
+        var stored = await context.Presentations.SingleAsync(x => x.Id == PresentationAId);
+        stored.ThemeId.ShouldBe(BuiltInThemes.ClassicId);
+    }
+
+    [Fact]
+    public async Task UpdatePresentationThemeAsync_WithNull_FallsBackToTheOrganizationDefault()
+    {
+        // Arrange
+        await SeedBuiltInThemesAsync();
+        await service.UpdatePresentationThemeAsync(orgA.Id, PresentationAId, BuiltInThemes.ClassicId, callerA);
+
+        // Act
+        await service.UpdatePresentationThemeAsync(orgA.Id, PresentationAId, null, callerA);
+
+        // Assert -- null is how a presentation says "follow the organisation"
+        await using var context = await factory.CreateDbContextAsync();
+        var stored = await context.Presentations.SingleAsync(x => x.Id == PresentationAId);
+        stored.ThemeId.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// The theme id arrives from the client, so a caller could name a theme belonging to another
+    /// organization and dress their own slides in it.
+    /// </summary>
+    [Fact]
+    public async Task UpdatePresentationThemeAsync_WithAnotherOrganizationsTheme_Throws()
+    {
+        // Arrange
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.Themes.Add(new Theme { Id = "theirs", OrganizationId = orgB.Id, Name = "Theirs" });
+            await seed.SaveChangesAsync();
+        }
+
+        // Act
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => service.UpdatePresentationThemeAsync(orgA.Id, PresentationAId, "theirs", callerA));
+
+        // Assert
+        exception.Message.ShouldBe("Theme not found.");
+        await using var context = await factory.CreateDbContextAsync();
+        var stored = await context.Presentations.SingleAsync(x => x.Id == PresentationAId);
+        stored.ThemeId.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task UpdatePresentationThemeAsync_WithOwnOrganizationIdButForeignPresentationId_ChangesNothing()
+    {
+        // Arrange
+        await SeedBuiltInThemesAsync();
+
+        // Act -- the caller's own organization id, so the permission check passes
+        await service.UpdatePresentationThemeAsync(orgA.Id, PresentationBId, BuiltInThemes.ClassicId, callerA);
+
+        // Assert
+        await using var context = await factory.CreateDbContextAsync();
+        var stored = await context.Presentations.SingleAsync(x => x.Id == PresentationBId);
+        stored.ThemeId.ShouldBeNull();
+    }
+
+    private async Task SeedBuiltInThemesAsync()
+    {
+        await using var context = await factory.CreateDbContextAsync();
+        await BuiltInThemeSeeder.SeedAsync(context);
+    }
+
+    [Fact]
     public async Task AddItemAsync_ForAPresentationInTheCallersOwnOrganization_AddsTheItem()
     {
         // Arrange

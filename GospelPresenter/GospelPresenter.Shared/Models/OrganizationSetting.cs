@@ -2,25 +2,11 @@ namespace GospelPresenter.Shared.Models;
 
 public class OrganizationSetting
 {
-    public const string SongFontSize = "SongFontSize";
-    public const string SongFontFamily = "SongFontFamily";
-    public const string SongFontWeight = "SongFontWeight";
-    public const string SongLineHeight = "SongLineHeight";
-
-    public const string CreditsFontSize = "CreditsFontSize";
-    public const string CreditsFontFamily = "CreditsFontFamily";
-    public const string CreditsFontWeight = "CreditsFontWeight";
-    public const string CreditsLineHeight = "CreditsLineHeight";
-
-    public const string BibleFontSize = "BibleFontSize";
-    public const string BibleFontFamily = "BibleFontFamily";
-    public const string BibleFontWeight = "BibleFontWeight";
-    public const string BibleLineHeight = "BibleLineHeight";
-
-    public const string BibleCreditsFontSize = "BibleCreditsFontSize";
-    public const string BibleCreditsFontFamily = "BibleCreditsFontFamily";
-    public const string BibleCreditsFontWeight = "BibleCreditsFontWeight";
-    public const string BibleCreditsLineHeight = "BibleCreditsLineHeight";
+    /// <summary>
+    /// The theme presentations without one of their own are displayed with. Replaced the per-font
+    /// slide settings; see adr/0001-slide-themes.md.
+    /// </summary>
+    public const string DefaultThemeId = "DefaultThemeId";
 
     public const string CcliCollectionEnabled = "CcliCollectionEnabled";
 

@@ -25,4 +25,6 @@ public enum Permission
     ManageRemoteDisplays,
     ViewBibles,
     ManageBibles,
+    ViewThemes,
+    ManageThemes,
 }

@@ -25,6 +25,24 @@
                           Value="@selectedDescription" OnInput="HandleDescriptionChange"
                           MaxLength="AppConstraints.DescriptionMaxLength" Rows="4"/>
 
+        @if (Themes is not null)
+        {
+            <div>
+                <label for="presentation-theme" class="block text-sm font-medium mb-1.5 text-neutral-500 dark:text-neutral-400">
+                    @L["Event.Theme"]
+                </label>
+                @* w-fit so the wrapper hugs the select, keeping its chevron on the control rather than at
+                   the far edge of the dialog. *@
+                <SimpleSelect Id="presentation-theme" Class="w-fit" Value="@(selectedThemeId ?? "")" OnChange="HandleThemeChange">
+                    <option value="">@L["Event.Theme.FollowsOrganizationDefault"]</option>
+                    @foreach (var theme in Themes)
+                    {
+                        <option value="@theme.Id">@ThemeName(theme)</option>
+                    }
+                </SimpleSelect>
+            </div>
+        }
+
         <div class="flex justify-end gap-3">
             <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
                 @L["Common.Cancel"]
@@ -44,7 +62,16 @@
     [Parameter] public TimeOnly? Time { get; set; }
     [Parameter] public string? Location { get; set; }
     [Parameter] public string? Description { get; set; }
-    [Parameter, EditorRequired] public EventCallback<(string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description)> OnSave { get; set; }
+    /// <summary>
+    /// The themes the presentation may use. Null hides the picker, which is what the create flow does:
+    /// a new presentation follows the organisation's default until someone chooses otherwise.
+    /// </summary>
+    [Parameter] public List<GospelPresenter.Shared.Models.Theme>? Themes { get; set; }
+
+    /// <summary>The presentation's own theme, or null when it follows the organisation's default.</summary>
+    [Parameter] public string? ThemeId { get; set; }
+
+    [Parameter, EditorRequired] public EventCallback<(string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description, string? ThemeId)> OnSave { get; set; }
     [Parameter, EditorRequired] public EventCallback OnClose { get; set; }
     [Parameter] public string? SaveText { get; set; }
     [Parameter] public string? SaveLoadingText { get; set; }
@@ -54,6 +81,7 @@
     private string selectedTime = "";
     private string selectedLocation = "";
     private string selectedDescription = "";
+    private string? selectedThemeId;
     private bool isSaving;
     private FloatingInput? nameInput;
 
@@ -64,6 +92,7 @@
         selectedTime = Time?.ToString("HH:mm") ?? "";
         selectedLocation = Location ?? "";
         selectedDescription = Description ?? "";
+        selectedThemeId = ThemeId;
         SaveText ??= L["Common.Save"];
     }
 
@@ -72,6 +101,17 @@
     private void HandleTimeChange(ChangeEventArgs e) => selectedTime = e.Value?.ToString() ?? "";
     private void HandleLocationChange(ChangeEventArgs e) => selectedLocation = e.Value?.ToString() ?? "";
     private void HandleDescriptionChange(ChangeEventArgs e) => selectedDescription = e.Value?.ToString() ?? "";
+
+    private void HandleThemeChange(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        selectedThemeId = string.IsNullOrEmpty(value) ? null : value;
+    }
+
+    // Built-in themes are named in the resource files by convention; an organisation's own theme carries
+    // the name its author typed.
+    private string ThemeName(GospelPresenter.Shared.Models.Theme theme) =>
+        theme.IsBuiltIn ? L[$"Theme.Name.{theme.Id}"].Value : theme.Name;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -102,7 +142,7 @@
             string? location = string.IsNullOrWhiteSpace(selectedLocation) ? null : selectedLocation.Trim();
             string? description = string.IsNullOrWhiteSpace(selectedDescription) ? null : selectedDescription.Trim();
 
-            await OnSave.InvokeAsync((trimmed, date, time, location, description));
+            await OnSave.InvokeAsync((trimmed, date, time, location, description, selectedThemeId));
         }
         finally
         {

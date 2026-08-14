@@ -21,6 +21,12 @@ public class Presentation
     public TimeOnly? EventTime { get; set; }
     public string? EventLocation { get; set; }
 
+    /// <summary>
+    /// Null means the presentation follows the organisation's default theme. A value is an override
+    /// chosen for this presentation, and is copied when a presentation is created from a template.
+    /// </summary>
+    public string? ThemeId { get; set; }
+
     public string OrganizationId { get; set; } = string.Empty;
     public Organization Organization { get; set; } = null!;
 

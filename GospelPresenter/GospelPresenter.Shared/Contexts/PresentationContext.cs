@@ -1,11 +1,23 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.State;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GospelPresenter.Shared.Contexts;
 
 public class PresentationContext(DbContextOptions<PresentationContext> options) : DbContext(options)
 {
+    /// <summary>
+    /// Enums are written as names so that adding a value later cannot renumber what is already stored.
+    /// </summary>
+    private static readonly JsonSerializerOptions ThemeJsonOptions = new()
+    {
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     public DbSet<Organization> Organizations { get; set; }
     public DbSet<User> Users { get; set; }
     public DbSet<UserLogin> UserLogins { get; set; }
@@ -29,6 +41,7 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<DbSongArrangement> SongArrangements { get; set; }
     public DbSet<PresentationSlides> PresentationSlides { get; set; }
     public DbSet<CalendarSubscription> CalendarSubscriptions { get; set; }
+    public DbSet<Theme> Themes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +61,39 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
             e.Property(p => p.Name).HasMaxLength(AppConstraints.NameMaxLength);
             e.Property(p => p.Description).HasMaxLength(AppConstraints.DescriptionMaxLength);
             e.Property(p => p.EventLocation).HasMaxLength(AppConstraints.LocationMaxLength);
+
+            // No navigation property: the theme is resolved through IThemeService, which caches the
+            // built-in definitions, rather than joined into every presentation query. Deleting an
+            // organisation's theme drops its presentations back to the organisation default.
+            e.HasOne<Theme>()
+                .WithMany()
+                .HasForeignKey(p => p.ThemeId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Theme>(e =>
+        {
+            e.Property(t => t.Name).HasMaxLength(AppConstraints.NameMaxLength);
+            e.HasIndex(t => t.OrganizationId);
+            e.HasOne(t => t.Organization)
+                .WithMany()
+                .HasForeignKey(t => t.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // The definition is a nested tree that is never queried in SQL, so it is stored as JSON in
+            // one column while staying plain C# in the model. A converter rather than OwnsOne().ToJson()
+            // because the latter requires every nested type to be mapped by hand, which would mean
+            // touching this file for each property the theme editor adds later.
+            var definition = e.Property(t => t.Definition)
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, ThemeJsonOptions),
+                    v => JsonSerializer.Deserialize<SlideTheme>(v, ThemeJsonOptions) ?? new SlideTheme(),
+                    new ValueComparer<SlideTheme>(
+                        (a, b) => a == b,
+                        v => v.GetHashCode()));
+
+            if (Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
+                definition.HasColumnType("jsonb");
         });
 
         modelBuilder.Entity<PresentationItem>(e =>

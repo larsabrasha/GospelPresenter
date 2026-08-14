@@ -18,7 +18,10 @@ public static class PermissionMap
             Permission.ManageOverlays,
             Permission.ViewTemplates,
             Permission.ViewBibles,
-            Permission.ManageBibles
+            Permission.ManageBibles,
+            // Ordinary users pick the theme for their own presentations, so they must be able to
+            // read the theme list even though they cannot manage themes.
+            Permission.ViewThemes
         ],
         [UserRole.Admin] =
         [
@@ -40,7 +43,9 @@ public static class PermissionMap
             Permission.ManageCcliReport,
             Permission.ManageRemoteDisplays,
             Permission.ViewBibles,
-            Permission.ManageBibles
+            Permission.ManageBibles,
+            Permission.ViewThemes,
+            Permission.ManageThemes
         ],
         [UserRole.SuperAdmin] = [..Enum.GetValues<Permission>()]
     };

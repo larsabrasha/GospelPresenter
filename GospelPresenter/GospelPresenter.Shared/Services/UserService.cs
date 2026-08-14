@@ -36,6 +36,7 @@ public interface IUserService
     Task MarkInviteUsedAsync(string inviteId);
 
     Task<bool> IsEmailTakenAsync(string email, string? excludeUserId = null);
+    Task<bool> UserExistsAsync(string id, CancellationToken cancellationToken = default);
     Task<List<User>> GetAllUsersAsync(CallerContext caller);
     Task<User?> GetByIdAsync(string id, CallerContext caller);
     Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role, CallerContext caller);
@@ -144,6 +145,17 @@ public class UserService(
         await using var context = await dbContextFactory.CreateDbContextAsync();
         return await context.Users
             .AnyAsync(u => u.Email == email && (excludeUserId == null || u.Id != excludeUserId));
+    }
+
+    /// <summary>
+    /// Checks whether a user account still exists. Used to revalidate live sessions, so it
+    /// deliberately takes no <see cref="CallerContext"/> — the caller is the session being checked.
+    /// </summary>
+    public async Task<bool> UserExistsAsync(string id, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return false;
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await context.Users.AnyAsync(u => u.Id == id, cancellationToken);
     }
 
     public async Task<List<User>> GetAllUsersAsync(CallerContext caller)

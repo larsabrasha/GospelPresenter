@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Security.Cryptography;
 using System.Text;
 using GospelPresenter.Shared.Contexts;
+using GospelPresenter.Shared.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Web.Services;
@@ -53,6 +54,9 @@ public static class MockDatabaseInitializer
         await using var db = await dbContextFactory.CreateDbContextAsync();
         await db.Database.EnsureCreatedAsync();
         await WriteFingerprintAsync(db, fingerprint);
+        // Before the mock data, and outside its "seed once" guard: the built-in themes are upserted
+        // on every start, exactly as the migration service does for a real database.
+        await BuiltInThemeSeeder.SeedAsync(db);
         await MockDataSeeder.SeedAsync(db);
     }
 

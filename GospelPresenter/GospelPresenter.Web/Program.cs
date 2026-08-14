@@ -20,6 +20,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 using Prometheus;
 using System.Security.Claims;
 using Serilog;
@@ -85,6 +87,12 @@ try
                 options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.LoginPath = "/login";
+
+                // Reject the cookie of a user whose account no longer exists. The circuit-level
+                // check in RevalidatingAuthStateProvider only runs once a minute and starts over
+                // on every reload, so without this a deleted user keeps a usable window until the
+                // cookie expires (SessionTimeoutMinutes, four hours by default).
+                options.Events.OnValidatePrincipal = RejectDeletedUser;
             });
 
         if (oidcConfigured)
@@ -174,7 +182,12 @@ try
     {
         Log.Warning("No authentication provider configured — using mock authentication");
         builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-            .AddCookie(options => { options.LoginPath = "/mock-login"; });
+            .AddCookie(options =>
+            {
+                options.LoginPath = "/mock-login";
+                // Same session rule as the real providers: a deleted account stops working here too.
+                options.Events.OnValidatePrincipal = RejectDeletedUser;
+            });
         builder.Services.AddScoped<AuthenticationStateProvider, MockAuthenticationStateProvider>();
         builder.Services.AddSingleton<IAuthProviderService, MockAuthProviderService>();
     }
@@ -229,6 +242,7 @@ try
             opt.UseSqlite("Data Source=gospelpresenter-mock.db"));
     }
 
+    builder.Services.AddMemoryCache();
     builder.Services.AddScoped<IPresentationService, PresentationService>();
     builder.Services.AddSingleton<ISongService, SongService>();
     builder.Services.AddSingleton<IBibleService, BibleService>();
@@ -341,6 +355,9 @@ builder.Services.AddMetricServer(options =>
                                      || path.StartsWith("/api/calendar/", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/watch/", StringComparison.OrdinalIgnoreCase)
                                      || path.StartsWith("/api/watch/", StringComparison.OrdinalIgnoreCase)
+                                     // Product graphics with no organisation behind them; the projector
+                                     // and the public output fetch them without signing in.
+                                     || path.StartsWith("/api/theme-images/", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/live", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/display", StringComparison.OrdinalIgnoreCase);
                     if (!isPublicPath)
@@ -391,6 +408,19 @@ builder.Services.AddMetricServer(options =>
 
     app.UseAntiforgery();
 
+    // Restores a stored language for a browser that has no culture cookie yet. A browser that has
+    // one never reaches the lookup, so only users with nothing stored do — and for them it would
+    // otherwise repeat on every single request, including every static asset, since
+    // UseAuthentication runs before the static-file endpoints. Remembering the miss collapses that
+    // to one query.
+    //
+    // Picking a language is unaffected: /culture writes the cookie in the same response as it
+    // stores the setting, so that browser short-circuits from then on. The one case a remembered
+    // miss delays is a second browser signed in as the same user, which keeps its old culture
+    // until the entry expires.
+    var noStoredLanguageCacheDuration = TimeSpan.FromSeconds(
+        app.Services.GetRequiredService<IOptions<Settings>>().Value.PreferredLanguageCacheSeconds);
+
     app.Use(async (context, next) =>
     {
         if (context.User.Identity?.IsAuthenticated == true
@@ -399,19 +429,28 @@ builder.Services.AddMetricServer(options =>
             var userId = context.User.FindFirst("user_id")?.Value;
             if (userId is not null)
             {
-                var userService = context.RequestServices.GetRequiredService<IUserService>();
-                var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
-                var orgId = context.User.FindFirst("organization_id")?.Value;
-                var caller = new CallerContext(userId, role, orgId);
-                var lang = await userService.GetUserSettingAsync(userId, UserSetting.PreferredLanguage, caller);
-                if (lang is not null)
+                var cache = context.RequestServices.GetRequiredService<IMemoryCache>();
+                var cacheKey = $"no-preferred-language:{userId}";
+
+                if (!cache.TryGetValue(cacheKey, out _))
                 {
-                    context.Response.Cookies.Append(
-                        CookieRequestCultureProvider.DefaultCookieName,
-                        CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(lang)),
-                        new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true });
-                    context.Response.Redirect(context.Request.Path + context.Request.QueryString);
-                    return;
+                    var userService = context.RequestServices.GetRequiredService<IUserService>();
+                    var role = Enum.TryParse<UserRole>(context.User.FindFirst(ClaimTypes.Role)?.Value, out var r) ? r : UserRole.User;
+                    var orgId = context.User.FindFirst("organization_id")?.Value;
+                    var caller = new CallerContext(userId, role, orgId);
+                    var lang = await userService.GetUserSettingAsync(userId, UserSetting.PreferredLanguage, caller);
+                    if (lang is not null)
+                    {
+                        context.Response.Cookies.Append(
+                            CookieRequestCultureProvider.DefaultCookieName,
+                            CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(lang)),
+                            new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), IsEssential = true });
+                        context.Response.Redirect(context.Request.Path + context.Request.QueryString);
+                        return;
+                    }
+
+                    if (noStoredLanguageCacheDuration > TimeSpan.Zero)
+                        cache.Set(cacheKey, true, noStoredLanguageCacheDuration);
                 }
             }
         }
@@ -598,6 +637,46 @@ builder.Services.AddMetricServer(options =>
         return Results.File(stream, contentType);
     }).RequireAuthorization();
 
+    // Built-in theme art. Product graphics rather than congregation data, so it is anonymous and cached
+    // hard — the projector, the operator's browser and every visitor's phone all fetch the same file. The
+    // URL carries a content hash, which is what allows immutable caching of a theme we update in place.
+    app.MapGet("/api/theme-images/{slug}/{fileName}", async (
+        string slug, string fileName,
+        HttpContext context,
+        IObjectStorageService storage,
+        IThemeAssetService themeAssets) =>
+    {
+        var assetPath = ThemeAssetService.AssetPathFromRequest(slug, fileName);
+        if (assetPath is null) return Results.NotFound();
+
+        var variant = fileName.Contains("-thumb-", StringComparison.Ordinal) ? "thumb" : "full";
+        var hash = themeAssets.ComputeContentHash(assetPath);
+        if (hash is null) return Results.NotFound();
+
+        // Object storage is the delivery path; the copy embedded in the application is the source of
+        // truth. Development, the tests and the screenshot tool have no storage configured at all, and
+        // the unconfigured implementation throws rather than returning nothing.
+        try
+        {
+            var stored = await storage.GetAsync(ImageUrlHelper.ThemeAssetKey(assetPath, variant, hash));
+            if (stored is not null)
+            {
+                context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+                return Results.File(stored.Value.Stream, stored.Value.ContentType);
+            }
+        }
+        catch (NotSupportedException)
+        {
+            // No object storage in this environment.
+        }
+
+        var bytes = themeAssets.ReadAsset(assetPath);
+        if (bytes is null) return Results.NotFound();
+
+        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+        return Results.File(bytes, "image/webp");
+    }).AllowAnonymous();
+
     app.MapUploadEndpoints();
 
     // Unauthenticated slides endpoint for the live view — served while the session's presentation is active.
@@ -776,6 +855,54 @@ static string? ResolveScheme(string? provider, IAuthProviderService authProvider
     return null;
 }
 
+static async Task RejectDeletedUser(CookieValidatePrincipalContext context)
+{
+    var userId = context.Principal?.FindFirstValue("user_id");
+    if (string.IsNullOrEmpty(userId))
+        return;
+
+    var services = context.HttpContext.RequestServices;
+    var cache = services.GetRequiredService<IMemoryCache>();
+    var cacheKey = $"user-exists:{userId}";
+    var cacheDuration = TimeSpan.FromSeconds(
+        services.GetRequiredService<IOptions<Settings>>().Value.SessionRevalidationCacheSeconds);
+
+    // This event fires for every request carrying the cookie — including each static asset, since
+    // UseAuthentication runs before the static-file endpoints. Caching the "still exists" answer
+    // keeps one page load to a single query instead of one per file. Only the positive answer is
+    // cached: a rejected user is signed out on the spot, so there is nothing to remember.
+    var cachingEnabled = cacheDuration > TimeSpan.Zero;
+    if (cachingEnabled && cache.TryGetValue(cacheKey, out _))
+        return;
+
+    var userService = services.GetRequiredService<IUserService>();
+    try
+    {
+        if (await userService.UserExistsAsync(userId, context.HttpContext.RequestAborted))
+        {
+            if (cachingEnabled)
+                cache.Set(cacheKey, true, cacheDuration);
+            return;
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        // The client went away mid-request; there is no session left to protect.
+        return;
+    }
+    catch (Exception ex)
+    {
+        // Keep the session if the database is unreachable — signing everyone out during a database
+        // blip would interrupt a service in progress, and the app cannot show content without it.
+        Log.Warning(ex, "Could not verify that user {UserId} still exists; keeping the session", userId);
+        return;
+    }
+
+    Log.Information("Rejecting session for user {UserId}: the account no longer exists", userId);
+    context.RejectPrincipal();
+    await context.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+}
+
 static async Task HandleAuthenticatedUser(
     HttpContext httpContext,
     ClaimsPrincipal? principal,
@@ -863,3 +990,6 @@ static async Task<byte[]?> DownloadImage(IHttpClientFactory httpClientFactory, s
         return null;
     }
 }
+
+// Exposed so the integration tests can boot the real application through WebApplicationFactory.
+public partial class Program;

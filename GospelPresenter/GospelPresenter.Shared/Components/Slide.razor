@@ -1,3 +1,6 @@
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+
 @{
     var scale = FormattableString.Invariant($"{Scale}");
     var baseWidth = FormattableString.Invariant($"{BaseWidth}px");
@@ -13,10 +16,14 @@
         null => null
     };
     var cssClass = selectionClass ?? Class;
+
+    // The background belongs on the base canvas rather than the scaled wrapper, so a cover image
+    // frames the same way in a thumbnail as it does on the projector.
+    var background = EffectiveBackground.ToCss(ImageUrlHelper.ThemeBackgroundUrl(EffectiveBackground.Image));
 }
 
 <div
-    class="select-none text-center group relative @cssClass"
+    class="select-none group relative @cssClass"
     style="width: @width; height: @height">
     @if (isLiveSelected)
     {
@@ -27,7 +34,7 @@
     }
     <div
         class="origin-top-left flex items-center justify-center px-20 pt-20 pb-36 relative overflow-hidden"
-        style="width: @baseWidth; height: @baseHeight; transform: scale(@scale);">
+        style="width: @baseWidth; height: @baseHeight; transform: scale(@scale); @background">
         @ChildContent
     </div>
 </div>
@@ -41,7 +48,14 @@
     [Parameter] public bool? IsSelected { get; set; }
     [Parameter] public bool IsLive { get; set; }
 
-    private const string BaseClass = "border-t-[0.5px] border-neutral-800/90 bg-black rounded-2xl overflow-hidden outline-4 m-1 text-white cursor-pointer";
+    /// <summary>The theme's background for this slide type. Black when a theme could not be resolved.</summary>
+    [Parameter] public SlideBackground? Background { get; set; }
+
+    private SlideBackground EffectiveBackground => Background ?? SlideTheme.Fallback.Song.Background;
+
+    // No bg-black and no text-white here: the theme paints the canvas and each text role carries its
+    // own colour.
+    private const string BaseClass = "border-t-[0.5px] border-neutral-800/90 rounded-2xl overflow-hidden outline-4 m-1 cursor-pointer";
     private const string SelectedClass = "outline-sky-500 hover:outline-sky-500";
     private const string LiveSelectedClass = "outline-red-500 hover:outline-red-500";
     private const string NotSelectedClass = "outline-transparent hover:outline-sky-500";
