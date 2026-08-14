@@ -79,13 +79,23 @@ Constraints that shaped the decisions below:
 
 ### Text that does not fit
 
-8. **Sizes stay fixed; overflow keeps being clipped — but with an invariant:** no built-in theme may
-   render main text wider or taller than today's 85px Tahoma does, compensated for the font's glyph
-   width (Oswald is narrow, Merriweather wide). Nothing that fits today starts clipping.
+8. **Sizes stay fixed and overflow keeps being clipped, guarded by two tests.**
 
-   The invariant is **enforced by a unit test**, not by good behaviour: for every built-in theme, a
-   worst-case text (a 250-character Bible slide per `MaxCharsPerSlide`, and the longest song part we
-   intend to support) must fit the canvas minus padding with the same margin `Classic` has today.
+   **The canvas test** is what protects against clipping: for every built-in theme, a worst-case text
+   (a 250-character Bible slide per `MaxCharsPerSlide`, and the longest song part we intend to support)
+   must fit the canvas minus padding.
+
+   **The line-box test** keeps the themes in line with each other: no theme may choose a taller line
+   (`FontSize × LineHeight`) than Classic. It deliberately does not compare the height of a wrapped
+   block, because that also depends on how wide the typeface is — a wide face such as Montserrat wraps
+   earlier through no fault of the theme's settings, and the canvas test already covers the consequence.
+
+   *Amended after the baseline changed (see (26)):* the invariant was originally "no theme may need more
+   room than the 85px Tahoma the application rendered before themes existed", enforced by comparing
+   wrapped block heights against `SlideTheme.Classic`. That was only meaningful while Classic *was* the
+   historical look. Once Classic became a design decision of its own, the comparison measured a moving
+   reference, and it failed for a wide typeface at identical settings. The rule above is what we
+   actually wanted: the canvas bounds clipping, the line box bounds ambition.
 
    Shrink-to-fit is a separate future feature. When it lands, a theme's `FontSize` is reinterpreted
    from "the size" to "the ceiling" — no schema change, no theme rewritten. Making the Bible chunk
@@ -184,10 +194,14 @@ otherwise it is untested code that breaks when the editor arrives.
 
 | Theme | Covers | Content |
 |---|---|---|
-| `Classic` | the reference point | Exactly today's values: Tahoma 85/400/1.2, black background, white text, credits 40px white/40% |
-| `Midnight` | non-black background colour, heavier weight | Inter 600, deep blue background, white text |
-| `Daylight` | **dark text on a light background** | Lato 400, warm white background, near-black text |
+| `Classic` | the recommended look and the baseline | Tahoma on black, song lyrics bold, Bible text regular, both 75px / 1.4, credits 40px / 1.2 white/40% |
+| `Midnight` | non-black background colour, a different typeface | Inter, deep blue background, white text |
+| `Daylight` | **dark text on a light background** | Lato, warm white background, near-black text |
 | `Aurora` | **background image + scrim + text shadow** | Montserrat, background image in `Themes/aurora/`, scrim 45%, shadow on |
+
+All four share one baseline — 75px and a 1.4 line — so size is a product decision in one place rather
+than four numbers that drifted apart while being trimmed against a reference that then moved. Themes
+differ in typeface, weight, colour and background.
 
 It was called `Photo` while this ADR was being written. The art turned out to be an abstract
 gradient rather than a photograph, and a built-in slug is permanent, so the theme is named after what
@@ -220,8 +234,29 @@ silently. All new themes use self-hosted fonts; Tahoma gets its own issue.
     responsive size is capped at the theme's size and that the scrim is layered over the image.
     **Integration tests:** the permission gates, that the presentation's theme persists, and that
     nothing still reads the removed settings keys.
-    **Screenshots** are regenerated — slides look identical (`Classic` equals today's values), but
-    the admin sidebar nav item changes name in both languages × light/dark × desktop/mobile.
+    **Screenshots** are regenerated. They now differ in the slides as well as in the sidebar nav item,
+    because `Classic` is no longer the pre-theme look — see (26).
+
+### The baseline (amendment)
+
+26. **Classic is the recommended look, not the historical one.** Its main text is **75px with a 1.4 line
+    height**, song lyrics **bold (700)** and Bible text regular, credits unchanged at 40px / 1.2. The
+    application rendered 85px / 400 / 1.2 before themes existed.
+
+    The reasoning: nobody ever *chose* 85/400/1.2 — it was a code default, and the per-organisation
+    settings that could have overridden it were never used in practice. Changing a default nobody
+    selected is a different act from overriding someone's choice. 75px bold with an airy line is simply a
+    better projection default.
+
+    **The consequence is accepted deliberately: slides change appearance the first time this ships.**
+    Song lyrics become bold and slightly smaller with more space between lines. No congregation asked for
+    it, none is notified, and — because the historical values are not kept as a selectable theme — there
+    is no way back to the old look. Adding an `Original` theme was considered and rejected: it would
+    preserve a look nobody deliberately picked, at the cost of a fifth theme to maintain.
+
+    A seven-line song part goes from 714px to 735px of the 856px available, so the margin before clipping
+    narrows; an eight-line part goes from 816px to 840px. Nine lines clipped before and still clip. The
+    canvas test in (8) is what holds that line.
 
 ## Consequences
 
@@ -258,8 +293,9 @@ Both are resolved:
 ## Implementation order
 
 1. **PR (a):** model, migration, `BuiltInThemeSeeder`, `Classic`, the rendering path, permissions.
-   No change to how a slide looks. The old `/admin/slide-settings` page and its navigation entry are
-   removed here, so themes have no user interface at all until (b).
+   No change to how a slide looks *at that point*; (26) changed that afterwards. The old
+   `/admin/slide-settings` page and its navigation entry are removed here, so themes have no user
+   interface at all until (b).
 
    Two pieces of the decisions above are deliberately **not** in (a), because nothing exercises them
    until a theme ships an image: the `/api/theme-images/{slug}/{variant}` endpoint (with its

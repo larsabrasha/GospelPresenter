@@ -1002,7 +1002,7 @@
     <value>Classic</value>
   </data>
   <data name="Theme.Description.classic" xml:space="preserve">
-    <value>White text on a black background — the look Gospel Presenter has always had.</value>
+    <value>Bold white text on a black background, with an airy line. The look we recommend.</value>
   </data>
   <data name="Nav.Themes" xml:space="preserve">
     <value>Themes</value>
@@ -1038,7 +1038,7 @@
     <value>Midnight</value>
   </data>
   <data name="Theme.Description.midnight" xml:space="preserve">
-    <value>Deep blue with a firmer typeface, for a dark room.</value>
+    <value>Deep blue instead of black, with a cleaner typeface. For a dark room.</value>
   </data>
   <data name="Theme.Name.daylight" xml:space="preserve">
     <value>Daylight</value>

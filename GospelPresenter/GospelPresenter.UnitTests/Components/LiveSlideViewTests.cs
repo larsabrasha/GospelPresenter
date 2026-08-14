@@ -103,7 +103,8 @@ public class LiveSlideViewTests : TestContext
 
         markup.ShouldContain("background-color: #000000");
         markup.ShouldContain("color: #ffffff");
-        markup.ShouldContain("font-size: 85px");
+        markup.ShouldContain("font-size: 75px");
+        markup.ShouldContain("font-weight: 700");
     }
 
     private IRenderedComponent<LiveSlideView> Render(LiveSlide slide) =>

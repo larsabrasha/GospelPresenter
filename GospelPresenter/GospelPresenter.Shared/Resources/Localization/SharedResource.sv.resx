@@ -1002,7 +1002,7 @@
     <value>Klassisk</value>
   </data>
   <data name="Theme.Description.classic" xml:space="preserve">
-    <value>Vit text på svart bakgrund — det utseende Gospel Presenter alltid har haft.</value>
+    <value>Fet vit text på svart bakgrund med luftigt radavstånd. Utseendet vi rekommenderar.</value>
   </data>
   <data name="Nav.Themes" xml:space="preserve">
     <value>Teman</value>
@@ -1038,7 +1038,7 @@
     <value>Midnatt</value>
   </data>
   <data name="Theme.Description.midnight" xml:space="preserve">
-    <value>Djupblått med en fastare typografi, för ett mörkt rum.</value>
+    <value>Djupblått i stället för svart, med en renare typografi. För ett mörkt rum.</value>
   </data>
   <data name="Theme.Name.daylight" xml:space="preserve">
     <value>Dagsljus</value>

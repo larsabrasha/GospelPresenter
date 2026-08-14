@@ -38,7 +38,10 @@ public static class BuiltInThemes
         new(AuroraId, 3, Aurora)
     ];
 
-    /// <summary>Deep blue rather than black, and a heavier weight. Sizes stay at Classic's.</summary>
+    /// <summary>
+    /// Deep blue rather than black, with a cleaner typeface. Size and line come from the baseline; the
+    /// weight is lighter than Classic's, which is a deliberate variation rather than a firmer setting.
+    /// </summary>
     private static SlideTheme Midnight => new()
     {
         Song = new SlideStyle
@@ -47,8 +50,7 @@ public static class BuiltInThemes
             MainText = new SlideTextStyle
             {
                 FontFamily = SlideFontFamilies.Inter,
-                FontWeight = 600,
-                LineHeight = 1.15
+                FontWeight = 600
             },
             Credits = MidnightCredits
         },
@@ -59,7 +61,6 @@ public static class BuiltInThemes
             {
                 FontFamily = SlideFontFamilies.Inter,
                 FontWeight = 500,
-                LineHeight = 1.18,
                 Align = SlideTextAlign.Left
             },
             Credits = MidnightCredits
@@ -78,9 +79,7 @@ public static class BuiltInThemes
             Background = DaylightBackground,
             MainText = new SlideTextStyle
             {
-                FontSize = 80,
                 FontFamily = SlideFontFamilies.Lato,
-                LineHeight = 1.25,
                 Color = DaylightInk
             },
             Credits = DaylightCredits
@@ -90,9 +89,7 @@ public static class BuiltInThemes
             Background = DaylightBackground,
             MainText = new SlideTextStyle
             {
-                FontSize = 80,
                 FontFamily = SlideFontFamilies.Lato,
-                LineHeight = 1.25,
                 Color = DaylightInk,
                 Align = SlideTextAlign.Left
             },
@@ -112,10 +109,8 @@ public static class BuiltInThemes
             Background = AuroraBackground,
             MainText = new SlideTextStyle
             {
-                FontSize = 78,
                 FontFamily = SlideFontFamilies.Montserrat,
                 FontWeight = 500,
-                LineHeight = 1.2,
                 Shadow = true
             },
             Credits = AuroraCredits
@@ -125,9 +120,7 @@ public static class BuiltInThemes
             Background = AuroraBackground,
             MainText = new SlideTextStyle
             {
-                FontSize = 78,
                 FontFamily = SlideFontFamilies.Montserrat,
-                LineHeight = 1.2,
                 Align = SlideTextAlign.Left,
                 Shadow = true
             },
@@ -156,6 +149,7 @@ public static class BuiltInThemes
     private static SlideTextStyle MidnightCredits => new()
     {
         FontSize = 40,
+        LineHeight = 1.2,
         FontFamily = SlideFontFamilies.Inter,
         Color = "rgba(255, 255, 255, 0.45)",
         Align = SlideTextAlign.Left
@@ -166,6 +160,7 @@ public static class BuiltInThemes
     private static SlideTextStyle DaylightCredits => new()
     {
         FontSize = 40,
+        LineHeight = 1.2,
         FontFamily = SlideFontFamilies.Lato,
         Color = "rgba(20, 18, 16, 0.55)",
         Align = SlideTextAlign.Left
@@ -174,6 +169,7 @@ public static class BuiltInThemes
     private static SlideTextStyle AuroraCredits => new()
     {
         FontSize = 40,
+        LineHeight = 1.2,
         FontFamily = SlideFontFamilies.Montserrat,
         Color = "rgba(255, 255, 255, 0.5)",
         Align = SlideTextAlign.Left,

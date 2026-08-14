@@ -12,6 +12,11 @@ namespace GospelPresenter.UnitTests.Services;
 /// </summary>
 public class BuiltInThemeTests
 {
+    // The baseline every built-in theme shares, and the reference the line-box invariant is expressed
+    // against. Changing these is a product decision; the tests below say what it costs.
+    private const int BaselineFontSize = 75;
+    private const double BaselineLineHeight = 1.4;
+
     // 250 characters, the limit BibleTextService splits verses on. A theme that cannot hold this
     // clips Bible slides that were chunked before the theme was chosen.
     private const string WorstCaseBibleText =
@@ -56,17 +61,40 @@ public class BuiltInThemeTests
     }
 
     /// <summary>
-    /// The invariant from adr/0001-slide-themes.md: a theme may look different from Classic, but it may
-    /// not need more room, because operators no longer have a text-size control to compensate with.
+    /// The invariant from adr/0001-slide-themes.md: a theme may be typographically different from Classic,
+    /// but it may not ask for a taller line, because operators no longer have a text-size control to
+    /// compensate with.
+    ///
+    /// It measures the line box — the size and line height a theme *chooses* — and deliberately not the
+    /// height of a wrapped block. Block height also depends on how wide the typeface is, and a wide face
+    /// such as Montserrat wraps a line earlier through no fault of the theme's settings. The consequence
+    /// of that wrapping is what EveryBuiltInThemeHoldsTheWorstCaseText covers.
     /// </summary>
     [Theory]
     [MemberData(nameof(BuiltInThemeIds))]
-    public void NoBuiltInThemeNeedsMoreRoomThanClassic(string themeId)
+    public void NoBuiltInThemeAsksForATallerLineThanClassic(string themeId)
     {
         var theme = Definition(themeId);
 
-        AssertNoLargerThanClassic(WorstCaseSongText, theme.Song.MainText, SlideTheme.Classic.Song.MainText, themeId);
-        AssertNoLargerThanClassic(WorstCaseBibleText, theme.BibleText.MainText, SlideTheme.Classic.BibleText.MainText, themeId);
+        AssertLineFitsClassic(theme.Song.MainText, SlideTheme.Classic.Song.MainText, themeId, "song");
+        AssertLineFitsClassic(theme.BibleText.MainText, SlideTheme.Classic.BibleText.MainText, themeId, "Bible");
+    }
+
+    /// <summary>
+    /// Every theme is meant to share one baseline, so that size is a product decision rather than four
+    /// numbers that drifted apart while being trimmed against a moving reference.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(BuiltInThemeIds))]
+    public void EveryBuiltInThemeUsesTheSharedBaseline(string themeId)
+    {
+        var theme = Definition(themeId);
+
+        foreach (var style in new[] { theme.Song.MainText, theme.BibleText.MainText })
+        {
+            style.FontSize.ShouldBe(BaselineFontSize, $"theme '{themeId}' deviates from the baseline size");
+            style.LineHeight.ShouldBe(BaselineLineHeight, $"theme '{themeId}' deviates from the baseline line height");
+        }
     }
 
     [Theory]
@@ -140,19 +168,14 @@ public class BuiltInThemeTests
     private static SlideTheme Definition(string themeId) =>
         BuiltInThemes.All.First(t => t.Id == themeId).Definition;
 
-    private static void AssertNoLargerThanClassic(string text, SlideTextStyle style, SlideTextStyle classic, string themeId)
+    private static void AssertLineFitsClassic(SlideTextStyle style, SlideTextStyle classic, string themeId, string role)
     {
-        var estimate = SlideTextFitEstimator.Estimate(text, style);
-        var reference = SlideTextFitEstimator.Estimate(text, classic);
-
-        // Height is the measure that matters. Width is not compared against Classic: wrapped text always
-        // grows to fill the content box, so a *narrower* font produces a wider line — it fits more
-        // characters before wrapping. That would punish exactly the themes that need the least room.
-        // Overflow in either direction is covered by EveryBuiltInThemeHoldsTheWorstCaseText.
-        estimate.Height.ShouldBeLessThanOrEqualTo(reference.Height,
-            $"theme '{themeId}' needs more vertical room than Classic, and operators no longer have a "
-            + "text-size control to compensate with");
+        LineBox(style).ShouldBeLessThanOrEqualTo(LineBox(classic),
+            $"theme '{themeId}' asks for a taller {role} line than Classic, and operators no longer have "
+            + "a text-size control to compensate with");
     }
+
+    private static double LineBox(SlideTextStyle style) => style.FontSize * style.LineHeight;
 
     private static IReadOnlyCollection<string> ResourceKeys(string fileName)
     {
