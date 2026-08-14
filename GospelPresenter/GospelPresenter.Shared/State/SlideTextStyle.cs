@@ -6,15 +6,16 @@ namespace GospelPresenter.Shared.State;
 /// How one piece of text on a slide is rendered — the main text or the credits of a slide type.
 /// Part of a <see cref="SlideTheme"/>; never configured on its own.
 ///
-/// Sizes are expressed against the fixed 1920x1080 slide canvas. See adr/0001-slide-themes.md for
-/// why no built-in theme may render text larger than Classic does.
+/// Sizes are expressed against the fixed 1920x1080 slide canvas. The defaults here are the product's
+/// main-text baseline, which every built-in theme inherits: size is one number in one place rather than
+/// four numbers that drifted apart. See adr/0001-slide-themes.md.
 /// </summary>
 public record SlideTextStyle
 {
-    public int FontSize { get; init; } = 85;
+    public int FontSize { get; init; } = 75;
     public string FontFamily { get; init; } = SlideFontFamilies.Tahoma;
     public int FontWeight { get; init; } = 400;
-    public double LineHeight { get; init; } = 1.2;
+    public double LineHeight { get; init; } = 1.4;
 
     /// <summary>Any CSS colour, so credits can carry their transparency here rather than as a class.</summary>
     public string Color { get; init; } = "#ffffff";

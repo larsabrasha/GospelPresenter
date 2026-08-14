@@ -35,15 +35,19 @@ public record SlideTheme
     };
 
     /// <summary>
-    /// The values every slide had before themes existed: black background, white Tahoma at 85px,
-    /// credits at 40px and 40% white. Bible text is left-aligned because
-    /// <c>BibleTextService</c> has always wrapped it in a left-aligned div, and those divs are
-    /// frozen in already-stored presentation parts.
+    /// The look Gospel Presenter recommends: white Tahoma on black, song lyrics in bold and Bible text
+    /// in regular weight, both at the 75px baseline with an airy line.
+    ///
+    /// It is deliberately *not* what the application rendered before themes existed (85px, regular
+    /// weight, 1.2). Nobody chose those values — they were a code default — and a presentation that has
+    /// not picked a theme lands here, so slides do change appearance the first time this ships.
+    ///
+    /// Bible text is left-aligned because <c>BibleTextService</c> has always wrapped it in a
+    /// left-aligned div, and those divs are frozen in already-stored presentation parts.
     /// </summary>
     public static readonly SlideTheme Classic = new()
     {
-        // Every property in this file defaults to its pre-theme value, so Classic only has to state
-        // where Bible text differs from song text.
+        Song = new SlideStyle { MainText = new SlideTextStyle { FontWeight = 700 } },
         BibleText = new SlideStyle { MainText = new SlideTextStyle { Align = SlideTextAlign.Left } }
     };
 
@@ -60,7 +64,13 @@ public record SlideStyle
 {
     public SlideBackground Background { get; init; } = new();
     public SlideTextStyle MainText { get; init; } = new();
-    public SlideTextStyle Credits { get; init; } = new() { FontSize = 40, Color = "rgba(255, 255, 255, 0.4)", Align = SlideTextAlign.Left };
+    public SlideTextStyle Credits { get; init; } = new()
+    {
+        FontSize = 40,
+        LineHeight = 1.2,
+        Color = "rgba(255, 255, 255, 0.4)",
+        Align = SlideTextAlign.Left
+    };
 }
 
 public record SlideBackground
