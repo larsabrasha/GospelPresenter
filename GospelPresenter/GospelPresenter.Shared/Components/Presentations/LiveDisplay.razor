@@ -8,9 +8,10 @@
 }
 
 <div class="relative isolate bg-black overflow-hidden @Class" style="width: @w; height: @h;">
+    @* The frame stays black: it is what shows for an item with no slide of its own, such as audio. *@
     <LiveSlideView
         LiveSlide="@LiveSlide"
-        Class="bg-black overflow-hidden text-white"
+        Class="overflow-hidden"
         BaseWidth="@BaseWidth"
         BaseHeight="@BaseHeight"
         Scale="@Scale"/>

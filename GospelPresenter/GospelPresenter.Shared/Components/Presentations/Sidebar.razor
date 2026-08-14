@@ -6,6 +6,8 @@
 @inject AppState AppState
 @inject IJSRuntime JsRuntime
 @inject IPresentationService PresentationService
+@inject IThemeService ThemeService
+@inject SharedAppState SharedAppState
 @inject ActiveOrganizationState OrgState
 
 @implements IDisposable
@@ -265,6 +267,8 @@
                                Time="@(AppState.SelectedProject?.EventTime)"
                                Location="@(AppState.SelectedProject?.EventLocation)"
                                Description="@(AppState.SelectedProject?.Description)"
+                               Themes="@themes"
+                               ThemeId="@(AppState.SelectedProject?.ThemeId)"
                                OnSave="SavePresentationDetailsAsync"
                                OnClose="() => showPresentationDetailsDialog = false"/>
 }
@@ -294,6 +298,7 @@
     [Parameter] public string? LiveProjectItemId { get; set; }
 
     private bool showPresentationDetailsDialog;
+    private List<GospelPresenter.Shared.Models.Theme>? themes;
     private bool showTemplateDetailsDialog;
     private DotNetObjectReference<Sidebar>? dotNetRef;
     private bool sortableInitialized;
@@ -390,7 +395,14 @@
         await OnAddRequested.InvokeAsync();
     }
 
-    private void ShowPresentationDetailsDialog() => showPresentationDetailsDialog = true;
+    private async Task ShowPresentationDetailsDialog()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        if (orgId is not null)
+            themes = await ThemeService.GetThemesAsync(orgId, OrgState.ToCallerContext());
+
+        showPresentationDetailsDialog = true;
+    }
     private void ShowTemplateDetailsDialog() => showTemplateDetailsDialog = true;
 
     private async Task SaveTemplateDetailsAsync((string Name, int? DayOfWeek, TimeOnly? Time, string? Location) details)
@@ -440,7 +452,7 @@
         return parts.Count > 0 ? string.Join(" ", parts) : null;
     }
 
-    private async Task SavePresentationDetailsAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description) details)
+    private async Task SavePresentationDetailsAsync((string Name, DateOnly? Date, TimeOnly? Time, string? Location, string? Description, string? ThemeId) details)
     {
         showPresentationDetailsDialog = false;
         if (AppState.SelectedProject is null) return;
@@ -452,9 +464,22 @@
         AppState.SelectedProject.EventLocation = details.Location;
         AppState.SelectedProject.Description = details.Description;
 
+        var themeChanged = details.ThemeId != AppState.SelectedProject.ThemeId;
+        AppState.SelectedProject.ThemeId = details.ThemeId;
+
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is not null && nameChanged)
             await PresentationService.RenamePresentationAsync(orgId, AppState.SelectedProject.Id, details.Name, OrgState.ToCallerContext());
+
+        if (orgId is not null && themeChanged)
+        {
+            await PresentationService.UpdatePresentationThemeAsync(
+                orgId, AppState.SelectedProject.Id, details.ThemeId, OrgState.ToCallerContext());
+
+            // Anything already live has to follow immediately — projectors, stage mode and the public output.
+            var theme = await ThemeService.GetForPresentationAsync(orgId, details.ThemeId, OrgState.ToCallerContext());
+            SharedAppState.NotifyPresentationThemeChanged(AppState.SelectedProject.Id, theme);
+        }
 
         await OnEventChanged.InvokeAsync((details.Date, details.Time, details.Location, details.Description));
     }

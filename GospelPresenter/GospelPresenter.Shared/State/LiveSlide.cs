@@ -9,10 +9,10 @@ public record LiveSlide(
     string? Credits,
     string? ImageUrl,
     SongPart? SongPart,
-    SlideTextStyle? SongStyle = null,
-    SlideTextStyle? CreditsStyle = null,
-    SlideTextStyle? BibleStyle = null,
-    SlideTextStyle? BibleCreditsStyle = null,
+    // The resolved theme travels with the slide rather than being looked up per surface: the public
+    // output renders one server-side fragment shared by every viewer, so it needs the definition in
+    // hand. Built-in definitions are immutable per deployment, so this is a shared reference.
+    SlideTheme? Theme = null,
     string? SongId = null,
     string? SongName = null,
     string? CcliNumber = null

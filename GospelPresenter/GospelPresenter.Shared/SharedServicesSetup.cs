@@ -30,6 +30,9 @@ public static class SharedServicesSetup
         services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IImageResizeService, ImageResizeService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
+        // Singleton so the built-in theme definitions are cached once for the whole process.
+        services.AddSingleton<IThemeService, ThemeService>();
+        services.AddSingleton<IThemeAssetService, ThemeAssetService>();
 
         var s3Endpoint = configuration?.GetSection("S3")["Endpoint"];
         if (configuration is not null && !string.IsNullOrEmpty(s3Endpoint))

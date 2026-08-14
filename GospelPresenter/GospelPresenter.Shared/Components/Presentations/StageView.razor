@@ -295,10 +295,8 @@
     [Parameter] public Image? SelectedImage { get; set; }
     [Parameter] public Audio? SelectedAudio { get; set; }
     [Parameter] public SlidesState? SelectedSlides { get; set; }
-    [Parameter] public SlideTextStyle SongStyle { get; set; } = SlideTextStyle.SongDefault;
-    [Parameter] public SlideTextStyle CreditsStyle { get; set; } = SlideTextStyle.CreditsDefault;
-    [Parameter] public SlideTextStyle BibleStyle { get; set; } = SlideTextStyle.BibleDefault;
-    [Parameter] public SlideTextStyle BibleCreditsStyle { get; set; } = SlideTextStyle.CreditsDefault;
+    /// <summary>The presentation's theme. Stage mode mirrors the audience output, so it uses the same one.</summary>
+    [Parameter] public SlideTheme Theme { get; set; } = SlideTheme.Fallback;
     [Parameter] public IList<OverlaySlide> OverlaySlides { get; set; } = [];
     [Parameter] public string? ActiveOverlayId { get; set; }
     [Parameter] public EventCallback<(string ItemId, int PartIndex)> OnSelectSlide { get; set; }
@@ -399,48 +397,48 @@
             builder.AddAttribute(1, nameof(SongSlide.Content), p.Content);
             builder.AddAttribute(2, nameof(SongSlide.Label), p.Label);
             builder.AddAttribute(3, nameof(SongSlide.LabelColor), p.LabelColor);
-            builder.AddAttribute(4, nameof(SongSlide.ContentStyle), SongStyle);
-            builder.AddAttribute(5, nameof(SongSlide.CreditsStyle), CreditsStyle);
-            builder.AddAttribute(6, nameof(SongSlide.IsSelected), false);
-            builder.AddAttribute(7, nameof(SongSlide.IsLive), false);
-            builder.AddAttribute(8, nameof(SongSlide.BaseWidth), BaseWidth);
-            builder.AddAttribute(9, nameof(SongSlide.BaseHeight), BaseHeight);
-            builder.AddAttribute(10, nameof(SongSlide.Scale), scale);
+            builder.AddAttribute(4, nameof(SongSlide.Style), Theme.Song);
+            builder.AddAttribute(5, nameof(SongSlide.IsSelected), false);
+            builder.AddAttribute(6, nameof(SongSlide.IsLive), false);
+            builder.AddAttribute(7, nameof(SongSlide.BaseWidth), BaseWidth);
+            builder.AddAttribute(8, nameof(SongSlide.BaseHeight), BaseHeight);
+            builder.AddAttribute(9, nameof(SongSlide.Scale), scale);
             builder.CloseComponent();
         }
         else if (SelectedBibleText is not null && index < SelectedBibleText.Parts.Count)
         {
             builder.OpenComponent<BibleTextSlide>(0);
             builder.AddAttribute(1, nameof(BibleTextSlide.Content), SelectedBibleText.Parts[index]);
-            builder.AddAttribute(2, nameof(BibleTextSlide.ContentStyle), BibleStyle);
-            builder.AddAttribute(3, nameof(BibleTextSlide.CreditsStyle), BibleCreditsStyle);
-            builder.AddAttribute(4, nameof(BibleTextSlide.IsSelected), false);
-            builder.AddAttribute(5, nameof(BibleTextSlide.IsLive), false);
-            builder.AddAttribute(6, nameof(BibleTextSlide.BaseWidth), BaseWidth);
-            builder.AddAttribute(7, nameof(BibleTextSlide.BaseHeight), BaseHeight);
-            builder.AddAttribute(8, nameof(BibleTextSlide.Scale), scale);
+            builder.AddAttribute(2, nameof(BibleTextSlide.Style), Theme.BibleText);
+            builder.AddAttribute(3, nameof(BibleTextSlide.IsSelected), false);
+            builder.AddAttribute(4, nameof(BibleTextSlide.IsLive), false);
+            builder.AddAttribute(5, nameof(BibleTextSlide.BaseWidth), BaseWidth);
+            builder.AddAttribute(6, nameof(BibleTextSlide.BaseHeight), BaseHeight);
+            builder.AddAttribute(7, nameof(BibleTextSlide.Scale), scale);
             builder.CloseComponent();
         }
         else if (SelectedImage is not null && index < SelectedImage.Urls.Count)
         {
             builder.OpenComponent<ImageSlide>(0);
             builder.AddAttribute(1, nameof(ImageSlide.Url), SelectedImage.Urls[index]);
-            builder.AddAttribute(2, nameof(ImageSlide.IsSelected), false);
-            builder.AddAttribute(3, nameof(ImageSlide.IsLive), false);
-            builder.AddAttribute(4, nameof(ImageSlide.BaseWidth), BaseWidth);
-            builder.AddAttribute(5, nameof(ImageSlide.BaseHeight), BaseHeight);
-            builder.AddAttribute(6, nameof(ImageSlide.Scale), scale);
+            builder.AddAttribute(2, nameof(ImageSlide.Background), Theme.Media);
+            builder.AddAttribute(3, nameof(ImageSlide.IsSelected), false);
+            builder.AddAttribute(4, nameof(ImageSlide.IsLive), false);
+            builder.AddAttribute(5, nameof(ImageSlide.BaseWidth), BaseWidth);
+            builder.AddAttribute(6, nameof(ImageSlide.BaseHeight), BaseHeight);
+            builder.AddAttribute(7, nameof(ImageSlide.Scale), scale);
             builder.CloseComponent();
         }
         else if (SelectedSlides is not null && index < SelectedSlides.Urls.Count)
         {
             builder.OpenComponent<ImageSlide>(0);
             builder.AddAttribute(1, nameof(ImageSlide.Url), SelectedSlides.Urls[index]);
-            builder.AddAttribute(2, nameof(ImageSlide.IsSelected), false);
-            builder.AddAttribute(3, nameof(ImageSlide.IsLive), false);
-            builder.AddAttribute(4, nameof(ImageSlide.BaseWidth), BaseWidth);
-            builder.AddAttribute(5, nameof(ImageSlide.BaseHeight), BaseHeight);
-            builder.AddAttribute(6, nameof(ImageSlide.Scale), scale);
+            builder.AddAttribute(2, nameof(ImageSlide.Background), Theme.Media);
+            builder.AddAttribute(3, nameof(ImageSlide.IsSelected), false);
+            builder.AddAttribute(4, nameof(ImageSlide.IsLive), false);
+            builder.AddAttribute(5, nameof(ImageSlide.BaseWidth), BaseWidth);
+            builder.AddAttribute(6, nameof(ImageSlide.BaseHeight), BaseHeight);
+            builder.AddAttribute(7, nameof(ImageSlide.Scale), scale);
             builder.CloseComponent();
         }
     };

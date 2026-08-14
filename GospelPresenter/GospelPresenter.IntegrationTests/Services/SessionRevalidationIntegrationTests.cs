@@ -11,6 +11,7 @@ namespace GospelPresenter.IntegrationTests.Services;
 /// Both sit before the static-file endpoints, so they run for each CSS file, script and image as
 /// well — the cost per request matters as much as the behaviour, and these tests assert both.
 /// </summary>
+[Collection(WebAppCollection.Name)]
 public class SessionRevalidationIntegrationTests
 {
     private const string AnyPath = "/no-such-page";

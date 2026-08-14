@@ -998,6 +998,60 @@
   <data name="ApiKeys.Deleted" xml:space="preserve">
     <value>MCP API-nyckel raderad</value>
   </data>
+  <data name="Theme.Name.classic" xml:space="preserve">
+    <value>Klassisk</value>
+  </data>
+  <data name="Theme.Description.classic" xml:space="preserve">
+    <value>Vit text på svart bakgrund — det utseende Gospel Presenter alltid har haft.</value>
+  </data>
+  <data name="Nav.Themes" xml:space="preserve">
+    <value>Teman</value>
+  </data>
+  <data name="Admin.Themes.Title" xml:space="preserve">
+    <value>Teman</value>
+  </data>
+  <data name="Admin.Themes.Description" xml:space="preserve">
+    <value>Ett tema styr hur en presentations slides ser ut. Välj det som församlingen använder som standard — presentationer som inte har valt eget tema följer det.</value>
+  </data>
+  <data name="Admin.Themes.IsDefault" xml:space="preserve">
+    <value>Standard</value>
+  </data>
+  <data name="Admin.Themes.SetAsDefault" xml:space="preserve">
+    <value>Använd som standard</value>
+  </data>
+  <data name="Admin.Themes.DefaultSaved" xml:space="preserve">
+    <value>Standardtemat sparat</value>
+  </data>
+  <data name="Admin.Themes.SaveFailed" xml:space="preserve">
+    <value>Kunde inte spara standardtemat</value>
+  </data>
+  <data name="Admin.Themes.PreviewCredits" xml:space="preserve">
+    <value>John Newton · 1779</value>
+  </data>
+  <data name="Event.Theme" xml:space="preserve">
+    <value>Tema</value>
+  </data>
+  <data name="Event.Theme.FollowsOrganizationDefault" xml:space="preserve">
+    <value>Följer församlingens standard</value>
+  </data>
+  <data name="Theme.Name.midnight" xml:space="preserve">
+    <value>Midnatt</value>
+  </data>
+  <data name="Theme.Description.midnight" xml:space="preserve">
+    <value>Djupblått med en fastare typografi, för ett mörkt rum.</value>
+  </data>
+  <data name="Theme.Name.daylight" xml:space="preserve">
+    <value>Dagsljus</value>
+  </data>
+  <data name="Theme.Description.daylight" xml:space="preserve">
+    <value>Mörk text på ljus bakgrund, för LED-vägg och ljusa lokaler.</value>
+  </data>
+  <data name="Theme.Name.aurora" xml:space="preserve">
+    <value>Norrsken</value>
+  </data>
+  <data name="Theme.Description.aurora" xml:space="preserve">
+    <value>En mjuk bakgrundsbild med dämpning som håller texten läsbar.</value>
+  </data>
   <data name="Nav.Templates" xml:space="preserve">
     <value>Mallar</value>
   </data>
@@ -1120,87 +1174,6 @@
   </data>
   <data name="Toast.KeyCopied" xml:space="preserve">
     <value>Nyckel kopierad</value>
-  </data>
-  <data name="Nav.SlideSettings" xml:space="preserve">
-    <value>Slide-inställningar</value>
-  </data>
-  <data name="SlideSettings.Title" xml:space="preserve">
-    <value>Slide-inställningar</value>
-  </data>
-  <data name="SlideSettings.SongSlides" xml:space="preserve">
-    <value>Sång-slides</value>
-  </data>
-  <data name="SlideSettings.BibleSlides" xml:space="preserve">
-    <value>Bibel-slides</value>
-  </data>
-  <data name="SlideSettings.MainText" xml:space="preserve">
-    <value>Huvudtext</value>
-  </data>
-  <data name="SlideSettings.Credits" xml:space="preserve">
-    <value>Credits</value>
-  </data>
-  <data name="SlideSettings.FontFamily" xml:space="preserve">
-    <value>Font</value>
-  </data>
-  <data name="SlideSettings.FontWeight" xml:space="preserve">
-    <value>Fontvikt</value>
-  </data>
-  <data name="SlideSettings.FontSize" xml:space="preserve">
-    <value>Fontstorlek</value>
-  </data>
-  <data name="SlideSettings.LineHeight" xml:space="preserve">
-    <value>Radavstånd</value>
-  </data>
-  <data name="SlideSettings.FontFamily.Tahoma" xml:space="preserve">
-    <value>Tahoma</value>
-  </data>
-  <data name="SlideSettings.FontFamily.Inter" xml:space="preserve">
-    <value>Inter</value>
-  </data>
-  <data name="SlideSettings.FontFamily.Lato" xml:space="preserve">
-    <value>Lato</value>
-  </data>
-  <data name="SlideSettings.FontFamily.Montserrat" xml:space="preserve">
-    <value>Montserrat</value>
-  </data>
-  <data name="SlideSettings.FontFamily.Oswald" xml:space="preserve">
-    <value>Oswald</value>
-  </data>
-  <data name="SlideSettings.FontFamily.PlayfairDisplay" xml:space="preserve">
-    <value>Playfair Display</value>
-  </data>
-  <data name="SlideSettings.FontFamily.Merriweather" xml:space="preserve">
-    <value>Merriweather</value>
-  </data>
-  <data name="SlideSettings.FontWeight.Light" xml:space="preserve">
-    <value>Tunn</value>
-  </data>
-  <data name="SlideSettings.FontWeight.Regular" xml:space="preserve">
-    <value>Normal</value>
-  </data>
-  <data name="SlideSettings.FontWeight.Medium" xml:space="preserve">
-    <value>Medium</value>
-  </data>
-  <data name="SlideSettings.FontWeight.SemiBold" xml:space="preserve">
-    <value>Halvfet</value>
-  </data>
-  <data name="SlideSettings.FontWeight.Bold" xml:space="preserve">
-    <value>Fet</value>
-  </data>
-  <data name="SlideSettings.FontWeight.ExtraBold" xml:space="preserve">
-    <value>Extra fet</value>
-  </data>
-  <data name="SlideSettings.Preview" xml:space="preserve">
-    <value>Förhandsgranskning</value>
-  </data>
-  <data name="SlideSettings.Reset" xml:space="preserve">
-    <value>Återställ</value>
-  </data>
-  <data name="SlideSettings.BiblePreviewText" xml:space="preserve">
-    <value>&lt;sup class="opacity-40"&gt;16&lt;/sup&gt;&#160;Ty så älskade Gud världen att han&lt;br&gt;utgav sin enfödde Son, för att var&lt;br&gt;och en som tror på honom inte ska&lt;br&gt;gå förlorad utan ha evigt liv.</value>
-  </data>
-  <data name="SlideSettings.BiblePreviewCredits" xml:space="preserve">
-    <value>Johannes 3:16</value>
   </data>
   <data name="Presentation.EditSong" xml:space="preserve">
     <value>Redigera</value>

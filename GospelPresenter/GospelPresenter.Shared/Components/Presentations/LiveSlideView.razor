@@ -1,12 +1,15 @@
 @using GospelPresenter.Shared.State
 
+@{
+    var theme = LiveSlide.Theme ?? SlideTheme.Fallback;
+}
+
 @if (LiveSlide.ItemType == ProjectItemType.Song && LiveSlide.SongPart is not null)
 {
     <SongSlide
         Content="@LiveSlide.SongPart.Content"
         Credits="@LiveSlide.Credits"
-        ContentStyle="@LiveSlide.SongStyle"
-        CreditsStyle="@LiveSlide.CreditsStyle"
+        Style="@theme.Song"
         Class="@Class"
         BaseWidth="@BaseWidth"
         BaseHeight="@BaseHeight"
@@ -17,8 +20,7 @@ else if (LiveSlide.ItemType == ProjectItemType.BibleText && LiveSlide.Text is no
     <BibleTextSlide
         Content="@LiveSlide.Text"
         Credits="@LiveSlide.Credits"
-        ContentStyle="@LiveSlide.BibleStyle"
-        CreditsStyle="@LiveSlide.BibleCreditsStyle"
+        Style="@theme.BibleText"
         Class="@Class"
         BaseWidth="@BaseWidth"
         BaseHeight="@BaseHeight"
@@ -28,6 +30,7 @@ else if ((LiveSlide.ItemType == ProjectItemType.Image || LiveSlide.ItemType == P
 {
     <ImageSlide
         Url="@LiveSlide.ImageUrl"
+        Background="@theme.Media"
         Class="@Class"
         BaseWidth="@BaseWidth"
         BaseHeight="@BaseHeight"

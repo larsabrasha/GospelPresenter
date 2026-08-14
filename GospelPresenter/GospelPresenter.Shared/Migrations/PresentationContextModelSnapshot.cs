@@ -17,7 +17,7 @@ namespace GospelPresenter.Shared.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.5")
+                .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -551,6 +551,9 @@ namespace GospelPresenter.Shared.Migrations
                     b.Property<TimeOnly?>("ScheduledTime")
                         .HasColumnType("time without time zone");
 
+                    b.Property<string>("ThemeId")
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -564,6 +567,8 @@ namespace GospelPresenter.Shared.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ThemeId");
 
                     b.ToTable("Presentations");
                 });
@@ -687,6 +692,33 @@ namespace GospelPresenter.Shared.Migrations
                     b.HasIndex("OrganizationId", "Kind");
 
                     b.ToTable("RemoteDisplays");
+                });
+
+            modelBuilder.Entity("GospelPresenter.Shared.Models.Theme", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Definition")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("OrganizationId")
+                        .HasColumnType("text");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("Themes");
                 });
 
             modelBuilder.Entity("GospelPresenter.Shared.Models.User", b =>
@@ -969,6 +1001,11 @@ namespace GospelPresenter.Shared.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GospelPresenter.Shared.Models.Theme", null)
+                        .WithMany()
+                        .HasForeignKey("ThemeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Organization");
                 });
 
@@ -1012,6 +1049,16 @@ namespace GospelPresenter.Shared.Migrations
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("GospelPresenter.Shared.Models.Theme", b =>
+                {
+                    b.HasOne("GospelPresenter.Shared.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Organization");
                 });

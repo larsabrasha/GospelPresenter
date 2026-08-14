@@ -26,7 +26,7 @@
 @inject NavigationManager NavigationManager
 @inject ToastService ToastService
 @inject ActiveOrganizationState OrgState
-@inject IOrganizationSettingService OrgSettingService
+@inject IThemeService ThemeService
 @inject IRemoteDisplayService RemoteDisplayService
 
 @{
@@ -50,10 +50,7 @@
         SelectedImage="@SelectedImage"
         SelectedAudio="@SelectedAudio"
         SelectedSlides="@SelectedSlides"
-        SongStyle="@songStyle"
-        CreditsStyle="@creditsStyle"
-        BibleStyle="@bibleStyle"
-        BibleCreditsStyle="@bibleCreditsStyle"
+        Theme="@theme"
         OverlaySlides="@overlaySlides"
         ActiveOverlayId="@activeOverlayId"
         OnSelectSlide="HandleStageSelectSlide"
@@ -258,8 +255,7 @@
                                     Content="@effectiveParts[i].Content"
                                     Label="@effectiveParts[i].Label"
                                     LabelColor="@effectiveParts[i].LabelColor"
-                                    ContentStyle="@songStyle"
-                                    CreditsStyle="@creditsStyle"
+                                    Style="@theme.Song"
                                     IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
                                     IsLive="@isLiveShowing"
                                     BaseWidth="@AppState.BaseSlideWidth"
@@ -276,8 +272,7 @@
                             <button @onclick="() => SetSelectedLiveSlide(SelectedBibleText.Id, partIndex)">
                                 <BibleTextSlide
                                     Content="@SelectedBibleText.Parts[i]"
-                                    ContentStyle="@bibleStyle"
-                                    CreditsStyle="@bibleCreditsStyle"
+                                    Style="@theme.BibleText"
                                     IsSelected="@(liveSlide.ProjectItemId == SelectedBibleText.Id && liveSlide.ItemPartIndex == i)"
                                     IsLive="@isLiveShowing"
                                     BaseWidth="@AppState.BaseSlideWidth"
@@ -298,6 +293,7 @@
                                         <div class="relative drag-handle">
                                             <ImageSlide
                                                 Url="@SelectedImage.Urls[i]"
+                                                Background="@theme.Media"
                                                 IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
                                                 IsLive="@isLiveShowing"
                                                 BaseWidth="@AppState.BaseSlideWidth"
@@ -318,6 +314,7 @@
                                         <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, partIndex)">
                                             <ImageSlide
                                                 Url="@SelectedImage.Urls[i]"
+                                                Background="@theme.Media"
                                                 IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
                                                 IsLive="@isLiveShowing"
                                                 BaseWidth="@AppState.BaseSlideWidth"
@@ -348,6 +345,7 @@
                             <button @onclick="() => SetSelectedLiveSlide(SelectedSlides.Id, partIndex)">
                                 <ImageSlide
                                     Url="@SelectedSlides.Urls[i]"
+                                    Background="@theme.Media"
                                     IsSelected="@(liveSlide.ProjectItemId == SelectedSlides.Id && liveSlide.ItemPartIndex == i)"
                                     IsLive="@isLiveShowing"
                                     BaseWidth="@AppState.BaseSlideWidth"
@@ -516,6 +514,7 @@
 {
     <AddItemModal OnClose="@CloseAddModal"
                   PresentationId="@EffectiveId"
+                  Theme="@theme"
                   OnSongAdded="@HandleSongAdded"
                   OnSongAddedKeepOpen="@HandleSongAddedKeepOpen"
                   OnBibleVersesAdded="@HandleBibleVersesAdded"
@@ -677,10 +676,7 @@
 
     private string? loadedPresentationId;
     private Models.Presentation? loadedPresentation;
-    private SlideTextStyle songStyle = SlideTextStyle.SongDefault;
-    private SlideTextStyle creditsStyle = SlideTextStyle.CreditsDefault;
-    private SlideTextStyle bibleStyle = SlideTextStyle.BibleDefault;
-    private SlideTextStyle bibleCreditsStyle = SlideTextStyle.CreditsDefault;
+    private SlideTheme theme = SlideTheme.Fallback;
     private ProjectItem? itemToRemove;
     private List<ProjectItem>? itemsToRemove;
     private bool isRemovingMultiple;
@@ -1110,7 +1106,7 @@
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PresentationChanged += OnPresentationChanged;
-        SharedAppState.OrganizationSlideStylesChanged += OnSlideStylesChanged;
+        SharedAppState.PresentationThemeChanged += OnPresentationThemeChanged;
         SharedAppState.PresentationActivated += OnPresenterActivated;
         SharedAppState.PresentationDeactivated += OnPresenterDeactivated;
     }
@@ -1143,30 +1139,6 @@
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        songStyle = await LoadSlideTextStyleAsync(orgId, SlideTextStyle.SongDefault,
-            Models.OrganizationSetting.SongFontSize,
-            Models.OrganizationSetting.SongFontFamily,
-            Models.OrganizationSetting.SongFontWeight,
-            Models.OrganizationSetting.SongLineHeight);
-
-        creditsStyle = await LoadSlideTextStyleAsync(orgId, SlideTextStyle.CreditsDefault,
-            Models.OrganizationSetting.CreditsFontSize,
-            Models.OrganizationSetting.CreditsFontFamily,
-            Models.OrganizationSetting.CreditsFontWeight,
-            Models.OrganizationSetting.CreditsLineHeight);
-
-        bibleStyle = await LoadSlideTextStyleAsync(orgId, SlideTextStyle.BibleDefault,
-            Models.OrganizationSetting.BibleFontSize,
-            Models.OrganizationSetting.BibleFontFamily,
-            Models.OrganizationSetting.BibleFontWeight,
-            Models.OrganizationSetting.BibleLineHeight);
-
-        bibleCreditsStyle = await LoadSlideTextStyleAsync(orgId, SlideTextStyle.CreditsDefault,
-            Models.OrganizationSetting.BibleCreditsFontSize,
-            Models.OrganizationSetting.BibleCreditsFontFamily,
-            Models.OrganizationSetting.BibleCreditsFontWeight,
-            Models.OrganizationSetting.BibleCreditsLineHeight);
-
         loadedPresentation = IsTemplateMode
             ? await PresentationService.GetTemplateByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext())
             : await PresentationService.GetPresentationByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext());
@@ -1176,6 +1148,11 @@
             AppState.SelectedProjectItem = null;
             return;
         }
+
+        // Resolved after the presentation is loaded, since a presentation without a theme of its own
+        // follows the organisation's default.
+        theme = await ThemeService.GetForPresentationAsync(
+            orgId, loadedPresentation.ThemeId, OrgState.ToCallerContext());
 
         AppState.SelectedProject = new Project
         {
@@ -1187,6 +1164,7 @@
             EventTime = loadedPresentation.EventTime,
             EventLocation = loadedPresentation.EventLocation,
             Description = loadedPresentation.Description,
+            ThemeId = loadedPresentation.ThemeId,
             Items = loadedPresentation.Items.Select(item => new ProjectItem
             {
                 Id = item.Id,
@@ -1279,7 +1257,7 @@
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
-        SharedAppState.OrganizationSlideStylesChanged -= OnSlideStylesChanged;
+        SharedAppState.PresentationThemeChanged -= OnPresentationThemeChanged;
         SharedAppState.PresentationActivated -= OnPresenterActivated;
         SharedAppState.PresentationDeactivated -= OnPresenterDeactivated;
         dotNetRef?.Dispose();
@@ -1307,27 +1285,18 @@
         }
     }
 
-    private void OnSlideStylesChanged(
-        string organizationId,
-        SlideTextStyle newSongStyle,
-        SlideTextStyle newCreditsStyle,
-        SlideTextStyle newBibleStyle,
-        SlideTextStyle newBibleCreditsStyle)
+    private void OnPresentationThemeChanged(string presentationId, SlideTheme newTheme)
     {
-        if (organizationId != OrgState.ActiveOrganizationId) return;
-        songStyle = newSongStyle;
-        creditsStyle = newCreditsStyle;
-        bibleStyle = newBibleStyle;
-        bibleCreditsStyle = newBibleCreditsStyle;
+        if (presentationId != EffectiveId) return;
 
+        theme = newTheme;
+
+        // Push the theme onto whatever is showing, so projectors, stage mode and the public output change
+        // with the operator rather than at the next slide.
         var current = SharedAppState.GetLiveSlide(EffectiveSessionId);
-        SharedAppState.SetLiveSlide(EffectiveSessionId, current with
-        {
-            SongStyle = newSongStyle,
-            CreditsStyle = newCreditsStyle,
-            BibleStyle = newBibleStyle,
-            BibleCreditsStyle = newBibleCreditsStyle
-        });
+        SharedAppState.SetLiveSlide(EffectiveSessionId, current with { Theme = newTheme });
+
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private async void OnPresentationChanged(string presentationId, string? senderSessionId)
@@ -1599,10 +1568,7 @@
             Credits = credits,
             ImageUrl = imageUrl,
             SongPart = songPart,
-            SongStyle = songStyle,
-            CreditsStyle = creditsStyle,
-            BibleStyle = bibleStyle,
-            BibleCreditsStyle = bibleCreditsStyle,
+            Theme = theme,
             SongId = liveSongId,
             SongName = liveSongName,
             CcliNumber = liveCcliNumber
@@ -1836,30 +1802,6 @@
         if (arrangementId is null && song.Arrangements.Count > 0)
             arrangementId = song.Arrangements[0].Id;
         return song.GetArrangedParts(arrangementId);
-    }
-
-    private async Task<SlideTextStyle> LoadSlideTextStyleAsync(
-        string orgId,
-        SlideTextStyle fallback,
-        string fontSizeKey,
-        string fontFamilyKey,
-        string fontWeightKey,
-        string lineHeightKey)
-    {
-        var ctx = OrgState.ToCallerContext();
-        var sizeValue = await OrgSettingService.GetSettingAsync(orgId, fontSizeKey, ctx);
-        var familyValue = await OrgSettingService.GetSettingAsync(orgId, fontFamilyKey, ctx);
-        var weightValue = await OrgSettingService.GetSettingAsync(orgId, fontWeightKey, ctx);
-        var lineHeightValue = await OrgSettingService.GetSettingAsync(orgId, lineHeightKey, ctx);
-
-        var size = int.TryParse(sizeValue, out var s) ? s : fallback.FontSize;
-        var family = string.IsNullOrEmpty(familyValue) ? fallback.FontFamily : familyValue;
-        var weight = int.TryParse(weightValue, out var w) ? w : fallback.FontWeight;
-        var lineHeight = double.TryParse(lineHeightValue, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lh)
-            ? lh
-            : fallback.LineHeight;
-
-        return new SlideTextStyle(size, family, weight, lineHeight);
     }
 
     private static string? FormatSongCredits(Song? song)

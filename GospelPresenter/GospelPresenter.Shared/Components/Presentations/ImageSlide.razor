@@ -1,7 +1,10 @@
+@using GospelPresenter.Shared.State
+
 <Slide
     IsSelected="@IsSelected"
     IsLive="@IsLive"
     Class="@Class"
+    Background="@Background"
     BaseWidth="@BaseWidth"
     BaseHeight="@BaseHeight"
     Scale="@Scale">
@@ -13,6 +16,10 @@
     [Parameter] public bool? IsSelected { get; set; }
     [Parameter] public bool IsLive { get; set; }
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>The media background of the theme — what shows around an image that is not 16:9.</summary>
+    [Parameter] public SlideBackground? Background { get; set; }
+
     [Parameter] public required int BaseWidth { get; set; }
     [Parameter] public required int BaseHeight { get; set; }
     [Parameter] public required double Scale { get; set; }

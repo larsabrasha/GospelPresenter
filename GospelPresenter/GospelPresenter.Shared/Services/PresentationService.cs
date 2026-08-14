@@ -48,6 +48,9 @@ public interface IPresentationService
     Task<Presentation> CreateTemplateAsync(string name, string organizationId, string userId, CallerContext caller, int? scheduledDayOfWeek = null, TimeOnly? scheduledTime = null, string? location = null, CancellationToken cancellationToken = default);
     Task UpdateTemplateScheduleAsync(string organizationId, string templateId, int? dayOfWeek, TimeOnly? time, string? location, CallerContext caller, CancellationToken cancellationToken = default);
     Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, string? description, CallerContext caller, CancellationToken cancellationToken = default);
+
+    /// <summary>Sets or clears the presentation's theme. Null means it follows the organisation's default.</summary>
+    Task UpdatePresentationThemeAsync(string organizationId, string presentationId, string? themeId, CallerContext caller, CancellationToken cancellationToken = default);
     Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
     Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
@@ -595,6 +598,8 @@ public class PresentationService(
             Name = name,
             IsTemplate = true,
             OrganizationId = organizationId,
+            // Saving a presentation as a template captures its look along with its items.
+            ThemeId = source.ThemeId,
             CreatedAt = now,
             CreatedBy = userId,
             UpdatedAt = now,
@@ -666,6 +671,8 @@ public class PresentationService(
             EventTime = eventTime,
             EventLocation = eventLocation,
             Description = description,
+            // The theme is part of the template's design: a Christmas template keeps its look.
+            ThemeId = template.ThemeId,
             CreatedAt = now,
             CreatedBy = userId,
             UpdatedAt = now,
@@ -774,6 +781,30 @@ public class PresentationService(
                 .SetProperty(p => p.EventTime, time)
                 .SetProperty(p => p.EventLocation, location)
                 .SetProperty(p => p.Description, description)
+                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+    }
+
+    public async Task UpdatePresentationThemeAsync(string organizationId, string presentationId, string? themeId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManagePresentations);
+        caller.RequirePermission(Permission.ViewThemes);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        // The theme id comes from the client, so it is checked against what this organisation may use.
+        // Without this a caller could dress their slides in another organisation's theme.
+        if (themeId is not null)
+        {
+            var usable = await context.Themes
+                .AnyAsync(t => t.Id == themeId && (t.OrganizationId == null || t.OrganizationId == organizationId), cancellationToken);
+            if (!usable)
+                throw new InvalidOperationException("Theme not found.");
+        }
+
+        await context.Presentations
+            .Where(x => x.Id == presentationId && x.OrganizationId == organizationId)
+            .ExecuteUpdateAsync(x => x
+                .SetProperty(p => p.ThemeId, themeId)
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 
