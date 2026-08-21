@@ -461,7 +461,7 @@
 
             // Stage mode is driven by keys, often from a foot pedal, so the device must not fall
             // asleep between presses.
-            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.requestStageWakeLock"); wakeLockRequested = true; } catch { }
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.requestWakeLock"); wakeLockRequested = true; } catch { }
 
             // Nothing selected on entry → open the picker straight away so the leader can act.
             if (SelectedItem is null && Items.Count > 0)
@@ -520,7 +520,7 @@
         }
         if (wakeLockRequested)
         {
-            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseStageWakeLock"); } catch { }
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
         }
         dotNetRef?.Dispose();
     }

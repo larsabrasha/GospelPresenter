@@ -39,6 +39,7 @@
 @code {
 
     private bool fullscreenRequested;
+    private bool wakeLockRequested;
     private string sessionId = "";
     private string windowId = "";
 
@@ -66,6 +67,26 @@
         SharedAppState.PropertyChanged += OnPropertyChanged;
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // This window is the projector. If the machine sleeps, the circuit goes with it and the
+        // congregation is left looking at a stalled slide until someone finds the mouse.
+        // OnAfterRender rather than OnInitialized: this only runs on the interactive pass, so the
+        // call cannot be silently swallowed during prerendering.
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.requestWakeLock");
+            wakeLockRequested = true;
+        }
+        catch
+        {
+            // Not available or denied, for example on plain HTTP or under battery saver. The
+            // projector still works, the screen just sleeps as it did before.
+        }
+    }
+
     private async Task RequestFullscreen()
     {
         if (fullscreenRequested) return;
@@ -77,6 +98,14 @@
     {
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
+        if (wakeLockRequested) _ = ReleaseWakeLockAsync();
+    }
+
+    private async Task ReleaseWakeLockAsync()
+    {
+        // Not awaited by Dispose: the circuit may already be gone, and the browser releases the
+        // lock by itself when the window closes. This is for the navigation case.
+        try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
