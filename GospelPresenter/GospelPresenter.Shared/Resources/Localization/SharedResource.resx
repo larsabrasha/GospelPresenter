@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:element name="root" msdata:IsDataSet="true">
@@ -142,6 +142,12 @@
   </data>
   <data name="MainLayout.Reload" xml:space="preserve">
     <value>Reload</value>
+  </data>
+  <data name="Reconnect.Retrying" xml:space="preserve">
+    <value>Connection lost. Reconnecting…</value>
+  </data>
+  <data name="Reconnect.Failed" xml:space="preserve">
+    <value>Could not reconnect to the server.</value>
   </data>
   <data name="Dashboard.Presentations" xml:space="preserve">
     <value>Presentations</value>

@@ -1,4 +1,8 @@
 ﻿@using System.Globalization
+@using Microsoft.Extensions.Localization
+@using GospelPresenter.Shared.Localization
+
+@inject IStringLocalizer<SharedResource> L
 
 <!DOCTYPE html>
 <html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" class="h-dvh overscroll-none overflow-hidden bg-neutral-100 dark:bg-neutral-900">
@@ -43,7 +47,11 @@
 
             var path = window.location.pathname;
             if (path === '/display' || path === '/live') {
+                // A projector or a TV with a congregation looking at it. Marked here, next to the
+                // black background it already needs, so the stylesheet has one hook for "this
+                // screen is not the operator's" — see app.css.
                 document.documentElement.style.backgroundColor = 'black';
+                document.documentElement.classList.add('output-surface');
             }
         })();
     </script>
@@ -55,7 +63,48 @@
     <script src="@Assets["_content/GospelPresenter.Shared/sortable.min.js"]"></script>
     <script src="@Assets["_content/GospelPresenter.Shared/viewport-monitor.js"]"></script>
     <script src="@Assets["_content/GospelPresenter.Shared/utils.js"]"></script>
-    <script src="@Assets["_framework/blazor.web.js"]"></script>
+
+    @*
+        Our own reconnection indicator. blazor.web.js only uses this element if it exists; without
+        it the framework injects a dialog of its own, with a full-page overlay, which on /live and
+        /display lands across the projected slide in front of a congregation. Owning the element is
+        how we own where a connection warning may appear.
+
+        The framework only toggles the components-reconnect-* classes and fills the counter spans.
+        It never sets display, so every state's visibility is defined in app.css.
+    *@
+    <div id="components-reconnect-modal" data-nosnippet
+         class="fixed bottom-0 left-0 z-1000 m-3 rounded-xl px-4 py-3 text-sm shadow-lg bg-yellow-50 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100">
+        <span class="reconnect-retrying-text">
+            @L["Reconnect.Retrying"]
+            (<span id="components-reconnect-current-attempt"></span>/<span id="components-reconnect-max-retries"></span>)
+        </span>
+        <span class="reconnect-failed-text">
+            @L["Reconnect.Failed"]
+            <a href="." class="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl">@L["MainLayout.Reload"]</a>
+        </span>
+    </div>
+
+    <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
+    <script>
+        // The framework default is 30 attempts over about 5 minutes 50 seconds, which is shorter
+        // than a service: an outage in the building would leave the operator with a dead page and
+        // a reload button that cannot work. These intervals keep the framework's fast opening
+        // attempts and then settle at 30 seconds for roughly two hours, so a long outage still
+        // self-heals on its own.
+        Blazor.start({
+            circuit: {
+                reconnectionOptions: {
+                    maxRetries: 260,
+                    retryIntervalMilliseconds: function (previousAttempts) {
+                        if (previousAttempts < 10) return 0;
+                        if (previousAttempts < 20) return 5000;
+                        return 30000;
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 
 </html>
