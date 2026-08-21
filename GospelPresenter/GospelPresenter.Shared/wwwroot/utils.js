@@ -1038,50 +1038,54 @@ window.gospelPresenter.uninstallStageKeys = function() {
     }
 };
 
-// Keeps the screen awake while stage mode is open. A phone that locks its screen drops the
-// Blazor circuit, and a foot pedal cannot wake it again — it only sends a keystroke to a
-// sleeping device. Without this the pedal works in a demo and stops working mid-talk.
-window.gospelPresenter._stageWakeLock = null;
-window.gospelPresenter._stageWakeLockVisibilityHandler = null;
+// Keeps the screen awake while a presentation surface is open. A device that locks its screen
+// drops the Blazor circuit: a foot pedal cannot wake it again — it only sends a keystroke to a
+// sleeping device — and on the operator's machine the projector window goes with it. Without
+// this the pedal works in a demo and stops working mid-talk.
+//
+// Requires a secure context. The guard below makes it a silent no-op over plain HTTP on a LAN,
+// which is the right outcome: nothing to configure, nothing to fail.
+window.gospelPresenter._wakeLock = null;
+window.gospelPresenter._wakeLockVisibilityHandler = null;
 
-window.gospelPresenter.requestStageWakeLock = async function() {
+window.gospelPresenter.requestWakeLock = async function() {
     if (!('wakeLock' in navigator)) return;
 
     var acquire = async function() {
         try {
             var lock = await navigator.wakeLock.request('screen');
-            window.gospelPresenter._stageWakeLock = lock;
+            window.gospelPresenter._wakeLock = lock;
             // The system may drop the lock on its own; forget it so we can take it again.
             lock.addEventListener('release', function() {
-                window.gospelPresenter._stageWakeLock = null;
+                window.gospelPresenter._wakeLock = null;
             });
         } catch (e) {
             // Denied, for example by battery saver. Stage mode still works, the screen just
             // sleeps as usual.
-            window.gospelPresenter._stageWakeLock = null;
+            window.gospelPresenter._wakeLock = null;
         }
     };
 
     await acquire();
 
     // The lock is always released while the page is hidden, so take it again on return.
-    if (!window.gospelPresenter._stageWakeLockVisibilityHandler) {
-        window.gospelPresenter._stageWakeLockVisibilityHandler = function() {
-            if (document.visibilityState === 'visible' && !window.gospelPresenter._stageWakeLock) {
+    if (!window.gospelPresenter._wakeLockVisibilityHandler) {
+        window.gospelPresenter._wakeLockVisibilityHandler = function() {
+            if (document.visibilityState === 'visible' && !window.gospelPresenter._wakeLock) {
                 acquire();
             }
         };
-        document.addEventListener('visibilitychange', window.gospelPresenter._stageWakeLockVisibilityHandler);
+        document.addEventListener('visibilitychange', window.gospelPresenter._wakeLockVisibilityHandler);
     }
 };
 
-window.gospelPresenter.releaseStageWakeLock = function() {
-    if (window.gospelPresenter._stageWakeLockVisibilityHandler) {
-        document.removeEventListener('visibilitychange', window.gospelPresenter._stageWakeLockVisibilityHandler);
-        window.gospelPresenter._stageWakeLockVisibilityHandler = null;
+window.gospelPresenter.releaseWakeLock = function() {
+    if (window.gospelPresenter._wakeLockVisibilityHandler) {
+        document.removeEventListener('visibilitychange', window.gospelPresenter._wakeLockVisibilityHandler);
+        window.gospelPresenter._wakeLockVisibilityHandler = null;
     }
-    var lock = window.gospelPresenter._stageWakeLock;
-    window.gospelPresenter._stageWakeLock = null;
+    var lock = window.gospelPresenter._wakeLock;
+    window.gospelPresenter._wakeLock = null;
     if (lock) {
         try { lock.release(); } catch (e) { }
     }
