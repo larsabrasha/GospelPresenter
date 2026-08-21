@@ -17,17 +17,8 @@
     @Body
 </div>
 
-<div id="blazor-error-ui" data-nosnippet
-     class="
-hidden
-bg-yellow-50
-fixed
-left-0
-bottom-0
-w-full
-z-1000
-p-3">
-    @L["MainLayout.UnexpectedError"]
-    <a href="." class="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl">@L["MainLayout.Reload"]</a>
-</div>
+@* No error bar here, deliberately. This layout only serves /live and /display — a projector or a
+   TV with a congregation in front of it. An error message belongs on the operator's own screen,
+   where MainLayout has one; here the last rendered slide is left standing instead. app.css hides
+   the framework's reconnection dialog on the same two routes. *@
 

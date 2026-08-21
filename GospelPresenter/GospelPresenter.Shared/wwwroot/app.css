@@ -157,3 +157,43 @@ input.native-picker-hidden::-webkit-calendar-picker-indicator {
     overflow: visible;
     pointer-events: none;
 }
+
+/* Reconnection indicator.
+   blazor.web.js drives the element in Components/App.razor purely by toggling classes on it — it
+   never touches display — so every state's visibility belongs here. It starts hidden because it
+   has to be in the document from first paint for the framework to find it at all. */
+#components-reconnect-modal {
+    display: none;
+}
+
+#components-reconnect-modal.components-reconnect-show,
+#components-reconnect-modal.components-reconnect-retrying,
+#components-reconnect-modal.components-reconnect-failed,
+#components-reconnect-modal.components-reconnect-rejected,
+#components-reconnect-modal.components-reconnect-resume-failed {
+    display: block;
+}
+
+#components-reconnect-modal .reconnect-retrying-text,
+#components-reconnect-modal .reconnect-failed-text {
+    display: none;
+}
+
+#components-reconnect-modal.components-reconnect-show .reconnect-retrying-text,
+#components-reconnect-modal.components-reconnect-retrying .reconnect-retrying-text {
+    display: inline;
+}
+
+#components-reconnect-modal.components-reconnect-failed .reconnect-failed-text,
+#components-reconnect-modal.components-reconnect-rejected .reconnect-failed-text,
+#components-reconnect-modal.components-reconnect-resume-failed .reconnect-failed-text {
+    display: inline;
+}
+
+/* An output surface is a projector or a TV facing a congregation. A lost connection is the
+   operator's problem to see on their own screen, so nothing is drawn here and the last rendered
+   slide simply stays up. LiveLayout carries no error bar for the same reason. */
+.output-surface #components-reconnect-modal,
+.output-surface #blazor-error-ui {
+    display: none !important;
+}

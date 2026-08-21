@@ -797,13 +797,17 @@
         }
     }
 
-    private void StartPresentation()
+    private async Task StartPresentation()
     {
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
         ResetLiveSlide();
         SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId, AppState.SelectedProject?.Name);
+
+        // A sleeping operator machine takes the circuit and the projector window with it. Held
+        // only while live, so browsing and editing behave as before.
+        try { await JsRuntime.InvokeVoidAsync("gospelPresenter.requestWakeLock"); } catch { }
     }
 
     private async Task HandleStageSelectSlide((string ItemId, int PartIndex) selection)
@@ -856,6 +860,7 @@
         await JsRuntime.InvokeVoidAsync("stopLivePresentation", EffectiveSessionId);
         ResetLiveSlide();
         SharedAppState.DeactivatePresentation(EffectiveSessionId);
+        try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
         if (SelectedAudio is not null)
             SharedAppState.SetSessionAudio(AppState.SessionId, SelectedAudio);
     }
