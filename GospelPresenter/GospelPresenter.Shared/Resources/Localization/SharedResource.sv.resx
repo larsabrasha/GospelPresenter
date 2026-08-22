@@ -83,6 +83,15 @@
   <data name="Common.UploadingProgress" xml:space="preserve">
     <value>Laddar upp {0} av {1}...</value>
   </data>
+  <data name="Common.Sort" xml:space="preserve">
+    <value>Sortera</value>
+  </data>
+  <data name="Common.ClearSearch" xml:space="preserve">
+    <value>Rensa sökning</value>
+  </data>
+  <data name="Common.NoResults" xml:space="preserve">
+    <value>Inga träffar</value>
+  </data>
   <data name="Common.Search" xml:space="preserve">
     <value>Sök...</value>
   </data>

@@ -197,3 +197,28 @@ input.native-picker-hidden::-webkit-calendar-picker-indicator {
 .output-surface #blazor-error-ui {
     display: none !important;
 }
+
+/* A progress indicator that shows up instantly is noise when the work takes 20ms — the eye reads
+   the flash, not the message. This keeps the element invisible for --delay and only then fades it
+   in, so anything that finishes quickly is removed before the animation ever starts and the user
+   never saw an indicator at all.
+
+   The delay is CSS rather than a C# timer on purpose: a Blazor Server timer has to make the round
+   trip over SignalR to fire, which is the one thing that is unreliable exactly when the indicator
+   matters. */
+.delayed-appear {
+    opacity: 0;
+    animation: delayed-appear 150ms ease-out var(--delay, 400ms) forwards;
+}
+
+@keyframes delayed-appear {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Still wait, still appear — just without the fade. */
+@media (prefers-reduced-motion: reduce) {
+    .delayed-appear {
+        animation-duration: 1ms;
+    }
+}

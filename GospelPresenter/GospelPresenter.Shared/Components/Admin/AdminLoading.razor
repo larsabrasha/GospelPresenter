@@ -1,0 +1,16 @@
+@* A text line rather than skeleton rows: Songs reads from an in-memory cache and the other pages
+   make a single EF call against a local database, so a skeleton would be visible for milliseconds
+   and read as flicker.
+
+   The delayed-appear class keeps it invisible for the first 400ms. If the data arrives before then
+   the element is gone before the animation starts and nothing ever flashed. The delay lives in CSS
+   on purpose — a C# timer would have to make the round trip over SignalR to fire. *@
+
+<div class="px-5 py-4 text-neutral-400 text-sm delayed-appear @Class">
+    @(Message ?? L["Common.Loading"].Value)
+</div>
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string? Class { get; set; }
+}

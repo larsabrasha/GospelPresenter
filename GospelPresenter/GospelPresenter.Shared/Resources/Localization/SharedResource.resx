@@ -83,6 +83,15 @@
   <data name="Common.UploadingProgress" xml:space="preserve">
     <value>Uploading {0} of {1}...</value>
   </data>
+  <data name="Common.Sort" xml:space="preserve">
+    <value>Sort</value>
+  </data>
+  <data name="Common.ClearSearch" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="Common.NoResults" xml:space="preserve">
+    <value>No matches</value>
+  </data>
   <data name="Common.Search" xml:space="preserve">
     <value>Search...</value>
   </data>

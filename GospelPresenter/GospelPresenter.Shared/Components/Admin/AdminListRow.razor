@@ -1,0 +1,91 @@
+@* One row, with fixed slots in a fixed order:
+
+       [reorder] [leading] [content] [badge] [actions]
+
+   The action zone is flush right on every page, which makes it the one landmark an admin can rely
+   on. Reordering gets its own slot on the far left rather than joining the actions, so the delete
+   button does not shift sideways depending on whether a list happens to be reorderable.
+
+   A row that both navigates and carries actions cannot be a plain <a>: nesting buttons inside a
+   link is invalid and breaks keyboard handling. Such rows become a div with the link stretched
+   across it, and the content made click-through so the whole row still targets the link. *@
+
+@if (Href is not null && Actions is null && Reorder is null)
+{
+    <a href="@Href" class="@RowClass no-underline text-inherit">
+        @Slots
+    </a>
+}
+else if (Href is not null)
+{
+    <div class="@($"relative {RowClass}")">
+        <a href="@Href" class="absolute inset-0 rounded-none" aria-label="@LinkLabel"></a>
+        @Slots
+    </div>
+}
+else
+{
+    <div class="@RowClass">
+        @Slots
+    </div>
+}
+
+@code {
+    /// <summary>Makes the row navigate. Omit for rows that only carry inline actions.</summary>
+    [Parameter] public string? Href { get; set; }
+
+    /// <summary>Accessible name for the stretched link, used when the row also has actions.</summary>
+    [Parameter] public string? LinkLabel { get; set; }
+
+    /// <summary>Up/down buttons or a drag handle. Far left, never mixed with the actions.</summary>
+    [Parameter] public RenderFragment? Reorder { get; set; }
+
+    /// <summary>Avatar, thumbnail or status icon.</summary>
+    [Parameter] public RenderFragment? Leading { get; set; }
+
+    /// <summary>Title and subtitle.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Status pill, shown just before the actions.</summary>
+    [Parameter] public RenderFragment? Badge { get; set; }
+
+    /// <summary>At most one visible control; two or more belong in an overflow menu.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+
+    private bool IsInteractive => Href is not null;
+
+    private string RowClass =>
+        "flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 "
+        + (IsInteractive ? "hover:bg-neutral-100 dark:hover:bg-neutral-700/50 " : "")
+        + Class;
+
+    /// <summary>
+    /// Content sits above the stretched link, so it has to let clicks through; the reorder and action
+    /// slots must not, or their buttons would be unreachable.
+    /// </summary>
+    private string ContentClass => Href is not null && (Actions is not null || Reorder is not null)
+        ? "relative pointer-events-none"
+        : "";
+
+    private RenderFragment Slots => @<text>
+        @if (Reorder is not null)
+        {
+            <div class="relative flex items-center shrink-0">@Reorder</div>
+        }
+        @if (Leading is not null)
+        {
+            <div class="@($"shrink-0 {ContentClass}")">@Leading</div>
+        }
+        <div class="@($"flex-1 min-w-0 {ContentClass}")">@ChildContent</div>
+        @if (Badge is not null)
+        {
+            <div class="@($"shrink-0 {ContentClass}")">@Badge</div>
+        }
+        @if (Actions is not null)
+        {
+            <div class="relative flex items-center gap-1 shrink-0">@Actions</div>
+        }
+    </text>;
+}

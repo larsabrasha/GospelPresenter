@@ -1,0 +1,50 @@
+@* Picks between the four states so no page has to spell the chain out again, and so none of them
+   can forget that "no matches" is not the same as "empty".
+
+   Items is null while loading; that is the convention the pages already use. *@
+
+@typeparam TItem
+
+@if (Items is null)
+{
+    @(Loading ?? DefaultLoading)
+}
+else if (TotalCount == 0)
+{
+    @Empty
+}
+else if (Items.Count == 0)
+{
+    @(NoResults ?? DefaultNoResults)
+}
+else
+{
+    <div>
+        @foreach (var item in Items)
+        {
+            @Row(item)
+        }
+    </div>
+}
+
+@code {
+    /// <summary>Rows to render, already filtered and sorted. Null means still loading.</summary>
+    [Parameter, EditorRequired] public IReadOnlyList<TItem>? Items { get; set; }
+
+    /// <summary>
+    /// Size of the unfiltered collection. Separates "nothing here yet" from "nothing matched",
+    /// which need different words and a different amount of visual weight.
+    /// </summary>
+    [Parameter] public int TotalCount { get; set; }
+
+    [Parameter, EditorRequired] public RenderFragment<TItem> Row { get; set; } = default!;
+    [Parameter, EditorRequired] public RenderFragment? Empty { get; set; }
+    [Parameter] public RenderFragment? NoResults { get; set; }
+    [Parameter] public RenderFragment? Loading { get; set; }
+
+    /// <summary>Wired up by pages with a search field, so the fallback no-results state can offer it.</summary>
+    [Parameter] public EventCallback OnClearSearch { get; set; }
+
+    private RenderFragment DefaultLoading => @<AdminLoading/>;
+    private RenderFragment DefaultNoResults => @<AdminNoResults OnClear="OnClearSearch"/>;
+}

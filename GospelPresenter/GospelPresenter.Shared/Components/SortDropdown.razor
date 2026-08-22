@@ -1,0 +1,114 @@
+@* Row lists have no column headers to click, so sorting is an explicit control. Option labels are
+   looked up as "{LabelPrefix}.Sort.{value}" — the convention Presentations.razor established. *@
+
+@typeparam TSort where TSort : struct, Enum
+
+@implements IDisposable
+
+@inject NavigationManager Navigation
+
+<Dropdown MenuClass="right-0 w-56" Class="@Class">
+    <Trigger>
+        <button type="button" title="@L["Common.Sort"]"
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12"/>
+            </svg>
+            <span>@Label(Value)</span>
+        </button>
+    </Trigger>
+    <Menu>
+        @foreach (var option in AvailableOptions)
+        {
+            var isActive = option.Equals(Value);
+            <button type="button"
+                    @onclick="() => SelectAsync(option)"
+                    class="@($"flex items-center justify-between gap-3 w-full text-left px-4 py-3 text-sm cursor-pointer {(isActive ? "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300" : "text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600")}")">
+                <span>@Label(option)</span>
+                @if (isActive)
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4 shrink-0">
+                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
+                    </svg>
+                }
+            </button>
+        }
+    </Menu>
+</Dropdown>
+
+@code {
+    [Parameter, EditorRequired] public TSort Value { get; set; }
+    [Parameter] public EventCallback<TSort> ValueChanged { get; set; }
+
+    /// <summary>Localization prefix, e.g. "Songs" for keys like "Songs.Sort.NameAsc".</summary>
+    [Parameter, EditorRequired] public string LabelPrefix { get; set; } = "";
+
+    /// <summary>Subset of the enum to offer. Defaults to every declared value.</summary>
+    [Parameter] public IReadOnlyList<TSort>? Options { get; set; }
+
+    /// <summary>The value that is left out of the URL, so the default view keeps a clean address.</summary>
+    [Parameter] public TSort Default { get; set; }
+
+    /// <summary>Set to null to keep the choice out of the URL entirely.</summary>
+    [Parameter] public string? QueryParam { get; set; } = "sort";
+
+    [Parameter] public string? Class { get; set; }
+
+    private IReadOnlyList<TSort> AvailableOptions => Options ?? Enum.GetValues<TSort>();
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        _ = ApplyFromUrlAsync();
+    }
+
+    private string Label(TSort option) => L[$"{LabelPrefix}.Sort.{option}"];
+
+    private async Task SelectAsync(TSort option)
+    {
+        if (option.Equals(Value)) return;
+
+        if (QueryParam is not null)
+        {
+            // NavigateTo raises LocationChanged synchronously, before the parent has taken the new
+            // value through ValueChanged, so our own write would otherwise read back as an external
+            // one and fire a second ValueChanged.
+            writingOwnUrl = true;
+            try
+            {
+                QueryState.Write(Navigation, QueryParam, option.ToString(), Default.ToString());
+            }
+            finally
+            {
+                writingOwnUrl = false;
+            }
+        }
+
+        await ValueChanged.InvokeAsync(option);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (writingOwnUrl) return;
+        _ = ApplyFromUrlAsync();
+    }
+
+    /// <summary>Adopts whatever the URL says — on first render, and again on back/forward navigation.</summary>
+    private async Task ApplyFromUrlAsync()
+    {
+        if (QueryParam is null) return;
+
+        var fromUrl = QueryState.ReadEnum(Navigation, QueryParam, Default);
+        if (fromUrl.Equals(Value)) return;
+
+        await InvokeAsync(async () =>
+        {
+            await ValueChanged.InvokeAsync(fromUrl);
+            StateHasChanged();
+        });
+    }
+
+    private bool writingOwnUrl;
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

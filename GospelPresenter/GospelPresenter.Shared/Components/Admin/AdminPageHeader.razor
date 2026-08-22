@@ -1,0 +1,31 @@
+@* Title plus primary action, always top right and never hidden — not even when the list below is
+   empty. The empty state keeps its own call to action; the two do not compete, because when the list
+   is empty the empty state is where the eye goes anyway.
+
+   A page may render several of these, one per section: Displays has screens and public outputs,
+   Songs and Bibles have an import panel with an action of its own. *@
+
+<div class="flex justify-between gap-3 @(Description is null ? "items-center" : "items-start") @Class">
+    <div class="min-w-0">
+        <div class="text-xl font-bold dark:text-neutral-100 truncate">@Title</div>
+        @if (Description is not null)
+        {
+            <div class="text-sm text-neutral-500 dark:text-neutral-400 mt-1 max-w-2xl leading-relaxed">
+                @Description
+            </div>
+        }
+    </div>
+    @if (PrimaryAction is not null)
+    {
+        <div class="shrink-0">
+            @PrimaryAction
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string? Title { get; set; }
+    [Parameter] public RenderFragment? Description { get; set; }
+    [Parameter] public RenderFragment? PrimaryAction { get; set; }
+    [Parameter] public string? Class { get; set; }
+}
