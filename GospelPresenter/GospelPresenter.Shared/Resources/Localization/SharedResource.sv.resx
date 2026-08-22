@@ -104,6 +104,18 @@
   <data name="Songs.Sort.Year" xml:space="preserve">
     <value>År</value>
   </data>
+  <data name="Admin.Labels.AllLabels" xml:space="preserve">
+    <value>Alla etiketter</value>
+  </data>
+  <data name="Common.Edit" xml:space="preserve">
+    <value>Redigera</value>
+  </data>
+  <data name="Common.MoveUp" xml:space="preserve">
+    <value>Flytta upp</value>
+  </data>
+  <data name="Common.MoveDown" xml:space="preserve">
+    <value>Flytta ner</value>
+  </data>
   <data name="Common.Search" xml:space="preserve">
     <value>Sök...</value>
   </data>

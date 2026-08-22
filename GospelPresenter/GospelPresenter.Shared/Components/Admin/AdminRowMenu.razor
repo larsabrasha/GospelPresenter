@@ -1,0 +1,23 @@
+@* The overflow menu a row falls back to once it has two or more actions. Always visible — hiding it
+   behind hover would put the only route to those actions out of reach on a touch screen. *@
+
+<Dropdown MenuClass="right-0 min-w-44" Class="@Class">
+    <Trigger>
+        <button type="button" title="@(Title ?? L["Common.Options"].Value)"
+                class="size-8 flex items-center justify-center rounded-full cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600">
+            <EllipsisSymbol Class="size-4"/>
+        </button>
+    </Trigger>
+    <Menu>
+        @ChildContent
+    </Menu>
+</Dropdown>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Accessible name. Defaults to the shared "Options" wording.</summary>
+    [Parameter] public string? Title { get; set; }
+
+    [Parameter] public string? Class { get; set; }
+}
