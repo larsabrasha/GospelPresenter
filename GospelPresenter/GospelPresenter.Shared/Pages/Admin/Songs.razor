@@ -65,7 +65,7 @@
         <div class="px-5 pt-4 pb-2 space-y-3">
             <div class="flex items-center justify-between">
                 <div class="font-semibold">
-                    @L["Songs.AllSongs"] (@OrgSongs.Count)
+                    @L["Songs.AllSongs"] (@CountLabel)
                 </div>
                 <AppButton Variant="ButtonVariant.Neutral" Href="/admin/songs/trash" Class="flex items-center gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
@@ -334,6 +334,11 @@
             showNameDialog = false;
         }
     }
+
+    // While a search narrows the list, the header must not claim more rows than are on screen.
+    private string CountLabel => string.IsNullOrWhiteSpace(searchQuery)
+        ? OrgSongs.Count.ToString()
+        : L["Common.ResultsOfTotal", displayedSongs.Count, OrgSongs.Count];
 
     private string Highlight(string text) => SearchHighlighter.Highlight(text, searchTerms);
 

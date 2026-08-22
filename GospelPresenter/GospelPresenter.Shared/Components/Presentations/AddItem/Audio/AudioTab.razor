@@ -15,7 +15,7 @@
 @if (isLoading)
 {
     <div class="flex items-center justify-center py-12 text-neutral-400 text-sm">
-        @L["AudioTab.LoadingAudio"]
+        @L["Media.LoadingAudio"]
     </div>
 }
 else if (organizationId is null)
@@ -33,7 +33,7 @@ else
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
                 </svg>
-                @L["AudioTab.Upload"]
+                @L["Common.Upload"]
                 <input @ref="fileInput" type="file" @onchange="HandleFilesSelected" accept="@AppConstraints.AudioAccept" multiple class="hidden"/>
             </AppButton>
             @if (uploadError is not null)
@@ -42,7 +42,7 @@ else
             }
             @if (isUploading)
             {
-                <span class="text-neutral-400 text-sm">@L["AudioTab.UploadingProgress", uploadedCount, uploadTotalCount]</span>
+                <span class="text-neutral-400 text-sm">@L["Common.UploadingProgress", uploadedCount, uploadTotalCount]</span>
             }
         </div>
 
@@ -118,8 +118,8 @@ else
     {
         <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDelete">
             <div class="p-6 space-y-4">
-                <div class="font-semibold text-lg">@L["AudioTab.DeleteAudio"]</div>
-                <div><LocalizedEmphasis Key="AudioTab.ConfirmDelete" Value="@audioToDelete.FileName"/></div>
+                <div class="font-semibold text-lg">@L["Media.DeleteAudio"]</div>
+                <div><LocalizedEmphasis Key="Media.ConfirmDeleteAudio" Value="@audioToDelete.FileName"/></div>
                 <div class="flex justify-end gap-3">
                     <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDelete">
                         @L["Common.Cancel"]
@@ -205,7 +205,7 @@ else
         Logger.LogError("Failed to upload audio {FileName}", fileName);
         uploadedCount++;
         failedCount++;
-        uploadError = L["AudioTab.UploadErrorCount", failedCount];
+        uploadError = L["Media.AudioUploadErrorCount", failedCount];
         StateHasChanged();
     }
 
