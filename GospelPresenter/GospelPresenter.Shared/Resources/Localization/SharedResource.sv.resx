@@ -92,6 +92,18 @@
   <data name="Common.NoResults" xml:space="preserve">
     <value>Inga träffar</value>
   </data>
+  <data name="Songs.Sort.NameAsc" xml:space="preserve">
+    <value>Namn (A–Ö)</value>
+  </data>
+  <data name="Songs.Sort.NameDesc" xml:space="preserve">
+    <value>Namn (Ö–A)</value>
+  </data>
+  <data name="Songs.Sort.Author" xml:space="preserve">
+    <value>Författare</value>
+  </data>
+  <data name="Songs.Sort.Year" xml:space="preserve">
+    <value>År</value>
+  </data>
   <data name="Common.Search" xml:space="preserve">
     <value>Sök...</value>
   </data>

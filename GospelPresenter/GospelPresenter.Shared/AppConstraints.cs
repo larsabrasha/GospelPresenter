@@ -27,6 +27,12 @@ public static class AppConstraints
     public const int SongYearMin = 0;
     public const int SongYearMax = 9999;
 
+    /// <summary>
+    /// Below this many rows a sort control is noise: the whole list is on screen at once and the eye
+    /// finds the row faster than the dropdown does. See adr/0002-admin-list-pages.md.
+    /// </summary>
+    public const int SortControlMinItems = 10;
+
     // Entity count limits
     public const int MaxPresentationsPerOrg = 3_000;
     public const int MaxTemplatesPerOrg = 50;

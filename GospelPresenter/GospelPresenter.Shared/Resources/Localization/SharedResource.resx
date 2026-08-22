@@ -92,6 +92,18 @@
   <data name="Common.NoResults" xml:space="preserve">
     <value>No matches</value>
   </data>
+  <data name="Songs.Sort.NameAsc" xml:space="preserve">
+    <value>Name (A–Z)</value>
+  </data>
+  <data name="Songs.Sort.NameDesc" xml:space="preserve">
+    <value>Name (Z–A)</value>
+  </data>
+  <data name="Songs.Sort.Author" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="Songs.Sort.Year" xml:space="preserve">
+    <value>Year</value>
+  </data>
   <data name="Common.Search" xml:space="preserve">
     <value>Search...</value>
   </data>
