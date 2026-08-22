@@ -15,20 +15,18 @@
 @inject ActiveOrganizationState OrgState
 
 <PageContainer>
-    <div class="px-5 flex items-center justify-between">
-        <div class="text-xl font-bold dark:text-neutral-100">@L["Songs.Title"]</div>
-        @if (displayedSongs.Count > 0)
-        {
+    <AdminPageHeader Title="@L["Songs.Title"].Value" Class="px-5">
+        <PrimaryAction>
             <AppButton Variant="ButtonVariant.Primary" OnClick="CreateSong" Loading="creating" Class="flex items-center gap-1.5">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                </svg>
+                <PlusSymbol Class="size-4"/>
                 @L["Songs.Create"]
             </AppButton>
-        }
-    </div>
+        </PrimaryAction>
+    </AdminPageHeader>
 
-    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden p-5 space-y-4">
+    @* Importing is its own section with its own action, which is why AdminPageHeader is per section
+       rather than per page. *@
+    <AdminPanel Class="p-5 space-y-4">
         <div class="font-semibold">@L["Songs.ImportProPresenter"]</div>
         <p class="text-sm text-neutral-500 dark:text-neutral-400">
             @((MarkupString)L["Songs.ImportDescription"].Value)
@@ -44,7 +42,9 @@
 
         @if (isImporting)
         {
-            <div class="space-y-2">
+            @* Importing three files finishes before the eye registers a progress bar, so the same
+               delay that guards the loading line guards this one. *@
+            <div class="space-y-2 delayed-appear">
                 <div class="text-sm text-neutral-600 dark:text-neutral-300">
                     @importProgressText
                 </div>
@@ -59,78 +59,70 @@
                 @importMessage
             </div>
         }
-    </div>
+    </AdminPanel>
 
-    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
-        <div class="px-5 pt-4 pb-2 space-y-3">
-            <div class="flex items-center justify-between">
-                <div class="font-semibold">
-                    @L["Songs.AllSongs"] (@OrgSongs.Count)
-                </div>
+    <AdminPanel>
+        <AdminListToolbar Label="@L["Songs.AllSongs"].Value"
+                          Total="OrgSongs.Count"
+                          Shown="displayedSongs.Count"
+                          Searchable="true"
+                          Search="@searchQuery"
+                          SearchChanged="OnSearchChanged">
+            <Actions>
+                @if (OrgSongs.Count > AppConstraints.SortControlMinItems)
+                {
+                    <SortDropdown TSort="SongSortOrder"
+                                  Value="sort"
+                                  ValueChanged="OnSortChanged"
+                                  LabelPrefix="Songs"
+                                  Default="SongSortOrder.NameAsc"/>
+                }
                 <AppButton Variant="ButtonVariant.Neutral" Href="/admin/songs/trash" Class="flex items-center gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
                     </svg>
                     @L["Songs.Trash"]
                 </AppButton>
-            </div>
-            @if (OrgSongs.Count > 0)
-            {
-                <div class="relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
-                    </svg>
-                    <input type="text"
-                           maxlength="@AppConstraints.SearchMaxLength"
-                           class="w-full py-2 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(searchQuery) ? "" : "!pr-9")"
-                           placeholder="@L["Common.Search"]"
-                           value="@searchQuery"
-                           @oninput="OnSearchInput"/>
-                    @if (!string.IsNullOrEmpty(searchQuery))
-                    {
-                        <AppButton Variant="ButtonVariant.Icon" Class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6"
-                                   OnClick="ClearSearch">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
-                            </svg>
-                        </AppButton>
-                    }
-                </div>
-            }
-        </div>
+            </Actions>
+        </AdminListToolbar>
 
-        @if (OrgSongs.Count == 0)
-        {
-            <div class="flex flex-col items-center justify-center text-center text-sm py-12 px-6 select-none">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="size-12 mb-3 text-neutral-300 dark:text-neutral-600">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"/>
-                </svg>
-                <p class="font-medium text-neutral-500 dark:text-neutral-400 mb-1">@L["Songs.NoSongsImported"]</p>
-                <p class="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">@L["Songs.NoSongsHint"]</p>
-            </div>
-        }
-        else if (displayedSongs.Count == 0)
-        {
-            <div class="px-5 py-4 text-neutral-400 text-sm">@L["Songs.NoSongsFound"]</div>
-        }
-        else
-        {
-            <div>
-                @foreach (var song in displayedSongs)
-                {
-                    <a href="/admin/songs/@song.Id"
-                       class="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
-                        <div class="flex-1 min-w-0">
-                            <div class="font-medium truncate">@((MarkupString)Highlight(song.Name))</div>
-                            <div class="text-xs text-neutral-400 truncate">
-                                @(string.IsNullOrEmpty(song.Author) ? (MarkupString)"\u00a0" : (MarkupString)Highlight(song.Author))
-                            </div>
-                        </div>
-                    </a>
-                }
-            </div>
-        }
-    </div>
+        <AdminList Items="displayedSongs" TotalCount="OrgSongs.Count" OnClearSearch="ClearSearch">
+            <Empty>
+                <AdminEmptyState Title="@L["Songs.NoSongsImported"].Value">
+                    <Illustration>
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-full h-auto">
+                            <rect x="30" y="26" width="92" height="114" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                            <line x1="48" y1="54" x2="104" y2="54" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                            <line x1="48" y1="70" x2="96" y2="70" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                            <line x1="48" y1="86" x2="100" y2="86" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.25"/>
+                            <line x1="48" y1="102" x2="88" y2="102" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+                            <path d="M136 108V44l30-9v64" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="128" cy="112" r="9" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                            <circle cx="158" cy="103" r="9" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        </svg>
+                    </Illustration>
+                    <Description>@L["Songs.NoSongsHint"]</Description>
+                    <Action>
+                        <AppButton Variant="ButtonVariant.Primary" OnClick="CreateSong" Loading="creating" Class="flex items-center gap-1.5">
+                            <PlusSymbol Class="size-4"/>
+                            @L["Songs.Create"]
+                        </AppButton>
+                    </Action>
+                </AdminEmptyState>
+            </Empty>
+            <NoResults>
+                <AdminNoResults Message="@L["Songs.NoSongsFound"].Value" OnClear="ClearSearch"/>
+            </NoResults>
+            <Row Context="song">
+                <AdminListRow Href="@($"/admin/songs/{song.Id}")">
+                    <div class="font-medium truncate">@((MarkupString)Highlight(song.Name))</div>
+                    <div class="text-xs text-neutral-400 truncate">
+                        @(string.IsNullOrEmpty(song.Author) ? (MarkupString)" " : (MarkupString)Highlight(song.Author))
+                    </div>
+                </AdminListRow>
+            </Row>
+        </AdminList>
+    </AdminPanel>
 </PageContainer>
 
 @if (duplicateNames is not null)
@@ -183,9 +175,9 @@
     private List<string>? duplicateNames;
     private string searchQuery = "";
     private string[] searchTerms = [];
+    private SongSortOrder sort = SongSortOrder.NameAsc;
     private List<Song> displayedSongs = [];
     private ElementReference fileInput;
-
 
     private IReadOnlyList<Song> OrgSongs => organizationId is not null
         ? SongService.GetSongsByOrganization(organizationId, OrgState.ToCallerContext())
@@ -194,7 +186,7 @@
     protected override void OnInitialized()
     {
         organizationId = OrgState.ActiveOrganizationId;
-        displayedSongs = OrgSongs.ToList();
+        RefreshDisplayedSongs();
     }
 
     private async Task OnFilesSelected()
@@ -283,30 +275,36 @@
         return string.Join(", ", parts) + ".";
     }
 
+    /// <summary>
+    /// Search narrows, sort orders — and the chosen sort applies to search results too rather than
+    /// letting relevance quietly override it. A control that stops working the moment you type in the
+    /// box beside it is worse than no control.
+    /// </summary>
     private void RefreshDisplayedSongs()
     {
-        displayedSongs = string.IsNullOrWhiteSpace(searchQuery)
-            ? OrgSongs.ToList()
-            : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
+        var matches = string.IsNullOrWhiteSpace(searchQuery)
+            ? OrgSongs
+            : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext());
+
+        displayedSongs = matches.Sort(sort).ToList();
     }
 
-    private void OnSearchInput(ChangeEventArgs e)
+    private void OnSearchChanged(string value)
     {
-        searchQuery = e.Value?.ToString() ?? "";
+        searchQuery = value;
         searchTerms = string.IsNullOrWhiteSpace(searchQuery)
             ? []
             : searchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        displayedSongs = string.IsNullOrWhiteSpace(searchQuery)
-            ? OrgSongs.ToList()
-            : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
+        RefreshDisplayedSongs();
     }
 
-    private void ClearSearch()
+    private void OnSortChanged(SongSortOrder value)
     {
-        searchQuery = "";
-        searchTerms = [];
-        displayedSongs = OrgSongs.ToList();
+        sort = value;
+        RefreshDisplayedSongs();
     }
+
+    private void ClearSearch() => OnSearchChanged("");
 
     private bool showNameDialog;
     private string newSongName = "";

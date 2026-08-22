@@ -1,0 +1,57 @@
+@* Two tiers, chosen by what the emptiness means rather than by which page it is on.
+
+   Full — a large illustration, a heading, a description and a call to action — for a collection the
+   user is expected to fill. An empty song library is an invitation.
+
+   Compact — a small icon and one line, no action — for emptiness that is a normal condition. An
+   empty trash is a receipt, and giving it the same visual weight as an unfilled library would be
+   uniform and wrong. *@
+
+@if (Compact)
+{
+    <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+        <div class="size-12 mb-3 text-neutral-300 dark:text-neutral-600">
+            @Icon
+        </div>
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">@Title</p>
+        @if (Description is not null)
+        {
+            <p class="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mt-1">
+                @Description
+            </p>
+        }
+    </div>
+}
+else
+{
+    <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+        <div class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+            @Illustration
+        </div>
+        <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@Title</h2>
+        @if (Description is not null)
+        {
+            <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed @(Action is null ? "" : "mb-4")">
+                @Description
+            </p>
+        }
+        @Action
+    </div>
+}
+
+@code {
+    /// <summary>Small-icon variant, for emptiness that is a normal condition rather than a prompt.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    [Parameter, EditorRequired] public string? Title { get; set; }
+    [Parameter] public RenderFragment? Description { get; set; }
+
+    /// <summary>200x160 line art, for the full variant.</summary>
+    [Parameter] public RenderFragment? Illustration { get; set; }
+
+    /// <summary>A 24x24 glyph, for the compact variant.</summary>
+    [Parameter] public RenderFragment? Icon { get; set; }
+
+    /// <summary>Call to action. Only for the full variant; compact states do not prompt.</summary>
+    [Parameter] public RenderFragment? Action { get; set; }
+}

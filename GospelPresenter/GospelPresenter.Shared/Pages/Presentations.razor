@@ -21,33 +21,11 @@
 
     <div class="relative flex items-center justify-between px-5 gap-3">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Presentations.Title"]</div>
-        <Dropdown MenuClass="right-0 w-56">
-            <Trigger>
-                <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12"/>
-                    </svg>
-                    <span>@L[$"Presentations.Sort.{sort}"]</span>
-                </button>
-            </Trigger>
-            <Menu>
-                @foreach (var option in Enum.GetValues<PresentationSortOrder>())
-                {
-                    var isActive = option == sort;
-                    <button type="button"
-                            @onclick="() => SetSortAsync(option)"
-                            class="@($"flex items-center justify-between gap-3 w-full text-left px-4 py-3 text-sm cursor-pointer {(isActive ? "bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300" : "text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600")}")">
-                        <span>@L[$"Presentations.Sort.{option}"]</span>
-                        @if (isActive)
-                        {
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4 shrink-0">
-                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd"/>
-                            </svg>
-                        }
-                    </button>
-                }
-            </Menu>
-        </Dropdown>
+        <SortDropdown TSort="PresentationSortOrder"
+                      Value="sort"
+                      ValueChanged="SetSortAsync"
+                      LabelPrefix="Presentations"
+                      Default="PresentationSortOrder.UpdatedDesc"/>
     </div>
 
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">

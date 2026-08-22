@@ -74,6 +74,48 @@
   <data name="Common.Confirm" xml:space="preserve">
     <value>Confirm</value>
   </data>
+  <data name="Common.ResultsOfTotal" xml:space="preserve">
+    <value>{0} of {1}</value>
+  </data>
+  <data name="Common.Upload" xml:space="preserve">
+    <value>Upload</value>
+  </data>
+  <data name="Common.UploadingProgress" xml:space="preserve">
+    <value>Uploading {0} of {1}...</value>
+  </data>
+  <data name="Common.Sort" xml:space="preserve">
+    <value>Sort</value>
+  </data>
+  <data name="Common.ClearSearch" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="Common.NoResults" xml:space="preserve">
+    <value>No matches</value>
+  </data>
+  <data name="Songs.Sort.NameAsc" xml:space="preserve">
+    <value>Name (A–Z)</value>
+  </data>
+  <data name="Songs.Sort.NameDesc" xml:space="preserve">
+    <value>Name (Z–A)</value>
+  </data>
+  <data name="Songs.Sort.Author" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="Songs.Sort.Year" xml:space="preserve">
+    <value>Year</value>
+  </data>
+  <data name="Admin.Labels.AllLabels" xml:space="preserve">
+    <value>All labels</value>
+  </data>
+  <data name="Common.Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="Common.MoveUp" xml:space="preserve">
+    <value>Move up</value>
+  </data>
+  <data name="Common.MoveDown" xml:space="preserve">
+    <value>Move down</value>
+  </data>
   <data name="Common.Search" xml:space="preserve">
     <value>Search...</value>
   </data>
@@ -413,22 +455,19 @@
   <data name="Bible.SearchExamples" xml:space="preserve">
     <value>John 3:16 · Ps 23 · Rom 8:28-30</value>
   </data>
-  <data name="ImageTab.LoadingImages" xml:space="preserve">
+  <data name="Media.LoadingImages" xml:space="preserve">
     <value>Loading images...</value>
   </data>
   <data name="ImageTab.LoadError" xml:space="preserve">
     <value>Could not load images</value>
   </data>
-  <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Upload</value>
-  </data>
   <data name="ImageTab.NoImages" xml:space="preserve">
     <value>No images uploaded</value>
   </data>
-  <data name="ImageTab.DeleteImage" xml:space="preserve">
+  <data name="Media.DeleteImage" xml:space="preserve">
     <value>Delete image</value>
   </data>
-  <data name="ImageTab.ConfirmDelete" xml:space="preserve">
+  <data name="Media.ConfirmDeleteImage" xml:space="preserve">
     <value>Do you want to delete {0}?</value>
   </data>
   <data name="Images.Title" xml:space="preserve">
@@ -788,10 +827,7 @@
   <data name="Bible.ShowingResults" xml:space="preserve">
     <value>Showing {0} of {1} verses</value>
   </data>
-  <data name="ImageTab.UploadingProgress" xml:space="preserve">
-    <value>Uploading {0} of {1}...</value>
-  </data>
-  <data name="ImageTab.UploadErrorCount" xml:space="preserve">
+  <data name="Media.ImageUploadErrorCount" xml:space="preserve">
     <value>{0} image(s) could not be uploaded</value>
   </data>
   <data name="ImageTab.Images" xml:space="preserve">
@@ -800,10 +836,7 @@
   <data name="Sidebar.Audio" xml:space="preserve">
     <value>Audio</value>
   </data>
-  <data name="AudioTab.Upload" xml:space="preserve">
-    <value>Upload</value>
-  </data>
-  <data name="AudioTab.LoadingAudio" xml:space="preserve">
+  <data name="Media.LoadingAudio" xml:space="preserve">
     <value>Loading audio files...</value>
   </data>
   <data name="AudioTab.LoadError" xml:space="preserve">
@@ -812,10 +845,7 @@
   <data name="AudioTab.NoAudio" xml:space="preserve">
     <value>No audio files uploaded</value>
   </data>
-  <data name="AudioTab.UploadingProgress" xml:space="preserve">
-    <value>Uploading {0} of {1}...</value>
-  </data>
-  <data name="AudioTab.UploadErrorCount" xml:space="preserve">
+  <data name="Media.AudioUploadErrorCount" xml:space="preserve">
     <value>{0} file(s) failed to upload</value>
   </data>
   <data name="AudioTab.AudioFiles" xml:space="preserve">
@@ -824,10 +854,10 @@
   <data name="AudioTab.FadeOut" xml:space="preserve">
     <value>Fade out</value>
   </data>
-  <data name="AudioTab.DeleteAudio" xml:space="preserve">
+  <data name="Media.DeleteAudio" xml:space="preserve">
     <value>Delete audio file</value>
   </data>
-  <data name="AudioTab.ConfirmDelete" xml:space="preserve">
+  <data name="Media.ConfirmDeleteAudio" xml:space="preserve">
     <value>Are you sure you want to delete {0}?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">

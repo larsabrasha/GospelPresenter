@@ -74,6 +74,48 @@
   <data name="Common.Confirm" xml:space="preserve">
     <value>Bekräfta</value>
   </data>
+  <data name="Common.ResultsOfTotal" xml:space="preserve">
+    <value>{0} av {1}</value>
+  </data>
+  <data name="Common.Upload" xml:space="preserve">
+    <value>Ladda upp</value>
+  </data>
+  <data name="Common.UploadingProgress" xml:space="preserve">
+    <value>Laddar upp {0} av {1}...</value>
+  </data>
+  <data name="Common.Sort" xml:space="preserve">
+    <value>Sortera</value>
+  </data>
+  <data name="Common.ClearSearch" xml:space="preserve">
+    <value>Rensa sökning</value>
+  </data>
+  <data name="Common.NoResults" xml:space="preserve">
+    <value>Inga träffar</value>
+  </data>
+  <data name="Songs.Sort.NameAsc" xml:space="preserve">
+    <value>Namn (A–Ö)</value>
+  </data>
+  <data name="Songs.Sort.NameDesc" xml:space="preserve">
+    <value>Namn (Ö–A)</value>
+  </data>
+  <data name="Songs.Sort.Author" xml:space="preserve">
+    <value>Författare</value>
+  </data>
+  <data name="Songs.Sort.Year" xml:space="preserve">
+    <value>År</value>
+  </data>
+  <data name="Admin.Labels.AllLabels" xml:space="preserve">
+    <value>Alla etiketter</value>
+  </data>
+  <data name="Common.Edit" xml:space="preserve">
+    <value>Redigera</value>
+  </data>
+  <data name="Common.MoveUp" xml:space="preserve">
+    <value>Flytta upp</value>
+  </data>
+  <data name="Common.MoveDown" xml:space="preserve">
+    <value>Flytta ner</value>
+  </data>
   <data name="Common.Search" xml:space="preserve">
     <value>Sök...</value>
   </data>
@@ -413,22 +455,19 @@
   <data name="Bible.SearchExamples" xml:space="preserve">
     <value>Joh 3:16 · Ps 23 · Rom 8:28-30</value>
   </data>
-  <data name="ImageTab.LoadingImages" xml:space="preserve">
+  <data name="Media.LoadingImages" xml:space="preserve">
     <value>Laddar bilder...</value>
   </data>
   <data name="ImageTab.LoadError" xml:space="preserve">
     <value>Kunde inte ladda bilder</value>
   </data>
-  <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Ladda upp</value>
-  </data>
   <data name="ImageTab.NoImages" xml:space="preserve">
     <value>Inga bilder uppladdade</value>
   </data>
-  <data name="ImageTab.DeleteImage" xml:space="preserve">
+  <data name="Media.DeleteImage" xml:space="preserve">
     <value>Radera bild</value>
   </data>
-  <data name="ImageTab.ConfirmDelete" xml:space="preserve">
+  <data name="Media.ConfirmDeleteImage" xml:space="preserve">
     <value>Vill du radera {0}?</value>
   </data>
   <data name="Images.Title" xml:space="preserve">
@@ -788,10 +827,7 @@
   <data name="Bible.ShowingResults" xml:space="preserve">
     <value>Visar {0} av {1} verser</value>
   </data>
-  <data name="ImageTab.UploadingProgress" xml:space="preserve">
-    <value>Laddar upp {0} av {1}...</value>
-  </data>
-  <data name="ImageTab.UploadErrorCount" xml:space="preserve">
+  <data name="Media.ImageUploadErrorCount" xml:space="preserve">
     <value>{0} bild(er) kunde inte laddas upp</value>
   </data>
   <data name="ImageTab.Images" xml:space="preserve">
@@ -800,10 +836,7 @@
   <data name="Sidebar.Audio" xml:space="preserve">
     <value>Ljud</value>
   </data>
-  <data name="AudioTab.Upload" xml:space="preserve">
-    <value>Ladda upp</value>
-  </data>
-  <data name="AudioTab.LoadingAudio" xml:space="preserve">
+  <data name="Media.LoadingAudio" xml:space="preserve">
     <value>Laddar ljudfiler...</value>
   </data>
   <data name="AudioTab.LoadError" xml:space="preserve">
@@ -812,10 +845,7 @@
   <data name="AudioTab.NoAudio" xml:space="preserve">
     <value>Inga ljudfiler uppladdade</value>
   </data>
-  <data name="AudioTab.UploadingProgress" xml:space="preserve">
-    <value>Laddar upp {0} av {1}...</value>
-  </data>
-  <data name="AudioTab.UploadErrorCount" xml:space="preserve">
+  <data name="Media.AudioUploadErrorCount" xml:space="preserve">
     <value>{0} fil(er) kunde inte laddas upp</value>
   </data>
   <data name="AudioTab.AudioFiles" xml:space="preserve">
@@ -824,10 +854,10 @@
   <data name="AudioTab.FadeOut" xml:space="preserve">
     <value>Tona ut</value>
   </data>
-  <data name="AudioTab.DeleteAudio" xml:space="preserve">
+  <data name="Media.DeleteAudio" xml:space="preserve">
     <value>Ta bort ljudfil</value>
   </data>
-  <data name="AudioTab.ConfirmDelete" xml:space="preserve">
+  <data name="Media.ConfirmDeleteAudio" xml:space="preserve">
     <value>Vill du verkligen ta bort {0}?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">

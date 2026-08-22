@@ -1,0 +1,140 @@
+@* Two rows at every breakpoint — PageContainer caps content at 720px, so a full-width search field
+   is not wasteful even on a large display, and the layout needs no responsive branching.
+
+   Row one: the count on the left, secondary controls (sort dropdown, links) on the right.
+   Row two: the search field.
+
+   The count is always shown. It is free information, and it gives the sort control a home that
+   exists on every page. While a filter is active it reads "3 of 214" rather than "214", so the
+   header cannot claim more rows than are on screen. *@
+
+@implements IDisposable
+
+@inject NavigationManager Navigation
+
+<div class="px-5 pt-4 pb-2 space-y-3">
+    <div class="flex items-center justify-between gap-3">
+        <div class="font-semibold">
+            @Label@if (ShowCount) { @($" ({CountLabel})") }
+        </div>
+        @if (Actions is not null)
+        {
+            <div class="flex items-center gap-2 shrink-0">
+                @Actions
+            </div>
+        }
+    </div>
+
+    @if (Searchable)
+    {
+        <div class="relative">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+            </svg>
+            <input type="text"
+                   maxlength="@AppConstraints.SearchMaxLength"
+                   class="w-full py-2 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(Search) ? "" : "!pr-9")"
+                   placeholder="@L["Common.Search"]"
+                   value="@Search"
+                   @oninput="OnInputAsync"/>
+            @if (!string.IsNullOrEmpty(Search))
+            {
+                <AppButton Variant="ButtonVariant.Icon" Title="@L["Common.ClearSearch"]"
+                           Class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6"
+                           OnClick="() => SetSearchAsync(string.Empty)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                    </svg>
+                </AppButton>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Section heading, e.g. "All songs". The count is appended in parentheses.</summary>
+    [Parameter, EditorRequired] public string? Label { get; set; }
+
+    /// <summary>Size of the whole collection, before any filter.</summary>
+    [Parameter] public int Total { get; set; }
+
+    /// <summary>Rows actually on screen. Only consulted while a search is active.</summary>
+    [Parameter] public int Shown { get; set; }
+
+    [Parameter] public bool ShowCount { get; set; } = true;
+
+    /// <summary>Renders the search field. Leave false on pages that are always short.</summary>
+    [Parameter] public bool Searchable { get; set; }
+
+    [Parameter] public string Search { get; set; } = "";
+    [Parameter] public EventCallback<string> SearchChanged { get; set; }
+
+    /// <summary>Set to null to keep the search text out of the URL.</summary>
+    [Parameter] public string? QueryParam { get; set; } = "q";
+
+    /// <summary>Sort dropdown and any secondary links, right-aligned on the first row.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    private string CountLabel => string.IsNullOrWhiteSpace(Search)
+        ? Total.ToString()
+        : L["Common.ResultsOfTotal", Shown, Total];
+
+    protected override void OnInitialized()
+    {
+        if (!Searchable || QueryParam is null) return;
+
+        Navigation.LocationChanged += OnLocationChanged;
+        _ = ApplyFromUrlAsync();
+    }
+
+    private Task OnInputAsync(ChangeEventArgs e) => SetSearchAsync(e.Value?.ToString() ?? "");
+
+    private async Task SetSearchAsync(string value)
+    {
+        if (value == Search) return;
+
+        if (QueryParam is not null)
+        {
+            // NavigateTo raises LocationChanged synchronously, before the parent has taken the new
+            // value through SearchChanged — so without this flag our own write reads back as an
+            // external one and fires a second SearchChanged, doubling the renders on every keystroke.
+            writingOwnUrl = true;
+            try
+            {
+                QueryState.Write(Navigation, QueryParam, value);
+            }
+            finally
+            {
+                writingOwnUrl = false;
+            }
+        }
+
+        await SearchChanged.InvokeAsync(value);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        if (writingOwnUrl) return;
+        _ = ApplyFromUrlAsync();
+    }
+
+    /// <summary>
+    /// Adopts whatever the URL says — on first render, and again on back/forward navigation, which is
+    /// what stops a round trip to a detail page from wiping the search.
+    /// </summary>
+    private async Task ApplyFromUrlAsync()
+    {
+        var fromUrl = QueryState.Read(Navigation, QueryParam!) ?? "";
+        if (fromUrl == Search) return;
+
+        await InvokeAsync(async () =>
+        {
+            await SearchChanged.InvokeAsync(fromUrl);
+            StateHasChanged();
+        });
+    }
+
+    private bool writingOwnUrl;
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+}

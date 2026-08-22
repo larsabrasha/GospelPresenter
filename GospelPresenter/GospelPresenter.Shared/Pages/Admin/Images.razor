@@ -26,7 +26,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/>
             </svg>
-            @L["ImageTab.Upload"]
+            @L["Common.Upload"]
             <input @ref="fileInput" type="file" @onchange="HandleFilesSelected" accept="@AppConstraints.ImageAccept" multiple class="hidden"/>
         </AppButton>
     </div>
@@ -36,7 +36,7 @@
         <div class="px-5 flex items-center gap-3 text-sm">
             @if (isUploading)
             {
-                <span class="text-neutral-500 dark:text-neutral-400">@L["ImageTab.UploadingProgress", uploadedCount, uploadTotalCount]</span>
+                <span class="text-neutral-500 dark:text-neutral-400">@L["Common.UploadingProgress", uploadedCount, uploadTotalCount]</span>
             }
             @if (uploadError is not null)
             {
@@ -48,7 +48,7 @@
     <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700">
         <div class="px-5 pt-4 pb-2 space-y-3">
             <div class="font-semibold">
-                @L["Images.AllImages"] (@images.Count)
+                @L["Images.AllImages"] (@CountLabel)
             </div>
             @if (images.Count > 0)
             {
@@ -77,7 +77,7 @@
 
         @if (isLoading)
         {
-            <div class="px-5 py-4 text-neutral-400 text-sm">@L["ImageTab.LoadingImages"]</div>
+            <div class="px-5 py-4 text-neutral-400 text-sm">@L["Media.LoadingImages"]</div>
         }
         else if (images.Count == 0)
         {
@@ -136,8 +136,8 @@
 {
     <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDelete">
         <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@L["ImageTab.DeleteImage"]</div>
-            <div><LocalizedEmphasis Key="ImageTab.ConfirmDelete" Value="@imageToDelete.FileName"/></div>
+            <div class="font-semibold text-lg">@L["Media.DeleteImage"]</div>
+            <div><LocalizedEmphasis Key="Media.ConfirmDeleteImage" Value="@imageToDelete.FileName"/></div>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDelete">
                     @L["Common.Cancel"]
@@ -164,6 +164,11 @@
     private OrganizationImage? imageToDelete;
     private ElementReference fileInput;
     private DotNetObjectReference<Images>? dotNetRef;
+
+    // While a search narrows the list, the header must not claim more rows than are on screen.
+    private string CountLabel => string.IsNullOrWhiteSpace(searchQuery)
+        ? images.Count.ToString()
+        : L["Common.ResultsOfTotal", displayedImages.Count, images.Count];
 
     protected override async Task OnInitializedAsync()
     {
@@ -220,7 +225,7 @@
         Logger.LogError("Failed to upload image {FileName}", fileName);
         uploadedCount++;
         failedCount++;
-        uploadError = L["ImageTab.UploadErrorCount", failedCount];
+        uploadError = L["Media.ImageUploadErrorCount", failedCount];
         StateHasChanged();
     }
 
