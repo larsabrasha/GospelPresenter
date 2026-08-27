@@ -52,6 +52,8 @@ try
     }
 
     var sessionTimeoutMinutes = builder.Configuration.GetValue("Settings:SessionTimeoutMinutes", 240);
+    const string CookieOrDeviceTokenScheme = "CookieOrDeviceToken";
+
     var connectionString = builder.Configuration.GetConnectionString("postgresdb");
     var isMockMode = string.IsNullOrEmpty(connectionString);
 
@@ -75,10 +77,19 @@ try
         builder.Services.Configure<GospelPresenter.Web.Configuration.AuthenticationOptions>(builder.Configuration.GetSection("Authentication"));
         builder.Services.AddSingleton<IAuthProviderService, AuthProviderService>();
 
+        // The default scheme routes each request by shape: a Bearer gpdt_ header authenticates as a
+        // device (the MAUI app), everything else as a cookie session. Every claims-reading endpoint
+        // then serves both kinds of caller unchanged.
         var authBuilder = builder.Services.AddAuthentication(options =>
             {
-                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultScheme = CookieOrDeviceTokenScheme;
             })
+            .AddPolicyScheme(CookieOrDeviceTokenScheme, CookieOrDeviceTokenScheme, options =>
+            {
+                options.ForwardDefaultSelector = SelectCookieOrDeviceTokenScheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler>(
+                GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler.SchemeName, null)
             .AddCookie(options =>
             {
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(sessionTimeoutMinutes);
@@ -181,7 +192,13 @@ try
     else
     {
         Log.Warning("No authentication provider configured — using mock authentication");
-        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+        builder.Services.AddAuthentication(CookieOrDeviceTokenScheme)
+            .AddPolicyScheme(CookieOrDeviceTokenScheme, CookieOrDeviceTokenScheme, options =>
+            {
+                options.ForwardDefaultSelector = SelectCookieOrDeviceTokenScheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler>(
+                GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler.SchemeName, null)
             .AddCookie(options =>
             {
                 options.LoginPath = "/mock-login";
@@ -254,6 +271,7 @@ try
     builder.Services.AddSingleton<ICcliReportService, CcliReportService>();
     builder.Services.AddSingleton<IPdfRenderService, PdfRenderService>();
     builder.Services.AddScoped<IPresentationSlidesService, PresentationSlidesService>();
+    builder.Services.AddScoped<GospelPresenter.Shared.Sync.ISyncService, GospelPresenter.Shared.Sync.SyncService>();
     builder.Services.AddScoped<ICalendarFeedService, CalendarFeedService>();
 
     var gotenbergEndpoint = builder.Configuration.GetValue<string>("Gotenberg:Endpoint");
@@ -272,6 +290,7 @@ try
     }
     builder.Services.AddSingleton<IPowerPointConverter, GotenbergPowerPointConverter>();
     builder.Services.AddHostedService<GospelPresenter.Web.Services.CcliReportBackgroundService>();
+    builder.Services.AddHostedService<GospelPresenter.Web.Services.SyncMaintenanceBackgroundService>();
 
 #if !DEBUG
 builder.Services.AddMetricServer(options =>
@@ -360,7 +379,10 @@ builder.Services.AddMetricServer(options =>
                                      || path.StartsWith("/api/theme-images/", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/live", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/display", StringComparison.OrdinalIgnoreCase);
-                    if (!isPublicPath)
+                    // API clients (a device token in the Authorization header) can never use the
+                    // mock login page; let them fall through to a proper 401 instead of a redirect.
+                    var isApiClient = context.Request.Headers.ContainsKey("Authorization");
+                    if (!isPublicPath && !isApiClient)
                     {
                         context.Response.Redirect("/mock-login");
                         return;
@@ -775,6 +797,8 @@ builder.Services.AddMetricServer(options =>
 
     app.MapCalendarEndpoints();
     app.MapPublicOutputEndpoints();
+    app.MapDeviceTokenEndpoints();
+    app.MapSyncEndpoints();
 
     // Resolve the broadcaster eagerly: it subscribes to live-state events in its constructor,
     // and a lazily created singleton would miss every change until the first visitor connected.
@@ -854,6 +878,12 @@ static string? ResolveScheme(string? provider, IAuthProviderService authProvider
 
     return null;
 }
+
+static string SelectCookieOrDeviceTokenScheme(HttpContext context) =>
+    context.Request.Headers.Authorization.FirstOrDefault()
+        ?.StartsWith($"Bearer {DeviceToken.Prefix}", StringComparison.Ordinal) == true
+        ? GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler.SchemeName
+        : CookieAuthenticationDefaults.AuthenticationScheme;
 
 static async Task RejectDeletedUser(CookieValidatePrincipalContext context)
 {

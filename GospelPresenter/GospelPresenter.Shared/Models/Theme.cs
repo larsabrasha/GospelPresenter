@@ -7,7 +7,7 @@ namespace GospelPresenter.Shared.Models;
 /// authored in <c>BuiltInThemes</c> and upserted on every deploy, so improving one changes the look
 /// for everyone using it. Organisation-owned themes reuse this table.
 /// </summary>
-public class Theme
+public class Theme : ISyncTracked
 {
     /// <summary>A stable slug for built-in themes, so presentations keep pointing at them across reseeding.</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString();
@@ -26,6 +26,8 @@ public class Theme
     public int SortOrder { get; set; }
 
     public SlideTheme Definition { get; set; } = new();
+
+    public DateTimeOffset ModifiedAt { get; set; }
 
     public bool IsBuiltIn => OrganizationId is null;
 }

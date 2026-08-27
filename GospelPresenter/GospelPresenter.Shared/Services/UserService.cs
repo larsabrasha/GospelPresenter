@@ -71,6 +71,10 @@ public interface IUserService
     Task<(McpApiKey ApiKey, string PlaintextKey)> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller);
     Task DeleteMcpApiKeyAsync(string id, CallerContext caller);
 
+    Task<List<DeviceToken>> GetDeviceTokensAsync(string userId, CallerContext caller);
+    Task<(DeviceToken Token, string PlaintextToken)> CreateDeviceTokenAsync(string name, string userId, string organizationId, CallerContext caller);
+    Task RevokeDeviceTokenAsync(string id, CallerContext caller);
+
     Task<List<CalendarSubscription>> GetCalendarSubscriptionsAsync(string userId, string organizationId, CallerContext caller);
     Task<(CalendarSubscription Subscription, string PlaintextToken)> CreateCalendarSubscriptionAsync(string name, string userId, string organizationId, CallerContext caller);
     Task DeleteCalendarSubscriptionAsync(string id, CallerContext caller);
@@ -514,9 +518,14 @@ public class UserService(
     {
         caller.RequireUserAccess(userId);
         await using var context = await dbContextFactory.CreateDbContextAsync();
-        await context.UserSettings
-            .Where(us => us.UserId == userId && us.Key == key)
-            .ExecuteDeleteAsync();
+
+        // Tracked delete rather than ExecuteDelete, so the context writes the sync tombstone itself.
+        var setting = await context.UserSettings
+            .FirstOrDefaultAsync(us => us.UserId == userId && us.Key == key);
+        if (setting is null) return;
+
+        context.UserSettings.Remove(setting);
+        await context.SaveChangesAsync();
     }
 
     public async Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller)
@@ -571,6 +580,60 @@ public class UserService(
         if (key is null) return;
         caller.RequireOrganizationAccess(key.OrganizationId);
         await context.McpApiKeys.Where(k => k.Id == id).ExecuteDeleteAsync();
+    }
+
+    public async Task<List<DeviceToken>> GetDeviceTokensAsync(string userId, CallerContext caller)
+    {
+        caller.RequireUserAccess(userId);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.DeviceTokens
+            .Where(t => t.UserId == userId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<(DeviceToken Token, string PlaintextToken)> CreateDeviceTokenAsync(string name, string userId, string organizationId, CallerContext caller)
+    {
+        // Device tokens are personal — any signed-in user equips their own device, so the gate is
+        // "acting on your own account", not an admin permission like the MCP keys next door.
+        caller.RequireUserAccess(userId);
+        caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+
+        // The token authenticates as this user in this organization, so the two have to belong
+        // together — mirrors the check on MCP keys above.
+        var userInOrganization = await context.Users
+            .AnyAsync(u => u.Id == userId && u.OrganizationId == organizationId);
+        if (!userInOrganization) throw new InvalidOperationException("User not found.");
+
+        await ValidationHelper.RequireMaxCountAsync(
+            context.DeviceTokens.Where(t => t.UserId == userId && t.RevokedAt == null),
+            AppConstraints.MaxDeviceTokensPerUser, "device tokens");
+
+        var plaintextToken = DeviceToken.GenerateKey();
+        var token = new DeviceToken
+        {
+            Name = name,
+            UserId = userId,
+            OrganizationId = organizationId,
+            TokenHash = DeviceToken.HashKey(plaintextToken)
+        };
+        context.DeviceTokens.Add(token);
+        await context.SaveChangesAsync();
+        return (token, plaintextToken);
+    }
+
+    public async Task RevokeDeviceTokenAsync(string id, CallerContext caller)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        var token = await context.DeviceTokens.FirstOrDefaultAsync(t => t.Id == id);
+        if (token is null) return;
+        caller.RequireUserAccess(token.UserId);
+
+        // Kept for audit rather than deleted; the auth handler only accepts unrevoked tokens.
+        token.RevokedAt = DateTimeOffset.UtcNow;
+        await context.SaveChangesAsync();
     }
 
     public async Task<List<CalendarSubscription>> GetCalendarSubscriptionsAsync(string userId, string organizationId, CallerContext caller)

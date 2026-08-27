@@ -45,6 +45,7 @@ public static class AppConstraints
     public const int MaxImagesPerOrg = 1_000;
     public const int MaxAudioPerOrg = 500;
     public const int MaxApiKeysPerUser = 10;
+    public const int MaxDeviceTokensPerUser = 10;
     public const int MaxCalendarSubscriptionsPerUser = 10;
     public const int MaxInvitesPerUser = 20;
     public const int MaxLoginsPerUser = 5;

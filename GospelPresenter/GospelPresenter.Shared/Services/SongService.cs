@@ -207,6 +207,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
                     }
                 }
 
+                TouchSong(existing);
                 replaced++;
             }
             else
@@ -416,6 +417,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
         parts[partIndex].LabelId = string.IsNullOrEmpty(labelId) ? null : labelId;
         parts[partIndex].Content = content;
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
@@ -446,6 +448,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             parts[index].Content = edit.Content;
         }
 
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
@@ -473,6 +476,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             Content = content,
             SortOrder = maxOrder + 1
         });
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
@@ -509,6 +513,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
                 arrangement.PartIdsJson = JsonSerializer.Serialize(partIds);
         }
 
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
@@ -535,6 +540,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         for (var i = 0; i < parts.Count; i++)
             parts[i].SortOrder = i;
 
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
@@ -605,6 +611,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             });
         }
 
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
@@ -693,6 +700,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             SongId = songId
         });
 
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
@@ -722,6 +730,7 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
         arrangement.Name = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
         arrangement.PartIdsJson = JsonSerializer.Serialize(filtered);
 
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
@@ -746,10 +755,18 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
 
         db.SongArrangements.Remove(arrangement);
 
+        TouchSong(song);
         await db.SaveChangesAsync();
         await transaction.CommitAsync();
         await ReloadSong(songId);
     }
+
+    /// <summary>
+    /// Marks the song row as changed when something inside its aggregate (parts, arrangements)
+    /// changes. DbSong.ModifiedAt is the aggregate version that sync push conflict detection
+    /// compares against; the actual timestamp is stamped by the context on save.
+    /// </summary>
+    private static void TouchSong(Models.DbSong song) => song.ModifiedAt = DateTimeOffset.UtcNow;
 
     private static readonly TimeSpan SessionWindow = TimeSpan.FromMinutes(30);
 

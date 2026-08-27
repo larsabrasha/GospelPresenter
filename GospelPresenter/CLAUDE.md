@@ -47,6 +47,12 @@
 - All database operations must be atomic. Use transactions when multiple writes depend on each other to ensure data consistency.
 - Lists that the user can reorder must persist their order to the database, not just in memory.
 
+## Offline sync tracking
+- Entities implementing `ISyncTracked` get `ModifiedAt` stamped automatically by `PresentationContext.SaveChanges`, and tracked deletes produce `SyncTombstone` rows automatically.
+- `ExecuteUpdateAsync`/`ExecuteDeleteAsync` BYPASS this: every `ExecuteUpdateAsync` on a synced entity must include `.SetProperty(x => x.ModifiedAt, DateTimeOffset.UtcNow)`, and every `ExecuteDeleteAsync` must add tombstones via `context.AddTombstones(...)` in the same transaction (or be converted to a tracked delete).
+- When a child row changes (song part, presentation item/part, arrangement), also bump the aggregate root's `ModifiedAt` (see `PresentationService.BumpPresentationAsync` and `SongService.TouchSong`) — push conflict detection compares the root.
+- Add a pinning test in `SyncTrackingCallSiteTests` for every new mutation path.
+
 ## Validation and error handling
 - Validate input both in the UI (for fast feedback) and on the server (for security). Never rely solely on client-side validation.
 - Show user-friendly error messages in Swedish when operations fail. Never expose stack traces or technical details in the UI.

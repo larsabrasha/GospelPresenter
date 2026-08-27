@@ -1,6 +1,6 @@
 namespace GospelPresenter.Shared.Models;
 
-public class DbSong
+public class DbSong : ISyncTracked
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string Name { get; set; } = "";
@@ -10,6 +10,7 @@ public class DbSong
     public string? Ccli { get; set; }
 
     public DateTime? DeletedAt { get; set; }
+    public DateTimeOffset ModifiedAt { get; set; }
 
     public string OrganizationId { get; set; } = "";
     public Organization Organization { get; set; } = null!;

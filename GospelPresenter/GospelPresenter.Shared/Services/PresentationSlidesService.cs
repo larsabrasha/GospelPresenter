@@ -100,7 +100,9 @@ public class PresentationSlidesService(
 
             await context.Presentations
                 .Where(x => x.Id == presentationId)
-                .ExecuteUpdateAsync(x => x.SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+                .ExecuteUpdateAsync(x => x
+                    .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
+                    .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
 
             await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

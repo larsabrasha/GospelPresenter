@@ -101,7 +101,8 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(b => b.Name, name)
                     .SetProperty(b => b.VersesJson, JsonSerializer.Serialize(verses))
-                    .SetProperty(b => b.VerseCount, verses.Count));
+                    .SetProperty(b => b.VerseCount, verses.Count)
+                    .SetProperty(b => b.ModifiedAt, DateTimeOffset.UtcNow));
             replaced = true;
         }
         else
@@ -136,9 +137,28 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
         caller.RequireOrganizationAccess(organizationId);
 
         await using var db = await dbContextFactory.CreateDbContextAsync();
+
+        // The row's id is needed for the tombstone, and ExecuteDelete avoids loading the
+        // multi-megabyte VersesJson column just to delete the row.
+        var bibleIds = await db.Bibles
+            .Where(b => b.Abbreviation == abbreviation && b.OrganizationId == organizationId)
+            .Select(b => b.Id)
+            .ToListAsync();
+        if (bibleIds.Count == 0) return;
+
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
         var deleted = await db.Bibles
             .Where(b => b.Abbreviation == abbreviation && b.OrganizationId == organizationId)
             .ExecuteDeleteAsync();
+
+        if (deleted > 0)
+        {
+            db.AddTombstones(nameof(DbBible), bibleIds, organizationId);
+            await db.SaveChangesAsync();
+        }
+
+        await transaction.CommitAsync();
 
         if (deleted == 0) return;
 

@@ -1634,4 +1634,7 @@
   <data name="Calendar.LinkCopied" xml:space="preserve">
     <value>Calendar link copied</value>
   </data>
+  <data name="Sync.OfflineChangesSuffix" xml:space="preserve">
+    <value>(offline changes)</value>
+  </data>
 </root>

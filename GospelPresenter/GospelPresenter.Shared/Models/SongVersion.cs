@@ -1,11 +1,12 @@
 namespace GospelPresenter.Shared.Models;
 
-public class DbSongVersion
+public class DbSongVersion : ISyncTracked
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string SongId { get; set; } = "";
     public DbSong Song { get; set; } = null!;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTimeOffset ModifiedAt { get; set; }
 
     // JSON snapshot of the song state
     public string Name { get; set; } = "";

@@ -87,9 +87,13 @@ public class OrganizationImageService(
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        await context.OrganizationImages
-            .Where(x => x.Id == id && x.OrganizationId == organizationId)
-            .ExecuteDeleteAsync(cancellationToken);
+        // Tracked delete rather than ExecuteDelete, so the context writes the tombstone itself.
+        var image = await context.OrganizationImages
+            .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
+        if (image is null) return;
+
+        context.OrganizationImages.Remove(image);
+        await context.SaveChangesAsync(cancellationToken);
 
         await storage.DeleteByPrefixAsync(ImageUrlHelper.OrgImagePrefix(organizationId, id), cancellationToken);
     }

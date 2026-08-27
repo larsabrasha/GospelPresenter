@@ -1,0 +1,143 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using GospelPresenter.IntegrationTests.Fixtures;
+using GospelPresenter.Shared.Sync;
+using Microsoft.AspNetCore.Mvc.Testing.Handlers;
+using Shouldly;
+
+namespace GospelPresenter.IntegrationTests.Services;
+
+/// <summary>
+/// The whole device flow against the real pipeline: a token minted by /app-login pulls the
+/// mock-seeded organisation through /api/sync/pull, paging included.
+/// </summary>
+[Collection(WebAppCollection.Name)]
+public class SyncPullIntegrationTests
+{
+    private static readonly Uri BaseAddress = new("https://localhost/");
+
+    [Fact]
+    public async Task Pull_WithADeviceToken_ReturnsTheSeededOrganization()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var deviceClient = await CreateDeviceClientAsync(app);
+
+        // Act -- page through a full sync
+        var songs = new List<SyncSongDto>();
+        string? cursor = null;
+        SyncPullResponse? response;
+        var pages = 0;
+        do
+        {
+            var httpResponse = await deviceClient.PostAsJsonAsync("/api/sync/pull",
+                new SyncPullRequest(null, cursor, Take: 50));
+            httpResponse.StatusCode.ShouldBe(HttpStatusCode.OK);
+            response = await httpResponse.Content.ReadFromJsonAsync<SyncPullResponse>();
+            response.ShouldNotBeNull();
+            songs.AddRange(response.Changes.Songs);
+            cursor = response.NextCursor;
+            pages++;
+            pages.ShouldBeLessThan(100, "paging must terminate");
+        } while (response.HasMore);
+
+        // Assert -- the mock seeder gives the organisation a real song library
+        songs.ShouldNotBeEmpty();
+        response.RequiresFullResync.ShouldBeFalse();
+        response.ServerWatermark.ShouldBeGreaterThan(DateTimeOffset.UtcNow.AddMinutes(-5));
+    }
+
+    [Fact]
+    public async Task PullEditPushPull_RoundTripsAnOfflineEdit()
+    {
+        // Arrange -- a device pulls the library, as if going offline
+        using var app = new WebAppFixture();
+        var deviceClient = await CreateDeviceClientAsync(app);
+        var first = await PullAllAsync(deviceClient);
+        var song = first.Songs.First();
+
+        // Act -- the "offline edit" is pushed with the pulled ModifiedAt as its base
+        var parts = first.SongParts.Where(p => p.SongId == song.Id).ToList();
+        var arrangements = first.SongArrangements.Where(a => a.SongId == song.Id).ToList();
+        var pushResponse = await deviceClient.PostAsJsonAsync("/api/sync/push", new SyncPushRequest
+        {
+            Songs =
+            [
+                new SyncSongPush(
+                    song with { Name = "Redigerad offline" },
+                    parts, arrangements,
+                    BaseModifiedAt: song.ModifiedAt)
+            ]
+        });
+        pushResponse.EnsureSuccessStatusCode();
+        var push = await pushResponse.Content.ReadFromJsonAsync<SyncPushResponse>();
+
+        // Assert -- applied cleanly, and the next incremental pull carries the rename
+        push!.Results.Single().Outcome.ShouldBe(SyncPushOutcome.Applied);
+        var second = await PullAllAsync(deviceClient, since: first.Watermark);
+        second.Songs.Single(s => s.Id == song.Id).Name.ShouldBe("Redigerad offline");
+    }
+
+    [Fact]
+    public async Task Pull_WithoutAuthentication_IsRejected()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var client = app.CreateDefaultClient(BaseAddress);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "gpdt_bogus");
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/sync/pull", new SyncPullRequest(null, null));
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    private sealed record PulledData(
+        List<SyncSongDto> Songs,
+        List<SyncSongPartDto> SongParts,
+        List<SyncSongArrangementDto> SongArrangements,
+        DateTimeOffset Watermark);
+
+    private static async Task<PulledData> PullAllAsync(HttpClient deviceClient, DateTimeOffset? since = null)
+    {
+        var songs = new List<SyncSongDto>();
+        var parts = new List<SyncSongPartDto>();
+        var arrangements = new List<SyncSongArrangementDto>();
+        string? cursor = null;
+        SyncPullResponse response;
+        do
+        {
+            var httpResponse = await deviceClient.PostAsJsonAsync("/api/sync/pull",
+                new SyncPullRequest(since, cursor));
+            httpResponse.EnsureSuccessStatusCode();
+            response = (await httpResponse.Content.ReadFromJsonAsync<SyncPullResponse>())!;
+            songs.AddRange(response.Changes.Songs);
+            parts.AddRange(response.Changes.SongParts);
+            arrangements.AddRange(response.Changes.SongArrangements);
+            cursor = response.NextCursor;
+        } while (response.HasMore);
+
+        return new PulledData(songs, parts, arrangements, response.ServerWatermark);
+    }
+
+    private static async Task<HttpClient> CreateDeviceClientAsync(WebAppFixture app)
+    {
+        var cookies = new CookieContainerHandler();
+        var cookieClient = app.CreateDefaultClient(BaseAddress, cookies);
+        (await cookieClient.GetAsync($"/mock-signin/{WebAppFixture.MockUserId}"))
+            .StatusCode.ShouldBe(HttpStatusCode.Redirect);
+
+        var login = await cookieClient.GetAsync("/app-login?device=Synktest");
+        login.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var fragment = login.Headers.Location!.Fragment.TrimStart('#');
+        var token = Uri.UnescapeDataString(fragment.Split('&')
+            .Select(pair => pair.Split('=', 2))
+            .Single(pair => pair[0] == "token")[1]);
+
+        var deviceClient = app.CreateDefaultClient(BaseAddress);
+        deviceClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return deviceClient;
+    }
+}

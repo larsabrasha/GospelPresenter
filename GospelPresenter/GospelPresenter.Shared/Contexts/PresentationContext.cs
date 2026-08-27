@@ -42,6 +42,173 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     public DbSet<PresentationSlides> PresentationSlides { get; set; }
     public DbSet<CalendarSubscription> CalendarSubscriptions { get; set; }
     public DbSet<Theme> Themes { get; set; }
+    public DbSet<SyncTombstone> SyncTombstones { get; set; }
+    public DbSet<DeviceToken> DeviceTokens { get; set; }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplySyncTrackingAsync(useAsync: false, CancellationToken.None).GetAwaiter().GetResult();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        await ApplySyncTrackingAsync(useAsync: true, cancellationToken);
+        return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// Stamps <see cref="ISyncTracked.ModifiedAt"/> on every tracked insert and update, and writes a
+    /// <see cref="SyncTombstone"/> for every tracked delete of a synced entity, in the same save.
+    /// Living in the context itself (rather than an interceptor registered in options) means no host —
+    /// web, migration service, tests, or the MAUI app — can accidentally drop it when configuring the
+    /// factory. <c>ExecuteUpdateAsync</c>/<c>ExecuteDeleteAsync</c> bypass the change tracker entirely;
+    /// those call sites stamp and tombstone explicitly.
+    /// </summary>
+    private async ValueTask ApplySyncTrackingAsync(bool useAsync, CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var entries = ChangeTracker.Entries().ToList();
+
+        foreach (var entry in entries)
+        {
+            if (entry.Entity is ISyncTracked tracked &&
+                entry.State is EntityState.Added or EntityState.Modified)
+            {
+                tracked.ModifiedAt = now;
+            }
+        }
+
+        var deleted = entries
+            .Where(e => e.State == EntityState.Deleted && e.Entity is ISyncTracked)
+            .ToList();
+        if (deleted.Count == 0)
+            return;
+
+        // Children of an aggregate deleted in the same save get no tombstone of their own: applying
+        // the parent's tombstone cascades on the client, mirroring the database's FK cascades here.
+        var deletedIds = deleted
+            .GroupBy(e => e.Entity.GetType())
+            .ToDictionary(g => g.Key, g => g.Select(e => (string)e.Property("Id").CurrentValue!).ToHashSet());
+
+        bool IsDeleted<T>(string id) =>
+            deletedIds.TryGetValue(typeof(T), out var ids) && ids.Contains(id);
+
+        async ValueTask<string?> FirstOrDefaultAsync(IQueryable<string> query) =>
+            useAsync ? await query.FirstOrDefaultAsync(cancellationToken) : query.FirstOrDefault();
+
+        foreach (var entry in deleted)
+        {
+            string? organizationId = null;
+            string? userId = null;
+
+            switch (entry.Entity)
+            {
+                case Presentation p:
+                    organizationId = p.OrganizationId;
+                    break;
+                case DbSong s:
+                    organizationId = s.OrganizationId;
+                    break;
+                case DbSongPartLabel l:
+                    organizationId = l.OrganizationId;
+                    break;
+                case OverlaySlide o:
+                    organizationId = o.OrganizationId;
+                    break;
+                case OrganizationImage i:
+                    organizationId = i.OrganizationId;
+                    break;
+                case OrganizationAudio a:
+                    organizationId = a.OrganizationId;
+                    break;
+                case OrganizationSetting os:
+                    organizationId = os.OrganizationId;
+                    break;
+                case DbBible b:
+                    organizationId = b.OrganizationId;
+                    break;
+                case Theme t:
+                    // Null for built-in themes: their tombstones are global, served to every client.
+                    organizationId = t.OrganizationId;
+                    break;
+                case UserSetting us:
+                    userId = us.UserId;
+                    break;
+
+                // Child rows deleted on their own resolve their organisation through the parent.
+                // A null lookup means the parent is gone too, so its tombstone covers this row.
+                case PresentationItem item:
+                    if (IsDeleted<Presentation>(item.PresentationId)) continue;
+                    organizationId = await FirstOrDefaultAsync(
+                        Presentations.Where(x => x.Id == item.PresentationId).Select(x => x.OrganizationId));
+                    if (organizationId is null) continue;
+                    break;
+                case PresentationItemPart part:
+                    if (IsDeleted<PresentationItem>(part.PresentationItemId)) continue;
+                    organizationId = await FirstOrDefaultAsync(
+                        PresentationItems.Where(x => x.Id == part.PresentationItemId)
+                            .Select(x => x.Presentation.OrganizationId));
+                    if (organizationId is null) continue;
+                    break;
+                case PresentationSlides slides:
+                    if (IsDeleted<Presentation>(slides.PresentationId)) continue;
+                    organizationId = await FirstOrDefaultAsync(
+                        Presentations.Where(x => x.Id == slides.PresentationId).Select(x => x.OrganizationId));
+                    if (organizationId is null) continue;
+                    break;
+                case DbSongPart songPart:
+                    if (IsDeleted<DbSong>(songPart.SongId)) continue;
+                    organizationId = await FirstOrDefaultAsync(
+                        Songs.Where(x => x.Id == songPart.SongId).Select(x => x.OrganizationId));
+                    if (organizationId is null) continue;
+                    break;
+                case DbSongVersion version:
+                    if (IsDeleted<DbSong>(version.SongId)) continue;
+                    organizationId = await FirstOrDefaultAsync(
+                        Songs.Where(x => x.Id == version.SongId).Select(x => x.OrganizationId));
+                    if (organizationId is null) continue;
+                    break;
+                case DbSongArrangement arrangement:
+                    if (IsDeleted<DbSong>(arrangement.SongId)) continue;
+                    organizationId = await FirstOrDefaultAsync(
+                        Songs.Where(x => x.Id == arrangement.SongId).Select(x => x.OrganizationId));
+                    if (organizationId is null) continue;
+                    break;
+                default:
+                    continue;
+            }
+
+            SyncTombstones.Add(new SyncTombstone
+            {
+                EntityType = entry.Entity.GetType().Name,
+                EntityId = (string)entry.Property("Id").CurrentValue!,
+                OrganizationId = organizationId,
+                UserId = userId,
+                DeletedAt = now,
+            });
+        }
+    }
+
+    /// <summary>
+    /// Tombstones for rows removed with <c>ExecuteDeleteAsync</c>, which never reach the change
+    /// tracker. Call inside the same transaction as the delete, then save.
+    /// </summary>
+    public void AddTombstones(string entityType, IEnumerable<string> entityIds, string? organizationId, string? userId = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+        foreach (var entityId in entityIds)
+        {
+            SyncTombstones.Add(new SyncTombstone
+            {
+                EntityType = entityType,
+                EntityId = entityId,
+                OrganizationId = organizationId,
+                UserId = userId,
+                DeletedAt = now,
+            });
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +225,8 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
 
         modelBuilder.Entity<Presentation>(e =>
         {
+            // Serves the sync pull query: changed rows for one organisation since a watermark.
+            e.HasIndex(p => new { p.OrganizationId, p.ModifiedAt });
             e.Property(p => p.Name).HasMaxLength(AppConstraints.NameMaxLength);
             e.Property(p => p.Description).HasMaxLength(AppConstraints.DescriptionMaxLength);
             e.Property(p => p.EventLocation).HasMaxLength(AppConstraints.LocationMaxLength);
@@ -108,6 +277,8 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
 
         modelBuilder.Entity<DbSong>(e =>
         {
+            // Serves the sync pull query: changed rows for one organisation since a watermark.
+            e.HasIndex(s => new { s.OrganizationId, s.ModifiedAt });
             e.Property(s => s.Name).HasMaxLength(AppConstraints.NameMaxLength);
             e.Property(s => s.Author).HasMaxLength(AppConstraints.SongAuthorMaxLength);
             e.Property(s => s.Publisher).HasMaxLength(AppConstraints.SongPublisherMaxLength);
@@ -224,6 +395,21 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
         modelBuilder.Entity<McpApiKey>()
             .HasIndex(k => k.KeyHash)
             .IsUnique();
+
+        modelBuilder.Entity<DeviceToken>(e =>
+        {
+            e.Property(t => t.Name).HasMaxLength(AppConstraints.NameMaxLength);
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(t => t.Organization).WithMany().HasForeignKey(t => t.OrganizationId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SyncTombstone>(e =>
+        {
+            e.Property(t => t.EntityType).HasMaxLength(64);
+            e.HasIndex(t => new { t.OrganizationId, t.DeletedAt });
+            e.HasIndex(t => new { t.UserId, t.DeletedAt });
+        });
 
         modelBuilder.Entity<CalendarSubscription>(e =>
         {

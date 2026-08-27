@@ -87,9 +87,13 @@ public class OrganizationAudioService(
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        await context.OrganizationAudios
-            .Where(x => x.Id == id && x.OrganizationId == organizationId)
-            .ExecuteDeleteAsync(cancellationToken);
+        // Tracked delete rather than ExecuteDelete, so the context writes the tombstone itself.
+        var audio = await context.OrganizationAudios
+            .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
+        if (audio is null) return;
+
+        context.OrganizationAudios.Remove(audio);
+        await context.SaveChangesAsync(cancellationToken);
 
         await storage.DeleteByPrefixAsync(ImageUrlHelper.OrgAudioPrefix(organizationId, id), cancellationToken);
     }
