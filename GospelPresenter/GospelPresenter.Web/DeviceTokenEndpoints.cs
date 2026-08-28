@@ -41,6 +41,30 @@ public static class DeviceTokenEndpoints
                 $"&organization_id={Uri.EscapeDataString(caller.OrganizationId)}");
         }).RequireAuthorization();
 
+        // Who the caller is, resolved fresh from the database. The app fetches this right after
+        // /app-login to build its cached offline identity, and again on later syncs so a changed
+        // role or organisation name eventually reaches the device.
+        app.MapGet("/api/me", async (
+            HttpContext context,
+            [FromServices] IUserService userService) =>
+        {
+            var caller = GetCaller(context);
+            if (caller is null) return Results.Unauthorized();
+
+            var user = await userService.GetByIdAsync(caller.UserId, caller);
+            if (user is null) return Results.Unauthorized();
+
+            return Results.Ok(new
+            {
+                user.Id,
+                user.Name,
+                user.Email,
+                Role = user.Role.ToString(),
+                user.OrganizationId,
+                OrganizationName = user.Organization?.Name,
+            });
+        }).RequireAuthorization();
+
         app.MapGet("/api/device-tokens", async (
             HttpContext context,
             [FromServices] IUserService userService) =>

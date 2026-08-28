@@ -73,6 +73,28 @@ public class DeviceTokenIntegrationTests
     }
 
     [Fact]
+    public async Task Me_WithADeviceToken_ReturnsTheProfileTheAppCaches()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var cookieClient = await CreateCookieClientAsync(app);
+        var token = await IssueTokenAsync(cookieClient, "Testmaskin");
+
+        // Act
+        var me = await CreateBearerClient(app, token)
+            .GetFromJsonAsync<MeRow>("/api/me");
+
+        // Assert
+        me.ShouldNotBeNull();
+        me.Id.ShouldBe(WebAppFixture.MockUserId);
+        me.OrganizationId.ShouldBe("mock-org-sv");
+        me.Role.ShouldNotBeNullOrEmpty();
+        me.Name.ShouldNotBeNullOrEmpty();
+    }
+
+    private sealed record MeRow(string Id, string Name, string Email, string Role, string? OrganizationId, string? OrganizationName);
+
+    [Fact]
     public async Task UnknownDeviceToken_IsRejected()
     {
         // Arrange

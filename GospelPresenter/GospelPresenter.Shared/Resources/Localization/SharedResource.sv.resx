@@ -1637,4 +1637,58 @@
   <data name="Sync.OfflineChangesSuffix" xml:space="preserve">
     <value>(offline-ändringar)</value>
   </data>
+  <data name="SignIn.Device" xml:space="preserve">
+    <value>Logga in</value>
+  </data>
+  <data name="SignIn.DeviceFailed" xml:space="preserve">
+    <value>Inloggningen misslyckades. Kontrollera uppkopplingen och försök igen.</value>
+  </data>
+  <data name="Sync.StatusIdle" xml:space="preserve">
+    <value>Synkad</value>
+  </data>
+  <data name="Sync.StatusSyncing" xml:space="preserve">
+    <value>Synkar…</value>
+  </data>
+  <data name="Sync.StatusOffline" xml:space="preserve">
+    <value>Offline</value>
+  </data>
+  <data name="Sync.StatusAuthRequired" xml:space="preserve">
+    <value>Logga in igen för att synka</value>
+  </data>
+  <data name="Sync.StatusError" xml:space="preserve">
+    <value>Synkfel</value>
+  </data>
+  <data name="Sync.PendingChanges" xml:space="preserve">
+    <value>{0} ändringar väntar</value>
+  </data>
+  <data name="Sync.SyncNow" xml:space="preserve">
+    <value>Synka nu</value>
+  </data>
+  <data name="Sync.ConflictCopiedAsNew" xml:space="preserve">
+    <value>En presentation ändrades på servern. Din offlineversion sparades som en kopia.</value>
+  </data>
+  <data name="Sync.ConflictSongVersionSaved" xml:space="preserve">
+    <value>En sång ändrades på servern. Din offlineversion sparades i sångens versionshistorik.</value>
+  </data>
+  <data name="Sync.ChangeRejected" xml:space="preserve">
+    <value>En ändring kunde inte synkas.</value>
+  </data>
+  <data name="Bibles.MakeOffline" xml:space="preserve">
+    <value>Gör tillgänglig offline</value>
+  </data>
+  <data name="Bibles.OfflineAvailable" xml:space="preserve">
+    <value>Tillgänglig offline</value>
+  </data>
+  <data name="Bibles.RemoveOffline" xml:space="preserve">
+    <value>Ta bort den nedladdade kopian</value>
+  </data>
+  <data name="Bibles.OfflineDownloaded" xml:space="preserve">
+    <value>Översättningen är tillgänglig offline</value>
+  </data>
+  <data name="Bibles.OfflineRemoved" xml:space="preserve">
+    <value>Den nedladdade kopian togs bort</value>
+  </data>
+  <data name="Bibles.OfflineDownloadFailed" xml:space="preserve">
+    <value>Nedladdningen misslyckades. Kontrollera uppkopplingen och försök igen.</value>
+  </data>
 </root>

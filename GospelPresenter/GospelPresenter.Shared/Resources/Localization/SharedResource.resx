@@ -1637,4 +1637,58 @@
   <data name="Sync.OfflineChangesSuffix" xml:space="preserve">
     <value>(offline changes)</value>
   </data>
+  <data name="SignIn.Device" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="SignIn.DeviceFailed" xml:space="preserve">
+    <value>Sign-in failed. Check your connection and try again.</value>
+  </data>
+  <data name="Sync.StatusIdle" xml:space="preserve">
+    <value>Synced</value>
+  </data>
+  <data name="Sync.StatusSyncing" xml:space="preserve">
+    <value>Syncing…</value>
+  </data>
+  <data name="Sync.StatusOffline" xml:space="preserve">
+    <value>Offline</value>
+  </data>
+  <data name="Sync.StatusAuthRequired" xml:space="preserve">
+    <value>Sign in again to sync</value>
+  </data>
+  <data name="Sync.StatusError" xml:space="preserve">
+    <value>Sync failed</value>
+  </data>
+  <data name="Sync.PendingChanges" xml:space="preserve">
+    <value>{0} changes waiting</value>
+  </data>
+  <data name="Sync.SyncNow" xml:space="preserve">
+    <value>Sync now</value>
+  </data>
+  <data name="Sync.ConflictCopiedAsNew" xml:space="preserve">
+    <value>A presentation changed on the server. Your offline version was saved as a copy.</value>
+  </data>
+  <data name="Sync.ConflictSongVersionSaved" xml:space="preserve">
+    <value>A song changed on the server. Your offline version was saved in the song's version history.</value>
+  </data>
+  <data name="Sync.ChangeRejected" xml:space="preserve">
+    <value>A change could not be synced.</value>
+  </data>
+  <data name="Bibles.MakeOffline" xml:space="preserve">
+    <value>Make available offline</value>
+  </data>
+  <data name="Bibles.OfflineAvailable" xml:space="preserve">
+    <value>Available offline</value>
+  </data>
+  <data name="Bibles.RemoveOffline" xml:space="preserve">
+    <value>Remove the downloaded copy</value>
+  </data>
+  <data name="Bibles.OfflineDownloaded" xml:space="preserve">
+    <value>The translation is available offline</value>
+  </data>
+  <data name="Bibles.OfflineRemoved" xml:space="preserve">
+    <value>The downloaded copy was removed</value>
+  </data>
+  <data name="Bibles.OfflineDownloadFailed" xml:space="preserve">
+    <value>The download failed. Check your connection and try again.</value>
+  </data>
 </root>

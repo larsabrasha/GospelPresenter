@@ -1,8 +1,15 @@
+@using GospelPresenter.Shared.Services
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
 
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo($"/signin?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+        // On the device app there is no server /signin to force-load; the login page runs the
+        // system-browser flow instead. IDeviceSignIn is only registered by the MAUI host.
+        if (Services.GetService(typeof(IDeviceSignIn)) is not null)
+            Navigation.NavigateTo("/login");
+        else
+            Navigation.NavigateTo($"/signin?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
     }
 }

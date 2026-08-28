@@ -442,17 +442,18 @@ public class SyncService(
             if (push.BaseModifiedAt is not null && await HasTombstoneAsync(db, nameof(DbSongPartLabel), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
-            db.SongPartLabels.Add(new DbSongPartLabel
+            var label = new DbSongPartLabel
             {
                 Id = row.Id,
                 Text = row.Text,
                 Color = row.Color,
                 SortOrder = row.SortOrder,
                 OrganizationId = organizationId,
-            });
+            };
+            db.SongPartLabels.Add(label);
             await db.SaveChangesAsync(cancellationToken);
             validLabelIds.Add(row.Id);
-            return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Applied);
+            return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Applied, NewModifiedAt: label.ModifiedAt);
         }
 
         if (push.BaseModifiedAt != existing.ModifiedAt)
@@ -462,7 +463,7 @@ public class SyncService(
         existing.Color = row.Color;
         existing.SortOrder = row.SortOrder;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Applied);
+        return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
     }
 
     private async Task<SyncPushResult> ProcessSongPushAsync(
@@ -521,7 +522,7 @@ public class SyncService(
             }
             db.Songs.Add(song);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.Applied);
+            return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.Applied, NewModifiedAt: song.ModifiedAt);
         }
 
         if (push.BaseModifiedAt != existing.ModifiedAt)
@@ -574,7 +575,7 @@ public class SyncService(
         // Touch: child changes move the aggregate version even when no song field changed.
         existing.ModifiedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.Applied);
+        return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
     }
 
     private async Task<SyncPushResult> ProcessPresentationPushAsync(
@@ -619,7 +620,8 @@ public class SyncService(
             db.Presentations.Add(presentation);
             AddPushedChildren(db, presentation.Id, push, slidesIdMap: null);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.Applied, Warning: JoinWarnings(warnings));
+            return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.Applied,
+                Warning: JoinWarnings(warnings), NewModifiedAt: presentation.ModifiedAt);
         }
 
         if (existing is null || push.BaseModifiedAt != existing.ModifiedAt)
@@ -701,7 +703,8 @@ public class SyncService(
         foreach (var slidesId in removedSlidesIds)
             await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, slidesId), cancellationToken);
 
-        return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.Applied, Warning: JoinWarnings(warnings));
+        return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.Applied,
+            Warning: JoinWarnings(warnings), NewModifiedAt: existing.ModifiedAt);
     }
 
     /// <summary>
@@ -825,16 +828,17 @@ public class SyncService(
             await ValidationHelper.RequireMaxCountAsync(
                 db.OrganizationImages.Where(i => i.OrganizationId == organizationId),
                 AppConstraints.MaxImagesPerOrg, "images", cancellationToken);
-            db.OrganizationImages.Add(new OrganizationImage
+            var image = new OrganizationImage
             {
                 Id = row.Id,
                 FileName = row.FileName,
                 ContentType = row.ContentType,
                 CreatedAt = row.CreatedAt,
                 OrganizationId = organizationId,
-            });
+            };
+            db.OrganizationImages.Add(image);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied);
+            return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied, NewModifiedAt: image.ModifiedAt);
         }
 
         if (push.BaseModifiedAt != existing.ModifiedAt)
@@ -843,7 +847,7 @@ public class SyncService(
         existing.FileName = row.FileName;
         existing.ContentType = row.ContentType;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied);
+        return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
     }
 
     private async Task<SyncPushResult> ProcessAudioPushAsync(
@@ -865,16 +869,17 @@ public class SyncService(
             await ValidationHelper.RequireMaxCountAsync(
                 db.OrganizationAudios.Where(a => a.OrganizationId == organizationId),
                 AppConstraints.MaxAudioPerOrg, "audio files", cancellationToken);
-            db.OrganizationAudios.Add(new OrganizationAudio
+            var audio = new OrganizationAudio
             {
                 Id = row.Id,
                 FileName = row.FileName,
                 ContentType = row.ContentType,
                 CreatedAt = row.CreatedAt,
                 OrganizationId = organizationId,
-            });
+            };
+            db.OrganizationAudios.Add(audio);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied);
+            return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied, NewModifiedAt: audio.ModifiedAt);
         }
 
         if (push.BaseModifiedAt != existing.ModifiedAt)
@@ -883,7 +888,7 @@ public class SyncService(
         existing.FileName = row.FileName;
         existing.ContentType = row.ContentType;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied);
+        return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
     }
 
     private async Task<SyncPushResult> ProcessOverlayPushAsync(
@@ -906,7 +911,7 @@ public class SyncService(
             await ValidationHelper.RequireMaxCountAsync(
                 db.OverlaySlides.Where(o => o.OrganizationId == organizationId),
                 AppConstraints.MaxOverlaysPerOrg, "overlays", cancellationToken);
-            db.OverlaySlides.Add(new OverlaySlide
+            var overlay = new OverlaySlide
             {
                 Id = row.Id,
                 Title = row.Title,
@@ -914,9 +919,10 @@ public class SyncService(
                 HasImage = row.HasImage,
                 SortOrder = row.SortOrder,
                 OrganizationId = organizationId,
-            });
+            };
+            db.OverlaySlides.Add(overlay);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.Applied);
+            return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.Applied, NewModifiedAt: overlay.ModifiedAt);
         }
 
         if (push.BaseModifiedAt != existing.ModifiedAt)
@@ -927,7 +933,7 @@ public class SyncService(
         existing.HasImage = row.HasImage;
         existing.SortOrder = row.SortOrder;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.Applied);
+        return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
     }
 
     private async Task<SyncPushResult> ProcessOrganizationSettingPushAsync(
@@ -950,15 +956,16 @@ public class SyncService(
             await ValidationHelper.RequireMaxCountAsync(
                 db.OrganizationSettings.Where(s => s.OrganizationId == organizationId),
                 AppConstraints.MaxSettingsPerOrg, "settings", cancellationToken);
-            db.OrganizationSettings.Add(new OrganizationSetting
+            var setting = new OrganizationSetting
             {
                 Id = row.Id,
                 OrganizationId = organizationId,
                 Key = row.Key,
                 Value = row.Value,
-            });
+            };
+            db.OrganizationSettings.Add(setting);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Applied);
+            return new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Applied, NewModifiedAt: setting.ModifiedAt);
         }
 
         if (push.BaseModifiedAt != existing.ModifiedAt)
@@ -967,8 +974,8 @@ public class SyncService(
         existing.Value = row.Value;
         await db.SaveChangesAsync(cancellationToken);
         return existing.Id == row.Id
-            ? new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Applied)
-            : new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id);
+            ? new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt)
+            : new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewModifiedAt: existing.ModifiedAt);
     }
 
     private async Task<SyncPushResult> ProcessUserSettingPushAsync(
@@ -987,15 +994,16 @@ public class SyncService(
             await ValidationHelper.RequireMaxCountAsync(
                 db.UserSettings.Where(s => s.UserId == caller.UserId),
                 AppConstraints.MaxSettingsPerUser, "settings", cancellationToken);
-            db.UserSettings.Add(new UserSetting
+            var setting = new UserSetting
             {
                 Id = row.Id,
                 UserId = caller.UserId,
                 Key = row.Key,
                 Value = row.Value,
-            });
+            };
+            db.UserSettings.Add(setting);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied);
+            return new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied, NewModifiedAt: setting.ModifiedAt);
         }
 
         if (push.BaseModifiedAt != existing.ModifiedAt)
@@ -1004,8 +1012,8 @@ public class SyncService(
         existing.Value = row.Value;
         await db.SaveChangesAsync(cancellationToken);
         return existing.Id == row.Id
-            ? new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied)
-            : new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id);
+            ? new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt)
+            : new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewModifiedAt: existing.ModifiedAt);
     }
 
     private async Task<SyncPushResult> ProcessDeleteAsync(

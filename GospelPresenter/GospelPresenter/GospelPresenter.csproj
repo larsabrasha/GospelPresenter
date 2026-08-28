@@ -35,6 +35,13 @@
     <Import Project="Directory.Build.$(Scheme).props"
             Condition="Exists('Directory.Build.$(Scheme).props')" />
 
+    <!-- Lets Settings.cs pick the server URL for the scheme at compile time. -->
+    <PropertyGroup>
+        <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterProd'">$(DefineConstants);SCHEME_PROD</DefineConstants>
+        <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterBeta'">$(DefineConstants);SCHEME_BETA</DefineConstants>
+        <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterTest'">$(DefineConstants);SCHEME_TEST</DefineConstants>
+    </PropertyGroup>
+
     <ItemGroup>
         <None Remove="Resources\transparent.png"/>
         <EmbeddedResource Include="Resources\transparent.png"/>
@@ -48,23 +55,23 @@
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.11" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.1" />
         <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'" />
-        <PackageReference Include="NeoSmart.Caching.Sqlite.AspNetCore" Version="9.0.1" />
-        <!-- Pinned above the versions NeoSmart.Caching.Sqlite resolves transitively:
+        <!-- Pinned above the versions EF Core's SQLite provider resolves transitively:
              GHSA-2m69-gcr7-jv3q. -->
         <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
         <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.android" Version="2.1.12" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
+        <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.ios" Version="2.1.12" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'" />
+        <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.ios" Version="2.1.12" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
         <PackageReference Include="Serilog" Version="4.3.1" />
         <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="Serilog.Sinks.Xamarin" Version="1.0.0" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'" />
         <PackageReference Include="Serilog.Sinks.Xamarin" Version="1.0.0" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
         <PackageReference Include="Serilog.Sinks.Xamarin" Version="1.0.0" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
-        <PackageReference Include="ZiggyCreatures.FusionCache" Version="2.5.0" />
-        <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.5.0" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
+        <ProjectReference Include="..\GospelPresenter.Client\GospelPresenter.Client.csproj" />
     </ItemGroup>
 
     <ItemGroup>

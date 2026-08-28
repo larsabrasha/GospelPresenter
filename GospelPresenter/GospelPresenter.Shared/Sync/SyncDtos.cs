@@ -172,13 +172,19 @@ public record SyncDeletePush(string EntityType, string Id, DateTimeOffset? BaseM
 
 public record SyncPushResponse(List<SyncPushResult> Results);
 
-/// <summary>NewId: for CopiedAsNew the server-side copy, for Remapped the surviving server row.</summary>
+/// <summary>
+/// NewId: for CopiedAsNew the server-side copy, for Remapped the surviving server row.
+/// NewModifiedAt: on Applied (and Remapped) upserts, the row's server ModifiedAt after the save —
+/// the client stores it as the row's new conflict base, so edits made while the push was in flight
+/// push cleanly instead of reporting a false conflict.
+/// </summary>
 public record SyncPushResult(
     string EntityType,
     string Id,
     SyncPushOutcome Outcome,
     string? NewId = null,
-    string? Warning = null);
+    string? Warning = null,
+    DateTimeOffset? NewModifiedAt = null);
 
 [JsonConverter(typeof(JsonStringEnumConverter<SyncPushOutcome>))]
 public enum SyncPushOutcome

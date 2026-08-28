@@ -8,8 +8,17 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GospelPresenter.Shared.Contexts;
 
-public class PresentationContext(DbContextOptions<PresentationContext> options) : DbContext(options)
+public class PresentationContext : DbContext
 {
+    public PresentationContext(DbContextOptions<PresentationContext> options) : base(options)
+    {
+    }
+
+    /// <summary>For subclasses — the MAUI client derives its local context from this one.</summary>
+    protected PresentationContext(DbContextOptions options) : base(options)
+    {
+    }
+
     /// <summary>
     /// Enums are written as names so that adding a value later cannot renumber what is already stored.
     /// </summary>
@@ -67,7 +76,13 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
     /// </summary>
     private async ValueTask ApplySyncTrackingAsync(bool useAsync, CancellationToken cancellationToken)
     {
-        var now = DateTimeOffset.UtcNow;
+        if (SuppressSyncTracking)
+            return;
+
+        // Truncated to milliseconds so the in-memory value after a save equals what every provider
+        // stores (SQLite keeps ms, Postgres µs). Sync conflict detection compares these values for
+        // equality across pull, push and push-response, so they must round-trip exactly.
+        var now = DateTimeOffset.FromUnixTimeMilliseconds(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         var entries = ChangeTracker.Entries().ToList();
 
         foreach (var entry in entries)
@@ -189,6 +204,13 @@ public class PresentationContext(DbContextOptions<PresentationContext> options) 
             });
         }
     }
+
+    /// <summary>
+    /// When true, saves neither stamp <see cref="ISyncTracked.ModifiedAt"/> nor write tombstones.
+    /// The MAUI client's pull applier overrides this while writing server rows locally: those rows
+    /// must keep the server's ModifiedAt, and deleting on a tombstone must not mint a new one.
+    /// </summary>
+    protected virtual bool SuppressSyncTracking => false;
 
     /// <summary>
     /// Tombstones for rows removed with <c>ExecuteDeleteAsync</c>, which never reach the change

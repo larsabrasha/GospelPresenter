@@ -1,0 +1,105 @@
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.Sync
+
+@inject IServiceProvider Services
+@inject ToastService ToastService
+
+@implements IDisposable
+
+@* Renders nothing on the web: only the MAUI host registers an ISyncStatusSource. *@
+@if (status is not null)
+{
+    <AppButton Variant="ButtonVariant.Icon" OnClick="SyncNowAsync" Title="@Tooltip()"
+               Class="relative flex items-center justify-center">
+        @if (status.Status == SyncStatus.Syncing)
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                 class="size-5 animate-spin text-sky-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+            </svg>
+        }
+        else if (status.Status == SyncStatus.AuthRequired || status.Status == SyncStatus.Error)
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                 class="size-5 text-amber-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+            </svg>
+        }
+        else if (status.Status == SyncStatus.Offline)
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                 class="size-5 text-neutral-400 dark:text-neutral-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m3 3 18 18M6.75 7.547A8.25 8.25 0 0 0 4.5 18.75h11.69m3.148-1.42a4.5 4.5 0 0 0-2.09-8.28 6.75 6.75 0 0 0-9.815-4.588"/>
+            </svg>
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                 class="size-5 text-neutral-400 dark:text-neutral-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="m9 13.5 2 2 4-4"/>
+            </svg>
+        }
+        @if (status.PendingChanges > 0 && status.Status != SyncStatus.Syncing)
+        {
+            <span class="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-sky-500"></span>
+        }
+    </AppButton>
+}
+
+@code {
+    private ISyncStatusSource? status;
+
+    protected override void OnInitialized()
+    {
+        status = Services.GetService(typeof(ISyncStatusSource)) as ISyncStatusSource;
+        if (status is null)
+            return;
+        status.Changed += OnChanged;
+        status.ConflictReported += OnConflictReported;
+    }
+
+    private string Tooltip()
+    {
+        var state = status!.Status switch
+        {
+            SyncStatus.Syncing => L["Sync.StatusSyncing"].Value,
+            SyncStatus.Offline => L["Sync.StatusOffline"].Value,
+            SyncStatus.AuthRequired => L["Sync.StatusAuthRequired"].Value,
+            SyncStatus.Error => L["Sync.StatusError"].Value,
+            _ => L["Sync.StatusIdle"].Value,
+        };
+        var pending = status.PendingChanges > 0 ? $" · {L["Sync.PendingChanges", status.PendingChanges]}" : "";
+        return $"{state}{pending} · {L["Sync.SyncNow"]}";
+    }
+
+    private async Task SyncNowAsync()
+    {
+        if (status is not null)
+            await status.SyncNowAsync();
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnConflictReported(SyncPushResult result)
+    {
+        var message = result.Outcome switch
+        {
+            SyncPushOutcome.CopiedAsNew => L["Sync.ConflictCopiedAsNew"].Value,
+            SyncPushOutcome.ServerWins when result.EntityType == "DbSong" => L["Sync.ConflictSongVersionSaved"].Value,
+            SyncPushOutcome.Failed => L["Sync.ChangeRejected"].Value,
+            _ => null,
+        };
+        if (message is null)
+            return;
+        _ = InvokeAsync(() => ToastService.Show(message));
+    }
+
+    public void Dispose()
+    {
+        if (status is null)
+            return;
+        status.Changed -= OnChanged;
+        status.ConflictReported -= OnConflictReported;
+    }
+}

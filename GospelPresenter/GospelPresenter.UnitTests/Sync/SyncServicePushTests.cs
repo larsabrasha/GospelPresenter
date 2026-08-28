@@ -70,13 +70,18 @@ public class SyncServicePushTests : IDisposable
         }, caller);
 
         // Assert
-        response.Results.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Applied);
+        var result = response.Results.ShouldHaveSingleItem();
+        result.Outcome.ShouldBe(SyncPushOutcome.Applied);
         await using var context = await factory.CreateDbContextAsync();
         var stored = await context.Songs.Include(s => s.Parts).Include(s => s.Arrangements).SingleAsync();
         stored.Id.ShouldBe("song-1");
         stored.Parts.ShouldHaveSingleItem().Id.ShouldBe("part-1");
         stored.Arrangements.ShouldHaveSingleItem().Id.ShouldBe("arr-1");
         stored.ModifiedAt.ShouldBeGreaterThan(Past);
+
+        // The client stores this as its new conflict base, so it must equal the value the database
+        // holds — the same value the next base comparison reads.
+        result.NewModifiedAt.ShouldBe(stored.ModifiedAt);
     }
 
     [Fact]
@@ -99,11 +104,13 @@ public class SyncServicePushTests : IDisposable
         }, caller);
 
         // Assert
-        response.Results.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Applied);
+        var result = response.Results.ShouldHaveSingleItem();
+        result.Outcome.ShouldBe(SyncPushOutcome.Applied);
         await using var context = await factory.CreateDbContextAsync();
         var stored = await context.Songs.Include(s => s.Parts).SingleAsync();
         stored.Name.ShouldBe("Nytt namn");
         stored.Parts.ShouldHaveSingleItem().Id.ShouldBe("part-2");
+        result.NewModifiedAt.ShouldBe(stored.ModifiedAt, "the client's next base must match the stored stamp");
 
         // The removed part leaves a tombstone so other clients learn about it.
         var tombstone = await context.SyncTombstones.SingleAsync(t => t.EntityType == nameof(DbSongPart));

@@ -26,8 +26,20 @@ public partial class MainPage : ContentPage
         });
 
         InitializeComponent();
-        
+
+        blazorWebView.BlazorWebViewInitializing += BlazorWebViewInitializing;
         blazorWebView.BlazorWebViewInitialized += BlazorWebViewInitialized;
+    }
+
+    /// <summary>
+    /// Registers the gpmedia:// scheme so media renders from the local store. Must happen here:
+    /// the scheme handler can only be attached to the WKWebView configuration before creation.
+    /// </summary>
+    private static void BlazorWebViewInitializing(object? sender, BlazorWebViewInitializingEventArgs e)
+    {
+#if IOS || MACCATALYST
+        e.Configuration.SetUrlSchemeHandler(new Handlers.GpMediaSchemeHandler(), Handlers.GpMediaSchemeHandler.Scheme);
+#endif
     }
 
     private static void BlazorWebViewInitialized(object? sender, BlazorWebViewInitializedEventArgs e) { }
