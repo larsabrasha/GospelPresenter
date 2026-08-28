@@ -1,7 +1,7 @@
 {
+  "//": "rollForward is disable, not latestPatch, because GospelPresenter/global.json pins a workloadVersion and that pin is matched against the SDK's own baseline workload set -- so it holds only for the exact SDK patch it was written for. Allowing a patch bump here gave CI runners SDK 10.0.204, whose baseline set is not 10.0.201, and every job failed on workload resolution including the plain test project. Raising the SDK is therefore a deliberate edit in both files, together with the Xcode the workload set requires.",
   "sdk": {
-    "version": "10.0.101",
-    "rollForward": "latestFeature",
-    "workloadVersion": "10.0.201"
+    "version": "10.0.201",
+    "rollForward": "latestPatch"
   }
 }
