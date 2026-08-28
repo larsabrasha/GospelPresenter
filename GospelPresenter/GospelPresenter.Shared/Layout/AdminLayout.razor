@@ -1,11 +1,14 @@
 @using GospelPresenter.Shared.Components.Symbols
 @using Microsoft.AspNetCore.Components.Authorization
 
+@using GospelPresenter.Shared.Services
+
 @inherits LayoutComponentBase
 @implements IDisposable
 @layout MainLayout
 
 @inject NavigationManager NavigationManager
+@inject IAppCapabilities Capabilities
 
 @{
     var backdropClass = menuVisible ? "visible opacity-100" : "invisible opacity-0";
@@ -69,12 +72,16 @@
 
                 <div class="my-3 mx-4 h-px bg-neutral-200 dark:bg-neutral-700"></div>
 
-                <a href="/admin/displays"
-                   @onclick="OnSidebarNavClick"
-                   class="@NavClass("/admin/displays") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
-                    <ComputerDesktopSymbol Class="w-4 h-4 shrink-0"/>
-                    @L["Nav.Displays"]
-                </a>
+                @* Remote displays pair with the web server; the device app has nothing to pair with. *@
+                @if (Capabilities.RemoteDisplays)
+                {
+                    <a href="/admin/displays"
+                       @onclick="OnSidebarNavClick"
+                       class="@NavClass("/admin/displays") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                        <ComputerDesktopSymbol Class="w-4 h-4 shrink-0"/>
+                        @L["Nav.Displays"]
+                    </a>
+                }
                 <a href="/admin/themes"
                    @onclick="OnSidebarNavClick"
                    class="@NavClass("/admin/themes") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
@@ -88,28 +95,33 @@
                     @L["Nav.CcliReport"]
                 </a>
 
-                <div class="my-3 mx-4 h-px bg-neutral-200 dark:bg-neutral-700"></div>
+                @* Users, invites, organisations and API keys live outside the sync protocol:
+                   administer them on the web, where the source of truth is. *@
+                @if (Capabilities.UserAdministration)
+                {
+                    <div class="my-3 mx-4 h-px bg-neutral-200 dark:bg-neutral-700"></div>
 
-                <a href="/admin/users"
-                   @onclick="OnSidebarNavClick"
-                   class="@NavClass("/admin/users") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
-                    <UsersSymbol Class="w-4 h-4 shrink-0"/>
-                    @L["Nav.Users"]
-                </a>
-                <AuthorizeView Policy="@ManageOrganizations" Context="superAdminContext">
-                    <a href="/admin/organizations"
+                    <a href="/admin/users"
                        @onclick="OnSidebarNavClick"
-                       class="@NavClass("/admin/organizations") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
-                        <Squares2x2Symbol Class="w-4 h-4 shrink-0"/>
-                        @L["Nav.Organizations"]
+                       class="@NavClass("/admin/users") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                        <UsersSymbol Class="w-4 h-4 shrink-0"/>
+                        @L["Nav.Users"]
                     </a>
-                    <a href="/admin/api-keys"
-                       @onclick="OnSidebarNavClick"
-                       class="@NavClass("/admin/api-keys") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
-                        <KeySymbol Class="w-4 h-4 shrink-0"/>
-                        @L["Nav.ApiKeys"]
-                    </a>
-                </AuthorizeView>
+                    <AuthorizeView Policy="@ManageOrganizations" Context="superAdminContext">
+                        <a href="/admin/organizations"
+                           @onclick="OnSidebarNavClick"
+                           class="@NavClass("/admin/organizations") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                            <Squares2x2Symbol Class="w-4 h-4 shrink-0"/>
+                            @L["Nav.Organizations"]
+                        </a>
+                        <a href="/admin/api-keys"
+                           @onclick="OnSidebarNavClick"
+                           class="@NavClass("/admin/api-keys") flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm">
+                            <KeySymbol Class="w-4 h-4 shrink-0"/>
+                            @L["Nav.ApiKeys"]
+                        </a>
+                    </AuthorizeView>
+                }
         </nav>
     </aside>
     <main class="flex-1 overflow-hidden flex flex-col relative">

@@ -1,0 +1,80 @@
+name: MAUI build
+
+# Keeps every app target compiling and the test suite green. macOS (Catalyst) is the polished
+# platform; iOS, Android and Windows only have to build here so they never silently rot.
+#
+# The MacCatalyst workload is pinned by workloadVersion in GospelPresenter/global.json, and each
+# workload set demands a specific Xcode (10.0.201 = Xcode 26.2). If the apple job starts failing
+# on an Xcode/SDK mismatch after a runner image update, bump the pin and Xcode together.
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - 'GospelPresenter/**'
+      - '.github/workflows/maui-build.yml'
+  pull_request:
+    paths:
+      - 'GospelPresenter/**'
+      - '.github/workflows/maui-build.yml'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Unit tests
+        run: dotnet test GospelPresenter/GospelPresenter.UnitTests/GospelPresenter.UnitTests.csproj
+
+      - name: Integration tests
+        run: dotnet test GospelPresenter/GospelPresenter.IntegrationTests/GospelPresenter.IntegrationTests.csproj
+
+  apple-and-android:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Install the pinned MAUI workloads
+        run: dotnet workload restore GospelPresenter/GospelPresenter/GospelPresenter.csproj
+
+      - name: Build Mac Catalyst
+        run: dotnet build GospelPresenter/GospelPresenter/GospelPresenter.csproj -f net10.0-maccatalyst
+
+      - name: Build iOS
+        run: dotnet build GospelPresenter/GospelPresenter/GospelPresenter.csproj -f net10.0-ios
+
+      - name: Build Android
+        run: dotnet build GospelPresenter/GospelPresenter/GospelPresenter.csproj -f net10.0-android
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Install the pinned MAUI workloads
+        run: dotnet workload restore GospelPresenter/GospelPresenter/GospelPresenter.csproj
+
+      - name: Build Windows
+        run: dotnet build GospelPresenter/GospelPresenter/GospelPresenter.csproj -f net10.0-windows10.0.19041.0

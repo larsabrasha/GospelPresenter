@@ -10,4 +10,10 @@ public interface IDeviceSignIn
 {
     /// <summary>True when signed in; false when the user cancelled or the flow failed.</summary>
     Task<bool> SignInAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Forgets the device's token and cached identity. Local data stays on the device; the token
+    /// itself is revoked from the web app's device list, not from here (it may well be offline).
+    /// </summary>
+    Task SignOutAsync();
 }

@@ -5,6 +5,7 @@
 @inject SharedAppState SharedAppState
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
+@inject IServiceProvider ServiceProvider
 
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components
@@ -42,9 +43,14 @@
     private bool wakeLockRequested;
     private string sessionId = "";
     private string windowId = "";
+    private GospelPresenter.Shared.Services.ILiveWindowLauncher? liveWindowLauncher;
 
     protected override void OnInitialized()
     {
+        // In the MAUI app this page lives in a native window; window.close() is a no-op there.
+        liveWindowLauncher = ServiceProvider.GetService(typeof(GospelPresenter.Shared.Services.ILiveWindowLauncher))
+            as GospelPresenter.Shared.Services.ILiveWindowLauncher;
+
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var query = QueryHelpers.ParseQuery(uri.Query);
         if (query.TryGetValue("session", out var session))
@@ -116,7 +122,10 @@
             {
                 _ = InvokeAsync(async () =>
                 {
-                    await JsRuntime.InvokeVoidAsync("eval", "window.close()");
+                    if (liveWindowLauncher is not null)
+                        await liveWindowLauncher.CloseAsync(windowId);
+                    else
+                        await JsRuntime.InvokeVoidAsync("eval", "window.close()");
                 });
                 return;
             }

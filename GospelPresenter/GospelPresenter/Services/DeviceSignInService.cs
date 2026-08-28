@@ -75,6 +75,8 @@ public class DeviceSignInService(
         }
     }
 
+    public Task SignOutAsync() => auth.SignOutAsync();
+
     private sealed record MeResponse(
         string Id, string Name, string Email, string Role,
         string? OrganizationId, string? OrganizationName);

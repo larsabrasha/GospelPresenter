@@ -48,12 +48,32 @@ var gotenberg = builder
 
 var gotenbergEndpoint = gotenberg.GetEndpoint("http");
 
-builder
+var web = builder
     .AddProject<Projects.GospelPresenter_Web>("gospelpresenter-web")
     .WithReference(postgresdb)
     .WaitForCompletion(migrations)
     .WithS3Environment(garageEndpoint, garageAccessKey, garageSecretKey)
     .WithEnvironment("Gotenberg__Endpoint", gotenbergEndpoint);
+
+// The Mac Catalyst app, pointed at the local server through the DEBUG-only GP_API_BASE_URL
+// override (Configuration/Settings.cs) — so it runs the real device flow (browser sign-in,
+// device token, sync) against this stack instead of the offline developer identity.
+//
+// Not a project reference: the MAUI project multi-targets and cannot be referenced by the
+// AppHost, so it runs as an executable via MSBuild's Run target, which builds and then starts
+// the app as a child process (environment included). Explicit start, because the first build
+// takes minutes and web-only sessions should not pay for it — press play on the resource in
+// the dashboard when the client is wanted. Stopping the resource stops the build/run process;
+// if macOS leaves the app window orphaned, close it manually.
+if (OperatingSystem.IsMacOS())
+{
+    builder
+        .AddExecutable("mac-app", "dotnet", workingDirectory: "..",
+            "build", "GospelPresenter/GospelPresenter.csproj", "-f", "net10.0-maccatalyst", "-t:Run")
+        .WithEnvironment("GP_API_BASE_URL", web.GetEndpoint("http"))
+        .WithExplicitStart()
+        .WaitFor(web);
+}
 
 builder.Build().Run();
 

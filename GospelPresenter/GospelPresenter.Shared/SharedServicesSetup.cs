@@ -15,6 +15,8 @@ public static class SharedServicesSetup
         var maxPublicViewers = configuration?.GetValue("Settings:PublicOutputMaxViewers", 500) ?? 500;
 
         services.AddLocalization(options => options.ResourcesPath = "Resources");
+        // The MAUI host overrides this with its own reduced capability set after calling this.
+        services.AddSingleton<IAppCapabilities, FullAppCapabilities>();
         services.AddScoped<ToastService>();
         services.AddScoped<AppState>();
         services.AddScoped<ActiveOrganizationState>();

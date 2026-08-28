@@ -15,6 +15,7 @@
 @inject IJSRuntime JSRuntime
 @inject ActiveOrganizationState OrgState
 @inject ToastService Toast
+@inject IAppCapabilities Capabilities
 
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
     <DetailHeader @ref="header" Title="@L["Profile.Title"]" Class="px-5"/>
@@ -58,6 +59,9 @@
                            Value="@user.Email" Disabled/>
         </div>
 
+        @* Calendar feeds are served by the web host; the device app has no endpoint for them. *@
+        @if (Capabilities.CalendarSubscriptions)
+        {
         <div class="flex items-center justify-between px-5">
             <div class="text-xl font-bold dark:text-neutral-100">@L["Calendar.Title"]</div>
             @if (calendarSubscriptions is not null && calendarSubscriptions.Count > 0)
@@ -128,6 +132,7 @@
                 }
             }
         </div>
+        }
     }
 </div>
 

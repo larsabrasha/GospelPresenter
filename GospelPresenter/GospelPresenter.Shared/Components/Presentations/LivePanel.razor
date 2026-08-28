@@ -7,6 +7,8 @@
 @inject SharedAppState SharedAppState
 @inject PublicOutputState PublicOutputState
 @inject IJSRuntime JsRuntime
+@inject IServiceProvider Services
+@inject GospelPresenter.Shared.Services.IAppCapabilities Capabilities
 
 @{
     var isBlackScreen = LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
@@ -253,6 +255,23 @@ else
                                     </AppButton>
                                 </Trigger>
                                 <Menu>
+                                    @* Native host (MAUI): the launcher opens a real second window, no
+                                       popup gesture needed. Web: the synchronous JS path, which must run
+                                       inside the click event or Safari blocks the popup. *@
+                                    @if (liveWindowLauncher is not null)
+                                    {
+                                        <button type="button" @onclick="OpenLiveWindow"
+                                                class="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                 stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                      d="M3 8.25V18a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18V8.25m-18 0V6a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 6v2.25m-18 0h18"/>
+                                            </svg>
+                                            <span>@L["LivePanel.LocalLiveView"]</span>
+                                        </button>
+                                    }
+                                    else
+                                    {
                                     <button type="button"
                                             onclick="gospelPresenter.openLiveWindowFromClick(this)"
                                             data-session-id="@SessionId"
@@ -266,15 +285,19 @@ else
                                         </svg>
                                         <span>@L["LivePanel.LocalLiveView"]</span>
                                     </button>
-                                    <button @onclick="ShowPairingDialog"
-                                            class="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                             stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                  d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
-                                        </svg>
-                                        <span>@L["LivePanel.AddTempDisplay"]</span>
-                                    </button>
+                                    }
+                                    @if (Capabilities.RemoteDisplays)
+                                    {
+                                        <button @onclick="ShowPairingDialog"
+                                                class="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                 stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                      d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+                                            </svg>
+                                            <span>@L["LivePanel.AddTempDisplay"]</span>
+                                        </button>
+                                    }
                                 </Menu>
                             </Dropdown>
 
@@ -322,7 +345,7 @@ else
             </div>
         }
 
-        @if (SessionId is not null && !IsRemoteController)
+        @if (SessionId is not null && !IsRemoteController && Capabilities.RemoteDisplays)
         {
             var isRemoteEnabled = SharedAppState.IsRemoteControlEnabled(SessionId);
             <div class="mt-3">
@@ -483,16 +506,20 @@ else
 
     private HashSet<string> savedDisplayIds => SavedDisplays.Select(d => d.DisplayIdentifier).ToHashSet();
 
-    private List<RemoteDisplay> Screens =>
-        SavedDisplays.Where(d => d.Kind == OutputKind.Screen).ToList();
+    // Remote displays and public outputs pair with the web server. On a host without that
+    // capability (the device app) the lists are simply empty, which hides every control.
+    private List<RemoteDisplay> Screens => Capabilities.RemoteDisplays
+        ? SavedDisplays.Where(d => d.Kind == OutputKind.Screen).ToList()
+        : [];
 
-    private List<RemoteDisplay> PublicOutputs =>
-        SavedDisplays.Where(d => d.Kind == OutputKind.PublicQr).ToList();
+    private List<RemoteDisplay> PublicOutputs => Capabilities.RemoteDisplays
+        ? SavedDisplays.Where(d => d.Kind == OutputKind.PublicQr).ToList()
+        : [];
 
     private RemoteDisplay? outputToTakeOver;
     private string? outputToTakeOverFrom;
 
-    private List<ConnectedDisplay> adHocDisplays => SessionId is not null
+    private List<ConnectedDisplay> adHocDisplays => SessionId is not null && Capabilities.RemoteDisplays
         ? RemoteDisplayState.GetConnectedDisplays(SessionId)
             .Where(d => !savedDisplayIds.Contains(d.DisplayId)).ToList()
         : [];
@@ -510,14 +537,23 @@ else
 
     private bool showPairingDialog;
 
+    private ILiveWindowLauncher? liveWindowLauncher;
+
     protected override void OnInitialized()
     {
+        // Only the MAUI host registers a native launcher; the web keeps its JS window path.
+        liveWindowLauncher = Services.GetService(typeof(ILiveWindowLauncher)) as ILiveWindowLauncher;
+        if (liveWindowLauncher is not null)
+            liveWindowLauncher.WindowClosed += OnNativeLiveWindowClosed;
+
         RemoteDisplayState.DisplayCameOnline += OnDisplayStatusChanged;
         RemoteDisplayState.DisplayWentOffline += OnDisplayStatusChanged;
         RemoteDisplayState.DisplayPaired += OnDisplayStatusChanged;
         RemoteDisplayState.DisplayUnpaired += OnDisplayStatusChanged;
         PublicOutputState.ViewerCountChanged += OnDisplayStatusChanged;
     }
+
+    private void OnNativeLiveWindowClosed(string windowId) => OnLiveWindowClosed(windowId);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -536,6 +572,8 @@ else
 
     public void Dispose()
     {
+        if (liveWindowLauncher is not null)
+            liveWindowLauncher.WindowClosed -= OnNativeLiveWindowClosed;
         RemoteDisplayState.DisplayCameOnline -= OnDisplayStatusChanged;
         RemoteDisplayState.DisplayWentOffline -= OnDisplayStatusChanged;
         RemoteDisplayState.DisplayPaired -= OnDisplayStatusChanged;
@@ -630,7 +668,9 @@ else
         var windowId = Guid.NewGuid().ToString("N")[..8];
         var index = nextWindowIndex++;
         var title = $"{L["LivePanel.LocalLiveView"]} ({index})";
-        var success = await JsRuntime.InvokeAsync<bool>("gospelPresenter.openLiveWindow", SessionId, windowId, title);
+        var success = liveWindowLauncher is not null
+            ? await liveWindowLauncher.OpenAsync(SessionId, windowId, title)
+            : await JsRuntime.InvokeAsync<bool>("gospelPresenter.openLiveWindow", SessionId, windowId, title);
         if (success)
         {
             liveWindows.Add(new LiveWindowEntry(windowId, index));
@@ -640,7 +680,10 @@ else
 
     private async Task CloseLiveWindow(string windowId)
     {
-        await JsRuntime.InvokeVoidAsync("gospelPresenter.closeLiveWindow", windowId);
+        if (liveWindowLauncher is not null)
+            await liveWindowLauncher.CloseAsync(windowId);
+        else
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.closeLiveWindow", windowId);
         liveWindows.RemoveAll(w => w.WindowId == windowId);
         await SaveOutputConfig();
     }

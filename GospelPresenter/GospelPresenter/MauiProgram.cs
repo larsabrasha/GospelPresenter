@@ -51,6 +51,7 @@ public static class MauiProgram
 // #endif
 
         builder.Services.AddSharedGospelPresenterServices();
+        builder.Services.AddSingleton<IAppCapabilities, DeviceAppCapabilities>();
         builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
 
         builder.Services.AddHttpClient();
@@ -107,6 +108,15 @@ public static class MauiProgram
         // The web host's CCLI hosted service, as a plain singleton (started below): displayed
         // songs become local report rows the sync engine pushes.
         builder.Services.AddSingleton<GospelPresenter.Client.CcliReportListener>();
+
+        // The projector: live views open as real second windows instead of the web's window.open,
+        // auto-placed fullscreen on the external screen where the platform can (Mac Catalyst).
+#if MACCATALYST
+        builder.Services.AddSingleton<IExternalDisplayService, MacExternalDisplayService>();
+#else
+        builder.Services.AddSingleton<IExternalDisplayService, NullExternalDisplayService>();
+#endif
+        builder.Services.AddSingleton<Shared.Services.ILiveWindowLauncher, MauiLiveWindowLauncher>();
 
         // Real sign-in: system browser → device token → identity cached for offline. A DEBUG
         // build with no server URL configured runs a fixed developer identity instead, so local

@@ -1691,4 +1691,10 @@
   <data name="Bibles.OfflineDownloadFailed" xml:space="preserve">
     <value>The download failed. Check your connection and try again.</value>
   </data>
+  <data name="LiveWindow.Menu" xml:space="preserve">
+    <value>Display</value>
+  </data>
+  <data name="LiveWindow.MoveToExternal" xml:space="preserve">
+    <value>Show live view on the external screen</value>
+  </data>
 </root>
