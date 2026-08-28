@@ -9,6 +9,7 @@
 @inject IJSRuntime JsRuntime
 @inject IServiceProvider Services
 @inject GospelPresenter.Shared.Services.IAppCapabilities Capabilities
+@inject ToastService ToastService
 
 @{
     var isBlackScreen = LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
@@ -675,6 +676,13 @@ else
         {
             liveWindows.Add(new LiveWindowEntry(windowId, index));
             await SaveOutputConfig();
+        }
+        else
+        {
+            // The window can fail either way: a blocked popup on the web, an unsupported second
+            // window on the device. Both leave the button looking like it did nothing.
+            nextWindowIndex--;
+            ToastService.Show(L["LivePanel.LiveWindowFailed"]);
         }
     }
 

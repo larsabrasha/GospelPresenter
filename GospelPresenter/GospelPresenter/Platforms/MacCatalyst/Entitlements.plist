@@ -9,6 +9,12 @@
         <!-- When App Sandbox is enabled, this value is required to open outgoing network connections. -->
         <key>com.apple.security.network.client</key>
         <true/>
+        <!-- TODO when the app is signed with a real Apple Developer provisioning profile: add
+                 <key>keychain-access-groups</key>
+                 <array><string>$(AppIdentifierPrefix)$(CFBundleIdentifier)</string></array>
+             so SecureStorage stores the device token in the keychain. It must NOT be added for
+             ad-hoc-signed local builds — macOS SIGKILLs the app at launch for requesting an
+             unprovisioned entitlement. Until then MauiSecureTokenStore's DEBUG fallback applies. -->
     </dict>
 </plist>
 

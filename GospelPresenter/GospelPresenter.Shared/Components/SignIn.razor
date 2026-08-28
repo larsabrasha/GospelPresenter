@@ -8,7 +8,7 @@
     @* The device app (MAUI): one button that runs the system-browser sign-in flow. *@
     <div class="flex flex-col p-3 w-full sm:w-140 items-center gap-3">
         <AppButton OnClick="SignInOnDeviceAsync" Loading="signingIn" Disabled="signingIn" Filled
-                   Class="w-64 px-6 py-3 rounded-full text-lg justify-center">
+                   Class="w-64 px-6 py-3 rounded-full text-lg flex items-center justify-center gap-2">
             @L["SignIn.Device"]
         </AppButton>
         @if (deviceSignInFailed)

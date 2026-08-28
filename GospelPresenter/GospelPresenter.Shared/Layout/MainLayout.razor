@@ -4,6 +4,7 @@
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Extensions.Logging
 
 @inherits LayoutComponentBase
 
@@ -13,6 +14,7 @@
 @inject IUserService UserService
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
+@inject ILogger<MainLayout> Logger
 
 <ViewportMonitor OnViewportChanged="viewport => AppState.MainViewport = viewport"/>
 
@@ -113,7 +115,20 @@
     {
         if (firstRender)
         {
-            AppState.SessionId = await JsRuntime.InvokeAsync<string>("getOrCreateSessionId");
+            // The body renders only once a session id exists, so a failing interop call must not
+            // leave the app blank — generate one here instead.
+            try
+            {
+                AppState.SessionId = await JsRuntime.InvokeAsync<string>("getOrCreateSessionId");
+            }
+            catch (Exception e)
+            {
+                Logger.LogWarning(e, "Could not read a session id from the host; generating one");
+            }
+
+            if (string.IsNullOrEmpty(AppState.SessionId))
+                AppState.SessionId = Guid.NewGuid().ToString("N")[..8];
+
             StateHasChanged();
         }
     }

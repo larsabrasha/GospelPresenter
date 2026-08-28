@@ -60,17 +60,22 @@ var web = builder
 // device token, sync) against this stack instead of the offline developer identity.
 //
 // Not a project reference: the MAUI project multi-targets and cannot be referenced by the
-// AppHost, so it runs as an executable via MSBuild's Run target, which builds and then starts
-// the app as a child process (environment included). Explicit start, because the first build
-// takes minutes and web-only sessions should not pay for it — press play on the resource in
-// the dashboard when the client is wanted. Stopping the resource stops the build/run process;
-// if macOS leaves the app window orphaned, close it manually.
+// AppHost. Builds, then execs the app binary straight out of the bundle — MSBuild's Run target
+// only builds on Catalyst, and launching via `open` would drop the environment; a direct exec
+// keeps the process attached (stopping the resource stops the app) and inherits the URL.
+// Explicit start, because the first build takes minutes and web-only sessions should not pay
+// for it — press play on the resource in the dashboard when the client is wanted.
 if (OperatingSystem.IsMacOS())
 {
     builder
-        .AddExecutable("mac-app", "dotnet", workingDirectory: "..",
-            "build", "GospelPresenter/GospelPresenter.csproj", "-f", "net10.0-maccatalyst", "-t:Run")
-        .WithEnvironment("GP_API_BASE_URL", web.GetEndpoint("http"))
+        .AddExecutable("mac-app", "/bin/sh", workingDirectory: "..",
+            "-c",
+            "dotnet build GospelPresenter/GospelPresenter.csproj -f net10.0-maccatalyst && " +
+            "exec GospelPresenter/bin/Debug/net10.0-maccatalyst/maccatalyst-*/GospelPresenter.app/Contents/MacOS/GospelPresenter")
+        // The https endpoint (the dev certificate is trusted locally): pointing the app at http
+        // would bounce every API call through UseHttpsRedirection's 307, and HttpClient drops the
+        // Authorization header on cross-origin redirects.
+        .WithEnvironment("GP_API_BASE_URL", web.GetEndpoint("https"))
         .WithExplicitStart()
         .WaitFor(web);
 }

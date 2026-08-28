@@ -23,6 +23,16 @@
                 </array>
             </dict>
         </array>
+        <!-- NOTE: the live/projector view opens as a second MAUI Window, which Catalyst refuses
+             ("The application does not support multiple scenes") without a UIApplicationSceneManifest.
+             Do not add one. Declaring the manifest leaves the app with an empty window: MauiProgram
+             runs, but App.CreateWindow is never called, so nothing is ever shown. Measured with the
+             flag true and false, with and without a UISceneConfigurations entry naming
+             MauiUISceneDelegate, with an app-owned subclass of it registered under its own ObjC
+             name, and with UIDeviceFamily 2 and 2+6. A stock `dotnet new maui` project on this
+             toolchain loses its window the same way, so this is MAUI or the Catalyst SDK, not us
+             (MAUI 10.0.11, MacCatalyst SDK 26.2.10217, macOS 15.7). The projector needs a route
+             that does not go through UIScene; see MauiLiveWindowLauncher. -->
         <key>UIDeviceFamily</key>
         <array>
             <integer>2</integer>
@@ -46,11 +56,6 @@
         </array>
         <key>XSAppIconAssets</key>
         <string>Assets.xcassets/appicon.appiconset</string>
-        <key>UIBackgroundModes</key>
-        <array>
-            <string>fetch</string>
-            <string>location</string>
-        </array>
         <key>CFBundleName</key>
         <string>GospelPresenter</string>
         <key>UIBackgroundModes</key>

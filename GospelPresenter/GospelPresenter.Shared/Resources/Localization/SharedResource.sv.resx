@@ -1409,6 +1409,9 @@
   <data name="LivePanel.LocalLiveView" xml:space="preserve">
     <value>Fönster</value>
   </data>
+  <data name="LivePanel.LiveWindowFailed" xml:space="preserve">
+    <value>Live-vyn kunde inte öppnas</value>
+  </data>
   <data name="LivePanel.ExternalDisplay" xml:space="preserve">
     <value>Extern skärm</value>
   </data>

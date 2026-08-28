@@ -32,7 +32,20 @@ public class MauiLiveWindowLauncher(
                 WindowClosed?.Invoke(windowId);
             };
 
-            application.OpenWindow(window);
+            try
+            {
+                // Mac Catalyst throws here ("The application does not support multiple scenes")
+                // until the projector window finds a route that does not need a scene manifest;
+                // see Platforms/MacCatalyst/Info.plist. Report it as a failure so the caller can
+                // tell the user, rather than faulting the click.
+                application.OpenWindow(window);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Opening the live window failed");
+                return false;
+            }
+
             windows[windowId] = window;
             latestWindowTitle = title;
 

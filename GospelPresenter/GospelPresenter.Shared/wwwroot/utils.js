@@ -164,13 +164,27 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fun
     }
 });
 
-window.getOrCreateSessionId = function () {
-    let id = sessionStorage.getItem('session-id');
-    if (!id) {
-        id = crypto.randomUUID().replace(/-/g, '').substring(0, 8);
-        sessionStorage.setItem('session-id', id);
+// MAUI serves Blazor from app://0.0.0.0/, a custom scheme that is not a secure context:
+// crypto.randomUUID is undefined there and sessionStorage can throw. Fall back rather than
+// leave the caller without a session id.
+window.newSessionId = function () {
+    if (window.crypto && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID().replace(/-/g, '').substring(0, 8);
     }
-    return id;
+    return Math.random().toString(16).substring(2, 10);
+}
+
+window.getOrCreateSessionId = function () {
+    try {
+        let id = sessionStorage.getItem('session-id');
+        if (!id) {
+            id = window.newSessionId();
+            sessionStorage.setItem('session-id', id);
+        }
+        return id;
+    } catch (e) {
+        return window.newSessionId();
+    }
 }
 
 window.initSortableList = function (elementId, dotNetRef) {

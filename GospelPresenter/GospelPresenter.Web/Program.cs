@@ -323,11 +323,18 @@ builder.Services.AddMetricServer(options =>
 
     app.UseSerilogRequestLogging();
 
-    app.Use((context, next) =>
+    // Production runs behind the Cloudflare tunnel, which terminates TLS: every request arrives as
+    // http and the forced scheme makes generated absolute URLs (OAuth redirects, the cookie login
+    // redirect) correctly say https. Locally there is no proxy and Kestrel really serves http —
+    // forcing https here would send the sign-in redirect to an https URL nobody listens on.
+    if (!app.Environment.IsDevelopment())
     {
-        context.Request.Scheme = "https";
-        return next(context);
-    });
+        app.Use((context, next) =>
+        {
+            context.Request.Scheme = "https";
+            return next(context);
+        });
+    }
 
     app.UseForwardedHeaders();
 
@@ -445,7 +452,13 @@ builder.Services.AddMetricServer(options =>
 
     app.Use(async (context, next) =>
     {
-        if (context.User.Identity?.IsAuthenticated == true
+        // Browser sessions only: an API client (the device app's Bearer requests) never stores
+        // cookies, so the set-cookie-and-redirect dance would repeat on every call — and the
+        // redirect makes HttpClient drop its Authorization header, which turns a valid device
+        // token into a login-page HTML response. API responses are not localized via cookies;
+        // the sync paths read the user's stored language directly where they need it.
+        if (!context.Request.Path.StartsWithSegments("/api")
+            && context.User.Identity?.IsAuthenticated == true
             && !context.Request.Cookies.ContainsKey(CookieRequestCultureProvider.DefaultCookieName))
         {
             var userId = context.User.FindFirst("user_id")?.Value;
