@@ -1676,6 +1676,12 @@
   <data name="Sync.SyncNow" xml:space="preserve">
     <value>Synka nu</value>
   </data>
+  <data name="Update.Restart" xml:space="preserve">
+    <value>Starta om för att uppdatera</value>
+  </data>
+  <data name="Update.RestartTooltip" xml:space="preserve">
+    <value>Version {0} är nedladdad och installeras vid omstart. Den installeras även av sig själv nästa gång appen startas.</value>
+  </data>
   <data name="Sync.ConflictCopiedAsNew" xml:space="preserve">
     <value>En presentation ändrades på servern. Din offlineversion sparades som en kopia.</value>
   </data>
@@ -1708,5 +1714,41 @@
   </data>
   <data name="LiveWindow.MoveToExternal" xml:space="preserve">
     <value>Visa live-vyn på den externa skärmen</value>
+  </data>
+  <data name="Nav.Devices" xml:space="preserve">
+    <value>Enheter</value>
+  </data>
+  <data name="Devices.Title" xml:space="preserve">
+    <value>Enheter</value>
+  </data>
+  <data name="Devices.Device" xml:space="preserve">
+    <value>Enhet</value>
+  </data>
+  <data name="Devices.User" xml:space="preserve">
+    <value>Användare</value>
+  </data>
+  <data name="Devices.Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Devices.LastSeen" xml:space="preserve">
+    <value>Senast sedd</value>
+  </data>
+  <data name="Devices.Never" xml:space="preserve">
+    <value>Aldrig</value>
+  </data>
+  <data name="Devices.Revoked" xml:space="preserve">
+    <value>Återkallad</value>
+  </data>
+  <data name="Devices.VersionUnknown" xml:space="preserve">
+    <value>Ej rapporterad</value>
+  </data>
+  <data name="Devices.BelowFloor" xml:space="preserve">
+    <value>För gammal för att synka</value>
+  </data>
+  <data name="Devices.ProtocolFloor" xml:space="preserve">
+    <value>Synk kräver protokoll {0} eller senare</value>
+  </data>
+  <data name="Devices.Empty" xml:space="preserve">
+    <value>Ingen app har loggat in ännu. Enheter dyker upp här när någon installerat appen och loggat in.</value>
   </data>
 </root>

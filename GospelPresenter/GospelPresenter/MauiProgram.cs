@@ -30,7 +30,7 @@ public static class MauiProgram
 #elif ANDROID
             .WriteTo.AndroidLog()
 #endif
-            .WriteTo.File(Path.Combine(FileSystem.Current.AppDataDirectory, "log.txt"),
+            .WriteTo.File(Path.Combine(AppPaths.LogDirectory, "log.txt"),
                 rollingInterval: RollingInterval.Day,
                 fileSizeLimitBytes: 10_000_000,
                 retainedFileCountLimit: 7)
@@ -58,7 +58,7 @@ public static class MauiProgram
 
         // The local database: the full shared schema in SQLite under the app's data directory.
         // Every shared domain service runs against it unchanged through the factory below.
-        var databasePath = Path.Combine(FileSystem.Current.AppDataDirectory, "gospelpresenter.db");
+        var databasePath = Path.Combine(AppPaths.DataDirectory, "gospelpresenter.db");
         var contextOptions = new DbContextOptionsBuilder<ClientDataContext>()
             .UseSqlite($"Data Source={databasePath};Cache=Shared")
             .Options;
@@ -93,7 +93,10 @@ public static class MauiProgram
         // scheme handler (registered per webview in MainPage) serves them back to the UI.
         builder.Services.AddSingleton(sp => new GospelPresenter.Client.Media.MediaStore(
             sp.GetRequiredService<IDbContextFactory<GospelPresenter.Client.Data.ClientDataContext>>(),
-            Path.Combine(FileSystem.Current.AppDataDirectory, "media"),
+            // Under DataDirectory rather than ~/Library/Caches despite being an LRU cache: a
+            // PendingUpload blob is the only copy of something the server has not seen, and Caches
+            // is a directory macOS may purge and cleaning tools empty. See the ADR (22).
+            Path.Combine(AppPaths.DataDirectory, "media"),
             sp.GetRequiredService<ILogger<GospelPresenter.Client.Media.MediaStore>>()));
         builder.Services.AddSingleton<IObjectStorageService, GospelPresenter.Client.Media.LocalObjectStorageService>();
         builder.Services.AddSingleton<GospelPresenter.Client.Media.MediaRequestHandler>();
@@ -104,6 +107,19 @@ public static class MauiProgram
 #if IOS || MACCATALYST
         // Components mint media URLs on the app's custom scheme instead of the web's /api paths.
         ImageUrlHelper.HostUrlTransform = url => "gpmedia://media" + url;
+#endif
+
+        // Self-updating. Only where the build has a feed and Velopack exists at all: Test and Local
+        // have no feed, and iOS/Android/Windows are updated by other means. Absent, the shared
+        // restart button resolves nothing and never renders.
+#if MACCATALYST
+        if (!string.IsNullOrEmpty(Configuration.Settings.UpdateFeedUrl))
+        {
+            builder.Services.AddSingleton(sp => new MauiAppUpdater(
+                Configuration.Settings.UpdateFeedUrl,
+                sp.GetRequiredService<ILogger<MauiAppUpdater>>()));
+            builder.Services.AddSingleton<IAppUpdater>(sp => sp.GetRequiredService<MauiAppUpdater>());
+        }
 #endif
 
         builder.Services.AddCascadingAuthenticationState();
@@ -133,7 +149,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<GospelPresenter.Client.Auth.ISecureTokenStore, MauiSecureTokenStore>();
         builder.Services.AddSingleton(sp => new GospelPresenter.Client.Auth.DeviceAuthService(
             sp.GetRequiredService<GospelPresenter.Client.Auth.ISecureTokenStore>(),
-            Path.Combine(FileSystem.Current.AppDataDirectory, "identity.json"),
+            Path.Combine(AppPaths.DataDirectory, "identity.json"),
             sp.GetRequiredService<ILogger<GospelPresenter.Client.Auth.DeviceAuthService>>()));
         builder.Services.AddSingleton<IDeviceSignIn, DeviceSignInService>();
         if (useDevIdentity)
@@ -146,7 +162,9 @@ public static class MauiProgram
         // — there is no server to sync against, and the status indicator stays hidden.
         if (!useDevIdentity)
         {
-            builder.Services.AddTransient<GospelPresenter.Client.Auth.DeviceTokenHandler>();
+            builder.Services.AddTransient(sp => new GospelPresenter.Client.Auth.DeviceTokenHandler(
+                sp.GetRequiredService<GospelPresenter.Client.Auth.DeviceAuthService>(),
+                AppInfo.Current.VersionString));
             builder.Services.AddHttpClient(GospelPresenter.Client.Sync.ClientSyncService.HttpClientName,
                     client => client.BaseAddress = new Uri(Configuration.Settings.ApiBaseUrl!))
                 .AddHttpMessageHandler<GospelPresenter.Client.Auth.DeviceTokenHandler>()
@@ -211,6 +229,10 @@ public static class MauiProgram
         var app = builder.Build();
         InitializeDatabase(app.Services, seedDevIdentity: useDevIdentity);
         app.Services.GetRequiredService<GospelPresenter.Client.CcliReportListener>().Start();
+
+#if MACCATALYST
+        app.Services.GetService<MauiAppUpdater>()?.Start();
+#endif
 
         if (!useDevIdentity)
         {

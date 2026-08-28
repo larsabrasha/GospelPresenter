@@ -97,6 +97,16 @@ public partial class SharedAppState : ObservableObject
     public bool IsPresentationActive(string sessionId) =>
         presentationActive.ContainsKey(sessionId);
 
+    /// <summary>
+    /// Whether anything at all is being presented right now, in any session. The device app has one
+    /// user and therefore one session, so "any" is the question it actually wants to ask: it is what
+    /// stops an update from restarting the app mid-service. Deliberately broader than "a projector
+    /// window is open" — a remote display or the public output is just as live to a congregation,
+    /// and on Mac Catalyst the projector window cannot open at all yet.
+    /// See adr/0002-app-distribution-and-updates.md (17).
+    /// </summary>
+    public bool HasActivePresentation => !presentationActive.IsEmpty;
+
     public string? GetSessionOrganizationId(string sessionId) =>
         presentationActive.GetValueOrDefault(sessionId)?.OrganizationId;
 

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Sync;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -63,11 +64,31 @@ public class DeviceTokenAuthenticationHandler(
         if (match.UserOrganizationId != match.Token.OrganizationId)
             return AuthenticateResult.Fail("Device token no longer matches the user's organization.");
 
-        if (match.Token.LastUsedAt is null || DateTimeOffset.UtcNow - match.Token.LastUsedAt > LastUsedWriteInterval)
+        // The version rides along on the throttled LastUsedAt write rather than costing its own:
+        // it feeds /admin/devices, which exists so the protocol floor is raised against a measured
+        // distribution. Sampled every few minutes is more than enough for that, and a version that
+        // changed is caught the first time the write interval elapses after the restart.
+        var reportedVersion = Request.Headers[SyncProtocol.VersionHeader].FirstOrDefault() is { Length: > 0 } v
+            ? v[..Math.Min(v.Length, DeviceToken.MaxVersionLength)]
+            : null;
+        var reportedProtocol = Request.Headers.TryGetValue(SyncProtocol.ProtocolHeader, out var raw)
+            ? SyncProtocol.Parse(raw.FirstOrDefault())
+            : (int?)null;
+
+        var stale = match.Token.LastUsedAt is null
+                    || DateTimeOffset.UtcNow - match.Token.LastUsedAt > LastUsedWriteInterval;
+        var versionChanged = reportedVersion is not null && reportedVersion != match.Token.LastSeenVersion;
+
+        if (stale || versionChanged)
         {
+            // DeviceToken is server-only and not ISyncTracked, so this ExecuteUpdateAsync needs no
+            // ModifiedAt and produces no tombstone.
             await context.DeviceTokens
                 .Where(t => t.Id == match.Token.Id)
-                .ExecuteUpdateAsync(s => s.SetProperty(t => t.LastUsedAt, DateTimeOffset.UtcNow));
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(t => t.LastUsedAt, DateTimeOffset.UtcNow)
+                    .SetProperty(t => t.LastSeenVersion, reportedVersion ?? match.Token.LastSeenVersion)
+                    .SetProperty(t => t.LastSeenProtocol, reportedProtocol ?? match.Token.LastSeenProtocol));
         }
 
         var identity = new ClaimsIdentity(SchemeName);

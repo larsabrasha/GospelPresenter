@@ -1676,6 +1676,12 @@
   <data name="Sync.SyncNow" xml:space="preserve">
     <value>Sync now</value>
   </data>
+  <data name="Update.Restart" xml:space="preserve">
+    <value>Restart to update</value>
+  </data>
+  <data name="Update.RestartTooltip" xml:space="preserve">
+    <value>Version {0} is downloaded and installs on restart. It will also install by itself the next time the app starts.</value>
+  </data>
   <data name="Sync.ConflictCopiedAsNew" xml:space="preserve">
     <value>A presentation changed on the server. Your offline version was saved as a copy.</value>
   </data>
@@ -1708,5 +1714,41 @@
   </data>
   <data name="LiveWindow.MoveToExternal" xml:space="preserve">
     <value>Show live view on the external screen</value>
+  </data>
+  <data name="Nav.Devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="Devices.Title" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="Devices.Device" xml:space="preserve">
+    <value>Device</value>
+  </data>
+  <data name="Devices.User" xml:space="preserve">
+    <value>User</value>
+  </data>
+  <data name="Devices.Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Devices.LastSeen" xml:space="preserve">
+    <value>Last seen</value>
+  </data>
+  <data name="Devices.Never" xml:space="preserve">
+    <value>Never</value>
+  </data>
+  <data name="Devices.Revoked" xml:space="preserve">
+    <value>Revoked</value>
+  </data>
+  <data name="Devices.VersionUnknown" xml:space="preserve">
+    <value>Not reported</value>
+  </data>
+  <data name="Devices.BelowFloor" xml:space="preserve">
+    <value>Too old to sync</value>
+  </data>
+  <data name="Devices.ProtocolFloor" xml:space="preserve">
+    <value>Sync requires protocol {0} or later</value>
+  </data>
+  <data name="Devices.Empty" xml:space="preserve">
+    <value>No app has signed in yet. Devices appear here once someone installs the app and signs in.</value>
   </data>
 </root>

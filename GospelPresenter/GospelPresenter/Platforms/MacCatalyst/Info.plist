@@ -56,8 +56,11 @@
         </array>
         <key>XSAppIconAssets</key>
         <string>Assets.xcassets/appicon.appiconset</string>
-        <key>CFBundleName</key>
-        <string>GospelPresenter</string>
+        <!-- CFBundleName is deliberately NOT declared here. Hardcoding it overrides
+             $(ApplicationTitle) from the scheme's Directory.Build props, so every scheme built the
+             same name into the bundle — and AppPaths derives the log directory from it, which would
+             have put Prod, Test and Local in one ~/Library/Logs/GospelPresenter. MAUI fills it in
+             from ApplicationTitle. See adr/0002-app-distribution-and-updates.md (21). -->
         <key>UIBackgroundModes</key>
         <array>
             <string>fetch</string>

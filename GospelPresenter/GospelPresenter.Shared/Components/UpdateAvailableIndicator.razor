@@ -1,0 +1,79 @@
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+
+@inject IServiceProvider Services
+@inject SharedAppState AppState
+
+@implements IDisposable
+
+@*
+    Renders nothing on the web: only the MAUI host registers an IAppUpdater, because a web
+    deployment is updated by deploying it.
+
+    A staged update is applied at the next start whether or not this button is ever pressed — the
+    button only saves the user from waiting for one. It therefore hides itself, rather than
+    disabling, while anything is being presented: a restart mid-service is the one outcome this
+    whole feature must never produce, and an inert button on screen is an invitation to try.
+    See adr/0002-app-distribution-and-updates.md (16)–(18).
+*@
+@if (updater is { State: UpdateState.ReadyToApply } && !AppState.HasActivePresentation)
+{
+    <AppButton Variant="ButtonVariant.Secondary" OnClick="RestartAsync" Loading="restarting"
+               Title="@L["Update.RestartTooltip", updater.ReadyVersion ?? ""]"
+               Class="flex items-center gap-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+             stroke="currentColor" class="size-4">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 9.75v6.75m0 0-3-3m3 3 3-3m-8.25 6a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z"/>
+        </svg>
+        @L["Update.Restart"]
+    </AppButton>
+}
+
+@code {
+    private IAppUpdater? updater;
+    private bool restarting;
+
+    protected override void OnInitialized()
+    {
+        updater = Services.GetService(typeof(IAppUpdater)) as IAppUpdater;
+        if (updater is null)
+            return;
+
+        updater.Changed += OnChanged;
+        // A presentation started after the button appeared has to make it disappear again.
+        AppState.PresentationActivated += OnPresentationChanged;
+        AppState.PresentationDeactivated += OnPresentationChanged;
+    }
+
+    private async Task RestartAsync()
+    {
+        if (updater is null || restarting)
+            return;
+
+        // Re-checked at the moment of the click, not only at render: the operator may have started
+        // presenting between the button appearing and the press landing.
+        if (AppState.HasActivePresentation)
+        {
+            StateHasChanged();
+            return;
+        }
+
+        restarting = true;
+        await updater.ApplyAndRestartAsync();
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void OnPresentationChanged(string sessionId) => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (updater is null)
+            return;
+
+        updater.Changed -= OnChanged;
+        AppState.PresentationActivated -= OnPresentationChanged;
+        AppState.PresentationDeactivated -= OnPresentationChanged;
+    }
+}

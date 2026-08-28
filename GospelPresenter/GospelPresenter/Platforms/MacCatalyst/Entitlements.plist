@@ -1,34 +1,24 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-    <!-- See https://aka.ms/maui-publish-app-store#add-entitlements for more information about adding entitlements.-->
+    <!-- The app ships outside the Mac App Store, signed with Developer ID and notarized, so it is
+         deliberately NOT sandboxed. See adr/0002-app-distribution-and-updates.md (4).
+
+         com.apple.security.app-sandbox was removed because Velopack cannot live with it: the updater
+         replaces the whole .app bundle in place and asks for elevation through AppleScript, both of
+         which the sandbox forbids (https://docs.velopack.io/packaging/operating-systems/macos).
+         Three entitlements went with it, all of which only mean anything under the sandbox:
+           - network.client, required there to open outgoing connections
+           - files.user-selected.read-only and files.downloads.read-only
+           - assets.{pictures,music,movies}.read-only
+         The last five existed because the file picker silently refused to become visible under the
+         sandbox without them. Unsandboxed the app reaches the user's files without asking. -->
     <dict>
-        <!-- App Sandbox must be enabled to distribute a MacCatalyst app through the Mac App Store. -->
-        <key>com.apple.security.app-sandbox</key>
-        <true/>
-        <!-- When App Sandbox is enabled, this value is required to open outgoing network connections. -->
-        <key>com.apple.security.network.client</key>
-        <true/>
-        <!-- Without these the file picker does not open at all under the sandbox — it presents and
-             never becomes visible, with no error anywhere. The sandbox confines the app to its own
-             container, and reaching the user's folders takes an entitlement per location.
-             https://learn.microsoft.com/dotnet/maui/platform-integration/storage/file-picker -->
-        <key>com.apple.security.files.user-selected.read-only</key>
-        <true/>
-        <key>com.apple.security.files.downloads.read-only</key>
-        <true/>
-        <key>com.apple.security.assets.pictures.read-only</key>
-        <true/>
-        <key>com.apple.security.assets.music.read-only</key>
-        <true/>
-        <key>com.apple.security.assets.movies.read-only</key>
-        <true/>
         <!-- TODO when the app is signed with a real Apple Developer provisioning profile: add
                  <key>keychain-access-groups</key>
                  <array><string>$(AppIdentifierPrefix)$(CFBundleIdentifier)</string></array>
              so SecureStorage stores the device token in the keychain. It must NOT be added for
              ad-hoc-signed local builds — macOS SIGKILLs the app at launch for requesting an
-             unprovisioned entitlement. Until then MauiSecureTokenStore's DEBUG fallback applies. -->
+             unprovisioned entitlement. Until then MauiSecureTokenStore's fallback applies. -->
     </dict>
 </plist>
-

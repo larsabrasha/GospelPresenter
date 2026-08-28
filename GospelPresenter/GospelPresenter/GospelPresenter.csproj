@@ -38,8 +38,8 @@
     <!-- Lets Settings.cs pick the server URL for the scheme at compile time. -->
     <PropertyGroup>
         <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterProd'">$(DefineConstants);SCHEME_PROD</DefineConstants>
-        <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterBeta'">$(DefineConstants);SCHEME_BETA</DefineConstants>
         <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterTest'">$(DefineConstants);SCHEME_TEST</DefineConstants>
+        <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterLocal'">$(DefineConstants);SCHEME_LOCAL</DefineConstants>
     </PropertyGroup>
 
     <ItemGroup>
@@ -51,6 +51,9 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.1" />
+        <!-- Self-updating, Mac Catalyst only: it is the only target distributed as our own download.
+             iOS and Android are updated by their stores, and Windows joins in 1.1. -->
+        <PackageReference Include="Velopack" Version="1.2.0" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
         <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.11" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.11" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.1" />

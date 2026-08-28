@@ -72,6 +72,7 @@ public interface IUserService
     Task DeleteMcpApiKeyAsync(string id, CallerContext caller);
 
     Task<List<DeviceToken>> GetDeviceTokensAsync(string userId, CallerContext caller);
+    Task<List<DeviceToken>> GetOrganizationDeviceTokensAsync(string organizationId, CallerContext caller);
     Task<(DeviceToken Token, string PlaintextToken)> CreateDeviceTokenAsync(string name, string userId, string organizationId, CallerContext caller);
     Task RevokeDeviceTokenAsync(string id, CallerContext caller);
 
@@ -589,6 +590,25 @@ public class UserService(
         return await context.DeviceTokens
             .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Every device in one organization, with the user each belongs to. Unlike
+    /// <see cref="GetDeviceTokensAsync"/>, which is a user looking at their own devices, this is the
+    /// administrative view behind /admin/devices: what is installed out there and what version it
+    /// runs, so the sync protocol floor is raised against a measured distribution rather than a
+    /// guess. See adr/0002-app-distribution-and-updates.md (24).
+    /// </summary>
+    public async Task<List<DeviceToken>> GetOrganizationDeviceTokensAsync(string organizationId, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ViewUsers);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.DeviceTokens
+            .Include(t => t.User)
+            .Where(t => t.OrganizationId == organizationId)
+            .OrderByDescending(t => t.LastUsedAt ?? t.CreatedAt)
             .ToListAsync();
     }
 

@@ -1,0 +1,122 @@
+@page "/admin/devices"
+@attribute [Authorize(Policy = ViewUsers)]
+
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using GospelPresenter.Shared.Sync
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+
+@inject IUserService UserService
+@inject ActiveOrganizationState OrgState
+
+@*
+    What is installed out there, and what it runs. This page exists so that raising
+    SyncProtocol.Minimum is a decision made against a measured distribution rather than a guess —
+    download counts say nothing about which version is actually running.
+    See adr/0002-app-distribution-and-updates.md (24)–(25).
+*@
+<PageContainer>
+    <div class="flex items-center justify-between px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["Devices.Title"]</div>
+        @if (devices is { Count: > 0 })
+        {
+            <div class="text-sm text-neutral-500 dark:text-neutral-400">
+                @L["Devices.ProtocolFloor", SyncProtocol.Minimum]
+            </div>
+        }
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+        @if (devices is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+        }
+        else if (devices.Count == 0)
+        {
+            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160"
+                     class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                    <rect x="42" y="34" width="116" height="76" rx="6" stroke="currentColor" stroke-width="2"
+                          class="fill-neutral-100 dark:fill-neutral-800"/>
+                    <path d="M42 96h116" stroke="currentColor" stroke-width="2"/>
+                    <path d="M76 126h48M88 110l-4 16M112 110l4 16" stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round"/>
+                    <circle cx="100" cy="103" r="2.5" fill="currentColor" opacity="0.5"/>
+                </svg>
+                <div class="text-neutral-500 dark:text-neutral-400">@L["Devices.Empty"]</div>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-neutral-500 dark:text-neutral-400">
+                        <tr class="border-b border-neutral-200 dark:border-neutral-700">
+                            <th class="px-5 py-3 font-medium">@L["Devices.Device"]</th>
+                            <th class="px-5 py-3 font-medium">@L["Devices.User"]</th>
+                            <th class="px-5 py-3 font-medium">@L["Devices.Version"]</th>
+                            <th class="px-5 py-3 font-medium">@L["Devices.LastSeen"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var device in devices)
+                        {
+                            <tr class="border-b border-neutral-100 dark:border-neutral-700/60 last:border-0
+                                       @(device.RevokedAt is not null ? "opacity-50" : "")">
+                                <td class="px-5 py-3">
+                                    @device.Name
+                                    @if (device.RevokedAt is not null)
+                                    {
+                                        <span class="ml-2 text-xs text-neutral-500 dark:text-neutral-400">
+                                            @L["Devices.Revoked"]
+                                        </span>
+                                    }
+                                </td>
+                                <td class="px-5 py-3 text-neutral-500 dark:text-neutral-400">@device.User?.Name</td>
+                                <td class="px-5 py-3">
+                                    @if (device.LastSeenVersion is { Length: > 0 } version)
+                                    {
+                                        <span class="font-mono text-xs">@version</span>
+                                        @* Below the floor this device cannot sync at all any more:
+                                           the server answers 426 and the app is stuck until it is
+                                           updated by hand. Worth seeing at a glance. *@
+                                        @if (device.LastSeenProtocol is { } protocol && protocol < SyncProtocol.Minimum)
+                                        {
+                                            <span class="ml-2 inline-flex items-center rounded-full bg-red-50 dark:bg-red-950/40
+                                                         px-2 py-0.5 text-xs text-red-600 dark:text-red-400">
+                                                @L["Devices.BelowFloor"]
+                                            </span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-neutral-400 dark:text-neutral-500">@L["Devices.VersionUnknown"]</span>
+                                    }
+                                </td>
+                                <td class="px-5 py-3 text-neutral-500 dark:text-neutral-400">
+                                    @(device.LastUsedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? L["Devices.Never"].Value)
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</PageContainer>
+
+@code {
+    private List<DeviceToken>? devices;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var organizationId = OrgState.ActiveOrganizationId;
+        devices = organizationId is null
+            ? []
+            : await UserService.GetOrganizationDeviceTokensAsync(organizationId, OrgState.ToCallerContext());
+    }
+}

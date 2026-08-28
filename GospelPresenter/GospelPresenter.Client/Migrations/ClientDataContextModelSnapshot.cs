@@ -420,6 +420,13 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<long>("CreatedAt")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("LastSeenProtocol")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastSeenVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("LastUsedAt")
                         .HasColumnType("INTEGER");
 

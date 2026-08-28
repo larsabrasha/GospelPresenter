@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 
 namespace GospelPresenter.Shared.Models;
@@ -20,6 +21,24 @@ public class DeviceToken
 
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? LastUsedAt { get; set; }
+
+    /// <summary>
+    /// The app version this device last presented, from the X-Client-Version header. Recorded so
+    /// that raising the protocol floor is a decision made against a measured distribution of what
+    /// is actually running, rather than against download counts — which say nothing about it.
+    /// Null for a device that has not called since the header existed, or for a cookie session.
+    ///
+    /// Bounded because the value arrives in a request header and is therefore client-controlled:
+    /// a semantic version with a prerelease suffix fits comfortably, and nothing legitimate does
+    /// not. The handler truncates to the same length before writing.
+    /// </summary>
+    [MaxLength(MaxVersionLength)]
+    public string? LastSeenVersion { get; set; }
+
+    public const int MaxVersionLength = 32;
+
+    /// <summary>The wire contract that version speaks. See <see cref="Sync.SyncProtocol"/>.</summary>
+    public int? LastSeenProtocol { get; set; }
 
     /// <summary>Revoked tokens are kept for audit rather than deleted.</summary>
     public DateTimeOffset? RevokedAt { get; set; }

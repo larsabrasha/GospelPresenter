@@ -3,9 +3,23 @@
         <!-- Display name -->
         <ApplicationTitle>GospelPresenter</ApplicationTitle>
     
-        <!-- Versions -->
-        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-        <ApplicationVersion>1</ApplicationVersion>
+        <!-- Versions. These are the local development defaults; a release build overrides both,
+             because a tag has to become three different values and they cannot be one string:
+
+               v1.2.0-beta.1  →  1.2.0-beta.1   the full semver, for Velopack, which sorts the
+                                                update feed on it
+                              →  1.2.0          ApplicationDisplayVersion, because Apple requires
+                                                CFBundleShortVersionString to be one to three
+                                                period-separated integers and rejects the suffix
+                              →  <run number>   ApplicationVersion (CFBundleVersion), which only
+                                                has to be an integer that always increases
+
+             The conditions are documentation rather than mechanism: a value passed as -p: on the
+             command line is a global property and wins over anything set here regardless. Without
+             them, the numbers below read as "the version" when they are only the fallback.
+             See adr/0002-app-distribution-and-updates.md (11). -->
+        <ApplicationDisplayVersion Condition="'$(ApplicationDisplayVersion)' == ''">1.0</ApplicationDisplayVersion>
+        <ApplicationVersion Condition="'$(ApplicationVersion)' == ''">1</ApplicationVersion>
     </PropertyGroup> 
     
     <ItemGroup>

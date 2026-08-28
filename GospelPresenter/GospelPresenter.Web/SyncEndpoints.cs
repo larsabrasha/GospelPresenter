@@ -6,6 +6,7 @@ using GospelPresenter.Shared;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.Sync;
+using GospelPresenter.Web.Auth;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GospelPresenter.Web;
@@ -24,7 +25,7 @@ public static partial class SyncEndpoints
         // The offline client's pull: everything changed in the caller's organisation since the
         // watermark it presents. Authenticated by device token (or a cookie session — the policy
         // scheme makes no difference here).
-        app.MapPost("/api/sync/pull", async (
+        var pull = app.MapPost("/api/sync/pull", async (
             [FromBody] SyncPullRequest request,
             HttpContext context,
             [FromServices] ISyncService syncService) =>
@@ -47,7 +48,7 @@ public static partial class SyncEndpoints
         // The offline client's push: aggregates and deletes made offline, each answered with an
         // outcome (Applied / ServerWins / CopiedAsNew / Remapped / Failed). Server-side results of
         // conflict policies (the copy, the version snapshot) reach the client on its next pull.
-        app.MapPost("/api/sync/push", async (
+        var push = app.MapPost("/api/sync/push", async (
             [FromBody] SyncPushRequest request,
             HttpContext context,
             [FromServices] ISyncService syncService) =>
@@ -63,7 +64,7 @@ public static partial class SyncEndpoints
         // One Bible translation's verses, for offline pinning. The payload is megabytes of highly
         // compressible JSON, so it is gzipped when the client can take it — response compression
         // is deliberately not enabled globally, this endpoint compresses by hand.
-        app.MapGet("/api/sync/bibles/{id}", async (
+        var bibles = app.MapGet("/api/sync/bibles/{id}", async (
             string id,
             HttpContext context,
             [FromServices] ISyncService syncService) =>
@@ -90,7 +91,7 @@ public static partial class SyncEndpoints
 
         // Song displays recorded while presenting offline. Append-only and idempotent: the unique
         // (org, song, date, presentation) index makes a re-push after a lost response a no-op.
-        app.MapPost("/api/sync/ccli-reports", async (
+        var ccliReports = app.MapPost("/api/sync/ccli-reports", async (
             [FromBody] List<CcliSyncEntry> entries,
             HttpContext context,
             [FromServices] ICcliReportService ccliReportService) =>
@@ -107,7 +108,7 @@ public static partial class SyncEndpoints
         // Blobs for media created offline: the metadata row travels through /api/sync/push, the
         // bytes land here under the same deterministic key ImageUrlHelper mints. Order-independent —
         // a presentation item pointing at media whose blob has not arrived yet degrades gracefully.
-        app.MapPut("/api/sync/media/{**key}", async (
+        var media = app.MapPut("/api/sync/media/{**key}", async (
             string key,
             HttpContext context,
             [FromServices] IObjectStorageService storage) =>
@@ -150,6 +151,12 @@ public static partial class SyncEndpoints
             return Results.NoContent();
         }).RequireAuthorization()
           .DisableAntiforgery();
+
+        // The protocol floor applies to every sync surface, not just pull and push: a client too
+        // old to be trusted with the aggregate format is equally untrusted with the side channels
+        // that feed it. See adr/0002-app-distribution-and-updates.md (25).
+        foreach (var endpoint in new[] { pull, push, bibles, ccliReports, media })
+            endpoint.AddEndpointFilter<ClientProtocolFloorFilter>();
     }
 
     private static CallerContext? GetCaller(HttpContext context)
