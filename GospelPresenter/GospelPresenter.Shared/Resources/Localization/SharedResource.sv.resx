@@ -57,16 +57,16 @@
     <value>Skapar...</value>
   </data>
   <data name="Common.Delete" xml:space="preserve">
-    <value>Ta bort</value>
+    <value>Radera</value>
   </data>
   <data name="Common.ErrorOccurred" xml:space="preserve">
     <value>Något gick fel. Försök igen.</value>
   </data>
   <data name="Common.Deleting" xml:space="preserve">
-    <value>Tar bort...</value>
+    <value>Raderar...</value>
   </data>
   <data name="Common.Remove" xml:space="preserve">
-    <value>Radera</value>
+    <value>Ta bort</value>
   </data>
   <data name="Common.Add" xml:space="preserve">
     <value>Lägg till</value>
@@ -222,10 +222,10 @@
     <value>Skapa en sång manuellt eller importera från ProPresenter (.pro-filer) ovan.</value>
   </data>
   <data name="Images.NoImagesHint" xml:space="preserve">
-    <value>Ladda upp bilder för att visa under presentationer, t.ex. logotyper eller bakgrunder.</value>
+    <value>Importera bilder för att visa under presentationer, t.ex. logotyper eller bakgrunder.</value>
   </data>
   <data name="Audios.NoAudiosHint" xml:space="preserve">
-    <value>Ladda upp ljudfiler för att spela upp under presentationer.</value>
+    <value>Importera ljudfiler för att spela upp under presentationer.</value>
   </data>
   <data name="Songs.NoSongsFound" xml:space="preserve">
     <value>Inga sånger hittades</value>
@@ -336,7 +336,7 @@
     <value>Vill du ta bort alla {0} sånger i papperskorgen permanent?</value>
   </data>
   <data name="SongTrash.DeletePermanently" xml:space="preserve">
-    <value>Ta bort permanent</value>
+    <value>Radera permanent</value>
   </data>
   <data name="SongHistory.Title" xml:space="preserve">
     <value>Historik</value>
@@ -402,7 +402,7 @@
     <value>Inga sånger hittades</value>
   </data>
   <data name="Bible.NoBible" xml:space="preserve">
-    <value>Inga biblar uppladdade</value>
+    <value>Inga biblar än</value>
   </data>
   <data name="Bible.NoVersesFound" xml:space="preserve">
     <value>Inga verser hittades</value>
@@ -420,10 +420,10 @@
     <value>Kunde inte ladda bilder</value>
   </data>
   <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Ladda upp</value>
+    <value>Importera</value>
   </data>
   <data name="ImageTab.NoImages" xml:space="preserve">
-    <value>Inga bilder uppladdade</value>
+    <value>Inga bilder än</value>
   </data>
   <data name="ImageTab.DeleteImage" xml:space="preserve">
     <value>Radera bild</value>
@@ -438,7 +438,7 @@
     <value>Alla bilder</value>
   </data>
   <data name="Images.NoImages" xml:space="preserve">
-    <value>Inga bilder uppladdade än</value>
+    <value>Inga bilder än</value>
   </data>
   <data name="Images.NoImagesFound" xml:space="preserve">
     <value>Inga bilder matchar din sökning</value>
@@ -450,7 +450,7 @@
     <value>Alla ljudfiler</value>
   </data>
   <data name="Audios.NoAudios" xml:space="preserve">
-    <value>Inga ljudfiler uppladdade än</value>
+    <value>Inga ljudfiler än</value>
   </data>
   <data name="Audios.NoAudiosFound" xml:space="preserve">
     <value>Inga ljudfiler matchar din sökning</value>
@@ -501,7 +501,7 @@
     <value>Profilbild</value>
   </data>
   <data name="UserDetail.DeleteUser" xml:space="preserve">
-    <value>Ta bort användare</value>
+    <value>Radera användare</value>
   </data>
   <data name="UserDetail.Login" xml:space="preserve">
     <value>Inloggning</value>
@@ -600,7 +600,7 @@
     <value>Organisationsnamn</value>
   </data>
   <data name="OrgDetail.DeleteOrg" xml:space="preserve">
-    <value>Ta bort organisation</value>
+    <value>Radera organisation</value>
   </data>
   <data name="OrgDetail.Members" xml:space="preserve">
     <value>Medlemmar</value>
@@ -627,7 +627,7 @@
     <value>Alla presentationer</value>
   </data>
   <data name="OrgDetail.AllImages" xml:space="preserve">
-    <value>Alla uppladdade bilder</value>
+    <value>Alla bilder</value>
   </data>
   <data name="OrgDetail.TypeToConfirm" xml:space="preserve">
     <value>Skriv {0} för att bekräfta:</value>
@@ -789,10 +789,10 @@
     <value>Visar {0} av {1} verser</value>
   </data>
   <data name="ImageTab.UploadingProgress" xml:space="preserve">
-    <value>Laddar upp {0} av {1}...</value>
+    <value>Importerar {0} av {1}...</value>
   </data>
   <data name="ImageTab.UploadErrorCount" xml:space="preserve">
-    <value>{0} bild(er) kunde inte laddas upp</value>
+    <value>{0} bild(er) kunde inte importeras</value>
   </data>
   <data name="ImageTab.Images" xml:space="preserve">
     <value>bilder</value>
@@ -801,7 +801,7 @@
     <value>Ljud</value>
   </data>
   <data name="AudioTab.Upload" xml:space="preserve">
-    <value>Ladda upp</value>
+    <value>Importera</value>
   </data>
   <data name="AudioTab.LoadingAudio" xml:space="preserve">
     <value>Laddar ljudfiler...</value>
@@ -810,13 +810,13 @@
     <value>Kunde inte ladda ljudfiler</value>
   </data>
   <data name="AudioTab.NoAudio" xml:space="preserve">
-    <value>Inga ljudfiler uppladdade</value>
+    <value>Inga ljudfiler än</value>
   </data>
   <data name="AudioTab.UploadingProgress" xml:space="preserve">
-    <value>Laddar upp {0} av {1}...</value>
+    <value>Importerar {0} av {1}...</value>
   </data>
   <data name="AudioTab.UploadErrorCount" xml:space="preserve">
-    <value>{0} fil(er) kunde inte laddas upp</value>
+    <value>{0} fil(er) kunde inte importeras</value>
   </data>
   <data name="AudioTab.AudioFiles" xml:space="preserve">
     <value>ljudfiler</value>
@@ -825,25 +825,25 @@
     <value>Tona ut</value>
   </data>
   <data name="AudioTab.DeleteAudio" xml:space="preserve">
-    <value>Ta bort ljudfil</value>
+    <value>Radera ljudfil</value>
   </data>
   <data name="AudioTab.ConfirmDelete" xml:space="preserve">
     <value>Vill du verkligen ta bort {0}?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
-    <value>Ladda upp bildspel</value>
+    <value>Importera bildspel</value>
   </data>
   <data name="SlidesTab.Uploading" xml:space="preserve">
-    <value>Laddar upp...</value>
+    <value>Importerar...</value>
   </data>
   <data name="SlidesTab.HelpText" xml:space="preserve">
-    <value>&lt;p&gt;Ladda upp en PowerPoint- eller PDF-fil. Keynote, Google Slides och Pages kan exporteras till PDF innan uppladdning.&lt;/p&gt;&lt;p&gt;Animeringar och videor följer inte med.&lt;/p&gt;&lt;p&gt;Filen sparas bara i den här presentationen.&lt;/p&gt;</value>
+    <value>&lt;p&gt;Importera en PowerPoint- eller PDF-fil. Keynote, Google Slides och Pages kan exporteras till PDF innan import.&lt;/p&gt;&lt;p&gt;Animeringar och videor följer inte med.&lt;/p&gt;&lt;p&gt;Filen sparas bara i den här presentationen.&lt;/p&gt;</value>
   </data>
   <data name="SlidesTab.TooManyPages" xml:space="preserve">
     <value>Filen har för många sidor. Maximum är 100 sidor.</value>
   </data>
   <data name="SlidesTab.UploadError" xml:space="preserve">
-    <value>Kunde inte ladda upp filen. Försök igen.</value>
+    <value>Kunde inte importera filen. Försök igen.</value>
   </data>
   <data name="Sidebar.Slides" xml:space="preserve">
     <value>PowerPoint</value>
@@ -939,7 +939,7 @@
     <value>Klar</value>
   </data>
   <data name="Sidebar.DeleteSelected" xml:space="preserve">
-    <value>Radera markerade ({0})</value>
+    <value>Ta bort markerade ({0})</value>
   </data>
   <data name="Presentation.ConfirmRemoveItemSingle" xml:space="preserve">
     <value>Vill du ta bort detta objekt?</value>
@@ -1170,7 +1170,7 @@
     <value>Spara som mall</value>
   </data>
   <data name="Sidebar.DeleteTemplate" xml:space="preserve">
-    <value>Ta bort mall</value>
+    <value>Radera mall</value>
   </data>
   <data name="Toast.SavedAsTemplate" xml:space="preserve">
     <value>Sparad som mall</value>
@@ -1331,11 +1331,11 @@
   <data name="Admin.PublicOutputs.Title" xml:space="preserve">
     <value>Publika utgångar</value>
   </data>
-  <data name="Admin.PublicOutputs.Add" xml:space="preserve">
-    <value>Lägg till publik utgång</value>
+  <data name="Admin.PublicOutputs.Create" xml:space="preserve">
+    <value>Skapa publik utgång</value>
   </data>
   <data name="Admin.PublicOutputs.AddTitle" xml:space="preserve">
-    <value>Ny publik utgång</value>
+    <value>Skapa publik utgång</value>
   </data>
   <data name="Admin.PublicOutputs.AddDescription" xml:space="preserve">
     <value>En publik utgång ger dig en QR-kod som besökare kan skanna för att följa presentationen på sin egen telefon. Alla som har koden kan se sändningen när en presentation sänder till utgången.</value>
@@ -1379,11 +1379,11 @@
   <data name="Admin.Labels.Title" xml:space="preserve">
     <value>Etiketter</value>
   </data>
-  <data name="Admin.Labels.Add" xml:space="preserve">
-    <value>Lägg till etikett</value>
+  <data name="Admin.Labels.Create" xml:space="preserve">
+    <value>Skapa</value>
   </data>
   <data name="Admin.Labels.AddTitle" xml:space="preserve">
-    <value>Ny etikett</value>
+    <value>Skapa etikett</value>
   </data>
   <data name="Admin.Labels.EditTitle" xml:space="preserve">
     <value>Redigera etikett</value>
@@ -1409,6 +1409,12 @@
   <data name="LivePanel.LocalLiveView" xml:space="preserve">
     <value>Fönster</value>
   </data>
+  <data name="FilePicker.ChooseImages" xml:space="preserve">
+    <value>Välj bilder</value>
+  </data>
+  <data name="FilePicker.ChooseAudio" xml:space="preserve">
+    <value>Välj ljudfiler</value>
+  </data>
   <data name="LivePanel.LiveWindowFailed" xml:space="preserve">
     <value>Live-vyn kunde inte öppnas</value>
   </data>
@@ -1428,6 +1434,9 @@
     <value>Tillfällig skärm</value>
   </data>
   <data name="LivePanel.AddTempDisplayTitle" xml:space="preserve">
+    <value>Anslut tillfällig skärm</value>
+  </data>
+  <data name="LivePanel.ConnectTempDisplay" xml:space="preserve">
     <value>Anslut tillfällig skärm</value>
   </data>
   <data name="LivePanel.PairScanQrTitle" xml:space="preserve">
@@ -1503,7 +1512,7 @@
     <value>Importera bibel</value>
   </data>
   <data name="Bibles.ImportDescription" xml:space="preserve">
-    <value>Ladda upp en bibelöversättning som en &lt;code&gt;.zip&lt;/code&gt;-fil (USX- eller USFM-format).</value>
+    <value>Importera en bibelöversättning som en &lt;code&gt;.zip&lt;/code&gt;-fil (USX- eller USFM-format).</value>
   </data>
   <data name="Bibles.ChooseFile" xml:space="preserve">
     <value>Välj fil</value>

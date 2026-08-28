@@ -9,6 +9,20 @@
         <!-- When App Sandbox is enabled, this value is required to open outgoing network connections. -->
         <key>com.apple.security.network.client</key>
         <true/>
+        <!-- Without these the file picker does not open at all under the sandbox — it presents and
+             never becomes visible, with no error anywhere. The sandbox confines the app to its own
+             container, and reaching the user's folders takes an entitlement per location.
+             https://learn.microsoft.com/dotnet/maui/platform-integration/storage/file-picker -->
+        <key>com.apple.security.files.user-selected.read-only</key>
+        <true/>
+        <key>com.apple.security.files.downloads.read-only</key>
+        <true/>
+        <key>com.apple.security.assets.pictures.read-only</key>
+        <true/>
+        <key>com.apple.security.assets.music.read-only</key>
+        <true/>
+        <key>com.apple.security.assets.movies.read-only</key>
+        <true/>
         <!-- TODO when the app is signed with a real Apple Developer provisioning profile: add
                  <key>keychain-access-groups</key>
                  <array><string>$(AppIdentifierPrefix)$(CFBundleIdentifier)</string></array>

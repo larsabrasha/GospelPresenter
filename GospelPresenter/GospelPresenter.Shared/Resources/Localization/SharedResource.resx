@@ -222,10 +222,10 @@
     <value>Create a song manually or import from ProPresenter (.pro files) above.</value>
   </data>
   <data name="Images.NoImagesHint" xml:space="preserve">
-    <value>Upload images to display during presentations, e.g. logos or backgrounds.</value>
+    <value>Import images to display during presentations, e.g. logos or backgrounds.</value>
   </data>
   <data name="Audios.NoAudiosHint" xml:space="preserve">
-    <value>Upload audio files to play during presentations.</value>
+    <value>Import audio files to play during presentations.</value>
   </data>
   <data name="Songs.NoSongsFound" xml:space="preserve">
     <value>No songs found</value>
@@ -402,7 +402,7 @@
     <value>No songs found</value>
   </data>
   <data name="Bible.NoBible" xml:space="preserve">
-    <value>No Bibles uploaded</value>
+    <value>No Bibles yet</value>
   </data>
   <data name="Bible.NoVersesFound" xml:space="preserve">
     <value>No verses found</value>
@@ -420,10 +420,10 @@
     <value>Could not load images</value>
   </data>
   <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Upload</value>
+    <value>Import</value>
   </data>
   <data name="ImageTab.NoImages" xml:space="preserve">
-    <value>No images uploaded</value>
+    <value>No images yet</value>
   </data>
   <data name="ImageTab.DeleteImage" xml:space="preserve">
     <value>Delete image</value>
@@ -438,7 +438,7 @@
     <value>All images</value>
   </data>
   <data name="Images.NoImages" xml:space="preserve">
-    <value>No images uploaded yet</value>
+    <value>No images yet</value>
   </data>
   <data name="Images.NoImagesFound" xml:space="preserve">
     <value>No images match your search</value>
@@ -450,7 +450,7 @@
     <value>All audio files</value>
   </data>
   <data name="Audios.NoAudios" xml:space="preserve">
-    <value>No audio uploaded yet</value>
+    <value>No audio yet</value>
   </data>
   <data name="Audios.NoAudiosFound" xml:space="preserve">
     <value>No audio matches your search</value>
@@ -627,7 +627,7 @@
     <value>All presentations</value>
   </data>
   <data name="OrgDetail.AllImages" xml:space="preserve">
-    <value>All uploaded images</value>
+    <value>All images</value>
   </data>
   <data name="OrgDetail.TypeToConfirm" xml:space="preserve">
     <value>Type {0} to confirm:</value>
@@ -789,10 +789,10 @@
     <value>Showing {0} of {1} verses</value>
   </data>
   <data name="ImageTab.UploadingProgress" xml:space="preserve">
-    <value>Uploading {0} of {1}...</value>
+    <value>Importing {0} of {1}...</value>
   </data>
   <data name="ImageTab.UploadErrorCount" xml:space="preserve">
-    <value>{0} image(s) could not be uploaded</value>
+    <value>{0} image(s) could not be imported</value>
   </data>
   <data name="ImageTab.Images" xml:space="preserve">
     <value>images</value>
@@ -801,7 +801,7 @@
     <value>Audio</value>
   </data>
   <data name="AudioTab.Upload" xml:space="preserve">
-    <value>Upload</value>
+    <value>Import</value>
   </data>
   <data name="AudioTab.LoadingAudio" xml:space="preserve">
     <value>Loading audio files...</value>
@@ -810,13 +810,13 @@
     <value>Could not load audio files</value>
   </data>
   <data name="AudioTab.NoAudio" xml:space="preserve">
-    <value>No audio files uploaded</value>
+    <value>No audio files yet</value>
   </data>
   <data name="AudioTab.UploadingProgress" xml:space="preserve">
-    <value>Uploading {0} of {1}...</value>
+    <value>Importing {0} of {1}...</value>
   </data>
   <data name="AudioTab.UploadErrorCount" xml:space="preserve">
-    <value>{0} file(s) failed to upload</value>
+    <value>{0} file(s) could not be imported</value>
   </data>
   <data name="AudioTab.AudioFiles" xml:space="preserve">
     <value>audio files</value>
@@ -831,19 +831,19 @@
     <value>Are you sure you want to delete {0}?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
-    <value>Upload slides</value>
+    <value>Import slides</value>
   </data>
   <data name="SlidesTab.Uploading" xml:space="preserve">
-    <value>Uploading...</value>
+    <value>Importing...</value>
   </data>
   <data name="SlidesTab.HelpText" xml:space="preserve">
-    <value>&lt;p&gt;Upload a PowerPoint or PDF file. Keynote, Google Slides, and Pages can be exported to PDF before uploading.&lt;/p&gt;&lt;p&gt;Animations and videos will not be included.&lt;/p&gt;&lt;p&gt;The file is saved only in this presentation.&lt;/p&gt;</value>
+    <value>&lt;p&gt;Import a PowerPoint or PDF file. Keynote, Google Slides, and Pages can be exported to PDF before importing.&lt;/p&gt;&lt;p&gt;Animations and videos will not be included.&lt;/p&gt;&lt;p&gt;The file is saved only in this presentation.&lt;/p&gt;</value>
   </data>
   <data name="SlidesTab.TooManyPages" xml:space="preserve">
     <value>The file has too many pages. Maximum is 100 pages.</value>
   </data>
   <data name="SlidesTab.UploadError" xml:space="preserve">
-    <value>Could not upload the file. Please try again.</value>
+    <value>Could not import the file. Please try again.</value>
   </data>
   <data name="Sidebar.Slides" xml:space="preserve">
     <value>PowerPoint</value>
@@ -939,7 +939,7 @@
     <value>Done</value>
   </data>
   <data name="Sidebar.DeleteSelected" xml:space="preserve">
-    <value>Delete selected ({0})</value>
+    <value>Remove selected ({0})</value>
   </data>
   <data name="Presentation.ConfirmRemoveItemSingle" xml:space="preserve">
     <value>Do you want to remove this item?</value>
@@ -1331,11 +1331,11 @@
   <data name="Admin.PublicOutputs.Title" xml:space="preserve">
     <value>Public outputs</value>
   </data>
-  <data name="Admin.PublicOutputs.Add" xml:space="preserve">
-    <value>Add public output</value>
+  <data name="Admin.PublicOutputs.Create" xml:space="preserve">
+    <value>Create public output</value>
   </data>
   <data name="Admin.PublicOutputs.AddTitle" xml:space="preserve">
-    <value>New public output</value>
+    <value>Create public output</value>
   </data>
   <data name="Admin.PublicOutputs.AddDescription" xml:space="preserve">
     <value>A public output gives you a QR code that visitors can scan to follow the presentation on their own phone. Anyone with the code can watch while a presentation is broadcasting to the output.</value>
@@ -1379,11 +1379,11 @@
   <data name="Admin.Labels.Title" xml:space="preserve">
     <value>Labels</value>
   </data>
-  <data name="Admin.Labels.Add" xml:space="preserve">
-    <value>Add label</value>
+  <data name="Admin.Labels.Create" xml:space="preserve">
+    <value>Create</value>
   </data>
   <data name="Admin.Labels.AddTitle" xml:space="preserve">
-    <value>New label</value>
+    <value>Create label</value>
   </data>
   <data name="Admin.Labels.EditTitle" xml:space="preserve">
     <value>Edit label</value>
@@ -1409,6 +1409,12 @@
   <data name="LivePanel.LocalLiveView" xml:space="preserve">
     <value>Window</value>
   </data>
+  <data name="FilePicker.ChooseImages" xml:space="preserve">
+    <value>Choose images</value>
+  </data>
+  <data name="FilePicker.ChooseAudio" xml:space="preserve">
+    <value>Choose audio files</value>
+  </data>
   <data name="LivePanel.LiveWindowFailed" xml:space="preserve">
     <value>The live view could not be opened</value>
   </data>
@@ -1428,6 +1434,9 @@
     <value>Temporary display</value>
   </data>
   <data name="LivePanel.AddTempDisplayTitle" xml:space="preserve">
+    <value>Connect temporary display</value>
+  </data>
+  <data name="LivePanel.ConnectTempDisplay" xml:space="preserve">
     <value>Connect temporary display</value>
   </data>
   <data name="LivePanel.PairScanQrTitle" xml:space="preserve">
@@ -1503,7 +1512,7 @@
     <value>Import Bible</value>
   </data>
   <data name="Bibles.ImportDescription" xml:space="preserve">
-    <value>Upload a Bible translation as a &lt;code&gt;.zip&lt;/code&gt; file (USX or USFM format).</value>
+    <value>Import a Bible translation as a &lt;code&gt;.zip&lt;/code&gt; file (USX or USFM format).</value>
   </data>
   <data name="Bibles.ChooseFile" xml:space="preserve">
     <value>Choose file</value>

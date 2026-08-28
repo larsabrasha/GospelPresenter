@@ -106,7 +106,7 @@
         {
             <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.PublicQr)" Class="flex items-center gap-1.5">
                 <PlusSymbol Class="size-4"/>
-                @L["Admin.PublicOutputs.Add"]
+                @L["Admin.PublicOutputs.Create"]
             </AppButton>
         }
     </div>
@@ -136,7 +136,7 @@
                 </p>
                 <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.PublicQr)" Class="flex items-center gap-1.5">
                     <PlusSymbol Class="size-4"/>
-                    @L["Admin.PublicOutputs.Add"]
+                    @L["Admin.PublicOutputs.Create"]
                 </AppButton>
             </div>
         }
@@ -214,7 +214,7 @@
                            Loading="@adding"
                            OnClick="AddDisplay"
                            title="Ctrl+Enter">
-                    @(isPublic ? L["Admin.PublicOutputs.Add"] : L["Admin.Displays.Add"])
+                    @(isPublic ? L["Common.Create"] : L["Admin.Displays.Add"])
                 </AppButton>
             </div>
         </div>

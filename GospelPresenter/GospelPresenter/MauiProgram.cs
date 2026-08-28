@@ -97,6 +97,10 @@ public static class MauiProgram
             sp.GetRequiredService<ILogger<GospelPresenter.Client.Media.MediaStore>>()));
         builder.Services.AddSingleton<IObjectStorageService, GospelPresenter.Client.Media.LocalObjectStorageService>();
         builder.Services.AddSingleton<GospelPresenter.Client.Media.MediaRequestHandler>();
+
+        // Uploads reach the library through the domain services instead of the web's /api/upload
+        // endpoints, which do not exist here — see IMediaUploader.
+        builder.Services.AddScoped<IMediaUploader, MauiMediaUploader>();
 #if IOS || MACCATALYST
         // Components mint media URLs on the app's custom scheme instead of the web's /api paths.
         ImageUrlHelper.HostUrlTransform = url => "gpmedia://media" + url;
