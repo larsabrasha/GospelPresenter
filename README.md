@@ -135,7 +135,14 @@ dotnet run --project GospelPresenter.Desktop
 
 Leaving `GP_API_BASE_URL` empty runs the client standalone against its local database with a developer identity and no server at all.
 
-The client signs in through the browser (device flow), so the account must already be linked as described above.
+The client signs in through the browser (device flow), so the account must already be linked as described above. The browser hands the token back on `gospelpresenter://`, which a packaged build registers with the desktop environment itself. A `dotnet run` build registers nothing, so on Linux the sign-in ends in "No apps available" and the client waits for a callback that never comes. Register it once per build directory:
+
+```shell
+./scripts/register-url-scheme-linux.sh          # Debug; pass Release for a release build
+./scripts/register-url-scheme-linux.sh --remove # undo
+```
+
+Re-run it after moving the repository — the handler it writes names an absolute path.
 
 ### Run or Debug from Rider or Visual Studio
 
@@ -186,9 +193,9 @@ The tool captures every combination of language (en, sv), theme (light, dark), a
 For Rider:
 * Verify that the same .NET version is used in terminal `which dotnet` (eg. when restoring workloads) and in Rider -> Settings -> Build, Execution, Deployment -> Toolset and Build.
 
-**The desktop client fails with `Win32Exception (2) … .electron/node_modules/electron/dist/electron: No such file or directory`**
+**The build fails with `GP0001: Electron was downloaded but never unpacked`**
 
-Electron's `install.js` can exit successfully without unpacking the download (seen with Node 26). The zip is in the npm cache and is fine — unpack it by hand:
+Electron's `install.js` can exit successfully without unpacking the download (seen with Node 26). The zip in `~/.cache/electron` is fine — unpack it by hand:
 
 ```shell
 D=GospelPresenter.Desktop/bin/Debug/net10.0/.electron/node_modules/electron
