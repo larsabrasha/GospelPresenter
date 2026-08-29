@@ -335,8 +335,7 @@ static async Task OnElectronReadyAsync(IServiceProvider services)
         MinWidth = 900,
         MinHeight = 600,
         Show = false,
-        AutoHideMenuBar = true,
-    });
+    }.WithHiddenMenuBar());
 
     window.OnReadyToShow += () => window.Show();
     window.OnClosed += () => Electron.App.Quit();

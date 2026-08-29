@@ -210,7 +210,10 @@ public class ElectronAppUpdater(ILogger<ElectronAppUpdater> logger) : IAppUpdate
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Electron had already gone when the updater unsubscribed");
+            // The message, not the exception: this is the expected path, and a stack trace printed
+            // on every single exit makes a clean shutdown look like a crash. The three frames it
+            // would carry are always the same ones, and they are named in the summary above.
+            logger.LogDebug("Electron had already gone when the updater unsubscribed: {Reason}", ex.Message);
         }
     }
 }

@@ -159,7 +159,7 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
     /// and left hanging off the bottom edge. Fullscreen, applied afterwards, is what actually takes
     /// the whole display.
     /// </summary>
-    private static BrowserWindowOptions FillingDisplay(string title, Display display) => new()
+    private static BrowserWindowOptions FillingDisplay(string title, Display display) => new BrowserWindowOptions
     {
         Title = title,
         X = display.WorkArea.X,
@@ -169,23 +169,21 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
         Frame = false,
         BackgroundColor = "#000000",
         Show = false,
-        AutoHideMenuBar = true,
-    };
+    }.WithHiddenMenuBar();
 
     /// <summary>
     /// One display only: a plain window the operator can move and resize, which is what the web app
     /// gives them too. Presenting on the same screen you are operating on is a rehearsal, not a
     /// service, and taking the whole screen over would be wrong.
     /// </summary>
-    private static BrowserWindowOptions Windowed(string title) => new()
+    private static BrowserWindowOptions Windowed(string title) => new BrowserWindowOptions
     {
         Title = title,
         Width = 1280,
         Height = 720,
         BackgroundColor = "#000000",
         Show = false,
-        AutoHideMenuBar = true,
-    };
+    }.WithHiddenMenuBar();
 
     /// <summary>
     /// Where Kestrel ended up listening. The port is not ours to choose — Electron.NET starts the

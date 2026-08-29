@@ -42,7 +42,10 @@ public class ElectronDeviceSignIn(
     {
         await Electron.App.SetAsDefaultProtocolClientAsync(CallbackScheme);
 
-        Electron.App.OpenUrl += url => Deliver(url);
+        // macOS delivers the callback to the running app as an open-url event; the event does not
+        // exist on the other platforms, which start a second process instead — handled below.
+        if (OperatingSystem.IsMacOS())
+            Electron.App.OpenUrl += url => Deliver(url);
 
         await Electron.App.RequestSingleInstanceLockAsync((argv, _) =>
         {
