@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net;
 using System.Reflection;
 using ElectronNET.API;
@@ -14,6 +13,7 @@ using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
@@ -201,11 +201,9 @@ else
 // real second window, and a real second display to put it on.
 builder.Services.AddSingleton<ILiveWindowLauncher, ElectronLiveWindowLauncher>();
 
-var culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "sv"
-    ? new CultureInfo("sv")
-    : new CultureInfo("en");
-CultureInfo.DefaultThreadCurrentCulture = culture;
-CultureInfo.DefaultThreadCurrentUICulture = culture;
+// The language. Resolved once Electron is ready rather than here, because the host is the only
+// one that knows which language the user actually reads their machine in — see the service.
+builder.Services.AddSingleton<DesktopCultureService>();
 
 var app = builder.Build();
 electronServices = app.Services;
@@ -218,6 +216,16 @@ app.MapStaticAssets();
 app.MapRazorComponents<GospelPresenter.Desktop.Components.App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(GospelPresenter.Shared._Imports).Assembly);
+
+// The language picker in Settings posts here, the same form the web host answers. The reply is a
+// redirect rather than a re-render because the culture a component captured is fixed for its
+// lifetime: only a fresh page load brings the whole UI back in the new language.
+app.MapPost("/culture", async ([FromForm] string culture, [FromForm] string? returnUrl,
+    DesktopCultureService cultures) =>
+{
+    await cultures.SetLanguageAsync(culture);
+    return Results.LocalRedirect(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
+}).RequireAuthorization();
 
 // Media. Components render the same /api paths the web serves — ImageUrlHelper.HostUrlTransform is
 // left alone here, unlike the MAUI host, because there is a real HTTP server to answer them. The
@@ -301,6 +309,9 @@ static async Task OnElectronReadyAsync(IServiceProvider services)
     // Claim gospelpresenter:// before anything can sign in on it. Doing this here rather than at
     // registration is not incidental: both halves talk to Electron, which does not exist until now.
     await services.GetRequiredService<ElectronDeviceSignIn>().InitialiseAsync();
+
+    // Before the window exists, so the first paint is already in the right language.
+    await services.GetRequiredService<DesktopCultureService>().ApplyAsync();
 
     var displays = await Electron.Screen.GetAllDisplaysAsync();
     Log.Information("Electron ready, {Count} display(s)", displays.Length);
