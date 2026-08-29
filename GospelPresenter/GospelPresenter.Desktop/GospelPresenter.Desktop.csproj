@@ -29,6 +29,9 @@
         <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
         <!-- Pinned above what EF Core's SQLite provider resolves transitively: GHSA-2m69-gcr7-jv3q. -->
         <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+        <!-- DPAPI for the device token on Windows. It compiles everywhere and throws off Windows,
+             which is why DesktopSecureTokenStore only reaches it behind an OS check. -->
+        <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
     </ItemGroup>
 
     <ItemGroup>

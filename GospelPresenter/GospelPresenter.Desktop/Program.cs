@@ -1,13 +1,19 @@
 using System.Globalization;
+using System.Net;
+using System.Reflection;
 using ElectronNET.API;
 using ElectronNET.API.Entities;
+using GospelPresenter.Client.Auth;
 using GospelPresenter.Client.Data;
+using GospelPresenter.Client.Sync;
 using GospelPresenter.Desktop;
 using GospelPresenter.Desktop.Services;
 using GospelPresenter.Shared;
 using GospelPresenter.Shared.Authorization;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Events;
@@ -34,11 +40,17 @@ builder.Host.UseSerilog();
 
 // Electron takes over process lifetime and opens the window once the host is listening. The
 // callback is where the UI is set up — new in the Core line, and the reason the window can be
-// created without racing the server's startup.
-builder.WebHost.UseElectron(args, OnElectronReadyAsync);
+// created without racing the server's startup. It runs after Build(), so the container below is
+// available to it by then.
+IServiceProvider? electronServices = null;
+builder.WebHost.UseElectron(args, () => OnElectronReadyAsync(electronServices!));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Empty means no server: the app then runs the developer identity and none of the sync below,
+// exactly as the MAUI host's Local scheme does.
+var apiBaseUrl = DesktopSettings.ResolveApiBaseUrl(builder.Configuration);
 
 builder.Services.AddSharedGospelPresenterServices();
 builder.Services.AddSingleton<IAppCapabilities, DesktopAppCapabilities>();
@@ -86,33 +98,104 @@ builder.Services.AddSingleton(sp => new GospelPresenter.Client.Media.MediaStore(
 builder.Services.AddSingleton<IObjectStorageService, GospelPresenter.Client.Media.LocalObjectStorageService>();
 builder.Services.AddSingleton<GospelPresenter.Client.Media.MediaRequestHandler>();
 
-// Nothing here talks to a server yet: no device sign-in, so no authenticated HttpClient to download
-// a missing blob over. This is MauiProgram's no-server branch, and it goes when sync is wired up.
-builder.Services.AddSingleton<GospelPresenter.Client.Media.IMediaDownloader,
-    GospelPresenter.Client.Media.NullMediaDownloader>();
-
 // Uploads reach the library through the domain services instead of the web's /api/upload endpoints,
 // which do not exist here — see IMediaUploader.
 builder.Services.AddScoped<MediaIngestService>();
 builder.Services.AddScoped<IMediaUploader, ElectronMediaUploader>();
 
+// The device's identity, and the two faces it is asked for. DeviceAuthStateProvider answers
+// Blazor; DeviceAuthenticationHandler answers the HTTP pipeline, which the MAUI host did not have
+// and which sees [Authorize] on a page component as [Authorize] on an endpoint.
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddPermissionAuthorization();
-builder.Services.AddScoped<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider,
-    DevAuthenticationStateProvider>();
-builder.Services.AddAuthentication(DevAuthenticationStateProvider.SchemeName)
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, DevAuthenticationHandler>(
-        DevAuthenticationStateProvider.SchemeName, _ => { });
+// Only a real installation gets the real store. With no server the token is made up, and writing it
+// where a later server-configured run would find it is what would make that identity leak — see
+// InMemoryTokenStore.
+if (apiBaseUrl.Length > 0)
+    builder.Services.AddSingleton<ISecureTokenStore, DesktopSecureTokenStore>();
+else
+    builder.Services.AddSingleton<ISecureTokenStore, InMemoryTokenStore>();
 
-// Holds the device's identity. Both halves are temporary: the store keeps nothing across restarts,
-// and DevIdentity signs it in with a made-up token at startup. See Services/DevIdentity.cs.
-builder.Services.AddSingleton<GospelPresenter.Client.Auth.ISecureTokenStore, InMemoryTokenStore>();
-builder.Services.AddSingleton(sp => new GospelPresenter.Client.Auth.DeviceAuthService(
-    sp.GetRequiredService<GospelPresenter.Client.Auth.ISecureTokenStore>(),
+builder.Services.AddSingleton(sp => new DeviceAuthService(
+    sp.GetRequiredService<ISecureTokenStore>(),
     Path.Combine(DesktopPaths.DataDirectory, "identity.json"),
-    sp.GetRequiredService<ILogger<GospelPresenter.Client.Auth.DeviceAuthService>>()));
+    sp.GetRequiredService<ILogger<DeviceAuthService>>()));
+builder.Services.AddScoped<AuthenticationStateProvider, DeviceAuthStateProvider>();
+builder.Services.AddAuthentication(DeviceAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, DeviceAuthenticationHandler>(
+        DeviceAuthenticationHandler.SchemeName, _ => { });
+
+builder.Services.AddSingleton(sp => new ElectronDeviceSignIn(
+    sp.GetRequiredService<DeviceAuthService>(),
+    sp.GetRequiredService<IHttpClientFactory>(),
+    apiBaseUrl,
+    sp.GetRequiredService<ILogger<ElectronDeviceSignIn>>()));
+builder.Services.AddSingleton<IDeviceSignIn>(sp => sp.GetRequiredService<ElectronDeviceSignIn>());
 
 builder.Services.AddSingleton<GospelPresenter.Client.CcliReportListener>();
+
+// The sync engine: push and pull over the device token, scheduled on start, on connectivity
+// changes and on local edits. None of it exists without a server — there would be nothing to sync
+// against, and the status indicator stays hidden.
+if (apiBaseUrl.Length > 0)
+{
+    builder.Services.AddTransient(sp => new DeviceTokenHandler(
+        sp.GetRequiredService<DeviceAuthService>(),
+        typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion ?? "0.0"));
+    builder.Services.AddHttpClient(ClientSyncService.HttpClientName,
+            client => client.BaseAddress = new Uri(apiBaseUrl))
+        .AddHttpMessageHandler<DeviceTokenHandler>()
+        // The Bible download endpoint gzips its megabytes of JSON when asked.
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+        });
+
+    builder.Services.AddSingleton<ISyncCacheRefresher, SharedCacheRefresher>();
+    builder.Services.AddSingleton<IConnectivityMonitor, DesktopConnectivityMonitor>();
+    builder.Services.AddSingleton(sp => new ClientSyncService(
+        sp.GetRequiredService<IDbContextFactory<ClientDataContext>>(),
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClientSyncService.HttpClientName),
+        sp.GetRequiredService<ISyncCacheRefresher>(),
+        sp.GetRequiredService<DeviceAuthService>(),
+        Environment.MachineName,
+        sp.GetRequiredService<ILogger<ClientSyncService>>()));
+    builder.Services.AddSingleton<SyncScheduler>();
+    builder.Services.AddSingleton<ISyncStatusSource>(sp => sp.GetRequiredService<SyncScheduler>());
+
+    // Blobs: pending local uploads go to PUT /api/sync/media, and the pin set — media the local
+    // presentations reference — is downloaded and kept after every metadata sync.
+    builder.Services.AddSingleton<GospelPresenter.Client.Media.IMediaDownloader>(sp =>
+        new GospelPresenter.Client.Media.HttpMediaDownloader(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClientSyncService.HttpClientName),
+            sp.GetRequiredService<ILogger<GospelPresenter.Client.Media.HttpMediaDownloader>>()));
+    builder.Services.AddSingleton<GospelPresenter.Client.Media.MediaPinService>();
+
+    // Opt-in offline Bible translations: downloaded on request from the Bibles page, refreshed
+    // after syncs when the server-side translation changed.
+    builder.Services.AddSingleton(sp => new GospelPresenter.Client.Bibles.BibleOfflineService(
+        sp.GetRequiredService<IDbContextFactory<ClientDataContext>>(),
+        sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClientSyncService.HttpClientName),
+        sp.GetRequiredService<IBibleService>(),
+        sp.GetRequiredService<ILogger<GospelPresenter.Client.Bibles.BibleOfflineService>>()));
+    builder.Services.AddSingleton<IBibleOfflineStore>(sp =>
+        sp.GetRequiredService<GospelPresenter.Client.Bibles.BibleOfflineService>());
+
+    builder.Services.AddSingleton<GospelPresenter.Client.Media.IMediaSynchronizer>(sp =>
+        new GospelPresenter.Client.Media.MediaSynchronizer(
+            sp.GetRequiredService<GospelPresenter.Client.Media.MediaStore>(),
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(ClientSyncService.HttpClientName),
+            sp.GetRequiredService<GospelPresenter.Client.Media.MediaPinService>(),
+            sp.GetRequiredService<ILogger<GospelPresenter.Client.Media.MediaSynchronizer>>(),
+            sp.GetRequiredService<GospelPresenter.Client.Bibles.BibleOfflineService>()));
+}
+else
+{
+    // No server to fetch from: the store serves what exists locally, nothing more.
+    builder.Services.AddSingleton<GospelPresenter.Client.Media.IMediaDownloader,
+        GospelPresenter.Client.Media.NullMediaDownloader>();
+}
 
 // The projector window. The web falls back to window.open when this is missing; here there is a
 // real second window, and a real second display to put it on.
@@ -125,6 +208,7 @@ CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 var app = builder.Build();
+electronServices = app.Services;
 
 // Blazor's interactive server components carry anti-forgery metadata, and the endpoint middleware
 // refuses to serve them without this. Nothing in the desktop app posts a form cross-origin, but the
@@ -143,8 +227,19 @@ foreach (var prefix in new[] { "/api/images", "/api/live-images", "/api/audio", 
     app.MapGet($"{prefix}/{{**rest}}", ServeMediaAsync);
 
 await InitialiseDatabaseAsync(app.Services);
-await DevIdentity.SeedAsync(app.Services);
 app.Services.GetRequiredService<GospelPresenter.Client.CcliReportListener>().Start();
+
+if (apiBaseUrl.Length > 0)
+{
+    // Restore the persisted sign-in before first paint, so a signed-in user never flashes past the
+    // login page, then catch up with the server in the background.
+    await app.Services.GetRequiredService<DeviceAuthService>().LoadAsync();
+    app.Services.GetRequiredService<SyncScheduler>().Start();
+}
+else
+{
+    await DevIdentity.SeedAsync(app.Services);
+}
 
 await app.RunAsync();
 
@@ -201,8 +296,12 @@ static async Task InitialiseDatabaseAsync(IServiceProvider services)
 /// Opens the operator window once the host is listening. The projector window is not created here:
 /// it belongs to ILiveWindowLauncher, which opens one on demand when a presentation goes live.
 /// </summary>
-static async Task OnElectronReadyAsync()
+static async Task OnElectronReadyAsync(IServiceProvider services)
 {
+    // Claim gospelpresenter:// before anything can sign in on it. Doing this here rather than at
+    // registration is not incidental: both halves talk to Electron, which does not exist until now.
+    await services.GetRequiredService<ElectronDeviceSignIn>().InitialiseAsync();
+
     var displays = await Electron.Screen.GetAllDisplaysAsync();
     Log.Information("Electron ready, {Count} display(s)", displays.Length);
     foreach (var display in displays)

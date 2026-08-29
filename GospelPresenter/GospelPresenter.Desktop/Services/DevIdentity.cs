@@ -6,15 +6,22 @@ using Microsoft.EntityFrameworkCore;
 namespace GospelPresenter.Desktop.Services;
 
 /// <summary>
-/// TEMPORARY, alongside <see cref="DevAuthenticationStateProvider"/>: the rows and the signed-in
-/// <see cref="DeviceAuthService"/> that the fixed developer identity needs to be more than a set of
-/// claims. Without the organisation row the dashboard has nothing to show, and without the auth
-/// service holding an identity the media endpoints cannot resolve an object key.
+/// The fallback for an installation with no server configured: a fixed developer identity, and the
+/// organisation and user rows it needs to be more than a set of claims. Without the organisation
+/// row the dashboard has nothing to show, and without the auth service holding an identity the
+/// media endpoints cannot resolve an object key.
 ///
-/// All of this goes when the device-token sign-in is wired into this host.
+/// It signs <see cref="DeviceAuthService"/> in with a made-up token rather than standing beside it,
+/// so there is one notion of who is signed in whether or not a server exists — the same auth state
+/// provider and the same HTTP scheme serve both, and nothing downstream has a development branch.
+///
+/// This is the desktop twin of the MAUI host's DEBUG dev-identity path, and like it, it is reached
+/// only when the server URL is empty.
 /// </summary>
 public static class DevIdentity
 {
+    public const string UserId = "dev-user";
+    public const string OrganizationId = "dev-org";
     private const string OrganizationName = "Utvecklingsmiljö";
 
     public static async Task SeedAsync(IServiceProvider services)
@@ -22,45 +29,45 @@ public static class DevIdentity
         var factory = services.GetRequiredService<IDbContextFactory<PresentationContext>>();
         await using var context = await factory.CreateDbContextAsync();
 
-        if (!await context.Organizations.AnyAsync(o => o.Id == DevAuthenticationStateProvider.OrganizationId))
+        if (!await context.Organizations.AnyAsync(o => o.Id == OrganizationId))
         {
             context.Organizations.Add(new Organization
             {
-                Id = DevAuthenticationStateProvider.OrganizationId,
+                Id = OrganizationId,
                 Name = OrganizationName,
             });
         }
 
-        if (!await context.Users.AnyAsync(u => u.Id == DevAuthenticationStateProvider.UserId))
+        if (!await context.Users.AnyAsync(u => u.Id == UserId))
         {
             context.Users.Add(new User
             {
-                Id = DevAuthenticationStateProvider.UserId,
+                Id = UserId,
                 Name = "Utvecklare",
                 Email = "dev@example.com",
                 Role = UserRole.Admin,
-                OrganizationId = DevAuthenticationStateProvider.OrganizationId,
+                OrganizationId = OrganizationId,
             });
         }
 
         await context.SaveChangesAsync();
 
-        // The identity the media endpoints read the organisation from. The token is never sent
-        // anywhere — nothing in this host talks to a server yet.
+        // The token is never sent anywhere: this path exists precisely because there is no server.
         await services.GetRequiredService<DeviceAuthService>().SignInAsync("dev-token", new DeviceIdentity(
-            DevAuthenticationStateProvider.UserId,
-            "Utvecklare",
-            "dev@example.com",
-            UserRole.Admin,
-            DevAuthenticationStateProvider.OrganizationId,
-            OrganizationName));
+            UserId, "Utvecklare", "dev@example.com", UserRole.Admin, OrganizationId, OrganizationName));
     }
 }
 
 /// <summary>
-/// TEMPORARY: holds the device token for the process lifetime only. The real desktop store belongs
-/// in the platform's credential vault (Keychain, DPAPI, libsecret) and lands with the sign-in flow;
-/// until then nothing is worth persisting, because the token above is made up.
+/// The token store for an installation with no server: holds the made-up token for the process
+/// lifetime and writes nothing.
+///
+/// That is not tidiness. DeviceAuthService restores a cached identity only when a token comes back
+/// with it, so keeping the developer token out of the real store is what stops the fixed identity
+/// from surviving into a run that does have a server configured — where it would be restored as a
+/// signed-in user and the sync engine would spend its retries being told the token is invalid.
+/// Leaving nothing behind makes that impossible rather than merely unlikely, and it keeps a
+/// pretend credential out of the user's keychain.
 /// </summary>
 public class InMemoryTokenStore : ISecureTokenStore
 {
