@@ -18,6 +18,29 @@ namespace GospelPresenter.Desktop.Services;
 public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWindowLauncher> logger)
     : ILiveWindowLauncher
 {
+    /// <summary>
+    /// Prefixed onto the projector window's title so a window manager can tell it apart from the
+    /// operator window. Both carry the same class — one application, one class — and the rest of the
+    /// title is the output's name, which the user chooses and changes.
+    ///
+    /// It exists for Wayland. Measured on Hyprland running the app natively on Wayland (hyprctl
+    /// reports xwayland: 0): the operator window asked for 1280x860 and was given 701x418, and the
+    /// projector window opened on the operator's screen rather than the one its coordinates named.
+    /// The compositor, not the client, is placing windows.
+    ///
+    /// The coordinates below are still right where they are honoured — macOS and Windows are
+    /// verified. What remedy that leaves on Wayland is still open: a rule in the user's compositor
+    /// is one, forcing the app onto XWayland so its own geometry is honoured may be another, and
+    /// which is right is being measured on a real machine. Either way a rule needs something stable
+    /// to match on, and today there is nothing: both windows carry the same class, and the rest of
+    /// this title is the output's name, which the user chooses and changes.
+    ///
+    /// Deliberately not localized. It is a handle for a window manager, not text for a person: the
+    /// window is frameless, so nobody ever reads it, and a title that changed with the app's
+    /// language would silently break the rule the user wrote.
+    /// </summary>
+    private const string ProjectorTitlePrefix = "Gospel Presenter Projector";
+
     private readonly ConcurrentDictionary<string, BrowserWindow> windows = new();
 
     public event Action<string>? WindowClosed;
@@ -27,7 +50,8 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
         try
         {
             var target = await ChooseDisplayAsync();
-            var options = target is null ? Windowed(title) : FillingDisplay(title, target);
+            var windowTitle = $"{ProjectorTitlePrefix} — {title}";
+            var options = target is null ? Windowed(windowTitle) : FillingDisplay(windowTitle, target);
 
             var url = $"{BaseAddress()}/live?session={Uri.EscapeDataString(sessionId)}" +
                       $"&windowId={Uri.EscapeDataString(windowId)}" +
