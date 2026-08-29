@@ -53,7 +53,19 @@ var web = builder
     .WithReference(postgresdb)
     .WaitForCompletion(migrations)
     .WithS3Environment(garageEndpoint, garageAccessKey, garageSecretKey)
-    .WithEnvironment("Gotenberg__Endpoint", gotenbergEndpoint);
+    .WithEnvironment("Gotenberg__Endpoint", gotenbergEndpoint)
+    // Pinned, and not for tidiness: Google only redirects back to a URI it has on file, and
+    // Aspire's proxy picks a new port every run, so https://localhost:<random>/signin-google could
+    // never match one. Any sign-in through the local stack — the desktop app's device flow, the
+    // MAUI app's, or just opening the web app — fails with redirect_uri_mismatch until this is
+    // fixed. 7175 is the port the Web project uses when run on its own, so it is the one already
+    // registered. Unproxied, because the proxy is what was reassigning it.
+    .WithEndpoint("https", endpoint =>
+    {
+        endpoint.Port = 7175;
+        endpoint.TargetPort = 7175;
+        endpoint.IsProxied = false;
+    });
 
 // The Mac Catalyst app, pointed at the local server through the DEBUG-only GP_API_BASE_URL
 // override (Configuration/Settings.cs) — so it runs the real device flow (browser sign-in,
