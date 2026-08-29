@@ -7,6 +7,16 @@ $schema: https://raw.githubusercontent.com/electron-userland/electron-builder/re
 
 compression: maximum
 
+# Resolved from the publish root, where electron-builder runs; bin/ is the published .NET app, and
+# the Electron.NET targets keep the working directory there precisely so paths under it work. One
+# 1024px source for all three platforms — electron-builder makes the icns and the ico from it.
+icon: bin/icon.png
+
+# Spelled out rather than left to ${name}, which is the npm package name and is now the reverse-DNS
+# bundle identifier: "com.gospelpresenter.app-arm64-0.1.0.dmg" is not a file to hand anyone. The
+# updater reads the manifests rather than the file names, so this is free to be legible.
+artifactName: gospel-presenter-${arch}-${version}.${ext}
+
 # Where the app looks for updates. electron-builder writes this into the bundle as app-update.yml,
 # so it is the feed whether or not CI ever uploads with --publish. GitHub Releases per adr/0002 (8):
 # the repository is public, so this is Fastly's bandwidth rather than ours, and it keeps the
@@ -19,6 +29,16 @@ publish:
   - provider: github
     owner: larsabrasha
     repo: GospelPresenter
+
+# Signing in opens the system browser and waits for the answer to come back on gospelpresenter://,
+# which only works if the OS knows this app answers for that scheme. ElectronDeviceSignIn asks at
+# runtime with setAsDefaultProtocolClient, and that is enough while developing — but on macOS the
+# claim is read from the bundle's CFBundleURLTypes, which only exists if it is declared here. Left
+# out, the packaged app would sign in as far as the browser and never hear back.
+protocols:
+  - name: Gospel Presenter
+    schemes:
+      - gospelpresenter
 
 # zip is not an alternative to dmg here, it is the format Squirrel.Mac updates from — without it
 # electron-builder writes no latest-mac.yml and the updater errors on every check. dmg is what a
@@ -33,7 +53,6 @@ mac:
     - dmg
     - zip
   category: public.app-category.productivity
-  artifactName: ${name}-${arch}-${version}.${ext}
 
 # nsis, not the portable target the template shipped: portable is a single self-extracting exe with
 # nothing to update in place. electron-updater supports the default NSIS target and supports neither
@@ -42,7 +61,6 @@ win:
   target:
     - target: nsis
       arch: x64
-  artifactName: ${name}-${arch}-${version}.${ext}
 
 # Per-user, not per-machine, for the same reason /Applications was rejected in adr/0002 (5): every
 # update would otherwise raise a UAC prompt on a machine where nobody knows the admin password.
@@ -58,4 +76,3 @@ linux:
   executableArgs:
     - --no-sandbox
   category: Office
-  artifactName: ${name}-${arch}-${version}.${ext}

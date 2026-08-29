@@ -15,7 +15,31 @@
         <!-- YAML rather than the template's JSON so the packaging decisions can be commented where
              they are made — electron-builder validates strictly and rejects a "//" key. -->
         <ElectronBuilderJson>electron-builder.yml</ElectronBuilderJson>
+
+        <!-- Who the packaged app says it is. Left at the ElectronNET defaults, all of this was
+             derived from the project file name: the bundle identifier was "gospelpresenter-desktop"
+             and the app called itself "GospelPresenter.Desktop" in the Dock, the menu bar and the
+             installer.
+
+             The identifier is the one that matters beyond appearances. Apple requires a reverse-DNS
+             bundle identifier, and it is what a Developer ID certificate is issued against, what
+             notarization records, and what macOS keys the gospelpresenter:// registration on — so
+             the value below has to be settled before the certificate is bought, not after.
+             com.gospelpresenter.app per adr/0002 (13); the Catalyst app that held it is retired. -->
+        <ElectronPackageId>com.gospelpresenter.app</ElectronPackageId>
+        <Title>Gospel Presenter</Title>
+        <Company>Gospel Presenter</Company>
+        <Description>Presentation software for churches: songs, Bible passages and slides.</Description>
+        <ProjectUrl>https://www.gospelpresenter.com</ProjectUrl>
     </PropertyGroup>
+
+    <ItemGroup>
+        <!-- The app icon, as a 1024px source electron-builder converts per platform. Copied to the
+             output rather than referenced in place, because electron-builder runs from the publish
+             root and resolves the path in electron-builder.yml relative to it. Without this the
+             build says "default Electron icon is used" and ships one. -->
+        <Content Include="icon.png" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
 
     <ItemGroup>
         <!-- ElectronNET.Core, not ElectronNET.API: the latter is the pre-2024 package line and its
