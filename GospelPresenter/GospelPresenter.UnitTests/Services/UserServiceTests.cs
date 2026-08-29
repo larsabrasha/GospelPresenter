@@ -65,6 +65,24 @@ public class UserServiceTests : IDisposable
     private CallerContext CallerFor(User u) => new(u.Id, u.Role, u.OrganizationId);
 
     [Fact]
+    public async Task CreateSuperUserAsync_PutsTheFirstAccountInAnOrganization()
+    {
+        // Act
+        var superUser = await service.CreateSuperUserAsync(SuperAdminName, OtherOrgName);
+
+        // Assert -- a device token is always issued for an organisation, so a first account without
+        // one could sign in to the web app and nowhere else
+        superUser.OrganizationId.ShouldNotBeNull();
+
+        using var context = factory.CreateDbContext();
+        var organization = await context.Organizations.FirstAsync(o => o.Id == superUser.OrganizationId);
+        organization.Name.ShouldBe(OtherOrgName);
+
+        var labels = await context.SongPartLabels.CountAsync(l => l.OrganizationId == organization.Id);
+        labels.ShouldBeGreaterThan(0, "a new organization should get the default song part labels");
+    }
+
+    [Fact]
     public async Task UpdateUserAsync_SelfEditWithoutManageUsers_Succeeds()
     {
         // Arrange

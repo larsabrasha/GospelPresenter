@@ -40,7 +40,7 @@ public interface IUserService
     Task<List<User>> GetAllUsersAsync(CallerContext caller);
     Task<User?> GetByIdAsync(string id, CallerContext caller);
     Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role, CallerContext caller);
-    Task<User> CreateSuperUserAsync(string name);
+    Task<User> CreateSuperUserAsync(string name, string organizationName);
     Task UpdateUserAsync(string id, string name, string email, UserRole role, CallerContext caller);
     Task UpdateEmailIfEmptyAsync(string id, string email);
     Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall);
@@ -217,17 +217,30 @@ public class UserService(
         return user;
     }
 
-    public async Task<User> CreateSuperUserAsync(string name)
+    /// <summary>
+    /// The very first account, created by /setup on an empty database. The super admin reaches
+    /// every organisation through <see cref="Permission.CrossOrganizationAccess"/>, but is still
+    /// made a member of one here: a device token is always issued for an organisation, so an
+    /// organisation-less first account could sign in to the web app and nowhere else.
+    /// </summary>
+    public async Task<User> CreateSuperUserAsync(string name, string organizationName)
     {
         ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(organizationName, AppConstraints.NameMaxLength, "Organization name");
         await using var context = await dbContextFactory.CreateDbContextAsync();
+
+        var organization = new Organization { Name = organizationName };
         var user = new User
         {
             Name = name,
-            Role = UserRole.SuperAdmin
+            Role = UserRole.SuperAdmin,
+            OrganizationId = organization.Id
         };
+        context.Organizations.Add(organization);
         context.Users.Add(user);
         await context.SaveChangesAsync();
+
+        await songPartLabelService.CreateDefaultLabelsAsync(organization.Id);
         return user;
     }
 

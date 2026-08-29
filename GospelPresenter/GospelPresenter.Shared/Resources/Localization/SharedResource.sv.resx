@@ -701,6 +701,21 @@
   <data name="Setup.NameRequired" xml:space="preserve">
     <value>Namn måste fyllas i.</value>
   </data>
+  <data name="Setup.OrganizationName" xml:space="preserve">
+    <value>Församlingens eller organisationens namn</value>
+  </data>
+  <data name="Setup.OrganizationRequired" xml:space="preserve">
+    <value>Organisationens namn måste fyllas i.</value>
+  </data>
+  <data name="AppLogin.Title" xml:space="preserve">
+    <value>Du är inloggad</value>
+  </data>
+  <data name="AppLogin.CloseTab" xml:space="preserve">
+    <value>Gospel Presenter öppnas. Du kan stänga den här fliken.</value>
+  </data>
+  <data name="AppLogin.OpenApp" xml:space="preserve">
+    <value>Öppna Gospel Presenter</value>
+  </data>
   <data name="Setup.GetStarted" xml:space="preserve">
     <value>Kom igång</value>
   </data>

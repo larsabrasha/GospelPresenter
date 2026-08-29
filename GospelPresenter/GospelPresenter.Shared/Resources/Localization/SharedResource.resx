@@ -701,6 +701,21 @@
   <data name="Setup.NameRequired" xml:space="preserve">
     <value>Name is required.</value>
   </data>
+  <data name="Setup.OrganizationName" xml:space="preserve">
+    <value>Church or organization name</value>
+  </data>
+  <data name="Setup.OrganizationRequired" xml:space="preserve">
+    <value>Organization name is required.</value>
+  </data>
+  <data name="AppLogin.Title" xml:space="preserve">
+    <value>You are signed in</value>
+  </data>
+  <data name="AppLogin.CloseTab" xml:space="preserve">
+    <value>Gospel Presenter is opening. You can close this tab.</value>
+  </data>
+  <data name="AppLogin.OpenApp" xml:space="preserve">
+    <value>Open Gospel Presenter</value>
+  </data>
   <data name="Setup.GetStarted" xml:space="preserve">
     <value>Get started</value>
   </data>
