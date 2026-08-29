@@ -1,0 +1,129 @@
+name: Desktop release
+
+# Builds the Electron desktop app for macOS, Windows and Linux into a **draft** GitHub Release.
+#
+# A pushed tag is the only trigger, per adr/0002 (10): it is the one gesture that is hard to perform
+# by accident. There is deliberately no workflow_dispatch — a button in the Actions UI is not.
+#
+# The release stays a draft because (26) says there is no rollback: a client that has updated stays
+# updated, and the only way back is a higher version number containing the old behaviour. A draft
+# keeps the feed dark until somebody has looked at what is in it; publishing is one click.
+#
+# The upload is done by electron-builder rather than by a step here. That is not a preference — with
+# a publish provider configured (Properties/electron-builder.yml) and CI detected, electron-builder
+# looks for a draft release and uploads into it as part of packaging, and it is the half that writes
+# latest-mac.yml / latest.yml / latest-linux.yml. Those manifests are what electron-updater actually
+# reads to decide a newer version exists, so a workflow that collected the installers by hand and
+# skipped that step would produce a release that looks complete and updates nobody. Hence the
+# draft-first job below: electron-builder needs the draft to exist before it can upload into it.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Same reasoning as maui-build.yml: every dotnet command runs from GospelPresenter/, because that is
+# where global.json lives and SDK selection walks up from the working directory.
+defaults:
+  run:
+    working-directory: GospelPresenter
+
+env:
+  TailwindInstallPath: ${{ github.workspace }}/.tailwind-cli/
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Create the draft release if it does not exist
+        # No checkout: gh needs the repository, not a working copy. Idempotent, so re-running the
+        # workflow for the same tag does not fail on an existing draft.
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; leaving it as it is."
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes
+          fi
+
+  build:
+    needs: draft
+    strategy:
+      # One platform failing should not throw away the two that packaged: what arrived is in the
+      # draft, and what is missing from it is visible before anyone publishes.
+      fail-fast: false
+      matrix:
+        include:
+          # macOS is Apple Silicon only. Not an oversight: electron-builder writes one
+          # latest-mac.yml per invocation and Electron.NET drives one invocation per RID, so an
+          # osx-x64 build would emit a second latest-mac.yml listing only its own file and overwrite
+          # the first — an Intel Mac would then be offered the arm64 build. Supporting both needs a
+          # single multi-arch electron-builder run, which these MSBuild targets cannot express.
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Cache the Tailwind CLI
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.tailwind-cli
+          key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Derive the version from the tag
+        # One value, not the three adr/0002 (11) derived — those existed for Mac Catalyst's
+        # CFBundleShortVersionString and CFBundleVersion rules. Electron needs only the semver, which
+        # flows through $(Version) into the generated package.json and is what electron-updater
+        # compares against the feed. bash on all three runners, so there is one implementation.
+        shell: bash
+        run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Publish, package and upload
+        # Self-contained: the machine this installs on has no .NET, and asking a volunteer to install
+        # one is the opposite of the goal. The Electron.NET targets run electron-builder after
+        # publish; GH_TOKEN is what lets its GitHub publisher upload into the draft.
+        #
+        # macOS is signed only if a certificate is present, and there is none: CSC_IDENTITY_AUTO_
+        # DISCOVERY is off so the runner's keychain cannot surprise us with one, and notarization is
+        # skipped for want of credentials. The cost is the first launch — System Settings → Privacy
+        # & Security → Open Anyway, once per machine (adr/0002 (7) amended) — and, unlike the
+        # Catalyst app, updates: Squirrel.Mac requires the replacement bundle to carry the same
+        # signature as the running one. Windows and Linux update regardless. Add the Developer ID
+        # certificate here when (28) is unblocked.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: >
+          dotnet publish GospelPresenter.Desktop/GospelPresenter.Desktop.csproj
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained true
+          -p:Version=${{ env.APP_VERSION }}
+
+      - name: Show what was produced
+        # The installers land beside the published app. Listing them makes a run where
+        # electron-builder packaged but did not upload distinguishable from one where it did.
+        shell: bash
+        run: ls -la "GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish" | grep -viE '^d' || true

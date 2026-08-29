@@ -12,6 +12,9 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>GospelPresenter.Desktop</RootNamespace>
+        <!-- YAML rather than the template's JSON so the packaging decisions can be commented where
+             they are made — electron-builder validates strictly and rejects a "//" key. -->
+        <ElectronBuilderJson>electron-builder.yml</ElectronBuilderJson>
     </PropertyGroup>
 
     <ItemGroup>

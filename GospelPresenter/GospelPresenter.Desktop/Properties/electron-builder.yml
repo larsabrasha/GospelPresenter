@@ -1,0 +1,61 @@
+# Packaging and the update feed. YAML rather than the JSON the ElectronNET template ships, for the
+# sake of these comments: electron-builder validates its configuration against a strict schema and
+# rejects unknown keys, so a JSON file cannot carry a "//" note explaining itself. The file name is
+# set by ElectronBuilderJson in the csproj.
+
+$schema: https://raw.githubusercontent.com/electron-userland/electron-builder/refs/heads/master/packages/app-builder-lib/scheme.json
+
+compression: maximum
+
+# Where the app looks for updates. electron-builder writes this into the bundle as app-update.yml,
+# so it is the feed whether or not CI ever uploads with --publish. GitHub Releases per adr/0002 (8):
+# the repository is public, so this is Fastly's bandwidth rather than ours, and it keeps the
+# Cloudflare Tunnel off the path a church computer needs in order to update itself.
+#
+# Compiled in rather than served by the server, per (30): a server that names the feed can make the
+# client download and run anything, and that is only acceptable once a signature proves the package
+# came from us.
+publish:
+  - provider: github
+    owner: larsabrasha
+    repo: GospelPresenter
+
+# zip is not an alternative to dmg here, it is the format Squirrel.Mac updates from — without it
+# electron-builder writes no latest-mac.yml and the updater errors on every check. dmg is what a
+# person downloads.
+#
+# NOTE: macOS updates need a Developer ID signature. Squirrel.Mac verifies that the replacement
+# bundle carries the same signature as the running one, and this app is still ad-hoc signed, so the
+# check and the download work and the install does not — until the certificate that (28) deferred
+# exists. Windows and Linux have no such requirement.
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.productivity
+  artifactName: ${name}-${arch}-${version}.${ext}
+
+# nsis, not the portable target the template shipped: portable is a single self-extracting exe with
+# nothing to update in place. electron-updater supports the default NSIS target and supports neither
+# portable nor Squirrel.Windows.
+win:
+  target:
+    - target: nsis
+      arch: x64
+  artifactName: ${name}-${arch}-${version}.${ext}
+
+# Per-user, not per-machine, for the same reason /Applications was rejected in adr/0002 (5): every
+# update would otherwise raise a UAC prompt on a machine where nobody knows the admin password.
+nsis:
+  oneClick: true
+  perMachine: false
+
+# AppImage rather than the template's tar.xz, for the same reason as nsis: a tarball is not
+# something electron-updater can update.
+linux:
+  target:
+    - AppImage
+  executableArgs:
+    - --no-sandbox
+  category: Office
+  artifactName: ${name}-${arch}-${version}.${ext}
