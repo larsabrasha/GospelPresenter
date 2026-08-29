@@ -73,14 +73,16 @@
   "faq_q18": "Are there any experimental or AI-related features?",
   "faq_a18": "Yes. Gospel Presenter has a built-in MCP server (Model Context Protocol) that lets AI assistants like Claude work directly with your presentations — for example listing, creating, or editing them, fetching song lyrics, or searching the Bible. That means you can use AI to quickly put together a presentation based on the day's sermon or song repertoire. The feature is experimental and under development.",
   "downloadTitle": "Get the desktop app",
-  "downloadIntro": "Gospel Presenter also runs as an app on your own computer, with your songs, presentations and media stored locally so a service works without an internet connection. It keeps itself up to date. The app connects to our instance at app.gospelpresenter.com and cannot yet be pointed at a server of your own.",
+  "downloadIntro": "Gospel Presenter also runs as an app on your own computer — macOS, Windows and Linux — with your songs, presentations and media stored locally so a service works without an internet connection. On Windows and Linux it keeps itself up to date. The app connects to our instance at app.gospelpresenter.com and cannot yet be pointed at a server of your own.",
   "downloadForMac": "Download for macOS",
+  "downloadForWindows": "Download for Windows",
+  "downloadForLinux": "Download for Linux",
   "downloadVersion": "Version",
   "downloadAllReleases": "All releases and release notes",
   "downloadUnknownVersion": "Open the releases page to download the latest version",
   "downloadUseWeb": "Open the web app",
-  "downloadWindowsSoon": "The Windows app is not ready yet. Until then, use Gospel Presenter in your browser.",
-  "downloadOtherPlatform": "The desktop app is macOS only for now. Gospel Presenter works in your browser on every platform.",
+  "downloadNoBuildForPlatform": "This release has no build for your platform. Use Gospel Presenter in your browser in the meantime.",
+  "downloadOtherPlatform": "The desktop app is for computers. On a phone or tablet, use Gospel Presenter in your browser.",
   "downloadUnsignedTitle": "First launch needs one extra step",
-  "downloadUnsignedBody": "The app is not yet signed with an Apple developer certificate, so macOS blocks it the first time. Open the downloaded file, and if macOS refuses, go to System Settings, then Privacy & Security, scroll down and choose Open Anyway. You only do this once — updates install by themselves afterwards."
+  "downloadUnsignedBody": "The app is not yet signed with an Apple developer certificate, so macOS blocks it the first time. Open the downloaded file, and if macOS refuses, go to System Settings, then Privacy & Security, scroll down and choose Open Anyway. You only do this once. Until the app is signed it cannot update itself on macOS either, so come back here for new versions."
 }

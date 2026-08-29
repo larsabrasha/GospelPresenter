@@ -8,19 +8,39 @@
 
 const REPO = "larsabrasha/GospelPresenter";
 const RELEASES_PAGE = `https://github.com/${REPO}/releases/latest`;
+const WEB_APP = "https://app.gospelpresenter.com";
 
 /**
- * Which build this visitor wants. Only macOS has a download today -- Windows follows in 1.1, and
- * iOS and Android go through their stores -- so everyone else is pointed at the web app instead of
- * being offered a file that would not run.
+ * What each platform downloads, and how its asset is recognised in a release.
+ *
+ * The suffix is the human's installer, not everything the release holds: a macOS release also
+ * carries a .zip, which exists for Squirrel.Mac to update from and is not something to hand a
+ * visitor, and every installer is accompanied by a .blockmap for differential updates.
+ */
+const PLATFORMS = {
+  mac: { suffix: ".dmg", label: "tForMac" },
+  windows: { suffix: ".exe", label: "tForWindows" },
+  linux: { suffix: ".AppImage", label: "tForLinux" },
+};
+
+/**
+ * Which build this visitor wants, or null for a device with no desktop app at all — a phone or a
+ * tablet, which is pointed at the web app rather than offered a file that would not run.
  */
 function detectPlatform() {
   const ua = navigator.userAgent;
-  // iPadOS reports itself as a Mac, and a touch-capable "Mac" is one. It must not be offered a .pkg.
+
+  // iPadOS reports itself as a Mac, and a touch-capable "Mac" is one. It must not be offered a .dmg.
   const isIpad = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
   if (/Mac/.test(ua) && !isIpad) return "mac";
+
   if (/Win/.test(ua)) return "windows";
-  return "other";
+
+  // Android reports itself as Linux, so the order matters: everything Android must be excluded
+  // before a Linux match, or a phone is offered an AppImage.
+  if (/Linux/.test(ua) && !/Android/.test(ua)) return "linux";
+
+  return null;
 }
 
 function formatSize(bytes) {
@@ -43,32 +63,49 @@ export async function initDownload() {
   // has already filled in for this language -- rather than a second translation mechanism here.
   const t = section.dataset;
 
-  const platform = detectPlatform();
+  const link = document.getElementById("download-primary");
+  const label = document.getElementById("download-primary-label");
   const other = document.getElementById("download-other");
+  const platform = detectPlatform();
 
-  // Nothing to install on these yet; say so rather than hiding the section, since a visitor who
-  // heard there is an app should learn where it is up to.
-  if (platform !== "mac") {
+  // The first-launch warning is macOS-only: it is Gatekeeper that blocks an unsigned app, and
+  // telling a Windows visitor about System Settings would be noise.
+  if (platform !== "mac") document.querySelector("#download details")?.remove();
+
+  // Nothing to install on a phone or tablet. Say so rather than hiding the section, since a visitor
+  // who heard there is an app should learn where it is up to.
+  if (platform === null) {
+    link.href = WEB_APP;
+    label.textContent = t.tUseWeb;
+    other.textContent = t.tOtherPlatform;
     section.classList.remove("hidden");
-    document.getElementById("download-primary").href = "https://app.gospelpresenter.com";
-    document.getElementById("download-primary-label").textContent = t.tUseWeb;
-    other.textContent = platform === "windows" ? t.tWindowsSoon : t.tOtherPlatform;
-    document.querySelector("#download details")?.remove();
     return;
   }
 
+  const { suffix, label: labelKey } = PLATFORMS[platform];
+  label.textContent = t[labelKey];
+
   try {
     const release = await loadLatestRelease();
-    const pkg = release.assets.find((a) => a.name.endsWith("-Setup.pkg"));
-    if (!pkg) throw new Error("The latest release has no .pkg asset");
+    const asset = release.assets.find((a) => a.name.endsWith(suffix));
 
-    const link = document.getElementById("download-primary");
-    link.href = pkg.browser_download_url;
+    // A release that built for some platforms and not others is a normal outcome — the workflow
+    // does not stop the other two when one runner fails. Offer the web app rather than a 404.
+    if (!asset) {
+      link.href = WEB_APP;
+      label.textContent = t.tUseWeb;
+      other.textContent = t.tNoBuildForPlatform;
+      document.querySelector("#download details")?.remove();
+      section.classList.remove("hidden");
+      return;
+    }
+
+    link.href = asset.browser_download_url;
 
     const version = (release.tag_name || "").replace(/^v/, "");
     const date = new Date(release.published_at).toLocaleDateString(document.documentElement.lang);
     document.getElementById("download-meta").textContent =
-      `${t.tVersion} ${version} · ${formatSize(pkg.size)} · ${date}`;
+      `${t.tVersion} ${version} · ${formatSize(asset.size)} · ${date}`;
 
     other.innerHTML =
       `<a class="underline hover:text-sky-500" href="${RELEASES_PAGE}">${t.tAllReleases}</a>`;
@@ -78,7 +115,7 @@ export async function initDownload() {
     // Rate limited, offline, or no release published yet. Falling back to the releases page keeps
     // the section useful; inventing a filename would produce a 404 the visitor cannot diagnose.
     console.warn("Could not read the latest release from GitHub:", error);
-    document.getElementById("download-primary").href = RELEASES_PAGE;
+    link.href = RELEASES_PAGE;
     document.getElementById("download-meta").textContent = t.tUnknownVersion;
     section.classList.remove("hidden");
   }
