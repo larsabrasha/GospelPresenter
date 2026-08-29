@@ -100,19 +100,55 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
     }
 
     /// <summary>
-    /// The display to present on: the first one that is not the primary. Electron marks the
-    /// built-in panel <see cref="Display.Internal"/>, but that is no help on a desktop machine
-    /// where every display is external — which is primary is the question that actually separates
-    /// "the one the operator is looking at" from "the one the audience is looking at".
+    /// The display to present on: the first one the operator window is not already on.
+    ///
+    /// The question that separates "the screen the operator is looking at" from "the screen the
+    /// audience is looking at" is where the operator window actually sits, not which display the
+    /// system marks primary. The two coincide often enough to have hidden the difference, but not
+    /// always: move the operator window to the secondary display and the primary-flag rule sends
+    /// the live window to that same screen, straight on top of the person running the service.
+    /// Electron marks the built-in panel <see cref="Display.Internal"/>, which is no help either —
+    /// on a desktop machine every display is external.
+    ///
+    /// If the operator window cannot be located the primary flag is still the best guess available,
+    /// so it stays as the fallback rather than giving up on a projector altogether.
     /// </summary>
-    private static async Task<Display?> ChooseDisplayAsync()
+    private async Task<Display?> ChooseDisplayAsync()
     {
         var displays = await Electron.Screen.GetAllDisplaysAsync();
         if (displays.Length < 2)
             return null;
 
-        var primary = await Electron.Screen.GetPrimaryDisplayAsync();
-        return Array.Find(displays, d => d.Id != primary.Id);
+        var occupied = await OperatorDisplayAsync() ?? await Electron.Screen.GetPrimaryDisplayAsync();
+        return Array.Find(displays, d => d.Id != occupied.Id);
+    }
+
+    /// <summary>
+    /// The display the operator window covers most of. That window is whichever one Electron holds
+    /// that this launcher did not open — the live windows are ours and tracked, so excluding them
+    /// leaves the window Program.cs created at startup.
+    /// </summary>
+    private async Task<Display?> OperatorDisplayAsync()
+    {
+        try
+        {
+            var ours = windows.Values.Select(w => w.Id).ToHashSet();
+            var operatorWindow = Electron.WindowManager.BrowserWindows
+                .FirstOrDefault(w => !ours.Contains(w.Id));
+
+            if (operatorWindow is null)
+                return null;
+
+            return await Electron.Screen.GetDisplayMatchingAsync(await operatorWindow.GetBoundsAsync());
+        }
+        catch (Exception e)
+        {
+            // Never fatal: the caller falls back to the primary display, which is where this
+            // started. Debug rather than warning — a projector still opens, on the same screen it
+            // always did.
+            logger.LogDebug(e, "Could not tell which display the operator window is on");
+            return null;
+        }
     }
 
     /// <summary>
