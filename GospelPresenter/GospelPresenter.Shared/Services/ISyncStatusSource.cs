@@ -15,8 +15,9 @@ public enum SyncStatus
 }
 
 /// <summary>
-/// What the sync engine exposes to the UI. Only the MAUI host registers an implementation; the
-/// web app has no sync, so shared components resolve this optionally and render nothing without it.
+/// What the sync engine exposes to the UI. Only the hosts that sync — the desktop app and MAUI —
+/// register an implementation; the web app talks to the database directly and has no sync at all,
+/// so shared components resolve this optionally and do nothing without it.
 /// </summary>
 public interface ISyncStatusSource
 {
@@ -28,6 +29,17 @@ public interface ISyncStatusSource
 
     /// <summary>Raised whenever Status, LastSyncAt or PendingChanges changed.</summary>
     event Action? Changed;
+
+    /// <summary>
+    /// Raised when a pull actually wrote rows to the local database, after the shared caches have
+    /// been reloaded — the moment an open view is showing something that is no longer true.
+    ///
+    /// Deliberately separate from <see cref="Changed"/>, which fires on every status transition and
+    /// therefore several times a minute while nothing whatsoever has changed. A view that reloaded
+    /// on that would re-query the database on a timer. This one is quiet: no incoming rows, no
+    /// event.
+    /// </summary>
+    event Action? RemoteChangesApplied;
 
     /// <summary>A push unit the server resolved against the client — surfaced as a toast.</summary>
     event Action<SyncPushResult>? ConflictReported;

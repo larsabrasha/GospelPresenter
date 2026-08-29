@@ -9,9 +9,11 @@ namespace GospelPresenter.Client.Sync;
 
 /// <summary>
 /// Decides WHEN to sync; the engine decides what. Triggers: app start, connectivity returning,
-/// a manual "sync now", and local edits — detected by polling the journal's max rowid, which
-/// catches every write path including ExecuteUpdate/ExecuteDelete. An edit only syncs once the
-/// journal has been quiet for one poll interval, so a burst of editing coalesces into one push.
+/// a manual "sync now", local edits, and simply time passing — see <see cref="IdlePullInterval"/>.
+///
+/// Local edits are detected by polling the journal's max rowid, which catches every write path
+/// including ExecuteUpdate/ExecuteDelete. An edit only syncs once the journal has been quiet for one
+/// poll interval, so a burst of editing coalesces into one push.
 ///
 /// Also the UI's <see cref="ISyncStatusSource"/>. Failures never throw out of the loop: they set
 /// the status (Offline, AuthRequired, Error) and the next trigger tries again.
@@ -27,15 +29,38 @@ public class SyncScheduler(
     /// <summary>Overridable for tests.</summary>
     public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// How long the app may go without asking the server whether anything changed. The journal poll
+    /// above only ever notices OUR edits, so without this a device with nothing to push never syncs
+    /// again after the one at startup: someone adds a song on the web, and the app sits there
+    /// showing yesterday's library until it is restarted.
+    ///
+    /// Longer than the journal poll on purpose. A push has a local edit waiting behind it and should
+    /// leave promptly; an idle pull is a question whose answer is almost always "nothing", so it is
+    /// asked at a rate that keeps a second person's edits arriving while someone is preparing a
+    /// service, without making a church laptop chat with the server six times a minute all evening.
+    ///
+    /// Overridable for tests.
+    /// </summary>
+    public TimeSpan IdlePullInterval { get; init; } = TimeSpan.FromSeconds(30);
+
     private readonly SemaphoreSlim syncGate = new(1, 1);
     private CancellationTokenSource? loopCts;
     private long lastSeenJournalId = -1;
+
+    /// <summary>
+    /// When a sync last ran, successful or not — unlike <see cref="LastSyncAt"/>, which only records
+    /// the ones that worked. The idle pull is paced off this so that a server which is down, or a
+    /// token which has been rejected, is retried on the same interval rather than on every tick.
+    /// </summary>
+    private DateTimeOffset lastSyncAttemptAt = DateTimeOffset.MinValue;
 
     public SyncStatus Status { get; private set; } = SyncStatus.Offline;
     public DateTimeOffset? LastSyncAt { get; private set; }
     public int PendingChanges { get; private set; }
 
     public event Action? Changed;
+    public event Action? RemoteChangesApplied;
     public event Action<SyncPushResult>? ConflictReported;
 
     public void Start()
@@ -85,7 +110,14 @@ public class SyncScheduler(
             }
 
             if (pending > 0)
+            {
                 await SyncAsync(ct);
+            }
+            else if (DateTimeOffset.UtcNow - lastSyncAttemptAt >= IdlePullInterval)
+            {
+                // Nothing of ours to send, so this is purely "has anything happened at your end?".
+                await SyncAsync(ct);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -121,10 +153,18 @@ public class SyncScheduler(
         if (!await syncGate.WaitAsync(0, ct))
             return;
 
+        lastSyncAttemptAt = DateTimeOffset.UtcNow;
         SetStatus(SyncStatus.Syncing);
         try
         {
             var summary = await engine.SyncAsync(ct);
+
+            // Before the media sync, not after: the lists a person is looking at are metadata, and
+            // waiting for blobs would leave them stale for as long as the downloads take. Missing
+            // images resolve themselves — LocalObjectStorageService fetches on demand.
+            if (summary.PulledRows > 0)
+                RemoteChangesApplied?.Invoke();
+
             if (mediaSynchronizer is not null)
                 await mediaSynchronizer.SyncAsync(ct);
             LastSyncAt = DateTimeOffset.UtcNow;

@@ -60,7 +60,7 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<string>("RowId")
                         .HasColumnType("TEXT");
 
-                    b.Property<long>("BaseModifiedAt")
+                    b.Property<long>("BaseVersion")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("EntityTable", "RowId");
@@ -215,6 +215,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -232,6 +233,9 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<string>("VersesJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -258,6 +262,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -272,6 +277,9 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<string>("Publisher")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("Year")
                         .HasColumnType("INTEGER");
@@ -289,6 +297,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -303,6 +312,9 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<string>("SongId")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -325,6 +337,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("SongId")
@@ -332,6 +345,9 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Version")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -354,6 +370,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("OrganizationId")
@@ -367,6 +384,9 @@ namespace GospelPresenter.Client.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -389,6 +409,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -404,6 +425,9 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<string>("SongId")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -567,11 +591,15 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -598,11 +626,15 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("OrganizationId")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -622,6 +654,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("OrganizationId")
@@ -632,6 +665,9 @@ namespace GospelPresenter.Client.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -654,6 +690,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("OrganizationId")
@@ -667,6 +704,9 @@ namespace GospelPresenter.Client.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -708,6 +748,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -738,6 +779,9 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<int>("UseCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ThemeId");
@@ -756,6 +800,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("PresentationId")
@@ -776,6 +821,9 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PresentationId");
@@ -794,6 +842,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("PresentationItemId")
@@ -801,6 +850,9 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Version")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -824,6 +876,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("PageCount")
@@ -832,6 +885,9 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<string>("PresentationId")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -919,6 +975,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -930,6 +987,9 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Version")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -1018,6 +1078,7 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("ModifiedAt")
+                        .HasPrecision(3)
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("UserId")
@@ -1028,6 +1089,9 @@ namespace GospelPresenter.Client.Migrations
                         .IsRequired()
                         .HasMaxLength(1000)
                         .HasColumnType("TEXT");
+
+                    b.Property<long>("Version")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 

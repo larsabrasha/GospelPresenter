@@ -19,6 +19,8 @@
 @inject ActiveOrganizationState OrgState
 @inject ILogger<Images> Logger
 
+<RefreshOnSync Reload="LoadImagesAsync"/>
+
 <PageContainer>
     <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Images.Title"]</div>
@@ -175,14 +177,20 @@
     protected override void OnInitialized() =>
         mediaUploader = Services.GetService(typeof(IMediaUploader)) as IMediaUploader;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadImagesAsync();
+
+    /// <summary>
+    /// Re-filters rather than resetting: a sync arriving while someone is searching should change
+    /// which images match, not throw away what they typed.
+    /// </summary>
+    private async Task LoadImagesAsync()
     {
         organizationId = OrgState.ActiveOrganizationId;
 
         if (organizationId is not null)
         {
             images = await OrganizationImageService.GetImagesAsync(organizationId, OrgState.ToCallerContext());
-            displayedImages = images.ToList();
+            ApplySearchFilter();
         }
 
         isLoading = false;

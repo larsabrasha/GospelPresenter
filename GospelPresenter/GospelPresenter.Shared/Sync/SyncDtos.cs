@@ -61,11 +61,13 @@ public class SyncChanges
     public List<SyncBibleDto> Bibles { get; set; } = [];
 }
 
-public record SyncSongPartLabelDto(string Id, string Text, string Color, int SortOrder, DateTimeOffset ModifiedAt) : ISyncRow;
+public record SyncSongPartLabelDto(
+    string Id, string Text, string Color, int SortOrder, DateTimeOffset ModifiedAt,
+    long Version) : ISyncRootRow;
 
 public record SyncSongDto(
     string Id, string Name, string? Author, string? Publisher, int? Year, string? Ccli,
-    DateTime? DeletedAt, DateTimeOffset ModifiedAt) : ISyncRow;
+    DateTime? DeletedAt, DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
 
 public record SyncSongPartDto(string Id, string? LabelId, string Content, int SortOrder, string SongId, DateTimeOffset ModifiedAt) : ISyncRow;
 
@@ -80,7 +82,7 @@ public record SyncPresentationDto(
     DateTimeOffset UpdatedAt, string UpdatedBy, bool IsTemplate, string? Description,
     DateTimeOffset? LastUsedAt, int UseCount, int? ScheduledDayOfWeek, TimeOnly? ScheduledTime,
     DateOnly? EventDate, TimeOnly? EventTime, string? EventLocation, string? ThemeId,
-    DateTimeOffset ModifiedAt) : ISyncRow;
+    DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
 
 public record SyncPresentationItemDto(
     string Id, string? SourceId, PresentationItemType Type, string Title, string? ArrangementId,
@@ -103,17 +105,22 @@ public record SyncThemeDto(
     DateTimeOffset ModifiedAt) : ISyncRow;
 
 public record SyncOverlaySlideDto(
-    string Id, string Title, string? Content, bool HasImage, int SortOrder, DateTimeOffset ModifiedAt) : ISyncRow;
+    string Id, string Title, string? Content, bool HasImage, int SortOrder, DateTimeOffset ModifiedAt,
+    long Version) : ISyncRootRow;
 
 public record SyncOrganizationImageDto(
-    string Id, string FileName, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset ModifiedAt) : ISyncRow;
+    string Id, string FileName, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset ModifiedAt,
+    long Version) : ISyncRootRow;
 
 public record SyncOrganizationAudioDto(
-    string Id, string FileName, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset ModifiedAt) : ISyncRow;
+    string Id, string FileName, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset ModifiedAt,
+    long Version) : ISyncRootRow;
 
-public record SyncOrganizationSettingDto(string Id, string Key, string Value, DateTimeOffset ModifiedAt) : ISyncRow;
+public record SyncOrganizationSettingDto(
+    string Id, string Key, string Value, DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
 
-public record SyncUserSettingDto(string Id, string Key, string Value, DateTimeOffset ModifiedAt) : ISyncRow;
+public record SyncUserSettingDto(
+    string Id, string Key, string Value, DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
 
 /// <summary>Metadata only — the multi-megabyte VersesJson is downloaded separately, per pinned translation.</summary>
 public record SyncBibleDto(
@@ -128,14 +135,28 @@ public interface ISyncRow
     DateTimeOffset ModifiedAt { get; }
 }
 
+/// <summary>
+/// A row the client pushes as its own unit — an aggregate root, or a flat row that is its own root.
+/// Only these carry <see cref="Version"/> on the wire, because only these are compared: children
+/// ride on their root's verdict and are never checked individually.
+///
+/// The client stores this value as the row's conflict base and hands it back on the next push. It
+/// never interprets it, which is the whole point — an opaque token cannot be spoiled by a
+/// difference in how two databases represent time.
+/// </summary>
+public interface ISyncRootRow : ISyncRow
+{
+    long Version { get; }
+}
+
 // --- Push ---
 //
 // Pull is flat, push is aggregate-shaped for songs and presentations: the agreed conflict policies
 // operate on whole aggregates ("server wins, the losing presentation becomes a copy"), so the
-// server needs the client's complete picture of the aggregate, not a row diff. BaseModifiedAt is
-// the server ModifiedAt of the aggregate root as the client last pulled it — null means the client
-// created the row offline. The server compares it with the current root: equal applies, different
-// runs the conflict policy. Child rows are never compared individually.
+// server needs the client's complete picture of the aggregate, not a row diff. BaseVersion is the
+// aggregate root's server Version as the client last saw it — null means the client created the row
+// offline. The server compares it with the current root: equal applies, different runs the conflict
+// policy. Child rows are never compared individually.
 
 public class SyncPushRequest
 {
@@ -153,30 +174,40 @@ public class SyncPushRequest
     public List<SyncDeletePush> Deletes { get; set; } = [];
 }
 
-public record SyncRowPush<TRow>(TRow Row, DateTimeOffset? BaseModifiedAt) where TRow : ISyncRow;
+public record SyncRowPush<TRow>(TRow Row, long? BaseVersion) where TRow : ISyncRootRow;
 
 public record SyncSongPush(
     SyncSongDto Song,
     List<SyncSongPartDto> Parts,
     List<SyncSongArrangementDto> Arrangements,
-    DateTimeOffset? BaseModifiedAt);
+    long? BaseVersion);
 
 public record SyncPresentationPush(
     SyncPresentationDto Presentation,
     List<SyncPresentationItemDto> Items,
     List<SyncPresentationItemPartDto> Parts,
     List<SyncPresentationSlidesDto> SlideDecks,
-    DateTimeOffset? BaseModifiedAt);
+    long? BaseVersion);
 
-public record SyncDeletePush(string EntityType, string Id, DateTimeOffset? BaseModifiedAt);
+public record SyncDeletePush(string EntityType, string Id, long? BaseVersion);
 
 public record SyncPushResponse(List<SyncPushResult> Results);
 
 /// <summary>
-/// NewId: for CopiedAsNew the server-side copy, for Remapped the surviving server row.
-/// NewModifiedAt: on Applied (and Remapped) upserts, the row's server ModifiedAt after the save —
-/// the client stores it as the row's new conflict base, so edits made while the push was in flight
-/// push cleanly instead of reporting a false conflict.
+/// NewId: for Remapped the surviving server row.
+/// NewVersion: on Applied (and Remapped) upserts, the row's server Version after the save — the
+/// client stores it as the row's new conflict base, so edits made while the push was in flight push
+/// cleanly instead of reporting a false conflict.
+///
+/// ServerState: on ServerWins, the aggregate the server kept, in the same shape a pull delivers.
+/// The client applies it through the ordinary pull applier and is then back in step.
+///
+/// It has to travel in this response, because a pull cannot deliver it. The server did not modify
+/// the row it kept — that is what winning means — so its ModifiedAt is still below the client's
+/// watermark and no later pull will ever serve it again. Without this the client keeps its rejected
+/// version forever, with an empty journal and a stale base, and every subsequent edit of that row
+/// conflicts anew. That is not a hypothetical: it is where a test device ended up, showing a name
+/// the server had never heard of.
 /// </summary>
 public record SyncPushResult(
     string EntityType,
@@ -184,7 +215,8 @@ public record SyncPushResult(
     SyncPushOutcome Outcome,
     string? NewId = null,
     string? Warning = null,
-    DateTimeOffset? NewModifiedAt = null);
+    long? NewVersion = null,
+    SyncChanges? ServerState = null);
 
 [JsonConverter(typeof(JsonStringEnumConverter<SyncPushOutcome>))]
 public enum SyncPushOutcome
@@ -192,11 +224,28 @@ public enum SyncPushOutcome
     /// <summary>The client's version was applied as-is.</summary>
     Applied,
 
-    /// <summary>The server's version stands; for songs the pushed state went into version history.</summary>
+    /// <summary>
+    /// The server's version stands and the client must take it — ServerState carries it.
+    ///
+    /// For songs the pushed state is kept in version history, so nothing is lost. For presentations
+    /// it is discarded, which is a deliberate trade made in August 2026: the alternative was a
+    /// second presentation named "… (offline changes)" appearing beside the first, and a list of
+    /// near-identical service orders minutes before a service is worse than losing the smaller of
+    /// two edits. Presentation history would remove the trade entirely and is the right thing to
+    /// build next.
+    /// </summary>
     ServerWins,
 
-    /// <summary>The server's presentation stands and the pushed one was saved as a new copy (NewId).</summary>
-    CopiedAsNew,
+    /// <summary>
+    /// Both sides had changed and both sets of changes survived. ServerState carries the combined
+    /// result, which is neither side's version, so the client must take it.
+    ///
+    /// Only presentations merge, because only they are a list of independently addressable things.
+    /// A conflict there is almost never a real disagreement — it is one person renaming the service
+    /// while another adds a song to it — and treating that as a fight was the reason a device could
+    /// produce a duplicate presentation for a change nobody was arguing about.
+    /// </summary>
+    Merged,
 
     /// <summary>The pushed row collided with an existing equivalent (same label text, same setting key); references should point at NewId.</summary>
     Remapped,

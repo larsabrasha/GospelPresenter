@@ -8,6 +8,8 @@ public class PresentationSlides : ISyncTracked
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     public string PresentationId { get; set; } = "";
     public Presentation Presentation { get; set; } = null!;
 }

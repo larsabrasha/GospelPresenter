@@ -17,6 +17,9 @@ namespace GospelPresenter.UnitTests.Sync;
 public class SyncServicePushTests : IDisposable
 {
     private static readonly DateTimeOffset Past = DateTimeOffset.UtcNow.AddHours(-2);
+
+    /// <summary>A version no row will ever have: the trigger starts at 1 and only counts up.</summary>
+    private const long StaleVersion = -1;
     private const string Suffix = SyncServiceFactory.OfflineSuffix;
 
     private readonly SqliteConnection connection;
@@ -65,7 +68,7 @@ public class SyncServicePushTests : IDisposable
                     NewSongDto("song-1", "Ny sång"),
                     [new SyncSongPartDto("part-1", null, "Vers ett", 0, "song-1", default)],
                     [new SyncSongArrangementDto("arr-1", "Live", """["part-1"]""", "song-1", default)],
-                    BaseModifiedAt: null)
+                    BaseVersion: null)
             ]
         }, caller);
 
@@ -81,14 +84,14 @@ public class SyncServicePushTests : IDisposable
 
         // The client stores this as its new conflict base, so it must equal the value the database
         // holds — the same value the next base comparison reads.
-        result.NewModifiedAt.ShouldBe(stored.ModifiedAt);
+        result.NewVersion.ShouldBe(stored.Version);
     }
 
     [Fact]
     public async Task Push_ASongWithAMatchingBase_AppliesChildChangesIncludingRemovals()
     {
         // Arrange
-        var baseModifiedAt = await SeedSongAsync();
+        var baseVersion = await SeedSongAsync();
 
         // Act -- the pushed aggregate renames the song, drops part-1 and adds part-2
         var response = await service.PushAsync(org.Id, new SyncPushRequest
@@ -99,7 +102,7 @@ public class SyncServicePushTests : IDisposable
                     NewSongDto("song-1", "Nytt namn"),
                     [new SyncSongPartDto("part-2", null, "Ny vers", 0, "song-1", default)],
                     [],
-                    baseModifiedAt)
+                    baseVersion)
             ]
         }, caller);
 
@@ -110,7 +113,7 @@ public class SyncServicePushTests : IDisposable
         var stored = await context.Songs.Include(s => s.Parts).SingleAsync();
         stored.Name.ShouldBe("Nytt namn");
         stored.Parts.ShouldHaveSingleItem().Id.ShouldBe("part-2");
-        result.NewModifiedAt.ShouldBe(stored.ModifiedAt, "the client's next base must match the stored stamp");
+        result.NewVersion.ShouldBe(stored.Version, "the client's next base must match the stored stamp");
 
         // The removed part leaves a tombstone so other clients learn about it.
         var tombstone = await context.SyncTombstones.SingleAsync(t => t.EntityType == nameof(DbSongPart));
@@ -132,7 +135,7 @@ public class SyncServicePushTests : IDisposable
                     NewSongDto("song-1", "Offlineversionen"),
                     [new SyncSongPartDto("part-9", null, "Offline text", 0, "song-1", default)],
                     [],
-                    BaseModifiedAt: Past)
+                    BaseVersion: StaleVersion)
             ]
         }, caller);
 
@@ -164,7 +167,7 @@ public class SyncServicePushTests : IDisposable
             SongPartLabels =
             [
                 new SyncRowPush<SyncSongPartLabelDto>(
-                    new SyncSongPartLabelDto("client-label", "Vers", "#123456", 0, default), null)
+                    new SyncSongPartLabelDto("client-label", "Vers", "#123456", 0, default, 0), null)
             ],
             Songs =
             [
@@ -213,46 +216,70 @@ public class SyncServicePushTests : IDisposable
     }
 
     [Fact]
-    public async Task Push_APresentationWithAStaleBase_KeepsTheServerVersionAndSavesACopy()
+    public async Task Push_APresentationBothSidesChanged_CombinesTheItemsInsteadOfDuplicatingIt()
     {
-        // Arrange
-        await SeedPresentationAsync();
+        // The point of merging: the ordinary "conflict" is one person adding a song while another
+        // renames the service, and neither of them should have to lose anything or end up looking
+        // at two nearly identical presentations.
 
-        // Act
+        // Arrange -- the server's copy already has an item the client has never seen
+        await SeedPresentationAsync();
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            var presentation = await seed.Presentations.SingleAsync(p => p.Id == "pres-1");
+            presentation.Items.Add(new PresentationItem
+            {
+                Id = "server-item", Type = PresentationItemType.Song, Title = "Serverns sång", SortOrder = 1,
+            });
+            await seed.SaveChangesAsync();
+        }
+
+        // Act -- the client pushes its own item against a base that no longer matches
         var response = await service.PushAsync(org.Id, new SyncPushRequest
         {
             Presentations =
             [
                 new SyncPresentationPush(
                     NewPresentationDto("pres-1", "Offlineversionen"),
-                    [new SyncPresentationItemDto("item-1", null, PresentationItemType.Song, "Offline-sång", null, 0, "pres-1", default)],
-                    [new SyncPresentationItemPartDto("part-1", "Offline text", 0, "item-1", default)],
+                    [new SyncPresentationItemDto("client-item", null, PresentationItemType.Song, "Offline-sång", null, 0, "pres-1", default)],
+                    [new SyncPresentationItemPartDto("part-1", "Offline text", 0, "client-item", default)],
                     [],
-                    BaseModifiedAt: Past)
+                    BaseVersion: StaleVersion)
             ]
         }, caller);
 
-        // Assert
+        // Assert -- one presentation, both items
         var result = response.Results.ShouldHaveSingleItem();
-        result.Outcome.ShouldBe(SyncPushOutcome.CopiedAsNew);
-        result.NewId.ShouldNotBeNull();
+        result.Outcome.ShouldBe(SyncPushOutcome.Merged);
 
         await using var context = await factory.CreateDbContextAsync();
-        var original = await context.Presentations.SingleAsync(p => p.Id == "pres-1");
-        original.Name.ShouldBe("Originalet");
+        var stored = await context.Presentations
+            .Include(p => p.Items).ThenInclude(i => i.Parts)
+            .SingleAsync();
+        stored.Id.ShouldBe("pres-1");
+        stored.Items.Select(i => i.Id).OrderBy(id => id)
+            .ShouldBe(["client-item", "server-item"]);
+        stored.Items.Single(i => i.Id == "client-item").Parts
+            .ShouldHaveSingleItem().Content.ShouldBe("Offline text");
 
-        var copy = await context.Presentations.Include(p => p.Items).ThenInclude(i => i.Parts)
-            .SingleAsync(p => p.Id == result.NewId);
-        copy.Name.ShouldBe($"Offlineversionen {Suffix}");
-        var copiedItem = copy.Items.ShouldHaveSingleItem();
-        copiedItem.Id.ShouldNotBe("item-1");
-        copiedItem.Parts.ShouldHaveSingleItem().Content.ShouldBe("Offline text");
+        // The pushed presentation carries the default (earliest) ModifiedAt, so per-row last-writer
+        // -wins keeps the server's name. The items are unaffected: they are merged by identity, not
+        // by whose presentation is newer.
+        stored.Name.ShouldBe("Originalet");
+
+        // And the client is handed the combined result, since it matches neither side.
+        var state = result.ServerState.ShouldNotBeNull();
+        state.Presentations.ShouldHaveSingleItem().Version.ShouldBe(stored.Version);
+        state.PresentationItems.Count.ShouldBe(2);
     }
 
     [Fact]
-    public async Task Push_APresentationDeletedOnTheServer_SavesACopyInsteadOfResurrecting()
+    public async Task Push_APresentationDeletedOnTheServer_StaysDeleted()
     {
-        // Act -- BaseModifiedAt says the client believed the presentation existed
+        // Deletion is a decision someone made. Merging cannot apply — there is nothing to merge
+        // with — and resurrecting it under a new name is exactly the clutter this policy removed.
+
+        // Act -- BaseVersion says the client believed the presentation existed
         var response = await service.PushAsync(org.Id, new SyncPushRequest
         {
             Presentations =
@@ -260,15 +287,16 @@ public class SyncServicePushTests : IDisposable
                 new SyncPresentationPush(
                     NewPresentationDto("gone-pres", "Redigerad offline"),
                     [], [], [],
-                    BaseModifiedAt: Past)
+                    BaseVersion: StaleVersion)
             ]
         }, caller);
 
         // Assert
         var result = response.Results.ShouldHaveSingleItem();
-        result.Outcome.ShouldBe(SyncPushOutcome.CopiedAsNew);
+        result.Outcome.ShouldBe(SyncPushOutcome.ServerWins);
+        result.ServerState.ShouldBeNull("there is no server version to adopt");
         await using var context = await factory.CreateDbContextAsync();
-        (await context.Presentations.SingleAsync()).Id.ShouldBe(result.NewId);
+        (await context.Presentations.AnyAsync()).ShouldBeFalse();
     }
 
     [Fact]
@@ -280,7 +308,7 @@ public class SyncServicePushTests : IDisposable
         // Act
         var response = await service.PushAsync(org.Id, new SyncPushRequest
         {
-            Deletes = [new SyncDeletePush(nameof(Presentation), "pres-1", Past)]
+            Deletes = [new SyncDeletePush(nameof(Presentation), "pres-1", StaleVersion)]
         }, caller);
 
         // Assert -- a server-side edit beats an offline delete
@@ -293,12 +321,12 @@ public class SyncServicePushTests : IDisposable
     public async Task Push_ADeleteWithAMatchingBase_DeletesAndTombstones()
     {
         // Arrange
-        var baseModifiedAt = await SeedPresentationAsync();
+        var baseVersion = await SeedPresentationAsync();
 
         // Act
         var response = await service.PushAsync(org.Id, new SyncPushRequest
         {
-            Deletes = [new SyncDeletePush(nameof(Presentation), "pres-1", baseModifiedAt)]
+            Deletes = [new SyncDeletePush(nameof(Presentation), "pres-1", baseVersion)]
         }, caller);
 
         // Assert
@@ -313,7 +341,7 @@ public class SyncServicePushTests : IDisposable
     public async Task Push_AUserSettingWhoseKeyExistsUnderAnotherId_UpdatesThatRowAndRemaps()
     {
         // Arrange
-        DateTimeOffset baseModifiedAt;
+        long baseVersion;
         await using (var seed = await factory.CreateDbContextAsync())
         {
             seed.UserSettings.Add(new UserSetting { Id = "server-id", UserId = "user-1", Key = "Language", Value = "en" });
@@ -321,7 +349,7 @@ public class SyncServicePushTests : IDisposable
         }
         await using (var read = await factory.CreateDbContextAsync())
         {
-            baseModifiedAt = (await read.UserSettings.SingleAsync()).ModifiedAt;
+            baseVersion = (await read.UserSettings.SingleAsync()).Version;
         }
 
         // Act
@@ -330,7 +358,7 @@ public class SyncServicePushTests : IDisposable
             UserSettings =
             [
                 new SyncRowPush<SyncUserSettingDto>(
-                    new SyncUserSettingDto("client-id", "Language", "sv", default), baseModifiedAt)
+                    new SyncUserSettingDto("client-id", "Language", "sv", default, 0), baseVersion)
             ]
         }, caller);
 
@@ -351,7 +379,7 @@ public class SyncServicePushTests : IDisposable
             OrganizationSettings =
             [
                 new SyncRowPush<SyncOrganizationSettingDto>(
-                    new SyncOrganizationSettingDto("os-1", "DefaultThemeId", "classic", default), null)
+                    new SyncOrganizationSettingDto("os-1", "DefaultThemeId", "classic", default, 0), null)
             ]
         }, new CallerContext("user-1", UserRole.User, org.Id));
 
@@ -368,7 +396,7 @@ public class SyncServicePushTests : IDisposable
             SongPartLabels =
             [
                 new SyncRowPush<SyncSongPartLabelDto>(
-                    new SyncSongPartLabelDto("label-1", "Vers", "#123456", 0, default), null)
+                    new SyncSongPartLabelDto("label-1", "Vers", "#123456", 0, default, 0), null)
             ],
             Songs =
             [
@@ -392,12 +420,12 @@ public class SyncServicePushTests : IDisposable
     // --- Helpers ---
 
     private static SyncSongDto NewSongDto(string id, string name) =>
-        new(id, name, null, null, null, null, null, default);
+        new(id, name, null, null, null, null, null, default, 0);
 
     private static SyncPresentationDto NewPresentationDto(string id, string name) =>
-        new(id, name, default, "", default, "", false, null, null, 0, null, null, null, null, null, null, default);
+        new(id, name, default, "", default, "", false, null, null, 0, null, null, null, null, null, null, default, 0);
 
-    private async Task<DateTimeOffset> SeedSongAsync()
+    private async Task<long> SeedSongAsync()
     {
         await using (var seed = await factory.CreateDbContextAsync())
         {
@@ -407,13 +435,13 @@ public class SyncServicePushTests : IDisposable
             await seed.SaveChangesAsync();
         }
 
-        // A real client learns the base from a pull, i.e. after the database's round-trip
-        // (SQLite stores milliseconds), so the test must read it back the same way.
+        // A real client learns the base from a pull, so the test reads it back the same way rather
+        // than assuming what the trigger assigned.
         await using var context = await factory.CreateDbContextAsync();
-        return (await context.Songs.SingleAsync(s => s.Id == "song-1")).ModifiedAt;
+        return (await context.Songs.SingleAsync(s => s.Id == "song-1")).Version;
     }
 
-    private async Task<DateTimeOffset> SeedPresentationAsync()
+    private async Task<long> SeedPresentationAsync()
     {
         await using (var seed = await factory.CreateDbContextAsync())
         {
@@ -422,7 +450,7 @@ public class SyncServicePushTests : IDisposable
         }
 
         await using var context = await factory.CreateDbContextAsync();
-        return (await context.Presentations.SingleAsync(p => p.Id == "pres-1")).ModifiedAt;
+        return (await context.Presentations.SingleAsync(p => p.Id == "pres-1")).Version;
     }
 
     private class TestDbContextFactory(DbContextOptions<PresentationContext> options)

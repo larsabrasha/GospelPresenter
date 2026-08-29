@@ -9,6 +9,8 @@ public class DbSongPart : ISyncTracked
     public int SortOrder { get; set; }
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     public string SongId { get; set; } = "";
     public DbSong Song { get; set; } = null!;
 }

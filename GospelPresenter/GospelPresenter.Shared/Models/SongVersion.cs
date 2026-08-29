@@ -8,6 +8,8 @@ public class DbSongVersion : ISyncTracked
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     // JSON snapshot of the song state
     public string Name { get; set; } = "";
     public string? Author { get; set; }

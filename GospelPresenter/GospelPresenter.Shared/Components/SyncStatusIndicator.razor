@@ -6,7 +6,7 @@
 
 @implements IDisposable
 
-@* Renders nothing on the web: only the MAUI host registers an ISyncStatusSource. *@
+@* Renders nothing on the web: only the hosts that sync register an ISyncStatusSource. *@
 @if (status is not null)
 {
     <AppButton Variant="ButtonVariant.Icon" OnClick="SyncNowAsync" Title="@Tooltip()"
@@ -85,8 +85,13 @@
     {
         var message = result.Outcome switch
         {
-            SyncPushOutcome.CopiedAsNew => L["Sync.ConflictCopiedAsNew"].Value,
+            // Merged is the ordinary outcome for a presentation two people touched, and nothing was
+            // lost — say so, so it does not read as a problem. ServerWins on a presentation now
+            // only happens when it was deleted on the server, and the message must be honest that
+            // the offline work went with it.
+            SyncPushOutcome.Merged => L["Sync.ConflictMerged"].Value,
             SyncPushOutcome.ServerWins when result.EntityType == "DbSong" => L["Sync.ConflictSongVersionSaved"].Value,
+            SyncPushOutcome.ServerWins => L["Sync.ConflictServerVersionKept"].Value,
             SyncPushOutcome.Failed => L["Sync.ChangeRejected"].Value,
             _ => null,
         };

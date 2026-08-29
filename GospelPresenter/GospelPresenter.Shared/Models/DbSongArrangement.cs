@@ -7,6 +7,8 @@ public class DbSongArrangement : ISyncTracked
     public string PartIdsJson { get; set; } = "[]";
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     public string SongId { get; set; } = "";
     public DbSong Song { get; set; } = null!;
 }

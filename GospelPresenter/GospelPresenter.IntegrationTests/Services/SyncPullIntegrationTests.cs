@@ -2,7 +2,12 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using GospelPresenter.IntegrationTests.Fixtures;
+using GospelPresenter.Shared.Contexts;
+using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.Sync;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Mvc.Testing.Handlers;
 using Shouldly;
 
@@ -57,7 +62,7 @@ public class SyncPullIntegrationTests
         var first = await PullAllAsync(deviceClient);
         var song = first.Songs.First();
 
-        // Act -- the "offline edit" is pushed with the pulled ModifiedAt as its base
+        // Act -- the "offline edit" is pushed with the pulled Version as its base
         var parts = first.SongParts.Where(p => p.SongId == song.Id).ToList();
         var arrangements = first.SongArrangements.Where(a => a.SongId == song.Id).ToList();
         var pushResponse = await deviceClient.PostAsJsonAsync("/api/sync/push", new SyncPushRequest
@@ -67,7 +72,7 @@ public class SyncPullIntegrationTests
                 new SyncSongPush(
                     song with { Name = "Redigerad offline" },
                     parts, arrangements,
-                    BaseModifiedAt: song.ModifiedAt)
+                    BaseVersion: song.Version)
             ]
         });
         pushResponse.EnsureSuccessStatusCode();

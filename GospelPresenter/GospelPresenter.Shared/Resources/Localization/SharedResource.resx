@@ -1688,8 +1688,11 @@
   <data name="Update.RestartTooltip" xml:space="preserve">
     <value>Version {0} is downloaded and installs on restart. It will also install by itself the next time the app starts.</value>
   </data>
-  <data name="Sync.ConflictCopiedAsNew" xml:space="preserve">
-    <value>A presentation changed on the server. Your offline version was saved as a copy.</value>
+  <data name="Sync.ConflictMerged" xml:space="preserve">
+    <value>This presentation was also changed elsewhere while you were offline. Both sets of changes were combined.</value>
+  </data>
+  <data name="Sync.ConflictServerVersionKept" xml:space="preserve">
+    <value>This presentation was deleted elsewhere while you were offline, and your offline changes to it went with it.</value>
   </data>
   <data name="Sync.ConflictSongVersionSaved" xml:space="preserve">
     <value>A song changed on the server. Your offline version was saved in the song's version history.</value>

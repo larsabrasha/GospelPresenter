@@ -16,9 +16,9 @@ internal static class SyncSql
     public static async Task<string?> GetStateAsync(ClientDataContext db, string key, CancellationToken ct) =>
         (await db.SyncState.AsNoTracking().FirstOrDefaultAsync(s => s.Key == key, ct))?.Value;
 
-    public static Task UpsertBaseAsync(ClientDataContext db, string table, string id, DateTimeOffset modifiedAt, CancellationToken ct) =>
+    public static Task UpsertBaseAsync(ClientDataContext db, string table, string id, long version, CancellationToken ct) =>
         db.Database.ExecuteSqlAsync(
-            $"INSERT INTO SyncBase (EntityTable, RowId, BaseModifiedAt) VALUES ({table}, {id}, {modifiedAt.ToUnixTimeMilliseconds()}) ON CONFLICT(EntityTable, RowId) DO UPDATE SET BaseModifiedAt = excluded.BaseModifiedAt", ct);
+            $"INSERT INTO SyncBase (EntityTable, RowId, BaseVersion) VALUES ({table}, {id}, {version}) ON CONFLICT(EntityTable, RowId) DO UPDATE SET BaseVersion = excluded.BaseVersion", ct);
 
     public static Task RemoveBaseAsync(ClientDataContext db, string table, string id, CancellationToken ct) =>
         db.Database.ExecuteSqlAsync(

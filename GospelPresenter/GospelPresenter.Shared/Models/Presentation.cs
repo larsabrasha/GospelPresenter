@@ -10,6 +10,8 @@ public class Presentation : ISyncTracked
     public string UpdatedBy { get; set; } = string.Empty;
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     public bool IsTemplate { get; set; }
     public string? Description { get; set; }
     public DateTimeOffset? LastUsedAt { get; set; }

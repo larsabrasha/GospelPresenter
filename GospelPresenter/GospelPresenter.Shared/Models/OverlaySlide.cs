@@ -11,6 +11,8 @@ public class OverlaySlide : ISyncTracked
     public int SortOrder { get; set; }
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     [NotMapped]
     public byte[]? ImageData { get; set; }
 

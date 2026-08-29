@@ -4,6 +4,7 @@ using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.State;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace GospelPresenter.Shared.Contexts;
@@ -85,12 +86,23 @@ public class PresentationContext : DbContext
         var now = DateTimeOffset.FromUnixTimeMilliseconds(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         var entries = ChangeTracker.Entries().ToList();
 
+        // On Postgres the version is the database's business — a trigger bumps it on every write,
+        // including the ExecuteUpdateAsync calls that never reach this method. SQLite has no such
+        // trigger, so the same guarantee is kept here for the hosts that run on it: the client, and
+        // the integration suite that exercises server code against a file database.
+        //
+        // Deliberately a fallback rather than the mechanism. Doing it here on Postgres too would put
+        // the version back in the hands of every call site, which is the arrangement that failed.
+        var bumpVersion = Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
+
         foreach (var entry in entries)
         {
             if (entry.Entity is ISyncTracked tracked &&
                 entry.State is EntityState.Added or EntityState.Modified)
             {
                 tracked.ModifiedAt = now;
+                if (bumpVersion)
+                    tracked.Version++;
             }
         }
 
@@ -441,6 +453,38 @@ public class PresentationContext : DbContext
             e.HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(s => s.Organization).WithMany().HasForeignKey(s => s.OrganizationId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        // ModifiedAt is stored to the millisecond, and the database is what enforces it.
+        //
+        // The client keeps this column as a Unix millisecond integer (the converter below), while
+        // Postgres would otherwise keep microseconds. Push conflict detection compares the two for
+        // exact equality, so a value that cannot survive the round trip is a conflict that never
+        // resolves: measured on real data, 12 of 16 presentations carried microsecond stamps and 9
+        // of 13 client bases could never match, each one guaranteed to produce an "(offline
+        // changes)" copy on the next edit from the device.
+        //
+        // Declared on the column rather than fixed at the call sites on purpose. SaveChanges already
+        // truncated (see ApplySyncTrackingAsync); what leaked were the ExecuteUpdateAsync sites,
+        // which stamp DateTimeOffset.UtcNow directly and bypass the change tracker entirely. Any
+        // rule of the form "remember to truncate here too" would be one more thing to forget, and
+        // this one had already been forgotten eleven times. A column that cannot hold microseconds
+        // cannot be written wrong — by MSBuild-generated SQL, by raw SQL, or by anything else.
+        var isPostgres = Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL";
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes()
+                     .Where(t => t.ClrType.IsAssignableTo(typeof(ISyncTracked))))
+        {
+            entityType.GetProperty(nameof(ISyncTracked.ModifiedAt)).SetPrecision(3);
+
+            // On the server the version belongs to the database: a trigger bumps it on every write,
+            // and EF reads the new value back so a push response can hand the client its new base.
+            //
+            // Not on the client. There the column is an ordinary field the pull applier writes with
+            // whatever the server sent — the client must never invent a version, and telling EF the
+            // store generates one would stop it from being able to store the server's.
+            if (isPostgres)
+                entityType.GetProperty(nameof(ISyncTracked.Version)).ValueGenerated = ValueGenerated.OnAddOrUpdate;
+        }
 
         // SQLite does not support DateTimeOffset in ORDER BY — store as ticks (long)
         if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")

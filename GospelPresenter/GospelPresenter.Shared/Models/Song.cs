@@ -12,6 +12,8 @@ public class DbSong : ISyncTracked
     public DateTime? DeletedAt { get; set; }
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     public string OrganizationId { get; set; } = "";
     public Organization Organization { get; set; } = null!;
 

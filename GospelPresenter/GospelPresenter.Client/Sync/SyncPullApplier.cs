@@ -14,7 +14,9 @@ namespace GospelPresenter.Client.Sync;
 internal sealed record PullBatch(
     SyncChanges Changes,
     List<SyncTombstoneDto> Tombstones,
-    DateTimeOffset ServerWatermark,
+    /// <summary>Null when this is not a pull: healing a conflict applies server rows without
+    /// moving the watermark, because no window of server time has been covered.</summary>
+    DateTimeOffset? ServerWatermark,
     bool RequiresFullResync);
 
 internal sealed record PullApplyResult(int AppliedRows, bool SongsChanged, bool BiblesChanged);
@@ -38,7 +40,7 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
         Converters = { new JsonStringEnumConverter() }
     };
 
-    private readonly List<(string Table, string Id, DateTimeOffset ModifiedAt)> baseUpdates = [];
+    private readonly List<(string Table, string Id, long Version)> baseUpdates = [];
     private int appliedRows;
 
     public async Task<PullApplyResult> ApplyAsync(PullBatch batch, CancellationToken ct)
@@ -77,13 +79,13 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
 
             await db.SaveChangesAsync(ct);
 
-            foreach (var (table, id, modifiedAt) in baseUpdates)
-                await SyncSql.UpsertBaseAsync(db, table, id, modifiedAt, ct);
+            foreach (var (table, id, version) in baseUpdates)
+                await SyncSql.UpsertBaseAsync(db, table, id, version, ct);
 
             var (tombstonedSongs, tombstonedBibles) = await ApplyTombstonesAsync(batch.Tombstones, ct);
 
-            await SyncSql.SetStateAsync(db, SyncStateEntry.WatermarkKey,
-                batch.ServerWatermark.ToString("O"), ct);
+            if (batch.ServerWatermark is { } watermark)
+                await SyncSql.SetStateAsync(db, SyncStateEntry.WatermarkKey, watermark.ToString("O"), ct);
             await SyncSql.SetStateAsync(db, SyncStateEntry.ApplyingKey, "0", ct);
             await transaction.CommitAsync(ct);
 
@@ -203,10 +205,10 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
         return incoming;
     }
 
-    private void RecordBases<TDto>(string table, List<TDto> applied) where TDto : ISyncRow
+    private void RecordBases<TDto>(string table, List<TDto> applied) where TDto : ISyncRootRow
     {
         foreach (var dto in applied)
-            baseUpdates.Add((table, dto.Id, dto.ModifiedAt));
+            baseUpdates.Add((table, dto.Id, dto.Version));
     }
 
     private async Task ApplyLabelsAsync(List<SyncSongPartLabelDto> rows, HashSet<RootRef> dirty, CancellationToken ct)

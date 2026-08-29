@@ -11,4 +11,6 @@ public class UserSetting : ISyncTracked
     public string Key { get; set; } = "";
     public string Value { get; set; } = "";
     public DateTimeOffset ModifiedAt { get; set; }
+
+    public long Version { get; set; }
 }

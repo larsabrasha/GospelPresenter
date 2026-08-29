@@ -29,5 +29,8 @@ public class Theme : ISyncTracked
 
     public DateTimeOffset ModifiedAt { get; set; }
 
+
+    public long Version { get; set; }
+
     public bool IsBuiltIn => OrganizationId is null;
 }

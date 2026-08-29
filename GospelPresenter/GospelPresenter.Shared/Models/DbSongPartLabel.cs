@@ -8,6 +8,8 @@ public class DbSongPartLabel : ISyncTracked
     public int SortOrder { get; set; }
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     public string OrganizationId { get; set; } = "";
     public Organization Organization { get; set; } = null!;
 }

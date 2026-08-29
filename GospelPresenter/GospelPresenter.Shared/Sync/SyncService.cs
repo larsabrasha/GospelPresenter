@@ -120,13 +120,13 @@ public class SyncService(
             case SongPartLabelsTable when caller.HasPermission(Permission.ViewSongs):
                 return await PageAsync(
                     Window(db.SongPartLabels.Where(l => l.OrganizationId == organizationId), low, watermark, position)
-                        .Select(l => new SyncSongPartLabelDto(l.Id, l.Text, l.Color, l.SortOrder, l.ModifiedAt)),
+                        .Select(l => new SyncSongPartLabelDto(l.Id, l.Text, l.Color, l.SortOrder, l.ModifiedAt, l.Version)),
                     remaining, changes.SongPartLabels, cancellationToken);
 
             case SongsTable when caller.HasPermission(Permission.ViewSongs):
                 return await PageAsync(
                     Window(db.Songs.Where(s => s.OrganizationId == organizationId), low, watermark, position)
-                        .Select(s => new SyncSongDto(s.Id, s.Name, s.Author, s.Publisher, s.Year, s.Ccli, s.DeletedAt, s.ModifiedAt)),
+                        .Select(s => new SyncSongDto(s.Id, s.Name, s.Author, s.Publisher, s.Year, s.Ccli, s.DeletedAt, s.ModifiedAt, s.Version)),
                     remaining, changes.Songs, cancellationToken);
 
             case SongPartsTable when caller.HasPermission(Permission.ViewSongs):
@@ -153,7 +153,7 @@ public class SyncService(
                         .Select(p => new SyncPresentationDto(p.Id, p.Name, p.CreatedAt, p.CreatedBy,
                             p.UpdatedAt, p.UpdatedBy, p.IsTemplate, p.Description, p.LastUsedAt, p.UseCount,
                             p.ScheduledDayOfWeek, p.ScheduledTime, p.EventDate, p.EventTime, p.EventLocation,
-                            p.ThemeId, p.ModifiedAt)),
+                            p.ThemeId, p.ModifiedAt, p.Version)),
                     remaining, changes.Presentations, cancellationToken);
 
             case PresentationItemsTable when caller.HasPermission(Permission.ViewPresentations):
@@ -196,19 +196,19 @@ public class SyncService(
             case OverlaySlidesTable when caller.HasPermission(Permission.ViewOverlays):
                 return await PageAsync(
                     Window(db.OverlaySlides.Where(o => o.OrganizationId == organizationId), low, watermark, position)
-                        .Select(o => new SyncOverlaySlideDto(o.Id, o.Title, o.Content, o.HasImage, o.SortOrder, o.ModifiedAt)),
+                        .Select(o => new SyncOverlaySlideDto(o.Id, o.Title, o.Content, o.HasImage, o.SortOrder, o.ModifiedAt, o.Version)),
                     remaining, changes.OverlaySlides, cancellationToken);
 
             case OrganizationImagesTable when caller.HasPermission(Permission.ViewOrganizationImages):
                 return await PageAsync(
                     Window(db.OrganizationImages.Where(i => i.OrganizationId == organizationId), low, watermark, position)
-                        .Select(i => new SyncOrganizationImageDto(i.Id, i.FileName, i.ContentType, i.CreatedAt, i.ModifiedAt)),
+                        .Select(i => new SyncOrganizationImageDto(i.Id, i.FileName, i.ContentType, i.CreatedAt, i.ModifiedAt, i.Version)),
                     remaining, changes.OrganizationImages, cancellationToken);
 
             case OrganizationAudiosTable when caller.HasPermission(Permission.ViewOrganizationAudios):
                 return await PageAsync(
                     Window(db.OrganizationAudios.Where(a => a.OrganizationId == organizationId), low, watermark, position)
-                        .Select(a => new SyncOrganizationAudioDto(a.Id, a.FileName, a.ContentType, a.CreatedAt, a.ModifiedAt)),
+                        .Select(a => new SyncOrganizationAudioDto(a.Id, a.FileName, a.ContentType, a.CreatedAt, a.ModifiedAt, a.Version)),
                     remaining, changes.OrganizationAudios, cancellationToken);
 
             case OrganizationSettingsTable:
@@ -216,13 +216,13 @@ public class SyncService(
                 // OrganizationSettingService.GetSettingAsync.
                 return await PageAsync(
                     Window(db.OrganizationSettings.Where(s => s.OrganizationId == organizationId), low, watermark, position)
-                        .Select(s => new SyncOrganizationSettingDto(s.Id, s.Key, s.Value, s.ModifiedAt)),
+                        .Select(s => new SyncOrganizationSettingDto(s.Id, s.Key, s.Value, s.ModifiedAt, s.Version)),
                     remaining, changes.OrganizationSettings, cancellationToken);
 
             case UserSettingsTable:
                 return await PageAsync(
                     Window(db.UserSettings.Where(s => s.UserId == caller.UserId), low, watermark, position)
-                        .Select(s => new SyncUserSettingDto(s.Id, s.Key, s.Value, s.ModifiedAt)),
+                        .Select(s => new SyncUserSettingDto(s.Id, s.Key, s.Value, s.ModifiedAt, s.Version)),
                     remaining, changes.UserSettings, cancellationToken);
 
             case BiblesTable when caller.HasPermission(Permission.ViewBibles):
@@ -439,7 +439,7 @@ public class SyncService(
                 return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Remapped, NewId: sameText.Id);
             }
 
-            if (push.BaseModifiedAt is not null && await HasTombstoneAsync(db, nameof(DbSongPartLabel), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(DbSongPartLabel), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             var label = new DbSongPartLabel
@@ -453,17 +453,17 @@ public class SyncService(
             db.SongPartLabels.Add(label);
             await db.SaveChangesAsync(cancellationToken);
             validLabelIds.Add(row.Id);
-            return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Applied, NewModifiedAt: label.ModifiedAt);
+            return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Applied, NewVersion: label.Version);
         }
 
-        if (push.BaseModifiedAt != existing.ModifiedAt)
+        if (push.BaseVersion != existing.Version)
             return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.ServerWins);
 
         existing.Text = row.Text;
         existing.Color = row.Color;
         existing.SortOrder = row.SortOrder;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
+        return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
     }
 
     private async Task<SyncPushResult> ProcessSongPushAsync(
@@ -482,7 +482,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseModifiedAt is not null && await HasTombstoneAsync(db, nameof(DbSong), dto.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(DbSong), dto.Id, cancellationToken))
                 return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -522,16 +522,17 @@ public class SyncService(
             }
             db.Songs.Add(song);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.Applied, NewModifiedAt: song.ModifiedAt);
+            return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.Applied, NewVersion: song.Version);
         }
 
-        if (push.BaseModifiedAt != existing.ModifiedAt)
+        if (push.BaseVersion != existing.Version)
         {
             // The song is the user's work: the server version stands, but the pushed state is
             // appended to the song's version history so nothing composed offline is lost.
             await AppendConflictVersionAsync(db, existing.Id, dto, push.Parts, cancellationToken);
             return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.ServerWins,
-                Warning: "The pushed state was saved to the song's version history.");
+                Warning: "The pushed state was saved to the song's version history.",
+                ServerState: ProjectSong(existing));
         }
 
         existing.Name = dto.Name;
@@ -575,7 +576,7 @@ public class SyncService(
         // Touch: child changes move the aggregate version even when no song field changed.
         existing.ModifiedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
+        return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
     }
 
     private async Task<SyncPushResult> ProcessPresentationPushAsync(
@@ -594,7 +595,7 @@ public class SyncService(
             .Include(p => p.SlideDecks)
             .FirstOrDefaultAsync(p => p.Id == dto.Id && p.OrganizationId == organizationId, cancellationToken);
 
-        if (existing is null && push.BaseModifiedAt is null)
+        if (existing is null && push.BaseVersion is null)
         {
             await RequirePresentationCapacityAsync(db, organizationId, dto.IsTemplate, cancellationToken);
 
@@ -621,15 +622,22 @@ public class SyncService(
             AddPushedChildren(db, presentation.Id, push, slidesIdMap: null);
             await db.SaveChangesAsync(cancellationToken);
             return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.Applied,
-                Warning: JoinWarnings(warnings), NewModifiedAt: presentation.ModifiedAt);
+                Warning: JoinWarnings(warnings), NewVersion: presentation.Version);
         }
 
-        if (existing is null || push.BaseModifiedAt != existing.ModifiedAt)
+        if (existing is null)
         {
-            // Conflict (or deleted on the server): the server version stands and the pushed
-            // aggregate becomes a new presentation, so the offline work is never lost.
-            var newId = await CreateConflictCopyAsync(db, organizationId, push, themeId, caller, cancellationToken);
-            return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.CopiedAsNew, NewId: newId, Warning: JoinWarnings(warnings));
+            // Deleted on the server while the client was away. Deletion wins; the tombstone in the
+            // ordinary pull is what removes it locally, so there is no state to hand back.
+            return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.ServerWins,
+                Warning: JoinWarnings(warnings));
+        }
+
+        if (push.BaseVersion != existing.Version)
+        {
+            // Both sides moved. Merge instead of picking a winner — see MergePresentationAsync.
+            return await MergePresentationAsync(
+                db, organizationId, existing, push, themeId, caller, warnings, cancellationToken);
         }
 
         existing.Name = dto.Name;
@@ -704,7 +712,7 @@ public class SyncService(
             await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, slidesId), cancellationToken);
 
         return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.Applied,
-            Warning: JoinWarnings(warnings), NewModifiedAt: existing.ModifiedAt);
+            Warning: JoinWarnings(warnings), NewVersion: existing.Version);
     }
 
     /// <summary>
@@ -713,47 +721,191 @@ public class SyncService(
     /// where those exist; a deck created offline has no server pages yet, which is tolerated the
     /// same way dangling SourceIds are.
     /// </summary>
-    private async Task<string> CreateConflictCopyAsync(
-        PresentationContext db, string organizationId, SyncPresentationPush push, string? themeId,
-        CallerContext caller, CancellationToken cancellationToken)
+    /// <summary>
+    /// Combines a pushed presentation with the server's, when both have changed since the client
+    /// last saw it.
+    ///
+    /// The rules, and what each one costs:
+    ///
+    /// - Items, parts and slide decks are UNIONED by id. Anything either side has survives. This is
+    ///   the rule that matters: the ordinary conflict here is one person renaming the service while
+    ///   another adds a song, and neither of them is wrong.
+    /// - A row both sides have takes the copy with the newer ModifiedAt. Last writer wins per row,
+    ///   not per presentation, so an edit to verse 2 does not fight an edit to the title.
+    /// - The presentation's own fields likewise follow the newer ModifiedAt of the two.
+    /// - A row only the client has is kept, UNLESS a tombstone says the server deleted it. Deletion
+    ///   is a decision someone made; re-creating it silently would be worse than losing an edit.
+    ///
+    /// THE COST, stated plainly: a row only the SERVER has is kept, which means an item the client
+    /// deleted offline comes back if someone else touched the presentation in the meantime. The push
+    /// carries the client's current state, not what it removed, so "the client deleted it" and "the
+    /// server added it" look identical from here. Additions win over deletions, which is the gentler
+    /// failure — an extra song in the running order is visible and removable, a missing one is
+    /// noticed on stage.
+    ///
+    /// This applies ONLY on the conflict path. With no concurrent edit the ordinary apply runs and
+    /// deletions work exactly as expected, which is very nearly always.
+    ///
+    /// Carrying removed ids in the push would make the whole thing exact and is the obvious next
+    /// step if the resurrection ever actually annoys someone. The journal already knows them.
+    /// </summary>
+    private async Task<SyncPushResult> MergePresentationAsync(
+        PresentationContext db, string organizationId, Presentation existing, SyncPresentationPush push,
+        string? themeId, CallerContext caller, List<string> warnings, CancellationToken cancellationToken)
     {
         var dto = push.Presentation;
-        await RequirePresentationCapacityAsync(db, organizationId, dto.IsTemplate, cancellationToken);
+        var clientIsNewer = dto.ModifiedAt > existing.ModifiedAt;
 
-        var suffix = await GetOfflineSuffixAsync(db, caller, cancellationToken);
-        var now = DateTimeOffset.UtcNow;
-        var copy = new Presentation
+        if (clientIsNewer)
         {
-            Id = Guid.NewGuid().ToString(),
-            Name = ValidationHelper.Truncate($"{dto.Name} {suffix}", AppConstraints.NameMaxLength)!,
-            IsTemplate = dto.IsTemplate,
-            Description = dto.Description,
-            ScheduledDayOfWeek = dto.ScheduledDayOfWeek,
-            ScheduledTime = dto.ScheduledTime,
-            EventDate = dto.EventDate,
-            EventTime = dto.EventTime,
-            EventLocation = dto.EventLocation,
-            ThemeId = themeId,
-            OrganizationId = organizationId,
-            CreatedAt = now,
-            CreatedBy = caller.UserId,
-            UpdatedAt = now,
-            UpdatedBy = caller.UserId,
-        };
-        db.Presentations.Add(copy);
+            existing.Name = dto.Name;
+            existing.Description = dto.Description;
+            existing.ScheduledDayOfWeek = dto.ScheduledDayOfWeek;
+            existing.ScheduledTime = dto.ScheduledTime;
+            existing.EventDate = dto.EventDate;
+            existing.EventTime = dto.EventTime;
+            existing.EventLocation = dto.EventLocation;
+            existing.ThemeId = themeId;
+            existing.UpdatedAt = DateTimeOffset.UtcNow;
+            existing.UpdatedBy = caller.UserId;
+        }
 
-        var slidesIdMap = push.SlideDecks.ToDictionary(s => s.Id, _ => Guid.NewGuid().ToString());
-        AddPushedChildren(db, copy.Id, push, slidesIdMap);
+        foreach (var itemDto in push.Items)
+        {
+            var item = existing.Items.FirstOrDefault(i => i.Id == itemDto.Id);
+            if (item is null)
+            {
+                if (await HasTombstoneAsync(db, nameof(PresentationItem), itemDto.Id, cancellationToken))
+                    continue;
 
+                // Added to the tracked collection only. Adding to the DbSet as well would leave the
+                // navigation holding the same item twice after fixup, which the projection below
+                // would faithfully report to the client.
+                item = new PresentationItem { Id = itemDto.Id, PresentationId = existing.Id };
+                existing.Items.Add(item);
+            }
+            else if (itemDto.ModifiedAt <= item.ModifiedAt)
+            {
+                continue;
+            }
+
+            item.SourceId = itemDto.SourceId;
+            item.Type = itemDto.Type;
+            item.Title = itemDto.Title;
+            item.ArrangementId = itemDto.ArrangementId;
+            item.SortOrder = itemDto.SortOrder;
+        }
+
+        var allExistingParts = existing.Items.SelectMany(i => i.Parts).ToList();
+        foreach (var partDto in push.Parts)
+        {
+            var part = allExistingParts.FirstOrDefault(p => p.Id == partDto.Id);
+            if (part is null)
+            {
+                if (await HasTombstoneAsync(db, nameof(PresentationItemPart), partDto.Id, cancellationToken))
+                    continue;
+
+                // Its item may itself have been dropped as tombstoned just above.
+                if (existing.Items.All(i => i.Id != partDto.PresentationItemId))
+                    continue;
+
+                part = new PresentationItemPart { Id = partDto.Id, PresentationItemId = partDto.PresentationItemId };
+                existing.Items.Single(i => i.Id == partDto.PresentationItemId).Parts.Add(part);
+            }
+            else if (partDto.ModifiedAt <= part.ModifiedAt)
+            {
+                continue;
+            }
+
+            part.Content = partDto.Content;
+            part.SortOrder = partDto.SortOrder;
+            part.PresentationItemId = partDto.PresentationItemId;
+        }
+
+        foreach (var slidesDto in push.SlideDecks)
+        {
+            var slides = existing.SlideDecks.FirstOrDefault(s => s.Id == slidesDto.Id);
+            if (slides is null)
+            {
+                if (await HasTombstoneAsync(db, nameof(PresentationSlides), slidesDto.Id, cancellationToken))
+                    continue;
+
+                slides = new PresentationSlides
+                {
+                    Id = slidesDto.Id, PresentationId = existing.Id, CreatedAt = slidesDto.CreatedAt,
+                };
+                existing.SlideDecks.Add(slides);
+            }
+            else if (slidesDto.ModifiedAt <= slides.ModifiedAt)
+            {
+                continue;
+            }
+
+            slides.FileName = slidesDto.FileName;
+            slides.PageCount = slidesDto.PageCount;
+        }
+
+        // Nothing is deleted here, so no blobs are orphaned and none may be removed.
         await db.SaveChangesAsync(cancellationToken);
 
-        foreach (var (oldId, newId) in slidesIdMap)
-            await storage.CopyByPrefixAsync(
-                ImageUrlHelper.SlidesPrefix(organizationId, oldId),
-                ImageUrlHelper.SlidesPrefix(organizationId, newId),
-                cancellationToken);
+        return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.Merged,
+            Warning: JoinWarnings(warnings),
+            NewVersion: existing.Version,
+            ServerState: ProjectPresentation(existing));
+    }
 
-        return copy.Id;
+    /// <summary>The server's song, in the shape a pull delivers. See <see cref="ProjectPresentation"/>.</summary>
+    private static SyncChanges ProjectSong(DbSong song)
+    {
+        var changes = new SyncChanges();
+        changes.Songs.Add(new SyncSongDto(
+            song.Id, song.Name, song.Author, song.Publisher, song.Year, song.Ccli, song.DeletedAt,
+            song.ModifiedAt, song.Version));
+
+        foreach (var part in song.Parts)
+            changes.SongParts.Add(new SyncSongPartDto(
+                part.Id, part.LabelId, part.Content, part.SortOrder, part.SongId, part.ModifiedAt));
+
+        foreach (var arrangement in song.Arrangements)
+            changes.SongArrangements.Add(new SyncSongArrangementDto(
+                arrangement.Id, arrangement.Name, arrangement.PartIdsJson, arrangement.SongId,
+                arrangement.ModifiedAt));
+
+        return changes;
+    }
+
+    /// <summary>
+    /// The server's presentation in the shape a pull delivers, so the client can apply it with the
+    /// applier it already has rather than a second code path that would drift from the first.
+    /// </summary>
+    private static SyncChanges ProjectPresentation(Presentation presentation)
+    {
+        var changes = new SyncChanges();
+        changes.Presentations.Add(new SyncPresentationDto(
+            presentation.Id, presentation.Name, presentation.CreatedAt, presentation.CreatedBy,
+            presentation.UpdatedAt, presentation.UpdatedBy, presentation.IsTemplate,
+            presentation.Description, presentation.LastUsedAt, presentation.UseCount,
+            presentation.ScheduledDayOfWeek, presentation.ScheduledTime, presentation.EventDate,
+            presentation.EventTime, presentation.EventLocation, presentation.ThemeId,
+            presentation.ModifiedAt, presentation.Version));
+
+        foreach (var item in presentation.Items)
+        {
+            changes.PresentationItems.Add(new SyncPresentationItemDto(
+                item.Id, item.SourceId, item.Type, item.Title, item.ArrangementId, item.SortOrder,
+                item.PresentationId, item.ModifiedAt));
+
+            foreach (var part in item.Parts)
+                changes.PresentationItemParts.Add(new SyncPresentationItemPartDto(
+                    part.Id, part.Content, part.SortOrder, part.PresentationItemId, part.ModifiedAt));
+        }
+
+        foreach (var slides in presentation.SlideDecks)
+            changes.PresentationSlides.Add(new SyncPresentationSlidesDto(
+                slides.Id, slides.FileName, slides.PageCount, slides.CreatedAt,
+                slides.PresentationId, slides.ModifiedAt));
+
+        return changes;
     }
 
     /// <summary>
@@ -822,7 +974,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseModifiedAt is not null && await HasTombstoneAsync(db, nameof(OrganizationImage), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(OrganizationImage), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -838,16 +990,16 @@ public class SyncService(
             };
             db.OrganizationImages.Add(image);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied, NewModifiedAt: image.ModifiedAt);
+            return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied, NewVersion: image.Version);
         }
 
-        if (push.BaseModifiedAt != existing.ModifiedAt)
+        if (push.BaseVersion != existing.Version)
             return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.ServerWins);
 
         existing.FileName = row.FileName;
         existing.ContentType = row.ContentType;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
+        return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
     }
 
     private async Task<SyncPushResult> ProcessAudioPushAsync(
@@ -863,7 +1015,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseModifiedAt is not null && await HasTombstoneAsync(db, nameof(OrganizationAudio), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(OrganizationAudio), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -879,16 +1031,16 @@ public class SyncService(
             };
             db.OrganizationAudios.Add(audio);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied, NewModifiedAt: audio.ModifiedAt);
+            return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied, NewVersion: audio.Version);
         }
 
-        if (push.BaseModifiedAt != existing.ModifiedAt)
+        if (push.BaseVersion != existing.Version)
             return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.ServerWins);
 
         existing.FileName = row.FileName;
         existing.ContentType = row.ContentType;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
+        return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
     }
 
     private async Task<SyncPushResult> ProcessOverlayPushAsync(
@@ -905,7 +1057,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseModifiedAt is not null && await HasTombstoneAsync(db, nameof(OverlaySlide), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(OverlaySlide), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -922,10 +1074,10 @@ public class SyncService(
             };
             db.OverlaySlides.Add(overlay);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.Applied, NewModifiedAt: overlay.ModifiedAt);
+            return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.Applied, NewVersion: overlay.Version);
         }
 
-        if (push.BaseModifiedAt != existing.ModifiedAt)
+        if (push.BaseVersion != existing.Version)
             return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.ServerWins);
 
         existing.Title = row.Title;
@@ -933,7 +1085,7 @@ public class SyncService(
         existing.HasImage = row.HasImage;
         existing.SortOrder = row.SortOrder;
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt);
+        return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
     }
 
     private async Task<SyncPushResult> ProcessOrganizationSettingPushAsync(
@@ -965,17 +1117,17 @@ public class SyncService(
             };
             db.OrganizationSettings.Add(setting);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Applied, NewModifiedAt: setting.ModifiedAt);
+            return new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Applied, NewVersion: setting.Version);
         }
 
-        if (push.BaseModifiedAt != existing.ModifiedAt)
+        if (push.BaseVersion != existing.Version)
             return new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.ServerWins);
 
         existing.Value = row.Value;
         await db.SaveChangesAsync(cancellationToken);
         return existing.Id == row.Id
-            ? new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt)
-            : new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewModifiedAt: existing.ModifiedAt);
+            ? new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version)
+            : new SyncPushResult(nameof(OrganizationSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewVersion: existing.Version);
     }
 
     private async Task<SyncPushResult> ProcessUserSettingPushAsync(
@@ -1003,17 +1155,17 @@ public class SyncService(
             };
             db.UserSettings.Add(setting);
             await db.SaveChangesAsync(cancellationToken);
-            return new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied, NewModifiedAt: setting.ModifiedAt);
+            return new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied, NewVersion: setting.Version);
         }
 
-        if (push.BaseModifiedAt != existing.ModifiedAt)
+        if (push.BaseVersion != existing.Version)
             return new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.ServerWins);
 
         existing.Value = row.Value;
         await db.SaveChangesAsync(cancellationToken);
         return existing.Id == row.Id
-            ? new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied, NewModifiedAt: existing.ModifiedAt)
-            : new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewModifiedAt: existing.ModifiedAt);
+            ? new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version)
+            : new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewVersion: existing.Version);
     }
 
     private async Task<SyncPushResult> ProcessDeleteAsync(
@@ -1030,7 +1182,7 @@ public class SyncService(
                     .FirstOrDefaultAsync(p => p.Id == delete.Id && p.OrganizationId == organizationId, cancellationToken);
                 if (presentation is null)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
-                if (delete.BaseModifiedAt != presentation.ModifiedAt)
+                if (delete.BaseVersion != presentation.Version)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
 
                 if (presentation.IsTemplate)
@@ -1046,7 +1198,7 @@ public class SyncService(
                     .FirstOrDefaultAsync(s => s.Id == delete.Id && s.OrganizationId == organizationId, cancellationToken);
                 if (song is null)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
-                if (delete.BaseModifiedAt != song.ModifiedAt)
+                if (delete.BaseVersion != song.Version)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
                 if (song.DeletedAt is null)
                 {
@@ -1065,7 +1217,7 @@ public class SyncService(
                     .FirstOrDefaultAsync(l => l.Id == delete.Id && l.OrganizationId == organizationId, cancellationToken);
                 if (label is null)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
-                if (delete.BaseModifiedAt != label.ModifiedAt)
+                if (delete.BaseVersion != label.Version)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
 
                 await songPartLabelService.DeleteLabelAsync(organizationId, delete.Id, caller);
@@ -1078,7 +1230,7 @@ public class SyncService(
                     .FirstOrDefaultAsync(o => o.Id == delete.Id && o.OrganizationId == organizationId, cancellationToken);
                 if (overlay is null)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
-                if (delete.BaseModifiedAt != overlay.ModifiedAt)
+                if (delete.BaseVersion != overlay.Version)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
 
                 await presentationService.RemoveOverlayAsync(organizationId, delete.Id, caller);
@@ -1091,7 +1243,7 @@ public class SyncService(
                     .FirstOrDefaultAsync(i => i.Id == delete.Id && i.OrganizationId == organizationId, cancellationToken);
                 if (image is null)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
-                if (delete.BaseModifiedAt != image.ModifiedAt)
+                if (delete.BaseVersion != image.Version)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
 
                 await organizationImageService.DeleteImageAsync(delete.Id, organizationId, caller);
@@ -1104,7 +1256,7 @@ public class SyncService(
                     .FirstOrDefaultAsync(a => a.Id == delete.Id && a.OrganizationId == organizationId, cancellationToken);
                 if (audio is null)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
-                if (delete.BaseModifiedAt != audio.ModifiedAt)
+                if (delete.BaseVersion != audio.Version)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
 
                 await organizationAudioService.DeleteAudioAsync(delete.Id, organizationId, caller);
@@ -1117,7 +1269,7 @@ public class SyncService(
                     .FirstOrDefaultAsync(s => s.Id == delete.Id && s.UserId == caller.UserId, cancellationToken);
                 if (setting is null)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
-                if (delete.BaseModifiedAt != setting.ModifiedAt)
+                if (delete.BaseVersion != setting.Version)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
 
                 db.UserSettings.Remove(setting);
@@ -1132,7 +1284,7 @@ public class SyncService(
                     .FirstOrDefaultAsync(s => s.Id == delete.Id && s.OrganizationId == organizationId, cancellationToken);
                 if (setting is null)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
-                if (delete.BaseModifiedAt != setting.ModifiedAt)
+                if (delete.BaseVersion != setting.Version)
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
 
                 db.OrganizationSettings.Remove(setting);
@@ -1247,30 +1399,6 @@ public class SyncService(
             CreatedAt = DateTime.UtcNow,
         });
         await db.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task<string> GetOfflineSuffixAsync(PresentationContext db, CallerContext caller, CancellationToken cancellationToken)
-    {
-        var language = await db.UserSettings
-            .Where(s => s.UserId == caller.UserId && s.Key == UserSetting.PreferredLanguage)
-            .Select(s => s.Value)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        var original = CultureInfo.CurrentUICulture;
-        try
-        {
-            if (!string.IsNullOrEmpty(language))
-                CultureInfo.CurrentUICulture = new CultureInfo(language);
-            return localizer["Sync.OfflineChangesSuffix"];
-        }
-        catch (CultureNotFoundException)
-        {
-            return localizer["Sync.OfflineChangesSuffix"];
-        }
-        finally
-        {
-            CultureInfo.CurrentUICulture = original;
-        }
     }
 
     private static Task<bool> HasTombstoneAsync(PresentationContext db, string entityType, string entityId, CancellationToken cancellationToken) =>

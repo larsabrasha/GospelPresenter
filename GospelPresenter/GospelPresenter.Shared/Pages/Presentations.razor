@@ -17,6 +17,8 @@
 
 @implements IDisposable
 
+<RefreshOnSync Reload="ReloadAsync"/>
+
 <div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
 
     <div class="relative flex items-center justify-between px-5 gap-3">
@@ -106,6 +108,17 @@
             OrgState.ToCallerContext(), request.CancellationToken);
 
         return new ItemsProviderResult<PresentationSummary>(page.Items, page.TotalCount);
+    }
+
+    /// <summary>
+    /// The list is virtualized, so there is no field to reassign: asking Virtualize to refresh makes
+    /// it call LoadItems again for the rows on screen, which is exactly as much work as the new
+    /// answer requires.
+    /// </summary>
+    private async Task ReloadAsync()
+    {
+        if (virtualize is not null)
+            await virtualize.RefreshDataAsync();
     }
 
     private async Task SetSortAsync(PresentationSortOrder newSort)

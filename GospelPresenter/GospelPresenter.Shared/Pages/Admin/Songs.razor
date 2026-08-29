@@ -14,6 +14,10 @@
 @inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
 
+@* RefreshDisplayedSongs, not a plain reload: it keeps whatever the user has typed in the search
+   box, so a sync landing mid-search re-filters rather than dumping them back to the full library. *@
+<RefreshOnSync Reload="RefreshDisplayedSongs"/>
+
 <PageContainer>
     <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Songs.Title"]</div>

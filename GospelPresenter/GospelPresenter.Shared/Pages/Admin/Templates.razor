@@ -14,6 +14,8 @@
 @inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
 
+<RefreshOnSync Reload="LoadTemplatesAsync"/>
+
 <PageContainer>
     <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Templates.Title"]</div>
@@ -94,7 +96,9 @@
     private bool creating;
     private bool showCreateDialog;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadTemplatesAsync();
+
+    private async Task LoadTemplatesAsync()
     {
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;

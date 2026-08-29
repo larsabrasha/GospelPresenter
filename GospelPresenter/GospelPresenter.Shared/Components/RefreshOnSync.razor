@@ -1,0 +1,70 @@
+@using GospelPresenter.Shared.Services
+
+@inject IServiceProvider Services
+
+@implements IDisposable
+
+@* Renders nothing. Place it in a view that loads a list, and give it that view's own loader:
+
+       <RefreshOnSync Reload="LoadAsync"/>
+
+   The view then re-reads its data when a pull has written new rows locally, instead of showing
+   whatever was true when it was opened. Without this a device that syncs in the background is
+   showing a photograph: the first pull after a sign-in lands a second after the dashboard has
+   already asked "how many presentations are there" and been told, truthfully at the time, none.
+
+   Only the loader runs, and only the view holding this component re-renders — so a dialog stays
+   open, a half-typed field keeps its text, and scroll position survives. That is the whole reason
+   this is a per-view seam rather than a page reload from the layout.
+
+   Resolved optionally, like SyncStatusIndicator: the web host registers no ISyncStatusSource
+   because it has no sync, and there this component quietly does nothing. *@
+
+@code {
+
+    /// <summary>The view's own data load. Runs on the renderer's thread; the view re-renders after.</summary>
+    [Parameter, EditorRequired] public EventCallback Reload { get; set; }
+
+    private ISyncStatusSource? sync;
+
+    /// <summary>
+    /// One reload at a time. Syncs can arrive closer together than a slow load takes to finish, and
+    /// two overlapping loads racing to assign the same field is how a view ends up displaying the
+    /// older of two answers.
+    /// </summary>
+    private bool reloading;
+
+    protected override void OnInitialized()
+    {
+        sync = Services.GetService(typeof(ISyncStatusSource)) as ISyncStatusSource;
+        if (sync is not null)
+            sync.RemoteChangesApplied += OnRemoteChangesApplied;
+    }
+
+    // The event is raised from the sync loop's thread, so hop to the renderer before touching
+    // anything a component owns.
+    private void OnRemoteChangesApplied() => _ = InvokeAsync(ReloadAsync);
+
+    private async Task ReloadAsync()
+    {
+        if (reloading || !Reload.HasDelegate)
+            return;
+
+        reloading = true;
+        try
+        {
+            await Reload.InvokeAsync();
+        }
+        finally
+        {
+            reloading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (sync is not null)
+            sync.RemoteChangesApplied -= OnRemoteChangesApplied;
+    }
+
+}

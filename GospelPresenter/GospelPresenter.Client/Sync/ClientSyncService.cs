@@ -76,6 +76,7 @@ public class ClientSyncService(
             }
 
             conflicts = await ApplyPushResponseAsync(db, response, maxJournalId, ct);
+            await AdoptServerStateAsync(db, conflicts, ct);
         }
 
         var ccliEntries = journal.Where(j => j.EntityTable == "CcliReportEntries").ToList();
@@ -83,6 +84,37 @@ public class ClientSyncService(
             pushed += await PushCcliAsync(db, ccliEntries, maxJournalId, ct);
 
         return (pushed, conflicts);
+    }
+
+    /// <summary>
+    /// Takes the server's version of everything the push lost, so the device stops disagreeing.
+    ///
+    /// This runs AFTER the booking transaction on purpose: the applier skips rows whose root still
+    /// has journal entries, and the booking is what consumes them. Run it before, and the applier
+    /// would politely decline to overwrite the very rows that need overwriting.
+    ///
+    /// Without this the device keeps the version the server rejected, with an empty journal and a
+    /// base that can never match again — invisible, unpushable, and good for one fresh conflict per
+    /// edit for as long as the row exists. A later pull cannot repair it: the server did not touch
+    /// the row it kept, so it stays below the watermark forever.
+    /// </summary>
+    private async Task AdoptServerStateAsync(
+        ClientDataContext db, List<SyncPushResult> conflicts, CancellationToken ct)
+    {
+        var states = conflicts.Select(c => c.ServerState).OfType<SyncChanges>().ToList();
+        if (states.Count == 0)
+            return;
+
+        foreach (var state in states)
+        {
+            // No watermark: this covers particular rows, not a window of server time. Advancing it
+            // here would skip whatever else changed server-side in the meantime.
+            var applier = new SyncPullApplier(db, auth.CurrentIdentity, logger);
+            await applier.ApplyAsync(
+                new PullBatch(state, [], ServerWatermark: null, RequiresFullResync: false), ct);
+        }
+
+        logger.LogInformation("Adopted the server's version of {Count} rejected aggregate(s)", states.Count);
     }
 
     /// <summary>
@@ -106,7 +138,7 @@ public class ClientSyncService(
 
             switch (result.Outcome)
             {
-                case SyncPushOutcome.Applied when result.NewModifiedAt is { } newBase:
+                case SyncPushOutcome.Applied when result.NewVersion is { } newBase:
                     await SyncSql.UpsertBaseAsync(db, table, result.Id, newBase, ct);
                     break;
 
@@ -131,7 +163,9 @@ public class ClientSyncService(
                     break;
 
                 case SyncPushOutcome.ServerWins:
-                case SyncPushOutcome.CopiedAsNew:
+                case SyncPushOutcome.Merged:
+                    // The base is deliberately not updated here. AdoptServerStateAsync writes it,
+                    // from the row it applies, once this transaction has consumed the journal.
                     conflicts.Add(result);
                     break;
 

@@ -13,6 +13,8 @@
 @inject ActiveOrganizationState OrgState
 @inject ToastService ToastService
 
+<RefreshOnSync Reload="LoadLabels"/>
+
 <PageContainer>
     <div class="flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.Labels.Title"]</div>

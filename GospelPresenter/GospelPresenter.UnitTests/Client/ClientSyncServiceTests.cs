@@ -25,6 +25,11 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
     private static readonly DateTimeOffset T2 = T1.AddMinutes(1);
     private static readonly DateTimeOffset T3 = T1.AddMinutes(2);
 
+    // Server row versions. Opaque to the client: the tests only ever check that what the server sent
+    // comes back unchanged, which is the whole contract.
+    private const long V1 = 41;
+    private const long V2 = 42;
+
     private static readonly DeviceIdentity Identity =
         new("user-1", "Anna", "anna@example.com", UserRole.Admin, "org-1", "Församlingen");
 
@@ -104,7 +109,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         }
 
         server.OnPush = _ => new SyncPushResponse([
-            new SyncPushResult(nameof(DbSong), "song-1", SyncPushOutcome.Applied, NewModifiedAt: T2),
+            new SyncPushResult(nameof(DbSong), "song-1", SyncPushOutcome.Applied, NewVersion: V2),
         ]);
 
         // Act
@@ -115,13 +120,13 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         var push = server.PushRequests.ShouldHaveSingleItem().Songs.ShouldHaveSingleItem();
         push.Song.Name.ShouldBe("Ny sång");
         push.Parts.ShouldHaveSingleItem().Content.ShouldBe("Vers 1");
-        push.BaseModifiedAt.ShouldBeNull();
+        push.BaseVersion.ShouldBeNull();
 
         // ...the journal was consumed and the acknowledged stamp became the new base
         await using var verify = await factory.CreateDbContextAsync();
         (await verify.SyncJournal.AnyAsync()).ShouldBeFalse();
         (await verify.SyncBase.SingleAsync(b => b.EntityTable == "Songs" && b.RowId == "song-1"))
-            .BaseModifiedAt.ShouldBe(T2);
+            .BaseVersion.ShouldBe(V2);
     }
 
     [Fact]
@@ -130,7 +135,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         // Arrange -- the song arrives from the server with stamp T1
         server.OnPull = _ => Pull(T1, changes: c =>
         {
-            c.Songs.Add(new SyncSongDto("song-1", "Originalet", null, null, null, null, null, T1));
+            c.Songs.Add(new SyncSongDto("song-1", "Originalet", null, null, null, null, null, T1, V1));
         });
         await engine.SyncAsync();
 
@@ -143,7 +148,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         }
 
         server.OnPush = _ => new SyncPushResponse([
-            new SyncPushResult(nameof(DbSong), "song-1", SyncPushOutcome.Applied, NewModifiedAt: T2),
+            new SyncPushResult(nameof(DbSong), "song-1", SyncPushOutcome.Applied, NewVersion: V2),
         ]);
 
         // Act
@@ -151,10 +156,10 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
 
         // Assert
         var push = server.PushRequests.ShouldHaveSingleItem().Songs.ShouldHaveSingleItem();
-        push.BaseModifiedAt.ShouldBe(T1);
+        push.BaseVersion.ShouldBe(V1);
 
         await using var verify = await factory.CreateDbContextAsync();
-        (await verify.SyncBase.SingleAsync(b => b.RowId == "song-1")).BaseModifiedAt.ShouldBe(T2);
+        (await verify.SyncBase.SingleAsync(b => b.RowId == "song-1")).BaseVersion.ShouldBe(V2);
     }
 
     [Fact]
@@ -163,7 +168,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         // Arrange
         server.OnPull = _ => Pull(T1, changes: c =>
         {
-            c.Songs.Add(new SyncSongDto("song-1", "Sången", null, null, null, null, DateTime.UtcNow, T1));
+            c.Songs.Add(new SyncSongDto("song-1", "Sången", null, null, null, null, DateTime.UtcNow, T1, V1));
         });
         await engine.SyncAsync();
 
@@ -185,7 +190,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         var delete = server.PushRequests.ShouldHaveSingleItem().Deletes.ShouldHaveSingleItem();
         delete.EntityType.ShouldBe(nameof(DbSong));
         delete.Id.ShouldBe("song-1");
-        delete.BaseModifiedAt.ShouldBe(T1);
+        delete.BaseVersion.ShouldBe(V1);
 
         await using var verify = await factory.CreateDbContextAsync();
         (await verify.SyncBase.AnyAsync(b => b.RowId == "song-1")).ShouldBeFalse();
@@ -198,15 +203,15 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         // Arrange -- a slice of every kind of row
         server.OnPull = _ => Pull(T2, changes: c =>
         {
-            c.SongPartLabels.Add(new SyncSongPartLabelDto("label-1", "Vers", "#123456", 0, T1));
-            c.Songs.Add(new SyncSongDto("song-1", "Serversång", "Författare", null, 2020, null, null, T1));
+            c.SongPartLabels.Add(new SyncSongPartLabelDto("label-1", "Vers", "#123456", 0, T1, V1));
+            c.Songs.Add(new SyncSongDto("song-1", "Serversång", "Författare", null, 2020, null, null, T1, V1));
             c.SongParts.Add(new SyncSongPartDto("part-1", "label-1", "Text", 0, "song-1", T1));
             c.SongArrangements.Add(new SyncSongArrangementDto("arr-1", "Kort", "[\"part-1\"]", "song-1", T1));
             c.Presentations.Add(PresentationDto("pres-1", "Gudstjänst", T1));
             c.PresentationItems.Add(new SyncPresentationItemDto("item-1", "song-1", PresentationItemType.Song, "Serversång", null, 0, "pres-1", T1));
             c.PresentationItemParts.Add(new SyncPresentationItemPartDto("ipart-1", "Text", 0, "item-1", T1));
             c.Bibles.Add(new SyncBibleDto("bible-1", "Bibel 2000", "B2000", 31173, T1));
-            c.UserSettings.Add(new SyncUserSettingDto("us-1", "PreferredLanguage", "sv", T1));
+            c.UserSettings.Add(new SyncUserSettingDto("us-1", "PreferredLanguage", "sv", T1, V1));
         });
 
         // Act
@@ -224,7 +229,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         (await db.SyncJournal.AnyAsync()).ShouldBeFalse();
 
         // Bases recorded for the pushable roots
-        (await db.SyncBase.SingleAsync(b => b.EntityTable == "Songs" && b.RowId == "song-1")).BaseModifiedAt.ShouldBe(T1);
+        (await db.SyncBase.SingleAsync(b => b.EntityTable == "Songs" && b.RowId == "song-1")).BaseVersion.ShouldBe(V1);
         (await db.SyncBase.AnyAsync(b => b.EntityTable == "Presentations" && b.RowId == "pres-1")).ShouldBeTrue();
 
         refresher.SongsRefreshed.ShouldBeTrue();
@@ -237,8 +242,8 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         // Arrange -- pull 1 seeds a presentation with children, and a labelled song part
         server.OnPull = _ => Pull(T1, changes: c =>
         {
-            c.SongPartLabels.Add(new SyncSongPartLabelDto("label-1", "Vers", "#123456", 0, T1));
-            c.Songs.Add(new SyncSongDto("song-1", "Sången", null, null, null, null, null, T1));
+            c.SongPartLabels.Add(new SyncSongPartLabelDto("label-1", "Vers", "#123456", 0, T1, V1));
+            c.Songs.Add(new SyncSongDto("song-1", "Sången", null, null, null, null, null, T1, V1));
             c.SongParts.Add(new SyncSongPartDto("part-1", "label-1", "Text", 0, "song-1", T1));
             c.Presentations.Add(PresentationDto("pres-1", "Gudstjänst", T1));
             c.PresentationItems.Add(new SyncPresentationItemDto("item-1", null, PresentationItemType.Song, "Titel", null, 0, "pres-1", T1));
@@ -270,7 +275,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         // Arrange
         server.OnPull = _ => Pull(T1, changes: c =>
         {
-            c.Songs.Add(new SyncSongDto("song-1", "Originalet", null, null, null, null, null, T1));
+            c.Songs.Add(new SyncSongDto("song-1", "Originalet", null, null, null, null, null, T1, V1));
         });
         await engine.SyncAsync();
 
@@ -287,14 +292,14 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
             db.Songs.Single(s => s.Id == "song-1").Name = "Nyare lokal ändring";
             db.SaveChanges();
             return new SyncPushResponse([
-                new SyncPushResult(nameof(DbSong), "song-1", SyncPushOutcome.Applied, NewModifiedAt: T2),
+                new SyncPushResult(nameof(DbSong), "song-1", SyncPushOutcome.Applied, NewVersion: V2),
             ]);
         };
 
         // ...and the pull that follows re-serves the song as the push left it on the server
         server.OnPull = _ => Pull(T3, changes: c =>
         {
-            c.Songs.Add(new SyncSongDto("song-1", "Lokal ändring", null, null, null, null, null, T2));
+            c.Songs.Add(new SyncSongDto("song-1", "Lokal ändring", null, null, null, null, null, T2, V2));
         });
 
         // Act
@@ -304,7 +309,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         // so the next push applies cleanly instead of reporting a false conflict
         await using var verify = await factory.CreateDbContextAsync();
         (await verify.Songs.SingleAsync(s => s.Id == "song-1")).Name.ShouldBe("Nyare lokal ändring");
-        (await verify.SyncBase.SingleAsync(b => b.RowId == "song-1")).BaseModifiedAt.ShouldBe(T2);
+        (await verify.SyncBase.SingleAsync(b => b.RowId == "song-1")).BaseVersion.ShouldBe(V2);
         (await verify.SyncJournal.AnyAsync(j => j.EntityTable == "Songs")).ShouldBeTrue("the in-flight edit still awaits the next push");
     }
 
@@ -328,12 +333,12 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
 
         server.OnPush = _ => new SyncPushResponse([
             new SyncPushResult(nameof(DbSongPartLabel), "local-label", SyncPushOutcome.Remapped, NewId: "server-label"),
-            new SyncPushResult(nameof(DbSong), "song-1", SyncPushOutcome.Applied, NewModifiedAt: T2),
+            new SyncPushResult(nameof(DbSong), "song-1", SyncPushOutcome.Applied, NewVersion: V2),
         ]);
         server.OnPull = _ => Pull(T3, changes: c =>
         {
-            c.SongPartLabels.Add(new SyncSongPartLabelDto("server-label", "Stick", "#654321", 0, T2));
-            c.Songs.Add(new SyncSongDto("song-1", "Sången", null, null, null, null, null, T2));
+            c.SongPartLabels.Add(new SyncSongPartLabelDto("server-label", "Stick", "#654321", 0, T2, V2));
+            c.Songs.Add(new SyncSongDto("song-1", "Sången", null, null, null, null, null, T2, V2));
             c.SongParts.Add(new SyncSongPartDto("part-1", "server-label", "Text", 0, "song-1", T2));
         });
 
@@ -348,9 +353,14 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task ConflictOutcomes_AreReportedInTheSummary()
+    public async Task AConflict_MakesTheClientAdoptTheServersVersionAndItsNewBase()
     {
-        // Arrange
+        // Without this the device keeps the version the server rejected, with an empty journal and
+        // a base that can never match again: invisible, unpushable, and good for one fresh conflict
+        // per edit forever. A later pull cannot repair it — the server did not touch the row it
+        // kept, so it stays below the watermark.
+
+        // Arrange -- a local presentation the server will answer with its own version of
         server.OnPull = _ => Pull(T1);
         await engine.SyncAsync();
 
@@ -364,17 +374,28 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
             await db.SaveChangesAsync();
         }
 
+        var serverState = new SyncChanges();
+        serverState.Presentations.Add(PresentationDto("pres-1", "Serverns version", T2, V2));
+
         server.OnPush = _ => new SyncPushResponse([
-            new SyncPushResult(nameof(Presentation), "pres-1", SyncPushOutcome.CopiedAsNew, NewId: "pres-copy"),
+            new SyncPushResult(nameof(Presentation), "pres-1", SyncPushOutcome.Merged,
+                NewVersion: V2, ServerState: serverState),
         ]);
+        server.OnPull = _ => Pull(T2);
 
         // Act
         var summary = await engine.SyncAsync();
 
-        // Assert
-        var conflict = summary.Conflicts.ShouldHaveSingleItem();
-        conflict.Outcome.ShouldBe(SyncPushOutcome.CopiedAsNew);
-        conflict.NewId.ShouldBe("pres-copy");
+        // Assert -- reported to the UI...
+        summary.Conflicts.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Merged);
+
+        // ...and the local row now agrees with the server, base included
+        await using var verify = await factory.CreateDbContextAsync();
+        (await verify.Presentations.SingleAsync(p => p.Id == "pres-1")).Name.ShouldBe("Serverns version");
+        (await verify.SyncBase.SingleAsync(b => b.RowId == "pres-1")).BaseVersion.ShouldBe(V2);
+
+        // ...without the adoption looking like a fresh local edit
+        (await verify.SyncJournal.AnyAsync()).ShouldBeFalse();
     }
 
     [Fact]
@@ -383,14 +404,14 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         // Arrange -- an established watermark and a local song the server no longer serves
         server.OnPull = _ => Pull(T1, changes: c =>
         {
-            c.Songs.Add(new SyncSongDto("song-old", "Utgången", null, null, null, null, null, T1));
+            c.Songs.Add(new SyncSongDto("song-old", "Utgången", null, null, null, null, null, T1, V1));
         });
         await engine.SyncAsync();
 
         server.OnPull = request => request.Since is null
             ? Pull(T3, changes: c =>
             {
-                c.Songs.Add(new SyncSongDto("song-new", "Aktuell", null, null, null, null, null, T2));
+                c.Songs.Add(new SyncSongDto("song-new", "Aktuell", null, null, null, null, null, T2, V2));
             })
             : new SyncPullResponse(T3, RequiresFullResync: true, HasMore: false, NextCursor: null,
                 new SyncChanges(), []);
@@ -473,7 +494,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         }
 
         server.OnPush = _ => new SyncPushResponse([
-            new SyncPushResult(nameof(Presentation), "pres-1", SyncPushOutcome.CopiedAsNew, NewId: "pres-copy"),
+            new SyncPushResult(nameof(Presentation), "pres-1", SyncPushOutcome.Merged, NewVersion: V2),
         ]);
 
         var connectivity = new FakeConnectivityMonitor { IsOnline = true };
@@ -489,7 +510,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         scheduler.Status.ShouldBe(SyncStatus.Idle);
         scheduler.LastSyncAt.ShouldNotBeNull();
         scheduler.PendingChanges.ShouldBe(0);
-        conflicts.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.CopiedAsNew);
+        conflicts.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Merged);
     }
 
     [Fact]
@@ -508,8 +529,100 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         server.PushRequests.ShouldBeEmpty();
     }
 
-    private static SyncPresentationDto PresentationDto(string id, string name, DateTimeOffset modifiedAt) =>
-        new(id, name, T1, "user-1", T1, "user-1", false, null, null, 0, null, null, null, null, null, null, modifiedAt);
+    [Fact]
+    public async Task TheScheduler_AnnouncesRemoteChanges_WhenAPullAppliedRows()
+    {
+        // Arrange
+        server.OnPull = _ => Pull(T1, changes: c =>
+        {
+            c.Songs.Add(new SyncSongDto("song-1", "Serversången", null, null, null, null, null, T1, V1));
+        });
+
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance);
+        var announcements = 0;
+        scheduler.RemoteChangesApplied += () => announcements++;
+
+        // Act
+        await scheduler.SyncNowAsync();
+
+        // Assert
+        announcements.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task TheScheduler_SaysNothing_WhenAPullBroughtNoRows()
+    {
+        // A sync that changed nothing must stay silent, or every view subscribing to this would
+        // re-query the database on the poll interval for as long as the app is open.
+
+        // Arrange
+        server.OnPull = _ => Pull(T1);
+
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance);
+        var announcements = 0;
+        scheduler.RemoteChangesApplied += () => announcements++;
+
+        // Act
+        await scheduler.SyncNowAsync();
+
+        // Assert
+        scheduler.Status.ShouldBe(SyncStatus.Idle);
+        announcements.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task TheScheduler_KeepsAskingTheServer_WithNothingOfItsOwnToSend()
+    {
+        // The journal poll only ever notices this device's own edits. A device that is merely being
+        // read from has an empty journal for hours, and without an idle pull it would never hear
+        // about anything anyone else did.
+
+        // Arrange
+        var pulls = 0;
+        server.OnPull = _ =>
+        {
+            Interlocked.Increment(ref pulls);
+            return Pull(T1);
+        };
+
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance)
+        {
+            PollInterval = TimeSpan.FromMilliseconds(20),
+            IdlePullInterval = TimeSpan.Zero,
+        };
+
+        // Act: Start syncs once immediately, then the loop takes over.
+        scheduler.Start();
+        await WaitUntil(() => Volatile.Read(ref pulls) >= 3);
+
+        // Assert
+        Volatile.Read(ref pulls).ShouldBeGreaterThanOrEqualTo(3);
+        await using var db = await factory.CreateDbContextAsync();
+        (await db.SyncJournal.CountAsync()).ShouldBe(0, "the pulls must not be driven by local edits");
+    }
+
+    /// <summary>
+    /// Polls a condition to a deadline rather than sleeping for a fixed time: the loop under test is
+    /// driven by a timer, and a fixed sleep is either flaky or slow.
+    /// </summary>
+    private static async Task WaitUntil(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (!condition())
+        {
+            timeout.Token.ThrowIfCancellationRequested();
+            await Task.Delay(10, timeout.Token);
+        }
+    }
+
+    private static SyncPresentationDto PresentationDto(string id, string name, DateTimeOffset modifiedAt, long version = V1) =>
+        new(id, name, T1, "user-1", T1, "user-1", false, null, null, 0, null, null, null, null, null, null, modifiedAt, version);
 
     /// <summary>A single-page pull response.</summary>
     private static SyncPullResponse Pull(

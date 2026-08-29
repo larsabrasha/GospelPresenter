@@ -1688,8 +1688,11 @@
   <data name="Update.RestartTooltip" xml:space="preserve">
     <value>Version {0} är nedladdad och installeras vid omstart. Den installeras även av sig själv nästa gång appen startas.</value>
   </data>
-  <data name="Sync.ConflictCopiedAsNew" xml:space="preserve">
-    <value>En presentation ändrades på servern. Din offlineversion sparades som en kopia.</value>
+  <data name="Sync.ConflictMerged" xml:space="preserve">
+    <value>Presentationen ändrades även på annat håll medan du var offline. Båda ändringarna slogs ihop.</value>
+  </data>
+  <data name="Sync.ConflictServerVersionKept" xml:space="preserve">
+    <value>Presentationen raderades på annat håll medan du var offline, och dina offlineändringar i den försvann med den.</value>
   </data>
   <data name="Sync.ConflictSongVersionSaved" xml:space="preserve">
     <value>En sång ändrades på servern. Din offlineversion sparades i sångens versionshistorik.</value>

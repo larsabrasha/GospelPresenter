@@ -7,6 +7,8 @@ public class PresentationItemPart : ISyncTracked
     public int SortOrder { get; set; }
     public DateTimeOffset ModifiedAt { get; set; }
 
+    public long Version { get; set; }
+
     public string PresentationItemId { get; set; } = "";
     public PresentationItem PresentationItem { get; set; } = null!;
 }

@@ -32,7 +32,7 @@ internal static class SyncPushBuilder
             .ToHashSet();
 
         var bases = await LoadBasesAsync(db, roots, ct);
-        DateTimeOffset? Base(string table, string id) =>
+        long? Base(string table, string id) =>
             bases.TryGetValue(new RootRef(table, id), out var value) ? value : null;
 
         var request = new SyncPushRequest { DeviceName = deviceName };
@@ -45,7 +45,7 @@ internal static class SyncPushBuilder
         foreach (var l in await db.SongPartLabels.AsNoTracking().Where(l => labelIds.Contains(l.Id)).ToListAsync(ct))
         {
             request.SongPartLabels.Add(new SyncRowPush<SyncSongPartLabelDto>(
-                new SyncSongPartLabelDto(l.Id, l.Text, l.Color, l.SortOrder, l.ModifiedAt),
+                new SyncSongPartLabelDto(l.Id, l.Text, l.Color, l.SortOrder, l.ModifiedAt, l.Version),
                 Base("SongPartLabels", l.Id)));
             pushedIds.Add(new RootRef("SongPartLabels", l.Id));
         }
@@ -60,7 +60,7 @@ internal static class SyncPushBuilder
         foreach (var s in songs)
         {
             request.Songs.Add(new SyncSongPush(
-                new SyncSongDto(s.Id, s.Name, s.Author, s.Publisher, s.Year, s.Ccli, s.DeletedAt, s.ModifiedAt),
+                new SyncSongDto(s.Id, s.Name, s.Author, s.Publisher, s.Year, s.Ccli, s.DeletedAt, s.ModifiedAt, s.Version),
                 s.Parts.OrderBy(p => p.SortOrder)
                     .Select(p => new SyncSongPartDto(p.Id, p.LabelId, p.Content, p.SortOrder, p.SongId, p.ModifiedAt))
                     .ToList(),
@@ -76,7 +76,7 @@ internal static class SyncPushBuilder
         foreach (var i in await db.OrganizationImages.AsNoTracking().Where(i => imageIds.Contains(i.Id)).ToListAsync(ct))
         {
             request.OrganizationImages.Add(new SyncRowPush<SyncOrganizationImageDto>(
-                new SyncOrganizationImageDto(i.Id, i.FileName, i.ContentType, i.CreatedAt, i.ModifiedAt),
+                new SyncOrganizationImageDto(i.Id, i.FileName, i.ContentType, i.CreatedAt, i.ModifiedAt, i.Version),
                 Base("OrganizationImages", i.Id)));
             pushedIds.Add(new RootRef("OrganizationImages", i.Id));
         }
@@ -85,7 +85,7 @@ internal static class SyncPushBuilder
         foreach (var a in await db.OrganizationAudios.AsNoTracking().Where(a => audioIds.Contains(a.Id)).ToListAsync(ct))
         {
             request.OrganizationAudios.Add(new SyncRowPush<SyncOrganizationAudioDto>(
-                new SyncOrganizationAudioDto(a.Id, a.FileName, a.ContentType, a.CreatedAt, a.ModifiedAt),
+                new SyncOrganizationAudioDto(a.Id, a.FileName, a.ContentType, a.CreatedAt, a.ModifiedAt, a.Version),
                 Base("OrganizationAudios", a.Id)));
             pushedIds.Add(new RootRef("OrganizationAudios", a.Id));
         }
@@ -94,7 +94,7 @@ internal static class SyncPushBuilder
         foreach (var o in await db.OverlaySlides.AsNoTracking().Where(o => overlayIds.Contains(o.Id)).ToListAsync(ct))
         {
             request.OverlaySlides.Add(new SyncRowPush<SyncOverlaySlideDto>(
-                new SyncOverlaySlideDto(o.Id, o.Title, o.Content, o.HasImage, o.SortOrder, o.ModifiedAt),
+                new SyncOverlaySlideDto(o.Id, o.Title, o.Content, o.HasImage, o.SortOrder, o.ModifiedAt, o.Version),
                 Base("OverlaySlides", o.Id)));
             pushedIds.Add(new RootRef("OverlaySlides", o.Id));
         }
@@ -111,7 +111,8 @@ internal static class SyncPushBuilder
             request.Presentations.Add(new SyncPresentationPush(
                 new SyncPresentationDto(p.Id, p.Name, p.CreatedAt, p.CreatedBy, p.UpdatedAt, p.UpdatedBy,
                     p.IsTemplate, p.Description, p.LastUsedAt, p.UseCount, p.ScheduledDayOfWeek,
-                    p.ScheduledTime, p.EventDate, p.EventTime, p.EventLocation, p.ThemeId, p.ModifiedAt),
+                    p.ScheduledTime, p.EventDate, p.EventTime, p.EventLocation, p.ThemeId, p.ModifiedAt,
+                    p.Version),
                 p.Items.OrderBy(i => i.SortOrder)
                     .Select(i => new SyncPresentationItemDto(i.Id, i.SourceId, i.Type, i.Title, i.ArrangementId, i.SortOrder, i.PresentationId, i.ModifiedAt))
                     .ToList(),
@@ -130,7 +131,7 @@ internal static class SyncPushBuilder
         foreach (var s in await db.OrganizationSettings.AsNoTracking().Where(s => orgSettingIds.Contains(s.Id)).ToListAsync(ct))
         {
             request.OrganizationSettings.Add(new SyncRowPush<SyncOrganizationSettingDto>(
-                new SyncOrganizationSettingDto(s.Id, s.Key, s.Value, s.ModifiedAt),
+                new SyncOrganizationSettingDto(s.Id, s.Key, s.Value, s.ModifiedAt, s.Version),
                 Base("OrganizationSettings", s.Id)));
             pushedIds.Add(new RootRef("OrganizationSettings", s.Id));
         }
@@ -139,7 +140,7 @@ internal static class SyncPushBuilder
         foreach (var s in await db.UserSettings.AsNoTracking().Where(s => userSettingIds.Contains(s.Id)).ToListAsync(ct))
         {
             request.UserSettings.Add(new SyncRowPush<SyncUserSettingDto>(
-                new SyncUserSettingDto(s.Id, s.Key, s.Value, s.ModifiedAt),
+                new SyncUserSettingDto(s.Id, s.Key, s.Value, s.ModifiedAt, s.Version),
                 Base("UserSettings", s.Id)));
             pushedIds.Add(new RootRef("UserSettings", s.Id));
         }
@@ -158,10 +159,10 @@ internal static class SyncPushBuilder
         return count == 0 ? null : request;
     }
 
-    private static async Task<Dictionary<RootRef, DateTimeOffset>> LoadBasesAsync(
+    private static async Task<Dictionary<RootRef, long>> LoadBasesAsync(
         ClientDataContext db, HashSet<RootRef> roots, CancellationToken ct)
     {
-        var bases = new Dictionary<RootRef, DateTimeOffset>();
+        var bases = new Dictionary<RootRef, long>();
         foreach (var group in roots.GroupBy(r => r.Table))
         {
             var table = group.Key;
@@ -170,7 +171,7 @@ internal static class SyncPushBuilder
                 .Where(b => b.EntityTable == table && ids.Contains(b.RowId))
                 .ToListAsync(ct);
             foreach (var row in rows)
-                bases[new RootRef(table, row.RowId)] = row.BaseModifiedAt;
+                bases[new RootRef(table, row.RowId)] = row.BaseVersion;
         }
         return bases;
     }

@@ -20,6 +20,8 @@
 @inject ActiveOrganizationState OrgState
 @inject ILogger<Audios> Logger
 
+<RefreshOnSync Reload="LoadAudiosAsync"/>
+
 <PageContainer>
     <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Audios.Title"]</div>
@@ -168,14 +170,20 @@
     protected override void OnInitialized() =>
         mediaUploader = Services.GetService(typeof(IMediaUploader)) as IMediaUploader;
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => LoadAudiosAsync();
+
+    /// <summary>
+    /// Re-filters rather than resetting: a sync arriving while someone is searching should change
+    /// which files match, not throw away what they typed.
+    /// </summary>
+    private async Task LoadAudiosAsync()
     {
         organizationId = OrgState.ActiveOrganizationId;
 
         if (organizationId is not null)
         {
             audios = await OrganizationAudioService.GetAudiosAsync(organizationId, OrgState.ToCallerContext());
-            displayedAudios = audios.ToList();
+            ApplySearchFilter();
         }
 
         isLoading = false;
