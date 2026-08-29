@@ -138,6 +138,7 @@ try
 
                 options.Events.OnRemoteFailure = context =>
                 {
+                    Log.Warning(context.Failure, "Remote authentication failure");
                     context.Response.Redirect("/authentication-error");
                     context.HandleResponse();
                     return Task.CompletedTask;
@@ -180,6 +181,7 @@ try
 
                 options.Events.OnRemoteFailure = context =>
                 {
+                    Log.Warning(context.Failure, "Remote authentication failure");
                     context.Response.Redirect("/authentication-error");
                     context.HandleResponse();
                     return Task.CompletedTask;
@@ -953,10 +955,18 @@ static async Task HandleAuthenticatedUser(
     string loginProvider,
     Action<string> onFailure)
 {
+    // Both callers turn the failure into a bare redirect to /authentication-error, so this log is
+    // the only place the actual reason survives.
+    void Reject(string reason)
+    {
+        Log.Warning("Rejecting {Provider} sign-in: {Reason}", loginProvider, reason);
+        onFailure(reason);
+    }
+
     var subject = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
     if (string.IsNullOrEmpty(subject))
     {
-        onFailure("No subject claim found");
+        Reject("the ticket carried no subject claim");
         return;
     }
 
@@ -970,7 +980,7 @@ static async Task HandleAuthenticatedUser(
         var invite = await userService.GetInviteByTokenAsync(inviteToken);
         if (invite == null)
         {
-            onFailure("Invalid invite");
+            Reject("the invite token is unknown, already used, or expired");
             return;
         }
         await userService.LinkLoginAsync(invite.UserId, loginProvider, subject);
@@ -982,7 +992,8 @@ static async Task HandleAuthenticatedUser(
         user = await userService.GetByLoginAsync(loginProvider, subject);
         if (user == null)
         {
-            onFailure("User not found");
+            Reject($"no user is linked to {loginProvider} subject {subject} — the account must be "
+                   + "linked once through an invite link before plain sign-in works");
             return;
         }
     }
@@ -1017,6 +1028,8 @@ static async Task HandleAuthenticatedUser(
     identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
     identity?.AddClaim(new Claim("login_provider", loginProvider));
     identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
+
+    Log.Information("Signed in user {UserId} via {Provider}", user.Id, loginProvider);
 }
 
 static async Task<byte[]?> DownloadImage(IHttpClientFactory httpClientFactory, string url)
