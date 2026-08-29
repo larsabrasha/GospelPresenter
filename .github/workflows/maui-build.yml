@@ -76,6 +76,27 @@ jobs:
       - name: Build the desktop app
         run: dotnet build GospelPresenter.Desktop/GospelPresenter.Desktop.csproj
 
+      - name: Check the stylesheet reached the static web assets
+        # Tailwind's output is generated during the build and gitignored, so it is present on every
+        # machine that has built before and on no clean checkout. When it misses the manifest the
+        # app still compiles, still starts, and renders with no styling whatsoever — which is how it
+        # reached a release once, verified on a developer machine that had the file lying around.
+        #
+        # This job is the only place it can be caught, because it is the only place that checks out
+        # clean. Asserted against the manifest rather than the file on disk: the file being written
+        # is precisely what was never in doubt.
+        run: |
+          manifest=GospelPresenter.Desktop/obj/Debug/net10.0/staticwebassets.build.endpoints.json
+          if [ ! -f "$manifest" ]; then
+            echo "::error::$manifest does not exist. The build layout changed and this check no longer checks anything."
+            exit 1
+          fi
+          if ! grep -q "tailwind-output" "$manifest"; then
+            echo "::error::tailwind-output.css is missing from the static web asset manifest. The app would ship with no styling."
+            exit 1
+          fi
+          echo "tailwind-output.css is in the static web asset manifest."
+
   apple-and-android:
     # Not on pull requests -- see the note at the top of this file.
     if: github.event_name != 'pull_request'
