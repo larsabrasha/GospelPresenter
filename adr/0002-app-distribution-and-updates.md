@@ -1,10 +1,22 @@
 # 2. App distribution and updates
 
-- **Status:** Accepted
+- **Status:** Partly superseded — see the note below
 - **Date:** 2026-08-28
 - **Scope:** the MAUI app (`GospelPresenter/GospelPresenter`), macOS first
 - **Blocked on:** an Apple Developer Program membership, which has been deliberately deferred — see
   (28) and *Open questions*
+
+> **Superseded in part, 2026-08-29.** The desktop app moves to Electron.NET, which brings its own
+> windowing, its own installer and its own updater. That retires everything here that was specific
+> to shipping a Mac Catalyst bundle: Velopack (6), the `.pkg` and its per-user installer rewrite (5),
+> the release workflow and the tag-to-three-versions derivation (8)–(11), and the Gatekeeper
+> reasoning in (7). The decisions that were about *the product* rather than the toolchain still
+> stand and carry over: direct download rather than an app store (2), macOS first (1), updates that
+> apply at the next start and never interrupt a live presentation (16)–(18), the `IAppUpdater` seam
+> (18), the file-system layout and its reasoning (20)–(23), the client version headers and protocol
+> floor (24)–(25), and the two deferred features (29)–(30).
+>
+> The measurements that led here are in the commit history and in ADR 0003.
 
 ## Context
 

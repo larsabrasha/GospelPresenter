@@ -17,22 +17,6 @@ public class Settings
     /// </summary>
     public static readonly string ApiBaseUrl = ResolveApiBaseUrl();
 
-    /// <summary>
-    /// Where the app looks for new versions of itself, or empty when it does not look at all.
-    ///
-    /// Only the Prod scheme has a feed. Test builds are fetched by whoever is testing, and Local is
-    /// whatever is on the developer's disk — giving either one a public update feed would mean
-    /// maintaining releases nobody installs. The channel is not named here: Velopack records the
-    /// one the app was installed from, so a beta install keeps receiving betas without the build
-    /// having to know which it is. See adr/0002-app-distribution-and-updates.md (9), (24).
-    /// </summary>
-    public static readonly string UpdateFeedUrl =
-#if SCHEME_PROD
-        "https://github.com/larsabrasha/GospelPresenter";
-#else
-        "";
-#endif
-
     private static string ResolveApiBaseUrl()
     {
 #if DEBUG

@@ -1415,6 +1415,12 @@
   <data name="FilePicker.ChooseAudio" xml:space="preserve">
     <value>Choose audio files</value>
   </data>
+  <data name="FilePicker.ImageFiles" xml:space="preserve">
+    <value>Images</value>
+  </data>
+  <data name="FilePicker.AudioFiles" xml:space="preserve">
+    <value>Audio files</value>
+  </data>
   <data name="LivePanel.LiveWindowFailed" xml:space="preserve">
     <value>The live view could not be opened</value>
   </data>
@@ -1708,12 +1714,6 @@
   </data>
   <data name="Bibles.OfflineDownloadFailed" xml:space="preserve">
     <value>The download failed. Check your connection and try again.</value>
-  </data>
-  <data name="LiveWindow.Menu" xml:space="preserve">
-    <value>Display</value>
-  </data>
-  <data name="LiveWindow.MoveToExternal" xml:space="preserve">
-    <value>Show live view on the external screen</value>
   </data>
   <data name="Nav.Devices" xml:space="preserve">
     <value>Devices</value>

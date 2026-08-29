@@ -1,5 +1,4 @@
-﻿using GospelPresenter.Services;
-using Serilog;
+﻿using Serilog;
 
 namespace GospelPresenter;
 
@@ -28,8 +27,7 @@ public partial class App : Application
             Log.Information("********************************************************************");
 
 #if DEBUG
-            Log.Information("{Key}: {Value}", "Data Directory", AppPaths.DataDirectory);
-            Log.Information("{Key}: {Value}", "Log Directory", AppPaths.LogDirectory);
+            Log.Information("{Key}: {Value}", "App Data Directory", FileSystem.Current.AppDataDirectory);
 #endif
         };
 

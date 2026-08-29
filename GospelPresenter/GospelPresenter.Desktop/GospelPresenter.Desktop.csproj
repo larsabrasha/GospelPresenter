@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <!-- The desktop app: ASP.NET Core hosting the shared Blazor components on localhost, wrapped in
+         Electron. See adr/0003 (to be written) for why this replaces the Mac Catalyst host.
+
+         The shape is closer to GospelPresenter.Web than to the MAUI app — same components, same
+         domain services, same render mode — but pointed at the local SQLite database that
+         GospelPresenter.Client maintains, and with the device sign-in rather than cookies. -->
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>GospelPresenter.Desktop</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- ElectronNET.Core, not ElectronNET.API: the latter is the pre-2024 package line and its
+             newest stable release ships only lib/net6.0 with a DLL dated 2024-02-15. The Core line
+             is where the project actually lives now — 0.5.2, August 2026, with lib/net10.0. -->
+        <PackageReference Include="ElectronNET.Core" Version="0.5.2" />
+        <PackageReference Include="ElectronNET.Core.AspNet" Version="0.5.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Serilog" Version="4.3.1" />
+        <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+        <!-- Pinned above what EF Core's SQLite provider resolves transitively: GHSA-2m69-gcr7-jv3q. -->
+        <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
+        <ProjectReference Include="..\GospelPresenter.Client\GospelPresenter.Client.csproj" />
+    </ItemGroup>
+
+</Project>

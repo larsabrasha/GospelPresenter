@@ -97,10 +97,10 @@ else
                     class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isOutputsCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
                     <div class="overflow-hidden min-h-0">
                         <div class="flex flex-col gap-3 p-1 pt-3">
-                            @if (hasPresentationApi)
+                            @if (hasPresentationApi || hasNativeExternalDisplay)
                             {
-                                var isActive = presentationDisplays.Count > 0;
-                                <button @onclick="TogglePresentationDisplay"
+                                var isActive = presentationDisplays.Count > 0 || externalWindowId is not null;
+                                <button @onclick="ToggleExternalDisplay"
                                         class="cursor-pointer flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm @(isActive ? "text-neutral-600 dark:text-neutral-300 bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700/50")">
                                     <div class="flex items-center gap-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
@@ -534,6 +534,12 @@ else
 
     private List<int> presentationDisplays = [];
     private bool hasPresentationApi;
+
+    // The same output, reached two ways. hasNativeExternalDisplay wins where both look possible:
+    // the host that reports a real second display can put a window on it, which is what the
+    // browser's Presentation API only pretends to offer outside Chrome with a Cast receiver.
+    private bool hasNativeExternalDisplay;
+    private string? externalWindowId;
     private DotNetObjectReference<LivePanel>? dotNetRef;
 
     private bool showPairingDialog;
@@ -554,12 +560,33 @@ else
         PublicOutputState.ViewerCountChanged += OnDisplayStatusChanged;
     }
 
-    private void OnNativeLiveWindowClosed(string windowId) => OnLiveWindowClosed(windowId);
+    private void OnNativeLiveWindowClosed(string windowId)
+    {
+        // Whoever closed it — the operator's toggle, the window's own controls, the presentation
+        // stopping — the launcher reports it here and the row goes back to off.
+        if (windowId == externalWindowId)
+        {
+            externalWindowId = null;
+            _ = InvokeAsync(async () =>
+            {
+                await SaveOutputConfig();
+                StateHasChanged();
+            });
+            return;
+        }
+
+        OnLiveWindowClosed(windowId);
+    }
 
     protected override async Task OnParametersSetAsync()
     {
         if (SessionId is not null && previousSessionId is null)
         {
+            // Asked before restoring, not on first render like the Presentation API check below:
+            // this one is a plain call into the host, so it can be answered while the saved config
+            // is still deciding whether to reopen the projector window.
+            hasNativeExternalDisplay = liveWindowLauncher is not null
+                                       && await liveWindowLauncher.HasExternalDisplayAsync();
             await RestoreOutputConfig();
         }
 
@@ -733,7 +760,9 @@ else
         {
             enabledDisplayIds,
             windowCount = liveWindows.Count,
-            presentationDisplay = presentationDisplays.Count > 0
+            // One flag for the one output, whichever mechanism is driving it — a machine that
+            // gained or lost a projector since last time restores whatever it can do now.
+            presentationDisplay = presentationDisplays.Count > 0 || externalWindowId is not null
         };
         await JsRuntime.InvokeVoidAsync("gospelPresenter.saveOutputConfig", config);
     }
@@ -771,9 +800,12 @@ else
                 await OpenLiveWindow();
             }
 
-            if (config.PresentationDisplay == true && hasPresentationApi && presentationDisplays.Count == 0)
+            if (config.PresentationDisplay == true)
             {
-                await StartPresentationDisplay();
+                if (hasNativeExternalDisplay && externalWindowId is null)
+                    await StartNativeExternalDisplay();
+                else if (hasPresentationApi && presentationDisplays.Count == 0)
+                    await StartPresentationDisplay();
             }
         }
         catch
@@ -784,9 +816,16 @@ else
 
     private record OutputConfig(string[]? EnabledDisplayIds, int? WindowCount, bool? PresentationDisplay);
 
-    private async Task TogglePresentationDisplay()
+    private async Task ToggleExternalDisplay()
     {
-        if (presentationDisplays.Count > 0)
+        if (hasNativeExternalDisplay)
+        {
+            if (externalWindowId is { } open)
+                await liveWindowLauncher!.CloseAsync(open);
+            else
+                await StartNativeExternalDisplay();
+        }
+        else if (presentationDisplays.Count > 0)
         {
             foreach (var id in presentationDisplays.ToList())
             {
@@ -801,6 +840,22 @@ else
         }
 
         await SaveOutputConfig();
+    }
+
+    /// <summary>
+    /// Opens the live view on the projector as a native window. It is deliberately not added to
+    /// <see cref="liveWindows"/>: this output has its own row, and listing it twice would offer the
+    /// operator two different ways to close one window.
+    /// </summary>
+    private async Task StartNativeExternalDisplay()
+    {
+        if (SessionId is null || liveWindowLauncher is null) return;
+
+        var windowId = Guid.NewGuid().ToString("N")[..8];
+        if (await liveWindowLauncher.OpenAsync(SessionId, windowId, L["LivePanel.ExternalDisplay"]))
+            externalWindowId = windowId;
+        else
+            ToastService.Show(L["LivePanel.LiveWindowFailed"]);
     }
 
     private async Task StartPresentationDisplay()
@@ -833,7 +888,8 @@ else
     {
         if (firstRender)
         {
-            hasPresentationApi = await JsRuntime.InvokeAsync<bool>("gospelPresenter.isPresentationApiAvailable");
+            hasPresentationApi = !hasNativeExternalDisplay
+                                 && await JsRuntime.InvokeAsync<bool>("gospelPresenter.isPresentationApiAvailable");
             windowCloseRef = DotNetObjectReference.Create(this);
             await JsRuntime.InvokeVoidAsync("gospelPresenter.onLiveWindowClosed", windowCloseRef);
             await JsRuntime.InvokeVoidAsync("gospelPresenter.setLivePanelRef", windowCloseRef);

@@ -32,7 +32,7 @@ public class LivePage : ContentPage
     /// <summary>The projector shows media too: this webview needs the gpmedia scheme as well.</summary>
     private static void OnInitializing(object? sender, BlazorWebViewInitializingEventArgs e)
     {
-#if IOS || MACCATALYST
+#if IOS
         e.Configuration.SetUrlSchemeHandler(new Handlers.GpMediaSchemeHandler(), Handlers.GpMediaSchemeHandler.Scheme);
 #endif
     }

@@ -4,18 +4,16 @@ using Microsoft.Extensions.Logging;
 namespace GospelPresenter.Services;
 
 /// <summary>
-/// The device's projector windows: each live view is a real second MAUI window on /live. When an
-/// external screen is connected the new window is parked there in fullscreen automatically (the
-/// window needs a moment to materialise natively, hence the retries); the "show on screen 2" menu
-/// item re-runs the move for stubborn setups. Whoever closes a window — the user with ⌘W, the
+/// Opens a live (projector) view as a second app window. Whoever closes one — the user, the
 /// presentation stopping, the operator's panel — everything observes the same Destroying event.
+///
+/// Placing that window on a projector is not attempted here. It never worked on Mac Catalyst, which
+/// is gone, and no mobile platform lets an app choose a display; a Mac or PC driving a projector
+/// runs the desktop app, which owns real windows and can put one wherever it likes.
 /// </summary>
-public class MauiLiveWindowLauncher(
-    IExternalDisplayService externalDisplay,
-    ILogger<MauiLiveWindowLauncher> logger) : ILiveWindowLauncher
+public class MauiLiveWindowLauncher(ILogger<MauiLiveWindowLauncher> logger) : ILiveWindowLauncher
 {
     private readonly Dictionary<string, Window> windows = new();
-    private string? latestWindowTitle;
 
     public event Action<string>? WindowClosed;
 
@@ -34,10 +32,9 @@ public class MauiLiveWindowLauncher(
 
             try
             {
-                // Mac Catalyst throws here ("The application does not support multiple scenes")
-                // until the projector window finds a route that does not need a scene manifest;
-                // see Platforms/MacCatalyst/Info.plist. Report it as a failure so the caller can
-                // tell the user, rather than faulting the click.
+                // Multi-window support varies by platform, and where it is missing this throws.
+                // Report it as a failure so the caller can tell the user, rather than faulting
+                // the click.
                 application.OpenWindow(window);
             }
             catch (Exception e)
@@ -47,12 +44,14 @@ public class MauiLiveWindowLauncher(
             }
 
             windows[windowId] = window;
-            latestWindowTitle = title;
-
-            if (externalDisplay.HasExternalScreen)
-                _ = MoveToExternalWithRetriesAsync(title);
             return true;
         });
+
+    /// <summary>
+    /// Never. No mobile platform lets an app choose which display it draws on, and a Mac or PC
+    /// driving a projector runs the desktop app, which owns real windows and can place one.
+    /// </summary>
+    public Task<bool> HasExternalDisplayAsync() => Task.FromResult(false);
 
     public Task CloseAsync(string windowId) =>
         MainThread.InvokeOnMainThreadAsync(() =>
@@ -60,35 +59,4 @@ public class MauiLiveWindowLauncher(
             if (windows.TryGetValue(windowId, out var window))
                 Application.Current?.CloseWindow(window);
         });
-
-    /// <summary>The menu fallback: sends the most recently opened live window to the external screen.</summary>
-    public Task<bool> MoveLatestToExternalAsync() =>
-        MainThread.InvokeOnMainThreadAsync(() =>
-            latestWindowTitle is not null && windows.Count > 0
-            && externalDisplay.TryMoveWindowToExternalScreen(latestWindowTitle));
-
-    private async Task MoveToExternalWithRetriesAsync(string title)
-    {
-        // The native window appears asynchronously after OpenWindow; poll briefly for it.
-        foreach (var delay in new[] { 300, 600, 1200 })
-        {
-            await Task.Delay(delay);
-            var moved = await MainThread.InvokeOnMainThreadAsync(() =>
-            {
-                try
-                {
-                    return externalDisplay.TryMoveWindowToExternalScreen(title);
-                }
-                catch (Exception e)
-                {
-                    logger.LogWarning(e, "Moving the live window to the external screen failed");
-                    return false;
-                }
-            });
-            if (moved)
-                return;
-        }
-
-        logger.LogInformation("The live window stayed on the main screen; the menu item can move it manually");
-    }
 }

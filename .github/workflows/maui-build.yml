@@ -1,19 +1,20 @@
 name: MAUI build
 
-# Keeps every app target compiling and the test suite green. macOS (Catalyst) is the polished
-# platform; iOS, Android and Windows only have to build here so they never silently rot.
+# Keeps every app target compiling and the test suite green. The desktop app is
+# GospelPresenter.Desktop (Electron) and is built on ubuntu with everything else; the MAUI project
+# is iOS, Android and Windows, none of which ships yet -- they build here so they never silently
+# rot.
 #
 # The tests run on every pull request. The three platform builds do not: they occupy a macOS and
 # a Windows runner for up to an hour each, and they answer "does iOS still compile", which does
 # not need asking on every push to a feature branch. They run on main, and on demand via
 # workflow_dispatch when a change is likely to break a target.
 #
-# The MacCatalyst workload is pinned by workloadVersion in GospelPresenter/global.json, and each
-# workload set demands a specific Xcode (10.0.201 = Xcode 26.2). Keep sdk.version in the same
-# feature band as that pin and rollForward no looser than latestPatch: a workload set exists only
-# for its own band, so letting the SDK roll forward past it breaks workload resolution for every
-# project in the repo, the plain test project included. If the apple job starts failing on an
-# Xcode/SDK mismatch after a runner image update, bump the pin and Xcode together.
+# The Apple workloads demand a specific Xcode, not merely a sufficient one. Keep sdk.version in the
+# same feature band as the workload set and rollForward no looser than latestPatch: a workload set
+# exists only for its own band, so letting the SDK roll forward past it breaks workload resolution
+# for every project in the repo, the plain test project included. If the apple job starts failing on
+# an Xcode/SDK mismatch after a runner image update, bump the pin and Xcode together.
 
 on:
   push:
@@ -70,6 +71,11 @@ jobs:
       - name: Integration tests
         run: dotnet test GospelPresenter.IntegrationTests/GospelPresenter.IntegrationTests.csproj
 
+      # The desktop app needs no workload and no Apple toolchain, so it builds here rather than
+      # occupying a macOS runner.
+      - name: Build the desktop app
+        run: dotnet build GospelPresenter.Desktop/GospelPresenter.Desktop.csproj
+
   apple-and-android:
     # Not on pull requests -- see the note at the top of this file.
     if: github.event_name != 'pull_request'
@@ -100,9 +106,9 @@ jobs:
         run: dotnet workload restore GospelPresenter.csproj
 
       - name: Select the Xcode the pinned workload set expects
-        # .NET for MacCatalyst wants a matching Xcode, not merely a sufficient one: workload set
-        # 10.0.204 ships MacCatalyst 26.2.10233, which demands Xcode 26.3 and refuses the 26.6 the
-        # runner image defaults to. Xcode 26.4 is not an option either -- it requires macOS Tahoe,
+        # .NET for iOS wants a matching Xcode, not merely a sufficient one: workload set 10.0.204
+        # demands Xcode 26.3 and refuses the 26.6 the runner image defaults to. Xcode 26.4 is not an
+        # option either -- it requires macOS Tahoe,
         # and this project is developed on Sequoia. Raise this together with the workload pin.
         run: |
           echo "Xcode versions on this image:"
@@ -114,9 +120,6 @@ jobs:
           fi
           sudo xcode-select -s "$app"
           xcodebuild -version
-
-      - name: Build Mac Catalyst
-        run: dotnet build GospelPresenter/GospelPresenter.csproj -f net10.0-maccatalyst
 
       - name: Build iOS
         run: dotnet build GospelPresenter/GospelPresenter.csproj -f net10.0-ios

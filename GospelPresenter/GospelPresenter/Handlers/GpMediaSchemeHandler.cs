@@ -1,4 +1,4 @@
-#if IOS || MACCATALYST
+#if IOS
 using System.Collections.Concurrent;
 using Foundation;
 using GospelPresenter.Client.Media;

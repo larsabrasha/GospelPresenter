@@ -1415,6 +1415,12 @@
   <data name="FilePicker.ChooseAudio" xml:space="preserve">
     <value>Välj ljudfiler</value>
   </data>
+  <data name="FilePicker.ImageFiles" xml:space="preserve">
+    <value>Bilder</value>
+  </data>
+  <data name="FilePicker.AudioFiles" xml:space="preserve">
+    <value>Ljudfiler</value>
+  </data>
   <data name="LivePanel.LiveWindowFailed" xml:space="preserve">
     <value>Live-vyn kunde inte öppnas</value>
   </data>
@@ -1708,12 +1714,6 @@
   </data>
   <data name="Bibles.OfflineDownloadFailed" xml:space="preserve">
     <value>Nedladdningen misslyckades. Kontrollera uppkopplingen och försök igen.</value>
-  </data>
-  <data name="LiveWindow.Menu" xml:space="preserve">
-    <value>Visning</value>
-  </data>
-  <data name="LiveWindow.MoveToExternal" xml:space="preserve">
-    <value>Visa live-vyn på den externa skärmen</value>
   </data>
   <data name="Nav.Devices" xml:space="preserve">
     <value>Enheter</value>

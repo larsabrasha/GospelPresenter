@@ -25,12 +25,12 @@ public static class MauiProgram
 #if DEBUG
             .WriteTo.Debug()
 #endif
-#if IOS || MACCATALYST
+#if IOS
             .WriteTo.NSLog()
 #elif ANDROID
             .WriteTo.AndroidLog()
 #endif
-            .WriteTo.File(Path.Combine(AppPaths.LogDirectory, "log.txt"),
+            .WriteTo.File(Path.Combine(FileSystem.Current.AppDataDirectory, "log.txt"),
                 rollingInterval: RollingInterval.Day,
                 fileSizeLimitBytes: 10_000_000,
                 retainedFileCountLimit: 7)
@@ -58,7 +58,7 @@ public static class MauiProgram
 
         // The local database: the full shared schema in SQLite under the app's data directory.
         // Every shared domain service runs against it unchanged through the factory below.
-        var databasePath = Path.Combine(AppPaths.DataDirectory, "gospelpresenter.db");
+        var databasePath = Path.Combine(FileSystem.Current.AppDataDirectory, "gospelpresenter.db");
         var contextOptions = new DbContextOptionsBuilder<ClientDataContext>()
             .UseSqlite($"Data Source={databasePath};Cache=Shared")
             .Options;
@@ -93,33 +93,20 @@ public static class MauiProgram
         // scheme handler (registered per webview in MainPage) serves them back to the UI.
         builder.Services.AddSingleton(sp => new GospelPresenter.Client.Media.MediaStore(
             sp.GetRequiredService<IDbContextFactory<GospelPresenter.Client.Data.ClientDataContext>>(),
-            // Under DataDirectory rather than ~/Library/Caches despite being an LRU cache: a
-            // PendingUpload blob is the only copy of something the server has not seen, and Caches
-            // is a directory macOS may purge and cleaning tools empty. See the ADR (22).
-            Path.Combine(AppPaths.DataDirectory, "media"),
+            // Beside the database rather than in a cache directory, despite being an LRU cache: a
+            // PendingUpload blob is the only copy of something the server has not seen.
+            Path.Combine(FileSystem.Current.AppDataDirectory, "media"),
             sp.GetRequiredService<ILogger<GospelPresenter.Client.Media.MediaStore>>()));
         builder.Services.AddSingleton<IObjectStorageService, GospelPresenter.Client.Media.LocalObjectStorageService>();
         builder.Services.AddSingleton<GospelPresenter.Client.Media.MediaRequestHandler>();
 
         // Uploads reach the library through the domain services instead of the web's /api/upload
         // endpoints, which do not exist here — see IMediaUploader.
+        builder.Services.AddScoped<MediaIngestService>();
         builder.Services.AddScoped<IMediaUploader, MauiMediaUploader>();
-#if IOS || MACCATALYST
+#if IOS
         // Components mint media URLs on the app's custom scheme instead of the web's /api paths.
         ImageUrlHelper.HostUrlTransform = url => "gpmedia://media" + url;
-#endif
-
-        // Self-updating. Only where the build has a feed and Velopack exists at all: Test and Local
-        // have no feed, and iOS/Android/Windows are updated by other means. Absent, the shared
-        // restart button resolves nothing and never renders.
-#if MACCATALYST
-        if (!string.IsNullOrEmpty(Configuration.Settings.UpdateFeedUrl))
-        {
-            builder.Services.AddSingleton(sp => new MauiAppUpdater(
-                Configuration.Settings.UpdateFeedUrl,
-                sp.GetRequiredService<ILogger<MauiAppUpdater>>()));
-            builder.Services.AddSingleton<IAppUpdater>(sp => sp.GetRequiredService<MauiAppUpdater>());
-        }
 #endif
 
         builder.Services.AddCascadingAuthenticationState();
@@ -129,13 +116,8 @@ public static class MauiProgram
         // songs become local report rows the sync engine pushes.
         builder.Services.AddSingleton<GospelPresenter.Client.CcliReportListener>();
 
-        // The projector: live views open as real second windows instead of the web's window.open,
-        // auto-placed fullscreen on the external screen where the platform can (Mac Catalyst).
-#if MACCATALYST
-        builder.Services.AddSingleton<IExternalDisplayService, MacExternalDisplayService>();
-#else
-        builder.Services.AddSingleton<IExternalDisplayService, NullExternalDisplayService>();
-#endif
+        // Live views open as real second windows instead of the web's window.open. Placing one on
+        // a projector is the desktop app's job -- no mobile platform lets an app choose a display.
         builder.Services.AddSingleton<Shared.Services.ILiveWindowLauncher, MauiLiveWindowLauncher>();
 
         // Real sign-in: system browser → device token → identity cached for offline. A DEBUG
@@ -149,7 +131,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<GospelPresenter.Client.Auth.ISecureTokenStore, MauiSecureTokenStore>();
         builder.Services.AddSingleton(sp => new GospelPresenter.Client.Auth.DeviceAuthService(
             sp.GetRequiredService<GospelPresenter.Client.Auth.ISecureTokenStore>(),
-            Path.Combine(AppPaths.DataDirectory, "identity.json"),
+            Path.Combine(FileSystem.Current.AppDataDirectory, "identity.json"),
             sp.GetRequiredService<ILogger<GospelPresenter.Client.Auth.DeviceAuthService>>()));
         builder.Services.AddSingleton<IDeviceSignIn, DeviceSignInService>();
         if (useDevIdentity)
@@ -229,10 +211,6 @@ public static class MauiProgram
         var app = builder.Build();
         InitializeDatabase(app.Services, seedDevIdentity: useDevIdentity);
         app.Services.GetRequiredService<GospelPresenter.Client.CcliReportListener>().Start();
-
-#if MACCATALYST
-        app.Services.GetService<MauiAppUpdater>()?.Start();
-#endif
 
         if (!useDevIdentity)
         {
