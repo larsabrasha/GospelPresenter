@@ -63,12 +63,22 @@
 
 
 
-    protected override async Task OnInitializedAsync()
+    /// <summary>
+    /// Runs on every authentication state change, not once at initialisation, because on a host
+    /// where signing in does not reload the page there is no second chance. The web signs in
+    /// through a redirect, so this layout is built fresh with a user already present; the device
+    /// and desktop apps sign in on the spot, and a layout that had read "nobody" once would keep
+    /// the body hidden behind IsInitialized for the rest of the session.
+    ///
+    /// Guarded on the user actually changing, so a revalidating provider re-confirming the same
+    /// user does not re-run the organisation lookup on every pass.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
     {
         if (AuthState is null) return;
         var state = await AuthState;
         var userId = state.User.FindFirst("user_id")?.Value;
-        if (userId is null) return;
+        if (userId is null || userId == OrgState.UserId) return;
 
         var roleString = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
         var role = Enum.TryParse<UserRole>(roleString, out var parsed) ? parsed : UserRole.User;
