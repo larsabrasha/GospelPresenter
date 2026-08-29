@@ -59,16 +59,25 @@ On startup, the migrations container runs automatically — it creates the datab
 
 * .NET 10 SDK
     <https://dotnet.microsoft.com/en-us/download/dotnet/10.0>
-* MAUI workload (optional — needed only if building the MAUI target, which may be supported in the future)
+* Docker — Aspire runs PostgreSQL, Garage, Gotenberg and pgweb as containers.
+
+    On Linux your user must be in the `docker` group. The membership only applies to new logins, so either log out and back in or start the shell with `newgrp docker`:
 
     ```shell
-    dotnet workload install maui
+    sudo usermod -aG docker $USER
     ```
 
-    If it already is installed check if it needs an upgrade:
+* Node.js — only for the desktop client, whose build downloads Electron through npm.
+* A trusted HTTPS development certificate:
 
     ```shell
-    dotnet workload restore
+    dotnet dev-certs https --trust
+    ```
+
+    On Linux `--trust` only writes the certificate to `~/.aspnet/dev-certs/trust`, which OpenSSL — and therefore the desktop client's `HttpClient` — does not read. Either follow the instructions the command prints for your distribution, or point OpenSSL at both stores when running the client:
+
+    ```shell
+    export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/etc/ssl/certs"
     ```
 
 ### Run with .NET Aspire
@@ -82,15 +91,55 @@ dotnet run --project GospelPresenter.AppHost
 This starts:
 - A PostgreSQL container with a persistent data volume
 - A Garage container for S3-compatible image storage
+- A Gotenberg container for PDF export
 - Database migrations (`GospelPresenter.MigrationService`)
-- The web app (`GospelPresenter.Web`)
+- The web app (`GospelPresenter.Web`) on <https://localhost:7175>
 - pgweb on <http://localhost:5050> for database browsing
 
 The Aspire dashboard opens automatically and shows logs, traces, and health for all resources.
 
+The web port is pinned to 7175 and left unproxied on purpose: it is the redirect URI registered with Google, so it has to stay stable.
+
+### Configure sign-in for local development
+
+`appsettings.Development.json` enables Google but ships no credentials, so the web app refuses to start with *"At least one authentication provider must be enabled and configured"* until you supply them. Put them in user secrets — never in `appsettings*.json`:
+
+```shell
+cd GospelPresenter/GospelPresenter.Web
+dotnet user-secrets set "Authentication:Google:ClientId" "<client id>"
+dotnet user-secrets set "Authentication:Google:ClientSecret" "<client secret>"
+```
+
+The credentials live in the Google Cloud Console under **APIs & Services → Credentials** (<https://console.cloud.google.com/apis/credentials>). The OAuth client needs `https://localhost:7175/signin-google` as an authorized redirect URI.
+
+### First sign-in
+
+On an empty database, open <https://localhost:7175/setup>, name the first administrator, and the app redirects to `/invite/{token}`. **Signing in with Google through that invite link is what links your Google account to the user.** Until that has happened, plain "Sign in with Google" ends on `/authentication-error` — the server log then says:
+
+```
+Rejecting google sign-in: no user is linked to google subject …
+```
+
+The same applies to every later user: an admin creates them, and they sign in through their invite link once.
+
+### Run the desktop client
+
+The desktop app hosts the same Blazor UI in Electron (see [ADR 0003](adr/0003-desktop-host-on-electron.md)). Point it at a running server with `GP_API_BASE_URL`, or `Server:BaseUrl` in `GospelPresenter.Desktop/appsettings.json`:
+
+```shell
+cd GospelPresenter
+export GP_API_BASE_URL="https://localhost:7175"
+export SSL_CERT_DIR="$HOME/.aspnet/dev-certs/trust:/etc/ssl/certs"   # Linux, see Requirements
+dotnet run --project GospelPresenter.Desktop
+```
+
+Leaving `GP_API_BASE_URL` empty runs the client standalone against its local database with a developer identity and no server at all.
+
+The client signs in through the browser (device flow), so the account must already be linked as described above.
+
 ### Run or Debug from Rider or Visual Studio
 
-The primary target is the web app. MAUI support may be added later.
+The primary target is the web app; the desktop client is the same UI hosted in Electron.
 
 * For local dev on Mac/Windows for Web:
     - **GospelPresenter.Web: Hot Reload** — For fast GUI development with mocked data (no database required).\
@@ -136,3 +185,16 @@ The tool captures every combination of language (en, sv), theme (light, dark), a
 
 For Rider:
 * Verify that the same .NET version is used in terminal `which dotnet` (eg. when restoring workloads) and in Rider -> Settings -> Build, Execution, Deployment -> Toolset and Build.
+
+**The desktop client fails with `Win32Exception (2) … .electron/node_modules/electron/dist/electron: No such file or directory`**
+
+Electron's `install.js` can exit successfully without unpacking the download (seen with Node 26). The zip is in the npm cache and is fine — unpack it by hand:
+
+```shell
+D=GospelPresenter.Desktop/bin/Debug/net10.0/.electron/node_modules/electron
+Z=$(ls ~/.cache/electron/*/electron-*.zip | head -1)
+rm -rf "$D/dist" && mkdir -p "$D/dist"
+unzip -q "$Z" -d "$D/dist"
+chmod +x "$D/dist/electron"
+printf 'electron' > "$D/path.txt"
+```
