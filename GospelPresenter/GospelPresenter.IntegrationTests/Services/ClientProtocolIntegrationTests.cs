@@ -7,6 +7,7 @@ using GospelPresenter.Shared.Sync;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
+using GospelPresenter.IntegrationTests.Helpers;
 
 namespace GospelPresenter.IntegrationTests.Services;
 
@@ -132,8 +133,7 @@ public class ClientProtocolIntegrationTests
             .ShouldBe(HttpStatusCode.Redirect);
 
         var login = await cookieClient.GetAsync($"/app-login?device={Uri.EscapeDataString(deviceName)}");
-        login.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        var token = login.Headers.Location!.Fragment.Split("token=")[1].Split('&')[0];
+        var token = await DeviceLogin.ReadTokenAsync(login);
 
         var client = app.CreateDefaultClient(BaseAddress);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);

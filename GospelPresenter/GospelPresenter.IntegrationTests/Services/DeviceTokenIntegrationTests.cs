@@ -4,13 +4,15 @@ using System.Net.Http.Json;
 using GospelPresenter.IntegrationTests.Fixtures;
 using Microsoft.AspNetCore.Mvc.Testing.Handlers;
 using Shouldly;
+using GospelPresenter.IntegrationTests.Helpers;
 
 namespace GospelPresenter.IntegrationTests.Services;
 
 /// <summary>
 /// Covers the device authentication flow end to end against the real pipeline: /app-login mints a
-/// token into a custom-scheme redirect, the Bearer token then authenticates API requests through
-/// the policy scheme, and a revoked token stops working — without disturbing cookie sessions.
+/// token into a custom-scheme handover page, the Bearer token then authenticates API requests
+/// through the policy scheme, and a revoked token stops working — without disturbing cookie
+/// sessions.
 /// </summary>
 [Collection(WebAppCollection.Name)]
 public class DeviceTokenIntegrationTests
@@ -20,7 +22,7 @@ public class DeviceTokenIntegrationTests
     private record TokenRow(string Id, string Name, DateTimeOffset CreatedAt, DateTimeOffset? LastUsedAt, DateTimeOffset? RevokedAt);
 
     [Fact]
-    public async Task AppLogin_RedirectsToTheAppWithAFreshToken()
+    public async Task AppLogin_HandsTheAppAFreshToken()
     {
         // Arrange
         using var app = new WebAppFixture();
@@ -29,11 +31,11 @@ public class DeviceTokenIntegrationTests
         // Act
         var response = await client.GetAsync("/app-login?device=Testmaskin");
 
-        // Assert -- the token travels in the fragment of a custom-scheme redirect
-        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        var location = response.Headers.Location!;
-        location.Scheme.ShouldBe("gospelpresenter");
-        location.Fragment.ShouldContain("token=gpdt_");
+        // Assert -- a page hands over to the custom scheme, with the token in the fragment
+        response.Content.Headers.ContentType!.MediaType.ShouldBe("text/html");
+        var callback = await DeviceLogin.ReadCallbackAsync(response);
+        callback.Scheme.ShouldBe("gospelpresenter");
+        callback.Fragment.ShouldContain("token=gpdt_");
     }
 
     [Fact]
@@ -108,8 +110,8 @@ public class DeviceTokenIntegrationTests
     }
 
     /// <summary>
-    /// Signs in as the seeded mock user without following redirects: the /app-login response is a
-    /// redirect to a custom scheme no HttpClient can follow, so the tests read Location directly.
+    /// Signs in as the seeded mock user. The /app-login response hands over to a custom scheme no
+    /// HttpClient can follow, so the tests read the token out of the page it renders.
     /// </summary>
     private static async Task<HttpClient> CreateCookieClientAsync(WebAppFixture app)
     {
@@ -127,14 +129,7 @@ public class DeviceTokenIntegrationTests
     private static async Task<string> IssueTokenAsync(HttpClient cookieClient, string deviceName)
     {
         var response = await cookieClient.GetAsync($"/app-login?device={Uri.EscapeDataString(deviceName)}");
-        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-
-        // The fragment is "#token=...&user_id=...&organization_id=..."
-        var fragment = response.Headers.Location!.Fragment.TrimStart('#');
-        var token = fragment.Split('&')
-            .Select(pair => pair.Split('=', 2))
-            .Single(pair => pair[0] == "token")[1];
-        return Uri.UnescapeDataString(token);
+        return await DeviceLogin.ReadTokenAsync(response);
     }
 
     private static HttpClient CreateBearerClient(WebAppFixture app, string token)

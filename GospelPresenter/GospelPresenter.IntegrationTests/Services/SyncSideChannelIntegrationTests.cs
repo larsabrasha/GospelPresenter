@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Shouldly;
+using GospelPresenter.IntegrationTests.Helpers;
 
 namespace GospelPresenter.IntegrationTests.Services;
 
@@ -202,11 +203,7 @@ public class SyncSideChannelIntegrationTests
             .StatusCode.ShouldBe(HttpStatusCode.Redirect);
 
         var login = await cookieClient.GetAsync("/app-login?device=Sidokanaler");
-        login.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        var fragment = login.Headers.Location!.Fragment.TrimStart('#');
-        var token = Uri.UnescapeDataString(fragment.Split('&')
-            .Select(pair => pair.Split('=', 2))
-            .Single(pair => pair[0] == "token")[1]);
+        var token = await DeviceLogin.ReadTokenAsync(login);
 
         var deviceClient = app.CreateDefaultClient(BaseAddress);
         deviceClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
