@@ -60,7 +60,31 @@
         <Content Update="wwwroot\**">
             <PublishFolderType>Content</PublishFolderType>
         </Content>
+
+        <!-- Tailwind's output has to be named explicitly, and only when it is not already on disk.
+             BuildTailwind writes it before BeforeBuild, but the wwwroot glob above is evaluated
+             before any target runs at all — so on a tree that does not already have the file, it is
+             generated and then ignored: absent from the static web asset manifest, absent from the
+             publish output, and served as a 404 that leaves the app with no styling whatsoever.
+
+             It only ever happens on a clean checkout, which is why it reached a release: every
+             developer machine has the file lying around from an earlier build, so the glob finds it
+             and the next build looks perfect. CI checks out clean every time.
+
+             Conditioned on absence because when the file *is* there the glob has already claimed it,
+             and including it twice is a duplicate static web asset. -->
+        <Content Include="wwwroot/tailwind-output.css" Condition="!Exists('wwwroot/tailwind-output.css')">
+            <PublishFolderType>Content</PublishFolderType>
+        </Content>
     </ItemGroup>
+
+    <!-- Tailwind.MSBuild hooks BeforeBuild, and the SDK resolves static web assets before that.
+         Measured on a clean tree: build only ResolveStaticWebAssetsInputs and tailwind-output.css
+         does not exist afterwards. So the stylesheet is generated too late to be seen, and pulling
+         it forward is the half that makes the Content item above reachable. -->
+    <Target Name="BuildTailwindBeforeStaticWebAssets"
+            BeforeTargets="ResolveStaticWebAssetsInputs"
+            DependsOnTargets="BuildTailwind"/>
 
     <!-- Built-in theme art is embedded rather than a static web asset, so the migration service and the
          tests can read the same bytes the web app serves. See ThemeAssetService. -->
