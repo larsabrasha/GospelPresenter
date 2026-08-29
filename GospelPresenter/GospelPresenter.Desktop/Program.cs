@@ -205,6 +205,12 @@ builder.Services.AddSingleton<ILiveWindowLauncher, ElectronLiveWindowLauncher>()
 // one that knows which language the user actually reads their machine in — see the service.
 builder.Services.AddSingleton<DesktopCultureService>();
 
+// Self-updating. The first host to register the IAppUpdater seam that adr/0002 (18) defined and
+// nothing has implemented since the Mac Catalyst app was retired — until now the restart button
+// resolved nothing and rendered nothing, on every host.
+builder.Services.AddSingleton<ElectronAppUpdater>();
+builder.Services.AddSingleton<IAppUpdater>(sp => sp.GetRequiredService<ElectronAppUpdater>());
+
 var app = builder.Build();
 electronServices = app.Services;
 
@@ -312,6 +318,8 @@ static async Task OnElectronReadyAsync(IServiceProvider services)
 
     // Before the window exists, so the first paint is already in the right language.
     await services.GetRequiredService<DesktopCultureService>().ApplyAsync();
+
+    await services.GetRequiredService<ElectronAppUpdater>().InitialiseAsync();
 
     var displays = await Electron.Screen.GetAllDisplaysAsync();
     Log.Information("Electron ready, {Count} display(s)", displays.Length);

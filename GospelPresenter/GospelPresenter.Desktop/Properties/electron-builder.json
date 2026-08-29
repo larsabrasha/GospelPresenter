@@ -1,19 +1,48 @@
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/refs/heads/master/packages/app-builder-lib/scheme.json",
   "compression": "maximum",
-  "linux": {
+
+  "//publish": "Where the app looks for updates. electron-builder writes this into the bundle as app-update.yml, so it is the feed whether or not CI ever uploads with --publish. GitHub Releases per adr/0002 (8): the repository is public, so this is Fastly's bandwidth rather than ours, and it keeps the Cloudflare Tunnel off the path a church computer needs to update itself.",
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "larsabrasha",
+      "repo": "GospelPresenter"
+    }
+  ],
+
+  "//mac": "zip is not an alternative to dmg here, it is the format Squirrel.Mac updates from: without it electron-builder writes no latest-mac.yml and the updater errors at every check. dmg is what a person downloads. NOTE: macOS updates need a Developer ID signature (a Squirrel.Mac requirement) and this app is still ad-hoc signed, so the check and the download work but the install does not — see the ADR's open questions.",
+  "mac": {
     "target": [
-      "tar.xz"
+      "dmg",
+      "zip"
     ],
-    "executableArgs": [ "--no-sandbox" ],
+    "category": "public.app-category.productivity",
     "artifactName": "${name}-${arch}-${version}.${ext}"
   },
+
+  "//win": "nsis, not portable. portable is a single self-extracting exe with nothing to update in place — electron-updater supports the default NSIS target and does not support Squirrel.Windows or portable. Per-machine install is off for the same reason /Applications was rejected in adr/0002 (5): every update would raise a UAC prompt on a machine where nobody knows the admin password.",
   "win": {
     "target": [
       {
-        "target": "portable",
+        "target": "nsis",
         "arch": "x64"
       }
-    ]
+    ],
+    "artifactName": "${name}-${arch}-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": false
+  },
+
+  "//linux": "AppImage rather than tar.xz for the same reason as nsis: a tarball is not something electron-updater can update. Linux is not a target platform, but the default config shipped one and a format that cannot update itself is worse than no build at all.",
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "executableArgs": [ "--no-sandbox" ],
+    "category": "Office",
+    "artifactName": "${name}-${arch}-${version}.${ext}"
   }
 }
