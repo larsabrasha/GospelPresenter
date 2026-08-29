@@ -166,8 +166,20 @@ of a conversation.
   edge, not a mystery.
 - **Windows is no longer blocked**, which is a change to ADR 0002 (1): the reason it was deferred was
   the Catalyst-only media scheme handler, and there is no scheme handler now.
-- **A 382 MB bundle**, of which Electron and the self-contained .NET runtime are the two large parts.
-  Both have to be there; there is nothing duplicated to remove.
+- **A 380 MB bundle**: 223 MB of Electron, 153 MB of self-contained .NET runtime and application
+  code, and 4 MB of Electron host JavaScript. Nothing is duplicated; both runtimes have to be there.
+
+  **Trimming was considered and rejected** (2026-08-29). `PublishTrimmed` would take a substantial
+  bite out of the 153 MB, but trimming removes what static analysis cannot see reaching, and this
+  application is EF Core, Blazor components and serialization — three things built on reflection.
+  The flag is one line; establishing that nothing broke is not, and it is not work to do on the way
+  to a first release. Revisit when the download size is a complaint rather than a number.
+
+- **The .NET runtime is ours to patch.** Self-contained means 10.0.8 is frozen in the bundle: a .NET
+  security fix does not arrive through macOS updates or a distribution's package manager, only
+  through a release of this app. That makes the update mechanism a security mechanism rather than a
+  convenience, and it is a further reason the macOS signature cannot be deferred indefinitely —
+  macOS is currently the one platform that cannot update itself.
 - **npm is now in the build path.** electron-builder is fetched at publish time and the Electron
   version is pinned by the ElectronNET package, not by us.
 - The file-system layout, the client version headers and the protocol floor — ADR 0002 (20)–(25) —
