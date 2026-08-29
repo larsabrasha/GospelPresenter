@@ -53,6 +53,12 @@ mac:
     - dmg
     - zip
   category: public.app-category.productivity
+  # Electron alone would declare 10.15, which is its own floor and knows nothing about the .NET
+  # runtime sitting beside it in the bundle — .NET 10 supports macOS 14 and later. Four major
+  # versions of difference, and the consequence is concrete: without this, macOS installs and
+  # launches the app on 12 or 13 against a runtime that is not supported there, and whatever fails
+  # later fails obscurely. Declared, the system refuses up front and says why.
+  minimumSystemVersion: "14.0"
 
 # nsis, not the portable target the template shipped: portable is a single self-extracting exe with
 # nothing to update in place. electron-updater supports the default NSIS target and supports neither
