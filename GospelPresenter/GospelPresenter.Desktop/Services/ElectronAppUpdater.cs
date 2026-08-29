@@ -177,6 +177,18 @@ public class ElectronAppUpdater(ILogger<ElectronAppUpdater> logger) : IAppUpdate
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Releasing the handlers crosses the socket bridge, and by the time this runs the bridge is
+    /// normally already gone: closing the window quits Electron, and only then does the host shut
+    /// down and dispose its singletons. ElectronNET answers a call made after that with "Cannot
+    /// access socket bridge. Runtime is not in 'Ready' state" — which, thrown out of Dispose, went
+    /// unhandled and aborted the process on every exit. Because this service is registered last it
+    /// is disposed first, so the abort also skipped every other singleton's disposal.
+    ///
+    /// The unsubscribes are worth doing while Electron is still up and worth nothing once it is
+    /// not, since the process is ending either way. Hence best-effort rather than guarded by a
+    /// liveness check, which would still race the far side going away mid-call.
+    /// </summary>
     public void Dispose()
     {
         loopCts?.Cancel();
@@ -186,11 +198,19 @@ public class ElectronAppUpdater(ILogger<ElectronAppUpdater> logger) : IAppUpdate
         if (!subscribed)
             return;
 
-        Electron.AutoUpdater.OnCheckingForUpdate -= OnCheckingForUpdate;
-        Electron.AutoUpdater.OnUpdateAvailable -= OnUpdateAvailable;
-        Electron.AutoUpdater.OnUpdateNotAvailable -= OnUpdateNotAvailable;
-        Electron.AutoUpdater.OnUpdateDownloaded -= OnUpdateDownloaded;
-        Electron.AutoUpdater.OnError -= OnUpdaterError;
         subscribed = false;
+
+        try
+        {
+            Electron.AutoUpdater.OnCheckingForUpdate -= OnCheckingForUpdate;
+            Electron.AutoUpdater.OnUpdateAvailable -= OnUpdateAvailable;
+            Electron.AutoUpdater.OnUpdateNotAvailable -= OnUpdateNotAvailable;
+            Electron.AutoUpdater.OnUpdateDownloaded -= OnUpdateDownloaded;
+            Electron.AutoUpdater.OnError -= OnUpdaterError;
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Electron had already gone when the updater unsubscribed");
+        }
     }
 }
