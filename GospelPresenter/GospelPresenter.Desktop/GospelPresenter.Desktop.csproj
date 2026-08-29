@@ -17,6 +17,13 @@
              they are made — electron-builder validates strictly and rejects a "//" key. -->
         <ElectronBuilderJson>electron-builder.yml</ElectronBuilderJson>
 
+        <!-- ELECTRON003 insists on Properties/electron-builder.json. Its check reads the path
+             literally and never consults ElectronBuilderJson above, so the warning fires at every
+             build for a file the build is configured not to use. Suppressed here rather than
+             satisfied: adding an empty .json would be a second, silently ignored config file.
+             ElectronNET.MigrationChecks.targets(174) if the check ever learns about the property. -->
+        <NoWarn>$(NoWarn);ELECTRON003</NoWarn>
+
         <!-- Who the packaged app says it is. Left at the ElectronNET defaults, all of this was
              derived from the project file name: the bundle identifier was "gospelpresenter-desktop"
              and the app called itself "GospelPresenter.Desktop" in the Dock, the menu bar and the
@@ -66,5 +73,31 @@
         <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
         <ProjectReference Include="..\GospelPresenter.Client\GospelPresenter.Client.csproj" />
     </ItemGroup>
+
+    <!-- Electron is downloaded by npm and unpacked by the electron package's own install script.
+         That script can report success and unpack nothing — seen on Node 26, where the zip lands in
+         ~/.cache/electron intact and dist/ is left empty. Nothing notices until the app starts and
+         fails with "No such file or directory" naming a binary, which reads like a broken path
+         rather than a download that never came out of its archive. Fail here instead, where the
+         cause is still in view. -->
+    <Target Name="VerifyElectronUnpacked" AfterTargets="Build">
+        <PropertyGroup>
+            <!-- ElectronConfigureApp is skipped on an up-to-date build, and so is anything hung off
+                 it, but the unpacking can have failed on the build that did run. Hook Build and
+                 look at what is on disk instead. -->
+            <_ElectronPackageDir Condition="'$(_ElectronPackageDir)' == ''">$(ElectronOutDir)node_modules/electron/</_ElectronPackageDir>
+            <_ElectronPackageDir Condition="'$(ElectronOutDir)' == ''">$(OutDir).electron/node_modules/electron/</_ElectronPackageDir>
+        </PropertyGroup>
+        <ItemGroup Condition="Exists('$(_ElectronPackageDir)')">
+            <_ElectronDistFiles Include="$(_ElectronPackageDir)dist/**/*" />
+        </ItemGroup>
+        <!-- path.txt is written by install.js once it has unpacked, and names the binary for the
+             platform; index.js reads it to find what to launch. A failed unpack leaves neither it
+             nor a populated dist — a stray file or two can survive, hence the count rather than a
+             plain emptiness check. -->
+        <Error Condition="Exists('$(_ElectronPackageDir)') AND !Exists('$(_ElectronPackageDir)path.txt') AND @(_ElectronDistFiles->Count()) &lt; 10"
+               Code="GP0001"
+               Text="Electron was downloaded but never unpacked: $(_ElectronPackageDir) has no path.txt and its dist holds only @(_ElectronDistFiles->Count()) file(s). The zip in ~/.cache/electron is usually intact — see the README (Troubleshooting) for the commands that unpack it by hand." />
+    </Target>
 
 </Project>
