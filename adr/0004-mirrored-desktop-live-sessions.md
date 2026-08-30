@@ -85,8 +85,24 @@ remote control today is a pre-existing gap; this decision does not widen it, and
 ## Consequences
 
 - `RemoteDisplays` split into `RemoteControl`, `PublicOutput` and `PairedDisplays`. The desktop gets
-  the first two. Paired screens stay web-only: the pairing is held by the server, and a browser on
+  `RemoteControl`. Paired screens stay web-only: the pairing is held by the server, and a browser on
   the local network cannot reach a session that exists only on one machine.
+
+  **`PublicOutput` was switched on here too early and is now off.** Mirroring a session carries the
+  slide but not the output that shows it, which only became visible against real hardware: a QR code
+  created on the desktop resolved to a 404. Three things are missing, and together they are the
+  specification for turning the flag back on:
+
+  1. `RemoteDisplay` is not `ISyncTracked`, so an output created on a device has no row on the server
+     — and `/watch/{code}` resolves the code against the database. Making it tracked means a
+     migration, tombstones and a `SyncTrackingCallSiteTests` entry like every other synced table.
+  2. `MirroredSessionState` has no field for which outputs the owner has switched on. The binding
+     lives in each host's own in-memory `RemoteDisplayState` and never leaves the machine.
+  3. `MirroredSessionProjector` would have to act on that field, calling `EnableDisplay` and
+     `DisableDisplay` on the server's `RemoteDisplayState` as the owner's report changes.
+
+  Until then the flag stays false, so the feature is hidden rather than offered and broken — which is
+  what `IAppCapabilities` says a permanently or temporarily absent feature must be.
 
 - **CCLI had to be exempted.** `SetLiveSlide` starts a ten-second timer that reports a displayed
   song. The desktop already counts its own usage locally and syncs it up like any other row, so

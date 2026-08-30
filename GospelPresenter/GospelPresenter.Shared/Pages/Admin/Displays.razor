@@ -8,6 +8,7 @@
 
 @layout AdminLayout
 
+@inject IAppCapabilities Capabilities
 @inject IRemoteDisplayService RemoteDisplayService
 @inject IServerUrlProvider ServerUrlProvider
 @inject ActiveOrganizationState OrgState
@@ -18,168 +19,177 @@
 @inject ToastService ToastService
 
 <PageContainer>
-    @* ---------- Screens: a physical device that reports itself online ---------- *@
-    <div class="flex items-center justify-between px-5">
-        <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.Displays.Title"]</div>
-        @if (Screens.Count > 0)
-        {
-            <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.Screen)" Class="flex items-center gap-1.5">
-                <PlusSymbol Class="size-4"/>
-                @L["Admin.Displays.Add"]
-            </AppButton>
-        }
-    </div>
-
-    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
-        @if (displays is null)
-        {
-            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
-        }
-        else if (Screens.Count == 0)
-        {
-            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
-                    <rect x="30" y="20" width="140" height="90" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                    <rect x="45" y="35" width="110" height="60" rx="2" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.4"/>
-                    <rect x="80" y="110" width="40" height="8" rx="2" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                    <rect x="60" y="118" width="80" height="6" rx="3" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                    <circle cx="155" cy="120" r="16" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                    <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                    <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                </svg>
-                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Admin.Displays.NoDisplays"]</h2>
-                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
-                    @L["Admin.Displays.Description"]
-                </p>
+    @* Each section is gated on its own capability, the way LivePanel gates the same two:
+       a host that offers one kind of output but not the other must not be shown an empty
+       list and an add button for something it cannot do. *@
+    @if (Capabilities.PairedDisplays)
+    {
+        @* ---------- Screens: a physical device that reports itself online ---------- *@
+        <div class="flex items-center justify-between px-5">
+            <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.Displays.Title"]</div>
+            @if (Screens.Count > 0)
+            {
                 <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.Screen)" Class="flex items-center gap-1.5">
                     <PlusSymbol Class="size-4"/>
                     @L["Admin.Displays.Add"]
                 </AppButton>
-            </div>
-        }
-        else
-        {
-            @foreach (var display in Screens)
-            {
-                var isOnline = RemoteDisplayState.IsDisplayOnline(display.DisplayIdentifier);
-                var iconClass = isOnline ? "text-green-500" : "text-neutral-300 dark:text-neutral-600";
-                var statusClass = isOnline ? "text-green-600 dark:text-green-400" : "text-neutral-400 dark:text-neutral-500";
-                var statusText = isOnline ? L["Admin.Displays.Online"] : L["Admin.Displays.Offline"];
+            }
+        </div>
 
-                <div class="flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
-                    <div class="@iconClass">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
-                            <path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Z"/>
-                            <path d="M8 13h4v2H8v-2Z"/>
-                            <path d="M6 16a1 1 0 0 0 0 2h8a1 1 0 1 0 0-2H6Z"/>
-                            @if (!isOnline)
-                            {
-                                <line x1="3" y1="2" x2="17" y2="18" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
-                                <line x1="3" y1="2" x2="17" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            }
-                        </svg>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="font-medium truncate">@display.Name</div>
-                    </div>
-                    <div class="text-xs @statusClass">
-                        @statusText
-                    </div>
-                    <AppButton Variant="ButtonVariant.Neutral" OnClick="() => displayToShow = display" Class="text-xs flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5">
-                            <path d="M12.232 4.232a2.5 2.5 0 0 1 3.536 3.536l-1.225 1.224a.75.75 0 0 0 1.061 1.06l1.224-1.224a4 4 0 0 0-5.656-5.656l-3 3a4 4 0 0 0 .225 5.865.75.75 0 0 0 .977-1.138 2.5 2.5 0 0 1-.142-3.667l3-3Z"/>
-                            <path d="M11.603 7.963a.75.75 0 0 0-.977 1.138 2.5 2.5 0 0 1 .142 3.667l-3 3a2.5 2.5 0 0 1-3.536-3.536l1.225-1.224a.75.75 0 0 0-1.061-1.06l-1.224 1.224a4 4 0 1 0 5.656 5.656l3-3a4 4 0 0 0-.225-5.865Z"/>
-                        </svg>
-                        @L["Admin.Displays.ShowLink"]
-                    </AppButton>
-                    <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmRemoveDisplay(display)" Class="text-xs">
-                        @L["Common.Delete"]
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+            @if (displays is null)
+            {
+                <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+            }
+            else if (Screens.Count == 0)
+            {
+                <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                        <rect x="30" y="20" width="140" height="90" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <rect x="45" y="35" width="110" height="60" rx="2" stroke="currentColor" stroke-width="1.5" fill="none" opacity="0.4"/>
+                        <rect x="80" y="110" width="40" height="8" rx="2" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <rect x="60" y="118" width="80" height="6" rx="3" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <circle cx="155" cy="120" r="16" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                    </svg>
+                    <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Admin.Displays.NoDisplays"]</h2>
+                    <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                        @L["Admin.Displays.Description"]
+                    </p>
+                    <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.Screen)" Class="flex items-center gap-1.5">
+                        <PlusSymbol Class="size-4"/>
+                        @L["Admin.Displays.Add"]
                     </AppButton>
                 </div>
             }
-        }
-    </div>
+            else
+            {
+                @foreach (var display in Screens)
+                {
+                    var isOnline = RemoteDisplayState.IsDisplayOnline(display.DisplayIdentifier);
+                    var iconClass = isOnline ? "text-green-500" : "text-neutral-300 dark:text-neutral-600";
+                    var statusClass = isOnline ? "text-green-600 dark:text-green-400" : "text-neutral-400 dark:text-neutral-500";
+                    var statusText = isOnline ? L["Admin.Displays.Online"] : L["Admin.Displays.Offline"];
 
-    @* ---------- Public outputs: a channel any number of visitors can watch ---------- *@
-    <div class="flex items-center justify-between px-5 pt-6">
-        <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.PublicOutputs.Title"]</div>
-        @if (PublicOutputs.Count > 0)
-        {
-            <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.PublicQr)" Class="flex items-center gap-1.5">
-                <PlusSymbol Class="size-4"/>
-                @L["Admin.PublicOutputs.Create"]
-            </AppButton>
-        }
-    </div>
+                    <div class="flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                        <div class="@iconClass">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+                                <path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Z"/>
+                                <path d="M8 13h4v2H8v-2Z"/>
+                                <path d="M6 16a1 1 0 0 0 0 2h8a1 1 0 1 0 0-2H6Z"/>
+                                @if (!isOnline)
+                                {
+                                    <line x1="3" y1="2" x2="17" y2="18" stroke="white" stroke-width="3.5" stroke-linecap="round"/>
+                                    <line x1="3" y1="2" x2="17" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                }
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">@display.Name</div>
+                        </div>
+                        <div class="text-xs @statusClass">
+                            @statusText
+                        </div>
+                        <AppButton Variant="ButtonVariant.Neutral" OnClick="() => displayToShow = display" Class="text-xs flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5">
+                                <path d="M12.232 4.232a2.5 2.5 0 0 1 3.536 3.536l-1.225 1.224a.75.75 0 0 0 1.061 1.06l1.224-1.224a4 4 0 0 0-5.656-5.656l-3 3a4 4 0 0 0 .225 5.865.75.75 0 0 0 .977-1.138 2.5 2.5 0 0 1-.142-3.667l3-3Z"/>
+                                <path d="M11.603 7.963a.75.75 0 0 0-.977 1.138 2.5 2.5 0 0 1 .142 3.667l-3 3a2.5 2.5 0 0 1-3.536-3.536l1.225-1.224a.75.75 0 0 0-1.061-1.06l-1.224 1.224a4 4 0 1 0 5.656 5.656l3-3a4 4 0 0 0-.225-5.865Z"/>
+                            </svg>
+                            @L["Admin.Displays.ShowLink"]
+                        </AppButton>
+                        <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmRemoveDisplay(display)" Class="text-xs">
+                            @L["Common.Delete"]
+                        </AppButton>
+                    </div>
+                }
+            }
+        </div>
+    }
 
-    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
-        @if (displays is null)
-        {
-            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
-        }
-        else if (PublicOutputs.Count == 0)
-        {
-            <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
-                    <rect x="55" y="15" width="90" height="90" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                    <rect x="68" y="28" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <rect x="112" y="28" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <rect x="68" y="72" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <rect x="98" y="58" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
-                    <rect x="112" y="72" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
-                    <rect x="124" y="84" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
-                    <rect x="82" y="115" width="36" height="34" rx="5" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                    <line x1="94" y1="143" x2="106" y2="143" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Admin.PublicOutputs.Empty"]</h2>
-                <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
-                    @L["Admin.PublicOutputs.Description"]
-                </p>
+    @if (Capabilities.PublicOutput)
+    {
+        @* ---------- Public outputs: a channel any number of visitors can watch ---------- *@
+        <div class="flex items-center justify-between px-5 pt-6">
+            <div class="text-xl font-bold dark:text-neutral-100">@L["Admin.PublicOutputs.Title"]</div>
+            @if (PublicOutputs.Count > 0)
+            {
                 <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.PublicQr)" Class="flex items-center gap-1.5">
                     <PlusSymbol Class="size-4"/>
                     @L["Admin.PublicOutputs.Create"]
                 </AppButton>
-            </div>
-        }
-        else
-        {
-            @foreach (var output in PublicOutputs)
-            {
-                var viewers = PublicOutputState.GetViewerCount(output.DisplayIdentifier);
-                var broadcastingFrom = BroadcastingPresentationName(output.DisplayIdentifier);
-                var isBroadcasting = broadcastingFrom is not null;
+            }
+        </div>
 
-                <div class="flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
-                    <div class="@(isBroadcasting ? "text-green-500" : "text-neutral-300 dark:text-neutral-600")">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
-                            <path d="M3 3h5v5H3V3Zm1.5 1.5v2h2v-2h-2ZM12 3h5v5h-5V3Zm1.5 1.5v2h2v-2h-2ZM3 12h5v5H3v-5Zm1.5 1.5v2h2v-2h-2ZM12 12h1.5v1.5H12V12Zm3.5 0H17v1.5h-1.5V12ZM12 15.5h1.5V17H12v-1.5Zm3.5 0H17V17h-1.5v-1.5ZM9.5 3H11v1.5H9.5V3Zm0 3H11v1.5H9.5V6Zm0 3H11v1.5H9.5V9ZM3 9.5h1.5V11H3V9.5Zm3.5 0H8V11H6.5V9.5Zm6.5 0h1.5V11H13V9.5Zm3 0H17V11h-1V9.5Z"/>
-                        </svg>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="font-medium truncate">@output.Name</div>
-                        @if (isBroadcasting)
-                        {
-                            <div class="text-xs text-neutral-400 dark:text-neutral-500 truncate">
-                                @L["Admin.PublicOutputs.BroadcastingFrom", broadcastingFrom!]
-                            </div>
-                        }
-                    </div>
-                    <div class="text-xs @(viewers > 0 ? "text-green-600 dark:text-green-400" : "text-neutral-400 dark:text-neutral-500")">
-                        @ViewerCountText(viewers)
-                    </div>
-                    <AppButton Variant="ButtonVariant.Neutral" OnClick="() => publicOutputToShow = output" Class="text-xs flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5">
-                            <path d="M3 3h5v5H3V3Zm1.5 1.5v2h2v-2h-2ZM12 3h5v5h-5V3Zm1.5 1.5v2h2v-2h-2ZM3 12h5v5H3v-5Zm1.5 1.5v2h2v-2h-2ZM12 12h1.5v1.5H12V12Zm3.5 0H17v1.5h-1.5V12ZM12 15.5h1.5V17H12v-1.5Zm3.5 0H17V17h-1.5v-1.5ZM9.5 3H11v1.5H9.5V3Zm0 3H11v1.5H9.5V6Zm0 3H11v1.5H9.5V9ZM3 9.5h1.5V11H3V9.5Zm3.5 0H8V11H6.5V9.5Zm6.5 0h1.5V11H13V9.5Zm3 0H17V11h-1V9.5Z"/>
-                        </svg>
-                        @L["Admin.PublicOutputs.ShowQr"]
-                    </AppButton>
-                    <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmRemoveDisplay(output)" Class="text-xs">
-                        @L["Common.Delete"]
+        <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+            @if (displays is null)
+            {
+                <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+            }
+            else if (PublicOutputs.Count == 0)
+            {
+                <div class="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                        <rect x="55" y="15" width="90" height="90" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <rect x="68" y="28" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="112" y="28" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="68" y="72" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                        <rect x="98" y="58" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+                        <rect x="112" y="72" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+                        <rect x="124" y="84" width="8" height="8" rx="1" fill="currentColor" opacity="0.5"/>
+                        <rect x="82" y="115" width="36" height="34" rx="5" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                        <line x1="94" y1="143" x2="106" y2="143" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Admin.PublicOutputs.Empty"]</h2>
+                    <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
+                        @L["Admin.PublicOutputs.Description"]
+                    </p>
+                    <AppButton Variant="ButtonVariant.Primary" OnClick="() => ShowCreateDialog(OutputKind.PublicQr)" Class="flex items-center gap-1.5">
+                        <PlusSymbol Class="size-4"/>
+                        @L["Admin.PublicOutputs.Create"]
                     </AppButton>
                 </div>
             }
-        }
-    </div>
+            else
+            {
+                @foreach (var output in PublicOutputs)
+                {
+                    var viewers = PublicOutputState.GetViewerCount(output.DisplayIdentifier);
+                    var broadcastingFrom = BroadcastingPresentationName(output.DisplayIdentifier);
+                    var isBroadcasting = broadcastingFrom is not null;
+
+                    <div class="flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                        <div class="@(isBroadcasting ? "text-green-500" : "text-neutral-300 dark:text-neutral-600")">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5">
+                                <path d="M3 3h5v5H3V3Zm1.5 1.5v2h2v-2h-2ZM12 3h5v5h-5V3Zm1.5 1.5v2h2v-2h-2ZM3 12h5v5H3v-5Zm1.5 1.5v2h2v-2h-2ZM12 12h1.5v1.5H12V12Zm3.5 0H17v1.5h-1.5V12ZM12 15.5h1.5V17H12v-1.5Zm3.5 0H17V17h-1.5v-1.5ZM9.5 3H11v1.5H9.5V3Zm0 3H11v1.5H9.5V6Zm0 3H11v1.5H9.5V9ZM3 9.5h1.5V11H3V9.5Zm3.5 0H8V11H6.5V9.5Zm6.5 0h1.5V11H13V9.5Zm3 0H17V11h-1V9.5Z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">@output.Name</div>
+                            @if (isBroadcasting)
+                            {
+                                <div class="text-xs text-neutral-400 dark:text-neutral-500 truncate">
+                                    @L["Admin.PublicOutputs.BroadcastingFrom", broadcastingFrom!]
+                                </div>
+                            }
+                        </div>
+                        <div class="text-xs @(viewers > 0 ? "text-green-600 dark:text-green-400" : "text-neutral-400 dark:text-neutral-500")">
+                            @ViewerCountText(viewers)
+                        </div>
+                        <AppButton Variant="ButtonVariant.Neutral" OnClick="() => publicOutputToShow = output" Class="text-xs flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3.5">
+                                <path d="M3 3h5v5H3V3Zm1.5 1.5v2h2v-2h-2ZM12 3h5v5h-5V3Zm1.5 1.5v2h2v-2h-2ZM3 12h5v5H3v-5Zm1.5 1.5v2h2v-2h-2ZM12 12h1.5v1.5H12V12Zm3.5 0H17v1.5h-1.5V12ZM12 15.5h1.5V17H12v-1.5Zm3.5 0H17V17h-1.5v-1.5ZM9.5 3H11v1.5H9.5V3Zm0 3H11v1.5H9.5V6Zm0 3H11v1.5H9.5V9ZM3 9.5h1.5V11H3V9.5Zm3.5 0H8V11H6.5V9.5Zm6.5 0h1.5V11H13V9.5Zm3 0H17V11h-1V9.5Z"/>
+                            </svg>
+                            @L["Admin.PublicOutputs.ShowQr"]
+                        </AppButton>
+                        <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmRemoveDisplay(output)" Class="text-xs">
+                            @L["Common.Delete"]
+                        </AppButton>
+                    </div>
+                }
+            }
+        </div>
+    }
 </PageContainer>
 
 @if (displayToDelete is not null)
