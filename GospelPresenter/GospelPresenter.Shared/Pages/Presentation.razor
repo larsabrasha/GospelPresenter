@@ -234,7 +234,7 @@
                             @for (var i = 0; i < _presenterCandidates.Count; i++)
                             {
                                 var candidate = _presenterCandidates[i];
-                                var label = SessionChoiceLabel(i);
+                                var label = SessionChoiceLabel(i, candidate);
                                 <AppButton Variant="ButtonVariant.Primary" Filled="true" Class="w-full"
                                            OnClick="() => ControlSession(candidate)">
                                     @label
@@ -819,11 +819,18 @@
         NavigationManager.NavigateTo($"/presentations/{PresentationId}?remote=true&session={sessionId}");
 
     /// <summary>
-    /// What to call a session in the picker. There is nothing meaningful to show — the id is
-    /// derived from a device token and the name is the same presentation for all of them — so it is
-    /// numbered in the stable order the state returns them in.
+    /// What to call a session in the picker. The choice only matters when the same presentation is
+    /// live in two places at once, and that is exactly when a number tells the operator nothing: the
+    /// question they are answering is which machine, so the machine's own name is the answer.
+    ///
+    /// A browser session on this server has no device name, and a device token issued before the
+    /// name existed has none either; both fall back to the numbering, which is stable in the order
+    /// the state returns them in.
     /// </summary>
-    private string SessionChoiceLabel(int index) => L["RemoteControl.SessionChoice", index + 1];
+    private string SessionChoiceLabel(int index, string sessionId) =>
+        liveSessionPresence?.OwnerName(sessionId) is { Length: > 0 } name
+            ? name
+            : L["RemoteControl.SessionChoice", index + 1];
 
     private string EffectiveSessionId =>
         IsRemoteMode && _presenterSessionId is not null ? _presenterSessionId : AppState.SessionId;

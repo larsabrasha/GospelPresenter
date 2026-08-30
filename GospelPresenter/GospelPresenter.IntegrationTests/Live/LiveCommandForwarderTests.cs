@@ -194,6 +194,16 @@ public class LiveCommandForwarderTests : IDisposable
         registry.LastReported("no-such-session").ShouldBeNull();
     }
 
+    [Fact]
+    public void ADeviceWithNoName_LeavesTheControllerToNumberIt()
+    {
+        // A token issued before device names existed. Empty is not a label, so the picker has to be
+        // able to tell that apart from a name and fall back to its numbering.
+        GoLive(reportedItemId: "item-1", reportedPartIndex: 0);
+
+        registry.OwnerName(SessionId).ShouldBeNull();
+    }
+
     // ---------- helpers ----------
 
     private void GoLive(string reportedItemId, int reportedPartIndex)

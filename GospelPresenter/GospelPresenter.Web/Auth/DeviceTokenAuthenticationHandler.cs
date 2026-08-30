@@ -95,6 +95,11 @@ public class DeviceTokenAuthenticationHandler(
         // The token's own id, so a caller can be tied to the one device it presented rather than
         // only to the user behind it. It is what the mirrored live session is keyed on.
         identity.AddClaim(new Claim("device_id", match.Token.Id));
+        // The name the user gave this device when they registered it, so a controller can say which
+        // machine it is about to drive rather than numbering them. Carried as a claim because the
+        // token row is already loaded here; a renamed device keeps its old label until this
+        // principal falls out of the cache, which is the right trade for a display string.
+        identity.AddClaim(new Claim("device_name", match.Token.Name));
         identity.AddClaim(new Claim("user_id", match.Token.UserId));
         identity.AddClaim(new Claim("organization_id", match.Token.OrganizationId));
         identity.AddClaim(new Claim(ClaimTypes.Role, match.Role.ToString()));

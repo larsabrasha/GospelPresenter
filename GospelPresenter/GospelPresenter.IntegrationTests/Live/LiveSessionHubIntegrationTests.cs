@@ -214,6 +214,23 @@ public class LiveSessionHubIntegrationTests
         sessionId.Length.ShouldBe(12);
     }
 
+    [Fact]
+    public async Task TheHub_LearnsWhatTheDeviceIsCalled()
+    {
+        // So a controller looking at two live sessions of the same presentation can say which
+        // machine it is about to drive. The name is the one the user gave the device when they
+        // registered it -- the same one they see in the device list when revoking it.
+        using var app = new WebAppFixture();
+        var token = await IssueDeviceTokenAsync(app);
+        await using var connection = BuildConnection(app, token);
+
+        await connection.StartAsync();
+        var sessionId = await WaitForRegisteredSessionAsync(app);
+
+        app.Services.GetRequiredService<MirroredSessionRegistry>()
+            .OwnerName(sessionId).ShouldBe("Testmaskin");
+    }
+
     // ---------- helpers ----------
 
     private static HubConnection BuildConnection(WebAppFixture app, string? token) =>

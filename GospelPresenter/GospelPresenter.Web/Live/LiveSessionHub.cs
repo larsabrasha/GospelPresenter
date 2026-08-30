@@ -35,7 +35,8 @@ public class LiveSessionHub(
             return;
         }
 
-        registry.Register(identity.SessionId, identity.OrganizationId, Context.ConnectionId);
+        registry.Register(
+            identity.SessionId, identity.OrganizationId, Context.ConnectionId, identity.DeviceName);
         logger.LogInformation(
             "Device registered live session {SessionId} for organization {OrganizationId}",
             identity.SessionId, identity.OrganizationId);
@@ -80,7 +81,8 @@ public class LiveSessionHub(
         return base.OnDisconnectedAsync(exception);
     }
 
-    private sealed record HubIdentity(string SessionId, string OrganizationId, CallerContext Caller);
+    private sealed record HubIdentity(
+        string SessionId, string OrganizationId, string DeviceName, CallerContext Caller);
 
     private HubIdentity? ResolveIdentity()
     {
@@ -99,6 +101,7 @@ public class LiveSessionHub(
         return new HubIdentity(
             DeviceSessionId.For(deviceId),
             organizationId,
+            user.FindFirst("device_name")?.Value ?? "",
             new CallerContext(userId, role, organizationId));
     }
 }

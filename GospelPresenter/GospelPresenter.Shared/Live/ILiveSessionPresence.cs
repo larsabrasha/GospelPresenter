@@ -32,6 +32,13 @@ public interface ILiveSessionPresence
     /// </summary>
     MirroredSessionState? LastReported(string sessionId);
 
+    /// <summary>
+    /// What the owning device is called — the name its user gave it when registering it, which is
+    /// also the name shown in the device list. Null for a session that is not mirrored, or whose
+    /// token predates the name.
+    /// </summary>
+    string? OwnerName(string sessionId);
+
     /// <summary>Raised with the session id when an owner connects or drops.</summary>
     event Action<string>? OwnerPresenceChanged;
 }

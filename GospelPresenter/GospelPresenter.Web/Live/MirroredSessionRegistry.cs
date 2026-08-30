@@ -12,10 +12,15 @@ namespace GospelPresenter.Web.Live;
 /// from a controller and has to be forwarded down. Without that comparison the two would chase each
 /// other — a controller's write would be forwarded, echoed back, written again, and forwarded again.
 /// </param>
+/// <param name="OwnerName">
+/// What the user called this device when they registered it. Empty for a token issued before the
+/// name existed; a controller falls back to numbering then.
+/// </param>
 public record MirroredSession(
     string SessionId,
     string OrganizationId,
     string ConnectionId,
+    string OwnerName,
     MirroredSessionState? LastReported,
     DateTimeOffset OwnerLastSeen,
     bool OwnerConnected);
@@ -36,13 +41,15 @@ public class MirroredSessionRegistry : ILiveSessionPresence
     /// <summary>Raised with the session id when a device registers, disconnects or reconnects.</summary>
     public event Action<string>? OwnerPresenceChanged;
 
-    public MirroredSession Register(string sessionId, string organizationId, string connectionId)
+    public MirroredSession Register(
+        string sessionId, string organizationId, string connectionId, string ownerName = "")
     {
         // A device that reconnects replaces its own entry rather than adding one: the session id is
         // derived from the device token, so the same machine always lands on the same key.
         var session = sessions.AddOrUpdate(
             sessionId,
-            _ => new MirroredSession(sessionId, organizationId, connectionId, null, DateTimeOffset.UtcNow, true),
+            _ => new MirroredSession(
+                sessionId, organizationId, connectionId, ownerName, null, DateTimeOffset.UtcNow, true),
             (_, existing) =>
             {
                 connectionToSession.TryRemove(existing.ConnectionId, out string? _);
@@ -50,6 +57,7 @@ public class MirroredSessionRegistry : ILiveSessionPresence
                 {
                     OrganizationId = organizationId,
                     ConnectionId = connectionId,
+                    OwnerName = ownerName,
                     OwnerLastSeen = DateTimeOffset.UtcNow,
                     OwnerConnected = true
                 };
@@ -168,6 +176,9 @@ public class MirroredSessionRegistry : ILiveSessionPresence
     /// </summary>
     public MirroredSessionState? LastReported(string sessionId) =>
         sessions.GetValueOrDefault(sessionId)?.LastReported;
+
+    public string? OwnerName(string sessionId) =>
+        sessions.GetValueOrDefault(sessionId)?.OwnerName is { Length: > 0 } name ? name : null;
 
     public IReadOnlyList<MirroredSession> All() => sessions.Values.ToList();
 }
