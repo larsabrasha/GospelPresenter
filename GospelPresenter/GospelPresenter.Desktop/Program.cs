@@ -63,10 +63,15 @@ builder.Services.AddMemoryCache();
 // The local database: the full shared schema in SQLite under the app's data directory. Every
 // shared domain service runs against it unchanged through the factory below.
 var databasePath = Path.Combine(DesktopPaths.DataDirectory, "gospelpresenter.db");
+// Built here, before the container exists, which is why the scheduler hears about local writes
+// through a signal object rather than being handed to the interceptor directly.
+var localWrites = new LocalWriteSignal();
 var contextOptions = new DbContextOptionsBuilder<ClientDataContext>()
     .UseSqlite($"Data Source={databasePath};Cache=Shared")
+    .AddInterceptors(new LocalWriteInterceptor(localWrites))
     .Options;
 var contextFactory = new ClientDataContextFactory(contextOptions);
+builder.Services.AddSingleton(localWrites);
 builder.Services.AddSingleton<IDbContextFactory<PresentationContext>>(contextFactory);
 builder.Services.AddSingleton<IDbContextFactory<ClientDataContext>>(contextFactory);
 builder.Services.AddSingleton<ClientDatabaseInitializer>();

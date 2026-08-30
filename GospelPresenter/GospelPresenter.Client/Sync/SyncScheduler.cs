@@ -24,10 +24,31 @@ public class SyncScheduler(
     IConnectivityMonitor connectivity,
     DeviceAuthService auth,
     ILogger<SyncScheduler> logger,
-    Media.IMediaSynchronizer? mediaSynchronizer = null) : ISyncStatusSource, IDisposable
+    Media.IMediaSynchronizer? mediaSynchronizer = null,
+    LocalWriteSignal? localWrites = null) : ISyncStatusSource, IDisposable
 {
-    /// <summary>Overridable for tests.</summary>
+    /// <summary>
+    /// The backstop, for anything the write signal did not carry. Overridable for tests.
+    ///
+    /// Nothing here reaches the server on its own: a tick reads the local journal, and only a tick
+    /// that finds something to send — or one whose idle interval has elapsed — makes a request. So
+    /// this interval paces local reads, not network traffic.
+    /// </summary>
     public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// How long a burst of local writes is gathered before syncing. Long enough that saving a
+    /// presentation with a dozen rows is one sync, short enough that nobody waits.
+    ///
+    /// A maximum wait, not a restarting debounce: the signal is raised by every database command,
+    /// reads included, so a page that queries steadily would keep resetting a restarting one and a
+    /// write could sit unsent behind a stream of reads. The first signal of a burst schedules the
+    /// run and the rest are free — which also keeps the cost per signal to an interlocked compare,
+    /// and there are thousands of them while a pull is being applied.
+    ///
+    /// Overridable for tests.
+    /// </summary>
+    public TimeSpan WriteSignalDelay { get; init; } = TimeSpan.FromMilliseconds(500);
 
     /// <summary>
     /// How long the app may go without asking the server whether anything changed. The journal poll
@@ -46,7 +67,23 @@ public class SyncScheduler(
 
     private readonly SemaphoreSlim syncGate = new(1, 1);
     private CancellationTokenSource? loopCts;
-    private long lastSeenJournalId = -1;
+
+    private Timer? writeSignalTimer;
+    private int writeSignalPending;
+
+    /// <summary>
+    /// Greater than zero while the scheduler is itself using the database, so that its own reads and
+    /// writes do not come back as write signals.
+    ///
+    /// Without this the signal feeds itself: a sync reads the journal, the read raises the signal,
+    /// and the signal answers with another sync. Measured on a real device before this existed —
+    /// 59 pulls in 60 seconds on a machine nobody was touching, for ever.
+    ///
+    /// A genuine edit made during a sync is dropped here, which is the same trade the engine already
+    /// makes for rows journaled while a push is in flight: the run that follows picks it up, and the
+    /// poll is behind that.
+    /// </summary>
+    private int ownDatabaseWork;
 
     /// <summary>
     /// When a sync last ran, successful or not — unlike <see cref="LastSyncAt"/>, which only records
@@ -70,7 +107,64 @@ public class SyncScheduler(
         loopCts = new CancellationTokenSource();
         connectivity.Changed += OnConnectivityChanged;
         auth.Changed += OnAuthChanged;
+
+        if (localWrites is not null)
+        {
+            // One timer for the lifetime of the scheduler, only ever rescheduled. A timer per
+            // signal would allocate thousands of them while a pull is applied.
+            writeSignalTimer = new Timer(_ => OnWriteSignalElapsed(), null,
+                Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            localWrites.Written += OnLocalWrite;
+        }
+
         _ = RunLoopAsync(loopCts.Token);
+    }
+
+    /// <summary>
+    /// Raised from inside a database command, so this schedules and returns — it must never block
+    /// the write that produced it.
+    /// </summary>
+    private void OnLocalWrite()
+    {
+        if (Volatile.Read(ref ownDatabaseWork) > 0)
+            return;
+        ScheduleWriteSync();
+    }
+
+    private void ScheduleWriteSync()
+    {
+        if (Interlocked.Exchange(ref writeSignalPending, 1) == 0)
+            writeSignalTimer?.Change(WriteSignalDelay, Timeout.InfiniteTimeSpan);
+    }
+
+    private void OnWriteSignalElapsed()
+    {
+        Interlocked.Exchange(ref writeSignalPending, 0);
+        _ = HandleWriteSignalAsync();
+    }
+
+    private async Task HandleWriteSignalAsync()
+    {
+        var ct = loopCts?.Token ?? CancellationToken.None;
+        try
+        {
+            // Nothing of this device's own to send means nothing to do. The signal is about getting
+            // local work up; asking the server what IS new is the idle pull's job, and answering
+            // every signal with a pull is what turned an idle machine into a stream of requests.
+            if (await ReadPendingCountAsync(ct) == 0)
+                return;
+
+            // Straight to the sync rather than through a tick: the wait already was the coalescing,
+            // and a tick would only make it wait again.
+            await SyncAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Could not act on a local write signal");
+        }
     }
 
     public Task SyncNowAsync() => SyncAsync(loopCts?.Token ?? CancellationToken.None);
@@ -95,20 +189,15 @@ public class SyncScheduler(
     {
         try
         {
-            var (pending, maxJournalId) = await ReadJournalStateAsync(ct);
+            var pending = await ReadPendingCountAsync(ct);
             if (pending != PendingChanges)
             {
                 PendingChanges = pending;
                 RaiseChanged();
             }
 
-            if (maxJournalId > lastSeenJournalId)
-            {
-                // Fresh edits: wait one quiet interval before pushing, so bursts coalesce.
-                lastSeenJournalId = maxJournalId;
-                return;
-            }
-
+            // No waiting a further tick to coalesce: WriteSignalDelay does that, and doing it here
+            // as well would only make the backstop twice as slow as it needs to be.
             if (pending > 0)
             {
                 await SyncAsync(ct);
@@ -155,6 +244,7 @@ public class SyncScheduler(
 
         lastSyncAttemptAt = DateTimeOffset.UtcNow;
         SetStatus(SyncStatus.Syncing);
+        Interlocked.Increment(ref ownDatabaseWork);
         try
         {
             var summary = await engine.SyncAsync(ct);
@@ -192,13 +282,21 @@ public class SyncScheduler(
         }
         finally
         {
+            Interlocked.Decrement(ref ownDatabaseWork);
             syncGate.Release();
             try
             {
-                var (pending, maxId) = await ReadJournalStateAsync(CancellationToken.None);
-                PendingChanges = pending;
-                lastSeenJournalId = maxId;
+                PendingChanges = await ReadPendingCountAsync(CancellationToken.None);
                 RaiseChanged();
+
+                // Rows journaled while the push was in flight are deliberately left for the next
+                // cycle. Without this that cycle is the poll, so someone who saves twice in quick
+                // succession gets one fast change and one slow one. Scheduled directly rather than
+                // through OnLocalWrite, which is deaf while the scheduler is the one writing — and
+                // this cannot spin, because reaching Idle means the server was reached and the
+                // journal consumed, so anything still pending is new work.
+                if (Status == SyncStatus.Idle && PendingChanges > 0)
+                    ScheduleWriteSync();
             }
             catch (Exception e)
             {
@@ -207,17 +305,25 @@ public class SyncScheduler(
         }
     }
 
-    private async Task<(int Pending, long MaxJournalId)> ReadJournalStateAsync(CancellationToken ct)
+    /// <summary>
+    /// How many distinct rows are waiting to be pushed. The answer to every write signal, so it has
+    /// to be cheap: measured at six microseconds against a real device database.
+    /// </summary>
+    private async Task<int> ReadPendingCountAsync(CancellationToken ct)
     {
-        await using var db = await contextFactory.CreateDbContextAsync(ct);
-        var pending = await db.SyncJournal.AsNoTracking()
-            .Select(j => new { j.EntityTable, j.RowId })
-            .Distinct()
-            .CountAsync(ct);
-        var maxId = await db.SyncJournal.AsNoTracking()
-            .Select(j => (long?)j.Id)
-            .MaxAsync(ct) ?? 0;
-        return (pending, maxId);
+        Interlocked.Increment(ref ownDatabaseWork);
+        try
+        {
+            await using var db = await contextFactory.CreateDbContextAsync(ct);
+            return await db.SyncJournal.AsNoTracking()
+                .Select(j => new { j.EntityTable, j.RowId })
+                .Distinct()
+                .CountAsync(ct);
+        }
+        finally
+        {
+            Interlocked.Decrement(ref ownDatabaseWork);
+        }
     }
 
     private void SetStatus(SyncStatus status)
@@ -247,6 +353,9 @@ public class SyncScheduler(
 
         connectivity.Changed -= OnConnectivityChanged;
         auth.Changed -= OnAuthChanged;
+        if (localWrites is not null)
+            localWrites.Written -= OnLocalWrite;
+        writeSignalTimer?.Dispose();
         loopCts?.Cancel();
         loopCts?.Dispose();
     }

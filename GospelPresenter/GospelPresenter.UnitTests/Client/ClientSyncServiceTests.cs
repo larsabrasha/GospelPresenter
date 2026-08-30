@@ -632,6 +632,272 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         (await db.SyncJournal.CountAsync()).ShouldBe(0, "the pulls must not be driven by local edits");
     }
 
+    // --- The local write signal ---
+
+    [Fact]
+    public async Task ALocalWrite_SyncsWithoutWaitingForThePoll()
+    {
+        // Arrange -- a poll far enough out that anything happening inside the wait is the signal's
+        // doing and nothing else.
+        var pushes = 0;
+        server.OnPush = _ =>
+        {
+            Interlocked.Increment(ref pushes);
+            return new SyncPushResponse([]);
+        };
+
+        var writes = new LocalWriteSignal();
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance, mediaSynchronizer: null, localWrites: writes)
+        {
+            PollInterval = TimeSpan.FromMinutes(5),
+            IdlePullInterval = TimeSpan.FromMinutes(5),
+            WriteSignalDelay = TimeSpan.FromMilliseconds(50),
+        };
+        scheduler.Start();
+
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.OverlaySlides.Add(new OverlaySlide { Id = "overlay-1", Title = "Info", OrganizationId = "org-1" });
+            await db.SaveChangesAsync();
+        }
+
+        // Act
+        writes.Raise();
+
+        // Assert
+        await WaitUntil(() => Volatile.Read(ref pushes) >= 1);
+    }
+
+    [Fact]
+    public async Task ABurstOfWrites_BecomesOneSync()
+    {
+        // Saving a presentation touches a dozen rows and every one of them raises the signal.
+        var pushes = 0;
+        server.OnPush = _ =>
+        {
+            Interlocked.Increment(ref pushes);
+            return new SyncPushResponse([]);
+        };
+
+        var writes = new LocalWriteSignal();
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance, mediaSynchronizer: null, localWrites: writes)
+        {
+            PollInterval = TimeSpan.FromMinutes(5),
+            IdlePullInterval = TimeSpan.FromMinutes(5),
+            WriteSignalDelay = TimeSpan.FromMilliseconds(300),
+        };
+        scheduler.Start();
+
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.OverlaySlides.Add(new OverlaySlide { Id = "overlay-1", Title = "Info", OrganizationId = "org-1" });
+            await db.SaveChangesAsync();
+        }
+
+        // Act
+        for (var i = 0; i < 50; i++)
+            writes.Raise();
+
+        // Assert
+        await WaitUntil(() => Volatile.Read(ref pushes) >= 1);
+        Volatile.Read(ref pushes).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task ASteadyStreamOfSignals_DoesNotHoldAWriteHostage()
+    {
+        // Why the wait is a maximum rather than a restarting debounce. The signal is raised by every
+        // database command, reads included, so a screen that queries steadily would keep resetting a
+        // restarting one and the write would sit unsent until the poll noticed it -- slow, and slow
+        // in a way that depends on which page happens to be open.
+        var start = DateTimeOffset.UtcNow;
+        DateTimeOffset? firstPushAt = null;
+        server.OnPush = _ =>
+        {
+            firstPushAt ??= DateTimeOffset.UtcNow;
+            return new SyncPushResponse([]);
+        };
+
+        var writes = new LocalWriteSignal();
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance, mediaSynchronizer: null, localWrites: writes)
+        {
+            PollInterval = TimeSpan.FromMinutes(5),
+            IdlePullInterval = TimeSpan.FromMinutes(5),
+            WriteSignalDelay = TimeSpan.FromMilliseconds(100),
+        };
+        scheduler.Start();
+
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.OverlaySlides.Add(new OverlaySlide { Id = "overlay-1", Title = "Info", OrganizationId = "org-1" });
+            await db.SaveChangesAsync();
+        }
+
+        // Act -- an unbroken stream, closer together than the wait, for ten times its length.
+        var streamStarted = DateTimeOffset.UtcNow;
+        var stop = streamStarted.AddSeconds(1);
+        while (DateTimeOffset.UtcNow < stop)
+        {
+            writes.Raise();
+            await Task.Delay(10);
+        }
+
+        // Assert -- it pushed while the stream was still running. A restarting debounce would not
+        // have fired until after the last signal, which is what this measures.
+        await WaitUntil(() => firstPushAt is not null);
+        firstPushAt!.Value.ShouldBeLessThan(streamStarted.AddMilliseconds(600),
+            "the write must not wait for the stream to stop");
+        firstPushAt.Value.ShouldBeGreaterThanOrEqualTo(start);
+    }
+
+    [Fact]
+    public async Task ASignalWithNothingJournalled_DoesNotReachTheServer()
+    {
+        // Every command raises the signal, reads included — and a sync reads the database, so a
+        // signal answered with a pull makes the sync feed itself. On a real device that was 59
+        // pulls in 60 idle seconds, for ever. A signal is about getting local work up; when there
+        // is none, the answer is a journal read and nothing more.
+        var requests = 0;
+        server.OnPull = _ =>
+        {
+            Interlocked.Increment(ref requests);
+            return Pull(T1);
+        };
+        server.OnPush = _ =>
+        {
+            Interlocked.Increment(ref requests);
+            return new SyncPushResponse([]);
+        };
+
+        var writes = new LocalWriteSignal();
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance, mediaSynchronizer: null, localWrites: writes)
+        {
+            PollInterval = TimeSpan.FromMinutes(5),
+            IdlePullInterval = TimeSpan.FromMinutes(5),
+            WriteSignalDelay = TimeSpan.FromMilliseconds(50),
+        };
+
+        // Started, and its opening sync allowed to finish: an unstarted scheduler is subscribed to
+        // nothing, so this measured nothing at all until a real device showed the loop.
+        scheduler.Start();
+        await WaitUntil(() => scheduler.LastSyncAt is not null);
+        var afterStart = Volatile.Read(ref requests);
+
+        // Act -- signals with an empty journal, as the scheduler's own reads produce.
+        for (var i = 0; i < 20; i++)
+        {
+            writes.Raise();
+            await Task.Delay(25);
+        }
+        await Task.Delay(300);
+
+        Volatile.Read(ref requests).ShouldBe(afterStart, "an empty journal is not worth a request");
+    }
+
+    [Fact]
+    public async Task AnExecuteUpdate_WakesTheSyncThroughTheInterceptor()
+    {
+        // The reason the signal is a command interceptor rather than a hook on SaveChanges. Renaming
+        // a presentation, an item, a theme, an event date or an output all go through ExecuteUpdate,
+        // which exists to bypass the change tracker -- so a SaveChanges hook would never see them
+        // and those edits alone would wait out the poll.
+        var pushes = 0;
+        server.OnPush = _ =>
+        {
+            Interlocked.Increment(ref pushes);
+            return new SyncPushResponse([]);
+        };
+
+        var writes = new LocalWriteSignal();
+        IDbContextFactory<ClientDataContext> intercepted = new TestDbContextFactory(
+            new DbContextOptionsBuilder<ClientDataContext>()
+                .UseSqlite(connection)
+                .AddInterceptors(new LocalWriteInterceptor(writes))
+                .Options);
+
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance, mediaSynchronizer: null, localWrites: writes)
+        {
+            PollInterval = TimeSpan.FromMinutes(5),
+            IdlePullInterval = TimeSpan.FromMinutes(5),
+            WriteSignalDelay = TimeSpan.FromMilliseconds(50),
+        };
+
+        // Started first: its opening sync is what creates the organisation and user rows the
+        // presentation's foreign keys need.
+        scheduler.Start();
+        await WaitUntil(() => scheduler.LastSyncAt is not null);
+
+        // Seeded through the unintercepted factory, so nothing here raises the signal and the only
+        // thing that can wake the sync below is the ExecuteUpdate itself.
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.Presentations.Add(new Presentation
+            {
+                Id = "pres-1", Name = "Gudstjänst", OrganizationId = "org-1",
+                CreatedBy = "user-1", UpdatedBy = "user-1",
+            });
+            await seed.SaveChangesAsync();
+        }
+        var before = Volatile.Read(ref pushes);
+
+        // Act -- no SaveChanges anywhere in this.
+        await using (var db = await intercepted.CreateDbContextAsync())
+        {
+            await db.Presentations
+                .Where(p => p.Id == "pres-1")
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.Name, "Omdöpt")
+                    .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow));
+        }
+
+        // Assert
+        await WaitUntil(() => Volatile.Read(ref pushes) > before);
+    }
+
+    [Fact]
+    public async Task AWriteTheSignalMissed_SyncsOnTheNextTickAndNotTheOneAfter()
+    {
+        // The poll is the backstop. It used to spend one whole tick noticing an edit and only push
+        // on the next, which made the backstop twice as slow as it needed to be; the coalescing that
+        // justified it now lives in the write signal's wait.
+        var pushes = 0;
+        server.OnPush = _ =>
+        {
+            Interlocked.Increment(ref pushes);
+            return new SyncPushResponse([]);
+        };
+
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance)
+        {
+            PollInterval = TimeSpan.FromMilliseconds(50),
+            IdlePullInterval = TimeSpan.FromMinutes(5),
+        };
+        scheduler.Start();
+        await WaitUntil(() => scheduler.LastSyncAt is not null);
+
+        // A write with no signal behind it: exactly what a path the interceptor never saw looks like.
+        await using (var db = await factory.CreateDbContextAsync())
+        {
+            db.OverlaySlides.Add(new OverlaySlide { Id = "overlay-1", Title = "Info", OrganizationId = "org-1" });
+            await db.SaveChangesAsync();
+        }
+        var before = Volatile.Read(ref pushes);
+
+        await WaitUntil(() => Volatile.Read(ref pushes) > before);
+    }
+
     /// <summary>
     /// Polls a condition to a deadline rather than sleeping for a fixed time: the loop under test is
     /// driven by a timer, and a fixed sleep is either flaky or slow.
