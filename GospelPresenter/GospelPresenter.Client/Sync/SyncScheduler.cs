@@ -230,8 +230,21 @@ public class SyncScheduler(
 
     private void RaiseChanged() => Changed?.Invoke();
 
+    private bool disposed;
+
+    /// <summary>
+    /// Idempotent, for the same reason <see cref="ClientSyncService"/>'s caller is: the desktop host
+    /// registers this under its own type and again as <see cref="ISyncStatusSource"/> through a
+    /// factory that hands back the same object, and the container tracks what a factory returns for
+    /// disposal without checking whether it is already tracking it. The second call reached a
+    /// cancellation source the first had disposed, and closing the app ended in an unhandled
+    /// exception rather than a clean stop.
+    /// </summary>
     public void Dispose()
     {
+        if (disposed) return;
+        disposed = true;
+
         connectivity.Changed -= OnConnectivityChanged;
         auth.Changed -= OnAuthChanged;
         loopCts?.Cancel();

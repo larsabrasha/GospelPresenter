@@ -8,6 +8,7 @@ using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.Sync;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 
@@ -511,6 +512,30 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         scheduler.LastSyncAt.ShouldNotBeNull();
         scheduler.PendingChanges.ShouldBe(0);
         conflicts.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Merged);
+    }
+
+    [Fact]
+    public void TheHostsOwnRegistrations_DisposeTheSchedulerCleanly()
+    {
+        // The registration shape itself. The desktop registers the scheduler under its own type and
+        // again as ISyncStatusSource through a factory returning the same object; the container
+        // tracks what a factory returns for disposal without checking whether it already is, so
+        // shutdown disposes it twice -- and the second call reached a cancellation source the first
+        // had disposed. Closing the app ended in an unhandled ObjectDisposedException.
+        var services = new ServiceCollection();
+        services.AddSingleton(_ => new SyncScheduler(
+            engine, factory, new FakeConnectivityMonitor { IsOnline = true }, auth,
+            NullLogger<SyncScheduler>.Instance));
+        services.AddSingleton<ISyncStatusSource>(sp => sp.GetRequiredService<SyncScheduler>());
+
+        var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<ISyncStatusSource>();
+
+        // Started, because the crash is in the loop's cancellation source and a scheduler that
+        // never ran has none to dispose twice -- which is what the desktop does at startup.
+        provider.GetRequiredService<SyncScheduler>().Start();
+
+        Should.NotThrow(() => provider.Dispose());
     }
 
     [Fact]
