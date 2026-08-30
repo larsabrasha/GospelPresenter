@@ -162,11 +162,7 @@ internal static class SyncPushBuilder
                 request.Deletes.Add(new SyncDeletePush(SyncTables.EntityTypeFor(root.Table), root.Id, Base(root.Table, root.Id)));
         }
 
-        var count = request.SongPartLabels.Count + request.Songs.Count + request.OrganizationImages.Count
-                    + request.OrganizationAudios.Count + request.OverlaySlides.Count + request.Presentations.Count
-                    + request.OrganizationSettings.Count + request.UserSettings.Count
-                    + request.RemoteDisplays.Count + request.Deletes.Count;
-        return count == 0 ? null : request;
+        return request.RowCount == 0 ? null : request;
     }
 
     private static async Task<Dictionary<RootRef, long>> LoadBasesAsync(

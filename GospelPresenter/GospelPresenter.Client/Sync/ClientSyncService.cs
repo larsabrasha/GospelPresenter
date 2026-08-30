@@ -69,10 +69,7 @@ public class ClientSyncService(
             SyncPushResponse? response = null;
             if (request is not null)
             {
-                pushed = request.SongPartLabels.Count + request.Songs.Count + request.OrganizationImages.Count
-                         + request.OrganizationAudios.Count + request.OverlaySlides.Count + request.Presentations.Count
-                         + request.OrganizationSettings.Count + request.UserSettings.Count
-                         + request.RemoteDisplays.Count + request.Deletes.Count;
+                pushed = request.RowCount;
                 response = await PostAsync<SyncPushRequest, SyncPushResponse>("/api/sync/push", request, ct);
             }
 

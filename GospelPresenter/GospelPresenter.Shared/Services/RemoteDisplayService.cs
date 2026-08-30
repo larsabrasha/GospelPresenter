@@ -31,8 +31,6 @@ public interface IRemoteDisplayService
 public class RemoteDisplayService(
     IDbContextFactory<PresentationContext> dbContextFactory) : IRemoteDisplayService
 {
-    private const int MaxIdRetries = DisplayIdentifiers.MaxRetries;
-
     public async Task<List<RemoteDisplay>> GetDisplaysAsync(string organizationId, CallerContext caller)
     {
         caller.RequirePermission(Permission.ViewPresentations);
@@ -57,7 +55,7 @@ public class RemoteDisplayService(
             context.RemoteDisplays.Where(d => d.OrganizationId == organizationId),
             AppConstraints.MaxRemoteDisplaysPerOrg, "outputs", CancellationToken.None);
 
-        for (var attempt = 0; attempt < MaxIdRetries; attempt++)
+        for (var attempt = 0; attempt < DisplayIdentifiers.MaxRetries; attempt++)
         {
             var display = new RemoteDisplay
             {
@@ -74,14 +72,14 @@ public class RemoteDisplayService(
                 await context.SaveChangesAsync();
                 return display;
             }
-            catch (DbUpdateException) when (attempt < MaxIdRetries - 1)
+            catch (DbUpdateException) when (attempt < DisplayIdentifiers.MaxRetries - 1)
             {
                 // Unique-index collision on DisplayIdentifier — discard the entry and retry.
                 context.RemoteDisplays.Remove(display);
             }
         }
 
-        throw new InvalidOperationException("Failed to generate a unique display ID after multiple attempts.");
+        throw DisplayIdentifiers.Exhausted();
     }
 
     public async Task RemoveDisplayAsync(string organizationId, string id, CallerContext caller)
@@ -128,7 +126,7 @@ public class RemoteDisplayService(
         if (display is null)
             return null;
 
-        for (var attempt = 0; attempt < MaxIdRetries; attempt++)
+        for (var attempt = 0; attempt < DisplayIdentifiers.MaxRetries; attempt++)
         {
             display.DisplayIdentifier = DisplayIdentifiers.Generate();
             try
@@ -136,13 +134,13 @@ public class RemoteDisplayService(
                 await context.SaveChangesAsync();
                 return display.DisplayIdentifier;
             }
-            catch (DbUpdateException) when (attempt < MaxIdRetries - 1)
+            catch (DbUpdateException) when (attempt < DisplayIdentifiers.MaxRetries - 1)
             {
                 // Unique-index collision on DisplayIdentifier — try another identifier.
             }
         }
 
-        throw new InvalidOperationException("Failed to generate a unique display ID after multiple attempts.");
+        throw DisplayIdentifiers.Exhausted();
     }
 
     public async Task<RemoteDisplay?> FindPublicOutputAsync(string displayIdentifier)

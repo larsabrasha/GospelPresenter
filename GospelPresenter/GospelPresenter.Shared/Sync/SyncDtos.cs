@@ -184,6 +184,16 @@ public class SyncPushRequest
     public List<SyncRowPush<SyncUserSettingDto>> UserSettings { get; set; } = [];
     public List<SyncRowPush<SyncRemoteDisplayDto>> RemoteDisplays { get; set; } = [];
     public List<SyncDeletePush> Deletes { get; set; } = [];
+
+    /// <summary>
+    /// How many units this push carries. Lives here because two callers need it — the builder, to
+    /// decide whether there is anything worth sending, and the client, to report what it sent — and
+    /// a tally kept in two places is a tally that forgets the next list somebody adds.
+    /// </summary>
+    public int RowCount =>
+        SongPartLabels.Count + Songs.Count + OrganizationImages.Count + OrganizationAudios.Count
+        + OverlaySlides.Count + Presentations.Count + OrganizationSettings.Count + UserSettings.Count
+        + RemoteDisplays.Count + Deletes.Count;
 }
 
 public record SyncRowPush<TRow>(TRow Row, long? BaseVersion) where TRow : ISyncRootRow;

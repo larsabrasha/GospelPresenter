@@ -1284,7 +1284,7 @@ public class SyncService(
                 return candidate;
         }
 
-        throw new InvalidOperationException("Failed to generate a unique display ID after multiple attempts.");
+        throw DisplayIdentifiers.Exhausted();
     }
 
     private async Task<SyncPushResult> ProcessDeleteAsync(

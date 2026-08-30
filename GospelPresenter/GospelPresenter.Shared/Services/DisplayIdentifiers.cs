@@ -19,6 +19,14 @@ public static class DisplayIdentifiers
     /// <summary>How many times a caller retries after a unique-index collision before giving up.</summary>
     public const int MaxRetries = 8;
 
+    /// <summary>
+    /// What a caller throws when <see cref="MaxRetries"/> codes in a row were all taken. Shared so
+    /// the three retry loops — two in the service, one in the sync engine — cannot drift into
+    /// telling three different stories about the same thing.
+    /// </summary>
+    public static InvalidOperationException Exhausted() =>
+        new($"Failed to generate a unique display ID after {MaxRetries} attempts.");
+
     public static string Generate()
     {
         Span<char> buffer = stackalloc char[Length];
