@@ -71,7 +71,6 @@ public static class MauiProgram
         // see IDbContextFactory<PresentationContext> and cannot tell SQLite from Postgres.
         builder.Services.AddMemoryCache();
         builder.Services.AddScoped<IPresentationService, PresentationService>();
-        builder.Services.AddSingleton<ISongService, SongService>();
         builder.Services.AddSingleton<IBibleService, BibleService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IOnboardingService, OnboardingService>();

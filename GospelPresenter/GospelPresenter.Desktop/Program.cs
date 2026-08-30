@@ -74,7 +74,6 @@ builder.Services.AddSingleton<ClientDatabaseInitializer>();
 // The same domain services, with the same lifetimes, the web host registers — they only see
 // IDbContextFactory<PresentationContext> and cannot tell SQLite from Postgres.
 builder.Services.AddScoped<IPresentationService, PresentationService>();
-builder.Services.AddSingleton<ISongService, SongService>();
 builder.Services.AddSingleton<IBibleService, BibleService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
