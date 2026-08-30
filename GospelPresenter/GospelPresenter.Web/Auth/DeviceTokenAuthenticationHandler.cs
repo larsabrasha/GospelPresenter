@@ -92,6 +92,9 @@ public class DeviceTokenAuthenticationHandler(
         }
 
         var identity = new ClaimsIdentity(SchemeName);
+        // The token's own id, so a caller can be tied to the one device it presented rather than
+        // only to the user behind it. It is what the mirrored live session is keyed on.
+        identity.AddClaim(new Claim("device_id", match.Token.Id));
         identity.AddClaim(new Claim("user_id", match.Token.UserId));
         identity.AddClaim(new Claim("organization_id", match.Token.OrganizationId));
         identity.AddClaim(new Claim(ClaimTypes.Role, match.Role.ToString()));

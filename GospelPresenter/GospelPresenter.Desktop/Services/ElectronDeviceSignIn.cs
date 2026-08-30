@@ -131,10 +131,7 @@ public class ElectronDeviceSignIn(
                 return false;
             }
 
-            await auth.SignInAsync(token, new DeviceIdentity(
-                me.Id, me.Name, me.Email,
-                Enum.TryParse<UserRole>(me.Role, out var role) ? role : UserRole.User,
-                me.OrganizationId, me.OrganizationName ?? ""));
+            await auth.SignInAsync(token, ToIdentity(me));
 
             logger.LogInformation("Signed in as {UserId} in organization {OrganizationId}",
                 me.Id, me.OrganizationId);
@@ -146,6 +143,43 @@ public class ElectronDeviceSignIn(
             return false;
         }
     }
+
+    /// <summary>
+    /// Brings a stored identity up to date with the server, and is how an installation that signed
+    /// in before the device id existed acquires one. Silent on failure: the app is expected to run
+    /// for weeks without reaching the server, and a stale identity is not a reason to disturb
+    /// anyone — the cached one keeps working exactly as it did.
+    /// </summary>
+    public async Task RefreshIdentityAsync(CancellationToken cancellationToken = default)
+    {
+        if (auth.Token is not { } token) return;
+
+        try
+        {
+            using var http = httpClientFactory.CreateClient();
+            http.BaseAddress = new Uri(apiBaseUrl);
+            http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var me = await http.GetFromJsonAsync<MeResponse>("/api/me", cancellationToken);
+            if (me?.OrganizationId is null) return;
+
+            var refreshed = ToIdentity(me);
+            if (refreshed == auth.CurrentIdentity) return;
+
+            await auth.UpdateIdentityAsync(refreshed);
+            logger.LogDebug("Refreshed the stored identity for {UserId}", me.Id);
+        }
+        catch (Exception e)
+        {
+            logger.LogDebug(e, "Could not refresh the stored identity; keeping the cached one");
+        }
+    }
+
+    private static DeviceIdentity ToIdentity(MeResponse me) => new(
+        me.Id, me.Name, me.Email,
+        Enum.TryParse<UserRole>(me.Role, out var role) ? role : UserRole.User,
+        me.OrganizationId ?? "", me.OrganizationName ?? "", me.DeviceId);
 
     private void Deliver(string url)
     {
@@ -180,5 +214,6 @@ public class ElectronDeviceSignIn(
         string Email,
         string Role,
         string? OrganizationId,
-        string? OrganizationName);
+        string? OrganizationName,
+        string? DeviceId);
 }

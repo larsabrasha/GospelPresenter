@@ -14,4 +14,10 @@ public record DeviceIdentity(
     string Email,
     UserRole Role,
     string OrganizationId,
-    string OrganizationName);
+    string OrganizationName,
+    /// <summary>
+    /// The device token this installation holds, from /api/me. Null for an identity stored before
+    /// the server offered it, which is why it is optional rather than required — the app refreshes
+    /// it on the next start that reaches the server.
+    /// </summary>
+    string? DeviceId = null);

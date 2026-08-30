@@ -132,6 +132,9 @@ builder.Services.AddSingleton(sp => new ElectronDeviceSignIn(
     sp.GetRequiredService<ILogger<ElectronDeviceSignIn>>()));
 builder.Services.AddSingleton<IDeviceSignIn>(sp => sp.GetRequiredService<ElectronDeviceSignIn>());
 
+// One machine, one session — and the same session id after a restart. See the provider.
+builder.Services.AddSingleton<ISessionIdProvider, DesktopSessionIdProvider>();
+
 builder.Services.AddSingleton<GospelPresenter.Client.CcliReportListener>();
 
 // The sync engine: push and pull over the device token, scheduled on start, on connectivity
@@ -249,6 +252,11 @@ if (apiBaseUrl.Length > 0)
     // login page, then catch up with the server in the background.
     await app.Services.GetRequiredService<DeviceAuthService>().LoadAsync();
     app.Services.GetRequiredService<SyncScheduler>().Start();
+
+    // Not awaited: it is a network call, and nothing on the first screen depends on it. It is what
+    // gives an installation that signed in before device ids existed one, so the session id stops
+    // being a per-launch browser value on the next start.
+    _ = app.Services.GetRequiredService<ElectronDeviceSignIn>().RefreshIdentityAsync();
 }
 else
 {

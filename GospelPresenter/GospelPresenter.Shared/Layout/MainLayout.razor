@@ -4,6 +4,7 @@
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Logging
 
 @inherits LayoutComponentBase
@@ -15,6 +16,7 @@
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
 @inject ILogger<MainLayout> Logger
+@inject IServiceProvider Services
 
 <ViewportMonitor OnViewportChanged="viewport => AppState.MainViewport = viewport"/>
 
@@ -126,15 +128,23 @@
     {
         if (firstRender)
         {
+            // A host with an identity of its own answers first: the desktop app is one machine in
+            // one room, and its session id has to survive a restart. The web registers no provider
+            // and goes straight to session storage, which is the right lifetime for a tab.
+            AppState.SessionId = Services.GetService<ISessionIdProvider>()?.GetSessionId() ?? "";
+
             // The body renders only once a session id exists, so a failing interop call must not
             // leave the app blank — generate one here instead.
-            try
+            if (string.IsNullOrEmpty(AppState.SessionId))
             {
-                AppState.SessionId = await JsRuntime.InvokeAsync<string>("getOrCreateSessionId");
-            }
-            catch (Exception e)
-            {
-                Logger.LogWarning(e, "Could not read a session id from the host; generating one");
+                try
+                {
+                    AppState.SessionId = await JsRuntime.InvokeAsync<string>("getOrCreateSessionId");
+                }
+                catch (Exception e)
+                {
+                    Logger.LogWarning(e, "Could not read a session id from the host; generating one");
+                }
             }
 
             if (string.IsNullOrEmpty(AppState.SessionId))

@@ -75,6 +75,9 @@ public static class DeviceTokenEndpoints
                 Role = user.Role.ToString(),
                 user.OrganizationId,
                 OrganizationName = user.Organization?.Name,
+                // Null for a cookie session; a device learns which token it is holding, which is
+                // what its live session id is derived from.
+                DeviceId = context.User.FindFirst("device_id")?.Value,
             });
         }).RequireAuthorization();
 
