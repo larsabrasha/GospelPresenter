@@ -323,8 +323,20 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
         connection = null;
     }
 
+    private bool disposed;
+
+    /// <summary>
+    /// Idempotent, because it is called twice. The host registers this class under its own type and
+    /// again as <see cref="ILiveSessionMirror"/> through a factory that hands back the same object,
+    /// and the container tracks what a factory returns for disposal without checking whether it is
+    /// already tracking it. The second call used to reach a cancellation source that the first had
+    /// disposed, and the desktop went down with an unhandled exception on every shutdown.
+    /// </summary>
     public async ValueTask DisposeAsync()
     {
+        if (disposed) return;
+        disposed = true;
+
         sharedAppState.PropertyChanged -= OnSharedStateChanged;
         await lifetime.CancelAsync();
         await StopConnectionAsync();
