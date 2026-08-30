@@ -32,6 +32,8 @@ public static class SharedServicesSetup
         services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IImageResizeService, ImageResizeService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
+        // Stateless, and ISongService is a singleton too: one instance serves every circuit.
+        services.AddSingleton<ILiveSlideBuilder, LiveSlideBuilder>();
         // Singleton so the built-in theme definitions are cached once for the whole process.
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IThemeAssetService, ThemeAssetService>();

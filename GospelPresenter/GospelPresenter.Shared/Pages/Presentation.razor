@@ -17,6 +17,7 @@
 @inject AppState AppState
 @inject SharedAppState SharedAppState
 @inject ISongService SongService
+@inject ILiveSlideBuilder SlideBuilder
 @inject IBibleTextService BibleTextService
 @inject IPresentationService PresentationService
 @inject IJSRuntime JsRuntime
@@ -1174,15 +1175,7 @@
             {
                 Id = item.Id,
                 SourceId = item.SourceId,
-                Type = item.Type switch
-                {
-                    PresentationItemType.Song => ProjectItemType.Song,
-                    PresentationItemType.BibleText => ProjectItemType.BibleText,
-                    PresentationItemType.Image => ProjectItemType.Image,
-                    PresentationItemType.Audio => ProjectItemType.Audio,
-                    PresentationItemType.Slides => ProjectItemType.Slides,
-                    _ => ProjectItemType.Song
-                },
+                Type = item.Type.ToProjectItemType(),
                 Title = item.Title
             }).ToList()
         };
@@ -1476,108 +1469,26 @@
         var projectItem = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == selectedItemId);
         if (projectItem is null) return;
 
-        string? text = null;
-        string? credits = null;
-        string? imageUrl = null;
-        SongPart? songPart = null;
-        string? liveSongId = null;
-        string? liveSongName = null;
-        string? liveCcliNumber = null;
+        var slide = SlideBuilder.Build(
+            SharedAppState.GetLiveSlide(EffectiveSessionId),
+            new LiveSlideRequest(
+                EffectiveSessionId,
+                OrgState.ActiveOrganizationId ?? "",
+                selectedItemId,
+                projectItem.Type,
+                projectItem.SourceId,
+                partIndex,
+                loadedPresentation,
+                theme,
+                OrgState.ToCallerContext()));
 
-        switch (projectItem.Type)
-        {
-            case ProjectItemType.Song:
-            {
-                Song? song = null;
-                if (projectItem.SourceId is not null)
-                    song = SongService.GetSongById(projectItem.SourceId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-                if (song is null)
-                {
-                    // Fallback: reconstruct from saved parts (legacy data)
-                    var songItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                    if (songItem is not null && songItem.Parts.Count > 0)
-                    {
-                        song = new Song(songItem.SourceId ?? songItem.Id, songItem.Title, null, null, null, null,
-                            songItem.Parts.Select(p => new SongPart("", null, null, null, p.Content)).ToList(), []);
-                    }
-                }
-                var songPresentationItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                var liveArrangementId = songPresentationItem?.ArrangementId ?? song?.Arrangements.FirstOrDefault()?.Id;
-                var songEffectiveParts = song is not null ? song.GetArrangedParts(liveArrangementId) : [];
-                if (song is not null && partIndex < songEffectiveParts.Count)
-                {
-                    songPart = songEffectiveParts[partIndex];
-                    // Plain text, not HTML: LiveSlide.Text is rendered as markup for Bible
-                    // slides, so song content must never be turned into markup here.
-                    text = songPart.Content;
-                    credits = FormatSongCredits(song);
-                    liveSongId = song.Id;
-                    liveSongName = song.Name;
-                    liveCcliNumber = song.Ccli;
-                }
-
-                break;
-            }
-            case ProjectItemType.Image:
-            {
-                var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                var parts = imageItem?.Parts.OrderBy(p => p.SortOrder).ToList();
-                if (parts is not null && partIndex < parts.Count)
-                {
-                    imageUrl = ImageUrlHelper.LiveOrgImageUrl(EffectiveSessionId, parts[partIndex].Content, "full");
-                }
-
-                break;
-            }
-            case ProjectItemType.BibleText:
-            {
-                var bibleItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                if (bibleItem is not null && partIndex < bibleItem.Parts.Count)
-                {
-                    text = bibleItem.Parts[partIndex].Content;
-                    credits = bibleItem.Title;
-                }
-
-                break;
-            }
-            case ProjectItemType.Audio:
-                return;
-            case ProjectItemType.Slides:
-            {
-                var slidesPresItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                var slidesSourceId = slidesPresItem?.SourceId;
-                if (slidesSourceId is not null && slidesPresItem?.Parts is not null)
-                {
-                    var orderedParts = slidesPresItem.Parts.OrderBy(p => p.SortOrder).ToList();
-                    if (partIndex < orderedParts.Count && int.TryParse(orderedParts[partIndex].Content, out var pageIndex))
-                    {
-                        imageUrl = ImageUrlHelper.LiveSlidesPageUrl(EffectiveSessionId, slidesSourceId, pageIndex);
-                    }
-                }
-                break;
-            }
-            default:
-                return;
-        }
+        // Audio items have no slide of their own — leave what is showing alone.
+        if (slide is null) return;
 
         if (EffectiveId is not null)
             SharedAppState.UpdateActivePresentationId(EffectiveSessionId, EffectiveId, AppState.SelectedProject?.Name);
 
-        SharedAppState.SetLiveSlide(EffectiveSessionId, SharedAppState.GetLiveSlide(EffectiveSessionId) with
-        {
-            Status = LiveSlideStatus.ShowingPresentation,
-            ItemType = projectItem.Type,
-            ProjectItemId = selectedItemId,
-            ItemPartIndex = partIndex,
-            Text = text,
-            Credits = credits,
-            ImageUrl = imageUrl,
-            SongPart = songPart,
-            Theme = theme,
-            SongId = liveSongId,
-            SongName = liveSongName,
-            CcliNumber = liveCcliNumber
-        });
+        SharedAppState.SetLiveSlide(EffectiveSessionId, slide);
     }
 
     private void ConfirmRemoveItem(ProjectItem item)
@@ -1809,19 +1720,7 @@
         return song.GetArrangedParts(arrangementId);
     }
 
-    private static string? FormatSongCredits(Song? song)
-    {
-        if (song is null) return null;
-        var parts = new[]
-            {
-                song.Author,
-                string.IsNullOrEmpty(song.Publisher) ? null : $"© {song.Publisher}",
-                song.Year?.ToString()
-            }
-            .Where(s => !string.IsNullOrEmpty(s))
-            .ToList();
-        return parts.Count > 0 ? string.Join(" · ", parts) : null;
-    }
+    private static string? FormatSongCredits(Song? song) => LiveSlideBuilder.FormatSongCredits(song);
 
     private async Task HandleBibleVersesAdded(List<Verse> verses)
     {
