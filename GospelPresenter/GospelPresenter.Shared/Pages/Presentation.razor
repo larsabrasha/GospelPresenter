@@ -790,7 +790,13 @@
 
     private List<OverlaySlide> overlaySlides = [];
     private List<RemoteDisplay> savedDisplays = [];
-    private string? activeOverlayId;
+
+    /// <summary>
+    /// Read from the live state rather than kept alongside it. The overlay can be changed by a
+    /// phone as well as from here, and a second copy of the answer is a second thing that can be
+    /// wrong — this page is a view of the session, not a second owner of it.
+    /// </summary>
+    private string? activeOverlayId => SharedAppState.GetActiveOverlay(EffectiveSessionId)?.Id;
     private bool isEditingImageOrder;
     private bool imageSortableInitialized;
     private bool isEditingItemTitle;
@@ -1212,9 +1218,9 @@
     protected override void OnInitialized()
     {
         // Only the device hosts mirror their live session to the server; the web is already there.
+        // A controller's commands are applied by ILiveSessionCommandApplier, not here: this page
+        // must be free to come and go without the machine going deaf. It only follows along.
         liveSessionMirror = Services.GetService(typeof(ILiveSessionMirror)) as ILiveSessionMirror;
-        if (liveSessionMirror is not null)
-            liveSessionMirror.CommandHandler = ApplyMirroredCommandAsync;
 
         // Only the web host knows whether a session's machine is still reachable.
         liveSessionPresence = Services.GetService(typeof(ILiveSessionPresence)) as ILiveSessionPresence;
@@ -1356,48 +1362,8 @@
         SharedAppState.SetAudioCommand(_presenterSessionId, new AudioCommand(action, audioElementId, position));
     }
 
-    /// <summary>
-    /// Applies what a phone asked this machine to show. It goes through the same code an operator's
-    /// own click does, so the projector, the local UI and the CCLI count all behave identically
-    /// whether the tap happened here or in someone's hand — and the resulting state is echoed back
-    /// up like any other change, which is what settles the two ends on the same slide.
-    /// </summary>
-    private Task ApplyMirroredCommandAsync(MirroredSessionCommand command) =>
-        InvokeAsync(async () =>
-        {
-            if (command.OverlayId != activeOverlayId)
-            {
-                var requested = command.OverlayId is null
-                    ? null
-                    : overlaySlides.FirstOrDefault(o => o.Id == command.OverlayId);
-
-                if (command.OverlayId is null)
-                {
-                    activeOverlayId = null;
-                    SharedAppState.ClearOverlay(AppState.SessionId);
-                }
-                else if (requested is not null)
-                {
-                    ToggleOverlay(requested);
-                }
-            }
-
-            if (command.ItemId is { } itemId && command.PartIndex is { } partIndex)
-                await HandleStageSelectSlide((itemId, partIndex));
-
-            var showing = SharedAppState.GetLiveSlide(AppState.SessionId);
-            var isBlack = showing.Status == LiveSlideStatus.ShowingBlackScreen;
-            if (command.BlackScreen != isBlack)
-                SharedAppState.ToggleBlackScreen(AppState.SessionId);
-
-            StateHasChanged();
-        });
-
     public void Dispose()
     {
-        if (liveSessionMirror is not null && liveSessionMirror.CommandHandler == ApplyMirroredCommandAsync)
-            liveSessionMirror.CommandHandler = null;
-
         if (!SharedAppState.IsPresentationActive(AppState.SessionId))
             SharedAppState.SetSessionAudio(AppState.SessionId, null);
         if (IsRemoteMode)
@@ -1503,15 +1469,32 @@
         }
     }
 
-    // Stage mode follows the live slide: when another device switches song or
-    // slide via SharedAppState, mirror that into the local SelectedProjectItem
-    // so the strip and next-slide preview show the right item.
+    /// <summary>
+    /// The item the live slide belonged to last time we looked, so that moving to another one can
+    /// be told apart from staying on it.
+    /// </summary>
+    private string? followedLiveItemId;
+
+    /// <summary>
+    /// Follows the live slide into the running order when something else moves it — a phone driving
+    /// this machine, or another surface on the same session.
+    ///
+    /// Stage mode follows every change: it is a view of what is showing and nothing else. The
+    /// operator's own view follows only when the live slide moves to a *different* item, because
+    /// there the selection is also how you look ahead at what is coming — pulling it back on every
+    /// tap would make it impossible to line up the next song while someone else advances this one.
+    /// </summary>
     private void SyncStageSelectionFromLiveSlide()
     {
-        if (!IsStageMode) return;
         var live = SharedAppState.GetLiveSlide(EffectiveSessionId);
         if (live.ProjectItemId is null) return;
+
+        var movedToAnotherItem = live.ProjectItemId != followedLiveItemId;
+        followedLiveItemId = live.ProjectItemId;
+
+        if (!IsStageMode && !movedToAnotherItem) return;
         if (live.ProjectItemId == AppState.SelectedProjectItem?.Id) return;
+
         var item = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == live.ProjectItemId);
         if (item is null) return;
         AppState.SelectedProjectItem = item;
@@ -1659,12 +1642,10 @@
     {
         if (activeOverlayId == overlay.Id)
         {
-            activeOverlayId = null;
             SharedAppState.ClearOverlay(EffectiveSessionId);
         }
         else
         {
-            activeOverlayId = overlay.Id;
             string? imageUrl = null;
             if (overlay.HasImage)
             {
@@ -1680,11 +1661,8 @@
         overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
 
         // If the active overlay was deleted, clear it
-        if (activeOverlayId is not null && overlaySlides.All(o => o.Id != activeOverlayId))
-        {
-            activeOverlayId = null;
+        if (activeOverlayId is { } active && overlaySlides.All(o => o.Id != active))
             SharedAppState.ClearOverlay(EffectiveSessionId);
-        }
     }
 
 

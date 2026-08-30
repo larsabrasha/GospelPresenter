@@ -22,6 +22,7 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
     private readonly DeviceAuthService auth;
     private readonly string apiBaseUrl;
     private readonly Func<CancellationToken, Task>? prepare;
+    private readonly ILiveSessionCommandApplier applier;
     private readonly ILogger<LiveSessionClient> logger;
 
     private readonly SemaphoreSlim gate = new(1, 1);
@@ -38,13 +39,6 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
     /// </summary>
     public LiveMirrorStatus Status { get; private set; } = LiveMirrorStatus.Off;
 
-    /// <summary>
-    /// Applies a command to the local state. Set by the host, because turning a selection into a
-    /// live slide needs the presentation the operator has open — which lives in the UI, not here.
-    /// Until it is set, a device mirrors upward but cannot be driven.
-    /// </summary>
-    public Func<MirroredSessionCommand, Task>? CommandHandler { get; set; }
-
     /// <summary>Raised when the connection comes or goes, for the status indicator.</summary>
     public event Action? Changed;
 
@@ -55,17 +49,24 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
     /// slides from its own copy of the presentation, so mirroring a presentation it has not
     /// received yet would show a phone and a congregation the wrong thing — or nothing.
     /// </param>
+    /// <param name="applier">
+    /// Where a controller's commands are applied. A collaborator rather than a property the UI
+    /// fills in, so that being drivable depends on presenting and on nothing else — see
+    /// <see cref="ILiveSessionCommandApplier"/>.
+    /// </param>
     public LiveSessionClient(
         SharedAppState sharedAppState,
         DeviceAuthService auth,
         string apiBaseUrl,
         Func<CancellationToken, Task>? prepare,
+        ILiveSessionCommandApplier applier,
         ILogger<LiveSessionClient> logger)
     {
         this.sharedAppState = sharedAppState;
         this.auth = auth;
         this.apiBaseUrl = apiBaseUrl;
         this.prepare = prepare;
+        this.applier = applier;
         this.logger = logger;
     }
 
@@ -282,11 +283,13 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
 
     private async Task HandleCommandAsync(MirroredSessionCommand command)
     {
-        if (CommandHandler is not { } handler) return;
+        // The session this connection is mirroring, not one the message claims: the server derives
+        // the same id from the device token and can only ever address this device's own session.
+        if (sessionId is not { } session) return;
 
         try
         {
-            await handler(command);
+            await applier.ApplyAsync(session, command);
         }
         catch (Exception e)
         {

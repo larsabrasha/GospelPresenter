@@ -21,13 +21,6 @@ public interface ILiveSessionMirror
     /// <summary>Whether the server is currently reachable. False while a session sits frozen.</summary>
     bool IsConnected { get; }
 
-    /// <summary>
-    /// Applies a controller's command to the local live state. The host sets this once the UI that
-    /// knows how to turn a selection into a slide is on screen; until then the device mirrors
-    /// upward but cannot be driven.
-    /// </summary>
-    Func<MirroredSessionCommand, Task>? CommandHandler { get; set; }
-
     /// <summary>Raised when the connection comes or goes.</summary>
     event Action? Changed;
 }

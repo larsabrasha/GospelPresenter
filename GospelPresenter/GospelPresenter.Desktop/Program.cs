@@ -193,6 +193,11 @@ if (apiBaseUrl.Length > 0)
     // Mirrors a live presentation to the server so a phone can drive it and a public output can
     // follow it. Like everything else in this block it needs a server to talk to; without one the
     // presentation simply runs local-only, exactly as it did before.
+    // Where a phone's commands land. Registered next to the mirror rather than set by the
+    // presentation page, so the machine stays drivable for as long as it is presenting — including
+    // while the operator is on some other screen entirely.
+    builder.Services.AddSingleton<ILiveSessionCommandApplier, LocalSessionProjector>();
+
     builder.Services.AddSingleton(sp => new LiveSessionClient(
         sp.GetRequiredService<GospelPresenter.Shared.State.SharedAppState>(),
         sp.GetRequiredService<DeviceAuthService>(),
@@ -205,6 +210,7 @@ if (apiBaseUrl.Length > 0)
             await sp.GetRequiredService<SyncScheduler>().SyncNowAsync();
             await sp.GetRequiredService<GospelPresenter.Client.Media.IMediaSynchronizer>().SyncAsync(ct);
         },
+        sp.GetRequiredService<ILiveSessionCommandApplier>(),
         sp.GetRequiredService<ILogger<LiveSessionClient>>()));
     builder.Services.AddSingleton<ILiveSessionMirror>(sp => sp.GetRequiredService<LiveSessionClient>());
 
