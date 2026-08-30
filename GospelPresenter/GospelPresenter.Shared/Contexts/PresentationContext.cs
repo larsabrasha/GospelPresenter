@@ -155,6 +155,9 @@ public class PresentationContext : DbContext
                 case DbBible b:
                     organizationId = b.OrganizationId;
                     break;
+                case RemoteDisplay d:
+                    organizationId = d.OrganizationId;
+                    break;
                 case Theme t:
                     // Null for built-in themes: their tombstones are global, served to every client.
                     organizationId = t.OrganizationId;

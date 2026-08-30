@@ -76,6 +76,7 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
             await ApplyAudiosAsync(changes.OrganizationAudios, dirty, ct);
             await ApplyOrganizationSettingsAsync(changes.OrganizationSettings, dirty, ct);
             await ApplyUserSettingsAsync(changes.UserSettings, dirty, ct);
+            await ApplyRemoteDisplaysAsync(changes.RemoteDisplays, dirty, ct);
 
             await db.SaveChangesAsync(ct);
 
@@ -630,6 +631,35 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
         return rows
             .Where(r => !localIdByKey.TryGetValue(keyOf(r), out var localId) || localId == r.Id)
             .ToList();
+    }
+
+    private async Task ApplyRemoteDisplaysAsync(List<SyncRemoteDisplayDto> rows, HashSet<RootRef> dirty, CancellationToken ct)
+    {
+        // The code is unique across every organisation, so an incoming row can collide with a local
+        // output created offline whose code the server has not yet replaced. Skipping it converges:
+        // the local row's push earns a fresh code, and the next pull has nothing left to clash with.
+        var applied = await UpsertAsync(db.RemoteDisplays,
+            await WithoutKeyClashesAsync(
+                db.RemoteDisplays.Select(d => new KeyRow(d.Id, d.DisplayIdentifier)), rows, r => r.DisplayIdentifier, ct),
+            dirty,
+            r => new RootRef("RemoteDisplays", r.Id),
+            d => d.Id,
+            r => new RemoteDisplay
+            {
+                Id = r.Id, DisplayIdentifier = r.DisplayIdentifier, Name = r.Name, Kind = r.Kind,
+                CreatedAt = r.CreatedAt, OrganizationId = identity?.OrganizationId ?? "", ModifiedAt = r.ModifiedAt,
+            },
+            (r, d) =>
+            {
+                // The code included: the server may have replaced one this device invented offline,
+                // and the QR codes it prints have to be the ones /watch resolves.
+                d.DisplayIdentifier = r.DisplayIdentifier;
+                d.Name = r.Name;
+                d.Kind = r.Kind;
+                d.CreatedAt = r.CreatedAt;
+                d.ModifiedAt = r.ModifiedAt;
+            }, ct);
+        RecordBases("RemoteDisplays", applied);
     }
 
     private async Task<(bool SongsChanged, bool BiblesChanged)> ApplyTombstonesAsync(

@@ -145,6 +145,15 @@ internal static class SyncPushBuilder
             pushedIds.Add(new RootRef("UserSettings", s.Id));
         }
 
+        var displayIds = IdsFor("RemoteDisplays");
+        foreach (var d in await db.RemoteDisplays.AsNoTracking().Where(d => displayIds.Contains(d.Id)).ToListAsync(ct))
+        {
+            request.RemoteDisplays.Add(new SyncRowPush<SyncRemoteDisplayDto>(
+                new SyncRemoteDisplayDto(d.Id, d.DisplayIdentifier, d.Name, d.Kind, d.CreatedAt, d.ModifiedAt, d.Version),
+                Base("RemoteDisplays", d.Id)));
+            pushedIds.Add(new RootRef("RemoteDisplays", d.Id));
+        }
+
         // Roots that no longer exist locally: a delete journal entry makes them delete pushes;
         // without one (an unresolvable orphan) they are silently consumed.
         foreach (var root in roots.Where(r => !pushedIds.Contains(r)))
@@ -155,7 +164,8 @@ internal static class SyncPushBuilder
 
         var count = request.SongPartLabels.Count + request.Songs.Count + request.OrganizationImages.Count
                     + request.OrganizationAudios.Count + request.OverlaySlides.Count + request.Presentations.Count
-                    + request.OrganizationSettings.Count + request.UserSettings.Count + request.Deletes.Count;
+                    + request.OrganizationSettings.Count + request.UserSettings.Count
+                    + request.RemoteDisplays.Count + request.Deletes.Count;
         return count == 0 ? null : request;
     }
 

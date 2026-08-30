@@ -59,6 +59,7 @@ public class SyncChanges
     public List<SyncOrganizationSettingDto> OrganizationSettings { get; set; } = [];
     public List<SyncUserSettingDto> UserSettings { get; set; } = [];
     public List<SyncBibleDto> Bibles { get; set; } = [];
+    public List<SyncRemoteDisplayDto> RemoteDisplays { get; set; } = [];
 }
 
 public record SyncSongPartLabelDto(
@@ -122,6 +123,16 @@ public record SyncOrganizationSettingDto(
 public record SyncUserSettingDto(
     string Id, string Key, string Value, DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
 
+/// <summary>
+/// <paramref name="DisplayIdentifier"/> is the public code in the QR link, and is unique across
+/// every organisation. A device that invents one offline can therefore collide with a code the
+/// server already issued; the server settles that by minting a new one and sending the row back
+/// down, so the identifier is the one field here whose value a push may not keep.
+/// </summary>
+public record SyncRemoteDisplayDto(
+    string Id, string DisplayIdentifier, string Name, OutputKind Kind, DateTimeOffset CreatedAt,
+    DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
+
 /// <summary>Metadata only — the multi-megabyte VersesJson is downloaded separately, per pinned translation.</summary>
 public record SyncBibleDto(
     string Id, string Name, string Abbreviation, int VerseCount, DateTimeOffset ModifiedAt) : ISyncRow;
@@ -171,6 +182,7 @@ public class SyncPushRequest
     public List<SyncPresentationPush> Presentations { get; set; } = [];
     public List<SyncRowPush<SyncOrganizationSettingDto>> OrganizationSettings { get; set; } = [];
     public List<SyncRowPush<SyncUserSettingDto>> UserSettings { get; set; } = [];
+    public List<SyncRowPush<SyncRemoteDisplayDto>> RemoteDisplays { get; set; } = [];
     public List<SyncDeletePush> Deletes { get; set; } = [];
 }
 

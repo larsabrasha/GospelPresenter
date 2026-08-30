@@ -41,6 +41,7 @@ public static class SyncTriggerInstaller
         ("OrganizationAudios", null),
         ("OrganizationSettings", null),
         ("UserSettings", null),
+        ("RemoteDisplays", null),
     ];
 
     public static async Task InstallAsync(ClientDataContext context, CancellationToken cancellationToken = default)

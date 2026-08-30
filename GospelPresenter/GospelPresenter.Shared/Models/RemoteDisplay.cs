@@ -11,7 +11,12 @@ public enum OutputKind
     PublicQr = 1
 }
 
-public class RemoteDisplay
+/// <summary>
+/// Synced, because the row is what makes an output reachable. A device owns its own presentation
+/// but not the address a visitor scans: <c>/watch/{code}</c> is served by the server and resolved
+/// against the server's database. An output created on a desktop with no row up there answered 404.
+/// </summary>
+public class RemoteDisplay : ISyncTracked
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string OrganizationId { get; set; } = "";
@@ -19,6 +24,8 @@ public class RemoteDisplay
     public string Name { get; set; } = "";
     public OutputKind Kind { get; set; } = OutputKind.Screen;
     public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ModifiedAt { get; set; }
+    public long Version { get; set; }
 
     public Organization Organization { get; set; } = null!;
 }

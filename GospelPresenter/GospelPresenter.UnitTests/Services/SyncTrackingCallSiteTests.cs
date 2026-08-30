@@ -271,6 +271,51 @@ public class SyncTrackingCallSiteTests : IDisposable
         tombstone.EntityId.ShouldBe("overlay-1");
     }
 
+    // --- RemoteDisplayService ---
+
+    [Fact]
+    public async Task UpdateDisplayAsync_BumpsTheOutput()
+    {
+        // ExecuteUpdate, so nothing stamps ModifiedAt unless this call site does. A rename that
+        // stayed invisible to pulling clients would leave the desktops naming an output one thing
+        // and the QR sign beside it another.
+        var displays = new RemoteDisplayService(factory);
+        var display = await SeedDisplayAsync();
+
+        await displays.UpdateDisplayAsync(org.Id, display.Id, "Renamed", caller);
+
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.RemoteDisplays.SingleAsync(d => d.Id == display.Id)).ModifiedAt.ShouldBeGreaterThan(Past);
+    }
+
+    [Fact]
+    public async Task RemoveDisplayAsync_TombstonesTheOutput()
+    {
+        var displays = new RemoteDisplayService(factory);
+        var display = await SeedDisplayAsync();
+
+        await displays.RemoveDisplayAsync(org.Id, display.Id, caller);
+
+        var tombstone = await GetSingleTombstoneAsync();
+        tombstone.EntityType.ShouldBe(nameof(RemoteDisplay));
+        tombstone.EntityId.ShouldBe(display.Id);
+        tombstone.OrganizationId.ShouldBe(org.Id);
+    }
+
+    private async Task<RemoteDisplay> SeedDisplayAsync()
+    {
+        await using var seed = await factory.CreateDbContextAsync();
+        var display = new RemoteDisplay
+        {
+            Id = "display-1", OrganizationId = org.Id, DisplayIdentifier = "abc2345",
+            Name = "Foyer", Kind = OutputKind.PublicQr, CreatedAt = Past, ModifiedAt = Past,
+        };
+        seed.RemoteDisplays.Add(display);
+        await seed.SaveChangesAsync();
+        await seed.RemoteDisplays.ExecuteUpdateAsync(s => s.SetProperty(d => d.ModifiedAt, Past));
+        return display;
+    }
+
     // --- SongService: the song row is the aggregate version for parts and arrangements ---
 
     [Fact]

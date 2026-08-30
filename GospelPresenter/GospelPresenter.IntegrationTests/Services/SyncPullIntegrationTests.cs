@@ -86,6 +86,76 @@ public class SyncPullIntegrationTests
     }
 
     [Fact]
+    public async Task AnOutputCreatedOnADevice_MakesItsWatchPageResolve()
+    {
+        // The whole reason outputs are synced. A public output lives on the device that created it,
+        // but the QR code on the wall points at the server, which resolves the code against its own
+        // database — so before this, a code created on a desktop answered 404 to everyone who
+        // scanned it.
+        using var app = new WebAppFixture();
+        var deviceClient = await CreateDeviceClientAsync(app);
+
+        var pushResponse = await deviceClient.PostAsJsonAsync("/api/sync/push", new SyncPushRequest
+        {
+            RemoteDisplays =
+            [
+                new SyncRowPush<SyncRemoteDisplayDto>(
+                    new SyncRemoteDisplayDto("display-offline", "qrs4321", "Foajén", OutputKind.PublicQr,
+                        DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, Version: 0),
+                    BaseVersion: null)
+            ]
+        });
+        pushResponse.EnsureSuccessStatusCode();
+        var push = await pushResponse.Content.ReadFromJsonAsync<SyncPushResponse>();
+        push!.Results.Single().Outcome.ShouldBe(SyncPushOutcome.Applied);
+
+        var visitor = app.CreateDefaultClient(BaseAddress);
+        (await visitor.GetAsync("/watch/qrs4321")).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task AnOutputWhoseCodeIsAlreadyTaken_IsGivenANewOne()
+    {
+        // Codes are unique across every organisation and a device offline mints its own, so two
+        // machines can arrive at the same seven characters. The server keeps the one it issued and
+        // sends the newcomer a replacement, which its next pull adopts.
+        using var app = new WebAppFixture();
+        var deviceClient = await CreateDeviceClientAsync(app);
+
+        async Task<SyncPushResult> PushAsync(string id, string code)
+        {
+            var response = await deviceClient.PostAsJsonAsync("/api/sync/push", new SyncPushRequest
+            {
+                RemoteDisplays =
+                [
+                    new SyncRowPush<SyncRemoteDisplayDto>(
+                        new SyncRemoteDisplayDto(id, code, "Foajén", OutputKind.PublicQr,
+                            DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, Version: 0),
+                        BaseVersion: null)
+                ]
+            });
+            response.EnsureSuccessStatusCode();
+            return (await response.Content.ReadFromJsonAsync<SyncPushResponse>())!.Results.Single();
+        }
+
+        (await PushAsync("display-first", "qrs9876")).Outcome.ShouldBe(SyncPushOutcome.Applied);
+        var second = await PushAsync("display-second", "qrs9876");
+
+        second.Outcome.ShouldBe(SyncPushOutcome.Applied);
+        second.Warning.ShouldNotBeNull();
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PresentationContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        var codes = await db.RemoteDisplays
+            .Where(d => d.Id == "display-first" || d.Id == "display-second")
+            .ToDictionaryAsync(d => d.Id, d => d.DisplayIdentifier);
+
+        codes["display-first"].ShouldBe("qrs9876");
+        codes["display-second"].ShouldNotBe("qrs9876");
+    }
+
+    [Fact]
     public async Task Pull_WithoutAuthentication_IsRejected()
     {
         // Arrange

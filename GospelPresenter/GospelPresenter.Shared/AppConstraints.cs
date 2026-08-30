@@ -40,6 +40,7 @@ public static class AppConstraints
     public const int SongArrangementNameMaxLength = 100;
     public const int SongArrangementPartIdsJsonMaxLength = 5_000;
     public const int MaxOverlaysPerOrg = 200;
+    public const int MaxRemoteDisplaysPerOrg = 50;
     public const int MaxUsersPerOrg = 100;
     public const int MaxOrganizationsTotal = 100;
     public const int MaxImagesPerOrg = 1_000;

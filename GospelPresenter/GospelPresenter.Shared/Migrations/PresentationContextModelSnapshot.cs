@@ -835,6 +835,10 @@ namespace GospelPresenter.Shared.Migrations
                     b.Property<int>("Kind")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("timestamp(3) with time zone");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -843,6 +847,10 @@ namespace GospelPresenter.Shared.Migrations
                     b.Property<string>("OrganizationId")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<long>("Version")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bigint");
 
                     b.HasKey("Id");
 

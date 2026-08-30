@@ -71,7 +71,8 @@ public class ClientSyncService(
             {
                 pushed = request.SongPartLabels.Count + request.Songs.Count + request.OrganizationImages.Count
                          + request.OrganizationAudios.Count + request.OverlaySlides.Count + request.Presentations.Count
-                         + request.OrganizationSettings.Count + request.UserSettings.Count + request.Deletes.Count;
+                         + request.OrganizationSettings.Count + request.UserSettings.Count
+                         + request.RemoteDisplays.Count + request.Deletes.Count;
                 response = await PostAsync<SyncPushRequest, SyncPushResponse>("/api/sync/push", request, ct);
             }
 
@@ -276,6 +277,7 @@ public class ClientSyncService(
         into.OrganizationSettings.AddRange(page.OrganizationSettings);
         into.UserSettings.AddRange(page.UserSettings);
         into.Bibles.AddRange(page.Bibles);
+        into.RemoteDisplays.AddRange(page.RemoteDisplays);
     }
 
     /// <summary>
@@ -294,7 +296,7 @@ public class ClientSyncService(
             "PresentationItemParts", "PresentationItems", "PresentationSlides", "Presentations",
             "SongVersions", "SongArrangements", "SongParts", "Songs", "SongPartLabels",
             "OverlaySlides", "OrganizationImages", "OrganizationAudios",
-            "OrganizationSettings", "UserSettings", "Bibles", "Themes",
+            "OrganizationSettings", "UserSettings", "Bibles", "Themes", "RemoteDisplays",
             "SyncBase", "SyncJournal",
         ];
         // Table names come from the static list above, never from input.

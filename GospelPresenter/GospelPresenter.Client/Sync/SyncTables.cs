@@ -18,6 +18,7 @@ public static class SyncTables
     [
         "Presentations", "Songs", "SongPartLabels", "OverlaySlides",
         "OrganizationImages", "OrganizationAudios", "OrganizationSettings", "UserSettings",
+        "RemoteDisplays",
     ];
 
     private static readonly Dictionary<string, string> TableToEntityType = new()
@@ -38,6 +39,7 @@ public static class SyncTables
         ["UserSettings"] = nameof(UserSetting),
         ["Themes"] = nameof(Theme),
         ["Bibles"] = nameof(DbBible),
+        ["RemoteDisplays"] = nameof(RemoteDisplay),
     };
 
     private static readonly Dictionary<string, string> EntityTypeToTable =

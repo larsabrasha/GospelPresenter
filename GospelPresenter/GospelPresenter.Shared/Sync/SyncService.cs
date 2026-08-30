@@ -39,8 +39,10 @@ public class SyncService(
 
     private sealed record TablePage(int Count, bool HasMore, DateTimeOffset LastModifiedAt, string LastId);
 
-    // Fixed table order: referenced rows (labels, songs) come before rows pointing at them, so a
-    // client applying a page sequence in order never sees a dangling required reference for long.
+    // These numbers travel in the cursor, so they are append-only: an instance that hands out a
+    // cursor mid-sequence may not be the one that reads it back, and reusing a number would apply
+    // one table's keyset position to another table's rows — silently skipping everything below it.
+    // The order rows are served in lives in PullOrder instead, which is free to change.
     private const int SongPartLabelsTable = 0;
     private const int SongsTable = 1;
     private const int SongPartsTable = 2;
@@ -58,6 +60,21 @@ public class SyncService(
     private const int UserSettingsTable = 14;
     private const int BiblesTable = 15;
     private const int TombstonesTable = 16;
+    private const int RemoteDisplaysTable = 17;
+
+    /// <summary>
+    /// The order tables are served in: referenced rows (labels, songs) before the rows pointing at
+    /// them, so a client applying a page sequence never sees a dangling required reference for
+    /// long, and tombstones last so a row is never deleted and then re-served in one pull.
+    /// </summary>
+    private static readonly int[] PullOrder =
+    [
+        SongPartLabelsTable, SongsTable, SongPartsTable, SongArrangementsTable, SongVersionsTable,
+        PresentationsTable, PresentationItemsTable, PresentationItemPartsTable, PresentationSlidesTable,
+        ThemesTable, OverlaySlidesTable, OrganizationImagesTable, OrganizationAudiosTable,
+        OrganizationSettingsTable, UserSettingsTable, BiblesTable, RemoteDisplaysTable,
+        TombstonesTable,
+    ];
 
     public async Task<SyncPullResponse> PullAsync(string organizationId, SyncPullRequest request, CallerContext caller, CancellationToken cancellationToken = default)
     {
@@ -84,8 +101,13 @@ public class SyncService(
         string? nextCursor = null;
         DateTimeOffset maxServed = default;
 
-        for (var table = cursor?.Table ?? 0; table <= TombstonesTable; table++)
+        // A cursor naming a table this build does not serve restarts the sequence rather than
+        // ending it: re-serving is harmless, silently skipping the rest of the tables is not.
+        var start = cursor is null ? 0 : Math.Max(0, Array.IndexOf(PullOrder, cursor.Table));
+
+        for (var i = start; i < PullOrder.Length; i++)
         {
+            var table = PullOrder[i];
             var position = cursor is not null && table == cursor.Table ? cursor : null;
             var page = await PullTableAsync(db, table, organizationId, caller, low, watermark, position, remaining, changes, tombstones, cancellationToken);
 
@@ -93,7 +115,7 @@ public class SyncService(
                 maxServed = page.LastModifiedAt;
             remaining -= page.Count;
 
-            if (page.HasMore || (remaining == 0 && table < TombstonesTable))
+            if (page.HasMore || (remaining == 0 && i < PullOrder.Length - 1))
             {
                 hasMore = true;
                 nextCursor = EncodeCursor(new PullCursor(table, page.LastModifiedAt, page.LastId));
@@ -233,6 +255,14 @@ public class SyncService(
                         .Select(b => new SyncBibleDto(b.Id, b.Name, b.Abbreviation, b.VerseCount, b.ModifiedAt)),
                     remaining, changes.Bibles, cancellationToken);
 
+            case RemoteDisplaysTable when caller.HasPermission(Permission.ViewPresentations):
+                // Same gate as RemoteDisplayService.GetDisplaysAsync: seeing which outputs exist is
+                // part of seeing the presentations they show.
+                return await PageAsync(
+                    Window(db.RemoteDisplays.Where(d => d.OrganizationId == organizationId), low, watermark, position)
+                        .Select(d => new SyncRemoteDisplayDto(d.Id, d.DisplayIdentifier, d.Name, d.Kind, d.CreatedAt, d.ModifiedAt, d.Version)),
+                    remaining, changes.RemoteDisplays, cancellationToken);
+
             case TombstonesTable:
             {
                 var query = db.SyncTombstones
@@ -361,6 +391,12 @@ public class SyncService(
         {
             results.Add(await GuardAsync(db, nameof(UserSetting), push.Row.Id, () =>
                 ProcessUserSettingPushAsync(db, push, caller, cancellationToken)));
+        }
+
+        foreach (var push in request.RemoteDisplays)
+        {
+            results.Add(await GuardAsync(db, nameof(RemoteDisplay), push.Row.Id, () =>
+                ProcessRemoteDisplayPushAsync(db, organizationId, push, caller, cancellationToken)));
         }
 
         foreach (var delete in request.Deletes)
@@ -1168,6 +1204,76 @@ public class SyncService(
             : new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewVersion: existing.Version);
     }
 
+    private async Task<SyncPushResult> ProcessRemoteDisplayPushAsync(
+        PresentationContext db, string organizationId, SyncRowPush<SyncRemoteDisplayDto> push,
+        CallerContext caller, CancellationToken cancellationToken)
+    {
+        caller.RequirePermission(Permission.ManageRemoteDisplays);
+        var row = push.Row;
+        ValidationHelper.RequireMaxLength(row.Name, AppConstraints.NameMaxLength, "Name");
+
+        var existing = await db.RemoteDisplays
+            .FirstOrDefaultAsync(d => d.Id == row.Id && d.OrganizationId == organizationId, cancellationToken);
+
+        if (existing is null)
+        {
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(RemoteDisplay), row.Id, cancellationToken))
+                return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
+
+            await ValidationHelper.RequireMaxCountAsync(
+                db.RemoteDisplays.Where(d => d.OrganizationId == organizationId),
+                AppConstraints.MaxRemoteDisplaysPerOrg, "outputs", cancellationToken);
+
+            var display = new RemoteDisplay
+            {
+                Id = row.Id,
+                OrganizationId = organizationId,
+                DisplayIdentifier = await FreeIdentifierAsync(db, row.DisplayIdentifier, row.Id, cancellationToken),
+                Name = row.Name,
+                Kind = row.Kind,
+                CreatedAt = row.CreatedAt,
+            };
+            db.RemoteDisplays.Add(display);
+            await db.SaveChangesAsync(cancellationToken);
+            return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.Applied, NewVersion: display.Version,
+                Warning: display.DisplayIdentifier == row.DisplayIdentifier
+                    ? null
+                    : "The output's code was already taken and has been replaced.");
+        }
+
+        if (push.BaseVersion != existing.Version)
+            return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.ServerWins);
+
+        // The name is the only thing a client may change. The code is the server's to issue — it is
+        // printed on signs and pasted into orders of service, and a device that has been offline
+        // since before someone regenerated it would otherwise put the old one back.
+        existing.Name = row.Name;
+        await db.SaveChangesAsync(cancellationToken);
+        return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
+    }
+
+    /// <summary>
+    /// The pushed code if no other output holds it, otherwise a fresh one. Codes are unique across
+    /// every organisation, and a device that created an output offline minted its own.
+    /// </summary>
+    private static async Task<string> FreeIdentifierAsync(
+        PresentationContext db, string wanted, string ownId, CancellationToken cancellationToken)
+    {
+        var taken = await db.RemoteDisplays
+            .AnyAsync(d => d.DisplayIdentifier == wanted && d.Id != ownId, cancellationToken);
+        if (!taken)
+            return wanted;
+
+        for (var attempt = 0; attempt < DisplayIdentifiers.MaxRetries; attempt++)
+        {
+            var candidate = DisplayIdentifiers.Generate();
+            if (!await db.RemoteDisplays.AnyAsync(d => d.DisplayIdentifier == candidate, cancellationToken))
+                return candidate;
+        }
+
+        throw new InvalidOperationException("Failed to generate a unique display ID after multiple attempts.");
+    }
+
     private async Task<SyncPushResult> ProcessDeleteAsync(
         PresentationContext db, string organizationId, SyncDeletePush delete, CallerContext caller,
         CancellationToken cancellationToken)
@@ -1273,6 +1379,22 @@ public class SyncService(
                     return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
 
                 db.UserSettings.Remove(setting);
+                await db.SaveChangesAsync(cancellationToken);
+                return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
+            }
+
+            case nameof(RemoteDisplay):
+            {
+                caller.RequirePermission(Permission.ManageRemoteDisplays);
+                var display = await db.RemoteDisplays
+                    .FirstOrDefaultAsync(d => d.Id == delete.Id && d.OrganizationId == organizationId, cancellationToken);
+                if (display is null)
+                    return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
+                if (delete.BaseVersion != display.Version)
+                    return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.ServerWins);
+
+                // Tracked, so the save writes the tombstone the other devices need.
+                db.RemoteDisplays.Remove(display);
                 await db.SaveChangesAsync(cancellationToken);
                 return new SyncPushResult(delete.EntityType, delete.Id, SyncPushOutcome.Applied);
             }
