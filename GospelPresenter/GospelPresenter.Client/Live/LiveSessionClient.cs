@@ -19,6 +19,7 @@ namespace GospelPresenter.Client.Live;
 public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
 {
     private readonly SharedAppState sharedAppState;
+    private readonly RemoteDisplayState remoteDisplayState;
     private readonly DeviceAuthService auth;
     private readonly string apiBaseUrl;
     private readonly Func<CancellationToken, Task>? prepare;
@@ -56,6 +57,7 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
     /// </param>
     public LiveSessionClient(
         SharedAppState sharedAppState,
+        RemoteDisplayState remoteDisplayState,
         DeviceAuthService auth,
         string apiBaseUrl,
         Func<CancellationToken, Task>? prepare,
@@ -63,6 +65,7 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
         ILogger<LiveSessionClient> logger)
     {
         this.sharedAppState = sharedAppState;
+        this.remoteDisplayState = remoteDisplayState;
         this.auth = auth;
         this.apiBaseUrl = apiBaseUrl;
         this.prepare = prepare;
@@ -92,6 +95,11 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
             connection.Closed += OnClosedAsync;
 
             sharedAppState.PropertyChanged += OnSharedStateChanged;
+            // Switching an output on is not a change to the live state and raises nothing there,
+            // but the server has to hear about it: the output it should feed is bound in a map of
+            // its own, and only the owner knows what the operator switched on.
+            remoteDisplayState.DisplayPaired += OnOutputBindingChanged;
+            remoteDisplayState.DisplayUnpaired += OnOutputBindingChanged;
 
             sessionScope = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
             var scope = sessionScope.Token;
@@ -159,7 +167,7 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
         await gate.WaitAsync(CancellationToken.None);
         try
         {
-            sharedAppState.PropertyChanged -= OnSharedStateChanged;
+            Unsubscribe();
 
             if (connection is { State: HubConnectionState.Connected })
             {
@@ -253,14 +261,36 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
         _ = SendStateAsync(force: false);
     }
 
+    private void OnOutputBindingChanged(string displayId)
+    {
+        // Which output changed does not matter: the report carries the whole set, and the send is
+        // dropped anyway if it describes what was already sent.
+        _ = SendStateAsync(force: false);
+    }
+
+    private void Unsubscribe()
+    {
+        sharedAppState.PropertyChanged -= OnSharedStateChanged;
+        remoteDisplayState.DisplayPaired -= OnOutputBindingChanged;
+        remoteDisplayState.DisplayUnpaired -= OnOutputBindingChanged;
+    }
+
     private async Task SendStateAsync(bool force)
     {
         if (sessionId is null || connection is not { State: HubConnectionState.Connected }) return;
 
         // The shared reader, not a copy of it: the server decides whether a change came from
         // this device by comparing the two descriptions, and they have to be built the same way.
+        // The outputs are attached afterwards rather than read in there, because the comparison the
+        // loop protection makes must go on seeing exactly what it saw before — an output is the
+        // owner's own business and is never something a controller asks for.
         var state = MirroredSessionStateReader.Read(sharedAppState, sessionId);
         if (state is null) return;
+        state = state with
+        {
+            EnabledOutputs = MirroredSessionState.Join(
+                remoteDisplayState.GetConnectedDisplays(sessionId).Select(d => d.DisplayId))
+        };
 
         // Every write to the live state raises a change, including ones that alter nothing this
         // protocol carries. Sending only real differences keeps a long service to a message per
@@ -337,7 +367,7 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
         if (disposed) return;
         disposed = true;
 
-        sharedAppState.PropertyChanged -= OnSharedStateChanged;
+        Unsubscribe();
         await lifetime.CancelAsync();
         await StopConnectionAsync();
         lifetime.Dispose();

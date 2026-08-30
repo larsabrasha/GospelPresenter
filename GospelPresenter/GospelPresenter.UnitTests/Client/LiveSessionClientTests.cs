@@ -41,6 +41,7 @@ public class LiveSessionClientTests
 
     private static LiveSessionClient Build() =>
         new(new SharedAppState(TimeSpan.FromHours(4)),
+            new RemoteDisplayState(),
             new DeviceAuthService(
                 new NoTokenStore(),
                 Path.Combine(Path.GetTempPath(), $"identity-{Guid.NewGuid():N}.json"),

@@ -200,6 +200,7 @@ if (apiBaseUrl.Length > 0)
 
     builder.Services.AddSingleton(sp => new LiveSessionClient(
         sp.GetRequiredService<GospelPresenter.Shared.State.SharedAppState>(),
+        sp.GetRequiredService<GospelPresenter.Shared.State.RemoteDisplayState>(),
         sp.GetRequiredService<DeviceAuthService>(),
         apiBaseUrl,
         // The server rebuilds slides from its own copy of the presentation, so everything this

@@ -11,6 +11,13 @@ namespace GospelPresenter.Shared.Live;
 /// </summary>
 /// <param name="ItemId">Null before anything has been selected — the presentation is live but blank.</param>
 /// <param name="BlackScreen">The operator has blacked out the output. Separate from having no selection.</param>
+/// <param name="EnabledOutputs">
+/// The outputs the owner has switched on for this session, as their public codes, sorted and joined
+/// with commas. A joined string rather than a list because this is a record and the whole protocol
+/// leans on its equality: a list would compare by reference, and every report would then look like a
+/// change. The codes come from a 31-character alphabet that contains no comma, so the join is
+/// reversible. Null means the owner reported nothing — an older client, not "none".
+/// </param>
 public record MirroredSessionState(
     string PresentationId,
     string? PresentationName,
@@ -18,7 +25,15 @@ public record MirroredSessionState(
     bool BlackScreen,
     string? ItemId,
     int? PartIndex,
-    string? OverlayId);
+    string? OverlayId,
+    string? EnabledOutputs = null)
+{
+    public static string Join(IEnumerable<string> outputCodes) =>
+        string.Join(',', outputCodes.Order(StringComparer.Ordinal));
+
+    public IReadOnlyList<string> Outputs() =>
+        string.IsNullOrEmpty(EnabledOutputs) ? [] : EnabledOutputs.Split(',');
+}
 
 /// <summary>
 /// What a controller asks a mirrored session to show. The same shape as the state it will echo

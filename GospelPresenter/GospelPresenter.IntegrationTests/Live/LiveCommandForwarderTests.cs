@@ -204,6 +204,23 @@ public class LiveCommandForwarderTests : IDisposable
         registry.OwnerName(SessionId).ShouldBeNull();
     }
 
+    [Fact]
+    public async Task SwitchingAnOutputOnAndOff_IsNotACommand()
+    {
+        GoLive(reportedItemId: "item-1", reportedPartIndex: 0);
+
+        // Which outputs are on is the owner's decision, exactly like remote control. Reported up so
+        // this server knows what to feed, never handed back down as an instruction — and the reader
+        // does not see it at all, so the comparison below is the one it always made.
+        registry.RecordReportedState(SessionId, State("item-1", 0) with { EnabledOutputs = "abc1234" });
+
+        await hub.ShouldStayQuietAsync();
+
+        var current = MirroredSessionStateReader.Read(sharedAppState, SessionId)!;
+        current.EnabledOutputs.ShouldBeNull();
+        MirroredSessionStateReader.ShowsTheSame(current, registry.LastReported(SessionId)!).ShouldBeTrue();
+    }
+
     // ---------- helpers ----------
 
     private void GoLive(string reportedItemId, int reportedPartIndex)
