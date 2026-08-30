@@ -85,24 +85,41 @@ remote control today is a pre-existing gap; this decision does not widen it, and
 ## Consequences
 
 - `RemoteDisplays` split into `RemoteControl`, `PublicOutput` and `PairedDisplays`. The desktop gets
-  `RemoteControl`. Paired screens stay web-only: the pairing is held by the server, and a browser on
+  the first two. Paired screens stay web-only: the pairing is held by the server, and a browser on
   the local network cannot reach a session that exists only on one machine.
 
-  **`PublicOutput` was switched on here too early and is now off.** Mirroring a session carries the
-  slide but not the output that shows it, which only became visible against real hardware: a QR code
-  created on the desktop resolved to a 404. Three things are missing, and together they are the
-  specification for turning the flag back on:
+  **`PublicOutput` took a second pass.** It was switched on with the mirroring, and the gap only
+  showed up against real hardware: a QR code created on the desktop resolved to a 404. Mirroring a
+  session carries the slide, and carried nothing about the output that shows it. Three things closed
+  it, and they are worth naming because each was a choice:
 
-  1. `RemoteDisplay` is not `ISyncTracked`, so an output created on a device has no row on the server
-     — and `/watch/{code}` resolves the code against the database. Making it tracked means a
-     migration, tombstones and a `SyncTrackingCallSiteTests` entry like every other synced table.
-  2. `MirroredSessionState` has no field for which outputs the owner has switched on. The binding
-     lives in each host's own in-memory `RemoteDisplayState` and never leaves the machine.
-  3. `MirroredSessionProjector` would have to act on that field, calling `EnableDisplay` and
-     `DisableDisplay` on the server's `RemoteDisplayState` as the owner's report changes.
+  1. **`RemoteDisplay` is now `ISyncTracked`**, because `/watch/{code}` resolves the code against the
+     server's database and an output created on a device had no row there. Bidirectional, like
+     overlays: an output can be created offline, in the room, minutes before a service.
 
-  Until then the flag stays false, so the feature is hidden rather than offered and broken — which is
-  what `IAppCapabilities` says a permanently or temporarily absent feature must be.
+     The code in the QR link is unique across every organisation, and an offline device mints its
+     own — so two machines can arrive at the same seven characters. The server keeps the one it
+     issued and hands the newcomer a replacement, and the code is the one field a push may not
+     keep: it is printed on signs, and a device that has been offline since before someone
+     regenerated it would otherwise put the old one back.
+
+  2. **`MirroredSessionState` carries the outputs the owner has switched on**, as their codes,
+     sorted and joined into one string. A string rather than a list because the record's equality is
+     load-bearing — a list compares by reference, and every report would then look like a change.
+
+     It is attached to the state after `MirroredSessionStateReader.Read` rather than read inside it.
+     The loop protection decides whose write a change was by comparing two descriptions built by
+     that one function, and an output is the owner's own business — never something a controller
+     asks for — so it stays out of both `Read` and `ShowsTheSame`.
+
+  3. **`MirroredSessionProjector` binds them** on this server's `RemoteDisplayState`, and releases
+     them when the owner ends the session — not when the connection drops, because a frozen output
+     is the point of freezing. The set is compared against what is already bound before anything is
+     looked up, so a report per slide does not become a database query per slide.
+
+     Binding takes an output over from whatever session held it, without the confirmation the
+     browser path asks for. The owner cannot be asked: it cannot see this server's bindings, and it
+     is the authority on its own session either way.
 
 - **CCLI had to be exempted.** `SetLiveSlide` starts a ten-second timer that reports a displayed
   song. The desktop already counts its own usage locally and syncs it up like any other row, so
