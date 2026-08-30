@@ -716,6 +716,80 @@
     }
 
     /// <summary>
+    /// How long the owning device gets to echo a change back before the controller says so. Long
+    /// enough that a round trip over a congested church wifi is not called a failure, short enough
+    /// that somebody standing with a phone finds out before the next verse.
+    /// </summary>
+    private static readonly TimeSpan CommandConfirmationTimeout = TimeSpan.FromSeconds(2);
+
+    private CancellationTokenSource? confirmationCts;
+    private bool unconfirmedReported;
+
+    /// <summary>
+    /// Watches for a change this controller made that the device never acknowledged.
+    ///
+    /// A remote controller writes into the live state itself, so its own screen moves whether or not
+    /// the projector does — that is deliberate, and it is the write the server forwards down. But it
+    /// means the operator gets no signal at all when the device drops the command: it has stopped
+    /// presenting, it does not have the item in its own library, it is a version behind. All three
+    /// only wrote a log line on a machine nobody is looking at.
+    ///
+    /// Losing the connection is already covered by IsPresenterOffline, which replaces the whole
+    /// control surface. This covers the rest: the device is there, it answered, and it still is not
+    /// showing what was asked for.
+    /// </summary>
+    private void ExpectConfirmation()
+    {
+        if (!IsRemoteMode || _presenterSessionId is not { } session) return;
+        if (liveSessionPresence?.IsMirrored(session) != true) return;
+
+        var expected = MirroredSessionStateReader.Read(SharedAppState, session);
+        if (expected is null) return;
+
+        // The latest change is the only one worth waiting on: an operator moving quickly through a
+        // song would otherwise leave a queue of stale checks behind, each judging a slide that has
+        // already been replaced.
+        confirmationCts?.Cancel();
+        confirmationCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        confirmationCts = cts;
+        _ = ConfirmCommandAsync(session, expected, cts.Token);
+    }
+
+    private async Task ConfirmCommandAsync(string session, MirroredSessionState expected, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(CommandConfirmationTimeout, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // Nothing reported yet is not a refusal, it is silence before the first word. A device that
+        // has only just connected has said nothing, and the first thing to happen on a session is
+        // often the owner's own — switching remote control on. Judging that as a dropped command
+        // put a warning on screen before anybody had asked for anything, which is what running this
+        // against the real desktop showed. Only a report that disagrees is evidence.
+        if (liveSessionPresence?.LastReported(session) is not { } reported) return;
+
+        if (MirroredSessionStateReader.ShowsTheSame(reported, expected))
+        {
+            // Back in step. The next one that is not gets to say so again.
+            unconfirmedReported = false;
+            return;
+        }
+
+        // One toast, not one per tap: somebody pressing on through a device that is not listening
+        // should get told once, not buried.
+        if (unconfirmedReported) return;
+        unconfirmedReported = true;
+
+        await InvokeAsync(() => ToastService.Show(L["RemoteControl.CommandNotConfirmed"], ToastKind.Warning));
+    }
+
+    /// <summary>
     /// Picks the session this controller is driving. A session named in the URL wins, so a link
     /// keeps pointing at the same machine; failing that, a single candidate is taken without asking
     /// and several leave the choice open for the picker.
@@ -1371,6 +1445,10 @@
         if (liveSessionPresence is not null)
             liveSessionPresence.OwnerPresenceChanged -= OnOwnerPresenceChanged;
 
+        // A check still waiting out its two seconds would toast into a circuit that is gone.
+        confirmationCts?.Cancel();
+        confirmationCts?.Dispose();
+
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
@@ -1465,6 +1543,7 @@
         else if (sender is SharedAppState && IsRemoteMode && e.PropertyName == _presenterSessionId)
         {
             SyncStageSelectionFromLiveSlide();
+            ExpectConfirmation();
             _ = InvokeAsync(StateHasChanged);
         }
     }

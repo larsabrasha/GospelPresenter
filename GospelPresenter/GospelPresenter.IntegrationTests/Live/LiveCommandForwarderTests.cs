@@ -157,6 +157,43 @@ public class LiveCommandForwarderTests : IDisposable
         await hub.ShouldStayQuietAsync();
     }
 
+    [Fact]
+    public async Task AControllersOwnWrite_IsNotEvidenceThatTheDeviceFollowed()
+    {
+        // Why a controller cannot judge by what it can see. Its write goes straight into the live
+        // state — that is what makes the phone feel instant, and it is the write that gets
+        // forwarded — so the state already says yes while the device has done nothing at all.
+        GoLive(reportedItemId: "item-1", reportedPartIndex: 0);
+
+        SelectLocally("item-1", 5);
+        await hub.NextCommandAsync();
+
+        var asked = MirroredSessionStateReader.Read(sharedAppState, SessionId)!;
+        var reported = registry.LastReported(SessionId)!;
+
+        MirroredSessionStateReader.ShowsTheSame(reported, asked).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void OnceTheDeviceHasEchoed_TheControllerCanSeeThatItFollowed()
+    {
+        GoLive(reportedItemId: "item-1", reportedPartIndex: 0);
+
+        SelectLocally("item-1", 5);
+        registry.RecordReportedState(SessionId, State("item-1", 5));
+
+        var asked = MirroredSessionStateReader.Read(sharedAppState, SessionId)!;
+        var reported = registry.LastReported(SessionId)!;
+
+        MirroredSessionStateReader.ShowsTheSame(reported, asked).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void ASessionWithNoOwner_HasNothingToCheckAgainst()
+    {
+        registry.LastReported("no-such-session").ShouldBeNull();
+    }
+
     // ---------- helpers ----------
 
     private void GoLive(string reportedItemId, int reportedPartIndex)

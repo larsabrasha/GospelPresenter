@@ -21,6 +21,17 @@ public interface ILiveSessionPresence
     /// </summary>
     bool IsOwnerOnline(string sessionId);
 
+    /// <summary>
+    /// The last state the owning device reported, or null for a session that is not mirrored or has
+    /// not reported anything yet.
+    ///
+    /// A controller needs this because its own screen is not evidence. It writes what it wants into
+    /// the live state immediately — that is what makes it feel instant, and it is the write the
+    /// forwarder picks up and sends down — so the state it can see already says yes regardless of
+    /// what the projector did. Only the owner's echo says the device followed.
+    /// </summary>
+    MirroredSessionState? LastReported(string sessionId);
+
     /// <summary>Raised with the session id when an owner connects or drops.</summary>
     event Action<string>? OwnerPresenceChanged;
 }

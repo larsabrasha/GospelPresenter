@@ -161,5 +161,13 @@ public class MirroredSessionRegistry : ILiveSessionPresence
     public bool IsOwnerOnline(string sessionId) =>
         !sessions.TryGetValue(sessionId, out var session) || session.OwnerConnected;
 
+    /// <summary>
+    /// A read of what the forwarder already keeps. Nothing here writes: the entry is still recorded
+    /// only by <see cref="RecordReportedState"/> on the owner's own report, so the loop protection
+    /// sees exactly what it saw before.
+    /// </summary>
+    public MirroredSessionState? LastReported(string sessionId) =>
+        sessions.GetValueOrDefault(sessionId)?.LastReported;
+
     public IReadOnlyList<MirroredSession> All() => sessions.Values.ToList();
 }

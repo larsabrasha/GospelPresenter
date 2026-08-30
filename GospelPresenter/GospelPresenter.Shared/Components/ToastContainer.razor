@@ -11,9 +11,18 @@
     @if (current is not null)
     {
         <div class="@(current.Removing ? "toast-item-out" : "toast-item") flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white ring-1 ring-neutral-200 dark:ring-neutral-700 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5 shrink-0 text-green-500 dark:text-green-400">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd"/>
-            </svg>
+            @if (current.Kind == ToastKind.Warning)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5 shrink-0 text-amber-500 dark:text-amber-400">
+                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495ZM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5Zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd"/>
+                </svg>
+            }
+            else
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-5 shrink-0 text-green-500 dark:text-green-400">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd"/>
+                </svg>
+            }
             <span>@current.Message</span>
         </div>
     }
@@ -31,7 +40,7 @@
         ToastService.OnShow += HandleShow;
     }
 
-    private async void HandleShow(string message)
+    private async void HandleShow(string message, ToastKind kind)
     {
         var version = ++showVersion;
         try
@@ -47,7 +56,7 @@
                 if (showVersion != version) return;
             }
 
-            current = new ToastItem { Message = message };
+            current = new ToastItem { Message = message, Kind = kind };
             await InvokeAsync(StateHasChanged);
 
             if (!popoverVisible)
@@ -97,6 +106,7 @@
     private class ToastItem
     {
         public string Message { get; init; } = "";
+        public ToastKind Kind { get; init; }
         public bool Removing { get; set; }
     }
 }

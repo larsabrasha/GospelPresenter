@@ -1100,6 +1100,9 @@
   <data name="RemoteControl.PresenterOffline" xml:space="preserve">
     <value>Datorn som presenterar har tappat kontakten. Det som visades ligger kvar; den går att styra igen när den är tillbaka.</value>
   </data>
+  <data name="RemoteControl.CommandNotConfirmed" xml:space="preserve">
+    <value>Datorn som presenterar har inte bekräftat ändringen. Kontrollera vad som visas på skärmen.</value>
+  </data>
   <data name="RemoteControl.ChooseSession" xml:space="preserve">
     <value>Den här presentationen visas på flera ställen. Välj vilken du vill styra.</value>
   </data>

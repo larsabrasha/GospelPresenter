@@ -1100,6 +1100,9 @@
   <data name="RemoteControl.PresenterOffline" xml:space="preserve">
     <value>The presenting machine has lost its connection. What it was showing is still up; it can be controlled again once it is back.</value>
   </data>
+  <data name="RemoteControl.CommandNotConfirmed" xml:space="preserve">
+    <value>The presenting machine has not confirmed the change. Check what is on the screen.</value>
+  </data>
   <data name="RemoteControl.ChooseSession" xml:space="preserve">
     <value>This presentation is live in more than one place. Choose which one to control.</value>
   </data>
