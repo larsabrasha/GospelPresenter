@@ -72,8 +72,8 @@
 
                 <div class="my-3 mx-4 h-px bg-neutral-200 dark:bg-neutral-700"></div>
 
-                @* Remote displays pair with the web server; the device app has nothing to pair with. *@
-                @if (Capabilities.RemoteDisplays)
+                @* The displays admin covers paired screens as well as public outputs. *@
+                @if (Capabilities.PairedDisplays || Capabilities.PublicOutput)
                 {
                     <a href="/admin/displays"
                        @onclick="OnSidebarNavClick"

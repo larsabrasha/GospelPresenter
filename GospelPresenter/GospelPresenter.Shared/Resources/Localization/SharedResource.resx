@@ -1097,6 +1097,15 @@
   <data name="RemoteControl.NotEnabled" xml:space="preserve">
     <value>Remote control has not been enabled by the presenter</value>
   </data>
+  <data name="RemoteControl.PresenterOffline" xml:space="preserve">
+    <value>The presenting machine has lost its connection. What it was showing is still up; it can be controlled again once it is back.</value>
+  </data>
+  <data name="RemoteControl.ChooseSession" xml:space="preserve">
+    <value>This presentation is live in more than one place. Choose which one to control.</value>
+  </data>
+  <data name="RemoteControl.SessionChoice" xml:space="preserve">
+    <value>Presentation {0}</value>
+  </data>
   <data name="Templates.DeleteConfirm" xml:space="preserve">
     <value>Are you sure you want to delete this template?</value>
   </data>

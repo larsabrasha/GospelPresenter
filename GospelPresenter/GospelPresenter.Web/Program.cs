@@ -1,6 +1,7 @@
 using GospelPresenter.Shared;
 using GospelPresenter.Shared.Authorization;
 using GospelPresenter.Shared.Contexts;
+using GospelPresenter.Shared.Live;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
@@ -222,6 +223,17 @@ try
         .AddHubOptions(options => options.MaximumReceiveMessageSize = 512 * 1024);
 
     builder.Services.AddSharedGospelPresenterServices(builder.Configuration);
+
+    // Live sessions owned by a desktop client rather than by a circuit on this server. The registry
+    // is the server's side of that pairing; the projector turns what a device reports into ordinary
+    // live state. See adr/0004-mirrored-desktop-live-sessions.md.
+    builder.Services.AddSignalR();
+    builder.Services.AddSingleton<GospelPresenter.Web.Live.MirroredSessionRegistry>();
+    builder.Services.AddSingleton<ILiveSessionPresence>(sp =>
+        sp.GetRequiredService<GospelPresenter.Web.Live.MirroredSessionRegistry>());
+    builder.Services.AddSingleton<GospelPresenter.Web.Live.LiveCommandForwarder>();
+    builder.Services.AddScoped<GospelPresenter.Web.Live.MirroredSessionProjector>();
+
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
     builder.Services.AddSingleton<SetupStatusService>();
 
@@ -814,10 +826,15 @@ builder.Services.AddMetricServer(options =>
     app.MapPublicOutputEndpoints();
     app.MapDeviceTokenEndpoints();
     app.MapSyncEndpoints();
+    app.MapHub<GospelPresenter.Web.Live.LiveSessionHub>(LiveSessionHubMethods.Path);
 
     // Resolve the broadcaster eagerly: it subscribes to live-state events in its constructor,
     // and a lazily created singleton would miss every change until the first visitor connected.
     app.Services.GetRequiredService<PublicOutputBroadcaster>();
+
+    // Same reason: it subscribes in its constructor, and a phone's first command must not be the
+    // thing that brings it into existence — that command would be the one it missed.
+    app.Services.GetRequiredService<GospelPresenter.Web.Live.LiveCommandForwarder>();
 
     // MCP API key authentication middleware
     app.Use(async (context, next) =>

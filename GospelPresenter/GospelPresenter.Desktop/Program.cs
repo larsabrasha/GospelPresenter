@@ -4,12 +4,14 @@ using ElectronNET.API;
 using ElectronNET.API.Entities;
 using GospelPresenter.Client.Auth;
 using GospelPresenter.Client.Data;
+using GospelPresenter.Client.Live;
 using GospelPresenter.Client.Sync;
 using GospelPresenter.Desktop;
 using GospelPresenter.Desktop.Services;
 using GospelPresenter.Shared;
 using GospelPresenter.Shared.Authorization;
 using GospelPresenter.Shared.Contexts;
+using GospelPresenter.Shared.Live;
 using GospelPresenter.Shared.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -184,6 +186,24 @@ if (apiBaseUrl.Length > 0)
         sp.GetRequiredService<ILogger<GospelPresenter.Client.Bibles.BibleOfflineService>>()));
     builder.Services.AddSingleton<IBibleOfflineStore>(sp =>
         sp.GetRequiredService<GospelPresenter.Client.Bibles.BibleOfflineService>());
+
+    // Mirrors a live presentation to the server so a phone can drive it and a public output can
+    // follow it. Like everything else in this block it needs a server to talk to; without one the
+    // presentation simply runs local-only, exactly as it did before.
+    builder.Services.AddSingleton(sp => new LiveSessionClient(
+        sp.GetRequiredService<GospelPresenter.Shared.State.SharedAppState>(),
+        sp.GetRequiredService<DeviceAuthService>(),
+        apiBaseUrl,
+        // The server rebuilds slides from its own copy of the presentation, so everything this
+        // machine has edited locally has to be up there first — the metadata and the media both.
+        // Push is journal-wide rather than per-presentation, so this is simply a full sync.
+        async ct =>
+        {
+            await sp.GetRequiredService<SyncScheduler>().SyncNowAsync();
+            await sp.GetRequiredService<GospelPresenter.Client.Media.IMediaSynchronizer>().SyncAsync(ct);
+        },
+        sp.GetRequiredService<ILogger<LiveSessionClient>>()));
+    builder.Services.AddSingleton<ILiveSessionMirror>(sp => sp.GetRequiredService<LiveSessionClient>());
 
     builder.Services.AddSingleton<GospelPresenter.Client.Media.IMediaSynchronizer>(sp =>
         new GospelPresenter.Client.Media.MediaSynchronizer(

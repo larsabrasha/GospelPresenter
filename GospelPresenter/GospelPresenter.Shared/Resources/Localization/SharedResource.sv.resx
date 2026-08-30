@@ -1097,6 +1097,15 @@
   <data name="RemoteControl.NotEnabled" xml:space="preserve">
     <value>Fjärrstyrning är inte aktiverad av presentatören</value>
   </data>
+  <data name="RemoteControl.PresenterOffline" xml:space="preserve">
+    <value>Datorn som presenterar har tappat kontakten. Det som visades ligger kvar; den går att styra igen när den är tillbaka.</value>
+  </data>
+  <data name="RemoteControl.ChooseSession" xml:space="preserve">
+    <value>Den här presentationen visas på flera ställen. Välj vilken du vill styra.</value>
+  </data>
+  <data name="RemoteControl.SessionChoice" xml:space="preserve">
+    <value>Presentation {0}</value>
+  </data>
   <data name="Templates.DeleteConfirm" xml:space="preserve">
     <value>Är du säker på att du vill ta bort mallen?</value>
   </data>

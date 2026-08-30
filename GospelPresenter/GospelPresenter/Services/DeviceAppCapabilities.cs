@@ -10,7 +10,9 @@ namespace GospelPresenter.Services;
 /// </summary>
 public class DeviceAppCapabilities : IAppCapabilities
 {
-    public bool RemoteDisplays => false;
+    public bool RemoteControl => false;
+    public bool PublicOutput => false;
+    public bool PairedDisplays => false;
     public bool CalendarSubscriptions => false;
     public bool UserAdministration => false;
     public bool ProfileEditing => false;

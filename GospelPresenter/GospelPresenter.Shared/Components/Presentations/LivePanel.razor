@@ -287,7 +287,7 @@ else
                                         <span>@L["LivePanel.LocalLiveView"]</span>
                                     </button>
                                     }
-                                    @if (Capabilities.RemoteDisplays)
+                                    @if (Capabilities.PairedDisplays)
                                     {
                                         <button @onclick="ShowPairingDialog"
                                                 class="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
@@ -346,7 +346,7 @@ else
             </div>
         }
 
-        @if (SessionId is not null && !IsRemoteController && Capabilities.RemoteDisplays)
+        @if (SessionId is not null && !IsRemoteController && Capabilities.RemoteControl)
         {
             var isRemoteEnabled = SharedAppState.IsRemoteControlEnabled(SessionId);
             <div class="mt-3">
@@ -507,20 +507,19 @@ else
 
     private HashSet<string> savedDisplayIds => SavedDisplays.Select(d => d.DisplayIdentifier).ToHashSet();
 
-    // Remote displays and public outputs pair with the web server. On a host without that
-    // capability (the device app) the lists are simply empty, which hides every control.
-    private List<RemoteDisplay> Screens => Capabilities.RemoteDisplays
+    // On a host without the capability the list is simply empty, which hides every control.
+    private List<RemoteDisplay> Screens => Capabilities.PairedDisplays
         ? SavedDisplays.Where(d => d.Kind == OutputKind.Screen).ToList()
         : [];
 
-    private List<RemoteDisplay> PublicOutputs => Capabilities.RemoteDisplays
+    private List<RemoteDisplay> PublicOutputs => Capabilities.PublicOutput
         ? SavedDisplays.Where(d => d.Kind == OutputKind.PublicQr).ToList()
         : [];
 
     private RemoteDisplay? outputToTakeOver;
     private string? outputToTakeOverFrom;
 
-    private List<ConnectedDisplay> adHocDisplays => SessionId is not null && Capabilities.RemoteDisplays
+    private List<ConnectedDisplay> adHocDisplays => SessionId is not null && Capabilities.PairedDisplays
         ? RemoteDisplayState.GetConnectedDisplays(SessionId)
             .Where(d => !savedDisplayIds.Contains(d.DisplayId)).ToList()
         : [];
