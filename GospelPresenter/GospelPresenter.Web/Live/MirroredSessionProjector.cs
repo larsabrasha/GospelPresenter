@@ -17,8 +17,10 @@ namespace GospelPresenter.Web.Live;
 /// </summary>
 public class MirroredSessionProjector(
     SharedAppState sharedAppState,
+    RemoteDisplayState remoteDisplayState,
     MirroredSessionRegistry registry,
     IPresentationService presentations,
+    IRemoteDisplayService remoteDisplays,
     IThemeService themes,
     ILiveSlideBuilder slideBuilder,
     ILogger<MirroredSessionProjector> logger)
@@ -54,6 +56,50 @@ public class MirroredSessionProjector(
 
         await ApplyOverlayAsync(sessionId, organizationId, state.OverlayId, caller);
         await ApplySlideAsync(sessionId, organizationId, presentation, state, caller);
+        await ApplyOutputsAsync(sessionId, organizationId, state, caller);
+    }
+
+    /// <summary>
+    /// Binds this server's public outputs to the session, following what the owner reports.
+    ///
+    /// The slide travels in the report; the output that shows it does not, because the binding is a
+    /// map in each host's own memory and a visitor only ever reaches the server's. Without this the
+    /// mirroring delivered a session nobody could watch — the QR code on the wall resolved to a
+    /// server that had never been told to feed it.
+    /// </summary>
+    private async Task ApplyOutputsAsync(
+        string sessionId, string organizationId, MirroredSessionState state, CallerContext caller)
+    {
+        // Null is an owner that predates the field, not an owner reporting none: switching its
+        // outputs off because it did not mention them would be inventing an instruction.
+        if (state.EnabledOutputs is null) return;
+
+        // Reports arrive on every slide change, and almost none of them touch the outputs. The
+        // comparison is over what is already in memory, so the lookup below runs only on a change.
+        var bound = remoteDisplayState.GetConnectedDisplays(sessionId).Select(d => d.DisplayId).ToList();
+        if (MirroredSessionState.Join(bound) == state.EnabledOutputs) return;
+
+        var wanted = state.Outputs().ToHashSet(StringComparer.Ordinal);
+        var outputs = (await remoteDisplays.GetDisplaysAsync(organizationId, caller))
+            .Where(d => d.Kind == OutputKind.PublicQr)
+            .ToList();
+
+        foreach (var output in outputs)
+        {
+            var isBound = remoteDisplayState.IsDisplayConnectedToSession(output.DisplayIdentifier, sessionId);
+            if (wanted.Contains(output.DisplayIdentifier))
+            {
+                // Takes the output over from whatever session had it. The browser path asks the
+                // operator to confirm that; the owner cannot be asked, because it cannot see this
+                // server's bindings — and the owner is the authority on its own session either way.
+                if (!isBound)
+                    remoteDisplayState.EnableDisplay(output.DisplayIdentifier, sessionId, output.Name);
+            }
+            else if (isBound)
+            {
+                remoteDisplayState.DisableDisplay(output.DisplayIdentifier, sessionId);
+            }
+        }
     }
 
     private async Task ApplySlideAsync(
@@ -128,6 +174,13 @@ public class MirroredSessionProjector(
     public void End(string sessionId)
     {
         using var _ = registry.SuppressForwarding(sessionId);
+
+        // The outputs are released here and nowhere else. A dropped connection deliberately leaves
+        // them bound: a public output freezes on the slide it has rather than falling to the
+        // waiting screen over a moment of bad wifi, which is the whole point of freezing.
+        foreach (var display in remoteDisplayState.GetConnectedDisplays(sessionId))
+            remoteDisplayState.DisableDisplay(display.DisplayId, sessionId);
+
         sharedAppState.DeactivatePresentation(sessionId);
         sharedAppState.SetCcliReportedElsewhere(sessionId, false);
         registry.Remove(sessionId);

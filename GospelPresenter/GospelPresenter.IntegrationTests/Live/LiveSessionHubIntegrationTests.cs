@@ -186,6 +186,98 @@ public class LiveSessionHubIntegrationTests
     }
 
     [Fact]
+    public async Task AnOutputTheDeviceSwitchedOn_IsBoundHereWithoutAnyoneTouchingThisServer()
+    {
+        // The half that was missing. The device owns the binding between an output and its session,
+        // but a visitor only ever reaches this server's — so the owner reports which outputs it
+        // switched on, and the projector binds them here.
+        using var app = new WebAppFixture();
+        var outputCode = await SeedPublicOutputAsync(app, "Foajén");
+        var token = await IssueDeviceTokenAsync(app);
+        await using var connection = BuildConnection(app, token);
+
+        await connection.StartAsync();
+        var sessionId = await WaitForRegisteredSessionAsync(app);
+
+        await connection.InvokeAsync(LiveSessionHubMethods.ReportState, new MirroredSessionState(
+            PresentationId, "Söndagsgudstjänst", true, false, await FirstSongItemIdAsync(app), 0, null,
+            EnabledOutputs: outputCode));
+
+        var broadcaster = app.Services.GetRequiredService<PublicOutputBroadcaster>();
+        broadcaster.GetBroadcastingSessionId(outputCode).ShouldBe(sessionId);
+        (await broadcaster.GetCurrentEventAsync(outputCode)).Type.ShouldBe(PublicOutputEventType.Slide);
+    }
+
+    [Fact]
+    public async Task AnOutputTheDeviceSwitchedOff_StopsBeingFedHere()
+    {
+        using var app = new WebAppFixture();
+        var outputCode = await SeedPublicOutputAsync(app, "Foajén");
+        var token = await IssueDeviceTokenAsync(app);
+        await using var connection = BuildConnection(app, token);
+
+        await connection.StartAsync();
+        var sessionId = await WaitForRegisteredSessionAsync(app);
+        var itemId = await FirstSongItemIdAsync(app);
+
+        await connection.InvokeAsync(LiveSessionHubMethods.ReportState, new MirroredSessionState(
+            PresentationId, "Söndagsgudstjänst", true, false, itemId, 0, null, EnabledOutputs: outputCode));
+
+        var broadcaster = app.Services.GetRequiredService<PublicOutputBroadcaster>();
+        broadcaster.GetBroadcastingSessionId(outputCode).ShouldBe(sessionId, "it has to be on before it can go off");
+
+        await connection.InvokeAsync(LiveSessionHubMethods.ReportState, new MirroredSessionState(
+            PresentationId, "Söndagsgudstjänst", true, false, itemId, 0, null, EnabledOutputs: ""));
+
+        broadcaster.GetBroadcastingSessionId(outputCode).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task AnOwnerThatSaysNothingAboutOutputs_LeavesThemAsTheyAre()
+    {
+        // A build from before outputs travelled. Null is silence, not "none": reading it as a
+        // request to switch everything off would take the congregation's screen away mid-service.
+        using var app = new WebAppFixture();
+        var outputCode = await SeedPublicOutputAsync(app, "Foajén");
+        var token = await IssueDeviceTokenAsync(app);
+        await using var connection = BuildConnection(app, token);
+
+        await connection.StartAsync();
+        var sessionId = await WaitForRegisteredSessionAsync(app);
+        app.Services.GetRequiredService<RemoteDisplayState>().EnableDisplay(outputCode, sessionId);
+
+        await connection.InvokeAsync(LiveSessionHubMethods.ReportState, new MirroredSessionState(
+            PresentationId, "Söndagsgudstjänst", true, false, await FirstSongItemIdAsync(app), 0, null));
+
+        app.Services.GetRequiredService<PublicOutputBroadcaster>()
+            .GetBroadcastingSessionId(outputCode).ShouldBe(sessionId);
+    }
+
+    [Fact]
+    public async Task EndingTheSession_ReleasesTheOutputsItHeld()
+    {
+        // Distinct from the connection dropping, which leaves them bound on purpose so a public
+        // screen freezes on its slide rather than falling to the waiting screen over bad wifi.
+        using var app = new WebAppFixture();
+        var outputCode = await SeedPublicOutputAsync(app, "Foajén");
+        var token = await IssueDeviceTokenAsync(app);
+        await using var connection = BuildConnection(app, token);
+
+        await connection.StartAsync();
+        var sessionId = await WaitForRegisteredSessionAsync(app);
+
+        // Bound here rather than through a report, so this measures the ending and nothing else.
+        var displays = app.Services.GetRequiredService<RemoteDisplayState>();
+        displays.EnableDisplay(outputCode, sessionId);
+
+        await connection.InvokeAsync(LiveSessionHubMethods.ReportState, new MirroredSessionState(
+            PresentationId, "Söndagsgudstjänst", true, false, await FirstSongItemIdAsync(app), 0, null));
+        await connection.InvokeAsync(LiveSessionHubMethods.EndSession);
+
+        displays.IsDisplayConnected(outputCode).ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task TheHub_RefusesAConnectionWithoutADeviceToken()
     {
         using var app = new WebAppFixture();
@@ -254,6 +346,17 @@ public class LiveSessionHubIntegrationTests
 
         var response = await cookieClient.GetAsync("/app-login?device=Testmaskin");
         return await DeviceLogin.ReadTokenAsync(response);
+    }
+
+    /// <summary>Creates a public output through the real service and returns its watch code.</summary>
+    private static async Task<string> SeedPublicOutputAsync(WebAppFixture app, string name)
+    {
+        using var scope = app.Services.CreateScope();
+        var displays = scope.ServiceProvider.GetRequiredService<IRemoteDisplayService>();
+        var caller = new CallerContext(WebAppFixture.MockUserId, Shared.Models.UserRole.Admin, OrganizationId);
+
+        var output = await displays.AddDisplayAsync(OrganizationId, name, caller, OutputKind.PublicQr);
+        return output.DisplayIdentifier;
     }
 
     private static async Task<string> FirstSongItemIdAsync(WebAppFixture app)
