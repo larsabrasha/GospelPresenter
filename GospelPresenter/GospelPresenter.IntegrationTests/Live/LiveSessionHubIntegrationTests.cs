@@ -1,8 +1,10 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Encodings.Web;
 using GospelPresenter.IntegrationTests.Fixtures;
 using GospelPresenter.IntegrationTests.Helpers;
 using GospelPresenter.Shared.Live;
+using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using GospelPresenter.Web.Live;
@@ -248,6 +250,40 @@ public class LiveSessionHubIntegrationTests
 
         presentation.ShouldNotBeNull("the mock seed should contain the Sunday service presentation");
         return presentation.Items.OrderBy(i => i.SortOrder).First().Id;
+    }
+
+    /// <summary>
+    /// The hub has to be exempt from the stored-language redirect, the way every /api path already
+    /// is. It is not under /api — it is a hub — and without the exemption the first negotiate of
+    /// every presentation is answered with a redirect to itself; HttpClient follows it, drops the
+    /// Authorization header on the way, and the device is told 401. It recovers on the retry a
+    /// second later, which is exactly why nothing noticed.
+    /// </summary>
+    [Fact]
+    public async Task Negotiate_ForAUserWithAStoredLanguage_IsNotRedirected()
+    {
+        using var app = new WebAppFixture();
+        await StorePreferredLanguageAsync(app);
+        var token = await IssueDeviceTokenAsync(app);
+
+        // No cookie container and no redirect following: exactly what SignalR's first negotiate
+        // looks like, and the only way to see the redirect rather than its recovery.
+        var client = app.CreateDefaultClient(BaseAddress);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.PostAsync("/hubs/live-session/negotiate?negotiateVersion=1", null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK,
+            "a device token on the hub must reach the hub, not a culture redirect");
+    }
+
+    private static async Task StorePreferredLanguageAsync(WebAppFixture app)
+    {
+        using var scope = app.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<IUserService>();
+        var caller = new CallerContext(WebAppFixture.MockUserId, Shared.Models.UserRole.Admin, OrganizationId);
+
+        await users.SetUserSettingAsync(WebAppFixture.MockUserId, UserSetting.PreferredLanguage, "sv", caller);
     }
 
     private static async Task<string> WaitForRegisteredSessionAsync(WebAppFixture app)

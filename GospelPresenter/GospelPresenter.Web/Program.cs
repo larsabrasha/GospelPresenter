@@ -470,7 +470,14 @@ builder.Services.AddMetricServer(options =>
         // redirect makes HttpClient drop its Authorization header, which turns a valid device
         // token into a login-page HTML response. API responses are not localized via cookies;
         // the sync paths read the user's stored language directly where they need it.
+        //
+        // The live session hub is the same kind of caller and has to be exempt for the same
+        // reason: it authenticates with a device token and serves no localized content. It only
+        // does not live under /api because it is a hub, and without this its first negotiate is
+        // redirected, loses the Authorization header and 401s — costing a retry before a
+        // presentation starts mirroring.
         if (!context.Request.Path.StartsWithSegments("/api")
+            && !context.Request.Path.StartsWithSegments(LiveSessionHubMethods.Path)
             && context.User.Identity?.IsAuthenticated == true
             && !context.Request.Cookies.ContainsKey(CookieRequestCultureProvider.DefaultCookieName))
         {
