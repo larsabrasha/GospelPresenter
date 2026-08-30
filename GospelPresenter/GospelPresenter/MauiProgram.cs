@@ -119,6 +119,11 @@ public static class MauiProgram
         // a projector is the desktop app's job -- no mobile platform lets an app choose a display.
         builder.Services.AddSingleton<Shared.Services.ILiveWindowLauncher, MauiLiveWindowLauncher>();
 
+        // Links and QR codes name the server, not the in-app host the UI is served from. Replaces
+        // the default registered by AddSharedGospelPresenterServices.
+        builder.Services.AddSingleton<Shared.Services.IServerUrlProvider>(
+            _ => new MauiServerUrlProvider(Configuration.Settings.ApiBaseUrl));
+
         // Real sign-in: system browser → device token → identity cached for offline. A DEBUG
         // build with no server URL configured runs a fixed developer identity instead, so local
         // development works without any server at all.

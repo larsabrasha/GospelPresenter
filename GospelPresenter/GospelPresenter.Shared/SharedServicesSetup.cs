@@ -32,6 +32,9 @@ public static class SharedServicesSetup
         services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IImageResizeService, ImageResizeService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
+        // The default answer — "the address you are being served on" — which is right for the web.
+        // A device host registers its own after this call and replaces it.
+        services.AddSingleton<IServerUrlProvider, LocalServerUrlProvider>();
         // Registered here rather than per host because the slide builder below depends on it: a
         // host that got the builder without the song service built a container that could not be
         // validated, which is how the migration tool — which wants neither, but takes this whole

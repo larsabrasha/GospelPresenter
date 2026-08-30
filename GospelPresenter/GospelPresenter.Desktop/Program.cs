@@ -136,6 +136,10 @@ builder.Services.AddSingleton<IDeviceSignIn>(sp => sp.GetRequiredService<Electro
 // One machine, one session — and the same session id after a restart. See the provider.
 builder.Services.AddSingleton<ISessionIdProvider, DesktopSessionIdProvider>();
 
+// Links and QR codes are for other people's phones, so they name the server, not this machine's
+// throwaway localhost port. Replaces the default registered by AddSharedGospelPresenterServices.
+builder.Services.AddSingleton<IServerUrlProvider>(_ => new DesktopServerUrlProvider(apiBaseUrl));
+
 builder.Services.AddSingleton<GospelPresenter.Client.CcliReportListener>();
 
 // The sync engine: push and pull over the device token, scheduled on start, on connectivity

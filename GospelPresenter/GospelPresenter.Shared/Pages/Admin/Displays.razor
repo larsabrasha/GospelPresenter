@@ -9,6 +9,7 @@
 @layout AdminLayout
 
 @inject IRemoteDisplayService RemoteDisplayService
+@inject IServerUrlProvider ServerUrlProvider
 @inject ActiveOrganizationState OrgState
 @inject RemoteDisplayState RemoteDisplayState
 @inject SharedAppState SharedAppState
@@ -379,19 +380,24 @@
         return session?.PresentationName;
     }
 
+    // Both of these are opened on somebody else's device — a screen in the hall, a visitor's phone
+    // — so they are built against the server rather than against whatever address this host is
+    // being served on. On the web the two are the same; on a device app they are not.
     private string BuildDisplayUrl(string identifier, string name)
     {
-        var baseUrl = NavigationManager.BaseUri.TrimEnd('/') + "/display";
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(identifier))
             parts.Add($"id={Uri.EscapeDataString(identifier.Trim())}");
         if (!string.IsNullOrWhiteSpace(name))
             parts.Add($"name={Uri.EscapeDataString(name.Trim())}");
-        return parts.Count > 0 ? $"{baseUrl}?{string.Join("&", parts)}" : baseUrl;
+
+        var query = parts.Count > 0 ? $"?{string.Join("&", parts)}" : "";
+        return ServerUrls.Absolute(ServerUrlProvider, NavigationManager, $"display{query}");
     }
 
     private string BuildWatchUrl(string identifier) =>
-        $"{NavigationManager.BaseUri.TrimEnd('/')}/watch/{Uri.EscapeDataString(identifier.Trim())}";
+        ServerUrls.Absolute(
+            ServerUrlProvider, NavigationManager, $"watch/{Uri.EscapeDataString(identifier.Trim())}");
 
     private void OnCopyUrl() => ToastService.Show(L["Toast.LinkCopied"]);
 

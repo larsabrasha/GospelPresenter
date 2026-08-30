@@ -448,7 +448,7 @@ else
 
 @if (showRemoteControlInfoDialog && remoteControlPresentationId is not null)
 {
-    <RemoteControlInfoDialog PresentationId="@remoteControlPresentationId" PresentationName="@remoteControlPresentationName" OnClose="CloseRemoteControlInfoDialog"/>
+    <RemoteControlInfoDialog PresentationId="@remoteControlPresentationId" PresentationName="@remoteControlPresentationName" SessionId="@SessionId" OnClose="CloseRemoteControlInfoDialog"/>
 }
 
 @if (outputToTakeOver is not null)
