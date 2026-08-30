@@ -156,6 +156,73 @@ public class SyncPullIntegrationTests
     }
 
     [Fact]
+    public async Task AnOutputRegeneratedOnADevice_MakesTheNewCodeResolve()
+    {
+        // Regenerating is the only remedy when a QR code has been shared where it does not belong,
+        // and printed signs cannot be recalled. A desktop can do it, so the code has to travel with
+        // the push — otherwise the operator prints a code the server never heard of.
+        using var app = new WebAppFixture();
+        var deviceClient = await CreateDeviceClientAsync(app);
+
+        var created = await PushDisplayAsync(deviceClient, "display-regen", "qrs1111", baseVersion: null);
+        created.Outcome.ShouldBe(SyncPushOutcome.Applied);
+
+        var regenerated = await PushDisplayAsync(
+            deviceClient, "display-regen", "qrs2222", baseVersion: created.NewVersion);
+
+        regenerated.Outcome.ShouldBe(SyncPushOutcome.Applied);
+        regenerated.Warning.ShouldBeNull();
+
+        var visitor = app.CreateDefaultClient(BaseAddress);
+        (await visitor.GetAsync("/watch/qrs2222")).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await visitor.GetAsync("/watch/qrs1111")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task ARegeneratedCodeFromADeviceThatMissedTheLastChange_IsRefused()
+    {
+        // What made letting the code travel safe in the first place. A device offline since before
+        // someone else regenerated must not put the old code back, and the version check is what
+        // stops it — the same check that guards every other field.
+        using var app = new WebAppFixture();
+        var deviceClient = await CreateDeviceClientAsync(app);
+
+        var created = await PushDisplayAsync(deviceClient, "display-stale", "qrs3333", baseVersion: null);
+        var elsewhere = await PushDisplayAsync(
+            deviceClient, "display-stale", "qrs4444", baseVersion: created.NewVersion);
+        elsewhere.Outcome.ShouldBe(SyncPushOutcome.Applied);
+
+        // Still holding the version it pulled before the change above.
+        var stale = await PushDisplayAsync(
+            deviceClient, "display-stale", "qrs5555", baseVersion: created.NewVersion);
+
+        stale.Outcome.ShouldBe(SyncPushOutcome.ServerWins);
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<PresentationContext>>();
+        await using var db = await factory.CreateDbContextAsync();
+        var display = await db.RemoteDisplays.SingleAsync(d => d.Id == "display-stale");
+        display.DisplayIdentifier.ShouldBe("qrs4444");
+    }
+
+    private static async Task<SyncPushResult> PushDisplayAsync(
+        HttpClient deviceClient, string id, string code, long? baseVersion)
+    {
+        var response = await deviceClient.PostAsJsonAsync("/api/sync/push", new SyncPushRequest
+        {
+            RemoteDisplays =
+            [
+                new SyncRowPush<SyncRemoteDisplayDto>(
+                    new SyncRemoteDisplayDto(id, code, "Foajén", OutputKind.PublicQr,
+                        DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, Version: 0),
+                    baseVersion)
+            ]
+        });
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<SyncPushResponse>())!.Results.Single();
+    }
+
+    [Fact]
     public async Task Pull_WithoutAuthentication_IsRejected()
     {
         // Arrange

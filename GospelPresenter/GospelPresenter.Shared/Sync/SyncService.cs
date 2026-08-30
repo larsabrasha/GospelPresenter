@@ -1204,6 +1204,12 @@ public class SyncService(
             : new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewVersion: existing.Version);
     }
 
+    /// <summary>
+    /// Rides on an Applied result, because the row did go in — just not under the code the device
+    /// asked for. The device has to be told: it is the code its operator is about to print.
+    /// </summary>
+    private const string CodeReplacedWarning = "The output's code was already taken and has been replaced.";
+
     private async Task<SyncPushResult> ProcessRemoteDisplayPushAsync(
         PresentationContext db, string organizationId, SyncRowPush<SyncRemoteDisplayDto> push,
         CallerContext caller, CancellationToken cancellationToken)
@@ -1238,18 +1244,25 @@ public class SyncService(
             return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.Applied, NewVersion: display.Version,
                 Warning: display.DisplayIdentifier == row.DisplayIdentifier
                     ? null
-                    : "The output's code was already taken and has been replaced.");
+                    : CodeReplacedWarning);
         }
 
         if (push.BaseVersion != existing.Version)
             return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.ServerWins);
 
-        // The name is the only thing a client may change. The code is the server's to issue — it is
-        // printed on signs and pasted into orders of service, and a device that has been offline
-        // since before someone regenerated it would otherwise put the old one back.
+        // The code travels too, and the version check above is what makes that safe. Regenerating is
+        // the only remedy when a QR code has been shared where it does not belong, so a device that
+        // can manage outputs at all has to be able to do it. The risk that argued against it — a
+        // device offline since before someone else regenerated putting the old code back — is a
+        // stale BaseVersion, and a stale BaseVersion has already returned ServerWins by here.
         existing.Name = row.Name;
+        existing.DisplayIdentifier =
+            await FreeIdentifierAsync(db, row.DisplayIdentifier, row.Id, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
+        return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version,
+            Warning: existing.DisplayIdentifier == row.DisplayIdentifier
+                ? null
+                : CodeReplacedWarning);
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+@using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.Sync
 
@@ -74,6 +75,16 @@
             return;
         status.Changed += OnChanged;
         status.ConflictReported += OnConflictReported;
+
+        // The scheduler starts before Blazor renders, so on a cold start this component is born
+        // mid-sync and Changed will not fire again until that sync ends. Without seeding here the
+        // spinner is missed for exactly the case it exists for: the first sync on a new device,
+        // pulling a whole library, is the one sync long enough to be worth showing.
+        if (status.Status == SyncStatus.Syncing)
+        {
+            syncingSince = DateTimeOffset.UtcNow;
+            ScheduleSpinnerReveal();
+        }
     }
 
     private string Tooltip()
@@ -152,6 +163,10 @@
             // only happens when it was deleted on the server, and the message must be honest that
             // the offline work went with it.
             SyncPushOutcome.Merged => L["Sync.ConflictMerged"].Value,
+            // The only Applied result that carries a warning: the row went in, under a code the
+            // server had to replace. Nothing else reaches here as Applied.
+            SyncPushOutcome.Applied when result.EntityType == nameof(RemoteDisplay) =>
+                L["Sync.OutputCodeReplaced"].Value,
             SyncPushOutcome.ServerWins when result.EntityType == "DbSong" => L["Sync.ConflictSongVersionSaved"].Value,
             SyncPushOutcome.ServerWins => L["Sync.ConflictServerVersionKept"].Value,
             SyncPushOutcome.Failed => L["Sync.ChangeRejected"].Value,

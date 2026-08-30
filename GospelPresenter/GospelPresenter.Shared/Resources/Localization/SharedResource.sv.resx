@@ -1727,6 +1727,9 @@
   <data name="Sync.ChangeRejected" xml:space="preserve">
     <value>En ändring kunde inte synkas.</value>
   </data>
+  <data name="Sync.OutputCodeReplaced" xml:space="preserve">
+    <value>Utflödets kod var redan upptagen och har fått en ny. Kontrollera koden innan du skriver ut den.</value>
+  </data>
   <data name="Bibles.MakeOffline" xml:space="preserve">
     <value>Gör tillgänglig offline</value>
   </data>

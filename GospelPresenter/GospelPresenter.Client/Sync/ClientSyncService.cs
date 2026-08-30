@@ -141,6 +141,11 @@ public class ClientSyncService(
             {
                 case SyncPushOutcome.Applied when result.NewVersion is { } newBase:
                     await SyncSql.UpsertBaseAsync(db, table, result.Id, newBase, ct);
+                    // Applied, so nothing was lost and no server state needs adopting — but the
+                    // server changed something the operator can see, and silence would leave them
+                    // reading a code off the screen that stopped being theirs.
+                    if (result.Warning is not null)
+                        conflicts.Add(result);
                     break;
 
                 case SyncPushOutcome.Applied:

@@ -99,9 +99,16 @@ remote control today is a pre-existing gap; this decision does not widen it, and
 
      The code in the QR link is unique across every organisation, and an offline device mints its
      own — so two machines can arrive at the same seven characters. The server keeps the one it
-     issued and hands the newcomer a replacement, and the code is the one field a push may not
-     keep: it is printed on signs, and a device that has been offline since before someone
-     regenerated it would otherwise put the old one back.
+     issued and hands the newcomer a replacement, telling it so, because that replacement is the
+     code its operator is about to print.
+
+     The code travels on an ordinary push like any other field. It was briefly the one field a push
+     could not change, on the grounds that a device offline since before someone regenerated would
+     put the old code back — but that device has a stale `BaseVersion` and has already lost to the
+     version check, and refusing the field left the desktop with a Regenerate button that did
+     nothing. Regenerating is the only remedy when a code has been shared where it does not belong,
+     and printed signs cannot be recalled, so a device that can manage outputs has to be able to
+     do it.
 
   2. **`MirroredSessionState` carries the outputs the owner has switched on**, as their codes,
      sorted and joined into one string. A string rather than a list because the record's equality is
