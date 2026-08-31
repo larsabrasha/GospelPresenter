@@ -1,0 +1,8 @@
+{
+  "//": "The MAUI workload set is pinned here and not in ../global.json, because a workloadVersion applies to every project under the file that carries it: with the pin one level up, an ordinary test project cannot build unless the pinned set resolves too. The pin is load-bearing -- without it the workload set floats to a MacCatalyst version that demands a newer Xcode than the one installed, so bump the two together. The set pinned here, 10.0.204, needs Xcode 26.3: an iOS or MacCatalyst build against an older one fails outright, so select it with DEVELOPER_DIR when several are installed. It is matched against the SDK's baseline set, which is why rollForward is disable rather than latestPatch: a later SDK patch carries a later baseline set and the pin then matches nothing. version and rollForward are repeated from ../global.json rather than inherited -- global.json does not merge, the nearest file wins outright -- so a build started from this directory pins the same SDK as one started from the repository. Keep the two in sync.",
+  "sdk": {
+    "version": "10.0.201",
+    "rollForward": "latestPatch",
+    "workloadVersion": "10.0.204"
+  }
+}

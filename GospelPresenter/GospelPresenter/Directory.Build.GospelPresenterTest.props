@@ -2,9 +2,13 @@
     <Import Project="Directory.Build.GospelPresenter.props"
             Condition="Exists('Directory.Build.GospelPresenter.props')" />
 
+    <!-- Talks to https://apptest.gospelpresenter.com (see Configuration/Settings.cs). Its own
+         identifier and name so a test build can sit beside the real app in ~/Applications instead
+         of replacing it — which is exactly when you least want to lose the working one. -->
     <PropertyGroup>
         <!-- App Identifier -->
         <ApplicationId>com.gospelpresenter.app.test</ApplicationId>
+        <ApplicationTitle>GospelPresenter Test</ApplicationTitle>
     </PropertyGroup>
 
     <ItemGroup>

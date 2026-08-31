@@ -1,6 +1,6 @@
 namespace GospelPresenter.Shared.Models;
 
-public class OrganizationSetting
+public class OrganizationSetting : ISyncTracked
 {
     /// <summary>
     /// The theme presentations without one of their own are displayed with. Replaced the per-font
@@ -15,4 +15,7 @@ public class OrganizationSetting
     public Organization Organization { get; set; } = null!;
     public string Key { get; set; } = "";
     public string Value { get; set; } = "";
+    public DateTimeOffset ModifiedAt { get; set; }
+
+    public long Version { get; set; }
 }

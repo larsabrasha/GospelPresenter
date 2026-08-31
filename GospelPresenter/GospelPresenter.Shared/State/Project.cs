@@ -1,3 +1,5 @@
+using GospelPresenter.Shared.Models;
+
 namespace GospelPresenter.Shared.State;
 
 public class Project
@@ -32,4 +34,21 @@ public enum ProjectItemType
     Image,
     Audio,
     Slides
+}
+
+public static class ProjectItemTypeExtensions
+{
+    /// <summary>
+    /// The stored item type as the project model spells it. The two enums have always been the
+    /// same set under two names; this is the one place that says so.
+    /// </summary>
+    public static ProjectItemType ToProjectItemType(this PresentationItemType type) => type switch
+    {
+        PresentationItemType.Song => ProjectItemType.Song,
+        PresentationItemType.BibleText => ProjectItemType.BibleText,
+        PresentationItemType.Image => ProjectItemType.Image,
+        PresentationItemType.Audio => ProjectItemType.Audio,
+        PresentationItemType.Slides => ProjectItemType.Slides,
+        _ => ProjectItemType.Song
+    };
 }

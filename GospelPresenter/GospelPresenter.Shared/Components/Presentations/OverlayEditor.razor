@@ -6,6 +6,8 @@
 
 @inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
+@inject IServiceProvider Services
+@using GospelPresenter.Shared.Services
 
 <div class="@Class">
     <div class="space-y-4">
@@ -22,9 +24,12 @@
                 <div class="flex items-center gap-3">
                     <img src="@ImageUrlHelper.OverlayImageUrl(Overlay.Id)" alt="@L["OverlayEditor.Preview"]" class="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600"/>
                     <div class="flex flex-col items-start gap-1">
-                        <AppButton Variant="ButtonVariant.Secondary" AsLabel>
+                        <AppButton Variant="ButtonVariant.Secondary" AsLabel="@(mediaUploader is null)" OnClick="PickAndUpload">
                             @L["Common.ChangeImage"]
-                            <input @ref="fileInput" type="file" @onchange="HandleImageUpload" accept="@AppConstraints.ImageAccept" class="hidden"/>
+                            @if (mediaUploader is null)
+                            {
+                                <input @ref="fileInput" type="file" @onchange="HandleImageUpload" accept="@AppConstraints.ImageAccept" class="hidden"/>
+                            }
                         </AppButton>
                         <AppButton Variant="ButtonVariant.Danger" OnClick="RemoveImage"
                                    Class="text-left">@L["Common.RemoveImage"]</AppButton>
@@ -33,9 +38,12 @@
             }
             else
             {
-                <AppButton Variant="ButtonVariant.Secondary" AsLabel>
+                <AppButton Variant="ButtonVariant.Secondary" AsLabel="@(mediaUploader is null)" OnClick="PickAndUpload">
                     @L["Common.ChooseImage"]
-                    <input @ref="fileInput" type="file" @onchange="HandleImageUpload" accept="@AppConstraints.ImageAccept" class="hidden"/>
+                    @if (mediaUploader is null)
+                    {
+                        <input @ref="fileInput" type="file" @onchange="HandleImageUpload" accept="@AppConstraints.ImageAccept" class="hidden"/>
+                    }
                 </AppButton>
             }
         </div>
@@ -50,6 +58,7 @@
     private readonly Debouncer debounce = new();
     private ElementReference fileInput;
     private DotNetObjectReference<OverlayEditor>? dotNetRef;
+    private IMediaUploader? mediaUploader;
 
     public void Dispose()
     {
@@ -87,6 +96,24 @@
         Overlay.HasImage = false;
         await OnChanged.InvokeAsync(Overlay);
         await OnSaved.InvokeAsync();
+    }
+
+    // Only the device app registers an uploader; the web keeps the file input.
+    protected override void OnInitialized() =>
+        mediaUploader = Services.GetService(typeof(IMediaUploader)) as IMediaUploader;
+
+    /// <summary>The device path: the picker and the ingest both live behind the seam.</summary>
+    private async Task PickAndUpload()
+    {
+        if (mediaUploader is null) return;
+        if (string.IsNullOrWhiteSpace(Overlay.Title)) return;
+        if (string.IsNullOrEmpty(Overlay.Id)) return;
+        if (OrgState.ActiveOrganizationId is null) return;
+
+        Overlay.Title = Overlay.Title.Trim();
+        await mediaUploader.PickAndUploadAsync(
+            new MediaUploadTarget(MediaUploadKind.OverlayImage, OrgState.ActiveOrganizationId, Overlay.Id),
+            new MediaUploadCallbacks(OnUploadStarted, json => _ = OnFileUploaded(json), OnFileUploadFailed, OnAllUploadsComplete));
     }
 
     private async Task HandleImageUpload()

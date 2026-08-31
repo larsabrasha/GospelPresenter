@@ -252,9 +252,7 @@ public class PresentationService(
 
         context.PresentationItems.Add(item);
 
-        await context.Presentations
-            .Where(x => x.Id == presentationId && x.OrganizationId == organizationId)
-            .ExecuteUpdateAsync(x => x.SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
 
         await context.SaveChangesAsync(cancellationToken);
     }
@@ -270,7 +268,8 @@ public class PresentationService(
             .Where(x => x.Id == id && x.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.Name, name)
-                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
+                .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 
     public async Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default)
@@ -290,6 +289,7 @@ public class PresentationService(
                 item.SortOrder = newIndex;
         }
 
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -302,7 +302,11 @@ public class PresentationService(
 
         await context.PresentationItems
             .Where(x => x.Id == itemId && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
-            .ExecuteUpdateAsync(x => x.SetProperty(p => p.Title, title), cancellationToken);
+            .ExecuteUpdateAsync(x => x
+                .SetProperty(p => p.Title, title)
+                .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
+
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
     }
 
     public async Task UpdateItemArrangementAsync(string organizationId, string presentationId, string itemId, string? arrangementId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -313,7 +317,11 @@ public class PresentationService(
 
         await context.PresentationItems
             .Where(x => x.Id == itemId && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
-            .ExecuteUpdateAsync(x => x.SetProperty(p => p.ArrangementId, arrangementId), cancellationToken);
+            .ExecuteUpdateAsync(x => x
+                .SetProperty(p => p.ArrangementId, arrangementId)
+                .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
+
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
     }
 
     public async Task AddItemPartsAsync(string organizationId, string presentationId, string itemId, List<PresentationItemPart> parts, CallerContext caller, CancellationToken cancellationToken = default)
@@ -348,6 +356,7 @@ public class PresentationService(
         }
 
         context.PresentationItemParts.AddRange(parts);
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -357,9 +366,15 @@ public class PresentationService(
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        await context.PresentationItemParts
+        // Tracked delete rather than ExecuteDelete, so the context writes the tombstone itself.
+        var part = await context.PresentationItemParts
             .Where(x => x.Id == partId && x.PresentationItemId == itemId && x.PresentationItem.PresentationId == presentationId && x.PresentationItem.Presentation.OrganizationId == organizationId)
-            .ExecuteDeleteAsync(cancellationToken);
+            .FirstOrDefaultAsync(cancellationToken);
+        if (part is null) return;
+
+        context.PresentationItemParts.Remove(part);
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task ReorderItemPartsAsync(string organizationId, string presentationId, string itemId, List<string> partIds, CallerContext caller, CancellationToken cancellationToken = default)
@@ -379,6 +394,7 @@ public class PresentationService(
                 part.SortOrder = newIndex;
         }
 
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -409,15 +425,29 @@ public class PresentationService(
                 .Where(s => s.Id == item.SourceId)
                 .ExecuteDeleteAsync(cancellationToken);
 
+            // The item's parts fall with it via the FK cascade; the item tombstone covers them.
+            context.AddTombstones(nameof(PresentationItem), [itemId], organizationId);
+            context.AddTombstones(nameof(PresentationSlides), [item.SourceId!], organizationId);
+            await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
             await transaction.CommitAsync(cancellationToken);
 
             await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, item.SourceId!), cancellationToken);
         }
         else
         {
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
             await context.PresentationItems
                 .Where(x => x.Id == itemId)
                 .ExecuteDeleteAsync(cancellationToken);
+
+            context.AddTombstones(nameof(PresentationItem), [itemId], organizationId);
+            await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
+
+            await transaction.CommitAsync(cancellationToken);
         }
     }
 
@@ -426,6 +456,12 @@ public class PresentationService(
         caller.RequirePermission(Permission.ManagePresentations);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        // itemIds comes from the client; tombstone only the rows that actually belong here.
+        var existingItemIds = await context.PresentationItems
+            .Where(x => itemIds.Contains(x.Id) && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
 
         var slidesIds = await context.PresentationItems
             .Where(x => itemIds.Contains(x.Id) && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId
@@ -448,6 +484,15 @@ public class PresentationService(
             await context.PresentationSlides
                 .Where(s => slidesIds.Contains(s.Id))
                 .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        if (existingItemIds.Count > 0)
+        {
+            // Parts fall with their items via the FK cascade; the item tombstones cover them.
+            context.AddTombstones(nameof(PresentationItem), existingItemIds, organizationId);
+            context.AddTombstones(nameof(PresentationSlides), slidesIds, organizationId);
+            await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+            await context.SaveChangesAsync(cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -501,9 +546,16 @@ public class PresentationService(
                 .ExecuteDeleteAsync(cancellationToken);
         }
 
-        await context.Presentations
+        var deletedCount = await context.Presentations
             .Where(x => x.Id == id && x.OrganizationId == organizationId)
             .ExecuteDeleteAsync(cancellationToken);
+
+        if (deletedCount > 0)
+        {
+            // One tombstone for the aggregate root; clients cascade to items, parts and slides.
+            context.AddTombstones(nameof(Presentation), [id], organizationId);
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -763,7 +815,8 @@ public class PresentationService(
                 .SetProperty(p => p.ScheduledDayOfWeek, dayOfWeek)
                 .SetProperty(p => p.ScheduledTime, time)
                 .SetProperty(p => p.EventLocation, location)
-                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
+                .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 
     public async Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, string? description, CallerContext caller, CancellationToken cancellationToken = default)
@@ -781,7 +834,8 @@ public class PresentationService(
                 .SetProperty(p => p.EventTime, time)
                 .SetProperty(p => p.EventLocation, location)
                 .SetProperty(p => p.Description, description)
-                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
+                .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 
     public async Task UpdatePresentationThemeAsync(string organizationId, string presentationId, string? themeId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -805,7 +859,8 @@ public class PresentationService(
             .Where(x => x.Id == presentationId && x.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.ThemeId, themeId)
-                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow), cancellationToken);
+                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
+                .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
 
     public async Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)
@@ -837,9 +892,16 @@ public class PresentationService(
                 .ExecuteDeleteAsync(cancellationToken);
         }
 
-        await context.Presentations
+        var deletedCount = await context.Presentations
             .Where(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate)
             .ExecuteDeleteAsync(cancellationToken);
+
+        if (deletedCount > 0)
+        {
+            // One tombstone for the aggregate root; clients cascade to items, parts and slides.
+            context.AddTombstones(nameof(Presentation), [id], organizationId);
+            await context.SaveChangesAsync(cancellationToken);
+        }
 
         await transaction.CommitAsync(cancellationToken);
 
@@ -940,12 +1002,28 @@ public class PresentationService(
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        await context.OverlaySlides
-            .Where(x => x.OrganizationId == organizationId && x.Id == overlayId)
-            .ExecuteDeleteAsync(cancellationToken);
+        // Tracked delete rather than ExecuteDelete, so the context writes the tombstone itself.
+        var overlay = await context.OverlaySlides
+            .FirstOrDefaultAsync(x => x.OrganizationId == organizationId && x.Id == overlayId, cancellationToken);
+        if (overlay is null) return;
+
+        context.OverlaySlides.Remove(overlay);
+        await context.SaveChangesAsync(cancellationToken);
 
         await storage.DeleteAsync(ImageUrlHelper.OverlayImageKey(organizationId, overlayId), cancellationToken);
     }
+
+    /// <summary>
+    /// Marks the presentation as changed when something inside it changes. UpdatedAt carries the
+    /// user-visible "last edited" semantics; ModifiedAt is the sync watermark and aggregate version
+    /// that push conflict detection compares against.
+    /// </summary>
+    private static Task BumpPresentationAsync(PresentationContext context, string presentationId, string organizationId, CancellationToken cancellationToken) =>
+        context.Presentations
+            .Where(x => x.Id == presentationId && x.OrganizationId == organizationId)
+            .ExecuteUpdateAsync(x => x
+                .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
+                .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
 
     private async Task<string?> UploadOverlayImageAsync(OverlaySlide overlay, string organizationId, CancellationToken cancellationToken)
     {

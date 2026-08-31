@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- The MAUI app's offline plumbing: the local SQLite database (context, migrations, change
+         journal triggers) and, in later milestones, the sync engine and media store. A plain
+         net10.0 library rather than part of the multi-targeted MAUI project, so the sync engine
+         is unit-testable and `dotnet ef` has a single-target project to work against. -->
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.1" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.5" />
+        <!-- Pinned above the version the SQLite provider resolves transitively: GHSA-2m69-gcr7-jv3q. -->
+        <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.5">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
+    </ItemGroup>
+
+</Project>

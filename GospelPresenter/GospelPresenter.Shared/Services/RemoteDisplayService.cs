@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using Microsoft.EntityFrameworkCore;
@@ -32,15 +31,6 @@ public interface IRemoteDisplayService
 public class RemoteDisplayService(
     IDbContextFactory<PresentationContext> dbContextFactory) : IRemoteDisplayService
 {
-    // 31 unambiguous characters: a-z without i/l/o (they look like 1/0) plus 2-9.
-    // Length 7 → 31^7 ≈ 27.5 billion combinations, which is short enough to type
-    // and large enough that guessing IDs across organizations is impractical.
-    // Note that nothing rate-limits /watch/{code}, so this count is the only thing
-    // making enumeration impractical.
-    private const string IdAlphabet = "abcdefghjkmnpqrstuvwxyz23456789";
-    private const int IdLength = 7;
-    private const int MaxIdRetries = 8;
-
     public async Task<List<RemoteDisplay>> GetDisplaysAsync(string organizationId, CallerContext caller)
     {
         caller.RequirePermission(Permission.ViewPresentations);
@@ -61,12 +51,16 @@ public class RemoteDisplayService(
 
         await using var context = await dbContextFactory.CreateDbContextAsync();
 
-        for (var attempt = 0; attempt < MaxIdRetries; attempt++)
+        await ValidationHelper.RequireMaxCountAsync(
+            context.RemoteDisplays.Where(d => d.OrganizationId == organizationId),
+            AppConstraints.MaxRemoteDisplaysPerOrg, "outputs", CancellationToken.None);
+
+        for (var attempt = 0; attempt < DisplayIdentifiers.MaxRetries; attempt++)
         {
             var display = new RemoteDisplay
             {
                 OrganizationId = organizationId,
-                DisplayIdentifier = GenerateDisplayId(),
+                DisplayIdentifier = DisplayIdentifiers.Generate(),
                 Name = name,
                 Kind = kind,
                 CreatedAt = DateTimeOffset.UtcNow
@@ -78,22 +72,14 @@ public class RemoteDisplayService(
                 await context.SaveChangesAsync();
                 return display;
             }
-            catch (DbUpdateException) when (attempt < MaxIdRetries - 1)
+            catch (DbUpdateException) when (attempt < DisplayIdentifiers.MaxRetries - 1)
             {
                 // Unique-index collision on DisplayIdentifier — discard the entry and retry.
                 context.RemoteDisplays.Remove(display);
             }
         }
 
-        throw new InvalidOperationException("Failed to generate a unique display ID after multiple attempts.");
-    }
-
-    private static string GenerateDisplayId()
-    {
-        Span<char> buffer = stackalloc char[IdLength];
-        for (var i = 0; i < IdLength; i++)
-            buffer[i] = IdAlphabet[RandomNumberGenerator.GetInt32(IdAlphabet.Length)];
-        return new string(buffer);
+        throw DisplayIdentifiers.Exhausted();
     }
 
     public async Task RemoveDisplayAsync(string organizationId, string id, CallerContext caller)
@@ -102,9 +88,17 @@ public class RemoteDisplayService(
         caller.RequireOrganizationAccess(organizationId);
 
         await using var context = await dbContextFactory.CreateDbContextAsync();
-        await context.RemoteDisplays
-            .Where(d => d.Id == id && d.OrganizationId == organizationId)
-            .ExecuteDeleteAsync();
+
+        // A tracked delete rather than ExecuteDeleteAsync, so the save writes the tombstone: an
+        // output removed here has to disappear from the devices that pulled it, and a delete no
+        // client can ever learn about would leave a dead QR code live on every one of them.
+        var display = await context.RemoteDisplays
+            .FirstOrDefaultAsync(d => d.Id == id && d.OrganizationId == organizationId);
+        if (display is null)
+            return;
+
+        context.RemoteDisplays.Remove(display);
+        await context.SaveChangesAsync();
     }
 
     public async Task UpdateDisplayAsync(string organizationId, string id, string name, CallerContext caller)
@@ -115,7 +109,9 @@ public class RemoteDisplayService(
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await context.RemoteDisplays
             .Where(d => d.Id == id && d.OrganizationId == organizationId)
-            .ExecuteUpdateAsync(s => s.SetProperty(d => d.Name, name));
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(d => d.Name, name)
+                .SetProperty(d => d.ModifiedAt, DateTimeOffset.UtcNow));
     }
 
     public async Task<string?> RegenerateIdentifierAsync(string organizationId, string id, CallerContext caller)
@@ -130,21 +126,21 @@ public class RemoteDisplayService(
         if (display is null)
             return null;
 
-        for (var attempt = 0; attempt < MaxIdRetries; attempt++)
+        for (var attempt = 0; attempt < DisplayIdentifiers.MaxRetries; attempt++)
         {
-            display.DisplayIdentifier = GenerateDisplayId();
+            display.DisplayIdentifier = DisplayIdentifiers.Generate();
             try
             {
                 await context.SaveChangesAsync();
                 return display.DisplayIdentifier;
             }
-            catch (DbUpdateException) when (attempt < MaxIdRetries - 1)
+            catch (DbUpdateException) when (attempt < DisplayIdentifiers.MaxRetries - 1)
             {
                 // Unique-index collision on DisplayIdentifier — try another identifier.
             }
         }
 
-        throw new InvalidOperationException("Failed to generate a unique display ID after multiple attempts.");
+        throw DisplayIdentifiers.Exhausted();
     }
 
     public async Task<RemoteDisplay?> FindPublicOutputAsync(string displayIdentifier)

@@ -1,10 +1,26 @@
 @using GospelPresenter.Shared.Services
 @using Microsoft.AspNetCore.WebUtilities
-@inject IAuthProviderService AuthProviders
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
 
+@if (deviceSignIn is not null)
+{
+    @* The device app (MAUI): one button that runs the system-browser sign-in flow. *@
+    <div class="flex flex-col p-3 w-full sm:w-140 items-center gap-3">
+        <AppButton OnClick="SignInOnDeviceAsync" Loading="signingIn" Disabled="signingIn" Filled
+                   Class="w-64 px-6 py-3 rounded-full text-lg flex items-center justify-center gap-2">
+            @L["SignIn.Device"]
+        </AppButton>
+        @if (deviceSignInFailed)
+        {
+            <div class="text-sm text-red-500">@L["SignIn.DeviceFailed"]</div>
+        }
+    </div>
+}
+else
+{
 <div class="flex flex-col p-3 w-full sm:w-140 items-center gap-3">
-    @{ var providers = AuthProviders.EnabledProviders; }
+    @{ var providers = authProviders!.EnabledProviders; }
 
     @foreach (var provider in providers.Take(1))
     {
@@ -51,9 +67,42 @@
         }
     }
 </div>
+}
 
 @code {
     private bool showMore;
+    private bool signingIn;
+    private bool deviceSignInFailed;
+    private IDeviceSignIn? deviceSignIn;
+    private IAuthProviderService? authProviders;
+
+    protected override void OnInitialized()
+    {
+        // Only one of these exists per host: the MAUI app registers IDeviceSignIn, the web app
+        // registers IAuthProviderService. Resolved by hand so neither host needs the other's.
+        deviceSignIn = (IDeviceSignIn?)Services.GetService(typeof(IDeviceSignIn));
+        authProviders = (IAuthProviderService?)Services.GetService(typeof(IAuthProviderService));
+    }
+
+    private async Task SignInOnDeviceAsync()
+    {
+        signingIn = true;
+        deviceSignInFailed = false;
+        try
+        {
+            var success = await deviceSignIn!.SignInAsync();
+            deviceSignInFailed = !success;
+            // On success the auth state change re-renders the router away from the login page.
+        }
+        catch (Exception)
+        {
+            deviceSignInFailed = true;
+        }
+        finally
+        {
+            signingIn = false;
+        }
+    }
 
     private string SignInUrl(string providerId)
     {

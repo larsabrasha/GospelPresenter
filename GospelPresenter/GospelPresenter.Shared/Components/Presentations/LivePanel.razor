@@ -7,6 +7,9 @@
 @inject SharedAppState SharedAppState
 @inject PublicOutputState PublicOutputState
 @inject IJSRuntime JsRuntime
+@inject IServiceProvider Services
+@inject GospelPresenter.Shared.Services.IAppCapabilities Capabilities
+@inject ToastService ToastService
 
 @{
     var isBlackScreen = LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
@@ -94,10 +97,10 @@ else
                     class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isOutputsCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
                     <div class="overflow-hidden min-h-0">
                         <div class="flex flex-col gap-3 p-1 pt-3">
-                            @if (hasPresentationApi)
+                            @if (hasPresentationApi || hasNativeExternalDisplay)
                             {
-                                var isActive = presentationDisplays.Count > 0;
-                                <button @onclick="TogglePresentationDisplay"
+                                var isActive = presentationDisplays.Count > 0 || externalWindowId is not null;
+                                <button @onclick="ToggleExternalDisplay"
                                         class="cursor-pointer flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm @(isActive ? "text-neutral-600 dark:text-neutral-300 bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" : "text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-700/50")">
                                     <div class="flex items-center gap-2">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
@@ -253,6 +256,23 @@ else
                                     </AppButton>
                                 </Trigger>
                                 <Menu>
+                                    @* Native host (MAUI): the launcher opens a real second window, no
+                                       popup gesture needed. Web: the synchronous JS path, which must run
+                                       inside the click event or Safari blocks the popup. *@
+                                    @if (liveWindowLauncher is not null)
+                                    {
+                                        <button type="button" @onclick="OpenLiveWindow"
+                                                class="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                 stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                      d="M3 8.25V18a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18V8.25m-18 0V6a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 6v2.25m-18 0h18"/>
+                                            </svg>
+                                            <span>@L["LivePanel.LocalLiveView"]</span>
+                                        </button>
+                                    }
+                                    else
+                                    {
                                     <button type="button"
                                             onclick="gospelPresenter.openLiveWindowFromClick(this)"
                                             data-session-id="@SessionId"
@@ -266,15 +286,19 @@ else
                                         </svg>
                                         <span>@L["LivePanel.LocalLiveView"]</span>
                                     </button>
-                                    <button @onclick="ShowPairingDialog"
-                                            class="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                             stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
-                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                  d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
-                                        </svg>
-                                        <span>@L["LivePanel.AddTempDisplay"]</span>
-                                    </button>
+                                    }
+                                    @if (Capabilities.PairedDisplays)
+                                    {
+                                        <button @onclick="ShowPairingDialog"
+                                                class="cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                 stroke-width="1.5" stroke="currentColor" class="size-4 shrink-0">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                      d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/>
+                                            </svg>
+                                            <span>@L["LivePanel.ConnectTempDisplay"]</span>
+                                        </button>
+                                    }
                                 </Menu>
                             </Dropdown>
 
@@ -322,7 +346,7 @@ else
             </div>
         }
 
-        @if (SessionId is not null && !IsRemoteController)
+        @if (SessionId is not null && !IsRemoteController && Capabilities.RemoteControl)
         {
             var isRemoteEnabled = SharedAppState.IsRemoteControlEnabled(SessionId);
             <div class="mt-3">
@@ -424,7 +448,7 @@ else
 
 @if (showRemoteControlInfoDialog && remoteControlPresentationId is not null)
 {
-    <RemoteControlInfoDialog PresentationId="@remoteControlPresentationId" PresentationName="@remoteControlPresentationName" OnClose="CloseRemoteControlInfoDialog"/>
+    <RemoteControlInfoDialog PresentationId="@remoteControlPresentationId" PresentationName="@remoteControlPresentationName" SessionId="@SessionId" OnClose="CloseRemoteControlInfoDialog"/>
 }
 
 @if (outputToTakeOver is not null)
@@ -483,16 +507,19 @@ else
 
     private HashSet<string> savedDisplayIds => SavedDisplays.Select(d => d.DisplayIdentifier).ToHashSet();
 
-    private List<RemoteDisplay> Screens =>
-        SavedDisplays.Where(d => d.Kind == OutputKind.Screen).ToList();
+    // On a host without the capability the list is simply empty, which hides every control.
+    private List<RemoteDisplay> Screens => Capabilities.PairedDisplays
+        ? SavedDisplays.Where(d => d.Kind == OutputKind.Screen).ToList()
+        : [];
 
-    private List<RemoteDisplay> PublicOutputs =>
-        SavedDisplays.Where(d => d.Kind == OutputKind.PublicQr).ToList();
+    private List<RemoteDisplay> PublicOutputs => Capabilities.PublicOutput
+        ? SavedDisplays.Where(d => d.Kind == OutputKind.PublicQr).ToList()
+        : [];
 
     private RemoteDisplay? outputToTakeOver;
     private string? outputToTakeOverFrom;
 
-    private List<ConnectedDisplay> adHocDisplays => SessionId is not null
+    private List<ConnectedDisplay> adHocDisplays => SessionId is not null && Capabilities.PairedDisplays
         ? RemoteDisplayState.GetConnectedDisplays(SessionId)
             .Where(d => !savedDisplayIds.Contains(d.DisplayId)).ToList()
         : [];
@@ -506,12 +533,25 @@ else
 
     private List<int> presentationDisplays = [];
     private bool hasPresentationApi;
+
+    // The same output, reached two ways. hasNativeExternalDisplay wins where both look possible:
+    // the host that reports a real second display can put a window on it, which is what the
+    // browser's Presentation API only pretends to offer outside Chrome with a Cast receiver.
+    private bool hasNativeExternalDisplay;
+    private string? externalWindowId;
     private DotNetObjectReference<LivePanel>? dotNetRef;
 
     private bool showPairingDialog;
 
+    private ILiveWindowLauncher? liveWindowLauncher;
+
     protected override void OnInitialized()
     {
+        // Only the MAUI host registers a native launcher; the web keeps its JS window path.
+        liveWindowLauncher = Services.GetService(typeof(ILiveWindowLauncher)) as ILiveWindowLauncher;
+        if (liveWindowLauncher is not null)
+            liveWindowLauncher.WindowClosed += OnNativeLiveWindowClosed;
+
         RemoteDisplayState.DisplayCameOnline += OnDisplayStatusChanged;
         RemoteDisplayState.DisplayWentOffline += OnDisplayStatusChanged;
         RemoteDisplayState.DisplayPaired += OnDisplayStatusChanged;
@@ -519,10 +559,33 @@ else
         PublicOutputState.ViewerCountChanged += OnDisplayStatusChanged;
     }
 
+    private void OnNativeLiveWindowClosed(string windowId)
+    {
+        // Whoever closed it — the operator's toggle, the window's own controls, the presentation
+        // stopping — the launcher reports it here and the row goes back to off.
+        if (windowId == externalWindowId)
+        {
+            externalWindowId = null;
+            _ = InvokeAsync(async () =>
+            {
+                await SaveOutputConfig();
+                StateHasChanged();
+            });
+            return;
+        }
+
+        OnLiveWindowClosed(windowId);
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         if (SessionId is not null && previousSessionId is null)
         {
+            // Asked before restoring, not on first render like the Presentation API check below:
+            // this one is a plain call into the host, so it can be answered while the saved config
+            // is still deciding whether to reopen the projector window.
+            hasNativeExternalDisplay = liveWindowLauncher is not null
+                                       && await liveWindowLauncher.HasExternalDisplayAsync();
             await RestoreOutputConfig();
         }
 
@@ -536,6 +599,8 @@ else
 
     public void Dispose()
     {
+        if (liveWindowLauncher is not null)
+            liveWindowLauncher.WindowClosed -= OnNativeLiveWindowClosed;
         RemoteDisplayState.DisplayCameOnline -= OnDisplayStatusChanged;
         RemoteDisplayState.DisplayWentOffline -= OnDisplayStatusChanged;
         RemoteDisplayState.DisplayPaired -= OnDisplayStatusChanged;
@@ -630,17 +695,29 @@ else
         var windowId = Guid.NewGuid().ToString("N")[..8];
         var index = nextWindowIndex++;
         var title = $"{L["LivePanel.LocalLiveView"]} ({index})";
-        var success = await JsRuntime.InvokeAsync<bool>("gospelPresenter.openLiveWindow", SessionId, windowId, title);
+        var success = liveWindowLauncher is not null
+            ? await liveWindowLauncher.OpenAsync(SessionId, windowId, title)
+            : await JsRuntime.InvokeAsync<bool>("gospelPresenter.openLiveWindow", SessionId, windowId, title);
         if (success)
         {
             liveWindows.Add(new LiveWindowEntry(windowId, index));
             await SaveOutputConfig();
         }
+        else
+        {
+            // The window can fail either way: a blocked popup on the web, an unsupported second
+            // window on the device. Both leave the button looking like it did nothing.
+            nextWindowIndex--;
+            ToastService.Show(L["LivePanel.LiveWindowFailed"]);
+        }
     }
 
     private async Task CloseLiveWindow(string windowId)
     {
-        await JsRuntime.InvokeVoidAsync("gospelPresenter.closeLiveWindow", windowId);
+        if (liveWindowLauncher is not null)
+            await liveWindowLauncher.CloseAsync(windowId);
+        else
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.closeLiveWindow", windowId);
         liveWindows.RemoveAll(w => w.WindowId == windowId);
         await SaveOutputConfig();
     }
@@ -682,7 +759,9 @@ else
         {
             enabledDisplayIds,
             windowCount = liveWindows.Count,
-            presentationDisplay = presentationDisplays.Count > 0
+            // One flag for the one output, whichever mechanism is driving it — a machine that
+            // gained or lost a projector since last time restores whatever it can do now.
+            presentationDisplay = presentationDisplays.Count > 0 || externalWindowId is not null
         };
         await JsRuntime.InvokeVoidAsync("gospelPresenter.saveOutputConfig", config);
     }
@@ -720,9 +799,12 @@ else
                 await OpenLiveWindow();
             }
 
-            if (config.PresentationDisplay == true && hasPresentationApi && presentationDisplays.Count == 0)
+            if (config.PresentationDisplay == true)
             {
-                await StartPresentationDisplay();
+                if (hasNativeExternalDisplay && externalWindowId is null)
+                    await StartNativeExternalDisplay();
+                else if (hasPresentationApi && presentationDisplays.Count == 0)
+                    await StartPresentationDisplay();
             }
         }
         catch
@@ -733,9 +815,16 @@ else
 
     private record OutputConfig(string[]? EnabledDisplayIds, int? WindowCount, bool? PresentationDisplay);
 
-    private async Task TogglePresentationDisplay()
+    private async Task ToggleExternalDisplay()
     {
-        if (presentationDisplays.Count > 0)
+        if (hasNativeExternalDisplay)
+        {
+            if (externalWindowId is { } open)
+                await liveWindowLauncher!.CloseAsync(open);
+            else
+                await StartNativeExternalDisplay();
+        }
+        else if (presentationDisplays.Count > 0)
         {
             foreach (var id in presentationDisplays.ToList())
             {
@@ -750,6 +839,22 @@ else
         }
 
         await SaveOutputConfig();
+    }
+
+    /// <summary>
+    /// Opens the live view on the projector as a native window. It is deliberately not added to
+    /// <see cref="liveWindows"/>: this output has its own row, and listing it twice would offer the
+    /// operator two different ways to close one window.
+    /// </summary>
+    private async Task StartNativeExternalDisplay()
+    {
+        if (SessionId is null || liveWindowLauncher is null) return;
+
+        var windowId = Guid.NewGuid().ToString("N")[..8];
+        if (await liveWindowLauncher.OpenAsync(SessionId, windowId, L["LivePanel.ExternalDisplay"]))
+            externalWindowId = windowId;
+        else
+            ToastService.Show(L["LivePanel.LiveWindowFailed"]);
     }
 
     private async Task StartPresentationDisplay()
@@ -782,7 +887,8 @@ else
     {
         if (firstRender)
         {
-            hasPresentationApi = await JsRuntime.InvokeAsync<bool>("gospelPresenter.isPresentationApiAvailable");
+            hasPresentationApi = !hasNativeExternalDisplay
+                                 && await JsRuntime.InvokeAsync<bool>("gospelPresenter.isPresentationApiAvailable");
             windowCloseRef = DotNetObjectReference.Create(this);
             await JsRuntime.InvokeVoidAsync("gospelPresenter.onLiveWindowClosed", windowCloseRef);
             await JsRuntime.InvokeVoidAsync("gospelPresenter.setLivePanelRef", windowCloseRef);

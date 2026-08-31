@@ -9,6 +9,8 @@
 
 @inject IUserService UserService
 @inject ActiveOrganizationState OrgState
+@inject IAppCapabilities Capabilities
+@inject IServiceProvider Services
 
 <AuthorizeView>
     <Authorized>
@@ -24,13 +26,17 @@
                     <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100">@user?.Name</div>
                     <div class="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">@user?.Email</div>
                 </div>
-                <a href="/profile"
-                   class="flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
-                        <path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z"/>
-                    </svg>
-                    @L["Nav.MyProfile"]
-                </a>
+                @* The profile lives in the unsynced Users table: edit it on the web. *@
+                @if (Capabilities.ProfileEditing)
+                {
+                    <a href="/profile"
+                       class="flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                            <path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z"/>
+                        </svg>
+                        @L["Nav.MyProfile"]
+                    </a>
+                }
                 <a href="/settings"
                    class="flex items-center gap-3 px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
@@ -39,9 +45,10 @@
                     @L["Nav.Settings"]
                 </a>
                 <div class="border-t-[0.5px] border-neutral-200 dark:border-neutral-600"></div>
-                <form method="post" action="/signout">
-                    <AntiforgeryToken/>
-                    <button type="submit"
+                @if (deviceSignIn is not null)
+                {
+                    @* The device app: forget the token and cached identity; local data stays. *@
+                    <button @onclick="SignOutFromDeviceAsync"
                             class="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
                             <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 0 1 5.25 2h5.5A2.25 2.25 0 0 1 13 4.25v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 10.75 18h-5.5A2.25 2.25 0 0 1 3 15.75V4.25Z" clip-rule="evenodd"/>
@@ -49,7 +56,21 @@
                         </svg>
                         @L["Nav.Logout"]
                     </button>
-                </form>
+                }
+                else
+                {
+                    <form method="post" action="/signout">
+                        <AntiforgeryToken/>
+                        <button type="submit"
+                                class="flex items-center gap-3 w-full text-left px-4 py-3 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4">
+                                <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 0 1 5.25 2h5.5A2.25 2.25 0 0 1 13 4.25v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 10.75 18h-5.5A2.25 2.25 0 0 1 3 15.75V4.25Z" clip-rule="evenodd"/>
+                                <path fill-rule="evenodd" d="M6 10a.75.75 0 0 1 .75-.75h9.546l-1.048-.943a.75.75 0 1 1 1.004-1.114l2.5 2.25a.75.75 0 0 1 0 1.114l-2.5 2.25a.75.75 0 1 1-1.004-1.114l1.048-.943H6.75A.75.75 0 0 1 6 10Z" clip-rule="evenodd"/>
+                            </svg>
+                            @L["Nav.Logout"]
+                        </button>
+                    </form>
+                }
             </Menu>
         </Dropdown>
     </Authorized>
@@ -60,9 +81,18 @@
 
     private User? user;
     private string? userId;
+    private IDeviceSignIn? deviceSignIn;
+
+    private async Task SignOutFromDeviceAsync()
+    {
+        if (deviceSignIn is not null)
+            await deviceSignIn.SignOutAsync();
+        // The auth state provider notices the sign-out and Routes redirects to /login.
+    }
 
     protected override async Task OnInitializedAsync()
     {
+        deviceSignIn = Services.GetService(typeof(IDeviceSignIn)) as IDeviceSignIn;
         WeakReferenceMessenger.Default.Register(this);
 
         if (AuthState is null) return;

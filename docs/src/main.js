@@ -26,3 +26,7 @@ document.querySelectorAll("[data-lang]").forEach((el) => {
     localStorage.setItem("lang", el.dataset.lang);
   });
 });
+
+// The desktop download, filled in from the GitHub Releases API at runtime.
+import { initDownload } from "./download.js";
+initDownload();

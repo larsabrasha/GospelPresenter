@@ -40,7 +40,7 @@ public interface IUserService
     Task<List<User>> GetAllUsersAsync(CallerContext caller);
     Task<User?> GetByIdAsync(string id, CallerContext caller);
     Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role, CallerContext caller);
-    Task<User> CreateSuperUserAsync(string name);
+    Task<User> CreateSuperUserAsync(string name, string organizationName);
     Task UpdateUserAsync(string id, string name, string email, UserRole role, CallerContext caller);
     Task UpdateEmailIfEmptyAsync(string id, string email);
     Task UpdateProfileImageAsync(string id, string? profileImage, string? profileImageSmall);
@@ -70,6 +70,11 @@ public interface IUserService
     Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller);
     Task<(McpApiKey ApiKey, string PlaintextKey)> CreateMcpApiKeyAsync(string name, string userId, string organizationId, CallerContext caller);
     Task DeleteMcpApiKeyAsync(string id, CallerContext caller);
+
+    Task<List<DeviceToken>> GetDeviceTokensAsync(string userId, CallerContext caller);
+    Task<List<DeviceToken>> GetOrganizationDeviceTokensAsync(string organizationId, CallerContext caller);
+    Task<(DeviceToken Token, string PlaintextToken)> CreateDeviceTokenAsync(string name, string userId, string organizationId, CallerContext caller);
+    Task RevokeDeviceTokenAsync(string id, CallerContext caller);
 
     Task<List<CalendarSubscription>> GetCalendarSubscriptionsAsync(string userId, string organizationId, CallerContext caller);
     Task<(CalendarSubscription Subscription, string PlaintextToken)> CreateCalendarSubscriptionAsync(string name, string userId, string organizationId, CallerContext caller);
@@ -212,17 +217,30 @@ public class UserService(
         return user;
     }
 
-    public async Task<User> CreateSuperUserAsync(string name)
+    /// <summary>
+    /// The very first account, created by /setup on an empty database. The super admin reaches
+    /// every organisation through <see cref="Permission.CrossOrganizationAccess"/>, but is still
+    /// made a member of one here: a device token is always issued for an organisation, so an
+    /// organisation-less first account could sign in to the web app and nowhere else.
+    /// </summary>
+    public async Task<User> CreateSuperUserAsync(string name, string organizationName)
     {
         ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
+        ValidationHelper.RequireMaxLength(organizationName, AppConstraints.NameMaxLength, "Organization name");
         await using var context = await dbContextFactory.CreateDbContextAsync();
+
+        var organization = new Organization { Name = organizationName };
         var user = new User
         {
             Name = name,
-            Role = UserRole.SuperAdmin
+            Role = UserRole.SuperAdmin,
+            OrganizationId = organization.Id
         };
+        context.Organizations.Add(organization);
         context.Users.Add(user);
         await context.SaveChangesAsync();
+
+        await songPartLabelService.CreateDefaultLabelsAsync(organization.Id);
         return user;
     }
 
@@ -514,9 +532,14 @@ public class UserService(
     {
         caller.RequireUserAccess(userId);
         await using var context = await dbContextFactory.CreateDbContextAsync();
-        await context.UserSettings
-            .Where(us => us.UserId == userId && us.Key == key)
-            .ExecuteDeleteAsync();
+
+        // Tracked delete rather than ExecuteDelete, so the context writes the sync tombstone itself.
+        var setting = await context.UserSettings
+            .FirstOrDefaultAsync(us => us.UserId == userId && us.Key == key);
+        if (setting is null) return;
+
+        context.UserSettings.Remove(setting);
+        await context.SaveChangesAsync();
     }
 
     public async Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller)
@@ -571,6 +594,79 @@ public class UserService(
         if (key is null) return;
         caller.RequireOrganizationAccess(key.OrganizationId);
         await context.McpApiKeys.Where(k => k.Id == id).ExecuteDeleteAsync();
+    }
+
+    public async Task<List<DeviceToken>> GetDeviceTokensAsync(string userId, CallerContext caller)
+    {
+        caller.RequireUserAccess(userId);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.DeviceTokens
+            .Where(t => t.UserId == userId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Every device in one organization, with the user each belongs to. Unlike
+    /// <see cref="GetDeviceTokensAsync"/>, which is a user looking at their own devices, this is the
+    /// administrative view behind /admin/devices: what is installed out there and what version it
+    /// runs, so the sync protocol floor is raised against a measured distribution rather than a
+    /// guess. See adr/0002-app-distribution-and-updates.md (24).
+    /// </summary>
+    public async Task<List<DeviceToken>> GetOrganizationDeviceTokensAsync(string organizationId, CallerContext caller)
+    {
+        caller.RequirePermission(Permission.ViewUsers);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.DeviceTokens
+            .Include(t => t.User)
+            .Where(t => t.OrganizationId == organizationId)
+            .OrderByDescending(t => t.LastUsedAt ?? t.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<(DeviceToken Token, string PlaintextToken)> CreateDeviceTokenAsync(string name, string userId, string organizationId, CallerContext caller)
+    {
+        // Device tokens are personal — any signed-in user equips their own device, so the gate is
+        // "acting on your own account", not an admin permission like the MCP keys next door.
+        caller.RequireUserAccess(userId);
+        caller.RequireOrganizationAccess(organizationId);
+        ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+
+        // The token authenticates as this user in this organization, so the two have to belong
+        // together — mirrors the check on MCP keys above.
+        var userInOrganization = await context.Users
+            .AnyAsync(u => u.Id == userId && u.OrganizationId == organizationId);
+        if (!userInOrganization) throw new InvalidOperationException("User not found.");
+
+        await ValidationHelper.RequireMaxCountAsync(
+            context.DeviceTokens.Where(t => t.UserId == userId && t.RevokedAt == null),
+            AppConstraints.MaxDeviceTokensPerUser, "device tokens");
+
+        var plaintextToken = DeviceToken.GenerateKey();
+        var token = new DeviceToken
+        {
+            Name = name,
+            UserId = userId,
+            OrganizationId = organizationId,
+            TokenHash = DeviceToken.HashKey(plaintextToken)
+        };
+        context.DeviceTokens.Add(token);
+        await context.SaveChangesAsync();
+        return (token, plaintextToken);
+    }
+
+    public async Task RevokeDeviceTokenAsync(string id, CallerContext caller)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        var token = await context.DeviceTokens.FirstOrDefaultAsync(t => t.Id == id);
+        if (token is null) return;
+        caller.RequireUserAccess(token.UserId);
+
+        // Kept for audit rather than deleted; the auth handler only accepts unrevoked tokens.
+        token.RevokedAt = DateTimeOffset.UtcNow;
+        await context.SaveChangesAsync();
     }
 
     public async Task<List<CalendarSubscription>> GetCalendarSubscriptionsAsync(string userId, string organizationId, CallerContext caller)

@@ -37,6 +37,7 @@ public partial class SharedAppState : ObservableObject
     private readonly ConcurrentDictionary<string, bool> remoteControlEnabled = new();
     private readonly ConcurrentDictionary<string, Audio> sessionAudio = new();
     private readonly ConcurrentDictionary<string, AudioCommand> pendingAudioCommands = new();
+    private readonly ConcurrentDictionary<string, bool> ccliReportedElsewhere = new();
 
     public static readonly LiveSlide DefaultSlide = new(
         LiveSlideStatus.ShowingPresentation,
@@ -69,10 +70,10 @@ public partial class SharedAppState : ObservableObject
         return activeOverlays.GetValueOrDefault(sessionId);
     }
 
-    public void SetOverlay(string sessionId, string? text, string? imageUrl)
+    public void SetOverlay(string sessionId, string? text, string? imageUrl, string? overlayId = null)
     {
         TouchSession(sessionId);
-        activeOverlays[sessionId] = new ActiveOverlay(text, imageUrl);
+        activeOverlays[sessionId] = new ActiveOverlay(text, imageUrl, overlayId);
         OnPropertyChanged(sessionId);
     }
 
@@ -94,8 +95,37 @@ public partial class SharedAppState : ObservableObject
         });
     }
 
+    /// <summary>
+    /// Says that something other than this state object already reports what this session displays
+    /// to CCLI, and that the timer below must therefore stay out of it.
+    ///
+    /// A session mirrored from a desktop client is the case: the device counts the song on its own
+    /// machine and the count reaches the server through the sync protocol like any other row.
+    /// Counting it here as well would report every song of every service twice.
+    /// </summary>
+    public void SetCcliReportedElsewhere(string sessionId, bool reportedElsewhere)
+    {
+        if (reportedElsewhere)
+            ccliReportedElsewhere[sessionId] = true;
+        else
+            ccliReportedElsewhere.TryRemove(sessionId, out _);
+    }
+
+    public bool IsCcliReportedElsewhere(string sessionId) =>
+        ccliReportedElsewhere.ContainsKey(sessionId);
+
     public bool IsPresentationActive(string sessionId) =>
         presentationActive.ContainsKey(sessionId);
+
+    /// <summary>
+    /// Whether anything at all is being presented right now, in any session. The device app has one
+    /// user and therefore one session, so "any" is the question it actually wants to ask: it is what
+    /// stops an update from restarting the app mid-service. Deliberately broader than "a projector
+    /// window is open" — a remote display or the public output is just as live to a congregation,
+    /// and on Mac Catalyst the projector window cannot open at all yet.
+    /// See adr/0002-app-distribution-and-updates.md (17).
+    /// </summary>
+    public bool HasActivePresentation => !presentationActive.IsEmpty;
 
     public string? GetSessionOrganizationId(string sessionId) =>
         presentationActive.GetValueOrDefault(sessionId)?.OrganizationId;
@@ -181,16 +211,25 @@ public partial class SharedAppState : ObservableObject
     public event Action<string>? PresentationActivated;
     public event Action<string>? PresentationDeactivated;
 
-    public string? GetActiveSessionIdForPresentation(string organizationId, string presentationId)
+    /// <summary>
+    /// Every session presenting this presentation right now, oldest key first so the order is
+    /// stable between calls.
+    ///
+    /// There can be more than one: the same service can be running on a desktop in the building and
+    /// in a browser somewhere else, and both are legitimate. A controller has to be told which one
+    /// it is driving rather than silently getting whichever came back first.
+    /// </summary>
+    public IReadOnlyList<string> GetActiveSessionIdsForPresentation(string organizationId, string presentationId)
     {
         var resolved = presentationActive
             .Where(kvp => kvp.Value.OrganizationId == organizationId
                        && kvp.Value.PresentationId == presentationId)
             .Select(kvp => kvp.Key)
-            .FirstOrDefault();
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
         logger.LogDebug(
-            "GetActiveSessionIdForPresentation organizationId={OrganizationId} presentationId={PresentationId} resolvedSessionId={ResolvedSessionId}",
-            organizationId, presentationId, resolved);
+            "GetActiveSessionIdsForPresentation organizationId={OrganizationId} presentationId={PresentationId} resolvedCount={ResolvedCount}",
+            organizationId, presentationId, resolved.Count);
         return resolved;
     }
 
@@ -261,6 +300,9 @@ public partial class SharedAppState : ObservableObject
             || string.IsNullOrEmpty(slide.SongId))
             return;
 
+        if (ccliReportedElsewhere.ContainsKey(sessionId))
+            return;
+
         var session = presentationActive.GetValueOrDefault(sessionId);
         if (session is null) return;
 
@@ -316,6 +358,7 @@ public partial class SharedAppState : ObservableObject
             remoteControlEnabled.TryRemove(sessionId, out _);
             sessionAudio.TryRemove(sessionId, out _);
             pendingAudioCommands.TryRemove(sessionId, out _);
+            ccliReportedElsewhere.TryRemove(sessionId, out _);
             lastAccessed.TryRemove(sessionId, out _);
 
             if (wasActive || wasRemoteEnabled)

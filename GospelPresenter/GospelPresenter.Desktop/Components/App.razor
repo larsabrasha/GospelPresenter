@@ -1,0 +1,101 @@
+@using System.Globalization
+@using Microsoft.Extensions.Localization
+@using GospelPresenter.Shared.Localization
+
+@inject IStringLocalizer<SharedResource> L
+
+<!DOCTYPE html>
+<!-- Adapted from GospelPresenter.Web/Components/App.razor. Kept deliberately close to it: the
+     desktop app renders the same components in the same render mode, so a divergence here is a
+     divergence in behaviour between the two. -->
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" class="h-dvh overscroll-none overflow-hidden bg-neutral-100 dark:bg-neutral-900">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["_content/GospelPresenter.Shared/tailwind-output.css"]" />
+    <link rel="stylesheet" href="@Assets["_content/GospelPresenter.Shared/app.css"]" />
+    <title>Gospel Presenter</title>
+    <script>
+        (function() {
+            // Polyfill crypto.randomUUID for non-secure origins (LAN access over plain HTTP).
+            // crypto.getRandomValues is available everywhere and is sufficient for a v4 UUID.
+            if (typeof crypto !== 'undefined' && typeof crypto.randomUUID !== 'function') {
+                crypto.randomUUID = function () {
+                    var bytes = new Uint8Array(16);
+                    crypto.getRandomValues(bytes);
+                    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+                    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+                    var hex = Array.from(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+                    return hex.slice(0,8) + '-' + hex.slice(8,12) + '-' + hex.slice(12,16) + '-' + hex.slice(16,20) + '-' + hex.slice(20);
+                };
+            }
+
+            var theme = localStorage.getItem('theme') || 'system';
+            var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (dark) document.documentElement.classList.add('dark');
+
+            var path = window.location.pathname;
+            if (path === '/display' || path === '/live') {
+                // A projector or a TV with a congregation looking at it. Marked here, next to the
+                // black background it already needs, so the stylesheet has one hook for "this
+                // screen is not the operator's" — see app.css.
+                document.documentElement.style.backgroundColor = 'black';
+                document.documentElement.classList.add('output-surface');
+            }
+        })();
+    </script>
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+
+<body class="flex flex-col h-full">
+    <Routes @rendermode="InteractiveServer" />
+    <script src="@Assets["_content/GospelPresenter.Shared/sortable.min.js"]"></script>
+    <script src="@Assets["_content/GospelPresenter.Shared/viewport-monitor.js"]"></script>
+    <script src="@Assets["_content/GospelPresenter.Shared/utils.js"]"></script>
+
+    @*
+        Our own reconnection indicator. blazor.web.js only uses this element if it exists; without
+        it the framework injects a dialog of its own, with a full-page overlay, which on /live and
+        /display lands across the projected slide in front of a congregation. Owning the element is
+        how we own where a connection warning may appear.
+
+        The framework only toggles the components-reconnect-* classes and fills the counter spans.
+        It never sets display, so every state's visibility is defined in app.css.
+    *@
+    <div id="components-reconnect-modal" data-nosnippet
+         class="fixed bottom-0 left-0 z-1000 m-3 rounded-xl px-4 py-3 text-sm shadow-lg bg-yellow-50 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100">
+        <span class="reconnect-retrying-text">
+            @L["Reconnect.Retrying"]
+            (<span id="components-reconnect-current-attempt"></span>/<span id="components-reconnect-max-retries"></span>)
+        </span>
+        <span class="reconnect-failed-text">
+            @L["Reconnect.Failed"]
+            <a href="." class="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl">@L["MainLayout.Reload"]</a>
+        </span>
+    </div>
+
+    <script src="@Assets["_framework/blazor.web.js"]" autostart="false"></script>
+    <script>
+        // The framework default is 30 attempts over about 5 minutes 50 seconds, which is shorter
+        // than a service: an outage in the building would leave the operator with a dead page and
+        // a reload button that cannot work. These intervals keep the framework's fast opening
+        // attempts and then settle at 30 seconds for roughly two hours, so a long outage still
+        // self-heals on its own.
+        Blazor.start({
+            circuit: {
+                reconnectionOptions: {
+                    maxRetries: 260,
+                    retryIntervalMilliseconds: function (previousAttempts) {
+                        if (previousAttempts < 10) return 0;
+                        if (previousAttempts < 20) return 5000;
+                        return 30000;
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

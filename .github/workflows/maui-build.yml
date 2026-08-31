@@ -1,0 +1,181 @@
+name: MAUI build
+
+# Keeps every app target compiling and the test suite green. The desktop app is
+# GospelPresenter.Desktop (Electron) and is built on ubuntu with everything else; the MAUI project
+# is iOS, Android and Windows, none of which ships yet -- they build here so they never silently
+# rot.
+#
+# The tests run on every pull request. The three platform builds do not: they occupy a macOS and
+# a Windows runner for up to an hour each, and they answer "does iOS still compile", which does
+# not need asking on every push to a feature branch. They run on main, and on demand via
+# workflow_dispatch when a change is likely to break a target.
+#
+# The Apple workloads demand a specific Xcode, not merely a sufficient one. Keep sdk.version in the
+# same feature band as the workload set and rollForward no looser than latestPatch: a workload set
+# exists only for its own band, so letting the SDK roll forward past it breaks workload resolution
+# for every project in the repo, the plain test project included. If the apple job starts failing on
+# an Xcode/SDK mismatch after a runner image update, bump the pin and Xcode together.
+
+on:
+  push:
+    branches: ['main']
+    paths:
+      - 'GospelPresenter/**'
+      - '.github/workflows/maui-build.yml'
+  pull_request:
+    paths:
+      - 'GospelPresenter/**'
+      - '.github/workflows/maui-build.yml'
+  workflow_dispatch:
+
+# Every dotnet command runs from GospelPresenter/, because that is where global.json lives and SDK
+# selection walks up from the working directory, not down from the project. Run from the repository
+# root and the muxer sees no global.json at all, picks the newest SDK on the runner, and then the
+# workload resolver -- which does read global.json, relative to the project -- demands a workload
+# set that does not exist for that band. The two halves have to be looking at the same file.
+defaults:
+  run:
+    working-directory: GospelPresenter
+
+# Tailwind.MSBuild downloads the standalone Tailwind CLI from the GitHub API during the build, with
+# no token, and runners share an address pool -- so it intermittently gets 403 rate limit exceeded
+# and fails the build for a reason that has nothing to do with the change under test. Pointing the
+# install path somewhere cacheable lets each job restore the binary instead of fetching it. MSBuild
+# reads environment variables as properties, and the package only defaults TailwindInstallPath when
+# it is empty, so this wins without touching the project files.
+env:
+  TailwindInstallPath: ${{ github.workspace }}/.tailwind-cli/
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Cache the Tailwind CLI
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.tailwind-cli
+          key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Unit tests
+        run: dotnet test GospelPresenter.UnitTests/GospelPresenter.UnitTests.csproj
+
+      - name: Integration tests
+        run: dotnet test GospelPresenter.IntegrationTests/GospelPresenter.IntegrationTests.csproj
+
+      # The desktop app needs no workload and no Apple toolchain, so it builds here rather than
+      # occupying a macOS runner.
+      - name: Build the desktop app
+        run: dotnet build GospelPresenter.Desktop/GospelPresenter.Desktop.csproj
+
+      - name: Check the stylesheet reached the static web assets
+        # Tailwind's output is generated during the build and gitignored, so it is present on every
+        # machine that has built before and on no clean checkout. When it misses the manifest the
+        # app still compiles, still starts, and renders with no styling whatsoever — which is how it
+        # reached a release once, verified on a developer machine that had the file lying around.
+        #
+        # This job is the only place it can be caught, because it is the only place that checks out
+        # clean. Asserted against the manifest rather than the file on disk: the file being written
+        # is precisely what was never in doubt.
+        run: |
+          manifest=GospelPresenter.Desktop/obj/Debug/net10.0/staticwebassets.build.endpoints.json
+          if [ ! -f "$manifest" ]; then
+            echo "::error::$manifest does not exist. The build layout changed and this check no longer checks anything."
+            exit 1
+          fi
+          if ! grep -q "tailwind-output" "$manifest"; then
+            echo "::error::tailwind-output.css is missing from the static web asset manifest. The app would ship with no styling."
+            exit 1
+          fi
+          echo "tailwind-output.css is in the static web asset manifest."
+
+  apple-and-android:
+    # Not on pull requests -- see the note at the top of this file.
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Cache the Tailwind CLI
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.tailwind-cli
+          key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Install the pinned MAUI workloads
+        # This one step runs from the app's own directory, not the repository default: the workload
+        # commands read workloadVersion from the global.json above the *working directory*, and the
+        # pin lives beside the app rather than at the top so that ordinary test projects are not
+        # made to depend on an installed workload set. Run it one level up and restore sees no pin,
+        # installs the newest set instead, and the build then fails against the pin it never saw.
+        working-directory: GospelPresenter/GospelPresenter
+        run: dotnet workload restore GospelPresenter.csproj
+
+      - name: Select the Xcode the pinned workload set expects
+        # .NET for iOS wants a matching Xcode, not merely a sufficient one: workload set 10.0.204
+        # demands Xcode 26.3 and refuses the 26.6 the runner image defaults to. Xcode 26.4 is not an
+        # option either -- it requires macOS Tahoe,
+        # and this project is developed on Sequoia. Raise this together with the workload pin.
+        run: |
+          echo "Xcode versions on this image:"
+          ls -d /Applications/Xcode*.app || true
+          app=$(ls -d /Applications/Xcode_26.3*.app 2>/dev/null | head -1)
+          if [ -z "$app" ]; then
+            echo "::error::Xcode 26.3 is not on this runner image, but workload set 10.0.204 requires it. Pick an image that has it, or move the workload pin and this step together."
+            exit 1
+          fi
+          sudo xcode-select -s "$app"
+          xcodebuild -version
+
+      - name: Build iOS
+        run: dotnet build GospelPresenter/GospelPresenter.csproj -f net10.0-ios
+
+      - name: Build Android
+        run: dotnet build GospelPresenter/GospelPresenter.csproj -f net10.0-android
+
+  windows:
+    # Not on pull requests -- see the note at the top of this file.
+    if: github.event_name != 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Cache the Tailwind CLI
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.tailwind-cli
+          key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Install the pinned MAUI workloads
+        # This one step runs from the app's own directory, not the repository default: the workload
+        # commands read workloadVersion from the global.json above the *working directory*, and the
+        # pin lives beside the app rather than at the top so that ordinary test projects are not
+        # made to depend on an installed workload set. Run it one level up and restore sees no pin,
+        # installs the newest set instead, and the build then fails against the pin it never saw.
+        working-directory: GospelPresenter/GospelPresenter
+        run: dotnet workload restore GospelPresenter.csproj
+
+      - name: Build Windows
+        run: dotnet build GospelPresenter/GospelPresenter.csproj -f net10.0-windows10.0.19041.0

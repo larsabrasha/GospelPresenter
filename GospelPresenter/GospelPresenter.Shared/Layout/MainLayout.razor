@@ -4,6 +4,8 @@
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.Extensions.DependencyInjection
+@using Microsoft.Extensions.Logging
 
 @inherits LayoutComponentBase
 
@@ -13,6 +15,8 @@
 @inject IUserService UserService
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
+@inject ILogger<MainLayout> Logger
+@inject IServiceProvider Services
 
 <ViewportMonitor OnViewportChanged="viewport => AppState.MainViewport = viewport"/>
 
@@ -31,6 +35,8 @@
                 </span>
             </div>
             <div class="flex items-center gap-6">
+                <UpdateAvailableIndicator/>
+                <SyncStatusIndicator/>
                 <AdminMenu/>
                 <OrganizationSwitcher/>
                 <LoginDisplay/>
@@ -59,12 +65,22 @@
 
 
 
-    protected override async Task OnInitializedAsync()
+    /// <summary>
+    /// Runs on every authentication state change, not once at initialisation, because on a host
+    /// where signing in does not reload the page there is no second chance. The web signs in
+    /// through a redirect, so this layout is built fresh with a user already present; the device
+    /// and desktop apps sign in on the spot, and a layout that had read "nobody" once would keep
+    /// the body hidden behind IsInitialized for the rest of the session.
+    ///
+    /// Guarded on the user actually changing, so a revalidating provider re-confirming the same
+    /// user does not re-run the organisation lookup on every pass.
+    /// </summary>
+    protected override async Task OnParametersSetAsync()
     {
         if (AuthState is null) return;
         var state = await AuthState;
         var userId = state.User.FindFirst("user_id")?.Value;
-        if (userId is null) return;
+        if (userId is null || userId == OrgState.UserId) return;
 
         var roleString = state.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
         var role = Enum.TryParse<UserRole>(roleString, out var parsed) ? parsed : UserRole.User;
@@ -112,7 +128,28 @@
     {
         if (firstRender)
         {
-            AppState.SessionId = await JsRuntime.InvokeAsync<string>("getOrCreateSessionId");
+            // A host with an identity of its own answers first: the desktop app is one machine in
+            // one room, and its session id has to survive a restart. The web registers no provider
+            // and goes straight to session storage, which is the right lifetime for a tab.
+            AppState.SessionId = Services.GetService<ISessionIdProvider>()?.GetSessionId() ?? "";
+
+            // The body renders only once a session id exists, so a failing interop call must not
+            // leave the app blank — generate one here instead.
+            if (string.IsNullOrEmpty(AppState.SessionId))
+            {
+                try
+                {
+                    AppState.SessionId = await JsRuntime.InvokeAsync<string>("getOrCreateSessionId");
+                }
+                catch (Exception e)
+                {
+                    Logger.LogWarning(e, "Could not read a session id from the host; generating one");
+                }
+            }
+
+            if (string.IsNullOrEmpty(AppState.SessionId))
+                AppState.SessionId = Guid.NewGuid().ToString("N")[..8];
+
             StateHasChanged();
         }
     }

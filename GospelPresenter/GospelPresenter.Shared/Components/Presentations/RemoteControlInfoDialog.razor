@@ -1,4 +1,6 @@
+@using GospelPresenter.Shared.Services
 @inject NavigationManager NavigationManager
+@inject IServerUrlProvider ServerUrlProvider
 @inject ToastService ToastService
 
 <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="OnClose" ShowCloseButton="true">
@@ -95,6 +97,14 @@
 @code {
     [Parameter] public required string PresentationId { get; set; }
     [Parameter] public string? PresentationName { get; set; }
+
+    /// <summary>
+    /// The session the scanning phone should drive. Named in the link because the same
+    /// presentation may be live in more than one place, and a code taped to a lectern has to keep
+    /// meaning this machine rather than whichever session the controller resolves to that morning.
+    /// </summary>
+    [Parameter] public string? SessionId { get; set; }
+
     [Parameter] public EventCallback OnClose { get; set; }
 
     private string remoteUrl = "";
@@ -103,8 +113,11 @@
 
     protected override void OnInitialized()
     {
-        var baseUri = new Uri(NavigationManager.BaseUri);
-        remoteUrl = new Uri(baseUri, $"presentations/{PresentationId}?remote=true").ToString();
+        // Against the server, not against this host: on a device app the two differ, and the phone
+        // scanning this can only reach the former. See IServerUrlProvider.
+        var session = string.IsNullOrEmpty(SessionId) ? "" : $"&session={Uri.EscapeDataString(SessionId)}";
+        remoteUrl = ServerUrls.Absolute(
+            ServerUrlProvider, NavigationManager, $"presentations/{PresentationId}?remote=true{session}");
     }
 
     private void OnCopyUrl()

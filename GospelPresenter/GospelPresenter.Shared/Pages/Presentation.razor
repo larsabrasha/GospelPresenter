@@ -1,4 +1,5 @@
 @page "/presentations/{presentationId}"
+@using GospelPresenter.Shared.Live
 @page "/templates/{templateId}"
 @attribute [Authorize]
 
@@ -17,6 +18,7 @@
 @inject AppState AppState
 @inject SharedAppState SharedAppState
 @inject ISongService SongService
+@inject ILiveSlideBuilder SlideBuilder
 @inject IBibleTextService BibleTextService
 @inject IPresentationService PresentationService
 @inject IJSRuntime JsRuntime
@@ -28,6 +30,7 @@
 @inject ActiveOrganizationState OrgState
 @inject IThemeService ThemeService
 @inject IRemoteDisplayService RemoteDisplayService
+@inject IServiceProvider Services
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -221,12 +224,42 @@
                     var remoteNotReady = IsRemoteMode && !IsRemoteReady;
                     var remoteNoSession = IsRemoteMode && _presenterSessionId is null;
                 }
-                @if (remoteNotReady)
+                @if (NeedsSessionChoice)
+                {
+                    <div class="flex items-center justify-center h-full px-6 pt-16">
+                        <div class="w-full max-w-sm space-y-3">
+                            <div class="text-sm text-neutral-500 dark:text-neutral-400">
+                                @L["RemoteControl.ChooseSession"]
+                            </div>
+                            @for (var i = 0; i < _presenterCandidates.Count; i++)
+                            {
+                                var candidate = _presenterCandidates[i];
+                                var label = SessionChoiceLabel(i, candidate);
+                                <AppButton Variant="ButtonVariant.Primary" Filled="true" Class="w-full"
+                                           OnClick="() => ControlSession(candidate)">
+                                    @label
+                                </AppButton>
+                            }
+                        </div>
+                    </div>
+                }
+                else if (remoteNotReady)
                 {
                     <div class="flex items-center justify-center h-full text-center px-6 pt-16">
                         <div class="space-y-2">
                             <div class="text-neutral-400 dark:text-neutral-500 text-sm">
-                                @(remoteNoSession ? L["RemoteControl.NoActivePresentation"] : L["RemoteControl.NotEnabled"])
+                                @if (IsPresenterOffline)
+                                {
+                                    @L["RemoteControl.PresenterOffline"]
+                                }
+                                else if (remoteNoSession)
+                                {
+                                    @L["RemoteControl.NoActivePresentation"]
+                                }
+                                else
+                                {
+                                    @L["RemoteControl.NotEnabled"]
+                                }
                             </div>
                         </div>
                     </div>
@@ -620,7 +653,7 @@
                     @L["Common.Cancel"]
                 </AppButton>
                 <AppButton Variant="ButtonVariant.Danger" Filled OnClick="DeletePresentationAsync">
-                    @L["Common.Remove"]
+                    @L["Common.Delete"]
                 </AppButton>
             </div>
         </div>
@@ -650,16 +683,161 @@
     [SupplyParameterFromQuery(Name = "stage")]
     public bool Stage { get; set; }
 
+    /// <summary>
+    /// Which live session to control, when the same presentation is running in more than one place.
+    /// Absent means "the only one", and the picker appears when that turns out to be untrue.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "session")]
+    public string? Session { get; set; }
+
     private bool IsTemplateMode => TemplateId is not null;
     private bool IsRemoteMode => Remote && !IsTemplateMode;
     private bool IsStageMode => Stage && !IsTemplateMode;
     private string? EffectiveId => TemplateId ?? PresentationId;
 
     private string? _presenterSessionId;
+    private IReadOnlyList<string> _presenterCandidates = [];
+    private ILiveSessionPresence? liveSessionPresence;
+
+    /// <summary>
+    /// The machine running this presentation has dropped off the network. What it last showed is
+    /// still on the congregation's screens — deliberately, since a moment of bad wifi should not
+    /// black out a service — but nothing can be moved on until it comes back.
+    /// </summary>
+    private bool IsPresenterOffline =>
+        IsRemoteMode
+        && _presenterSessionId is not null
+        && liveSessionPresence?.IsOwnerOnline(_presenterSessionId) == false;
+
+    private void OnOwnerPresenceChanged(string sessionId)
+    {
+        if (sessionId == _presenterSessionId)
+            _ = InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// How long the owning device gets to echo a change back before the controller says so. Long
+    /// enough that a round trip over a congested church wifi is not called a failure, short enough
+    /// that somebody standing with a phone finds out before the next verse.
+    /// </summary>
+    private static readonly TimeSpan CommandConfirmationTimeout = TimeSpan.FromSeconds(2);
+
+    private CancellationTokenSource? confirmationCts;
+    private bool unconfirmedReported;
+
+    /// <summary>
+    /// Watches for a change this controller made that the device never acknowledged.
+    ///
+    /// A remote controller writes into the live state itself, so its own screen moves whether or not
+    /// the projector does — that is deliberate, and it is the write the server forwards down. But it
+    /// means the operator gets no signal at all when the device drops the command: it has stopped
+    /// presenting, it does not have the item in its own library, it is a version behind. All three
+    /// only wrote a log line on a machine nobody is looking at.
+    ///
+    /// Losing the connection is already covered by IsPresenterOffline, which replaces the whole
+    /// control surface. This covers the rest: the device is there, it answered, and it still is not
+    /// showing what was asked for.
+    /// </summary>
+    private void ExpectConfirmation()
+    {
+        if (!IsRemoteMode || _presenterSessionId is not { } session) return;
+        if (liveSessionPresence?.IsMirrored(session) != true) return;
+
+        var expected = MirroredSessionStateReader.Read(SharedAppState, session);
+        if (expected is null) return;
+
+        // The latest change is the only one worth waiting on: an operator moving quickly through a
+        // song would otherwise leave a queue of stale checks behind, each judging a slide that has
+        // already been replaced.
+        confirmationCts?.Cancel();
+        confirmationCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        confirmationCts = cts;
+        _ = ConfirmCommandAsync(session, expected, cts.Token);
+    }
+
+    private async Task ConfirmCommandAsync(string session, MirroredSessionState expected, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(CommandConfirmationTimeout, token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        // Nothing reported yet is not a refusal, it is silence before the first word. A device that
+        // has only just connected has said nothing, and the first thing to happen on a session is
+        // often the owner's own — switching remote control on. Judging that as a dropped command
+        // put a warning on screen before anybody had asked for anything, which is what running this
+        // against the real desktop showed. Only a report that disagrees is evidence.
+        if (liveSessionPresence?.LastReported(session) is not { } reported) return;
+
+        if (MirroredSessionStateReader.ShowsTheSame(reported, expected))
+        {
+            // Back in step. The next one that is not gets to say so again.
+            unconfirmedReported = false;
+            return;
+        }
+
+        // One toast, not one per tap: somebody pressing on through a device that is not listening
+        // should get told once, not buried.
+        if (unconfirmedReported) return;
+        unconfirmedReported = true;
+
+        await InvokeAsync(() => ToastService.Show(L["RemoteControl.CommandNotConfirmed"], ToastKind.Warning));
+    }
+
+    /// <summary>
+    /// Picks the session this controller is driving. A session named in the URL wins, so a link
+    /// keeps pointing at the same machine; failing that, a single candidate is taken without asking
+    /// and several leave the choice open for the picker.
+    /// </summary>
+    private void ResolvePresenterSession()
+    {
+        var orgId = OrgState.ActiveOrganizationId;
+        _presenterCandidates = orgId is not null && PresentationId is not null
+            ? SharedAppState.GetActiveSessionIdsForPresentation(orgId, PresentationId)
+            : [];
+
+        _presenterSessionId = Session is not null && _presenterCandidates.Contains(Session)
+            ? Session
+            : _presenterCandidates.Count == 1
+                ? _presenterCandidates[0]
+                : null;
+    }
+
+    /// <summary>Carries the chosen session through navigation, so a picked machine stays picked.</summary>
+    private string RemoteSessionQuery => _presenterSessionId is null ? "" : $"&session={_presenterSessionId}";
+
+    /// <summary>Several places are presenting this and the controller has not said which it means.</summary>
+    private bool NeedsSessionChoice =>
+        IsRemoteMode && _presenterSessionId is null && _presenterCandidates.Count > 1;
+
+    private void ControlSession(string sessionId) =>
+        NavigationManager.NavigateTo($"/presentations/{PresentationId}?remote=true&session={sessionId}");
+
+    /// <summary>
+    /// What to call a session in the picker. The choice only matters when the same presentation is
+    /// live in two places at once, and that is exactly when a number tells the operator nothing: the
+    /// question they are answering is which machine, so the machine's own name is the answer.
+    ///
+    /// A browser session on this server has no device name, and a device token issued before the
+    /// name existed has none either; both fall back to the numbering, which is stable in the order
+    /// the state returns them in.
+    /// </summary>
+    private string SessionChoiceLabel(int index, string sessionId) =>
+        liveSessionPresence?.OwnerName(sessionId) is { Length: > 0 } name
+            ? name
+            : L["RemoteControl.SessionChoice", index + 1];
+
     private string EffectiveSessionId =>
         IsRemoteMode && _presenterSessionId is not null ? _presenterSessionId : AppState.SessionId;
-    private bool IsRemoteReady => !IsRemoteMode ||
-        (_presenterSessionId is not null && SharedAppState.IsRemoteControlEnabled(_presenterSessionId));
+    private bool IsRemoteReady => !IsRemoteMode
+        || (!IsPresenterOffline
+            && _presenterSessionId is not null
+            && SharedAppState.IsRemoteControlEnabled(_presenterSessionId));
     private bool IsStageReady => IsStageMode
         && IsRemoteReady
         && SharedAppState.IsPresentationActive(EffectiveSessionId);
@@ -693,7 +871,13 @@
 
     private List<OverlaySlide> overlaySlides = [];
     private List<RemoteDisplay> savedDisplays = [];
-    private string? activeOverlayId;
+
+    /// <summary>
+    /// Read from the live state rather than kept alongside it. The overlay can be changed by a
+    /// phone as well as from here, and a second copy of the answer is a second thing that can be
+    /// wrong — this page is a view of the session, not a second owner of it.
+    /// </summary>
+    private string? activeOverlayId => SharedAppState.GetActiveOverlay(EffectiveSessionId)?.Id;
     private bool isEditingImageOrder;
     private bool imageSortableInitialized;
     private bool isEditingItemTitle;
@@ -805,6 +989,9 @@
         ResetLiveSlide();
         SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId, AppState.SelectedProject?.Name);
 
+        if (liveSessionMirror is not null)
+            await liveSessionMirror.StartAsync(AppState.SessionId);
+
         // A sleeping operator machine takes the circuit and the projector window with it. Held
         // only while live, so browsing and editing behave as before.
         try { await JsRuntime.InvokeVoidAsync("gospelPresenter.requestWakeLock"); } catch { }
@@ -843,7 +1030,7 @@
     private void ExitStageMode()
     {
         var basePath = IsTemplateMode ? $"/templates/{TemplateId}" : $"/presentations/{PresentationId}";
-        var url = IsRemoteMode ? $"{basePath}?remote=true" : basePath;
+        var url = IsRemoteMode ? $"{basePath}?remote=true{RemoteSessionQuery}" : basePath;
         NavigationManager.NavigateTo(url);
     }
 
@@ -851,7 +1038,7 @@
     {
         if (PresentationId is null) return;
         var basePath = $"/presentations/{PresentationId}";
-        var url = IsRemoteMode ? $"{basePath}?remote=true&stage=true" : $"{basePath}?stage=true";
+        var url = IsRemoteMode ? $"{basePath}?remote=true{RemoteSessionQuery}&stage=true" : $"{basePath}?stage=true";
         NavigationManager.NavigateTo(url);
     }
 
@@ -860,6 +1047,8 @@
         await JsRuntime.InvokeVoidAsync("stopLivePresentation", EffectiveSessionId);
         ResetLiveSlide();
         SharedAppState.DeactivatePresentation(EffectiveSessionId);
+        if (liveSessionMirror is not null)
+            await liveSessionMirror.StopAsync();
         try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
         if (SelectedAudio is not null)
             SharedAppState.SetSessionAudio(AppState.SessionId, SelectedAudio);
@@ -1105,8 +1294,20 @@
         AppState.NotifyProjectChanged();
     }
 
+    private ILiveSessionMirror? liveSessionMirror;
+
     protected override void OnInitialized()
     {
+        // Only the device hosts mirror their live session to the server; the web is already there.
+        // A controller's commands are applied by ILiveSessionCommandApplier, not here: this page
+        // must be free to come and go without the machine going deaf. It only follows along.
+        liveSessionMirror = Services.GetService(typeof(ILiveSessionMirror)) as ILiveSessionMirror;
+
+        // Only the web host knows whether a session's machine is still reachable.
+        liveSessionPresence = Services.GetService(typeof(ILiveSessionPresence)) as ILiveSessionPresence;
+        if (liveSessionPresence is not null)
+            liveSessionPresence.OwnerPresenceChanged += OnOwnerPresenceChanged;
+
         idleHintIndex = Random.Shared.Next(idleHints.Length);
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
@@ -1120,13 +1321,10 @@
     {
         if (IsRemoteMode)
         {
-            var orgId = OrgState.ActiveOrganizationId;
-            _presenterSessionId = orgId is not null && PresentationId is not null
-                ? SharedAppState.GetActiveSessionIdForPresentation(orgId, PresentationId)
-                : null;
+            ResolvePresenterSession();
             Logger.LogDebug(
-                "Remote viewer resolving presenter session: viewerSessionId={ViewerSessionId} orgId={OrgId} presentationId={PresentationId} resolvedPresenterSessionId={PresenterSessionId} isRemoteReady={IsRemoteReady}",
-                AppState.SessionId, orgId, PresentationId, _presenterSessionId, IsRemoteReady);
+                "Remote viewer resolving presenter session: viewerSessionId={ViewerSessionId} presentationId={PresentationId} requestedSessionId={RequestedSessionId} candidates={CandidateCount} resolvedPresenterSessionId={PresenterSessionId} isRemoteReady={IsRemoteReady}",
+                AppState.SessionId, PresentationId, Session, _presenterCandidates.Count, _presenterSessionId, IsRemoteReady);
         }
 
         if (EffectiveId == loadedPresentationId) return;
@@ -1174,15 +1372,7 @@
             {
                 Id = item.Id,
                 SourceId = item.SourceId,
-                Type = item.Type switch
-                {
-                    PresentationItemType.Song => ProjectItemType.Song,
-                    PresentationItemType.BibleText => ProjectItemType.BibleText,
-                    PresentationItemType.Image => ProjectItemType.Image,
-                    PresentationItemType.Audio => ProjectItemType.Audio,
-                    PresentationItemType.Slides => ProjectItemType.Slides,
-                    _ => ProjectItemType.Song
-                },
+                Type = item.Type.ToProjectItemType(),
                 Title = item.Title
             }).ToList()
         };
@@ -1259,6 +1449,13 @@
             SharedAppState.SetSessionAudio(AppState.SessionId, null);
         if (IsRemoteMode)
             _ = JsRuntime.InvokeVoidAsync("gospelPresenter.unregisterAudioRelay").AsTask();
+        if (liveSessionPresence is not null)
+            liveSessionPresence.OwnerPresenceChanged -= OnOwnerPresenceChanged;
+
+        // A check still waiting out its two seconds would toast into a circuit that is gone.
+        confirmationCts?.Cancel();
+        confirmationCts?.Dispose();
+
         AppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PropertyChanged -= OnPropertyChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
@@ -1268,26 +1465,27 @@
         dotNetRef?.Dispose();
     }
 
-    private void OnPresenterActivated(string sessionId)
+    private void OnPresenterActivated(string sessionId) => RefreshPresenterSession();
+
+    private void OnPresenterDeactivated(string sessionId) => RefreshPresenterSession();
+
+    /// <summary>
+    /// Re-picks the session being controlled when one starts or stops anywhere. Both directions
+    /// matter: a second machine going live turns a settled choice into a question, and the machine
+    /// being controlled going away has to release the controller rather than leave it driving a
+    /// session that no longer exists.
+    /// </summary>
+    private void RefreshPresenterSession()
     {
         if (!IsRemoteMode || PresentationId is null) return;
-        var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null) return;
 
-        var resolved = SharedAppState.GetActiveSessionIdForPresentation(orgId, PresentationId);
-        if (resolved == _presenterSessionId) return;
+        var previous = _presenterSessionId;
+        var previousCount = _presenterCandidates.Count;
+        ResolvePresenterSession();
 
-        _presenterSessionId = resolved;
+        if (_presenterSessionId == previous && _presenterCandidates.Count == previousCount) return;
+
         _ = InvokeAsync(StateHasChanged);
-    }
-
-    private void OnPresenterDeactivated(string sessionId)
-    {
-        if (IsRemoteMode && sessionId == _presenterSessionId)
-        {
-            _presenterSessionId = null;
-            _ = InvokeAsync(StateHasChanged);
-        }
     }
 
     private void OnPresentationThemeChanged(string presentationId, SlideTheme newTheme)
@@ -1352,19 +1550,37 @@
         else if (sender is SharedAppState && IsRemoteMode && e.PropertyName == _presenterSessionId)
         {
             SyncStageSelectionFromLiveSlide();
+            ExpectConfirmation();
             _ = InvokeAsync(StateHasChanged);
         }
     }
 
-    // Stage mode follows the live slide: when another device switches song or
-    // slide via SharedAppState, mirror that into the local SelectedProjectItem
-    // so the strip and next-slide preview show the right item.
+    /// <summary>
+    /// The item the live slide belonged to last time we looked, so that moving to another one can
+    /// be told apart from staying on it.
+    /// </summary>
+    private string? followedLiveItemId;
+
+    /// <summary>
+    /// Follows the live slide into the running order when something else moves it — a phone driving
+    /// this machine, or another surface on the same session.
+    ///
+    /// Stage mode follows every change: it is a view of what is showing and nothing else. The
+    /// operator's own view follows only when the live slide moves to a *different* item, because
+    /// there the selection is also how you look ahead at what is coming — pulling it back on every
+    /// tap would make it impossible to line up the next song while someone else advances this one.
+    /// </summary>
     private void SyncStageSelectionFromLiveSlide()
     {
-        if (!IsStageMode) return;
         var live = SharedAppState.GetLiveSlide(EffectiveSessionId);
         if (live.ProjectItemId is null) return;
+
+        var movedToAnotherItem = live.ProjectItemId != followedLiveItemId;
+        followedLiveItemId = live.ProjectItemId;
+
+        if (!IsStageMode && !movedToAnotherItem) return;
         if (live.ProjectItemId == AppState.SelectedProjectItem?.Id) return;
+
         var item = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == live.ProjectItemId);
         if (item is null) return;
         AppState.SelectedProjectItem = item;
@@ -1476,108 +1692,26 @@
         var projectItem = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == selectedItemId);
         if (projectItem is null) return;
 
-        string? text = null;
-        string? credits = null;
-        string? imageUrl = null;
-        SongPart? songPart = null;
-        string? liveSongId = null;
-        string? liveSongName = null;
-        string? liveCcliNumber = null;
+        var slide = SlideBuilder.Build(
+            SharedAppState.GetLiveSlide(EffectiveSessionId),
+            new LiveSlideRequest(
+                EffectiveSessionId,
+                OrgState.ActiveOrganizationId ?? "",
+                selectedItemId,
+                projectItem.Type,
+                projectItem.SourceId,
+                partIndex,
+                loadedPresentation,
+                theme,
+                OrgState.ToCallerContext()));
 
-        switch (projectItem.Type)
-        {
-            case ProjectItemType.Song:
-            {
-                Song? song = null;
-                if (projectItem.SourceId is not null)
-                    song = SongService.GetSongById(projectItem.SourceId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-                if (song is null)
-                {
-                    // Fallback: reconstruct from saved parts (legacy data)
-                    var songItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                    if (songItem is not null && songItem.Parts.Count > 0)
-                    {
-                        song = new Song(songItem.SourceId ?? songItem.Id, songItem.Title, null, null, null, null,
-                            songItem.Parts.Select(p => new SongPart("", null, null, null, p.Content)).ToList(), []);
-                    }
-                }
-                var songPresentationItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                var liveArrangementId = songPresentationItem?.ArrangementId ?? song?.Arrangements.FirstOrDefault()?.Id;
-                var songEffectiveParts = song is not null ? song.GetArrangedParts(liveArrangementId) : [];
-                if (song is not null && partIndex < songEffectiveParts.Count)
-                {
-                    songPart = songEffectiveParts[partIndex];
-                    // Plain text, not HTML: LiveSlide.Text is rendered as markup for Bible
-                    // slides, so song content must never be turned into markup here.
-                    text = songPart.Content;
-                    credits = FormatSongCredits(song);
-                    liveSongId = song.Id;
-                    liveSongName = song.Name;
-                    liveCcliNumber = song.Ccli;
-                }
-
-                break;
-            }
-            case ProjectItemType.Image:
-            {
-                var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                var parts = imageItem?.Parts.OrderBy(p => p.SortOrder).ToList();
-                if (parts is not null && partIndex < parts.Count)
-                {
-                    imageUrl = ImageUrlHelper.LiveOrgImageUrl(EffectiveSessionId, parts[partIndex].Content, "full");
-                }
-
-                break;
-            }
-            case ProjectItemType.BibleText:
-            {
-                var bibleItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                if (bibleItem is not null && partIndex < bibleItem.Parts.Count)
-                {
-                    text = bibleItem.Parts[partIndex].Content;
-                    credits = bibleItem.Title;
-                }
-
-                break;
-            }
-            case ProjectItemType.Audio:
-                return;
-            case ProjectItemType.Slides:
-            {
-                var slidesPresItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == projectItem.Id);
-                var slidesSourceId = slidesPresItem?.SourceId;
-                if (slidesSourceId is not null && slidesPresItem?.Parts is not null)
-                {
-                    var orderedParts = slidesPresItem.Parts.OrderBy(p => p.SortOrder).ToList();
-                    if (partIndex < orderedParts.Count && int.TryParse(orderedParts[partIndex].Content, out var pageIndex))
-                    {
-                        imageUrl = ImageUrlHelper.LiveSlidesPageUrl(EffectiveSessionId, slidesSourceId, pageIndex);
-                    }
-                }
-                break;
-            }
-            default:
-                return;
-        }
+        // Audio items have no slide of their own — leave what is showing alone.
+        if (slide is null) return;
 
         if (EffectiveId is not null)
             SharedAppState.UpdateActivePresentationId(EffectiveSessionId, EffectiveId, AppState.SelectedProject?.Name);
 
-        SharedAppState.SetLiveSlide(EffectiveSessionId, SharedAppState.GetLiveSlide(EffectiveSessionId) with
-        {
-            Status = LiveSlideStatus.ShowingPresentation,
-            ItemType = projectItem.Type,
-            ProjectItemId = selectedItemId,
-            ItemPartIndex = partIndex,
-            Text = text,
-            Credits = credits,
-            ImageUrl = imageUrl,
-            SongPart = songPart,
-            Theme = theme,
-            SongId = liveSongId,
-            SongName = liveSongName,
-            CcliNumber = liveCcliNumber
-        });
+        SharedAppState.SetLiveSlide(EffectiveSessionId, slide);
     }
 
     private void ConfirmRemoveItem(ProjectItem item)
@@ -1594,18 +1728,16 @@
     {
         if (activeOverlayId == overlay.Id)
         {
-            activeOverlayId = null;
             SharedAppState.ClearOverlay(EffectiveSessionId);
         }
         else
         {
-            activeOverlayId = overlay.Id;
             string? imageUrl = null;
             if (overlay.HasImage)
             {
                 imageUrl = ImageUrlHelper.LiveOverlayImageUrl(EffectiveSessionId, overlay.Id);
             }
-            SharedAppState.SetOverlay(EffectiveSessionId, overlay.Content, imageUrl);
+            SharedAppState.SetOverlay(EffectiveSessionId, overlay.Content, imageUrl, overlay.Id);
         }
     }
 
@@ -1615,11 +1747,8 @@
         overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
 
         // If the active overlay was deleted, clear it
-        if (activeOverlayId is not null && overlaySlides.All(o => o.Id != activeOverlayId))
-        {
-            activeOverlayId = null;
+        if (activeOverlayId is { } active && overlaySlides.All(o => o.Id != active))
             SharedAppState.ClearOverlay(EffectiveSessionId);
-        }
     }
 
 
@@ -1809,19 +1938,7 @@
         return song.GetArrangedParts(arrangementId);
     }
 
-    private static string? FormatSongCredits(Song? song)
-    {
-        if (song is null) return null;
-        var parts = new[]
-            {
-                song.Author,
-                string.IsNullOrEmpty(song.Publisher) ? null : $"© {song.Publisher}",
-                song.Year?.ToString()
-            }
-            .Where(s => !string.IsNullOrEmpty(s))
-            .ToList();
-        return parts.Count > 0 ? string.Join(" · ", parts) : null;
-    }
+    private static string? FormatSongCredits(Song? song) => LiveSlideBuilder.FormatSongCredits(song);
 
     private async Task HandleBibleVersesAdded(List<Verse> verses)
     {

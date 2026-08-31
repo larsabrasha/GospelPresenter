@@ -1,17 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
     <PropertyGroup>
-        <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('windows'))">net10.0-android;net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+        <TargetFrameworks Condition="!$([MSBuild]::IsOSPlatform('windows'))">net10.0-android;net10.0-ios</TargetFrameworks>
         <TargetFramework Condition="$([MSBuild]::IsOSPlatform('windows'))">net10.0-windows10.0.19041.0</TargetFramework>
         <!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
         <!-- <TargetFrameworks>$(TargetFrameworks);net10.0-tizen</TargetFrameworks> -->
-
-        <!-- Note for MacCatalyst:
-          The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
-          When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
-          The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
-          either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
-        <!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
 
         <OutputType>Exe</OutputType>
         <RootNamespace>GospelPresenter</RootNamespace>
@@ -25,7 +18,6 @@
         <WindowsPackageType>None</WindowsPackageType>
 
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">17.0</SupportedOSPlatformVersion>
-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">33.0</SupportedOSPlatformVersion>
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
@@ -34,6 +26,13 @@
 
     <Import Project="Directory.Build.$(Scheme).props"
             Condition="Exists('Directory.Build.$(Scheme).props')" />
+
+    <!-- Lets Settings.cs pick the server URL for the scheme at compile time. -->
+    <PropertyGroup>
+        <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterProd'">$(DefineConstants);SCHEME_PROD</DefineConstants>
+        <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterTest'">$(DefineConstants);SCHEME_TEST</DefineConstants>
+        <DefineConstants Condition="'$(Scheme)' == 'GospelPresenterLocal'">$(DefineConstants);SCHEME_LOCAL</DefineConstants>
+    </PropertyGroup>
 
     <ItemGroup>
         <None Remove="Resources\transparent.png"/>
@@ -48,23 +47,21 @@
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.11" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.1" />
         <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3800.47" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'" />
-        <PackageReference Include="NeoSmart.Caching.Sqlite.AspNetCore" Version="9.0.1" />
-        <!-- Pinned above the versions NeoSmart.Caching.Sqlite resolves transitively:
+        <!-- Pinned above the versions EF Core's SQLite provider resolves transitively:
              GHSA-2m69-gcr7-jv3q. -->
         <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
         <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.android" Version="2.1.12" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
+        <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.ios" Version="2.1.12" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'" />
         <PackageReference Include="Serilog" Version="4.3.1" />
         <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="Serilog.Sinks.Xamarin" Version="1.0.0" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'" />
-        <PackageReference Include="Serilog.Sinks.Xamarin" Version="1.0.0" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'" />
         <PackageReference Include="Serilog.Sinks.Xamarin" Version="1.0.0" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
-        <PackageReference Include="ZiggyCreatures.FusionCache" Version="2.5.0" />
-        <PackageReference Include="ZiggyCreatures.FusionCache.Serialization.SystemTextJson" Version="2.5.0" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
+        <ProjectReference Include="..\GospelPresenter.Client\GospelPresenter.Client.csproj" />
     </ItemGroup>
 
     <ItemGroup>

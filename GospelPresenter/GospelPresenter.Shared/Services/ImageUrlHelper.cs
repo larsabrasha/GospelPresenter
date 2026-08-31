@@ -2,19 +2,28 @@ namespace GospelPresenter.Shared.Services;
 
 public static class ImageUrlHelper
 {
+    /// <summary>
+    /// How a media URL reaches its host. The web serves media over its own HTTP endpoints, so the
+    /// default is the identity. The MAUI app sets this once at startup to rewrite the same paths
+    /// onto its custom scheme (<c>gpmedia://media/api/...</c>), where a webview handler serves the
+    /// bytes from the local media store. Applied to every URL components render — never to object
+    /// keys, and never to the /watch proxy URLs, which are always remote.
+    /// </summary>
+    public static Func<string, string> HostUrlTransform { get; set; } = url => url;
+
     // HTTP API URLs (used by Razor components, requires auth)
     public static string OrgImageUrl(string imageId, string variant = "thumb")
-        => $"/api/images/org-image/{imageId}/{variant}";
+        => HostUrlTransform($"/api/images/org-image/{imageId}/{variant}");
 
     public static string OverlayImageUrl(string overlayId)
-        => $"/api/images/overlay/{overlayId}/image";
+        => HostUrlTransform($"/api/images/overlay/{overlayId}/image");
 
     // Live URLs (unauthenticated, only served while the session's presentation is active)
     public static string LiveOrgImageUrl(string sessionId, string imageId, string variant = "thumb")
-        => $"/api/live-images/{sessionId}/org-image/{imageId}/{variant}";
+        => HostUrlTransform($"/api/live-images/{sessionId}/org-image/{imageId}/{variant}");
 
     public static string LiveOverlayImageUrl(string sessionId, string overlayId)
-        => $"/api/live-images/{sessionId}/overlay/{overlayId}/image";
+        => HostUrlTransform($"/api/live-images/{sessionId}/overlay/{overlayId}/image");
 
     // Public output (watch) URLs (unauthenticated, keyed on the output code rather than the
     // session id, so the operator's session id is never published to the visitors' devices —
@@ -45,7 +54,7 @@ public static class ImageUrlHelper
 
     // Audio URLs
     public static string OrgAudioUrl(string audioId)
-        => $"/api/audio/org-audio/{audioId}";
+        => HostUrlTransform($"/api/audio/org-audio/{audioId}");
 
     public static string OrgAudioKey(string organizationId, string audioId)
         => $"org/{organizationId}/audios/{audioId}/file";
@@ -66,7 +75,7 @@ public static class ImageUrlHelper
     {
         null => null,
         { Source: State.SlideImageSource.BuiltInAsset } =>
-            $"/api/theme-images/{image.Value}-{variant}-{image.ContentHash}.webp",
+            HostUrlTransform($"/api/theme-images/{image.Value}-{variant}-{image.ContentHash}.webp"),
         _ => null
     };
 
@@ -75,10 +84,10 @@ public static class ImageUrlHelper
         => $"themes/{assetPath}-{variant}-{contentHash}.webp";
 
     public static string SlidesPageUrl(string slidesId, int page)
-        => $"/api/images/slides/{slidesId}/{page}";
+        => HostUrlTransform($"/api/images/slides/{slidesId}/{page}");
 
     public static string LiveSlidesPageUrl(string sessionId, string slidesId, int page)
-        => $"/api/live-images/{sessionId}/slides/{slidesId}/{page}";
+        => HostUrlTransform($"/api/live-images/{sessionId}/slides/{slidesId}/{page}");
 
     public static string SlidesPageKey(string organizationId, string slidesId, int page)
         => $"org/{organizationId}/slides/{slidesId}/page-{page}.webp";

@@ -16,7 +16,7 @@ public partial class MainPage : ContentPage
         // https://dev.to/mhrastegari/net-maui-blazor-best-practices-for-mobile-ui-4def
         BlazorWebViewHandler.BlazorWebViewMapper.AppendToMapping("CustomBlazorWebViewMapper", (handler, view) =>
         {
-#if IOS || MACCATALYST
+#if IOS
             handler.PlatformView.ScrollView.Bounces = false;
 #endif
 
@@ -26,8 +26,20 @@ public partial class MainPage : ContentPage
         });
 
         InitializeComponent();
-        
+
+        blazorWebView.BlazorWebViewInitializing += BlazorWebViewInitializing;
         blazorWebView.BlazorWebViewInitialized += BlazorWebViewInitialized;
+    }
+
+    /// <summary>
+    /// Registers the gpmedia:// scheme so media renders from the local store. Must happen here:
+    /// the scheme handler can only be attached to the WKWebView configuration before creation.
+    /// </summary>
+    private static void BlazorWebViewInitializing(object? sender, BlazorWebViewInitializingEventArgs e)
+    {
+#if IOS
+        e.Configuration.SetUrlSchemeHandler(new Handlers.GpMediaSchemeHandler(), Handlers.GpMediaSchemeHandler.Scheme);
+#endif
     }
 
     private static void BlazorWebViewInitialized(object? sender, BlazorWebViewInitializedEventArgs e) { }

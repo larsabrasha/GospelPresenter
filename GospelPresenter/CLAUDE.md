@@ -47,6 +47,18 @@
 - All database operations must be atomic. Use transactions when multiple writes depend on each other to ensure data consistency.
 - Lists that the user can reorder must persist their order to the database, not just in memory.
 
+## Offline sync tracking
+- Entities implementing `ISyncTracked` get `ModifiedAt` stamped automatically by `PresentationContext.SaveChanges`, and tracked deletes produce `SyncTombstone` rows automatically.
+- `ExecuteUpdateAsync`/`ExecuteDeleteAsync` BYPASS this: every `ExecuteUpdateAsync` on a synced entity must include `.SetProperty(x => x.ModifiedAt, DateTimeOffset.UtcNow)`, and every `ExecuteDeleteAsync` must add tombstones via `context.AddTombstones(...)` in the same transaction (or be converted to a tracked delete).
+- When a child row changes (song part, presentation item/part, arrangement), also bump the aggregate root's `ModifiedAt` (see `PresentationService.BumpPresentationAsync` and `SongService.TouchSong`) — push conflict detection compares the root.
+- Add a pinning test in `SyncTrackingCallSiteTests` for every new mutation path.
+- Rows that predate `AddSyncTracking` carry `ModifiedAt = DateTimeOffset.MinValue` (`-infinity` in Postgres) wherever the table had no `UpdatedAt`/`CreatedAt` to backfill from. That is correct and must be left alone: an unbounded first pull delivers them, later pulls skip them because a stamp older than the client's watermark is by definition already known, and re-stamping them server-side would make `BaseModifiedAt` disagree with the root on every synced client — turning the next offline edit of each row into a false conflict. Never filter on `ModifiedAt` for non-sync purposes without allowing for these rows.
+
+## Mac Catalyst app
+- Editing `Platforms/MacCatalyst/Info.plist` does not reach the built bundle on its own — MSBuild reuses a stale `obj/Debug/net10.0-maccatalyst/<rid>/AppManifest.plist`. Delete that file (and the `.app`, which is also not re-signed incrementally) and rebuild, then verify with `plutil` that the key actually landed.
+- The app is ad-hoc signed until there is an Apple developer account. Never add an entitlement that needs a provisioning profile — macOS SIGKILLs the app at launch for requesting one it cannot prove it owns.
+- Blazor is served from `app://0.0.0.0/`, which is not a secure context: `crypto.randomUUID` is undefined and storage APIs can throw. Feature-detect in shared JS rather than assuming the browser environment.
+
 ## Validation and error handling
 - Validate input both in the UI (for fast feedback) and on the server (for security). Never rely solely on client-side validation.
 - Show user-friendly error messages in Swedish when operations fail. Never expose stack traces or technical details in the UI.

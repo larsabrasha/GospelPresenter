@@ -33,6 +33,10 @@
                        Value="@adminName" OnInput="(e) => adminName = e.Value?.ToString() ?? string.Empty"
                        MaxLength="AppConstraints.NameMaxLength"/>
 
+        <FloatingInput Id="setup-organization" Label="@L["Setup.OrganizationName"]"
+                       Value="@organizationName" OnInput="(e) => organizationName = e.Value?.ToString() ?? string.Empty"
+                       MaxLength="AppConstraints.NameMaxLength"/>
+
         @if (errorMessage is not null)
         {
             <p class="text-sm text-red-500 dark:text-red-400">@errorMessage</p>
@@ -48,6 +52,7 @@
 
 @code {
     private string adminName = "";
+    private string organizationName = "";
     private string? errorMessage;
     private bool submitting;
 
@@ -79,6 +84,12 @@
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(organizationName))
+        {
+            errorMessage = L["Setup.OrganizationRequired"];
+            return;
+        }
+
         submitting = true;
 
         // Race condition guard
@@ -89,8 +100,8 @@
             return;
         }
 
-        var user = await UserService.CreateSuperUserAsync(adminName.Trim());
-        var caller = new CallerContext(user.Id, UserRole.SuperAdmin, null);
+        var user = await UserService.CreateSuperUserAsync(adminName.Trim(), organizationName.Trim());
+        var caller = new CallerContext(user.Id, UserRole.SuperAdmin, user.OrganizationId);
         var invite = await UserService.CreateInviteAsync(user.Id, caller);
 
         SetupStatus.MarkSetupComplete();

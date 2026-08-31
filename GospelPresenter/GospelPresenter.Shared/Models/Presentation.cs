@@ -1,6 +1,6 @@
 namespace GospelPresenter.Shared.Models;
 
-public class Presentation
+public class Presentation : ISyncTracked
 {
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
@@ -8,6 +8,9 @@ public class Presentation
     public string CreatedBy { get; set; } = string.Empty;
     public DateTimeOffset UpdatedAt { get; set; }
     public string UpdatedBy { get; set; } = string.Empty;
+    public DateTimeOffset ModifiedAt { get; set; }
+
+    public long Version { get; set; }
 
     public bool IsTemplate { get; set; }
     public string? Description { get; set; }

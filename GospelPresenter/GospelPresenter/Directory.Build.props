@@ -1,7 +1,10 @@
 <Project>
     <PropertyGroup>
         <Scheme Condition=" '$(Scheme)' == '' ">$(SCHEME)</Scheme>
-        <Scheme Condition=" '$(Scheme)' == '' ">GospelPresenterTest</Scheme>
+        <!-- Local, not Test: Test now points at a real server (apptest.gospelpresenter.com), so
+             defaulting to it would make a bare `dotnet build` sign in against it. Local keeps the
+             behaviour a plain build has always had — no server, fixed developer identity. -->
+        <Scheme Condition=" '$(Scheme)' == '' ">GospelPresenterLocal</Scheme>
     </PropertyGroup>
     
     <Target Name="PrintScheme" BeforeTargets="Build">

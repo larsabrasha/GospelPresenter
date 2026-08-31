@@ -3,6 +3,7 @@
 
 @inject RemoteDisplayState RemoteDisplayState
 @inject NavigationManager NavigationManager
+@inject IServerUrlProvider ServerUrlProvider
 @inject ToastService ToastService
 
 <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="OnClose" ShowCloseButton="true">
@@ -117,8 +118,9 @@
 
     protected override void OnInitialized()
     {
-        var baseUri = new Uri(NavigationManager.BaseUri);
-        displayUrl = new Uri(baseUri, "display").ToString().TrimEnd('/');
+        // The address is typed into a screen somewhere else in the building, so it names the
+        // server rather than this host. See IServerUrlProvider.
+        displayUrl = ServerUrls.Absolute(ServerUrlProvider, NavigationManager, "display").TrimEnd('/');
 
         RemoteDisplayState.DisplayPaired += OnDisplayPaired;
         RegenerateToken();

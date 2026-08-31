@@ -222,10 +222,10 @@
     <value>Create a song manually or import from ProPresenter (.pro files) above.</value>
   </data>
   <data name="Images.NoImagesHint" xml:space="preserve">
-    <value>Upload images to display during presentations, e.g. logos or backgrounds.</value>
+    <value>Import images to display during presentations, e.g. logos or backgrounds.</value>
   </data>
   <data name="Audios.NoAudiosHint" xml:space="preserve">
-    <value>Upload audio files to play during presentations.</value>
+    <value>Import audio files to play during presentations.</value>
   </data>
   <data name="Songs.NoSongsFound" xml:space="preserve">
     <value>No songs found</value>
@@ -402,7 +402,7 @@
     <value>No songs found</value>
   </data>
   <data name="Bible.NoBible" xml:space="preserve">
-    <value>No Bibles uploaded</value>
+    <value>No Bibles yet</value>
   </data>
   <data name="Bible.NoVersesFound" xml:space="preserve">
     <value>No verses found</value>
@@ -420,10 +420,10 @@
     <value>Could not load images</value>
   </data>
   <data name="ImageTab.Upload" xml:space="preserve">
-    <value>Upload</value>
+    <value>Import</value>
   </data>
   <data name="ImageTab.NoImages" xml:space="preserve">
-    <value>No images uploaded</value>
+    <value>No images yet</value>
   </data>
   <data name="ImageTab.DeleteImage" xml:space="preserve">
     <value>Delete image</value>
@@ -438,7 +438,7 @@
     <value>All images</value>
   </data>
   <data name="Images.NoImages" xml:space="preserve">
-    <value>No images uploaded yet</value>
+    <value>No images yet</value>
   </data>
   <data name="Images.NoImagesFound" xml:space="preserve">
     <value>No images match your search</value>
@@ -450,7 +450,7 @@
     <value>All audio files</value>
   </data>
   <data name="Audios.NoAudios" xml:space="preserve">
-    <value>No audio uploaded yet</value>
+    <value>No audio yet</value>
   </data>
   <data name="Audios.NoAudiosFound" xml:space="preserve">
     <value>No audio matches your search</value>
@@ -627,7 +627,7 @@
     <value>All presentations</value>
   </data>
   <data name="OrgDetail.AllImages" xml:space="preserve">
-    <value>All uploaded images</value>
+    <value>All images</value>
   </data>
   <data name="OrgDetail.TypeToConfirm" xml:space="preserve">
     <value>Type {0} to confirm:</value>
@@ -700,6 +700,21 @@
   </data>
   <data name="Setup.NameRequired" xml:space="preserve">
     <value>Name is required.</value>
+  </data>
+  <data name="Setup.OrganizationName" xml:space="preserve">
+    <value>Church or organization name</value>
+  </data>
+  <data name="Setup.OrganizationRequired" xml:space="preserve">
+    <value>Organization name is required.</value>
+  </data>
+  <data name="AppLogin.Title" xml:space="preserve">
+    <value>You are signed in</value>
+  </data>
+  <data name="AppLogin.CloseTab" xml:space="preserve">
+    <value>Gospel Presenter is opening. You can close this tab.</value>
+  </data>
+  <data name="AppLogin.OpenApp" xml:space="preserve">
+    <value>Open Gospel Presenter</value>
   </data>
   <data name="Setup.GetStarted" xml:space="preserve">
     <value>Get started</value>
@@ -789,10 +804,10 @@
     <value>Showing {0} of {1} verses</value>
   </data>
   <data name="ImageTab.UploadingProgress" xml:space="preserve">
-    <value>Uploading {0} of {1}...</value>
+    <value>Importing {0} of {1}...</value>
   </data>
   <data name="ImageTab.UploadErrorCount" xml:space="preserve">
-    <value>{0} image(s) could not be uploaded</value>
+    <value>{0} image(s) could not be imported</value>
   </data>
   <data name="ImageTab.Images" xml:space="preserve">
     <value>images</value>
@@ -801,7 +816,7 @@
     <value>Audio</value>
   </data>
   <data name="AudioTab.Upload" xml:space="preserve">
-    <value>Upload</value>
+    <value>Import</value>
   </data>
   <data name="AudioTab.LoadingAudio" xml:space="preserve">
     <value>Loading audio files...</value>
@@ -810,13 +825,13 @@
     <value>Could not load audio files</value>
   </data>
   <data name="AudioTab.NoAudio" xml:space="preserve">
-    <value>No audio files uploaded</value>
+    <value>No audio files yet</value>
   </data>
   <data name="AudioTab.UploadingProgress" xml:space="preserve">
-    <value>Uploading {0} of {1}...</value>
+    <value>Importing {0} of {1}...</value>
   </data>
   <data name="AudioTab.UploadErrorCount" xml:space="preserve">
-    <value>{0} file(s) failed to upload</value>
+    <value>{0} file(s) could not be imported</value>
   </data>
   <data name="AudioTab.AudioFiles" xml:space="preserve">
     <value>audio files</value>
@@ -831,19 +846,19 @@
     <value>Are you sure you want to delete {0}?</value>
   </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
-    <value>Upload slides</value>
+    <value>Import slides</value>
   </data>
   <data name="SlidesTab.Uploading" xml:space="preserve">
-    <value>Uploading...</value>
+    <value>Importing...</value>
   </data>
   <data name="SlidesTab.HelpText" xml:space="preserve">
-    <value>&lt;p&gt;Upload a PowerPoint or PDF file. Keynote, Google Slides, and Pages can be exported to PDF before uploading.&lt;/p&gt;&lt;p&gt;Animations and videos will not be included.&lt;/p&gt;&lt;p&gt;The file is saved only in this presentation.&lt;/p&gt;</value>
+    <value>&lt;p&gt;Import a PowerPoint or PDF file. Keynote, Google Slides, and Pages can be exported to PDF before importing.&lt;/p&gt;&lt;p&gt;Animations and videos will not be included.&lt;/p&gt;&lt;p&gt;The file is saved only in this presentation.&lt;/p&gt;</value>
   </data>
   <data name="SlidesTab.TooManyPages" xml:space="preserve">
     <value>The file has too many pages. Maximum is 100 pages.</value>
   </data>
   <data name="SlidesTab.UploadError" xml:space="preserve">
-    <value>Could not upload the file. Please try again.</value>
+    <value>Could not import the file. Please try again.</value>
   </data>
   <data name="Sidebar.Slides" xml:space="preserve">
     <value>PowerPoint</value>
@@ -939,7 +954,7 @@
     <value>Done</value>
   </data>
   <data name="Sidebar.DeleteSelected" xml:space="preserve">
-    <value>Delete selected ({0})</value>
+    <value>Remove selected ({0})</value>
   </data>
   <data name="Presentation.ConfirmRemoveItemSingle" xml:space="preserve">
     <value>Do you want to remove this item?</value>
@@ -1081,6 +1096,18 @@
   </data>
   <data name="RemoteControl.NotEnabled" xml:space="preserve">
     <value>Remote control has not been enabled by the presenter</value>
+  </data>
+  <data name="RemoteControl.PresenterOffline" xml:space="preserve">
+    <value>The presenting machine has lost its connection. What it was showing is still up; it can be controlled again once it is back.</value>
+  </data>
+  <data name="RemoteControl.CommandNotConfirmed" xml:space="preserve">
+    <value>The presenting machine has not confirmed the change. Check what is on the screen.</value>
+  </data>
+  <data name="RemoteControl.ChooseSession" xml:space="preserve">
+    <value>This presentation is live in more than one place. Choose which one to control.</value>
+  </data>
+  <data name="RemoteControl.SessionChoice" xml:space="preserve">
+    <value>Presentation {0}</value>
   </data>
   <data name="Templates.DeleteConfirm" xml:space="preserve">
     <value>Are you sure you want to delete this template?</value>
@@ -1331,11 +1358,11 @@
   <data name="Admin.PublicOutputs.Title" xml:space="preserve">
     <value>Public outputs</value>
   </data>
-  <data name="Admin.PublicOutputs.Add" xml:space="preserve">
-    <value>Add public output</value>
+  <data name="Admin.PublicOutputs.Create" xml:space="preserve">
+    <value>Create public output</value>
   </data>
   <data name="Admin.PublicOutputs.AddTitle" xml:space="preserve">
-    <value>New public output</value>
+    <value>Create public output</value>
   </data>
   <data name="Admin.PublicOutputs.AddDescription" xml:space="preserve">
     <value>A public output gives you a QR code that visitors can scan to follow the presentation on their own phone. Anyone with the code can watch while a presentation is broadcasting to the output.</value>
@@ -1379,11 +1406,11 @@
   <data name="Admin.Labels.Title" xml:space="preserve">
     <value>Labels</value>
   </data>
-  <data name="Admin.Labels.Add" xml:space="preserve">
-    <value>Add label</value>
+  <data name="Admin.Labels.Create" xml:space="preserve">
+    <value>Create</value>
   </data>
   <data name="Admin.Labels.AddTitle" xml:space="preserve">
-    <value>New label</value>
+    <value>Create label</value>
   </data>
   <data name="Admin.Labels.EditTitle" xml:space="preserve">
     <value>Edit label</value>
@@ -1409,6 +1436,21 @@
   <data name="LivePanel.LocalLiveView" xml:space="preserve">
     <value>Window</value>
   </data>
+  <data name="FilePicker.ChooseImages" xml:space="preserve">
+    <value>Choose images</value>
+  </data>
+  <data name="FilePicker.ChooseAudio" xml:space="preserve">
+    <value>Choose audio files</value>
+  </data>
+  <data name="FilePicker.ImageFiles" xml:space="preserve">
+    <value>Images</value>
+  </data>
+  <data name="FilePicker.AudioFiles" xml:space="preserve">
+    <value>Audio files</value>
+  </data>
+  <data name="LivePanel.LiveWindowFailed" xml:space="preserve">
+    <value>The live view could not be opened</value>
+  </data>
   <data name="LivePanel.ExternalDisplay" xml:space="preserve">
     <value>External display</value>
   </data>
@@ -1425,6 +1467,9 @@
     <value>Temporary display</value>
   </data>
   <data name="LivePanel.AddTempDisplayTitle" xml:space="preserve">
+    <value>Connect temporary display</value>
+  </data>
+  <data name="LivePanel.ConnectTempDisplay" xml:space="preserve">
     <value>Connect temporary display</value>
   </data>
   <data name="LivePanel.PairScanQrTitle" xml:space="preserve">
@@ -1500,7 +1545,7 @@
     <value>Import Bible</value>
   </data>
   <data name="Bibles.ImportDescription" xml:space="preserve">
-    <value>Upload a Bible translation as a &lt;code&gt;.zip&lt;/code&gt; file (USX or USFM format).</value>
+    <value>Import a Bible translation as a &lt;code&gt;.zip&lt;/code&gt; file (USX or USFM format).</value>
   </data>
   <data name="Bibles.ChooseFile" xml:space="preserve">
     <value>Choose file</value>
@@ -1633,5 +1678,110 @@
   </data>
   <data name="Calendar.LinkCopied" xml:space="preserve">
     <value>Calendar link copied</value>
+  </data>
+  <data name="Sync.OfflineChangesSuffix" xml:space="preserve">
+    <value>(offline changes)</value>
+  </data>
+  <data name="SignIn.Device" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="SignIn.DeviceFailed" xml:space="preserve">
+    <value>Sign-in failed. Check your connection and try again.</value>
+  </data>
+  <data name="Sync.StatusIdle" xml:space="preserve">
+    <value>Synced</value>
+  </data>
+  <data name="Sync.StatusSyncing" xml:space="preserve">
+    <value>Syncing…</value>
+  </data>
+  <data name="Sync.StatusOffline" xml:space="preserve">
+    <value>Offline</value>
+  </data>
+  <data name="Sync.StatusAuthRequired" xml:space="preserve">
+    <value>Sign in again to sync</value>
+  </data>
+  <data name="Sync.StatusError" xml:space="preserve">
+    <value>Sync failed</value>
+  </data>
+  <data name="Sync.PendingChanges" xml:space="preserve">
+    <value>{0} changes waiting</value>
+  </data>
+  <data name="Sync.SyncNow" xml:space="preserve">
+    <value>Sync now</value>
+  </data>
+  <data name="Update.Restart" xml:space="preserve">
+    <value>Restart to update</value>
+  </data>
+  <data name="Update.RestartTooltip" xml:space="preserve">
+    <value>Version {0} is downloaded and installs on restart. It will also install by itself the next time the app starts.</value>
+  </data>
+  <data name="Sync.ConflictMerged" xml:space="preserve">
+    <value>This presentation was also changed elsewhere while you were offline. Both sets of changes were combined.</value>
+  </data>
+  <data name="Sync.ConflictServerVersionKept" xml:space="preserve">
+    <value>This presentation was deleted elsewhere while you were offline, and your offline changes to it went with it.</value>
+  </data>
+  <data name="Sync.ConflictSongVersionSaved" xml:space="preserve">
+    <value>A song changed on the server. Your offline version was saved in the song's version history.</value>
+  </data>
+  <data name="Sync.ChangeRejected" xml:space="preserve">
+    <value>A change could not be synced.</value>
+  </data>
+  <data name="Sync.OutputCodeReplaced" xml:space="preserve">
+    <value>The output's code was already in use, so it was given a new one. Check the code before you print it.</value>
+  </data>
+  <data name="Bibles.MakeOffline" xml:space="preserve">
+    <value>Make available offline</value>
+  </data>
+  <data name="Bibles.OfflineAvailable" xml:space="preserve">
+    <value>Available offline</value>
+  </data>
+  <data name="Bibles.RemoveOffline" xml:space="preserve">
+    <value>Remove the downloaded copy</value>
+  </data>
+  <data name="Bibles.OfflineDownloaded" xml:space="preserve">
+    <value>The translation is available offline</value>
+  </data>
+  <data name="Bibles.OfflineRemoved" xml:space="preserve">
+    <value>The downloaded copy was removed</value>
+  </data>
+  <data name="Bibles.OfflineDownloadFailed" xml:space="preserve">
+    <value>The download failed. Check your connection and try again.</value>
+  </data>
+  <data name="Nav.Devices" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="Devices.Title" xml:space="preserve">
+    <value>Devices</value>
+  </data>
+  <data name="Devices.Device" xml:space="preserve">
+    <value>Device</value>
+  </data>
+  <data name="Devices.User" xml:space="preserve">
+    <value>User</value>
+  </data>
+  <data name="Devices.Version" xml:space="preserve">
+    <value>Version</value>
+  </data>
+  <data name="Devices.LastSeen" xml:space="preserve">
+    <value>Last seen</value>
+  </data>
+  <data name="Devices.Never" xml:space="preserve">
+    <value>Never</value>
+  </data>
+  <data name="Devices.Revoked" xml:space="preserve">
+    <value>Revoked</value>
+  </data>
+  <data name="Devices.VersionUnknown" xml:space="preserve">
+    <value>Not reported</value>
+  </data>
+  <data name="Devices.BelowFloor" xml:space="preserve">
+    <value>Too old to sync</value>
+  </data>
+  <data name="Devices.ProtocolFloor" xml:space="preserve">
+    <value>Sync requires protocol {0} or later</value>
+  </data>
+  <data name="Devices.Empty" xml:space="preserve">
+    <value>No app has signed in yet. Devices appear here once someone installs the app and signs in.</value>
   </data>
 </root>

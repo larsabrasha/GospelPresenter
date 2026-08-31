@@ -326,6 +326,50 @@
         </div>
       </div>
 
+      <!--
+        The desktop app. Everything below the button is filled in by src/download.js from the
+        GitHub Releases API, so this page never has to be redeployed when a version ships.
+        Hidden until that succeeds: a download section that cannot name a version or a file is
+        worse than none.
+      -->
+      <div id="download" class="max-w-prose mx-auto pb-24 hidden"
+           data-t-version="{{downloadVersion}}"
+           data-t-all-releases="{{downloadAllReleases}}"
+           data-t-unknown-version="{{downloadUnknownVersion}}"
+           data-t-use-web="{{downloadUseWeb}}"
+           data-t-for-mac="{{downloadForMac}}"
+           data-t-for-windows="{{downloadForWindows}}"
+           data-t-for-linux="{{downloadForLinux}}"
+           data-t-no-build-for-platform="{{downloadNoBuildForPlatform}}"
+           data-t-other-platform="{{downloadOtherPlatform}}">
+        <h2 class="text-3xl font-bold pb-6 text-sky-500 text-center">{{downloadTitle}}</h2>
+        <p class="pb-10 text-slate-600 dark:text-slate-400 text-center">{{downloadIntro}}</p>
+
+        <div class="flex flex-col items-center gap-4">
+          <a id="download-primary" href="#"
+             class="inline-flex items-center gap-2 bg-sky-500 rounded-full px-9 py-4 text-white font-bold hover:bg-sky-600">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 4v12m0 0-4-4m4 4 4-4M4 20h16"/>
+            </svg>
+            <span id="download-primary-label">{{downloadForMac}}</span>
+          </a>
+          <p id="download-meta" class="text-sm text-slate-500 dark:text-slate-500"></p>
+
+          <!-- Not a footnote: unsigned means the first launch needs four steps in System Settings,
+               and a user who is not told that concludes the download is broken. -->
+          <details class="w-full mt-6 rounded-xl bg-amber-50 dark:bg-amber-950/30 px-6 py-4">
+            <summary class="cursor-pointer font-semibold text-amber-800 dark:text-amber-300">
+              {{downloadUnsignedTitle}}
+            </summary>
+            <p class="pt-3 text-sm text-amber-900/90 dark:text-amber-200/80">{{downloadUnsignedBody}}</p>
+          </details>
+
+          <p id="download-other" class="pt-6 text-sm text-slate-500 dark:text-slate-500 text-center"></p>
+        </div>
+      </div>
+
 <div class="flex justify-center py-6 opacity-20 dark:opacity-15">
         <svg viewBox="0 0 48 48" class="w-8 h-8" fill="#9ca3af">
           <!-- Left ear -->

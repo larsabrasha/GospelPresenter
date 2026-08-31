@@ -1,6 +1,7 @@
 using GospelPresenter.Shared;
 using GospelPresenter.Shared.Authorization;
 using GospelPresenter.Shared.Contexts;
+using GospelPresenter.Shared.Live;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
@@ -52,6 +53,8 @@ try
     }
 
     var sessionTimeoutMinutes = builder.Configuration.GetValue("Settings:SessionTimeoutMinutes", 240);
+    const string CookieOrDeviceTokenScheme = "CookieOrDeviceToken";
+
     var connectionString = builder.Configuration.GetConnectionString("postgresdb");
     var isMockMode = string.IsNullOrEmpty(connectionString);
 
@@ -75,10 +78,19 @@ try
         builder.Services.Configure<GospelPresenter.Web.Configuration.AuthenticationOptions>(builder.Configuration.GetSection("Authentication"));
         builder.Services.AddSingleton<IAuthProviderService, AuthProviderService>();
 
+        // The default scheme routes each request by shape: a Bearer gpdt_ header authenticates as a
+        // device (the MAUI app), everything else as a cookie session. Every claims-reading endpoint
+        // then serves both kinds of caller unchanged.
         var authBuilder = builder.Services.AddAuthentication(options =>
             {
-                options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+                options.DefaultScheme = CookieOrDeviceTokenScheme;
             })
+            .AddPolicyScheme(CookieOrDeviceTokenScheme, CookieOrDeviceTokenScheme, options =>
+            {
+                options.ForwardDefaultSelector = SelectCookieOrDeviceTokenScheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler>(
+                GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler.SchemeName, null)
             .AddCookie(options =>
             {
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(sessionTimeoutMinutes);
@@ -127,6 +139,7 @@ try
 
                 options.Events.OnRemoteFailure = context =>
                 {
+                    Log.Warning(context.Failure, "Remote authentication failure");
                     context.Response.Redirect("/authentication-error");
                     context.HandleResponse();
                     return Task.CompletedTask;
@@ -169,6 +182,7 @@ try
 
                 options.Events.OnRemoteFailure = context =>
                 {
+                    Log.Warning(context.Failure, "Remote authentication failure");
                     context.Response.Redirect("/authentication-error");
                     context.HandleResponse();
                     return Task.CompletedTask;
@@ -181,7 +195,13 @@ try
     else
     {
         Log.Warning("No authentication provider configured — using mock authentication");
-        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+        builder.Services.AddAuthentication(CookieOrDeviceTokenScheme)
+            .AddPolicyScheme(CookieOrDeviceTokenScheme, CookieOrDeviceTokenScheme, options =>
+            {
+                options.ForwardDefaultSelector = SelectCookieOrDeviceTokenScheme;
+            })
+            .AddScheme<AuthenticationSchemeOptions, GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler>(
+                GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler.SchemeName, null)
             .AddCookie(options =>
             {
                 options.LoginPath = "/mock-login";
@@ -203,6 +223,17 @@ try
         .AddHubOptions(options => options.MaximumReceiveMessageSize = 512 * 1024);
 
     builder.Services.AddSharedGospelPresenterServices(builder.Configuration);
+
+    // Live sessions owned by a desktop client rather than by a circuit on this server. The registry
+    // is the server's side of that pairing; the projector turns what a device reports into ordinary
+    // live state. See adr/0004-mirrored-desktop-live-sessions.md.
+    builder.Services.AddSignalR();
+    builder.Services.AddSingleton<GospelPresenter.Web.Live.MirroredSessionRegistry>();
+    builder.Services.AddSingleton<ILiveSessionPresence>(sp =>
+        sp.GetRequiredService<GospelPresenter.Web.Live.MirroredSessionRegistry>());
+    builder.Services.AddSingleton<GospelPresenter.Web.Live.LiveCommandForwarder>();
+    builder.Services.AddScoped<GospelPresenter.Web.Live.MirroredSessionProjector>();
+
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
     builder.Services.AddSingleton<SetupStatusService>();
 
@@ -244,7 +275,6 @@ try
 
     builder.Services.AddMemoryCache();
     builder.Services.AddScoped<IPresentationService, PresentationService>();
-    builder.Services.AddSingleton<ISongService, SongService>();
     builder.Services.AddSingleton<IBibleService, BibleService>();
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<IOnboardingService, OnboardingService>();
@@ -254,6 +284,7 @@ try
     builder.Services.AddSingleton<ICcliReportService, CcliReportService>();
     builder.Services.AddSingleton<IPdfRenderService, PdfRenderService>();
     builder.Services.AddScoped<IPresentationSlidesService, PresentationSlidesService>();
+    builder.Services.AddScoped<GospelPresenter.Shared.Sync.ISyncService, GospelPresenter.Shared.Sync.SyncService>();
     builder.Services.AddScoped<ICalendarFeedService, CalendarFeedService>();
 
     var gotenbergEndpoint = builder.Configuration.GetValue<string>("Gotenberg:Endpoint");
@@ -272,6 +303,7 @@ try
     }
     builder.Services.AddSingleton<IPowerPointConverter, GotenbergPowerPointConverter>();
     builder.Services.AddHostedService<GospelPresenter.Web.Services.CcliReportBackgroundService>();
+    builder.Services.AddHostedService<GospelPresenter.Web.Services.SyncMaintenanceBackgroundService>();
 
 #if !DEBUG
 builder.Services.AddMetricServer(options =>
@@ -304,11 +336,18 @@ builder.Services.AddMetricServer(options =>
 
     app.UseSerilogRequestLogging();
 
-    app.Use((context, next) =>
+    // Production runs behind the Cloudflare tunnel, which terminates TLS: every request arrives as
+    // http and the forced scheme makes generated absolute URLs (OAuth redirects, the cookie login
+    // redirect) correctly say https. Locally there is no proxy and Kestrel really serves http —
+    // forcing https here would send the sign-in redirect to an https URL nobody listens on.
+    if (!app.Environment.IsDevelopment())
     {
-        context.Request.Scheme = "https";
-        return next(context);
-    });
+        app.Use((context, next) =>
+        {
+            context.Request.Scheme = "https";
+            return next(context);
+        });
+    }
 
     app.UseForwardedHeaders();
 
@@ -360,7 +399,10 @@ builder.Services.AddMetricServer(options =>
                                      || path.StartsWith("/api/theme-images/", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/live", StringComparison.OrdinalIgnoreCase)
                                      || path.Equals("/display", StringComparison.OrdinalIgnoreCase);
-                    if (!isPublicPath)
+                    // API clients (a device token in the Authorization header) can never use the
+                    // mock login page; let them fall through to a proper 401 instead of a redirect.
+                    var isApiClient = context.Request.Headers.ContainsKey("Authorization");
+                    if (!isPublicPath && !isApiClient)
                     {
                         context.Response.Redirect("/mock-login");
                         return;
@@ -423,7 +465,20 @@ builder.Services.AddMetricServer(options =>
 
     app.Use(async (context, next) =>
     {
-        if (context.User.Identity?.IsAuthenticated == true
+        // Browser sessions only: an API client (the device app's Bearer requests) never stores
+        // cookies, so the set-cookie-and-redirect dance would repeat on every call — and the
+        // redirect makes HttpClient drop its Authorization header, which turns a valid device
+        // token into a login-page HTML response. API responses are not localized via cookies;
+        // the sync paths read the user's stored language directly where they need it.
+        //
+        // The live session hub is the same kind of caller and has to be exempt for the same
+        // reason: it authenticates with a device token and serves no localized content. It only
+        // does not live under /api because it is a hub, and without this its first negotiate is
+        // redirected, loses the Authorization header and 401s — costing a retry before a
+        // presentation starts mirroring.
+        if (!context.Request.Path.StartsWithSegments("/api")
+            && !context.Request.Path.StartsWithSegments(LiveSessionHubMethods.Path)
+            && context.User.Identity?.IsAuthenticated == true
             && !context.Request.Cookies.ContainsKey(CookieRequestCultureProvider.DefaultCookieName))
         {
             var userId = context.User.FindFirst("user_id")?.Value;
@@ -775,10 +830,17 @@ builder.Services.AddMetricServer(options =>
 
     app.MapCalendarEndpoints();
     app.MapPublicOutputEndpoints();
+    app.MapDeviceTokenEndpoints();
+    app.MapSyncEndpoints();
+    app.MapHub<GospelPresenter.Web.Live.LiveSessionHub>(LiveSessionHubMethods.Path);
 
     // Resolve the broadcaster eagerly: it subscribes to live-state events in its constructor,
     // and a lazily created singleton would miss every change until the first visitor connected.
     app.Services.GetRequiredService<PublicOutputBroadcaster>();
+
+    // Same reason: it subscribes in its constructor, and a phone's first command must not be the
+    // thing that brings it into existence — that command would be the one it missed.
+    app.Services.GetRequiredService<GospelPresenter.Web.Live.LiveCommandForwarder>();
 
     // MCP API key authentication middleware
     app.Use(async (context, next) =>
@@ -855,6 +917,12 @@ static string? ResolveScheme(string? provider, IAuthProviderService authProvider
     return null;
 }
 
+static string SelectCookieOrDeviceTokenScheme(HttpContext context) =>
+    context.Request.Headers.Authorization.FirstOrDefault()
+        ?.StartsWith($"Bearer {DeviceToken.Prefix}", StringComparison.Ordinal) == true
+        ? GospelPresenter.Web.Auth.DeviceTokenAuthenticationHandler.SchemeName
+        : CookieAuthenticationDefaults.AuthenticationScheme;
+
 static async Task RejectDeletedUser(CookieValidatePrincipalContext context)
 {
     var userId = context.Principal?.FindFirstValue("user_id");
@@ -910,10 +978,18 @@ static async Task HandleAuthenticatedUser(
     string loginProvider,
     Action<string> onFailure)
 {
+    // Both callers turn the failure into a bare redirect to /authentication-error, so this log is
+    // the only place the actual reason survives.
+    void Reject(string reason)
+    {
+        Log.Warning("Rejecting {Provider} sign-in: {Reason}", loginProvider, reason);
+        onFailure(reason);
+    }
+
     var subject = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
     if (string.IsNullOrEmpty(subject))
     {
-        onFailure("No subject claim found");
+        Reject("the ticket carried no subject claim");
         return;
     }
 
@@ -927,7 +1003,7 @@ static async Task HandleAuthenticatedUser(
         var invite = await userService.GetInviteByTokenAsync(inviteToken);
         if (invite == null)
         {
-            onFailure("Invalid invite");
+            Reject("the invite token is unknown, already used, or expired");
             return;
         }
         await userService.LinkLoginAsync(invite.UserId, loginProvider, subject);
@@ -939,7 +1015,8 @@ static async Task HandleAuthenticatedUser(
         user = await userService.GetByLoginAsync(loginProvider, subject);
         if (user == null)
         {
-            onFailure("User not found");
+            Reject($"no user is linked to {loginProvider} subject {subject} — the account must be "
+                   + "linked once through an invite link before plain sign-in works");
             return;
         }
     }
@@ -974,6 +1051,8 @@ static async Task HandleAuthenticatedUser(
     identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
     identity?.AddClaim(new Claim("login_provider", loginProvider));
     identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
+
+    Log.Information("Signed in user {UserId} via {Provider}", user.Id, loginProvider);
 }
 
 static async Task<byte[]?> DownloadImage(IHttpClientFactory httpClientFactory, string url)

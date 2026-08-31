@@ -46,7 +46,7 @@ services:
       retries: 5
 
   migrations:
-    image: ghcr.io/larsabrasha/gospelpresenter-migrations:release
+    image: ghcr.io/larsabrasha/gospelpresenter-migrations:${GP_VERSION:-latest}
     container_name: gospelpresenter-migrations
     environment:
       ConnectionStrings__postgresdb: "Host=postgres;Database=gospelpresenter;Username=gospelpresenter;Password=${POSTGRES_PASSWORD}"
@@ -64,7 +64,7 @@ services:
         condition: service_healthy
 
   web:
-    image: ghcr.io/larsabrasha/gospelpresenter:release
+    image: ghcr.io/larsabrasha/gospelpresenter:${GP_VERSION:-latest}
     container_name: gospelpresenter-web
     restart: always
     ports:

@@ -417,3 +417,6 @@ GospelPresenter/.env
 
 # Screenshot tool output — the copies that ship are in docs/src/screenshots
 GospelPresenter/GospelPresenter.Screenshots/screenshots/
+
+# Electron.NET downloads its runtime into the build output on first run.
+**/.electron/

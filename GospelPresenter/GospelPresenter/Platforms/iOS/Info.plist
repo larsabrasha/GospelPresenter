@@ -4,6 +4,18 @@
     <dict>
         <key>LSRequiresIPhoneOS</key>
         <true/>
+        <!-- The sign-in flow hands the device token back on this custom scheme. -->
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLName</key>
+                <string>GospelPresenter Sign-In</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>gospelpresenter</string>
+                </array>
+            </dict>
+        </array>
         <key>UIDeviceFamily</key>
         <array>
             <integer>1</integer>

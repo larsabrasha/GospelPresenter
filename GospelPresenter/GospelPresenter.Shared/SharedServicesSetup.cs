@@ -15,6 +15,8 @@ public static class SharedServicesSetup
         var maxPublicViewers = configuration?.GetValue("Settings:PublicOutputMaxViewers", 500) ?? 500;
 
         services.AddLocalization(options => options.ResourcesPath = "Resources");
+        // The MAUI host overrides this with its own reduced capability set after calling this.
+        services.AddSingleton<IAppCapabilities, FullAppCapabilities>();
         services.AddScoped<ToastService>();
         services.AddScoped<AppState>();
         services.AddScoped<ActiveOrganizationState>();
@@ -30,6 +32,16 @@ public static class SharedServicesSetup
         services.AddSingleton<IProfileImageService, ProfileImageService>();
         services.AddSingleton<IImageResizeService, ImageResizeService>();
         services.AddSingleton<IBibleTextService, BibleTextService>();
+        // The default answer — "the address you are being served on" — which is right for the web.
+        // A device host registers its own after this call and replaces it.
+        services.AddSingleton<IServerUrlProvider, LocalServerUrlProvider>();
+        // Registered here rather than per host because the slide builder below depends on it: a
+        // host that got the builder without the song service built a container that could not be
+        // validated, which is how the migration tool — which wants neither, but takes this whole
+        // set — stopped starting.
+        services.AddSingleton<ISongService, SongService>();
+        // Stateless, and ISongService is a singleton too: one instance serves every circuit.
+        services.AddSingleton<ILiveSlideBuilder, LiveSlideBuilder>();
         // Singleton so the built-in theme definitions are cached once for the whole process.
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IThemeAssetService, ThemeAssetService>();

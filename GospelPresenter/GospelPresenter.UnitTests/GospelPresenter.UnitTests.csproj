@@ -33,6 +33,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
+      <ProjectReference Include="..\GospelPresenter.Client\GospelPresenter.Client.csproj" />
     </ItemGroup>
 
 

@@ -1,0 +1,188 @@
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.Sync
+
+@inject IServiceProvider Services
+@inject ToastService ToastService
+
+@implements IDisposable
+
+@* Renders nothing on the web: only the hosts that sync register an ISyncStatusSource. *@
+@if (status is not null)
+{
+    <AppButton Variant="ButtonVariant.Icon" OnClick="SyncNowAsync" Title="@Tooltip()"
+               Class="relative flex items-center justify-center">
+        @if (ShowSpinner)
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                 class="size-5 animate-spin text-sky-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/>
+            </svg>
+        }
+        else if (status.Status == SyncStatus.AuthRequired || status.Status == SyncStatus.Error)
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                 class="size-5 text-amber-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+            </svg>
+        }
+        else if (status.Status == SyncStatus.Offline)
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                 class="size-5 text-neutral-400 dark:text-neutral-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m3 3 18 18M6.75 7.547A8.25 8.25 0 0 0 4.5 18.75h11.69m3.148-1.42a4.5 4.5 0 0 0-2.09-8.28 6.75 6.75 0 0 0-9.815-4.588"/>
+            </svg>
+        }
+        else
+        {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
+                 class="size-5 text-neutral-400 dark:text-neutral-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="m9 13.5 2 2 4-4"/>
+            </svg>
+        }
+        @if (status.PendingChanges > 0 && !ShowSpinner)
+        {
+            <span class="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-sky-500"></span>
+        }
+    </AppButton>
+}
+
+@code {
+    /// <summary>
+    /// How long a sync has to last before it is worth showing. A device syncs within about half a
+    /// second of every save, so without this the header would swap between the spinner and the
+    /// cloud on every pause in someone's typing — movement in the corner of the eye, all through an
+    /// evening's preparation. A sync that finishes under this is one nobody needed to be told
+    /// about; the first sync on a new device pulls a whole library and takes minutes, and shows.
+    /// </summary>
+    private static readonly TimeSpan SpinnerDelay = TimeSpan.FromSeconds(1.5);
+
+    private ISyncStatusSource? status;
+    private DateTimeOffset? syncingSince;
+    private CancellationTokenSource? spinnerCts;
+
+    /// <summary>The status stays truthful either way — this is only about what is drawn.</summary>
+    private bool ShowSpinner =>
+        status?.Status == SyncStatus.Syncing
+        && syncingSince is { } since
+        && DateTimeOffset.UtcNow - since >= SpinnerDelay;
+
+    protected override void OnInitialized()
+    {
+        status = Services.GetService(typeof(ISyncStatusSource)) as ISyncStatusSource;
+        if (status is null)
+            return;
+        status.Changed += OnChanged;
+        status.ConflictReported += OnConflictReported;
+
+        // The scheduler starts before Blazor renders, so on a cold start this component is born
+        // mid-sync and Changed will not fire again until that sync ends. Without seeding here the
+        // spinner is missed for exactly the case it exists for: the first sync on a new device,
+        // pulling a whole library, is the one sync long enough to be worth showing.
+        if (status.Status == SyncStatus.Syncing)
+        {
+            syncingSince = DateTimeOffset.UtcNow;
+            ScheduleSpinnerReveal();
+        }
+    }
+
+    private string Tooltip()
+    {
+        var state = status!.Status switch
+        {
+            SyncStatus.Syncing => L["Sync.StatusSyncing"].Value,
+            SyncStatus.Offline => L["Sync.StatusOffline"].Value,
+            SyncStatus.AuthRequired => L["Sync.StatusAuthRequired"].Value,
+            SyncStatus.Error => L["Sync.StatusError"].Value,
+            _ => L["Sync.StatusIdle"].Value,
+        };
+        var pending = status.PendingChanges > 0 ? $" · {L["Sync.PendingChanges", status.PendingChanges]}" : "";
+        return $"{state}{pending} · {L["Sync.SyncNow"]}";
+    }
+
+    private async Task SyncNowAsync()
+    {
+        if (status is not null)
+            await status.SyncNowAsync();
+    }
+
+    private void OnChanged()
+    {
+        if (status?.Status == SyncStatus.Syncing)
+        {
+            if (syncingSince is null)
+            {
+                syncingSince = DateTimeOffset.UtcNow;
+                // Changed only fires on a state change, and crossing the delay is not one — so the
+                // redraw that reveals the spinner has to be scheduled.
+                ScheduleSpinnerReveal();
+            }
+        }
+        else
+        {
+            syncingSince = null;
+            CancelSpinnerReveal();
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void ScheduleSpinnerReveal()
+    {
+        CancelSpinnerReveal();
+        var cts = new CancellationTokenSource();
+        spinnerCts = cts;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(SpinnerDelay, cts.Token);
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (OperationCanceledException)
+            {
+                // The sync finished first, which is the ordinary case and the whole point.
+            }
+        });
+    }
+
+    private void CancelSpinnerReveal()
+    {
+        spinnerCts?.Cancel();
+        spinnerCts?.Dispose();
+        spinnerCts = null;
+    }
+
+    private void OnConflictReported(SyncPushResult result)
+    {
+        var message = result.Outcome switch
+        {
+            // Merged is the ordinary outcome for a presentation two people touched, and nothing was
+            // lost — say so, so it does not read as a problem. ServerWins on a presentation now
+            // only happens when it was deleted on the server, and the message must be honest that
+            // the offline work went with it.
+            SyncPushOutcome.Merged => L["Sync.ConflictMerged"].Value,
+            // The only Applied result that carries a warning: the row went in, under a code the
+            // server had to replace. Nothing else reaches here as Applied.
+            SyncPushOutcome.Applied when result.EntityType == nameof(RemoteDisplay) =>
+                L["Sync.OutputCodeReplaced"].Value,
+            SyncPushOutcome.ServerWins when result.EntityType == "DbSong" => L["Sync.ConflictSongVersionSaved"].Value,
+            SyncPushOutcome.ServerWins => L["Sync.ConflictServerVersionKept"].Value,
+            SyncPushOutcome.Failed => L["Sync.ChangeRejected"].Value,
+            _ => null,
+        };
+        if (message is null)
+            return;
+        _ = InvokeAsync(() => ToastService.Show(message));
+    }
+
+    public void Dispose()
+    {
+        CancelSpinnerReveal();
+        if (status is null)
+            return;
+        status.Changed -= OnChanged;
+        status.ConflictReported -= OnConflictReported;
+    }
+}
