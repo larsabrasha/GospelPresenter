@@ -102,9 +102,13 @@ That publishes `:1.4.0`, `:1.4` and `:latest`. Every build also publishes an imm
 
 ### Run with .NET Aspire
 
-The recommended way to run the full stack locally (web app + PostgreSQL) is with .NET Aspire:
+The recommended way to run the full stack locally (web app + PostgreSQL) is with .NET Aspire.
+
+On a fresh clone, create the Garage config first — the AppHost bind-mounts it into the Garage container, and it is not in the repository because the real file holds secrets:
 
 ```shell
+cd GospelPresenter
+cp garage.toml.example garage.toml
 dotnet run --project GospelPresenter.AppHost
 ```
 
