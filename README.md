@@ -55,12 +55,12 @@ On startup, the migrations container runs automatically — it creates the datab
 Releases are cut by tagging `main`:
 
 ```shell
-git tag web-v1.4.0 && git push origin web-v1.4.0
+git tag v1.4.0 && git push origin v1.4.0
 ```
 
 That publishes `:1.4.0`, `:1.4` and `:latest`. Every build also publishes an immutable `:sha-<commit>` tag — the moving tags cannot tell you afterwards which build is running, and that one can.
 
-(The `web-` prefix keeps server releases apart from the desktop app's `v*` tags, which build the Electron installers.)
+One tag releases the whole product: the same push also builds the desktop app's installers into a draft GitHub Release at the same version, from the same commit. A prerelease tag (`v1.4.0-rc.1`) publishes only `:1.4.0-rc.1` — it does not move `:latest`, so an unpinned deployment never follows a release candidate.
 
 ---
 

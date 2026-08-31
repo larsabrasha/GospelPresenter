@@ -16,6 +16,10 @@ name: Desktop release
 # reads to decide a newer version exists, so a workflow that collected the installers by hand and
 # skipped that step would produce a release that looks complete and updates nobody. Hence the
 # draft-first job below: electron-builder needs the draft to exist before it can upload into it.
+#
+# The same tag also runs docker-publish.yml, which publishes the server images at that version. One
+# tag releases the whole product, from one commit, under one version number -- so this workflow no
+# longer owns v* alone, and a change to what the tag means belongs in both files.
 
 on:
   push:

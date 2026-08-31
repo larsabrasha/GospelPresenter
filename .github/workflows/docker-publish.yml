@@ -3,7 +3,7 @@ name: Create and publish a Docker image
 # Two channels, one workflow:
 #
 #   push to main         → :main and :sha-<commit>    — what the test environment tracks
-#   push tag web-v1.2.3  → :1.2.3, :1.2, :latest      — what production pins to
+#   push tag v1.2.3      → :1.2.3, :1.2, :latest      — what production pins to
 #   workflow_dispatch    → :<branch name>             — trying a branch in test before it merges
 #   pull request         → built, pushed nowhere      — see below
 #
@@ -17,8 +17,13 @@ name: Create and publish a Docker image
 # The sha tag is written on every build and is the only immutable one. :main and :latest both move,
 # so neither can answer "which build is running" after the fact, and neither is a rollback target.
 #
-# The tag prefix is web- because desktop-release.yml already owns v*: an unprefixed v1.2.3 here
-# would draft an Electron release for three platforms alongside every server deploy.
+# One tag releases the whole product. v1.2.3 is also what desktop-release.yml triggers on, so a
+# release builds the server images and the Electron installers from the same commit and gives them
+# the same version number -- there is one Gospel Presenter, not a server that versions separately
+# from its desktop client. The cost is accepted deliberately: a server-only fix still occupies three
+# platform runners packaging installers nobody asked for, and a desktop-only fix still republishes
+# the server images. On a public repository that is runner time, not money, and the alternative was
+# two version numbers that drift apart and a prefix everyone has to remember.
 #
 # There is deliberately no paths filter any more. A filter here would have to hold for tag pushes
 # too, and a tag placed on a commit that is already on main carries no file diff for it to match --
@@ -28,7 +33,7 @@ name: Create and publish a Docker image
 on:
   push:
     branches: ['main']
-    tags: ['web-v*']
+    tags: ['v*']
   pull_request:
     # A paths filter is safe on this event and not on the push above: a pull request always has a
     # diff to match against, where a tag placed on an already-pushed commit has none. So a pull
@@ -54,7 +59,7 @@ defaults:
 
 jobs:
   # maui-build.yml runs the same suites on pushes to main and on pull requests, but not on tags --
-  # so without this job a web-v* release would publish the production image having run no test at
+  # so without this job a v* release would publish the production image having run no test at
   # all. Duplicated deliberately: a release that gates on a workflow it does not control is a
   # release that can be published green while the tests were never scheduled.
   #
@@ -130,17 +135,17 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ matrix.suffix }}
-          # type=match rather than type=semver because semver parsing runs on the whole tag name and
-          # web-v1.4.0 is not a semver string. The patterns are anchored so only a plain three-part
-          # version produces version tags -- introduce a prerelease scheme (web-v1.4.0-rc.1) and the
-          # latest condition below has to be narrowed with it, or a release candidate becomes latest.
+          # latest=auto is metadata-action's default, stated here rather than inherited because it
+          # decides what production follows: it moves :latest onto a semver tag and, importantly,
+          # leaves it alone for a prerelease, so v1.4.0-rc.1 never becomes what an unpinned
+          # deployment pulls. {{major}}.{{minor}} is skipped for prereleases for the same reason.
+          flavor: latest=auto
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=match,pattern=^web-v(\d+\.\d+\.\d+)$,group=1
-            type=match,pattern=^web-v(\d+\.\d+)\.\d+$,group=1
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=sha
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/web-v') }}
 
       - name: Build and push image
         id: push
