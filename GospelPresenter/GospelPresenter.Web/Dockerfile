@@ -5,7 +5,11 @@ RUN mkdir -p /app/data-protection-keys && chown $APP_UID /app/data-protection-ke
 USER $APP_UID
 EXPOSE 8080
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Pinned to the exact SDK global.json asks for, not the floating 10.0 tag. global.json holds
+# rollForward at latestPatch for the workload reasons documented there, so it accepts 10.0.2xx and
+# nothing else — while mcr's 10.0 tag has since moved on to 10.0.400 and the build died on
+# "A compatible .NET SDK was not found". Raise this together with global.json, never on its own.
+FROM mcr.microsoft.com/dotnet/sdk:10.0.201 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["GospelPresenter.Web/GospelPresenter.Web.csproj", "GospelPresenter.Web/"]
