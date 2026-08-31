@@ -5,6 +5,14 @@ name: Create and publish a Docker image
 #   push to main         → :main and :sha-<commit>    — what the test environment tracks
 #   push tag web-v1.2.3  → :1.2.3, :1.2, :latest      — what production pins to
 #   workflow_dispatch    → :<branch name>             — trying a branch in test before it merges
+#   pull request         → built, pushed nowhere      — see below
+#
+# Pull requests build both images and throw them away. Without that nothing builds a container until
+# after a merge, and the two failures that put main red on 2026-08-31 lived only inside one: the SDK
+# pin, which the runner satisfies from setup-dotnet but a container has to satisfy from its base
+# image, and the Tailwind CLI, whose actions/cache sits on the runner where a container cannot reach
+# it. Both were invisible to a green pull request by construction. A public repository pays nothing
+# for GitHub-hosted runners, so this costs waiting time and no money.
 #
 # The sha tag is written on every build and is the only immutable one. :main and :latest both move,
 # so neither can answer "which build is running" after the fact, and neither is a rollback target.
@@ -21,6 +29,13 @@ on:
   push:
     branches: ['main']
     tags: ['web-v*']
+  pull_request:
+    # A paths filter is safe on this event and not on the push above: a pull request always has a
+    # diff to match against, where a tag placed on an already-pushed commit has none. So a pull
+    # request touching only docs or adr does not build images, and a release tag always does.
+    paths:
+      - 'GospelPresenter/**'
+      - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 
 env:
@@ -42,7 +57,11 @@ jobs:
   # so without this job a web-v* release would publish the production image having run no test at
   # all. Duplicated deliberately: a release that gates on a workflow it does not control is a
   # release that can be published green while the tests were never scheduled.
+  #
+  # Restricted to the events maui-build.yml does not cover, so main pushes and pull requests do not
+  # run the same two suites twice.
   tests:
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -68,6 +87,10 @@ jobs:
 
   build-and-push-image:
     needs: tests
+    # A job whose dependency was skipped is itself skipped, unless its condition uses a status
+    # function -- which is what !cancelled() is here for. So this runs when the gate passed and when
+    # the gate did not apply, and only a real test failure stops it.
+    if: ${{ !cancelled() && needs.tests.result != 'failure' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -93,6 +116,9 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to the Container registry
+        # Nothing is pushed from a pull request, so no credentials are needed. The layer cache is
+        # unaffected: cache-from type=gha reads the Actions cache, not the registry.
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -110,6 +136,7 @@ jobs:
           # latest condition below has to be narrowed with it, or a release candidate becomes latest.
           tags: |
             type=ref,event=branch
+            type=ref,event=pr
             type=match,pattern=^web-v(\d+\.\d+\.\d+)$,group=1
             type=match,pattern=^web-v(\d+\.\d+)\.\d+$,group=1
             type=sha
@@ -121,13 +148,16 @@ jobs:
         with:
           context: GospelPresenter
           file: ${{ matrix.dockerfile }}
-          push: true
+          # A pull request builds and keeps nothing. The point is that the build ran at all.
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
       - name: Generate artifact attestation
+        # Nothing was pushed from a pull request, so there is no digest in the registry to attest.
+        if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ matrix.suffix }}
