@@ -9,6 +9,10 @@ EXPOSE 8080
 # rollForward at latestPatch for the workload reasons documented there, so it accepts 10.0.2xx and
 # nothing else — while mcr's 10.0 tag has since moved on to 10.0.400 and the build died on
 # "A compatible .NET SDK was not found". Raise this together with global.json, never on its own.
+# Note that this is not the same patch CI runs: setup-dotnet takes latestPatch at its word and
+# installs the newest in the band, so the runners are on 10.0.204 while this image is on 10.0.201.
+# Both satisfy the pin, and the difference is deliberate -- mcr publishes no floating tag for a
+# patch band, and there is no 10.0.204 image to pin to.
 FROM mcr.microsoft.com/dotnet/sdk:10.0.201 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
