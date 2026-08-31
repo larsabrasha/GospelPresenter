@@ -412,6 +412,12 @@ GospelPresenter/GospelPresenter.Web/gospelpresenter-mock.db*
 
 GospelPresenter/.env
 
+# Garage's real config — it holds rpc_secret and admin_token, so only garage.toml.example belongs
+# in the repository. This file was tracked from 075f6f6 until it was untracked; the rpc_secret that
+# sat in it for that stretch is in the history of a public repository and has to be treated as
+# disclosed wherever it is still in use.
+GospelPresenter/garage.toml
+
 # Local MCP server config — contains API keys
 .mcp.json
 
