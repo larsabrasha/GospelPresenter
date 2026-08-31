@@ -42,6 +42,26 @@ The [`docker-compose.yml`](docker-compose.yml) uses pre-built images from GitHub
 
 On startup, the migrations container runs automatically — it creates the database schema and provisions the S3 bucket in Garage. The web app starts after migrations have completed.
 
+### Image channels
+
+`GP_VERSION` in `.env` decides which images the stack runs:
+
+| `GP_VERSION` | Image | Use |
+| --- | --- | --- |
+| unset | `:latest` | the newest release — the default for self-hosting |
+| `1.4.0` | `:1.4.0` | production, pinned so upgrades and rollbacks are both a one-line edit |
+| `main` | `:main` | a test environment tracking the trunk |
+
+Releases are cut by tagging `main`:
+
+```shell
+git tag web-v1.4.0 && git push origin web-v1.4.0
+```
+
+That publishes `:1.4.0`, `:1.4` and `:latest`. Every build also publishes an immutable `:sha-<commit>` tag — the moving tags cannot tell you afterwards which build is running, and that one can.
+
+(The `web-` prefix keeps server releases apart from the desktop app's `v*` tags, which build the Electron installers.)
+
 ---
 
 ## Tech stack

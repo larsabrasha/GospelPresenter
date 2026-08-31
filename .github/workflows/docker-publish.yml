@@ -1,17 +1,73 @@
 name: Create and publish a Docker image
 
+# Two channels, one workflow:
+#
+#   push to main         → :main and :sha-<commit>    — what the test environment tracks
+#   push tag web-v1.2.3  → :1.2.3, :1.2, :latest      — what production pins to
+#   workflow_dispatch    → :<branch name>             — trying a branch in test before it merges
+#
+# The sha tag is written on every build and is the only immutable one. :main and :latest both move,
+# so neither can answer "which build is running" after the fact, and neither is a rollback target.
+#
+# The tag prefix is web- because desktop-release.yml already owns v*: an unprefixed v1.2.3 here
+# would draft an Electron release for three platforms alongside every server deploy.
+#
+# There is deliberately no paths filter any more. A filter here would have to hold for tag pushes
+# too, and a tag placed on a commit that is already on main carries no file diff for it to match --
+# so the release build would be skipped for the reason least likely to be guessed. Rebuilding on a
+# docs-only commit costs a cached no-op; a release that silently does not build costs an evening.
+
 on:
   push:
-    branches: ['release']
-    paths:
-      - 'GospelPresenter/**'
+    branches: ['main']
+    tags: ['web-v*']
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  # Same reason as maui-build.yml: Tailwind.MSBuild fetches the standalone CLI from the GitHub API
+  # without a token, and shared runner addresses get rate limited. A cacheable install path lets the
+  # job restore the binary instead of fetching it.
+  TailwindInstallPath: ${{ github.workspace }}/.tailwind-cli/
+
+# Every dotnet command runs from GospelPresenter/, because that is where global.json lives and SDK
+# selection walks up from the working directory.
+defaults:
+  run:
+    working-directory: GospelPresenter
 
 jobs:
+  # maui-build.yml runs the same suites on pushes to main and on pull requests, but not on tags --
+  # so without this job a web-v* release would publish the production image having run no test at
+  # all. Duplicated deliberately: a release that gates on a workflow it does not control is a
+  # release that can be published green while the tests were never scheduled.
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Cache the Tailwind CLI
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.tailwind-cli
+          key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Unit tests
+        run: dotnet test GospelPresenter.UnitTests/GospelPresenter.UnitTests.csproj
+
+      - name: Integration tests
+        run: dotnet test GospelPresenter.IntegrationTests/GospelPresenter.IntegrationTests.csproj
+
   build-and-push-image:
+    needs: tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -48,10 +104,16 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ matrix.suffix }}
+          # type=match rather than type=semver because semver parsing runs on the whole tag name and
+          # web-v1.4.0 is not a semver string. The patterns are anchored so only a plain three-part
+          # version produces version tags -- introduce a prerelease scheme (web-v1.4.0-rc.1) and the
+          # latest condition below has to be narrowed with it, or a release candidate becomes latest.
           tags: |
             type=ref,event=branch
-            type=sha,prefix=,format=short
-            type=raw,value=latest
+            type=match,pattern=^web-v(\d+\.\d+\.\d+)$,group=1
+            type=match,pattern=^web-v(\d+\.\d+)\.\d+$,group=1
+            type=sha
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/web-v') }}
 
       - name: Build and push image
         id: push
