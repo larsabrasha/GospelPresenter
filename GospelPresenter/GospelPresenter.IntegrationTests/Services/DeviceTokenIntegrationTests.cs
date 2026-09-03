@@ -38,6 +38,73 @@ public class DeviceTokenIntegrationTests
         callback.Fragment.ShouldContain("token=gpdt_");
     }
 
+    /// <summary>
+    /// The desktop app's Test and Local builds register a scheme of their own, because an operating
+    /// system routes a scheme to exactly one application — so a token minted here has to be handed
+    /// over on the one the caller registered, not on the one the real app holds.
+    ///
+    /// One case per scheme the desktop app can be built with, so that dropping one from the
+    /// server's allow-list breaks a test rather than an installed app's sign-in. The values are
+    /// $(DesktopCallbackScheme) in GospelPresenter.Desktop/Directory.Build.GospelPresenter*.props.
+    /// </summary>
+    [Theory]
+    [InlineData("gospelpresenter")]
+    [InlineData("gospelpresenter-test")]
+    [InlineData("gospelpresenter-local")]
+    public async Task AppLogin_WithAnAllowedCallbackScheme_HandsOverOnIt(string scheme)
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var client = await CreateCookieClientAsync(app);
+
+        // Act
+        var response = await client.GetAsync($"/app-login?device=Testmaskin&callback_scheme={scheme}");
+
+        // Assert
+        var callback = await DeviceLogin.ReadCallbackAsync(response);
+        callback.Scheme.ShouldBe(scheme);
+    }
+
+    /// <summary>
+    /// The token travels in the fragment of the callback URL, so a scheme passed through unchecked
+    /// would hand a working device token to whatever application the caller named.
+    /// </summary>
+    [Fact]
+    public async Task AppLogin_WithAnUnknownCallbackScheme_IsRejected()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var client = await CreateCookieClientAsync(app);
+
+        // Act
+        var response = await client.GetAsync("/app-login?device=Testmaskin&callback_scheme=attacker");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    /// <summary>
+    /// Rejected before the token is minted, rather than after. A request that leaves a live device
+    /// token behind that no callback ever collected is a credential nobody knows exists.
+    /// </summary>
+    [Fact]
+    public async Task AppLogin_WithAnUnknownCallbackScheme_MintsNoToken()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var cookieClient = await CreateCookieClientAsync(app);
+        var token = await IssueTokenAsync(cookieClient, "Testmaskin");
+        var deviceClient = CreateBearerClient(app, token);
+
+        // Act
+        await cookieClient.GetAsync("/app-login?device=Okänd&callback_scheme=attacker");
+
+        // Assert
+        var tokens = await deviceClient.GetFromJsonAsync<List<TokenRow>>("/api/device-tokens");
+        tokens.ShouldNotBeNull();
+        tokens.ShouldNotContain(t => t.Name == "Okänd");
+    }
+
     [Fact]
     public async Task DeviceToken_AuthenticatesApiRequests()
     {

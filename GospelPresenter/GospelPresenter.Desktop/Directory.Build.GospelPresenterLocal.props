@@ -1,0 +1,38 @@
+<Project>
+
+    <!-- No server at all, which is what selects the fixed developer identity instead of the
+         sign-in flow. It exists so that "no server" is a choice rather than something you fall
+         into when a URL is missing — see adr/0002 (15). Point it at a running server with
+         GP_API_BASE_URL, which is also what the Aspire AppHost sets.
+
+         This is the default scheme, and the only one that is never packaged: the csproj refuses to
+         publish it (GP0003). It therefore needs no ElectronBuilderJson and no bundle-level
+         protocol declaration — Electron claims the callback scheme at runtime through
+         SetAsDefaultProtocolClientAsync, which is enough for an app started from a terminal. -->
+
+    <PropertyGroup>
+        <ElectronPackageId>com.gospelpresenter.app.local</ElectronPackageId>
+        <Title>Gospel Presenter Local</Title>
+
+        <!-- Shares the test icon; a third piece of icon art buys nothing for a developer build. -->
+        <DesktopIconFile>icon-test.png</DesktopIconFile>
+
+        <!-- The URL scheme this installation answers sign-ins on. A property, not only assembly
+             metadata, so the build can check it against what the packaging config declares to the
+             operating system — see ValidateCallbackScheme in the csproj. -->
+        <DesktopCallbackScheme>gospelpresenter-local</DesktopCallbackScheme>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <AssemblyMetadata Include="ServerBaseUrl" Value="" />
+
+        <!-- Its own scheme even though the URL is empty, because GP_API_BASE_URL points this build
+             at a real server — usually the local stack behind the AppHost — and that server hands
+             the token back on whatever the app asked for. Without this, signing in from a
+             development run would deliver the token to an installed Prod or Test app. -->
+        <AssemblyMetadata Include="CallbackScheme" Value="$(DesktopCallbackScheme)" />
+
+        <AssemblyMetadata Include="AppFolderName" Value="GospelPresenter Local" />
+    </ItemGroup>
+
+</Project>

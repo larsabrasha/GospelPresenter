@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 #
-# Registers gospelpresenter:// with the desktop environment for a development
-# build, so the device sign-in callback can find the app.
+# Registers a development build's callback scheme with the desktop environment,
+# so the device sign-in callback can find the app.
+#
+# The scheme depends on which build scheme the app was built with, because each
+# installation answers on its own — see GospelPresenter.Desktop's
+# Directory.Build.GospelPresenter*.props. A `dotnet run` build is the Local
+# scheme unless you passed -p:Scheme, hence the default below.
 #
 # A packaged build does this itself: electron-builder writes a .desktop file
 # naming the scheme, and Electron's setAsDefaultProtocolClient has something to
@@ -19,9 +24,12 @@
 #   ./scripts/register-url-scheme-linux.sh Release    install for Release
 #   ./scripts/register-url-scheme-linux.sh --remove   undo
 #
+# GP_CALLBACK_SCHEME overrides the scheme, for a build made with a different
+# -p:Scheme. Pass the same value to --remove that you installed with.
+#
 set -euo pipefail
 
-SCHEME=gospelpresenter
+SCHEME="${GP_CALLBACK_SCHEME:-gospelpresenter-local}"
 DESKTOP_FILE="${XDG_DATA_HOME:-$HOME/.local/share}/applications/$SCHEME-url-handler.desktop"
 HANDLER="${XDG_DATA_HOME:-$HOME/.local/share}/$SCHEME/url-handler.sh"
 

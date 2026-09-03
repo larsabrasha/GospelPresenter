@@ -1,0 +1,113 @@
+name: Desktop test build
+
+# Packages the desktop app for the **test** server (apptest.gospelpresenter.com, which is what
+# `main` deploys to — see the README under "Image channels") and leaves the installers as workflow
+# artifacts.
+#
+# A button, unlike desktop-release.yml, which is deliberately tag-only. That rule is about the
+# users' update feed: a published release makes every installed copy of the real app update itself,
+# so the trigger for it has to be a gesture nobody performs by accident. This workflow has no feed
+# to publish to — electron-builder.test.yml names no provider, and the app does not register the
+# updater at all — so the only thing a stray run produces is a download nobody asked for.
+#
+# There is no tag trigger either, and could not usefully be one: `v*` belongs to the release
+# workflow and `web-*` to the container images.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or SHA to build (defaults to the branch this is started from)'
+        required: false
+        type: string
+
+defaults:
+  run:
+    working-directory: GospelPresenter
+
+env:
+  TailwindInstallPath: ${{ github.workspace }}/.tailwind-cli/
+
+jobs:
+  build:
+    strategy:
+      # Same reasoning as the release workflow: one platform failing should not throw away the two
+      # that packaged.
+      fail-fast: false
+      matrix:
+        include:
+          # macOS is Apple Silicon only, for the same reason as the release workflow: one
+          # electron-builder invocation per RID means an osx-x64 run would overwrite the arm64
+          # latest-mac.yml. It matters less here, with no feed reading those manifests, but there is
+          # no reason for the two workflows to disagree about what they build.
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-x64
+          - os: ubuntu-latest
+            rid: linux-x64
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Cache the Tailwind CLI
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.tailwind-cli
+          key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Derive a version from the run
+        # No tag to read, and electron-updater is not going to compare this against anything — but
+        # electron-builder requires a semver in the generated package.json, and a build number makes
+        # two artifacts from the same day distinguishable.
+        shell: bash
+        run: echo "APP_VERSION=0.0.${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Install the rpm tooling
+        # electron-builder builds deb, rpm and pacman through fpm, which it downloads itself — but
+        # fpm shells out to rpmbuild for the rpm target, and that is not part of fpm. Guarded rather
+        # than installed unconditionally: the runner image may already carry it, and this way the
+        # step stays correct either way instead of depending on what the image happens to ship.
+        if: runner.os == 'Linux'
+        run: command -v rpmbuild || sudo apt-get install -y --no-install-recommends rpm
+
+      - name: Publish and package
+        # No GH_TOKEN, so electron-builder has nothing to upload with even if a provider appeared in
+        # the config. The macOS build is unsigned for the same reason as the release build: there is
+        # no certificate, and the runner's keychain must not surprise us with one.
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: >
+          dotnet publish GospelPresenter.Desktop/GospelPresenter.Desktop.csproj
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained true
+          -p:Scheme=GospelPresenterTest
+          -p:Version=${{ env.APP_VERSION }}
+
+      - name: Collect the installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: gospel-presenter-test-${{ matrix.rid }}
+          # The installers land beside the published app. Named for the scheme by
+          # electron-builder.test.yml's artifactName, which is what keeps them apart from a real
+          # build's files in a downloads folder.
+          path: |
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.dmg
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.exe
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.AppImage
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.deb
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.rpm
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.pacman
+          if-no-files-found: error

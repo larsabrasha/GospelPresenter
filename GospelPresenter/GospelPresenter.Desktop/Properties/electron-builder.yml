@@ -1,10 +1,15 @@
-# Packaging and the update feed. YAML rather than the JSON the ElectronNET template ships, for the
-# sake of these comments: electron-builder validates its configuration against a strict schema and
-# rejects unknown keys, so a JSON file cannot carry a "//" note explaining itself. The file name is
-# set by ElectronBuilderJson in the csproj.
+# Packaging and the update feed for the **Prod** scheme — the real app. YAML rather than the JSON
+# the ElectronNET template ships, for the sake of these comments: electron-builder validates its
+# configuration against a strict schema and rejects unknown keys, so a JSON file cannot carry a
+# "//" note explaining itself. Which file is used is set by ElectronBuilderJson in
+# Directory.Build.$(Scheme).props; electron-builder.test.yml is the other one, and Local is not
+# packaged at all.
 
 $schema: https://raw.githubusercontent.com/electron-userland/electron-builder/refs/heads/master/packages/app-builder-lib/scheme.json
 
+# The default for every target; Linux overrides it below, and the reasoning for that is there.
+# Worth knowing what it costs where it is kept: dmg and nsis are decompressed once, at install time,
+# so maximum buys a smaller download and is paid for by nobody afterwards.
 compression: maximum
 
 # Resolved from the publish root, where electron-builder runs; bin/ is the published .NET app, and
@@ -15,7 +20,18 @@ icon: bin/icon.png
 # Spelled out rather than left to ${name}, which is the npm package name and is now the reverse-DNS
 # bundle identifier: "com.gospelpresenter.app-arm64-0.1.0.dmg" is not a file to hand anyone. The
 # updater reads the manifests rather than the file names, so this is free to be legible.
-artifactName: gospel-presenter-${arch}-${version}.${ext}
+#
+# ${os} is in there because the extension is the only other thing that says which system a file is
+# for, and that only helps someone who already knows that .dmg means macOS. A release page lists
+# every platform's files together — with four Linux targets that is a dozen or more — and the person
+# reading it is a volunteer looking for the one to download. It expands to mac, win or linux
+# (platformPackager.ts passes platform.buildConfigurationKey), giving names like
+# gospel-presenter-linux-x86_64-1.4.0.AppImage.
+#
+# The arch spelling is electron-builder's own and is not consistent across targets: the same machine
+# is x64 for an exe and x86_64 for an AppImage. Not worth overriding per target — with ${os} present
+# the name already answers the question anyone is actually asking.
+artifactName: gospel-presenter-${os}-${arch}-${version}.${ext}
 
 # Where the app looks for updates. electron-builder writes this into the bundle as app-update.yml,
 # so it is the feed whether or not CI ever uploads with --publish. GitHub Releases per adr/0002 (8):
@@ -25,6 +41,10 @@ artifactName: gospel-presenter-${arch}-${version}.${ext}
 # Compiled in rather than served by the server, per (30): a server that names the feed can make the
 # client download and run anything, and that is only acceptable once a signature proves the package
 # came from us.
+#
+# This block is the only publish provider in the project, and the csproj keys HasUpdateFeed — and
+# therefore whether the app registers IAppUpdater at all — on this file being the one selected. If a
+# provider is ever added to electron-builder.test.yml, that condition is what has to change with it.
 publish:
   - provider: github
     owner: larsabrasha
@@ -35,6 +55,11 @@ publish:
 # runtime with setAsDefaultProtocolClient, and that is enough while developing — but on macOS the
 # claim is read from the bundle's CFBundleURLTypes, which only exists if it is declared here. Left
 # out, the packaged app would sign in as far as the browser and never hear back.
+#
+# One scheme per installation, and this is the unsuffixed one because this is the real app. It has
+# to match CallbackScheme in Directory.Build.GospelPresenterProd.props, which is what the app tells
+# the server to answer on — the OS routes a scheme to exactly one application, so a mismatch here
+# means the browser hands the token to nothing, or to the wrong app.
 protocols:
   - name: Gospel Presenter
     schemes:
@@ -77,8 +102,47 @@ nsis:
 # AppImage rather than the template's tar.xz, for the same reason as nsis: a tarball is not
 # something electron-updater can update.
 linux:
+  # Overriding the maximum above, and the one packaging decision here that is about startup rather
+  # than download size. An AppImage is a squashfs the kernel FUSE-mounts at every launch and
+  # decompresses on demand — unlike a dmg or an installer, the compression is paid again every time
+  # the app opens, not once when it is installed. maximum makes AppImageTarget pass "--compression
+  # xz", and xz decompresses at a fraction of gzip's speed; this app has ~150 MB of .NET runtime
+  # plus Electron's own binaries to fault in before it can draw anything. normal (gzip) trades
+  # perhaps 50 MB of download for that time, on every start, forever.
+  #
+  # electron-builder resolves compression per platform before falling back to the root value
+  # (platformPackager.ts), so this key belongs here and mac/win keep maximum.
+  #
+  # It reaches AppImage only. The fpm targets below read their own per-target compression option
+  # and default to xz independently (FpmTarget.ts), which is right for them: a deb, an rpm and a
+  # pacman package are all decompressed once at install, so their compression is a download-size
+  # question and nothing to do with how fast the app starts.
+  compression: normal
+
+  # Four targets, because "Linux" is not one thing and the alternative is telling a church to run a
+  # format their distribution has no idea what to do with.
+  #
+  #   AppImage  everything else, and the only one that updates itself -- see below
+  #   deb       Ubuntu, Debian, Mint, Pop!_OS
+  #   rpm       Fedora, RHEL, openSUSE
+  #   pacman    Arch, Omarchy, Manjaro, EndeavourOS
+  #
+  # The three native packages install unpacked under /opt, so they start faster than the AppImage
+  # can: no FUSE mount, no decompression, and the second launch comes out of the page cache. They
+  # also register gospelpresenter:// properly -- electron-builder turns the protocols: block above
+  # into x-scheme-handler in the .desktop file (LinuxTargetHelper.ts), so the package manager owns
+  # the registration rather than the app claiming it at runtime on every start.
+  #
+  # NOTE, and it is the trade that matters: electron-updater supports AppImage and nothing else on
+  # Linux. A machine that installed the deb, rpm or pacman package will never update itself; someone
+  # has to download the new one. Against adr/0002 (26) -- no rollback, updates are how a fix
+  # reaches anyone -- that makes AppImage the build to hand a church, and the native packages the
+  # build for a machine whose owner updates it deliberately.
   target:
     - AppImage
+    - deb
+    - rpm
+    - pacman
   executableArgs:
     - --no-sandbox
   category: Office

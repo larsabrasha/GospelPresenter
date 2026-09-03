@@ -12,8 +12,38 @@ namespace GospelPresenter.Web;
 
 public static class DeviceTokenEndpoints
 {
-    /// <summary>The custom URL scheme the MAUI app registers; /app-login hands the token over on it.</summary>
-    private const string AppCallbackScheme = "gospelpresenter";
+    /// <summary>
+    /// The custom URL scheme /app-login hands the token over on, when the caller does not ask for
+    /// another. The scheme the MAUI app registers, so an app that says nothing keeps the behaviour
+    /// it has always had.
+    /// </summary>
+    private const string DefaultAppCallbackScheme = "gospelpresenter";
+
+    /// <summary>
+    /// Every scheme a device app may ask to be answered on. One per installation identity, because
+    /// an operating system routes a scheme to exactly one application: two installed apps claiming
+    /// `gospelpresenter://` means a token minted against this server can be delivered to whichever
+    /// of them the OS picked, and a sign-in against the test server would hand its token to the app
+    /// pointed at production.
+    ///
+    /// Declared by the caller rather than configured per deployment. The scheme identifies the
+    /// application, not the server — the desktop app is the only thing that knows which scheme it
+    /// registered with the OS, and the same server serves apps that registered different ones.
+    ///
+    /// An allow-list, and not a value passed through. The token travels in the fragment of this
+    /// URL, so a scheme taken from the query string unchecked would let anyone who can get a
+    /// signed-in browser to /app-login?callback_scheme=… have a working device token handed to an
+    /// application they control. Nothing outside this array is ever emitted.
+    /// </summary>
+    private static readonly string[] AppCallbackSchemes =
+    [
+        DefaultAppCallbackScheme,
+        // GospelPresenter.Desktop, built with -p:Scheme=GospelPresenterTest and -Local. See
+        // GospelPresenter.Desktop/Directory.Build.GospelPresenter*.props, where the app's end of
+        // each of these is set.
+        "gospelpresenter-test",
+        "gospelpresenter-local",
+    ];
 
     public static void MapDeviceTokenEndpoints(this WebApplication app)
     {
@@ -31,11 +61,20 @@ public static class DeviceTokenEndpoints
             HttpContext context,
             [FromServices] IUserService userService,
             [FromServices] IStringLocalizer<SharedResource> localizer,
-            [FromQuery] string? device) =>
+            [FromQuery] string? device,
+            [FromQuery(Name = "callback_scheme")] string? callbackScheme) =>
         {
             var caller = GetCaller(context);
             if (caller is null) return Results.Unauthorized();
             if (caller.OrganizationId is null) return Results.Forbid();
+
+            // Before the token is minted, so a request naming a scheme we will not answer on does
+            // not leave a device token behind that nothing can ever collect. Rejected rather than
+            // quietly served on the default: falling back would deliver the token to the app that
+            // holds `gospelpresenter://`, which is the confusion this parameter exists to prevent.
+            var scheme = ResolveCallbackScheme(callbackScheme);
+            if (scheme is null)
+                return Results.BadRequest(new { error = "Unknown callback scheme" });
 
             var name = string.IsNullOrWhiteSpace(device)
                 ? "App"
@@ -47,7 +86,7 @@ public static class DeviceTokenEndpoints
                 name, caller.UserId, caller.OrganizationId, caller);
 
             var callback =
-                $"{AppCallbackScheme}://auth#token={Uri.EscapeDataString(plaintextToken)}" +
+                $"{scheme}://auth#token={Uri.EscapeDataString(plaintextToken)}" +
                 $"&user_id={Uri.EscapeDataString(caller.UserId)}" +
                 $"&organization_id={Uri.EscapeDataString(caller.OrganizationId)}";
 
@@ -111,6 +150,22 @@ public static class DeviceTokenEndpoints
             await userService.RevokeDeviceTokenAsync(id, caller);
             return Results.NoContent();
         }).RequireAuthorization();
+    }
+
+    /// <summary>
+    /// The scheme to hand the token over on, or null if the caller named one we do not answer on.
+    /// A caller that names nothing gets <see cref="DefaultAppCallbackScheme"/>.
+    ///
+    /// Ordinal and case-sensitive. A URI scheme is case-insensitive by RFC 3986, but every value
+    /// in <see cref="AppCallbackSchemes"/> is lowercase and so is every app's registration, so
+    /// matching exactly costs nothing and keeps the comparison out of the current culture.
+    /// </summary>
+    private static string? ResolveCallbackScheme(string? requested)
+    {
+        if (string.IsNullOrWhiteSpace(requested))
+            return DefaultAppCallbackScheme;
+
+        return Array.Exists(AppCallbackSchemes, s => s == requested) ? requested : null;
     }
 
     /// <summary>

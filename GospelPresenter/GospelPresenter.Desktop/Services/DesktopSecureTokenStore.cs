@@ -23,7 +23,14 @@ namespace GospelPresenter.Desktop.Services;
 /// </summary>
 public class DesktopSecureTokenStore(ILogger<DesktopSecureTokenStore> logger) : ISecureTokenStore
 {
-    private const string ServiceName = "GospelPresenter";
+    /// <summary>
+    /// The keychain service the item is filed under, and the one place in this class where the
+    /// installation's identity shows up: the file path below is already inside a per-scheme
+    /// directory, but the macOS keychain is one namespace for the whole login session. Left as a
+    /// bare constant, a Test build signing in would overwrite the real app's device token.
+    /// </summary>
+    private static string ServiceName => DesktopBuild.AppFolderName;
+
     private const string AccountName = "device-token";
 
     private static string FilePath => Path.Combine(DesktopPaths.DataDirectory, "device-token");

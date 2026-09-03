@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gospel Presenter</title>
+</head>
+<!--
+    Shown by the Electron host from the moment the process starts until the operator window exists,
+    which is the part of startup that used to be a blank screen: Electron spawns the .NET process,
+    and nothing can be drawn until ASP.NET Core has built the host, brought the local database up to
+    date and started listening. See ElectronSplashScreen in the csproj for the wiring.
+
+    Deliberately a single self-contained file with no build step and no assets. It is loaded over
+    file:// from the packaged app directory before any server is listening, so anything it referenced
+    -- a stylesheet, Tailwind, the app icon -- would have to be a second file copied to the right
+    place at package time, and would show a broken splash if it ever was not. That is also why the
+    palette below is hex rather than Tailwind classes: the tokens are named in the variables so the
+    values are traceable to the ones MainLayout uses, which is as close to sharing them as a file
+    outside the build can get.
+
+    The window is created by the host as 800x600, frameless and transparent; the size is not
+    configurable from the manifest, so the layout fills whatever it is given rather than centring a
+    fixed-size card. The background is opaque on purpose: a transparent window renders black rather
+    than blending on a Linux desktop with no compositor, which is exactly the kind of machine this
+    app runs on.
+
+    Light and dark both, per the project's UI rules. The app's own theme is a localStorage value
+    ('light', 'dark' or 'system' -- see utils.js), which a file:// page loaded before the server is
+    listening cannot read, so this follows the OS instead. That is right for 'system', which is the
+    default; someone who has explicitly overridden the theme gets a splash matching their desktop
+    rather than their override, which is the closest an unaskable question can be answered.
+
+    The wordmark repeats MainLayout's. System fonts rather than the app's Inter: one file, no font
+    loading, and a splash that is already gone by the time a webfont would have arrived.
+-->
+<body>
+<style>
+    :root {
+        /* neutral-100 and neutral-300. A shade off white rather than MainLayout's own bg-white:
+           this is a frameless window floating over the desktop, and pure white reads as a missing
+           background rather than a surface. The dark block below overrides both. */
+        --surface: #f5f5f5;
+        --track: #d4d4d4;
+        /* sky-600 and sky-500: the darker pair, for contrast against a light surface. */
+        --gospel: #0284c7;
+        --presenter: #0ea5e9;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            /* neutral-800, the surface MainLayout uses under `dark:`. */
+            --surface: #262626;
+            --track: #404040;
+            /* sky-500 and sky-400, exactly as in MainLayout. */
+            --gospel: #0ea5e9;
+            --presenter: #38bdf8;
+        }
+    }
+
+    html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    body {
+        background: var(--surface);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2.5rem;
+        user-select: none;
+    }
+
+    .wordmark {
+        font-size: 2.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        white-space: nowrap;
+    }
+
+    .gospel { color: var(--gospel); }
+    .presenter { color: var(--presenter); }
+
+    .track {
+        width: 13rem;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--track);
+        overflow: hidden;
+    }
+
+    /*
+        Indeterminate on purpose: the host has no progress to report, and a bar that pretended to
+        know would be lying about a wait whose length depends on the machine. This says "working",
+        which is the whole job.
+    */
+    .track::after {
+        content: "";
+        display: block;
+        width: 40%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--gospel);
+        animation: slide 1.4s ease-in-out infinite;
+    }
+
+    @keyframes slide {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(250%); }
+    }
+
+    /* A splash cannot be dismissed, so a user who cannot see the animation gets a static bar
+       rather than a hint that something is stuck. */
+    @media (prefers-reduced-motion: reduce) {
+        .track::after {
+            width: 100%;
+            animation: none;
+        }
+    }
+</style>
+
+<div class="wordmark"><span class="gospel">Gospel</span> <span class="presenter">Presenter</span></div>
+<div class="track"></div>
+</body>
+</html>

@@ -426,3 +426,9 @@ GospelPresenter/GospelPresenter.Screenshots/screenshots/
 
 # Electron.NET downloads its runtime into the build output on first run.
 **/.electron/
+
+# Electron.NET copies its own template packaging config into Properties/ on every build, whether or
+# not the project uses it -- ours does not, ElectronBuilderJson points at the YAML files beside it.
+# Deleted from the index when the YAML replaced it, then recreated by the next build and left
+# showing as untracked ever since, which reads like a file somebody forgot to commit.
+GospelPresenter/GospelPresenter.Desktop/Properties/electron-builder.json
