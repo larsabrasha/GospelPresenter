@@ -389,6 +389,13 @@ static async Task OnElectronReadyAsync(IServiceProvider services)
         Height = 860,
         MinWidth = 900,
         MinHeight = 600,
+        // Hidden until the page has painted, so no empty window is ever on screen. The alternative
+        // — showing it immediately over a BackgroundColor, so it could take the splash screen's
+        // place the instant the host destroys it — needs a colour that matches the theme the app is
+        // about to paint, and there is none to be had here: the theme is a localStorage value
+        // ('light', 'dark' or 'system'; see utils.js), so it does not exist until the page runs.
+        // Guessing it would flash the wrong colour at everyone it guessed wrong for, which is worse
+        // than the short gap between the splash disappearing and this window arriving.
         Show = false,
     }.WithHiddenMenuBar());
 

@@ -61,6 +61,10 @@ nsis:
   perMachine: false
 
 linux:
+  # An AppImage decompresses at every launch rather than once at install, so xz is paid for on the
+  # startup path forever. Kept in step with electron-builder.yml, which carries the full reasoning —
+  # a test build that started measurably slower than the real one would be a bad place to measure.
+  compression: normal
   target:
     - AppImage
   executableArgs:

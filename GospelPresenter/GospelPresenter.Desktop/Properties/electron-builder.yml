@@ -7,6 +7,9 @@
 
 $schema: https://raw.githubusercontent.com/electron-userland/electron-builder/refs/heads/master/packages/app-builder-lib/scheme.json
 
+# The default for every target; Linux overrides it below, and the reasoning for that is there.
+# Worth knowing what it costs where it is kept: dmg and nsis are decompressed once, at install time,
+# so maximum buys a smaller download and is paid for by nobody afterwards.
 compression: maximum
 
 # Resolved from the publish root, where electron-builder runs; bin/ is the published .NET app, and
@@ -88,6 +91,17 @@ nsis:
 # AppImage rather than the template's tar.xz, for the same reason as nsis: a tarball is not
 # something electron-updater can update.
 linux:
+  # Overriding the maximum above, and the one packaging decision here that is about startup rather
+  # than download size. An AppImage is a squashfs the kernel FUSE-mounts at every launch and
+  # decompresses on demand — unlike a dmg or an installer, the compression is paid again every time
+  # the app opens, not once when it is installed. maximum makes AppImageTarget pass "--compression
+  # xz", and xz decompresses at a fraction of gzip's speed; this app has ~150 MB of .NET runtime
+  # plus Electron's own binaries to fault in before it can draw anything. normal (gzip) trades
+  # perhaps 50 MB of download for that time, on every start, forever.
+  #
+  # electron-builder resolves compression per platform before falling back to the root value
+  # (platformPackager.ts), so this key belongs here and mac/win keep maximum.
+  compression: normal
   target:
     - AppImage
   executableArgs:

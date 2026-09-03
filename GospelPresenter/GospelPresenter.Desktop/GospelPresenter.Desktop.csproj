@@ -32,6 +32,41 @@
         <Message Importance="high" Text="Scheme: $(Scheme)"/>
     </Target>
 
+    <!-- Precompile to native code at publish time. Without this, a self-contained build still JITs
+         the whole ASP.NET Core, EF Core and Blazor stack on every launch, and all of it sits on the
+         path before the window can be created: Kestrel does not listen until the host is built, and
+         OnElectronReadyAsync does not run until it listens. R2R trades install size for that.
+
+         Conditioned on a RuntimeIdentifier because ReadyToRun requires one — an unqualified
+         `dotnet build` or `dotnet run` would otherwise fail with NETSDK1095 rather than quietly
+         ignoring the property, and a bare run is the ordinary way to work on this project. It is
+         also why this is here rather than in the release workflow: a local `dotnet publish -r` is
+         the only way to reproduce what CI ships, and that is worth having produce the same binary.
+
+         Not paired with PublishTrimmed: trimming and this app's reflection over EF Core models and
+         Razor components are a separate investigation, and R2R is the half that pays for itself. -->
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+        <PublishReadyToRun>true</PublishReadyToRun>
+    </PropertyGroup>
+
+    <!-- What is on screen while the app starts. The Electron host shows this from app.ready, before
+         it has even spawned the .NET process, and destroys it when the first BrowserWindow is
+         created — so it covers exactly the stretch that was previously a blank screen, and none of
+         the stretch after it.
+
+         It does not cover all of startup, and cannot: the host destroys the splash on
+         browser-window-created, which fires when Program.cs creates the operator window, not when
+         that window has painted. The gap between the two is left as a gap on purpose — closing it
+         would mean showing the window immediately over a background colour, and there is no colour
+         to pick, because the theme is a localStorage value the host cannot read. See
+         OnElectronReadyAsync.
+
+         Not conditioned on scheme: a Local build starts through the same slow path and is where the
+         startup work is actually measured. -->
+    <PropertyGroup>
+        <ElectronSplashScreen>splash.html</ElectronSplashScreen>
+    </PropertyGroup>
+
     <!-- A misspelled scheme would otherwise build: the Import below is conditional on the file
          existing, so the app would come out with no server URL, no callback scheme and the data
          directory of whichever installation it fell back to. Nothing about the running app would

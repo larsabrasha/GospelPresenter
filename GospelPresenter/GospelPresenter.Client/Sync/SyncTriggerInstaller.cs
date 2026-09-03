@@ -17,7 +17,10 @@ namespace GospelPresenter.Client.Sync;
 /// row to its aggregate root even after the row itself was deleted.
 ///
 /// Installation drops and recreates every trigger at each startup (after migrations), so a new app
-/// version's trigger SQL always replaces what an older version installed.
+/// version's trigger SQL always replaces what an older version installed. All of it in one
+/// transaction: SQLite makes DDL transactional, so the window in which some triggers are installed
+/// and others are not never becomes visible to anything else, and the 86 statements cost one disk
+/// sync rather than 86 on the path that blocks the first paint.
 /// </summary>
 public static class SyncTriggerInstaller
 {
@@ -46,6 +49,8 @@ public static class SyncTriggerInstaller
 
     public static async Task InstallAsync(ClientDataContext context, CancellationToken cancellationToken = default)
     {
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
         foreach (var (table, parentColumn) in SyncedTables)
         {
             await InstallTriggerAsync(context, TriggerSql(table, parentColumn, "i", "INSERT", "NEW"), table, "i", cancellationToken);
@@ -63,6 +68,8 @@ public static class SyncTriggerInstaller
                  VALUES ('CcliReportEntries', NEW.Id, 'I', NULL, CAST(strftime('%s','now') AS INTEGER) * 1000);
              END;
              """, "CcliReportEntries", "i", cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static async Task InstallTriggerAsync(
