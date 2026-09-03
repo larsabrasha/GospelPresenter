@@ -16,8 +16,9 @@ compression: maximum
 icon: bin/icon.png
 
 # Names the scheme so a test installer and a real one can sit in the same downloads folder without
-# one overwriting the other.
-artifactName: gospel-presenter-test-${arch}-${version}.${ext}
+# one overwriting the other. ${os} for the same reason as the real config: the extension alone only
+# tells you the platform if you already know what a .dmg is.
+artifactName: gospel-presenter-test-${os}-${arch}-${version}.${ext}
 
 # No `publish:`. adr/0002 (9) put beta testers on the production server, on the grounds that "a
 # beta that runs against test data is never used on a Sunday and therefore finds nothing" — which
@@ -65,8 +66,16 @@ linux:
   # startup path forever. Kept in step with electron-builder.yml, which carries the full reasoning —
   # a test build that started measurably slower than the real one would be a bad place to measure.
   compression: normal
+  # The same four as the real build, and this is the config where that matters most: this is the
+  # build you install on an actual Ubuntu and an actual Arch machine to find out whether the package
+  # works, before a v* tag makes the same question a release. All four come out of one .NET publish
+  # — electron-builder packages the staged app directory once per target — so the extra formats cost
+  # packaging time, not build time.
   target:
     - AppImage
+    - deb
+    - rpm
+    - pacman
   executableArgs:
     - --no-sandbox
   category: Office

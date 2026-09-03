@@ -48,9 +48,38 @@ jobs:
         run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             echo "Release $GITHUB_REF_NAME already exists; leaving it as it is."
-          else
-            gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --generate-notes
+            exit 0
           fi
+
+          # Prepended above the generated changelog -- `gh` documents --notes as doing exactly that
+          # when it is combined with --generate-notes. A release carries fifteen or so assets across
+          # three platforms, most of which exist for the updater rather than for a person, and the
+          # one downloading it is usually a volunteer setting up a church computer once. The file
+          # names say which system they are for; this says which one to click, and which to ignore.
+          #
+          # Inline rather than read from a file because this job deliberately has no checkout.
+          # Written before any asset exists, so it names patterns rather than exact files.
+          notes=$(cat <<'MARKDOWN'
+          ## Which file do I download?
+
+          | Your system | File |
+          | --- | --- |
+          | macOS (Apple Silicon) | `…-mac-arm64-….dmg` |
+          | Windows | `…-win-x64-….exe` |
+          | Ubuntu, Debian, Mint, Pop!_OS | `…-linux-x64-….deb` |
+          | Fedora, RHEL, openSUSE | `…-linux-x64-….rpm` |
+          | Arch, Omarchy, Manjaro | `…-linux-x64-….pacman` |
+          | Any other Linux | `…-linux-x86_64-….AppImage` |
+
+          The AppImage keeps itself up to date. The `.deb`, `.rpm` and `.pacman` packages do not —
+          to update one of those, download the new file and install it over the old one.
+
+          Everything else on this page (`.blockmap`, `.zip`, `latest*.yml`) is for the updater.
+          You do not need to download any of it.
+          MARKDOWN
+          )
+
+          gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes "$notes" --generate-notes
 
   build:
     needs: draft
@@ -99,6 +128,14 @@ jobs:
         # compares against the feed. bash on all three runners, so there is one implementation.
         shell: bash
         run: echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Install the rpm tooling
+        # electron-builder builds deb, rpm and pacman through fpm, which it downloads itself — but
+        # fpm shells out to rpmbuild for the rpm target, and that is not part of fpm. Guarded rather
+        # than installed unconditionally: the runner image may already carry it, and this way the
+        # step stays correct either way instead of depending on what the image happens to ship.
+        if: runner.os == 'Linux'
+        run: command -v rpmbuild || sudo apt-get install -y --no-install-recommends rpm
 
       - name: Publish, package and upload
         # Self-contained: the machine this installs on has no .NET, and asking a volunteer to install

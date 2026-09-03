@@ -74,6 +74,14 @@ jobs:
         shell: bash
         run: echo "APP_VERSION=0.0.${{ github.run_number }}" >> "$GITHUB_ENV"
 
+      - name: Install the rpm tooling
+        # electron-builder builds deb, rpm and pacman through fpm, which it downloads itself — but
+        # fpm shells out to rpmbuild for the rpm target, and that is not part of fpm. Guarded rather
+        # than installed unconditionally: the runner image may already carry it, and this way the
+        # step stays correct either way instead of depending on what the image happens to ship.
+        if: runner.os == 'Linux'
+        run: command -v rpmbuild || sudo apt-get install -y --no-install-recommends rpm
+
       - name: Publish and package
         # No GH_TOKEN, so electron-builder has nothing to upload with even if a provider appeared in
         # the config. The macOS build is unsigned for the same reason as the release build: there is
@@ -99,4 +107,7 @@ jobs:
             GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.dmg
             GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.exe
             GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.AppImage
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.deb
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.rpm
+            GospelPresenter/GospelPresenter.Desktop/bin/Release/net10.0/${{ matrix.rid }}/publish/*.pacman
           if-no-files-found: error
