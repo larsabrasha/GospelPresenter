@@ -84,6 +84,15 @@ linux:
   # works, before a v* tag makes the same question a release. All four come out of one .NET publish
   # — electron-builder packages the staged app directory once per target — so the extra formats cost
   # packaging time, not build time.
+  # What the application menu shows. Without this electron-builder derives it from the product name
+  # with the spaces replaced -- the last build's launcher entry read "Gospel-Presenter-Test" -- and
+  # this is the single most visible name the app has on Linux. ElectronNET writes a correct value
+  # into the generated package.json, but an explicit --config file replaces that block wholesale, so
+  # it never reaches the build.
+  desktop:
+    entry:
+      Name: Gospel Presenter Test
+
   target:
     - AppImage
     - deb
@@ -96,13 +105,21 @@ linux:
 # Same three fpm blocks as the real config, and for the same non-obvious reason: FpmTarget spreads
 # the linux: block into its own options, so linux.compression reaches fpm as --deb-compression and
 # "normal" is not a value fpm knows. See electron-builder.yml for the full note and the error.
+# The package name, which is what `apt remove`, `pacman -R` and `dnf remove` are given. Without it
+# electron-builder falls back to package.json's name, and that is now the reverse-DNS bundle
+# identifier: `sudo apt remove com.gospelpresenter.app.test` is a thing to ask of nobody. Set per target because
+# packageName lives on the target options rather than on linux:, so it cannot be declared once
+# above and inherited.
 deb:
+  packageName: gospel-presenter-test
   compression: xz
 
 rpm:
+  packageName: gospel-presenter-test
   compression: xz
 
 pacman:
+  packageName: gospel-presenter-test
   compression: xz
   # http-parser and libappindicator-gtk3 are in electron-builder's default list and in neither of
   # Arch's official repositories, so the default would build a package pacman -U refuses to install.
