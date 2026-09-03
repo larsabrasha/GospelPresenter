@@ -17,6 +17,16 @@ compression: maximum
 # 1024px source for all three platforms — electron-builder makes the icns and the ico from it.
 icon: bin/icon.png
 
+# Injected into the generated package.json, which is where fpm reads the value from:
+# FpmTarget passes `packager.info.metadata.license` straight to --license. The ElectronNET template
+# generates `"license": ""`, and an empty License: tag is a spec-file parse error, so rpmbuild failed
+# while AppImage and deb -- neither of which carries a license field -- had already built.
+#
+# AGPL-3.0-or-later, matching the LICENSE file at the repository root. Set here rather than in the
+# csproj because nothing in the ElectronNET build maps an MSBuild property onto this field.
+extraMetadata:
+  license: AGPL-3.0-or-later
+
 # Spelled out rather than left to ${name}, which is the npm package name and is now the reverse-DNS
 # bundle identifier: "com.gospelpresenter.app-arm64-0.1.0.dmg" is not a file to hand anyone. The
 # updater reads the manifests rather than the file names, so this is free to be legible.

@@ -15,6 +15,16 @@ compression: maximum
 
 icon: bin/icon.png
 
+# Injected into the generated package.json, which is where fpm reads the value from:
+# FpmTarget passes `packager.info.metadata.license` straight to --license. The ElectronNET template
+# generates `"license": ""`, and an empty License: tag is a spec-file parse error, so rpmbuild failed
+# while AppImage and deb -- neither of which carries a license field -- had already built.
+#
+# AGPL-3.0-or-later, matching the LICENSE file at the repository root. Set here rather than in the
+# csproj because nothing in the ElectronNET build maps an MSBuild property onto this field.
+extraMetadata:
+  license: AGPL-3.0-or-later
+
 # Names the scheme so a test installer and a real one can sit in the same downloads folder without
 # one overwriting the other. ${os} for the same reason as the real config: the extension alone only
 # tells you the platform if you already know what a .dmg is.
