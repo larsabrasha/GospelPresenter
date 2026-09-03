@@ -119,6 +119,20 @@ linux:
   # question and nothing to do with how fast the app starts.
   compression: normal
 
+  # Required by deb and rpm, which refuse to build without it: "Please specify author 'email' in the
+  # application package.json". AppImage has no such field, which is why this only surfaced when the
+  # three native targets were added — the Linux job had built for months without it.
+  #
+  # Set here rather than by adding an email to the generated package.json's author, which is where
+  # electron-builder looks by default: that value is assembled from MSBuild properties shared with
+  # the assembly metadata, and a maintainer address is a packaging fact rather than a fact about who
+  # wrote the code.
+  #
+  # noreply@ on purpose. A maintainer address is contractually a contact, and both other honest
+  # options are worse: a real mailbox nobody reads bounces, and a personal address is published
+  # permanently in every copy anyone downloads. This says "the project, and not by mail".
+  maintainer: Gospel Presenter <noreply@gospelpresenter.com>
+
   # Four targets, because "Linux" is not one thing and the alternative is telling a church to run a
   # format their distribution has no idea what to do with.
   #

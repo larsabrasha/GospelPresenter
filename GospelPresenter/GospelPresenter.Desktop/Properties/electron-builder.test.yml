@@ -66,6 +66,9 @@ linux:
   # startup path forever. Kept in step with electron-builder.yml, which carries the full reasoning —
   # a test build that started measurably slower than the real one would be a bad place to measure.
   compression: normal
+  # Required by deb and rpm, which refuse to build without it. Same address as the real config —
+  # see electron-builder.yml for why noreply@.
+  maintainer: Gospel Presenter <noreply@gospelpresenter.com>
   # The same four as the real build, and this is the config where that matters most: this is the
   # build you install on an actual Ubuntu and an actual Arch machine to find out whether the package
   # works, before a v* tag makes the same question a release. All four come out of one .NET publish
