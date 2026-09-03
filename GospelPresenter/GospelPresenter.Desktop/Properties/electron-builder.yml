@@ -113,10 +113,11 @@ linux:
   # electron-builder resolves compression per platform before falling back to the root value
   # (platformPackager.ts), so this key belongs here and mac/win keep maximum.
   #
-  # It reaches AppImage only. The fpm targets below read their own per-target compression option
-  # and default to xz independently (FpmTarget.ts), which is right for them: a deb, an rpm and a
-  # pacman package are all decompressed once at install, so their compression is a download-size
-  # question and nothing to do with how fast the app starts.
+  # It does NOT reach AppImage only, which is the trap: FpmTarget spreads this block into its own
+  # options, so deb, rpm and pacman would each be handed --*-compression normal and fail, because
+  # "normal" is a CompressionLevel and fpm wants gz/bzip2/xz/zst/none. That is why each of those
+  # three has a block at the bottom of this file naming a compression fpm accepts. Do not remove
+  # them thinking they are redundant with this line -- they are what contains it.
   compression: normal
 
   # Required by deb and rpm, which refuse to build without it: "Please specify author 'email' in the
@@ -160,3 +161,51 @@ linux:
   executableArgs:
     - --no-sandbox
   category: Office
+
+# The three fpm-built targets, and the reason they need blocks of their own is a collision on the
+# word "compression". FpmTarget spreads the linux: block above and then its own block on top
+# (`{...platformSpecificBuildOptions, ...config[name]}`), so linux.compression reaches fpm as
+# --deb-compression -- and fpm has never heard of "normal", which is a CompressionLevel meant for
+# AppImage. The first build of these targets died on exactly that:
+#
+#   Invalid package argument: deb compression value of 'normal' is invalid.
+#   Must be one of gz, bzip2, xz, zst, none
+#
+# So each names a compression fpm accepts, which also restores what these formats should have: xz,
+# electron-builder's own default. Unlike the AppImage, a deb, rpm or pacman package is decompressed
+# once at install, so its compression is a download-size question and costs nothing at startup.
+deb:
+  compression: xz
+
+rpm:
+  compression: xz
+
+pacman:
+  compression: xz
+
+  # Replaces electron-builder's default list rather than adding to it -- `depends` becomes fpm's
+  # customDepends, which is the whole list. Two entries in that default do not exist in Arch's
+  # official repositories, and pacman -U refuses to install a package whose dependencies it cannot
+  # resolve, so the default list would have produced a package nobody could install:
+  #
+  #   http-parser             dropped from the repositories; modern software bundles its own
+  #   libappindicator-gtk3    AUR only, superseded by libayatana-appindicator
+  #
+  # Checked one by one against archlinux.org's package API; the twelve below are all in core or
+  # extra. libayatana-appindicator is the maintained fork the ecosystem moved to, and is kept even
+  # though nothing here creates a tray icon: it is what Electron would dlopen if anything ever did,
+  # and it costs one small package to not have to remember this.
+  depends:
+    - c-ares
+    - ffmpeg
+    - gtk3
+    - libevent
+    - libvpx
+    - libxslt
+    - libxss
+    - minizip
+    - nss
+    - re2
+    - snappy
+    - libnotify
+    - libayatana-appindicator

@@ -82,3 +82,32 @@ linux:
   executableArgs:
     - --no-sandbox
   category: Office
+
+# Same three fpm blocks as the real config, and for the same non-obvious reason: FpmTarget spreads
+# the linux: block into its own options, so linux.compression reaches fpm as --deb-compression and
+# "normal" is not a value fpm knows. See electron-builder.yml for the full note and the error.
+deb:
+  compression: xz
+
+rpm:
+  compression: xz
+
+pacman:
+  compression: xz
+  # http-parser and libappindicator-gtk3 are in electron-builder's default list and in neither of
+  # Arch's official repositories, so the default would build a package pacman -U refuses to install.
+  # Checked against archlinux.org's package API. See electron-builder.yml.
+  depends:
+    - c-ares
+    - ffmpeg
+    - gtk3
+    - libevent
+    - libvpx
+    - libxslt
+    - libxss
+    - minizip
+    - nss
+    - re2
+    - snappy
+    - libnotify
+    - libayatana-appindicator

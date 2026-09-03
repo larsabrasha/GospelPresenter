@@ -20,6 +20,21 @@ on:
         description: 'Branch, tag or SHA to build (defaults to the branch this is started from)'
         required: false
         type: string
+      platforms:
+        # Iterating on one platform's packaging should not cost the other two. Working out the Linux
+        # package targets took several runs, each of which built a macOS and a Windows installer that
+        # nobody looked at — twenty minutes of runner time per attempt to answer a question about
+        # Linux. The default stays 'all', so a run started without thinking about it still builds
+        # everything.
+        description: 'Which platforms to build'
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - linux
+          - macos
+          - windows
 
 defaults:
   run:
@@ -34,18 +49,27 @@ jobs:
       # Same reasoning as the release workflow: one platform failing should not throw away the two
       # that packaged.
       fail-fast: false
+      # The platforms input picks the matrix rather than filtering it afterwards, and that is forced
+      # rather than chosen: GitHub makes the matrix context available to runs-on but NOT to a
+      # job-level if, so `if: inputs.platforms == matrix.platform` reads matrix.platform as empty and
+      # silently builds the wrong set. The selection has to happen where the matrix is built, and
+      # strategy is one of the few places that can see inputs.
+      #
+      # The chain below is GitHub's ternary idiom -- `cond && a || b` yields a when cond is true --
+      # falling through to all three, which is what an unspecified input defaults to.
+      #
+      # macOS is Apple Silicon only, for the same reason as the release workflow: one
+      # electron-builder invocation per RID means an osx-x64 run would overwrite the arm64
+      # latest-mac.yml. It matters less here, with no feed reading those manifests, but there is
+      # no reason for the two workflows to disagree about what they build.
       matrix:
-        include:
-          # macOS is Apple Silicon only, for the same reason as the release workflow: one
-          # electron-builder invocation per RID means an osx-x64 run would overwrite the arm64
-          # latest-mac.yml. It matters less here, with no feed reading those manifests, but there is
-          # no reason for the two workflows to disagree about what they build.
-          - os: macos-latest
-            rid: osx-arm64
-          - os: windows-latest
-            rid: win-x64
-          - os: ubuntu-latest
-            rid: linux-x64
+        include: >-
+          ${{ fromJSON(
+            inputs.platforms == 'linux'   && '[{"os":"ubuntu-latest","rid":"linux-x64"}]'  ||
+            inputs.platforms == 'macos'   && '[{"os":"macos-latest","rid":"osx-arm64"}]'   ||
+            inputs.platforms == 'windows' && '[{"os":"windows-latest","rid":"win-x64"}]'   ||
+            '[{"os":"macos-latest","rid":"osx-arm64"},{"os":"windows-latest","rid":"win-x64"},{"os":"ubuntu-latest","rid":"linux-x64"}]'
+          ) }}
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
