@@ -17,6 +17,16 @@ compression: maximum
 # 1024px source for all three platforms — electron-builder makes the icns and the ico from it.
 icon: bin/icon.png
 
+# Injected into the generated package.json, which is where fpm reads the value from:
+# FpmTarget passes `packager.info.metadata.license` straight to --license. The ElectronNET template
+# generates `"license": ""`, and an empty License: tag is a spec-file parse error, so rpmbuild failed
+# while AppImage and deb -- neither of which carries a license field -- had already built.
+#
+# AGPL-3.0-or-later, matching the LICENSE file at the repository root. Set here rather than in the
+# csproj because nothing in the ElectronNET build maps an MSBuild property onto this field.
+extraMetadata:
+  license: AGPL-3.0-or-later
+
 # Spelled out rather than left to ${name}, which is the npm package name and is now the reverse-DNS
 # bundle identifier: "com.gospelpresenter.app-arm64-0.1.0.dmg" is not a file to hand anyone. The
 # updater reads the manifests rather than the file names, so this is free to be legible.
@@ -113,11 +123,26 @@ linux:
   # electron-builder resolves compression per platform before falling back to the root value
   # (platformPackager.ts), so this key belongs here and mac/win keep maximum.
   #
-  # It reaches AppImage only. The fpm targets below read their own per-target compression option
-  # and default to xz independently (FpmTarget.ts), which is right for them: a deb, an rpm and a
-  # pacman package are all decompressed once at install, so their compression is a download-size
-  # question and nothing to do with how fast the app starts.
+  # It does NOT reach AppImage only, which is the trap: FpmTarget spreads this block into its own
+  # options, so deb, rpm and pacman would each be handed --*-compression normal and fail, because
+  # "normal" is a CompressionLevel and fpm wants gz/bzip2/xz/zst/none. That is why each of those
+  # three has a block at the bottom of this file naming a compression fpm accepts. Do not remove
+  # them thinking they are redundant with this line -- they are what contains it.
   compression: normal
+
+  # Required by deb and rpm, which refuse to build without it: "Please specify author 'email' in the
+  # application package.json". AppImage has no such field, which is why this only surfaced when the
+  # three native targets were added — the Linux job had built for months without it.
+  #
+  # Set here rather than by adding an email to the generated package.json's author, which is where
+  # electron-builder looks by default: that value is assembled from MSBuild properties shared with
+  # the assembly metadata, and a maintainer address is a packaging fact rather than a fact about who
+  # wrote the code.
+  #
+  # noreply@ on purpose. A maintainer address is contractually a contact, and both other honest
+  # options are worse: a real mailbox nobody reads bounces, and a personal address is published
+  # permanently in every copy anyone downloads. This says "the project, and not by mail".
+  maintainer: Gospel Presenter <noreply@gospelpresenter.com>
 
   # Four targets, because "Linux" is not one thing and the alternative is telling a church to run a
   # format their distribution has no idea what to do with.
@@ -138,6 +163,15 @@ linux:
   # has to download the new one. Against adr/0002 (26) -- no rollback, updates are how a fix
   # reaches anyone -- that makes AppImage the build to hand a church, and the native packages the
   # build for a machine whose owner updates it deliberately.
+  # What the application menu shows. Without this electron-builder derives it from the product name
+  # with the spaces replaced -- the last build's launcher entry read "Gospel-Presenter-Test" -- and
+  # this is the single most visible name the app has on Linux. ElectronNET writes a correct value
+  # into the generated package.json, but an explicit --config file replaces that block wholesale, so
+  # it never reaches the build.
+  desktop:
+    entry:
+      Name: Gospel Presenter
+
   target:
     - AppImage
     - deb
@@ -146,3 +180,59 @@ linux:
   executableArgs:
     - --no-sandbox
   category: Office
+
+# The three fpm-built targets, and the reason they need blocks of their own is a collision on the
+# word "compression". FpmTarget spreads the linux: block above and then its own block on top
+# (`{...platformSpecificBuildOptions, ...config[name]}`), so linux.compression reaches fpm as
+# --deb-compression -- and fpm has never heard of "normal", which is a CompressionLevel meant for
+# AppImage. The first build of these targets died on exactly that:
+#
+#   Invalid package argument: deb compression value of 'normal' is invalid.
+#   Must be one of gz, bzip2, xz, zst, none
+#
+# So each names a compression fpm accepts, which also restores what these formats should have: xz,
+# electron-builder's own default. Unlike the AppImage, a deb, rpm or pacman package is decompressed
+# once at install, so its compression is a download-size question and costs nothing at startup.
+# The package name, which is what `apt remove`, `pacman -R` and `dnf remove` are given. Without it
+# electron-builder falls back to package.json's name, and that is now the reverse-DNS bundle
+# identifier: `sudo apt remove com.gospelpresenter.app` is a thing to ask of nobody. Set per target because
+# packageName lives on the target options rather than on linux:, so it cannot be declared once
+# above and inherited.
+deb:
+  packageName: gospel-presenter
+  compression: xz
+
+rpm:
+  packageName: gospel-presenter
+  compression: xz
+
+pacman:
+  packageName: gospel-presenter
+  compression: xz
+
+  # Replaces electron-builder's default list rather than adding to it -- `depends` becomes fpm's
+  # customDepends, which is the whole list. Two entries in that default do not exist in Arch's
+  # official repositories, and pacman -U refuses to install a package whose dependencies it cannot
+  # resolve, so the default list would have produced a package nobody could install:
+  #
+  #   http-parser             dropped from the repositories; modern software bundles its own
+  #   libappindicator-gtk3    AUR only, superseded by libayatana-appindicator
+  #
+  # Checked one by one against archlinux.org's package API; the twelve below are all in core or
+  # extra. libayatana-appindicator is the maintained fork the ecosystem moved to, and is kept even
+  # though nothing here creates a tray icon: it is what Electron would dlopen if anything ever did,
+  # and it costs one small package to not have to remember this.
+  depends:
+    - c-ares
+    - ffmpeg
+    - gtk3
+    - libevent
+    - libvpx
+    - libxslt
+    - libxss
+    - minizip
+    - nss
+    - re2
+    - snappy
+    - libnotify
+    - libayatana-appindicator

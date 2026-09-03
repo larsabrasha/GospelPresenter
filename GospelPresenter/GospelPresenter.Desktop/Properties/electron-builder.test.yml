@@ -15,6 +15,16 @@ compression: maximum
 
 icon: bin/icon.png
 
+# Injected into the generated package.json, which is where fpm reads the value from:
+# FpmTarget passes `packager.info.metadata.license` straight to --license. The ElectronNET template
+# generates `"license": ""`, and an empty License: tag is a spec-file parse error, so rpmbuild failed
+# while AppImage and deb -- neither of which carries a license field -- had already built.
+#
+# AGPL-3.0-or-later, matching the LICENSE file at the repository root. Set here rather than in the
+# csproj because nothing in the ElectronNET build maps an MSBuild property onto this field.
+extraMetadata:
+  license: AGPL-3.0-or-later
+
 # Names the scheme so a test installer and a real one can sit in the same downloads folder without
 # one overwriting the other. ${os} for the same reason as the real config: the extension alone only
 # tells you the platform if you already know what a .dmg is.
@@ -66,11 +76,23 @@ linux:
   # startup path forever. Kept in step with electron-builder.yml, which carries the full reasoning —
   # a test build that started measurably slower than the real one would be a bad place to measure.
   compression: normal
+  # Required by deb and rpm, which refuse to build without it. Same address as the real config —
+  # see electron-builder.yml for why noreply@.
+  maintainer: Gospel Presenter <noreply@gospelpresenter.com>
   # The same four as the real build, and this is the config where that matters most: this is the
   # build you install on an actual Ubuntu and an actual Arch machine to find out whether the package
   # works, before a v* tag makes the same question a release. All four come out of one .NET publish
   # — electron-builder packages the staged app directory once per target — so the extra formats cost
   # packaging time, not build time.
+  # What the application menu shows. Without this electron-builder derives it from the product name
+  # with the spaces replaced -- the last build's launcher entry read "Gospel-Presenter-Test" -- and
+  # this is the single most visible name the app has on Linux. ElectronNET writes a correct value
+  # into the generated package.json, but an explicit --config file replaces that block wholesale, so
+  # it never reaches the build.
+  desktop:
+    entry:
+      Name: Gospel Presenter Test
+
   target:
     - AppImage
     - deb
@@ -79,3 +101,40 @@ linux:
   executableArgs:
     - --no-sandbox
   category: Office
+
+# Same three fpm blocks as the real config, and for the same non-obvious reason: FpmTarget spreads
+# the linux: block into its own options, so linux.compression reaches fpm as --deb-compression and
+# "normal" is not a value fpm knows. See electron-builder.yml for the full note and the error.
+# The package name, which is what `apt remove`, `pacman -R` and `dnf remove` are given. Without it
+# electron-builder falls back to package.json's name, and that is now the reverse-DNS bundle
+# identifier: `sudo apt remove com.gospelpresenter.app.test` is a thing to ask of nobody. Set per target because
+# packageName lives on the target options rather than on linux:, so it cannot be declared once
+# above and inherited.
+deb:
+  packageName: gospel-presenter-test
+  compression: xz
+
+rpm:
+  packageName: gospel-presenter-test
+  compression: xz
+
+pacman:
+  packageName: gospel-presenter-test
+  compression: xz
+  # http-parser and libappindicator-gtk3 are in electron-builder's default list and in neither of
+  # Arch's official repositories, so the default would build a package pacman -U refuses to install.
+  # Checked against archlinux.org's package API. See electron-builder.yml.
+  depends:
+    - c-ares
+    - ffmpeg
+    - gtk3
+    - libevent
+    - libvpx
+    - libxslt
+    - libxss
+    - minizip
+    - nss
+    - re2
+    - snappy
+    - libnotify
+    - libayatana-appindicator
