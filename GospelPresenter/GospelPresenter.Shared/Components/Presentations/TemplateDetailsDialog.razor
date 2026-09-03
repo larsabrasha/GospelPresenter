@@ -3,7 +3,7 @@
         <div class="font-semibold text-lg dark:text-neutral-100">@Title</div>
 
         <FloatingInput @ref="nameInput" Id="template-name" Label="@L["Common.Name"]"
-                       Value="@name" OnInput="HandleNameInput"
+                       Value="@name" ValueChanged="HandleNameInput"
                        OnKeyDown="OnKeyDown" MaxLength="AppConstraints.NameMaxLength"
                        HideLabel/>
 
@@ -18,10 +18,10 @@
             </SimpleSelect>
 
             <SimpleInput Id="template-time" Type="time" Placeholder="@L["Schedule.Time"]"
-                         Value="@selectedTime" OnInput="HandleTimeChange"/>
+                         Value="@selectedTime" ValueChanged="HandleTimeChange"/>
 
             <SimpleInput Id="template-location" Placeholder="@L["Event.Location"]"
-                         Value="@selectedLocation" OnInput="HandleLocationChange"
+                         Value="@selectedLocation" ValueChanged="HandleLocationChange"
                          MaxLength="AppConstraints.LocationMaxLength"/>
         </div>
 
@@ -64,10 +64,10 @@
         SaveText ??= L["Common.Save"];
     }
 
-    private void HandleNameInput(ChangeEventArgs e) => name = e.Value?.ToString() ?? "";
+    private void HandleNameInput(string value) => name = value;
     private void HandleDayChange(ChangeEventArgs e) => selectedDay = e.Value?.ToString() ?? "";
-    private void HandleTimeChange(ChangeEventArgs e) => selectedTime = e.Value?.ToString() ?? "";
-    private void HandleLocationChange(ChangeEventArgs e) => selectedLocation = e.Value?.ToString() ?? "";
+    private void HandleTimeChange(string value) => selectedTime = value;
+    private void HandleLocationChange(string value) => selectedLocation = value;
 
     private static IEnumerable<int> OrderedDays()
     {

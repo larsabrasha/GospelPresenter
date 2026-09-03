@@ -73,10 +73,10 @@
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["Users.CreateTitle"]</div>
             <FloatingInput @ref="nameFloatingInput" Id="new-user-name" Label="@L["Common.Name"]"
-                           Value="@editName" OnInput="(e) => editName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
+                           Value="@editName" ValueChanged="v => editName = v" OnKeyDown="OnDialogKeyDown"/>
             <div>
                 <FloatingInput Id="new-user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
-                               Value="@editEmail" OnInput="(e) => editEmail = e.Value?.ToString() ?? string.Empty"/>
+                               Value="@editEmail" ValueChanged="v => editEmail = v"/>
                 @if (emailError is not null)
                 {
                     <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>

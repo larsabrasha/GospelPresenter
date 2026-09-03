@@ -2,7 +2,7 @@
     <div class="p-6 space-y-4">
         <div class="font-semibold text-lg">@Title</div>
         <FloatingInput @ref="floatingInput" Id="dialog-name" Label="@L["Common.Name"]"
-                       Value="@name" OnInput="HandleNameInput" OnKeyDown="OnKeyDown"
+                       Value="@name" ValueChanged="HandleNameInput" OnKeyDown="OnKeyDown"
                        MaxLength="AppConstraints.NameMaxLength"/>
         <div class="flex justify-end gap-3">
             <AppButton Variant="ButtonVariant.Cancel" OnClick="OnClose">
@@ -42,7 +42,7 @@
         }
     }
 
-    private void HandleNameInput(ChangeEventArgs e) => name = e.Value?.ToString() ?? "";
+    private void HandleNameInput(string value) => name = value;
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {

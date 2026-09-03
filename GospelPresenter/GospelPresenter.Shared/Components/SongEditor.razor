@@ -13,7 +13,11 @@
 @if (song is not null)
 {
     <div class="space-y-4">
-        <SongFieldsEditor Name="@editName" NameChanged="HandleNameChanged"
+        @* Keyed by song: this component keeps its instance when SongId changes (see
+           OnParametersSet), and the fields inside own their values once someone types in them
+           (see DomOwnedInputBase). Without the key, switching songs mid-edit would leave the
+           previous song's text in the fields. *@
+        <SongFieldsEditor @key="SongId" Name="@editName" NameChanged="HandleNameChanged"
                           Author="@editAuthor" AuthorChanged="HandleAuthorChanged"
                           Publisher="@editPublisher" PublisherChanged="HandlePublisherChanged"
                           Year="@editYear" YearChanged="HandleYearChanged"
@@ -239,7 +243,11 @@
     private async Task DeletePart(int index)
     {
         if (song is null || OrgId is null) return;
-        pendingParts.Clear();
+        // Flush rather than discard. pendingParts is keyed by index and the indices are about
+        // to shift, which is why this used to clear them — but the content field owns its value
+        // once someone types in it (see DomOwnedInputBase), so a dropped edit no longer even
+        // disappears from the screen. It would just quietly never be saved.
+        if (pendingParts.Count > 0) await SavePendingParts();
         await SongService.DeleteSongPartAsync(song.Id, OrgId, index, OrgState.ToCallerContext());
         song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
     }
@@ -247,7 +255,11 @@
     private async Task MovePartUp(int index)
     {
         if (song is null || index <= 0 || OrgId is null) return;
-        pendingParts.Clear();
+        // Flush rather than discard. pendingParts is keyed by index and the indices are about
+        // to shift, which is why this used to clear them — but the content field owns its value
+        // once someone types in it (see DomOwnedInputBase), so a dropped edit no longer even
+        // disappears from the screen. It would just quietly never be saved.
+        if (pendingParts.Count > 0) await SavePendingParts();
         await SongService.MoveSongPartAsync(song.Id, OrgId, index, index - 1, OrgState.ToCallerContext());
         song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
     }
@@ -255,7 +267,11 @@
     private async Task MovePartDown(int index)
     {
         if (song is null || index >= song.Parts.Count - 1 || OrgId is null) return;
-        pendingParts.Clear();
+        // Flush rather than discard. pendingParts is keyed by index and the indices are about
+        // to shift, which is why this used to clear them — but the content field owns its value
+        // once someone types in it (see DomOwnedInputBase), so a dropped edit no longer even
+        // disappears from the screen. It would just quietly never be saved.
+        if (pendingParts.Count > 0) await SavePendingParts();
         await SongService.MoveSongPartAsync(song.Id, OrgId, index, index + 1, OrgState.ToCallerContext());
         song = SongService.GetSongById(SongId, OrgId, OrgState.ToCallerContext());
     }

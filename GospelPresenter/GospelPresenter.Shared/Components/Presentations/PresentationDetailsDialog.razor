@@ -3,26 +3,26 @@
         <div class="font-semibold text-lg dark:text-neutral-100">@Title</div>
 
         <FloatingInput @ref="nameInput" Id="presentation-name" Label="@L["Common.Name"]"
-                       Value="@name" OnInput="HandleNameInput"
+                       Value="@name" ValueChanged="HandleNameInput"
                        OnKeyDown="OnKeyDown" MaxLength="AppConstraints.NameMaxLength"
                        HideLabel/>
 
         <div class="flex gap-2 flex-wrap">
             <SimpleInput Id="presentation-date" Type="date"
-                         Value="@selectedDate" OnInput="HandleDateChange"/>
+                         Value="@selectedDate" ValueChanged="HandleDateChange"/>
 
             <SimpleInput Id="presentation-time" Type="time"
-                         Value="@selectedTime" OnInput="HandleTimeChange"/>
+                         Value="@selectedTime" ValueChanged="HandleTimeChange"/>
 
             <SimpleInput Id="presentation-location" Placeholder="@L["Event.Location"]"
-                         Value="@selectedLocation" OnInput="HandleLocationChange"
+                         Value="@selectedLocation" ValueChanged="HandleLocationChange"
                          MaxLength="AppConstraints.LocationMaxLength">
                 <Icon><MapPinSymbol Class="size-4"/></Icon>
             </SimpleInput>
         </div>
 
         <FloatingTextarea Id="presentation-description" Label="@L["Event.Description"]"
-                          Value="@selectedDescription" OnInput="HandleDescriptionChange"
+                          Value="@selectedDescription" ValueChanged="HandleDescriptionChange"
                           MaxLength="AppConstraints.DescriptionMaxLength" Rows="4"/>
 
         @if (Themes is not null)
@@ -96,11 +96,11 @@
         SaveText ??= L["Common.Save"];
     }
 
-    private void HandleNameInput(ChangeEventArgs e) => name = e.Value?.ToString() ?? "";
-    private void HandleDateChange(ChangeEventArgs e) => selectedDate = e.Value?.ToString() ?? "";
-    private void HandleTimeChange(ChangeEventArgs e) => selectedTime = e.Value?.ToString() ?? "";
-    private void HandleLocationChange(ChangeEventArgs e) => selectedLocation = e.Value?.ToString() ?? "";
-    private void HandleDescriptionChange(ChangeEventArgs e) => selectedDescription = e.Value?.ToString() ?? "";
+    private void HandleNameInput(string value) => name = value;
+    private void HandleDateChange(string value) => selectedDate = value;
+    private void HandleTimeChange(string value) => selectedTime = value;
+    private void HandleLocationChange(string value) => selectedLocation = value;
+    private void HandleDescriptionChange(string value) => selectedDescription = value;
 
     private void HandleThemeChange(ChangeEventArgs e)
     {

@@ -113,7 +113,7 @@
                            Label="@L["Admin.Labels.TextPlaceholder"]"
                            MaxLength="AppConstraints.SongPartLabelTextMaxLength"
                            Value="@dialogText"
-                           OnInput="e => dialogText = e.Value?.ToString() ?? string.Empty"
+                           ValueChanged="v => dialogText = v"
                            OnKeyDown="OnDialogKeyDown"/>
             <div>
                 <label class="text-sm text-neutral-500 dark:text-neutral-400 mb-1 block">@L["Admin.Labels.ColorLabel"]</label>

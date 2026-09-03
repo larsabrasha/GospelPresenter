@@ -1,4 +1,5 @@
 @page "/admin/songs"
+@implements IDisposable
 @attribute [Authorize(Policy = ManageSongs)]
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
@@ -81,24 +82,19 @@
             @if (OrgSongs.Count > 0)
             {
                 <div class="relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
-                    </svg>
-                    <input type="text"
-                           maxlength="@AppConstraints.SearchMaxLength"
-                           class="w-full py-2 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(searchQuery) ? "" : "!pr-9")"
-                           placeholder="@L["Common.Search"]"
-                           value="@searchQuery"
-                           @oninput="OnSearchInput"/>
-                    @if (!string.IsNullOrEmpty(searchQuery))
-                    {
-                        <AppButton Variant="ButtonVariant.Icon" Class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6"
-                                   OnClick="ClearSearch">
+                    <SimpleInput Id="songs-search" Variant="InputVariant.Outlined" Class="w-full"
+                                 Padding="pl-3.5 pr-2 py-2"
+                                 Placeholder="@L["Common.Search"]"
+                                 MaxLength="AppConstraints.SearchMaxLength"
+                                 Value="@searchQuery" Revision="searchRevision" ValueChanged="OnQueryChanged"
+                                 ThrottleMs="AppConstraints.SearchThrottleMs"
+                                 Clearable OnClear="ClearSearch">
+                        <Icon>
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
                             </svg>
-                        </AppButton>
-                    }
+                        </Icon>
+                    </SimpleInput>
                 </div>
             }
         </div>
@@ -186,6 +182,8 @@
     private int pendingFileCount;
     private List<string>? duplicateNames;
     private string searchQuery = "";
+    private int searchRevision;
+    private readonly LatestOnly search = new();
     private string[] searchTerms = [];
     private List<Song> displayedSongs = [];
     private ElementReference fileInput;
@@ -294,20 +292,36 @@
             : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
     }
 
-    private void OnSearchInput(ChangeEventArgs e)
+    private async Task OnQueryChanged(string value)
     {
-        searchQuery = e.Value?.ToString() ?? "";
-        searchTerms = string.IsNullOrWhiteSpace(searchQuery)
+        searchQuery = value;
+        searchTerms = string.IsNullOrWhiteSpace(value)
             ? []
-            : searchQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        displayedSongs = string.IsNullOrWhiteSpace(searchQuery)
-            ? OrgSongs.ToList()
-            : SongService.SearchByOrganization(searchQuery, organizationId!, OrgState.ToCallerContext()).ToList();
+            : value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            search.Cancel();
+            displayedSongs = OrgSongs.ToList();
+            return;
+        }
+
+        // Off the renderer's thread: the search loops the whole organization's index and ranks
+        // every match. The caller context is resolved here rather than inside the task because it
+        // reads circuit-scoped state; the cache the search itself reads is snapshot-swapped.
+        var caller = OrgState.ToCallerContext();
+        await search.RunAsync(
+            () => SongService.SearchByOrganization(value, organizationId!, caller).ToList(),
+            hits => displayedSongs = hits);
     }
 
     private void ClearSearch()
     {
         searchQuery = "";
+        // The field's value is owned by the DOM by now, so it only takes a new one when the
+        // revision says the app set it on purpose. See DomOwnedInputBase.
+        searchRevision++;
+        search.Cancel();
         searchTerms = [];
         displayedSongs = OrgSongs.ToList();
     }
@@ -342,4 +356,6 @@
     private string Highlight(string text) => SearchHighlighter.Highlight(text, searchTerms);
 
     private record SongImportResponse(int Imported = 0, int Skipped = 0, int Replaced = 0, int FileCount = 0, List<string>? Duplicates = null);
+
+    public void Dispose() => search.Dispose();
 }

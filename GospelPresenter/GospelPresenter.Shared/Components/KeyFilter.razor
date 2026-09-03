@@ -1,0 +1,60 @@
+@inject IJSRuntime JsRuntime
+@implements IAsyncDisposable
+
+@* A container that listens for keyboard shortcuts on behalf of everything inside it, and
+   forwards only the keys its owner actually reacts to.
+
+   @onkeydown on a container is the straightforward way to write this, and it is what the
+   add-item tabs used to do — but keydown bubbles, so every keystroke typed into a search
+   field inside the container costs a roundtrip to match no shortcut at all, and the
+   re-render that follows is one more chance to write a stale value back into the field.
+   Filtering in the browser keeps ordinary typing local. *@
+<div class="@Class" tabindex="-1" @ref="element">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>The keys to forward. Everything else never leaves the browser.</summary>
+    [Parameter] public string[] Keys { get; set; } = [];
+
+    [Parameter] public EventCallback<FilteredKey> OnKey { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private ElementReference element;
+    private DotNetObjectReference<KeyFilter>? selfReference;
+    private IJSObjectReference? handle;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || Keys.Length == 0) return;
+
+        selfReference = DotNetObjectReference.Create(this);
+        handle = await JsRuntime.InvokeAsync<IJSObjectReference>(
+            "initKeyFilter", element, selfReference, Keys);
+    }
+
+    [JSInvokable]
+    public Task OnFilteredKeyDown(string key, bool shift, bool ctrl, bool meta) =>
+        OnKey.InvokeAsync(new FilteredKey(key, shift, ctrl, meta));
+
+    public async ValueTask DisposeAsync()
+    {
+        if (handle is not null)
+        {
+            try
+            {
+                await handle.InvokeVoidAsync("dispose");
+                await handle.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is already gone, and the listener went with the page.
+            }
+        }
+
+        selfReference?.Dispose();
+    }
+}

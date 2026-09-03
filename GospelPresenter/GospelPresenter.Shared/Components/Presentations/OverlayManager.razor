@@ -7,7 +7,10 @@
 
 @if (editingOverlay is not null)
 {
-    <OverlayEditorPanel Overlay="@editingOverlay"
+    @* Keyed by overlay: the title and content fields own their values once someone types in
+       them (see DomOwnedInputBase), so editing a second overlay without the panel being torn
+       down in between would show the first one's text. *@
+    <OverlayEditorPanel @key="editingOverlay.Id" Overlay="@editingOverlay"
                         OnBack="ExitEditor"
                         OnChanged="HandleChanged"
                         OnDeleted="HandleDelete"/>

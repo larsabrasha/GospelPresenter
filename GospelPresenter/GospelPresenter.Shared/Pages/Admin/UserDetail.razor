@@ -55,11 +55,11 @@
                     </div>
                 </div>
             </div>
-            <FloatingInput Id="user-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"
+            <FloatingInput Id="user-name" Label="@L["Common.Name"]" Value="@editName" ValueChanged="HandleNameChanged"
                            MaxLength="AppConstraints.NameMaxLength"/>
             <div>
                 <FloatingInput Id="user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
-                               Value="@editEmail" OnInput="HandleEmailChanged"
+                               Value="@editEmail" ValueChanged="HandleEmailChanged"
                                MaxLength="AppConstraints.EmailMaxLength"/>
                 @if (emailError is not null)
                 {
@@ -297,9 +297,9 @@
 
     public void Dispose() => saveDebounce.Dispose();
 
-    private void HandleNameChanged(ChangeEventArgs e)
+    private void HandleNameChanged(string value)
     {
-        editName = e.Value?.ToString() ?? "";
+        editName = value;
         saveDebounce.Run(SaveUser);
     }
 
@@ -312,9 +312,9 @@
         }
     }
 
-    private void HandleEmailChanged(ChangeEventArgs e)
+    private void HandleEmailChanged(string value)
     {
-        editEmail = e.Value?.ToString() ?? "";
+        editEmail = value;
         saveDebounce.Run(SaveUser);
     }
 

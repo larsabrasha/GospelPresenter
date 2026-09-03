@@ -23,6 +23,15 @@ public static class AppConstraints
     public const int FileNameMaxLength = 200;
     public const int SearchMaxLength = 100;
 
+    // Search behaviour
+    //
+    // Leading + trailing throttle, applied in the browser: the first keystroke searches
+    // immediately, a burst is collapsed to at most one search per interval, and a final
+    // search lands once typing stops. Because the first keystroke is never delayed, the
+    // interval only governs the rate during a burst — so it can stay short enough to feel
+    // immediate without asking the server for a search per character.
+    public const int SearchThrottleMs = 120;
+
     // Numeric ranges
     public const int SongYearMin = 0;
     public const int SongYearMax = 9999;

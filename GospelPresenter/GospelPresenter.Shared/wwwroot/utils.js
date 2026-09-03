@@ -952,6 +952,101 @@ window.gospelPresenter.onAudioMetadata = function(audioId) {
     if (duration) duration.textContent = gospelPresenter.formatTime(audio.duration);
 };
 
+// Text input helpers ----------------------------------------------------------
+//
+// See DomOwnedInputBase for why a text field's value is owned by the DOM rather than by
+// server state, and why setting it from the app has to go through setInputValue below.
+
+// Leading + trailing throttle. The first keystroke reaches .NET immediately, a burst is
+// collapsed to at most one call per interval, and a final call lands once typing stops so
+// the last keystroke is never the one that gets dropped. Every call carries the element's
+// whole value, so a collapsed call costs nothing — the next one is complete on its own.
+//
+// The input event is stopped from bubbling so Blazor's delegated listener never sees it:
+// the component keeps @oninput wired for the window before this listener is installed, and
+// once it is installed a second .NET call per keystroke is exactly what the throttle exists
+// to avoid. Blazor listens on the document root, so stopping propagation at the element is
+// enough to keep it from being dispatched twice.
+window.initThrottledInput = function(el, dotNetRef, intervalMs) {
+    if (!el) return null;
+
+    var timer = null;
+    var lastSentAt = 0;
+    var pending = false;
+
+    function send() {
+        lastSentAt = Date.now();
+        pending = false;
+        dotNetRef.invokeMethodAsync('OnThrottledInput', el.value);
+    }
+
+    function onInput(e) {
+        e.stopPropagation();
+
+        var elapsed = Date.now() - lastSentAt;
+        if (elapsed >= intervalMs) {
+            if (timer) { clearTimeout(timer); timer = null; }
+            send();
+            return;
+        }
+
+        pending = true;
+        if (timer) return;
+        timer = setTimeout(function() {
+            timer = null;
+            if (pending) send();
+        }, intervalMs - elapsed);
+    }
+
+    el.addEventListener('input', onInput);
+
+    return {
+        // Called when the app sets the value itself: forget the call still in flight, since it
+        // carries what the user typed rather than what the app just wrote. lastSentAt goes back
+        // to zero so the next keystroke is a leading edge and searches immediately.
+        reset: function() {
+            if (timer) { clearTimeout(timer); timer = null; }
+            pending = false;
+            lastSentAt = 0;
+        },
+        dispose: function() {
+            el.removeEventListener('input', onInput);
+            if (timer) clearTimeout(timer);
+        }
+    };
+};
+
+// Forwards only the keys a handler actually reacts to. The add-item tabs listen for their
+// shortcuts on the tab container so they keep working with focus anywhere in the tab, which
+// means every keystroke in the search field bubbles up and costs a roundtrip to match
+// nothing. Filtering here keeps ordinary typing inside the browser.
+window.initKeyFilter = function(el, dotNetRef, keys) {
+    if (!el) return null;
+
+    function onKeyDown(e) {
+        if (keys.indexOf(e.key) === -1) return;
+        dotNetRef.invokeMethodAsync('OnFilteredKeyDown', e.key, e.shiftKey, e.ctrlKey, e.metaKey);
+    }
+
+    el.addEventListener('keydown', onKeyDown);
+
+    return {
+        dispose: function() {
+            el.removeEventListener('keydown', onKeyDown);
+        }
+    };
+};
+
+// Sets a value the app owns, bypassing Blazor's diff. Once the user has typed, the render
+// tree deliberately no longer matches the DOM, so the diff can no longer be relied on to
+// produce the edit: bumping to a value the tree already holds emits nothing at all, and
+// clearing a search field back to "" is precisely that case. Assigning here also keeps
+// focus and the caret, which recreating the element would not.
+window.setInputValue = function(el, value) {
+    if (!el) return;
+    el.value = value == null ? '' : value;
+};
+
 window.initScrollFade = function(scrollEl, fadeLeftEl, fadeRightEl) {
     function update() {
         var canScroll = scrollEl.scrollWidth > scrollEl.clientWidth + 1;

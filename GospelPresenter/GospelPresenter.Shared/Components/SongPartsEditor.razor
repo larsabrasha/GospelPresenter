@@ -6,7 +6,11 @@
     var index = i;
     var part = Parts[i];
     var selectedLabel = !string.IsNullOrEmpty(part.LabelId) ? AvailableLabels.FirstOrDefault(l => l.Id == part.LabelId) : null;
-    <div @key="index" id="song-part-@index" class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-4 space-y-3">
+    @* Keyed by part rather than by position. The content field owns its value once someone
+       types in it (see DomOwnedInputBase), so reusing one instance for a different part —
+       which is what keying by index does after a reorder or a delete — would leave the
+       previous part's text sitting in the field. *@
+    <div @key="part.Id" id="song-part-@index" class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-4 space-y-3">
         <div class="flex items-center gap-2">
             <Dropdown Class="flex-1 max-w-[50%]" MenuClass="left-0 w-full max-h-60 overflow-y-auto">
                 <Trigger>
@@ -68,7 +72,7 @@
         </div>
         <FloatingTextarea Id="@($"part-content-{index}")"
                           Value="@part.Content" MaxLength="AppConstraints.SongPartContentMaxLength"
-                          OnInput="(e) => OnContentChanged.InvokeAsync(new PartContentChange(index, e.Value?.ToString() ?? string.Empty))"
+                          ValueChanged="v => OnContentChanged.InvokeAsync(new PartContentChange(index, v))"
                           Rows="8" Label="" />
         <div class="flex justify-end">
             <AppButton Variant="ButtonVariant.DangerIcon" OnClick="() => RequestDelete(index)"

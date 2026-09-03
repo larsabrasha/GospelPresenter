@@ -2,10 +2,11 @@
 @using GospelPresenter.Shared.Components.Symbols
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
+@using GospelPresenter.Shared.Utils
 
 @inject IBibleService BibleService
-@inject IJSRuntime JsRuntime
 @inject ActiveOrganizationState OrgState
+@implements IDisposable
 
 @if (orgBibles.Count == 0)
 {
@@ -16,30 +17,24 @@
 }
 else
 {
-    <div class="flex flex-col h-full" @onkeydown="OnKeyDown" tabindex="-1" @ref="container">
+    <KeyFilter Class="flex flex-col h-full" Keys="ShortcutKeys" OnKey="OnShortcutKey">
         @if (browseBook is null)
         {
             <div class="shrink-0">
                 <div class="flex gap-2">
-                    <div class="flex-1 relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
-                        </svg>
-                        <input type="text"
-                               @ref="searchInput"
-                               maxlength="@AppConstraints.SearchMaxLength"
-                               class="w-full py-2.5 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "!pr-9")"
-                               placeholder="@L["BibleTab.SearchPlaceholder"]"
-                               value="@query"
-                               @oninput="OnSearchInput"/>
-                        @if (!string.IsNullOrEmpty(query))
-                        {
-                            <AppButton Variant="ButtonVariant.Icon" OnClick="ClearSearch" Class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6">
+                    <div class="flex-1">
+                        <SimpleInput Id="bible-search" Variant="InputVariant.Outlined" Class="w-full"
+                                     Placeholder="@L["BibleTab.SearchPlaceholder"]"
+                                     MaxLength="AppConstraints.SearchMaxLength"
+                                     Value="@query" Revision="queryRevision" ValueChanged="OnQueryChanged"
+                                     ThrottleMs="AppConstraints.SearchThrottleMs"
+                                     Clearable OnClear="ClearSearch">
+                            <Icon>
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
                                 </svg>
-                            </AppButton>
-                        }
+                            </Icon>
+                        </SimpleInput>
                     </div>
 
                     <div class="relative">
@@ -96,7 +91,7 @@ else
                 </AppButton>
             </div>
         }
-    </div>
+    </KeyFilter>
 }
 
 @code {
@@ -106,13 +101,17 @@ else
 
     private const int MaxResults = 500;
 
-    private ElementReference container;
-    private ElementReference searchInput;
+    // Shift+Enter adds and keeps the dialog open, Cmd/Ctrl+Enter adds and closes. Nothing
+    // else in this tab reacts to a keystroke, so nothing else is worth a roundtrip.
+    private static readonly string[] ShortcutKeys = ["Enter"];
+
     private string organizationId = "";
     private string selectedBibleId = "";
     private IReadOnlyList<Bible> orgBibles = [];
     // Search state
     private string query = "";
+    private int queryRevision;
+    private readonly LatestOnly search = new();
     private List<Verse> results = [];
     private int totalCount;
 
@@ -135,9 +134,9 @@ else
         selectedBibleId = orgBibles.FirstOrDefault()?.Id ?? "";
     }
 
-    private async Task OnKeyDown(KeyboardEventArgs e)
+    private async Task OnShortcutKey(FilteredKey key)
     {
-        if (e.Key == "Enter" && e.ShiftKey && ShowAddButton && !isAdding)
+        if (key.Shift && ShowAddButton && !isAdding)
         {
             isAdding = true;
             try
@@ -149,44 +148,62 @@ else
                 isAdding = false;
             }
         }
-        else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && ShowAddButton)
+        else if ((key.Meta || key.Ctrl) && ShowAddButton)
             await HandleAdd();
     }
 
-    private void OnBibleChanged(ChangeEventArgs e)
+    private async Task OnBibleChanged(ChangeEventArgs e)
     {
         selectedBibleId = e.Value?.ToString() ?? "";
-        PerformSearch();
         browseBook = null;
         browseSelectionLabel = "";
         browseSelectedVerses = [];
+        await SearchAsync(query);
     }
 
-    private void OnSearchInput(ChangeEventArgs e)
+    private Task OnQueryChanged(string value)
     {
-        query = e.Value?.ToString() ?? "";
-        PerformSearch();
+        query = value;
+        return SearchAsync(value);
     }
 
     private void ClearSearch()
     {
         query = "";
+        // The field's value is owned by the DOM by now, so it only takes a new one when the
+        // revision says the app set it on purpose. See DomOwnedInputBase.
+        queryRevision++;
+        search.Cancel();
         results = [];
         totalCount = 0;
     }
 
-    private void PerformSearch()
+    private Task SearchAsync(string value)
     {
-        if (string.IsNullOrWhiteSpace(query))
+        if (string.IsNullOrWhiteSpace(value))
         {
+            search.Cancel();
             results = [];
             totalCount = 0;
-            return;
+            return Task.CompletedTask;
         }
 
-        var allResults = BibleService.Search(organizationId, selectedBibleId, query).ToList();
-        totalCount = allResults.Count;
-        results = allResults.Count > MaxResults ? allResults.Take(MaxResults).ToList() : allResults;
+        // The search is a linear scan of every verse in the bible — over 31 000 of them — so it
+        // runs off the renderer's thread; inline it blocks the circuit and queues every UI event
+        // behind it. BibleService reads a snapshot-swapped cache, so this is safe from a
+        // thread-pool thread.
+        return search.RunAsync(
+            () =>
+            {
+                var all = BibleService.Search(organizationId, selectedBibleId, value).ToList();
+                return (Hits: all.Count > MaxResults ? all.Take(MaxResults).ToList() : all,
+                        Total: all.Count);
+            },
+            found =>
+            {
+                results = found.Hits;
+                totalCount = found.Total;
+            });
     }
 
     private string FormatSearchLabel()
@@ -238,4 +255,6 @@ else
             isAdding = false;
         }
     }
+
+    public void Dispose() => search.Dispose();
 }

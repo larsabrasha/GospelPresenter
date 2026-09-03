@@ -12,10 +12,10 @@
 <div class="@Class">
     <div class="space-y-4">
         <FloatingInput Id="overlay-title" Label="@L["OverlayEditor.Title"]"
-                       Value="@Overlay.Title" OnInput="HandleTitleChanged"
+                       Value="@Overlay.Title" ValueChanged="HandleTitleChanged"
                        MaxLength="AppConstraints.OverlayTitleMaxLength"/>
         <FloatingTextarea Id="overlay-content" Label="@L["OverlayEditor.TextContent"]"
-                          Value="@Overlay.Content" OnInput="HandleContentChanged" Rows="4"
+                          Value="@Overlay.Content" ValueChanged="HandleContentChanged" Rows="4"
                           MaxLength="AppConstraints.OverlayContentMaxLength"/>
         <div>
             <label class="block text-sm font-medium mb-1">@L["OverlayEditor.ImageOptional"]</label>
@@ -66,19 +66,23 @@
         dotNetRef?.Dispose();
     }
 
-    private void HandleTitleChanged(ChangeEventArgs e)
+    private void HandleTitleChanged(string value)
     {
-        Overlay.Title = e.Value?.ToString() ?? "";
+        Overlay.Title = value;
         debounce.Run(SaveFields);
     }
 
-    private void HandleContentChanged(ChangeEventArgs e)
+    private void HandleContentChanged(string value)
     {
-        var value = e.Value?.ToString();
         Overlay.Content = string.IsNullOrWhiteSpace(value) ? null : value;
         debounce.Run(SaveFields);
     }
 
+    // The trim below deliberately does not bump a Revision on the fields. This runs from the
+    // debounce while someone is still typing, so writing the trimmed value back into the field
+    // would delete the space they just pressed — the exact bug DomOwnedInputBase exists to stop.
+    // The field keeps what was typed, the stored value is trimmed, and the two agree again on
+    // the next keystroke.
     private async Task SaveFields()
     {
         if (string.IsNullOrWhiteSpace(Overlay.Title)) return;

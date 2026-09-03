@@ -1,18 +1,18 @@
 @using GospelPresenter.Shared.State
 
 <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-5 space-y-4">
-    <FloatingInput Id="song-name" Label="@L["Common.Name"]" Value="@Name" OnInput="HandleNameChanged"
+    <FloatingInput Id="song-name" Label="@L["Common.Name"]" Value="@Name" ValueChanged="HandleNameChanged"
                    MaxLength="AppConstraints.NameMaxLength"/>
     <div class="flex gap-4">
-        <FloatingInput Id="song-author" Label="@L["SongFields.Artist"]" Class="flex-1" Value="@Author" OnInput="HandleAuthorChanged"
+        <FloatingInput Id="song-author" Label="@L["SongFields.Artist"]" Class="flex-1" Value="@Author" ValueChanged="HandleAuthorChanged"
                        MaxLength="AppConstraints.SongAuthorMaxLength"/>
-        <FloatingInput Id="song-publisher" Label="@L["SongFields.Publisher"]" Class="flex-1" Value="@Publisher" OnInput="HandlePublisherChanged"
+        <FloatingInput Id="song-publisher" Label="@L["SongFields.Publisher"]" Class="flex-1" Value="@Publisher" ValueChanged="HandlePublisherChanged"
                        MaxLength="AppConstraints.SongPublisherMaxLength"/>
     </div>
     <div class="flex gap-4">
-        <FloatingInput Id="song-year" Label="@L["SongFields.Year"]" Type="number" Class="flex-1" Value="@Year" OnInput="HandleYearChanged"
+        <FloatingInput Id="song-year" Label="@L["SongFields.Year"]" Type="number" Class="flex-1" Value="@Year?.ToString()" ValueChanged="HandleYearChanged"
                        Min="AppConstraints.SongYearMin" Max="AppConstraints.SongYearMax"/>
-        <FloatingInput Id="song-ccli" Label="CCLI" Class="flex-1" Value="@Ccli" OnInput="HandleCcliChanged"
+        <FloatingInput Id="song-ccli" Label="CCLI" Class="flex-1" Value="@Ccli" ValueChanged="HandleCcliChanged"
                        MaxLength="AppConstraints.SongCcliMaxLength"/>
     </div>
     @if (ChildContent is not null)
@@ -34,30 +34,26 @@
     [Parameter] public EventCallback<string?> CcliChanged { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    private Task HandleNameChanged(ChangeEventArgs e)
-        => NameChanged.InvokeAsync(e.Value?.ToString() ?? "");
+    private Task HandleNameChanged(string value)
+        => NameChanged.InvokeAsync(value);
 
-    private Task HandleAuthorChanged(ChangeEventArgs e)
+    private Task HandleAuthorChanged(string value)
     {
-        var value = e.Value?.ToString();
         return AuthorChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 
-    private Task HandlePublisherChanged(ChangeEventArgs e)
+    private Task HandlePublisherChanged(string value)
     {
-        var value = e.Value?.ToString();
         return PublisherChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 
-    private Task HandleYearChanged(ChangeEventArgs e)
+    private Task HandleYearChanged(string value)
     {
-        var value = e.Value?.ToString();
         return YearChanged.InvokeAsync(int.TryParse(value, out var y) ? y : null);
     }
 
-    private Task HandleCcliChanged(ChangeEventArgs e)
+    private Task HandleCcliChanged(string value)
     {
-        var value = e.Value?.ToString();
         return CcliChanged.InvokeAsync(string.IsNullOrWhiteSpace(value) ? null : value);
     }
 }

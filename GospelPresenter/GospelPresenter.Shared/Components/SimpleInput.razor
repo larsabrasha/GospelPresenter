@@ -1,14 +1,13 @@
-@{
-    var hasIcon = Icon is not null || Type is "date" or "time";
-}
+@inherits DomOwnedInputBase
 
 @* The pill lives on the wrapper rather than on the input, and the icon sits beside the field
    instead of on top of it. WebKit ignores padding-left on date and time inputs — it lays the
    value out from the field's left edge regardless — so an overlaid icon lands on the text in
    Safari and in the device app's webview, while Chrome looks fine. As flex siblings the two
-   cannot overlap in any engine. *@
-<div class="@($"flex items-center gap-1.5 h-9 rounded-full bg-neutral-100 dark:bg-neutral-700 text-sm focus-within:ring-2 focus-within:ring-sky-500 {(hasIcon ? "pl-3 pr-4" : "px-4")} {Class}")">
-    @if (hasIcon)
+   cannot overlap in any engine. The clear button is a sibling for the same reason, and
+   because peer-placeholder-shown only reaches siblings of the input. *@
+<div class="@WrapperClass">
+    @if (HasIcon)
     {
         <span class="flex items-center shrink-0 pointer-events-none text-neutral-400 dark:text-neutral-500">
             @if (Icon is not null)
@@ -25,25 +24,103 @@
             }
         </span>
     }
-    <input @ref="inputElement" id="@Id" type="@Type" placeholder="@Placeholder"
-           value="@Value"
+    <input @ref="InputElement" id="@Id" type="@Type" placeholder="@EffectivePlaceholder"
+           value="@RenderedValue"
            maxlength="@MaxLength"
-           @oninput="OnInput"
+           inputmode="@InputMode"
+           pattern="@Pattern"
+           @oninput="HandleInput"
            @onkeydown="OnKeyDown"
-           class="@($"min-w-0 bg-transparent dark:scheme-dark text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none{(Type is "date" or "time" ? " native-picker-hidden" : "")}")"/>
+           @onblur="OnBlur"
+           class="@ComputedInputClass"/>
+    @if (Clearable)
+    {
+        @* Hidden while the field is empty, by CSS rather than by a conditional render: a
+           render that depends on the value would have to run per keystroke, and it is exactly
+           that render that used to write the value back over what was being typed. *@
+        <AppButton Variant="ButtonVariant.Icon" Class="shrink-0 size-6 peer-placeholder-shown:hidden"
+                   Title="@L["Common.Clear"]" OnClick="HandleClear">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+            </svg>
+        </AppButton>
+    }
 </div>
 
 @code {
     [Parameter, EditorRequired] public string Id { get; set; } = "";
     [Parameter] public string? Placeholder { get; set; }
     [Parameter] public string Type { get; set; } = "text";
-    [Parameter] public object? Value { get; set; }
-    [Parameter] public EventCallback<ChangeEventArgs> OnInput { get; set; }
     [Parameter] public EventCallback<KeyboardEventArgs> OnKeyDown { get; set; }
+    [Parameter] public EventCallback<FocusEventArgs> OnBlur { get; set; }
     [Parameter] public int? MaxLength { get; set; }
-    [Parameter] public string? Class { get; set; }
-    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public string? InputMode { get; set; }
+    [Parameter] public string? Pattern { get; set; }
 
-    private ElementReference inputElement;
-    public ValueTask FocusAsync() => inputElement.FocusAsync();
+    /// <summary>Classes for the wrapper: layout, width, focus ring.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Classes for the input itself, for typography the variant does not cover.</summary>
+    [Parameter] public string? InputClass { get; set; }
+
+    /// <summary>
+    /// Replaces the variant's padding. Set it where a field needs its own — Tailwind resolves
+    /// two padding utilities by stylesheet order, not by attribute order, so appending one
+    /// through <see cref="Class"/> would not reliably win.
+    /// </summary>
+    [Parameter] public string? Padding { get; set; }
+
+    [Parameter] public RenderFragment? Icon { get; set; }
+    [Parameter] public InputVariant Variant { get; set; } = InputVariant.Filled;
+
+    /// <summary>Show a clear button while the field has a value.</summary>
+    [Parameter] public bool Clearable { get; set; }
+
+    [Parameter] public EventCallback OnClear { get; set; }
+
+    private bool HasIcon => Icon is not null || Type is "date" or "time";
+
+    // The clear button hides itself with peer-placeholder-shown, which only matches when
+    // there is a placeholder to show. A blank one keeps the CSS working for a field that
+    // does not want visible placeholder text.
+    private string? EffectivePlaceholder => Clearable ? Placeholder ?? " " : Placeholder;
+
+    private string WrapperClass
+    {
+        get
+        {
+            // One switch, so the look and its padding cannot drift apart. Box carries no fill and
+            // no focus ring of its own: the three fields using it do not agree on either, and a
+            // wrong default there is a visible change rather than a harmless one, so they pass
+            // both through Class.
+            var tight = HasIcon || Clearable;
+            var (look, padding) = Variant switch
+            {
+                InputVariant.Outlined => (
+                    "rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 focus-within:ring-2 focus-within:ring-sky-500",
+                    tight ? "pl-3.5 pr-2 py-2.5" : "px-4 py-2.5"),
+                InputVariant.Box => (
+                    "rounded-lg border",
+                    tight ? "pl-3 pr-2 py-2" : "px-3 py-2"),
+                _ => (
+                    "rounded-full h-9 bg-neutral-100 dark:bg-neutral-700 focus-within:ring-2 focus-within:ring-sky-500",
+                    tight ? "pl-3.5 pr-2" : "px-4")
+            };
+            return $"flex items-center gap-1.5 text-sm {look} {Padding ?? padding} {Class}";
+        }
+    }
+
+    private string ComputedInputClass =>
+        "peer min-w-0 grow bg-transparent dark:scheme-dark text-neutral-900 dark:text-neutral-100 " +
+        "placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none" +
+        (Type is "date" or "time" ? " native-picker-hidden" : "") +
+        (InputClass is null ? " text-sm" : $" {InputClass}");
+
+    private async Task HandleClear()
+    {
+        await OnClear.InvokeAsync();
+        // The caller cleared its own state and bumped Revision; put the cursor back where the
+        // user was so clearing a search does not also mean reaching for the field again.
+        await FocusAsync();
+    }
 }

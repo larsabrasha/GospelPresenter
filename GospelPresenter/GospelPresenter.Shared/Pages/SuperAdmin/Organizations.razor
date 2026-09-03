@@ -68,7 +68,7 @@
         <div class="p-6 space-y-4">
             <div class="font-semibold text-lg">@L["Orgs.CreateTitle"]</div>
             <FloatingInput @ref="nameFloatingInput" Id="new-org-name" Label="@L["Common.Name"]"
-                           Value="@newOrgName" OnInput="(e) => newOrgName = e.Value?.ToString() ?? string.Empty" OnKeyDown="OnDialogKeyDown"/>
+                           Value="@newOrgName" ValueChanged="v => newOrgName = v" OnKeyDown="OnDialogKeyDown"/>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">
                     @L["Common.Cancel"]

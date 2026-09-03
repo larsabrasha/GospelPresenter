@@ -214,7 +214,7 @@
             <FloatingInput @ref="nameInput" Id="new-display-name"
                            Label="@L["Admin.Displays.NamePlaceholder"]"
                            Value="@newName"
-                           OnInput="e => newName = e.Value?.ToString() ?? string.Empty"
+                           ValueChanged="v => newName = v"
                            OnKeyDown="OnDialogKeyDown"/>
             <div class="flex justify-end gap-3">
                 <AppButton Variant="ButtonVariant.Cancel" OnClick="CloseDialog">

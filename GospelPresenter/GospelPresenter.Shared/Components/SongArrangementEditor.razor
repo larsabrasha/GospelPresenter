@@ -20,7 +20,10 @@ else
     {
         var arr = arrangement;
         var arrangedParts = Song.GetArrangedParts(arr.Id);
-        <div class="bg-neutral-50 dark:bg-neutral-800 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-4 space-y-3">
+        @* Keyed by arrangement: the name field owns its value once someone types in it (see
+           DomOwnedInputBase), so an unkeyed loop would leave one arrangement's name in another
+           arrangement's field after an add or a delete shifts the positions. *@
+        <div @key="arr.Id" class="bg-neutral-50 dark:bg-neutral-800 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-4 space-y-3">
             @if (Song.Arrangements.Count > 1)
             {
                 <div class="flex gap-4">
@@ -28,7 +31,7 @@ else
                                    Value="@(GetEditName(arr.Id, arr.Name))"
                                    Label="@L["SongEditor.ArrangementName"]"
                                    MaxLength="AppConstraints.SongArrangementNameMaxLength"
-                                   OnInput="(e) => HandleNameChanged(arr.Id, e.Value?.ToString() ?? string.Empty)"
+                                   ValueChanged="v => HandleNameChanged(arr.Id, v)"
                                    Class="flex-1" />
                     <div class="flex-1"></div>
                 </div>
