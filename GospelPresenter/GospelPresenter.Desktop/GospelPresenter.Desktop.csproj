@@ -13,40 +13,136 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <RootNamespace>GospelPresenter.Desktop</RootNamespace>
-        <!-- YAML rather than the template's JSON so the packaging decisions can be commented where
-             they are made — electron-builder validates strictly and rejects a "//" key. -->
-        <ElectronBuilderJson>electron-builder.yml</ElectronBuilderJson>
+    </PropertyGroup>
 
+    <!-- Which installation this build is: which server it talks to, what it is called, where it
+         keeps its data and which URL scheme it answers sign-ins on. The same three names the MAUI
+         app uses, and selected the same way, so there is one vocabulary for "which environment" —
+         but resolved through Directory.Build.$(Scheme).props and assembly metadata rather than
+         DefineConstants, because a desktop app can read a value at startup and an iOS bundle
+         cannot. See DesktopBuild.cs, which is the reading end of this. -->
+    <PropertyGroup>
+        <Scheme Condition=" '$(Scheme)' == '' ">$(SCHEME)</Scheme>
+        <!-- Local, for the same reason it is the MAUI default: a bare `dotnet run` should not sign
+             in against a real server. CI passes -p:Scheme=GospelPresenterProd. -->
+        <Scheme Condition=" '$(Scheme)' == '' ">GospelPresenterLocal</Scheme>
+    </PropertyGroup>
+
+    <Target Name="PrintScheme" BeforeTargets="Build">
+        <Message Importance="high" Text="Scheme: $(Scheme)"/>
+    </Target>
+
+    <!-- A misspelled scheme would otherwise build: the Import below is conditional on the file
+         existing, so the app would come out with no server URL, no callback scheme and the data
+         directory of whichever installation it fell back to. Nothing about the running app would
+         say which scheme it was meant to be. -->
+    <Target Name="ValidateScheme" BeforeTargets="Build;Publish">
+        <Error Condition="!Exists('Directory.Build.$(Scheme).props')"
+               Code="GP0002"
+               Text="Unknown scheme '$(Scheme)': there is no Directory.Build.$(Scheme).props next to this project. Expected GospelPresenterProd, GospelPresenterTest or GospelPresenterLocal." />
+    </Target>
+
+    <!-- The app claims a URL scheme from the operating system in two places, and both have to name
+         the same one. $(DesktopCallbackScheme) is what the app asks for at runtime through
+         setAsDefaultProtocolClient and what it tells the server to answer on; the packaging
+         config's protocols: block is what becomes the durable registration — CFBundleURLTypes on
+         macOS, registry keys from the NSIS installer on Windows, a .desktop file with
+         x-scheme-handler on Linux.
+
+         Disagree, and there is no error anywhere: the browser is handed a URL the OS has no owner
+         for, or hands it to a different installation of this app, and the sign-in simply waits out
+         its five minutes. So the build reads the config and checks.
+
+         Spaces are stripped before matching so indentation and trailing whitespace cannot fail an
+         otherwise correct config, and the '|' terminator is what keeps "- gospelpresenter" from
+         matching a config that only declares "- gospelpresenter-test". -->
+    <!-- Local is excluded because it has no packaging config of its own and is never packaged
+         (GP0003). Left in, this target validated ElectronNET's own default instead —
+         Properties/electron-builder.json, the template the package writes on every build, which
+         declares no protocols at all — and failed a build that was correct: an unpackaged run
+         claims its scheme at runtime, with no bundle to declare it. -->
+    <Target Name="ValidateCallbackScheme" BeforeTargets="Build;Publish"
+            Condition="'$(ElectronBuilderJson)' != '' AND '$(Scheme)' != 'GospelPresenterLocal'">
+        <ReadLinesFromFile File="Properties/$(ElectronBuilderJson)">
+            <Output TaskParameter="Lines" ItemName="_PackagingConfigLine" />
+        </ReadLinesFromFile>
+        <PropertyGroup>
+            <_PackagingConfig>@(_PackagingConfigLine, '|')</_PackagingConfig>
+            <_PackagingConfig>$(_PackagingConfig.Replace(' ', ''))|</_PackagingConfig>
+        </PropertyGroup>
+        <Error Condition="!$(_PackagingConfig.Contains('-$(DesktopCallbackScheme)|'))"
+               Code="GP0004"
+               Text="Properties/$(ElectronBuilderJson) does not declare the scheme '$(DesktopCallbackScheme)' that this build signs in on. Add it to the protocols: block, or the packaged app will never receive its sign-in callback." />
+    </Target>
+
+    <!-- Local has no packaging config and is not meant to have one: it is the scheme you run from
+         a terminal, its server URL comes from GP_API_BASE_URL, and Electron claims its callback
+         scheme at runtime rather than out of a bundle. Publishing it would leave
+         ElectronBuilderJson unset and fall through to ElectronNET's own default,
+         Properties/electron-builder.json — the template the package writes there on every build,
+         which declares a portable exe and a tarball, neither of which electron-updater can update
+         and neither of which anything here supports. Refused rather than given a fourth config
+         file: nobody wants an installer for this scheme. -->
+    <Target Name="RefuseToPackageLocal" BeforeTargets="Publish">
+        <Error Condition="'$(Scheme)' == 'GospelPresenterLocal'"
+               Code="GP0003"
+               Text="The GospelPresenterLocal scheme cannot be packaged. Build and run it instead, or publish with -p:Scheme=GospelPresenterTest or -p:Scheme=GospelPresenterProd." />
+    </Target>
+
+    <PropertyGroup>
         <!-- ELECTRON003 insists on Properties/electron-builder.json. Its check reads the path
-             literally and never consults ElectronBuilderJson above, so the warning fires at every
-             build for a file the build is configured not to use. Suppressed here rather than
+             literally and never consults ElectronBuilderJson, which each scheme's props file sets,
+             so the warning fires at every build for a file the build is configured not to use. Suppressed here rather than
              satisfied: adding an empty .json would be a second, silently ignored config file.
              ElectronNET.MigrationChecks.targets(174) if the check ever learns about the property. -->
         <NoWarn>$(NoWarn);ELECTRON003</NoWarn>
 
-        <!-- Who the packaged app says it is. Left at the ElectronNET defaults, all of this was
-             derived from the project file name: the bundle identifier was "gospelpresenter-desktop"
-             and the app called itself "GospelPresenter.Desktop" in the Dock, the menu bar and the
-             installer.
-
-             The identifier is the one that matters beyond appearances. Apple requires a reverse-DNS
-             bundle identifier, and it is what a Developer ID certificate is issued against, what
-             notarization records, and what macOS keys the gospelpresenter:// registration on — so
-             the value below has to be settled before the certificate is bought, not after.
-             com.gospelpresenter.app per adr/0002 (13); the Catalyst app that held it is retired. -->
-        <ElectronPackageId>com.gospelpresenter.app</ElectronPackageId>
-        <Title>Gospel Presenter</Title>
+        <!-- The parts of the app's identity that do not depend on which server it talks to.
+             ElectronPackageId and Title do, and are set per scheme below — nothing here should be
+             read as the whole story about what the packaged app calls itself. -->
         <Company>Gospel Presenter</Company>
         <Description>Presentation software for churches: songs, Bible passages and slides.</Description>
         <ProjectUrl>https://www.gospelpresenter.com</ProjectUrl>
     </PropertyGroup>
 
+    <!-- The server, the identity, the data directory and the callback scheme for this build. Same
+         file-naming convention as the MAUI app's schemes, and imported here rather than
+         auto-imported so it wins over the PropertyGroup above. -->
+    <Import Project="Directory.Build.$(Scheme).props"
+            Condition="Exists('Directory.Build.$(Scheme).props')" />
+
+    <ItemGroup>
+        <!-- What the app calls itself where a person reads it: the window title bar. $(Title) is
+             already the name electron-builder puts in the Dock and the installer, so this carries
+             the same value inward rather than letting the two drift. -->
+        <AssemblyMetadata Include="ProductName" Value="$(Title)" />
+
+        <!-- Whether to register IAppUpdater, per adr/0002 (19): where a feed exists and nowhere
+             else. Derived from which packaging config the scheme selected rather than set beside
+             it, because the two would otherwise be separate claims about the same fact — a scheme
+             could say it has a feed while its config names no publish provider, and nothing would
+             notice until an update silently never arrived. electron-builder.yml is the only config
+             with a provider; see the publish: block there. -->
+        <AssemblyMetadata Include="HasUpdateFeed" Value="true"
+                          Condition="'$(ElectronBuilderJson)' == 'electron-builder.yml'" />
+    </ItemGroup>
+
     <ItemGroup>
         <!-- The app icon, as a 1024px source electron-builder converts per platform. Copied to the
              output rather than referenced in place, because electron-builder runs from the publish
              root and resolves the path in electron-builder.yml relative to it. Without this the
-             build says "default Electron icon is used" and ships one. -->
-        <Content Include="icon.png" CopyToOutputDirectory="PreserveNewest" />
+             build says "default Electron icon is used" and ships one.
+
+             $(DesktopIconFile) is set per scheme, and lands in the output under one name so the
+             packaging config does not have to know which scheme built it.
+
+             Both icons are generated by scripts/generate-desktop-icons.sh from the MAUI icon
+             sources — run it after changing either SVG. They are committed because
+             electron-builder needs a PNG at package time, and the geometry is not arbitrary:
+             electron-builder scales this file straight into the .icns without applying the macOS
+             mask, so the rounded tile and the inset have to be in the source. The script carries
+             the measurements and the reasoning. -->
+        <Content Include="$(DesktopIconFile)" Link="icon.png" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
     <ItemGroup>

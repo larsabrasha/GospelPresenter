@@ -1,7 +1,9 @@
-# Packaging and the update feed. YAML rather than the JSON the ElectronNET template ships, for the
-# sake of these comments: electron-builder validates its configuration against a strict schema and
-# rejects unknown keys, so a JSON file cannot carry a "//" note explaining itself. The file name is
-# set by ElectronBuilderJson in the csproj.
+# Packaging and the update feed for the **Prod** scheme — the real app. YAML rather than the JSON
+# the ElectronNET template ships, for the sake of these comments: electron-builder validates its
+# configuration against a strict schema and rejects unknown keys, so a JSON file cannot carry a
+# "//" note explaining itself. Which file is used is set by ElectronBuilderJson in
+# Directory.Build.$(Scheme).props; electron-builder.test.yml is the other one, and Local is not
+# packaged at all.
 
 $schema: https://raw.githubusercontent.com/electron-userland/electron-builder/refs/heads/master/packages/app-builder-lib/scheme.json
 
@@ -25,6 +27,10 @@ artifactName: gospel-presenter-${arch}-${version}.${ext}
 # Compiled in rather than served by the server, per (30): a server that names the feed can make the
 # client download and run anything, and that is only acceptable once a signature proves the package
 # came from us.
+#
+# This block is the only publish provider in the project, and the csproj keys HasUpdateFeed — and
+# therefore whether the app registers IAppUpdater at all — on this file being the one selected. If a
+# provider is ever added to electron-builder.test.yml, that condition is what has to change with it.
 publish:
   - provider: github
     owner: larsabrasha
@@ -35,6 +41,11 @@ publish:
 # runtime with setAsDefaultProtocolClient, and that is enough while developing — but on macOS the
 # claim is read from the bundle's CFBundleURLTypes, which only exists if it is declared here. Left
 # out, the packaged app would sign in as far as the browser and never hear back.
+#
+# One scheme per installation, and this is the unsuffixed one because this is the real app. It has
+# to match CallbackScheme in Directory.Build.GospelPresenterProd.props, which is what the app tells
+# the server to answer on — the OS routes a scheme to exactly one application, so a mismatch here
+# means the browser hands the token to nothing, or to the wrong app.
 protocols:
   - name: Gospel Presenter
     schemes:

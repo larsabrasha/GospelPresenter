@@ -159,14 +159,28 @@ dotnet run --project GospelPresenter.Desktop
 
 Leaving `GP_API_BASE_URL` empty runs the client standalone against its local database with a developer identity and no server at all.
 
-The client signs in through the browser (device flow), so the account must already be linked as described above. The browser hands the token back on `gospelpresenter://`, which a packaged build registers with the desktop environment itself. A `dotnet run` build registers nothing, so on Linux the sign-in ends in "No apps available" and the client waits for a callback that never comes. Register it once per build directory:
+The client signs in through the browser (device flow), so the account must already be linked as described above. The browser hands the token back on a custom URL scheme, which a packaged build registers with the desktop environment itself. A `dotnet run` build registers nothing, so on Linux the sign-in ends in "No apps available" and the client waits for a callback that never comes. Register it once per build directory:
 
 ```shell
 ./scripts/register-url-scheme-linux.sh          # Debug; pass Release for a release build
 ./scripts/register-url-scheme-linux.sh --remove # undo
 ```
 
-Re-run it after moving the repository — the handler it writes names an absolute path.
+Re-run it after moving the repository — the handler it writes names an absolute path. It registers `gospelpresenter-local://`, which is the scheme a default build answers on; pass `GP_CALLBACK_SCHEME` for a build made with another `-p:Scheme`.
+
+#### Build schemes
+
+Which server the desktop app talks to is a build parameter, not a setting a user changes (see [ADR 0005](adr/0005-desktop-build-schemes.md)) — the same three names the MAUI app uses, selected with `-p:Scheme`:
+
+| `-p:Scheme=` | Server | Callback scheme | Data under | Updates |
+|---|---|---|---|---|
+| `GospelPresenterProd` | `app.gospelpresenter.com` | `gospelpresenter://` | `GospelPresenter` | GitHub Releases |
+| `GospelPresenterTest` | `apptest.gospelpresenter.com` | `gospelpresenter-test://` | `GospelPresenter Test` | none |
+| `GospelPresenterLocal` (default) | `GP_API_BASE_URL`, else none | `gospelpresenter-local://` | `GospelPresenter Local` | none |
+
+Each is a separate installation with its own bundle identifier, name, icon, database, media library and device token, so a test build sits beside the real app rather than replacing it — and neither can answer the other's sign-in, because an operating system routes a URL scheme to exactly one application. The values live in `GospelPresenter.Desktop/Directory.Build.GospelPresenter*.props`; the server allow-lists the three callback schemes in `DeviceTokenEndpoints`.
+
+`Local` is the default so a bare build never signs in against a real server, and it refuses to be packaged (`GP0003`). `Prod` is what a `v*` tag builds; `Test` is built on demand by the **Desktop test build** workflow, which leaves the installers as workflow artifacts.
 
 ### Run or Debug from Rider or Visual Studio
 

@@ -16,7 +16,10 @@
     <base href="/" />
     <link rel="stylesheet" href="@Assets["_content/GospelPresenter.Shared/tailwind-output.css"]" />
     <link rel="stylesheet" href="@Assets["_content/GospelPresenter.Shared/app.css"]" />
-    <title>Gospel Presenter</title>
+    <!-- The scheme's name, not the web host's constant: Electron takes the window title from
+         document.title, so this is what an operator with both the real app and a Test build
+         installed reads to tell them apart. -->
+    <title>@DesktopBuild.ProductName</title>
     <script>
         (function() {
             // Polyfill crypto.randomUUID for non-secure origins (LAN access over plain HTTP).

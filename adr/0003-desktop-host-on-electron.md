@@ -109,10 +109,18 @@ of a conversation.
    a Developer ID certificate is issued against, what notarization records, and what macOS keys a URL
    scheme registration on — so it has to be settled before the certificate is bought, not after.
 
+   *Amended by ADR 0005 (1):* this is the production installation's identifier. Test and Local carry
+   `com.gospelpresenter.app.test` and `.local`, as the MAUI schemes already did. The certificate
+   reasoning is unaffected — it is issued against this one.
+
 9. **`gospelpresenter://` is declared in the bundle, not only claimed at runtime.**
    `setAsDefaultProtocolClient` is enough while developing; on macOS the durable claim is read from
    `CFBundleURLTypes`. Left out, the packaged app would open the browser to sign in and never hear
    the answer come back — and it would have looked like a sync bug.
+
+   *Amended by ADR 0005 (5)–(7):* one scheme per installation, because the OS routes a scheme to
+   exactly one application — `gospelpresenter-test://` and `gospelpresenter-local://` alongside this
+   one. The app now tells the server which to answer on, and the server allow-lists the three.
 
 10. **`IAppUpdater` is implemented on electron-updater.** The seam ADR 0002 (18) defined had no
     implementation after Catalyst was retired, so the restart indicator resolved nothing on every
@@ -120,6 +128,9 @@ of a conversation.
     makes the download silent, `AutoInstallOnAppQuit` applies it at the next start. The negative rule
     is unchanged and still lives in the component: while anything is being presented there is no
     restart, no prompt and no toast.
+
+    *Amended by ADR 0005 (10):* registered only where a feed exists, which is the Prod scheme —
+    ADR 0002 (19)'s rule, which this had not needed until a second scheme existed.
 
 11. **Every target is one electron-updater can update.** The inherited configuration had none:
     `portable` on Windows is a self-extracting exe with nothing to replace in place, `tar.xz` on
@@ -183,7 +194,9 @@ of a conversation.
 - **npm is now in the build path.** electron-builder is fetched at publish time and the Electron
   version is pinned by the ElectronNET package, not by us.
 - The file-system layout, the client version headers and the protocol floor — ADR 0002 (20)–(25) —
-  carry over unchanged, and `DesktopPaths` holds their reasoning.
+  carry over unchanged, and `DesktopPaths` holds their reasoning. *Amended by ADR 0005 (8):* the
+  layout carried over, but the per-scheme split in (21) did not — it came from the Catalyst bundle
+  identifier, and `DesktopPaths` had one name hardcoded.
 
 ## Open questions
 

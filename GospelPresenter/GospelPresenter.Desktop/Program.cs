@@ -246,8 +246,15 @@ builder.Services.AddSingleton<DesktopCultureService>();
 // Self-updating. The first host to register the IAppUpdater seam that adr/0002 (18) defined and
 // nothing has implemented since the Mac Catalyst app was retired — until now the restart button
 // resolved nothing and rendered nothing, on every host.
-builder.Services.AddSingleton<ElectronAppUpdater>();
-builder.Services.AddSingleton<IAppUpdater>(sp => sp.GetRequiredService<ElectronAppUpdater>());
+//
+// Only where a feed exists, per (19). Unregistered, the seam resolves to nothing and
+// UpdateAvailableIndicator renders nothing, which is what a Test or Local build should do: the only
+// feed configured anywhere carries the real app's releases.
+if (DesktopBuild.HasUpdateFeed)
+{
+    builder.Services.AddSingleton<ElectronAppUpdater>();
+    builder.Services.AddSingleton<IAppUpdater>(sp => sp.GetRequiredService<ElectronAppUpdater>());
+}
 
 var app = builder.Build();
 electronServices = app.Services;
@@ -355,14 +362,17 @@ static async Task InitialiseDatabaseAsync(IServiceProvider services)
 /// </summary>
 static async Task OnElectronReadyAsync(IServiceProvider services)
 {
-    // Claim gospelpresenter:// before anything can sign in on it. Doing this here rather than at
-    // registration is not incidental: both halves talk to Electron, which does not exist until now.
+    // Claim this installation's callback scheme before anything can sign in on it. Doing this here
+    // rather than at registration is not incidental: both halves talk to Electron, which does not
+    // exist until now.
     await services.GetRequiredService<ElectronDeviceSignIn>().InitialiseAsync();
 
     // Before the window exists, so the first paint is already in the right language.
     await services.GetRequiredService<DesktopCultureService>().ApplyAsync();
 
-    await services.GetRequiredService<ElectronAppUpdater>().InitialiseAsync();
+    // Absent in a build with no feed, where there is nothing to initialise.
+    if (services.GetService<ElectronAppUpdater>() is { } updater)
+        await updater.InitialiseAsync();
 
     var displays = await Electron.Screen.GetAllDisplaysAsync();
     Log.Information("Electron ready, {Count} display(s)", displays.Length);
@@ -372,7 +382,9 @@ static async Task OnElectronReadyAsync(IServiceProvider services)
 
     var window = await Electron.WindowManager.CreateWindowAsync(new BrowserWindowOptions
     {
-        Title = "Gospel Presenter",
+        // Replaced by document.title as soon as the page loads; set here so the window that
+        // appears before the first paint already carries the right name.
+        Title = DesktopBuild.ProductName,
         Width = 1280,
         Height = 860,
         MinWidth = 900,

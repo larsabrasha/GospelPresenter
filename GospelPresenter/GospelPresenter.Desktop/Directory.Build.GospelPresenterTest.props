@@ -1,0 +1,44 @@
+<Project>
+
+    <!-- Talks to https://apptest.gospelpresenter.com — the deployment `main` publishes to (README,
+         "Image channels"). Its own identifier, name, data directory and callback scheme so it can
+         sit beside the real app instead of replacing it, which is exactly when you least want to
+         lose the working one. Same reasoning as adr/0002 (13) for the MAUI test scheme. -->
+
+    <PropertyGroup>
+        <ElectronPackageId>com.gospelpresenter.app.test</ElectronPackageId>
+        <Title>Gospel Presenter Test</Title>
+
+        <ElectronBuilderJson>electron-builder.test.yml</ElectronBuilderJson>
+
+        <!-- Built from Resources/AppIcon/appiconfg-test.svg by
+             scripts/generate-desktop-icons.sh, which also builds the real app's and asserts that
+             the play mark lands identically in both — so this icon is that one plus the badge,
+             and nothing else. -->
+        <DesktopIconFile>icon-test.png</DesktopIconFile>
+
+        <!-- The URL scheme this installation answers sign-ins on. A property, not only assembly
+             metadata, so the build can check it against what the packaging config declares to the
+             operating system — see ValidateCallbackScheme in the csproj. -->
+        <DesktopCallbackScheme>gospelpresenter-test</DesktopCallbackScheme>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <AssemblyMetadata Include="ServerBaseUrl" Value="https://apptest.gospelpresenter.com" />
+
+        <!-- Not gospelpresenter://. An operating system routes a scheme to exactly one
+             application, so sharing it with the real app would mean a sign-in against the test
+             server handing its token to whichever of the two the OS picked — silently, and
+             differently on different machines. The hyphen is legal in a URI scheme (RFC 3986:
+             ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )) and the server allow-lists this exact
+             value in DeviceTokenEndpoints. -->
+        <AssemblyMetadata Include="CallbackScheme" Value="$(DesktopCallbackScheme)" />
+
+        <!-- Its own database, media library and macOS keychain entry. Sync state is specific to
+             the server that produced it — watermarks, tombstones, queued uploads — so two
+             installations sharing a directory would not merely mix data, they would each pull
+             against the other's watermark. -->
+        <AssemblyMetadata Include="AppFolderName" Value="GospelPresenter Test" />
+    </ItemGroup>
+
+</Project>

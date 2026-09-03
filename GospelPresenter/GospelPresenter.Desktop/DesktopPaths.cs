@@ -9,10 +9,15 @@ namespace GospelPresenter.Desktop;
 ///   macOS    ~/Library/Application Support/GospelPresenter/ and ~/Library/Logs/GospelPresenter/
 ///   Windows  %LOCALAPPDATA%\GospelPresenter\ with logs beside the data
 ///   Linux    $XDG_DATA_HOME or ~/.local/share/GospelPresenter/
+///
+/// The name is the scheme's, so Prod, Test and Local get a directory each — the same split the
+/// MAUI schemes get from their bundle identifiers, per (13) and (21). Not cosmetic: the database
+/// under here holds sync watermarks, tombstones and queued uploads that only mean anything against
+/// the server they came from.
 /// </summary>
 public static class DesktopPaths
 {
-    private const string AppFolderName = "GospelPresenter";
+    private static string AppFolderName => DesktopBuild.AppFolderName;
 
     public static string DataDirectory { get; } = Ensure(ResolveDataDirectory());
 

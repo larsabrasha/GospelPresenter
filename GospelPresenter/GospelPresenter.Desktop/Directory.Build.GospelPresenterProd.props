@@ -1,0 +1,51 @@
+<Project>
+
+    <!-- The real app: https://app.gospelpresenter.com, the update feed, and the identity a
+         Developer ID certificate will one day be issued against. What CI builds from a v* tag. -->
+
+    <PropertyGroup>
+        <!-- Apple requires a reverse-DNS bundle identifier, and it is what a Developer ID
+             certificate is issued against, what notarization records, and what macOS keys the
+             gospelpresenter:// registration on — so this value has to be settled before the
+             certificate is bought, not after. com.gospelpresenter.app per adr/0002 (13); the
+             Catalyst app that held it is retired.
+
+             Left at neither of the ElectronNET defaults, both of which were derived from the
+             project file name: the identifier was "gospelpresenter-desktop" and the app called
+             itself "GospelPresenter.Desktop" in the Dock, the menu bar and the installer. -->
+        <ElectronPackageId>com.gospelpresenter.app</ElectronPackageId>
+        <Title>Gospel Presenter</Title>
+
+        <!-- YAML rather than the template's JSON so the packaging decisions can be commented where
+             they are made — electron-builder validates strictly and rejects a "//" key. -->
+        <ElectronBuilderJson>electron-builder.yml</ElectronBuilderJson>
+
+        <DesktopIconFile>icon.png</DesktopIconFile>
+
+        <!-- The URL scheme this installation answers sign-ins on. A property, not only assembly
+             metadata, so the build can check it against what the packaging config declares to the
+             operating system — see ValidateCallbackScheme in the csproj. -->
+        <DesktopCallbackScheme>gospelpresenter</DesktopCallbackScheme>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Read back at startup by DesktopBuild. Assembly metadata rather than a file, because
+             these three are decisions made at build time and appsettings.json is where an
+             installation overrides one — keeping them apart is what lets a church that self-hosts
+             point the real app at its own server without a build that lies about which scheme it
+             is. -->
+        <AssemblyMetadata Include="ServerBaseUrl" Value="https://app.gospelpresenter.com" />
+
+        <!-- The URL scheme this installation answers sign-ins on, declared to the server as
+             ?callback_scheme= and to the OS by electron-builder's protocols: block. The
+             unsuffixed one, so an app that predates the parameter keeps working. -->
+        <AssemblyMetadata Include="CallbackScheme" Value="$(DesktopCallbackScheme)" />
+
+        <!-- The directory name under Application Support / LOCALAPPDATA, and the log directory on
+             macOS. Not derived from Title: this is the name existing installations already have
+             their database, media library and device token under, and "Gospel Presenter" with a
+             space would silently start them over with an empty library. -->
+        <AssemblyMetadata Include="AppFolderName" Value="GospelPresenter" />
+    </ItemGroup>
+
+</Project>

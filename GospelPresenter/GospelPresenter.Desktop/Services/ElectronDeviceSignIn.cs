@@ -9,12 +9,16 @@ namespace GospelPresenter.Desktop.Services;
 /// <summary>
 /// The interactive device sign-in for the desktop: opens the server's /app-login in the system
 /// browser — never a window of our own, because Google refuses OAuth in embedded webviews — and
-/// waits for the token to arrive back on the gospelpresenter:// callback.
+/// waits for the token to arrive back on this installation's callback scheme.
 ///
-/// The server's callback URL is unchanged from the MAUI app's. That is the point: one endpoint, one
-/// flow, one thing to reason about, and the token still travels in a URL fragment, which no server
-/// ever sees. The loopback redirect that native desktop apps often use instead would have meant a
-/// second server-side branch and a token in this app's own request log.
+/// The flow is the MAUI app's: one endpoint, one shape, and the token travels in a URL fragment,
+/// which no server ever sees. The loopback redirect that native desktop apps often use instead
+/// would have meant a second server-side branch and a token in this app's own request log.
+///
+/// The scheme, though, is this installation's rather than a constant. An operating system routes a
+/// scheme to exactly one application, so Prod and Test sharing gospelpresenter:// would mean a
+/// sign-in against one server handing its token to whichever of the two the OS picked. The server
+/// is told which one to answer on, and allow-lists it — see DeviceTokenEndpoints.
 ///
 /// How the URL gets here differs by platform, and Electron papers over most of it: macOS delivers
 /// it to the running app as an open-url event, while Windows and Linux start a second process with
@@ -26,7 +30,7 @@ public class ElectronDeviceSignIn(
     string apiBaseUrl,
     ILogger<ElectronDeviceSignIn> logger) : IDeviceSignIn
 {
-    private const string CallbackScheme = "gospelpresenter";
+    private static string CallbackScheme => DesktopBuild.CallbackScheme;
 
     /// <summary>Long enough for a real sign-in with a password manager and a second factor.</summary>
     private static readonly TimeSpan CallbackTimeout = TimeSpan.FromMinutes(5);
@@ -75,8 +79,13 @@ public class ElectronDeviceSignIn(
         try
         {
             var deviceName = Environment.MachineName;
+            // callback_scheme is what keeps two installed builds apart. A server that does not
+            // know the parameter ignores it and answers on gospelpresenter://, which is right for
+            // Prod and wrong for the others — so a Test build against an old server fails to hear
+            // back rather than taking the real app's place, which is the safer of the two.
             await Electron.Shell.OpenExternalAsync(
-                $"{apiBaseUrl}/app-login?device={Uri.EscapeDataString(deviceName)}");
+                $"{apiBaseUrl}/app-login?device={Uri.EscapeDataString(deviceName)}" +
+                $"&callback_scheme={Uri.EscapeDataString(CallbackScheme)}");
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(CallbackTimeout);

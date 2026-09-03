@@ -1,0 +1,68 @@
+# Packaging for the **Test** scheme — the build that talks to apptest.gospelpresenter.com. Selected
+# by ElectronBuilderJson in Directory.Build.GospelPresenterTest.props. Deliberately close to
+# electron-builder.yml rather than sharing with it: electron-builder's `extends` is for presets, not
+# for a sibling file, and two readable files beat one file with conditions it has no syntax for.
+#
+# It differs from the real app's config in exactly two ways, and both are the point:
+#   - no publish provider, so this build has no update feed (see below)
+#   - a different protocol scheme, so it cannot take the real app's sign-ins
+#
+# The identity — bundle id, product name, icon — comes from the props file, not from here.
+
+$schema: https://raw.githubusercontent.com/electron-userland/electron-builder/refs/heads/master/packages/app-builder-lib/scheme.json
+
+compression: maximum
+
+icon: bin/icon.png
+
+# Names the scheme so a test installer and a real one can sit in the same downloads folder without
+# one overwriting the other.
+artifactName: gospel-presenter-test-${arch}-${version}.${ext}
+
+# No `publish:`. adr/0002 (9) put beta testers on the production server, on the grounds that "a
+# beta that runs against test data is never used on a Sunday and therefore finds nothing" — which
+# leaves Test as a developer build with an audience of one, and nothing for an update feed to do.
+#
+# It is also the safe answer rather than merely the cheap one. The only feed configured anywhere is
+# this repository's GitHub Releases, so a test build that carried one would read the same manifests
+# the real app does and update itself into the real app — same bundle id it does not have, same
+# database it must not touch. A channel would separate them, but a channel is machinery to maintain
+# for a build that nobody needs updated in place.
+#
+# The consequence, deliberately: electron-builder writes no app-update.yml, and the app does not
+# register IAppUpdater at all (DesktopBuild.HasUpdateFeed). To get a new test build, download it.
+
+# Not gospelpresenter://. See CallbackScheme in Directory.Build.GospelPresenterTest.props for why,
+# and keep the two in step — this is the OS's half of that agreement.
+protocols:
+  - name: Gospel Presenter Test
+    schemes:
+      - gospelpresenter-test
+
+# zip alongside dmg is what Squirrel.Mac would update from. Kept even with no feed, because dropping
+# it would make this config differ from the real one in a third way, for no gain — the zip costs
+# build time and nothing else.
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.productivity
+  # .NET 10 supports macOS 14 and later; Electron alone would declare 10.15, which knows nothing
+  # about the runtime sitting beside it in the bundle.
+  minimumSystemVersion: "14.0"
+
+win:
+  target:
+    - target: nsis
+      arch: x64
+
+nsis:
+  oneClick: true
+  perMachine: false
+
+linux:
+  target:
+    - AppImage
+  executableArgs:
+    - --no-sandbox
+  category: Office

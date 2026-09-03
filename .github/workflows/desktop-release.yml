@@ -115,11 +115,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
+        #
+        # -p:Scheme is not optional here. The project's default is GospelPresenterLocal — chosen so
+        # a bare build never signs in against a real server — and Local refuses to be packaged
+        # (GP0003), so a run that forgot this fails rather than releasing something nameless.
         run: >
           dotnet publish GospelPresenter.Desktop/GospelPresenter.Desktop.csproj
           -c Release
           -r ${{ matrix.rid }}
           --self-contained true
+          -p:Scheme=GospelPresenterProd
           -p:Version=${{ env.APP_VERSION }}
 
       - name: Show what was produced
