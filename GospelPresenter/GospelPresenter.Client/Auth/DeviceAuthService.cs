@@ -13,7 +13,8 @@ namespace GospelPresenter.Client.Auth;
 public class DeviceAuthService(
     ISecureTokenStore tokenStore,
     string identityFilePath,
-    ILogger<DeviceAuthService> logger)
+    ILogger<DeviceAuthService> logger,
+    IDeviceIdentityStore? identityStore = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -53,6 +54,10 @@ public class DeviceAuthService(
         await File.WriteAllTextAsync(identityFilePath, JsonSerializer.Serialize(identity, JsonOptions));
         Token = token;
         CurrentIdentity = identity;
+        // Before Changed, deliberately. Changed is what makes Blazor re-render as signed in, and
+        // the avatar menu it draws reads the user's name out of the row written here.
+        if (identityStore is not null)
+            await identityStore.SaveAsync(identity);
         Changed?.Invoke();
     }
 
@@ -61,6 +66,8 @@ public class DeviceAuthService(
     {
         await File.WriteAllTextAsync(identityFilePath, JsonSerializer.Serialize(identity, JsonOptions));
         CurrentIdentity = identity;
+        if (identityStore is not null)
+            await identityStore.SaveAsync(identity);
         Changed?.Invoke();
     }
 

@@ -138,10 +138,16 @@ public static class MauiProgram
         const bool useDevIdentity = false;
 #endif
         builder.Services.AddSingleton<GospelPresenter.Client.Auth.ISecureTokenStore, MauiSecureTokenStore>();
+        // Mirrors the identity into the local Users/Organizations rows every time it is stored, so
+        // the avatar menu has a name to show from the moment a sign-in completes rather than from
+        // the first pull that happens to land after it.
+        builder.Services.AddSingleton<GospelPresenter.Client.Auth.IDeviceIdentityStore,
+            GospelPresenter.Client.Auth.LocalDeviceIdentityStore>();
         builder.Services.AddSingleton(sp => new GospelPresenter.Client.Auth.DeviceAuthService(
             sp.GetRequiredService<GospelPresenter.Client.Auth.ISecureTokenStore>(),
             Path.Combine(FileSystem.Current.AppDataDirectory, "identity.json"),
-            sp.GetRequiredService<ILogger<GospelPresenter.Client.Auth.DeviceAuthService>>()));
+            sp.GetRequiredService<ILogger<GospelPresenter.Client.Auth.DeviceAuthService>>(),
+            sp.GetRequiredService<GospelPresenter.Client.Auth.IDeviceIdentityStore>()));
         builder.Services.AddSingleton<IDeviceSignIn, DeviceSignInService>();
         if (useDevIdentity)
             builder.Services.AddScoped<AuthenticationStateProvider, DevAuthenticationStateProvider>();

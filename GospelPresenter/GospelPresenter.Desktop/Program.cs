@@ -122,10 +122,15 @@ if (apiBaseUrl.Length > 0)
 else
     builder.Services.AddSingleton<ISecureTokenStore, InMemoryTokenStore>();
 
+// Mirrors the identity into the local Users/Organizations rows every time it is stored, so the
+// avatar menu has a name to show from the moment a sign-in completes rather than from the first
+// pull that happens to land after it.
+builder.Services.AddSingleton<IDeviceIdentityStore, LocalDeviceIdentityStore>();
 builder.Services.AddSingleton(sp => new DeviceAuthService(
     sp.GetRequiredService<ISecureTokenStore>(),
     Path.Combine(DesktopPaths.DataDirectory, "identity.json"),
-    sp.GetRequiredService<ILogger<DeviceAuthService>>()));
+    sp.GetRequiredService<ILogger<DeviceAuthService>>(),
+    sp.GetRequiredService<IDeviceIdentityStore>()));
 builder.Services.AddScoped<AuthenticationStateProvider, DeviceAuthStateProvider>();
 builder.Services.AddAuthentication(DeviceAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, DeviceAuthenticationHandler>(

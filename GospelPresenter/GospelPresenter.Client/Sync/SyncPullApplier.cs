@@ -106,39 +106,14 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
     /// <summary>
     /// Users and organisations are not part of the sync protocol, but the synced rows have foreign
     /// keys to them — the cached device identity provides the two rows everything hangs from.
+    /// Shared with the sign-in path, which writes the same rows before the first pull exists.
     /// </summary>
     private async Task EnsureIdentityRowsAsync(CancellationToken ct)
     {
         if (identity is null)
             return;
 
-        var organization = await db.Organizations.FirstOrDefaultAsync(o => o.Id == identity.OrganizationId, ct);
-        if (organization is null)
-            db.Organizations.Add(new Organization { Id = identity.OrganizationId, Name = identity.OrganizationName });
-        else
-            organization.Name = identity.OrganizationName;
-
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == identity.UserId, ct);
-        if (user is null)
-        {
-            db.Users.Add(new User
-            {
-                Id = identity.UserId,
-                Name = identity.Name,
-                Email = identity.Email,
-                Role = identity.Role,
-                OrganizationId = identity.OrganizationId,
-            });
-        }
-        else
-        {
-            user.Name = identity.Name;
-            user.Email = identity.Email;
-            user.Role = identity.Role;
-            user.OrganizationId = identity.OrganizationId;
-        }
-
-        await db.SaveChangesAsync(ct);
+        await DeviceIdentityRows.UpsertAsync(db, identity, ct);
     }
 
     private async Task<HashSet<RootRef>> GetDirtyRootsAsync(CancellationToken ct)

@@ -115,8 +115,71 @@ public class DeviceAuthTests : IDisposable
         user.FindFirst(ClaimTypes.Role)!.Value.ShouldBe(nameof(UserRole.Admin));
     }
 
-    private DeviceAuthService CreateService() =>
-        new(tokenStore, identityPath, NullLogger<DeviceAuthService>.Instance);
+
+    /// <summary>
+    /// The ordering is the fix, not the writing. Changed is what makes Blazor re-render as signed
+    /// in, and the avatar menu it draws then reads the user's name straight out of the local
+    /// database — so the row has to be there first. Written the other way round, the menu wins the
+    /// race, finds no user and shows a blank name over a silhouette, which is exactly what being
+    /// signed out looks like.
+    /// </summary>
+    [Fact]
+    public async Task SignIn_WritesTheIdentityRow_BeforeItTellsBlazor()
+    {
+        var store = new RecordingIdentityStore();
+        var auth = CreateService(store);
+        var storedWhenNotified = false;
+        auth.Changed += () => storedWhenNotified = store.Saved.Count == 1;
+
+        await auth.SignInAsync("gpdt_test", Identity);
+
+        store.Saved.ShouldBe([Identity]);
+        storedWhenNotified.ShouldBeTrue(
+            "the identity row must exist before anything re-renders on the strength of it");
+    }
+
+    /// <summary>
+    /// A refreshed identity is the case that happens on every start: /api/me is called in the
+    /// background, well after the menu has been drawn.
+    /// </summary>
+    [Fact]
+    public async Task UpdateIdentity_WritesTheIdentityRowToo()
+    {
+        var store = new RecordingIdentityStore();
+        var auth = CreateService(store);
+        var renamed = Identity with { Name = "Anna Ny" };
+
+        await auth.UpdateIdentityAsync(renamed);
+
+        store.Saved.ShouldBe([renamed]);
+    }
+
+    /// <summary>
+    /// The seam is optional, and a host without a local database has to keep working without it.
+    /// </summary>
+    [Fact]
+    public async Task SignIn_WithNoIdentityStore_StillSignsIn()
+    {
+        var auth = CreateService();
+
+        await auth.SignInAsync("gpdt_test", Identity);
+
+        auth.IsSignedIn.ShouldBeTrue();
+    }
+
+    private DeviceAuthService CreateService(IDeviceIdentityStore? identityStore = null) =>
+        new(tokenStore, identityPath, NullLogger<DeviceAuthService>.Instance, identityStore);
+
+    private sealed class RecordingIdentityStore : IDeviceIdentityStore
+    {
+        public List<DeviceIdentity> Saved { get; } = [];
+
+        public Task SaveAsync(DeviceIdentity identity, CancellationToken ct = default)
+        {
+            Saved.Add(identity);
+            return Task.CompletedTask;
+        }
+    }
 
     private class FakeSecureTokenStore : ISecureTokenStore
     {
