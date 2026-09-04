@@ -1,0 +1,427 @@
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using System.ComponentModel
+
+@inject AppState AppState
+@inject PresentationEditorState Editor
+@inject SharedAppState SharedAppState
+@inject ActiveOrganizationState OrgState
+@inject IPresentationService PresentationService
+@inject IJSRuntime JsRuntime
+@inject CircuitCulture Culture
+
+@implements IAsyncDisposable
+
+@{
+    // The same three answers the page used to compute for it. Recomputed per render rather than
+    // held, because each is a pure function of state this component already listens to.
+    var liveSlide = SharedAppState.GetLiveSlide(SessionId);
+    var isLiveShowing = SharedAppState.IsPresentationActive(SessionId)
+                        && liveSlide.Status != LiveSlideStatus.ShowingBlackScreen;
+
+    var slideScale = AppState.MainViewport is null
+        ? 0.0
+        : AppState.MainViewport.Width < 768
+            ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth * 0.9 ?? 0.15
+            : AppState.MainViewport.Width <= 1024
+                ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth / 3 * 0.98 ?? 0.15
+                : 0.2;
+
+    var hasSlides = Editor.SelectedSong is not null || Editor.SelectedBibleText is not null
+                    || Editor.SelectedImage is not null || Editor.SelectedSlides is not null;
+    var mainClass = hasSlides
+        ? "mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
+        : "flex items-center justify-center h-full overflow-auto";
+}
+
+<div class="@mainClass" id="main">
+    @if (Editor.SelectedSong is not null)
+    {
+        var effectiveParts = Editor.EffectiveSongParts(AppState.SelectedProjectItem?.Id);
+        @for (var i = 0; i < effectiveParts.Count; i++)
+        {
+            var partIndex = i;
+            <button @onclick="() => SelectSlide(AppState.SelectedProjectItem!.Id, partIndex)">
+                <SongSlide
+                    Content="@effectiveParts[i].Content"
+                    Label="@effectiveParts[i].Label"
+                    LabelColor="@effectiveParts[i].LabelColor"
+                    Style="@Editor.Theme.Song"
+                    IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
+                    IsLive="@isLiveShowing"
+                    BaseWidth="@AppState.BaseSlideWidth"
+                    BaseHeight="@AppState.BaseSlideHeight"
+                    Scale="@slideScale"/>
+            </button>
+        }
+    }
+    else if (Editor.SelectedBibleText is not null)
+    {
+        @for (var i = 0; i < Editor.SelectedBibleText.Parts.Count; i++)
+        {
+            var partIndex = i;
+            <button @onclick="() => SelectSlide(Editor.SelectedBibleText.Id, partIndex)">
+                <BibleTextSlide
+                    Content="@Editor.SelectedBibleText.Parts[i]"
+                    Style="@Editor.Theme.BibleText"
+                    IsSelected="@(liveSlide.ProjectItemId == Editor.SelectedBibleText.Id && liveSlide.ItemPartIndex == i)"
+                    IsLive="@isLiveShowing"
+                    BaseWidth="@AppState.BaseSlideWidth"
+                    BaseHeight="@AppState.BaseSlideHeight"
+                    Scale="@slideScale"/>
+            </button>
+        }
+    }
+    else if (Editor.SelectedImage is not null)
+    {
+        <div id="image-slide-list" class="@(Editor.IsEditingImageOrder ? "col-span-full grid grid-cols-1 sm:flex sm:flex-wrap gap-3" : "contents")">
+            @for (var i = 0; i < Editor.SelectedImage.Urls.Count; i++)
+            {
+                var partIndex = i;
+                <div @key="Editor.SelectedImage.PartIds.ElementAtOrDefault(i) ?? i.ToString()" data-id="@(Editor.SelectedImage.PartIds.ElementAtOrDefault(i) ?? i.ToString())" class="@(Editor.IsEditingImageOrder ? "cursor-grab active:cursor-grabbing" : "")">
+                    @if (Editor.IsEditingImageOrder)
+                    {
+                        <div class="relative drag-handle">
+                            <ImageSlide
+                                Url="@Editor.SelectedImage.Urls[i]"
+                                Background="@Editor.Theme.Media"
+                                IsSelected="@(liveSlide.ProjectItemId == Editor.SelectedImage.Id && liveSlide.ItemPartIndex == i)"
+                                IsLive="@isLiveShowing"
+                                BaseWidth="@AppState.BaseSlideWidth"
+                                BaseHeight="@AppState.BaseSlideHeight"
+                                Scale="@slideScale"/>
+                            <button class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full size-6 flex items-center justify-center cursor-pointer"
+                                    title="@L["Common.Delete"]"
+                                    @onclick="() => OnRemoveImagePart.InvokeAsync(partIndex)"
+                                    @onclick:stopPropagation="true">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                                </svg>
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <button @onclick="() => SelectSlide(Editor.SelectedImage.Id, partIndex)">
+                            <ImageSlide
+                                Url="@Editor.SelectedImage.Urls[i]"
+                                Background="@Editor.Theme.Media"
+                                IsSelected="@(liveSlide.ProjectItemId == Editor.SelectedImage.Id && liveSlide.ItemPartIndex == i)"
+                                IsLive="@isLiveShowing"
+                                BaseWidth="@AppState.BaseSlideWidth"
+                                BaseHeight="@AppState.BaseSlideHeight"
+                                Scale="@slideScale"/>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+        @if (Editor.IsEditingImageOrder)
+        {
+            <button class="border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-2xl flex items-center justify-center cursor-pointer hover:border-sky-500 hover:text-sky-500 text-neutral-400 dark:text-neutral-500 transition-colors outline-4 outline-transparent m-1"
+                    style="width: @(AppState.BaseSlideWidth * slideScale)px; height: @(AppState.BaseSlideHeight * slideScale)px;"
+                    @onclick="() => OnAddImages.InvokeAsync()"
+                    title="@L["Presentation.AddMoreImages"]">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+                </svg>
+            </button>
+        }
+    }
+    else if (Editor.SelectedSlides is not null)
+    {
+        @for (var i = 0; i < Editor.SelectedSlides.Urls.Count; i++)
+        {
+            var partIndex = i;
+            <button @onclick="() => SelectSlide(Editor.SelectedSlides.Id, partIndex)">
+                <ImageSlide
+                    Url="@Editor.SelectedSlides.Urls[i]"
+                    Background="@Editor.Theme.Media"
+                    IsSelected="@(liveSlide.ProjectItemId == Editor.SelectedSlides.Id && liveSlide.ItemPartIndex == i)"
+                    IsLive="@isLiveShowing"
+                    BaseWidth="@AppState.BaseSlideWidth"
+                    BaseHeight="@AppState.BaseSlideHeight"
+                    Scale="@slideScale"/>
+            </button>
+        }
+    }
+    else if (AppState.SelectedProject is not null && AppState.SelectedProject.Items.Count == 0)
+    {
+        <div class="flex flex-col items-center text-center px-6 select-none">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
+                <!-- Back slide -->
+                <rect x="50" y="10" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
+                <!-- Middle slide -->
+                <rect x="35" y="25" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.7"/>
+                <!-- Front slide -->
+                <rect x="20" y="40" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                <!-- Lines on front slide -->
+                <line x1="40" y1="65" x2="120" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                <line x1="40" y1="78" x2="100" y2="78" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
+                <line x1="40" y1="91" x2="110" y2="91" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
+                <!-- Plus circle -->
+                <circle cx="160" cy="130" r="20" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
+                <line x1="160" y1="120" x2="160" y2="140" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="150" y1="130" x2="170" y2="130" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Presentation.Empty"]</h2>
+            <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">
+                @((MarkupString)L["Presentation.EmptyHint"].Value)
+            </p>
+        </div>
+    }
+    else if (AppState.SelectedProject is not null && AppState.SelectedProject.Items.Count > 0)
+    {
+        var hint = idleHints[idleHintIndex];
+        <div class="flex flex-col items-center text-center select-none gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-8 text-neutral-300 dark:text-neutral-600">
+                @((MarkupString)hint.Icon)
+            </svg>
+            <div class="max-w-sm">
+                <p class="text-sm text-neutral-300 dark:text-neutral-600 italic">
+                    @hint.Text
+                </p>
+                @if (hint.Source is not null)
+                {
+                    <p class="text-xs text-neutral-300 dark:text-neutral-600 mt-1">
+                        – @hint.Source
+                    </p>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The session whose live slide decides which tile is marked as showing.</summary>
+    [Parameter, EditorRequired] public required string SessionId { get; set; }
+
+    /// <summary>The presentation being edited, or null for a template. Only used to persist a reorder.</summary>
+    [Parameter] public string? PresentationId { get; set; }
+
+    [Parameter] public EventCallback<(string ItemId, int PartIndex)> OnSelectSlide { get; set; }
+    [Parameter] public EventCallback<int> OnRemoveImagePart { get; set; }
+    [Parameter] public EventCallback OnAddImages { get; set; }
+
+
+    private record IdleHint(string Icon, string Text, string? Source = null);
+
+    // Icon SVG inner content constants
+    private const string IconMusic = """<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>""";
+    private const string IconBook = """<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>""";
+    private const string IconHeart = """<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>""";
+    private const string IconSun = """<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>""";
+    private const string IconStar = """<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>""";
+    private const string IconFeather = """<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/>""";
+    private const string IconMic = """<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>""";
+    private const string IconCloud = """<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>""";
+    private const string IconFlame = """<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>""";
+    private const string IconCoffee = """<path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>""";
+    private const string IconMountain = """<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>""";
+    private const string IconDove = """<path d="M12 22c-4-3-8-6-8-10a4 4 0 0 1 8 0 4 4 0 0 1 8 0c0 4-4 7-8 10z"/>""";
+    private const string IconSparkle = """<path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 1l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5L19 1z" opacity="0.6"/><path d="M5 19l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5L5 19z" opacity="0.6"/>""";
+
+    private static readonly IdleHint[] idleHints =
+    [
+        // Music quotes
+        new(IconMusic, "\"Utan musik vore livet ett misstag.\"", "Friedrich Nietzsche"),
+        new(IconMusic, "\"Musik uttrycker det som inte kan sägas med ord.\"", "Victor Hugo"),
+        new(IconMusic, "\"Bortom orden tar musiken vid.\""),
+        new(IconMusic, "\"En värld utan musik är som en kropp utan själ.\""),
+        new(IconMic, "\"Sång är glädjens modersmål.\""),
+        new(IconMic, "\"Rösten är det mest personliga instrumentet.\""),
+
+        // Bible verses (Bibel 2000)
+        new(IconBook, "\"Herren är min kraft och mitt värn, han blev min räddning.\"", "2 Mos 15:2"),
+        new(IconBook, "\"Sjung till Herrens ära, sjung en ny sång, sjung till Herrens ära, hela världen!\"", "Psalm 96:1"),
+        new(IconBook, "\"Allt som lever och andas skall prisa Herren. Halleluja!\"", "Psalm 150:6"),
+        new(IconBook, "\"Hylla Herren, hela världen!\"", "Psalm 100:1"),
+        new(IconBook, "\"Tacka Herren, ty han är god, evigt varar hans nåd.\"", "Psalm 136:1"),
+        new(IconBook, "\"Herren är god, evigt varar hans nåd, från släkte till släkte hans trofasthet.\"", "Psalm 100:5"),
+        new(IconBook, "\"Lugn! Besinna att jag är Gud, upphöjd över folken, upphöjd över jorden.\"", "Psalm 46:11"),
+        new(IconBook, "\"Herren är mitt ljus och min räddning, vem skulle jag frukta?\"", "Psalm 27:1"),
+        new(IconBook, "\"Tacka Herren, ty han är god, evigt varar hans nåd.\"", "Psalm 107:1"),
+        new(IconBook, "\"Om Herrens nåd vill jag alltid sjunga.\"", "Psalm 89:2"),
+        new(IconBook, "\"Herren är nära alla som ropar, alla som av hjärtat ropar till honom.\"", "Psalm 145:18"),
+        new(IconBook, "\"Se, jag gör allting nytt.\"", "Upp 21:5"),
+        new(IconBook, "\"Gud är min räddning, jag är trygg och utan fruktan.\"", "Jes 12:2"),
+        new(IconBook, "\"Lova Herren, min själ, minns allt det goda han gör.\"", "Psalm 103:2"),
+        new(IconBook, "\"Se och smaka Herrens godhet, lycklig den som flyr till honom!\"", "Psalm 34:9"),
+        new(IconBook, "\"Herren är min herde, ingenting skall fattas mig.\"", "Psalm 23:1"),
+
+        // Faith & worship
+        new(IconHeart, "\"Där Guds folk samlas, där klingar lovsången.\""),
+        new(IconHeart, "\"Lovsång är hjärtats naturliga svar på nåd.\""),
+        new(IconHeart, "\"Glädjens frukt är tacksamhet.\""),
+        new(IconHeart, "\"Tillbedjan är inte en del av livet – det är livet.\""),
+        new(IconFlame, "\"Elden i lovsången tänds i bönens stillhet.\""),
+        new(IconFlame, "\"Herren, det är Anden, och där Herrens ande är, där är frihet.\"", "2 Kor 3:17"),
+        new(IconDove, "\"Frid lämnar jag kvar åt er, min frid ger jag er.\"", "Joh 14:27"),
+
+        // Inspiration
+        new(IconStar, "\"En sång kan förändra ett ögonblick, en lovsång kan förändra en evighet.\""),
+        new(IconStar, "\"Varje gudstjänst är en ny början.\""),
+        new(IconStar, "\"Det finns en melodi i varje morgon.\""),
+        new(IconSun, "\"Varje dag är en gåva att tacka för.\""),
+        new(IconSun, "\"Herrens nåd tar inte slut, hans barmhärtighet upphör aldrig. Varje morgon är den ny.\"", "Klag 3:22–23"),
+        new(IconSun, "\"Ljuset lyser i mörkret, och mörkret har inte övervunnit det.\"", "Joh 1:5"),
+        new(IconMountain, "\"Jag ser upp emot bergen: varifrån skall jag få hjälp?\"", "Psalm 121:1"),
+        new(IconCloud, "\"Han för mig i vall på gröna ängar, han låter mig vila vid lugna vatten.\"", "Psalm 23:2"),
+        new(IconFeather, "\"De som litar till Herren får ny kraft, de får vingar som örnar.\"", "Jes 40:31"),
+        new(IconSparkle, "\"Guds nåd är alltid större.\""),
+        new(IconCoffee, "\"Även Jesus tog en paus ibland.\""),
+    ];
+
+    private DotNetObjectReference<SlideGrid>? dotNetRef;
+
+    /// <summary>
+    /// How many image tiles the sortable was built for, or null when there is no sortable. The count
+    /// rather than a flag, because adding images while reordering changes the list the sortable is
+    /// bound to and it has to be rebuilt for the new tiles to be draggable. A reorder alone does not
+    /// change the count, so dragging does not tear down the thing being dragged.
+    /// </summary>
+    private int? sortableParts;
+
+    private int idleHintIndex = Random.Shared.Next(idleHints.Length);
+
+    /// <summary>
+    /// The grid listens for itself rather than being repainted by the page.
+    ///
+    /// Every property it reads is a record or a list, which Blazor cannot prove unchanged, so
+    /// receiving them as parameters would rebuild this whole grid on every render of the page —
+    /// including the ones caused by a modal opening or a title being typed. Listening here instead
+    /// means a slide change repaints the grid and nothing else, and a change the grid does not read
+    /// repaints nothing at all. Measured in PresentationRenderTests.
+    ///
+    /// Culture.Restore on the live-state dispatch for the usual reason: the writer is not always
+    /// the viewer, and CultureInfo travels with the thread. See CircuitCulture.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        AppState.PropertyChanged += OnAppStateChanged;
+        Editor.PropertyChanged += OnEditorChanged;
+        SharedAppState.SessionChanged += OnSessionChanged;
+    }
+
+    private void OnAppStateChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not (nameof(AppState.SelectedProjectItem)
+                                   or nameof(AppState.SelectedProject)
+                                   or nameof(AppState.MainViewport)))
+            return;
+
+        // A running order with items but nothing selected shows a quote, and it should not be the
+        // same one every time the operator comes back to it.
+        if (e.PropertyName is nameof(AppState.SelectedProjectItem) && AppState.SelectedProjectItem is null)
+            idleHintIndex = Random.Shared.Next(idleHints.Length);
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnEditorChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PresentationEditorState.SelectedSong)
+            or nameof(PresentationEditorState.SelectedBibleText)
+            or nameof(PresentationEditorState.SelectedImage)
+            or nameof(PresentationEditorState.SelectedAudio)
+            or nameof(PresentationEditorState.SelectedSlides)
+            or nameof(PresentationEditorState.LoadedPresentation)
+            or nameof(PresentationEditorState.Theme)
+            or nameof(PresentationEditorState.IsEditingImageOrder))
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnSessionChanged(SessionChange change)
+    {
+        // Which tile is marked as showing, and whether it is marked live at all.
+        if (change.SessionId != SessionId) return;
+
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
+    }
+
+    private Task SelectSlide(string itemId, int partIndex) =>
+        OnSelectSlide.InvokeAsync((itemId, partIndex));
+
+    /// <summary>
+    /// Follows IsEditingImageOrder rather than being told about it, so the header only has to flip
+    /// the flag. The list of tiles is rendered here, so the sortable that binds to it belongs here.
+    /// </summary>
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var wanted = Editor.IsEditingImageOrder ? Editor.SelectedImage?.Urls.Count : null;
+        if (wanted == sortableParts) return;
+
+        if (sortableParts is not null)
+            await JsRuntime.InvokeVoidAsync("destroySortableList", "image-slide-list");
+
+        sortableParts = wanted;
+
+        if (wanted is not null)
+        {
+            dotNetRef ??= DotNetObjectReference.Create(this);
+            await JsRuntime.InvokeVoidAsync("initSortableList", "image-slide-list", dotNetRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnItemReordered(int oldIndex, int newIndex)
+    {
+        if (Editor.SelectedImage is null || Editor.SelectedImage.PartIds.Count == 0) return;
+        if (oldIndex < 0 || oldIndex >= Editor.SelectedImage.Urls.Count || newIndex < 0 || newIndex >= Editor.SelectedImage.Urls.Count) return;
+
+        var urls = Editor.SelectedImage.Urls.ToList();
+        var partIds = Editor.SelectedImage.PartIds.ToList();
+
+        var movedUrl = urls[oldIndex];
+        urls.RemoveAt(oldIndex);
+        urls.Insert(newIndex, movedUrl);
+
+        var movedPartId = partIds[oldIndex];
+        partIds.RemoveAt(oldIndex);
+        partIds.Insert(newIndex, movedPartId);
+
+        Editor.SelectedImage = new Image(Editor.SelectedImage.Id, urls, partIds);
+
+        // Update the in-memory model
+        var imageItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == Editor.SelectedImage.Id);
+        if (imageItem is not null)
+        {
+            for (var i = 0; i < partIds.Count; i++)
+            {
+                var part = imageItem.Parts.FirstOrDefault(p => p.Id == partIds[i]);
+                if (part is not null)
+                    part.SortOrder = i;
+            }
+        }
+
+        // Persist to database
+        if (PresentationId is not null)
+        {
+            var orgId = OrgState.ActiveOrganizationId;
+            if (orgId is not null)
+                await PresentationService.ReorderItemPartsAsync(orgId, PresentationId, Editor.SelectedImage.Id, partIds, OrgState.ToCallerContext());
+        }
+
+        if (PresentationId is not null)
+            SharedAppState.NotifyPresentationChanged(PresentationId, AppState.SessionId);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        AppState.PropertyChanged -= OnAppStateChanged;
+        Editor.PropertyChanged -= OnEditorChanged;
+        SharedAppState.SessionChanged -= OnSessionChanged;
+
+        if (sortableParts is not null)
+        {
+            try { await JsRuntime.InvokeVoidAsync("destroySortableList", "image-slide-list"); } catch { }
+        }
+
+        dotNetRef?.Dispose();
+    }
+}

@@ -33,6 +33,7 @@
 @inject IRemoteDisplayService RemoteDisplayService
 @inject IServiceProvider Services
 @inject CircuitCulture Culture
+@inject PresentationEditorState Editor
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -49,14 +50,14 @@
         BaseHeight="@AppState.BaseSlideHeight"
         Items="@AppState.SelectedProject.Items"
         SelectedItem="@AppState.SelectedProjectItem"
-        SelectedSong="@SelectedSong"
-        SongParts="@EffectiveSongParts"
-        SelectedBibleText="@SelectedBibleText"
-        SelectedImage="@SelectedImage"
-        SelectedAudio="@SelectedAudio"
-        SelectedSlides="@SelectedSlides"
-        Theme="@theme"
-        OverlaySlides="@overlaySlides"
+        SelectedSong="@Editor.SelectedSong"
+        SongParts="@Editor.EffectiveSongParts(AppState.SelectedProjectItem?.Id)"
+        SelectedBibleText="@Editor.SelectedBibleText"
+        SelectedImage="@Editor.SelectedImage"
+        SelectedAudio="@Editor.SelectedAudio"
+        SelectedSlides="@Editor.SelectedSlides"
+        Theme="@Editor.Theme"
+        OverlaySlides="@Editor.OverlaySlides"
         ActiveOverlayId="@activeOverlayId"
         OnSelectSlide="HandleStageSelectSlide"
         OnSelectItem="HandleStageSelectItem"
@@ -124,92 +125,15 @@
     <div class="bg-neutral-100 dark:bg-neutral-900 grow relative">
         <div class="flex flex-col lg:flex-row h-full">
             <div class="flex flex-col grow overflow-hidden h-full relative min-w-0">
-                <div
-                    class="flex justify-between absolute top-0 left-0 right-0 bg-linear-to-b from-neutral-100 via-neutral-100/80 dark:from-neutral-900 dark:via-neutral-900/80 to-transparent lg:bg-none lg:bg-neutral-100 lg:dark:bg-neutral-900 z-10 lg:z-[5] pointer-events-none h-20 lg:h-auto">
-                    <div class="px-5 py-1 lg:py-3 lg:pointer-events-auto flex items-center gap-3">
-                        @if (isEditingItemTitle)
-                        {
-                            <input @ref="itemTitleInput"
-                                   type="text"
-                                   class="pointer-events-auto text-xl font-semibold px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                                   @bind="editItemTitle"
-                                   @bind:event="oninput"
-                                   @onblur="SaveItemTitleAsync"
-                                   @onkeydown="OnItemTitleKeyDown"/>
-                        }
-                        else
-                        {
-                            <span class="text-xl font-semibold text-left truncate lg:hidden">
-                                @AppState.SelectedProjectItem?.Title
-                            </span>
-                            <button class="text-xl font-semibold cursor-pointer hover:text-sky-500 text-left truncate hidden lg:block"
-                                    @onclick="StartEditingItemTitle"
-                                    title="@L["Sidebar.Rename"]">
-                                @AppState.SelectedProjectItem?.Title
-                            </button>
-                        }
-                        @if (SelectedSong is not null && AppState.SelectedProjectItem?.SourceId is not null)
-                        {
-                            <button class="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
-                                           text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"
-                                    @onclick="() => showSongEditor = true"
-                                    title="@L["Presentation.EditSong"]">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
-                                </svg>
-                                @L["Presentation.EditSong"]
-                            </button>
-                        }
-                        @if (SelectedImage is not null)
-                        {
-                            <button class="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
-                                           @(isEditingImageOrder
-                                               ? "bg-sky-500 text-white hover:bg-sky-600"
-                                               : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300")"
-                                    @onclick="ToggleImageEditMode"
-                                    title="@(isEditingImageOrder ? L["Presentation.DoneEditingImages"] : L["Presentation.EditImageOrder"])">
-                                @if (isEditingImageOrder)
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
-                                    </svg>
-                                    @L["Presentation.DoneEditingImages"]
-                                }
-                                else
-                                {
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
-                                    </svg>
-                                    @L["Presentation.EditImageOrder"]
-                                }
-                            </button>
-                        }
-                    </div>
-
-                    <div class="p-3 hidden lg:flex items-center gap-2">
-                        @if (!IsTemplateMode && !IsRemoteMode && !SharedAppState.IsPresentationActive(AppState.SessionId))
-                        {
-                            <button @onclick="StartPresentation"
-                                    class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer pointer-events-auto bg-emerald-500 text-white hover:bg-emerald-600"
-                                    title="@L["Presentation.StartPresentation"]">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
-                                    <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
-                                </svg>
-                                <span class="text-sm font-medium">@L["Presentation.StartPresentation"]</span>
-                            </button>
-                        }
-                    </div>
-                </div>
+                <PresentationHeader
+                    SessionId="@AppState.SessionId"
+                    IsTemplateMode="@IsTemplateMode"
+                    IsRemoteMode="@IsRemoteMode"
+                    OnRenameItem="RenameSelectedItemAsync"
+                    OnEditSong="ShowSongEditor"
+                    OnStartPresentation="StartPresentation"/>
 
                 @{
-                    var slideScale = AppState.MainViewport is null
-                        ? 0.0
-                        : AppState.MainViewport.Width < 768
-                            ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth * 0.9 ?? 0.15
-                            : AppState.MainViewport.Width <= 1024
-                                ? AppState.MainViewport.Width / (double)AppState.BaseSlideWidth / 3 * 0.98 ?? 0.15
-                                : 0.2;
-
                     var desktopLiveScale = DesktopSidebarContentWidth / AppState.BaseSlideWidth;
                     var miscSlideScale = AppState.MainViewport is null
                         ? 0.0
@@ -219,10 +143,6 @@
                 }
 
                 @{
-                    var hasSlides = SelectedSong is not null || SelectedBibleText is not null || SelectedImage is not null || SelectedSlides is not null;
-                    var mainClass = hasSlides
-                        ? "mx-auto sm:mx-0 grid grid-cols-1 sm:flex sm:flex-wrap gap-3 p-3 overflow-auto pt-16 pb-36"
-                        : "flex items-center justify-center h-full overflow-auto";
                     var remoteNotReady = IsRemoteMode && !IsRemoteReady;
                     var remoteNoSession = IsRemoteMode && _presenterSessionId is null;
                 }
@@ -266,10 +186,10 @@
                         </div>
                     </div>
                 }
-                else if (SelectedAudio is not null)
+                else if (Editor.SelectedAudio is not null)
                 {
                     <div id="audio-container" class="flex flex-col gap-3 w-full sm:max-w-lg sm:mx-auto px-3 pt-16 overflow-auto">
-                        @foreach (var part in SelectedAudio.Parts)
+                        @foreach (var part in Editor.SelectedAudio.Parts)
                         {
                             var elementId = $"session-audio-{part.PartId}";
                             <AudioPlayer AudioElementId="@elementId" FileName="@part.FileName"/>
@@ -278,163 +198,12 @@
                 }
                 else
                 {
-                <div class="@mainClass" id="main">
-                    @if (SelectedSong is not null)
-                    {
-                        var effectiveParts = EffectiveSongParts;
-                        @for (var i = 0; i < effectiveParts.Count; i++)
-                        {
-                            var partIndex = i;
-                            <button @onclick="() => SetSelectedLiveSlide(AppState.SelectedProjectItem!.Id, partIndex)">
-                                <SongSlide
-                                    Content="@effectiveParts[i].Content"
-                                    Label="@effectiveParts[i].Label"
-                                    LabelColor="@effectiveParts[i].LabelColor"
-                                    Style="@theme.Song"
-                                    IsSelected="@(liveSlide.ProjectItemId == AppState.SelectedProjectItem!.Id && liveSlide.ItemPartIndex == i)"
-                                    IsLive="@isLiveShowing"
-                                    BaseWidth="@AppState.BaseSlideWidth"
-                                    BaseHeight="@AppState.BaseSlideHeight"
-                                    Scale="@slideScale"/>
-                            </button>
-                        }
-                    }
-                    else if (SelectedBibleText is not null)
-                    {
-                        @for (var i = 0; i < SelectedBibleText.Parts.Count; i++)
-                        {
-                            var partIndex = i;
-                            <button @onclick="() => SetSelectedLiveSlide(SelectedBibleText.Id, partIndex)">
-                                <BibleTextSlide
-                                    Content="@SelectedBibleText.Parts[i]"
-                                    Style="@theme.BibleText"
-                                    IsSelected="@(liveSlide.ProjectItemId == SelectedBibleText.Id && liveSlide.ItemPartIndex == i)"
-                                    IsLive="@isLiveShowing"
-                                    BaseWidth="@AppState.BaseSlideWidth"
-                                    BaseHeight="@AppState.BaseSlideHeight"
-                                    Scale="@slideScale"/>
-                            </button>
-                        }
-                    }
-                    else if (SelectedImage is not null)
-                    {
-                        <div id="image-slide-list" class="@(isEditingImageOrder ? "col-span-full grid grid-cols-1 sm:flex sm:flex-wrap gap-3" : "contents")">
-                            @for (var i = 0; i < SelectedImage.Urls.Count; i++)
-                            {
-                                var partIndex = i;
-                                <div @key="SelectedImage.PartIds.ElementAtOrDefault(i) ?? i.ToString()" data-id="@(SelectedImage.PartIds.ElementAtOrDefault(i) ?? i.ToString())" class="@(isEditingImageOrder ? "cursor-grab active:cursor-grabbing" : "")">
-                                    @if (isEditingImageOrder)
-                                    {
-                                        <div class="relative drag-handle">
-                                            <ImageSlide
-                                                Url="@SelectedImage.Urls[i]"
-                                                Background="@theme.Media"
-                                                IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
-                                                IsLive="@isLiveShowing"
-                                                BaseWidth="@AppState.BaseSlideWidth"
-                                                BaseHeight="@AppState.BaseSlideHeight"
-                                                Scale="@slideScale"/>
-                                            <button class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full size-6 flex items-center justify-center cursor-pointer"
-                                                    title="@L["Common.Delete"]"
-                                                    @onclick="() => ConfirmRemoveImagePart(partIndex)"
-                                                    @onclick:stopPropagation="true">
-                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <button @onclick="() => SetSelectedLiveSlide(SelectedImage.Id, partIndex)">
-                                            <ImageSlide
-                                                Url="@SelectedImage.Urls[i]"
-                                                Background="@theme.Media"
-                                                IsSelected="@(liveSlide.ProjectItemId == SelectedImage.Id && liveSlide.ItemPartIndex == i)"
-                                                IsLive="@isLiveShowing"
-                                                BaseWidth="@AppState.BaseSlideWidth"
-                                                BaseHeight="@AppState.BaseSlideHeight"
-                                                Scale="@slideScale"/>
-                                        </button>
-                                    }
-                                </div>
-                            }
-                        </div>
-                        @if (isEditingImageOrder)
-                        {
-                            <button class="border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-2xl flex items-center justify-center cursor-pointer hover:border-sky-500 hover:text-sky-500 text-neutral-400 dark:text-neutral-500 transition-colors outline-4 outline-transparent m-1"
-                                    style="width: @(AppState.BaseSlideWidth * slideScale)px; height: @(AppState.BaseSlideHeight * slideScale)px;"
-                                    @onclick="OpenAddImagesToExisting"
-                                    title="@L["Presentation.AddMoreImages"]">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-8">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
-                                </svg>
-                            </button>
-                        }
-                    }
-                    else if (SelectedSlides is not null)
-                    {
-                        @for (var i = 0; i < SelectedSlides.Urls.Count; i++)
-                        {
-                            var partIndex = i;
-                            <button @onclick="() => SetSelectedLiveSlide(SelectedSlides.Id, partIndex)">
-                                <ImageSlide
-                                    Url="@SelectedSlides.Urls[i]"
-                                    Background="@theme.Media"
-                                    IsSelected="@(liveSlide.ProjectItemId == SelectedSlides.Id && liveSlide.ItemPartIndex == i)"
-                                    IsLive="@isLiveShowing"
-                                    BaseWidth="@AppState.BaseSlideWidth"
-                                    BaseHeight="@AppState.BaseSlideHeight"
-                                    Scale="@slideScale"/>
-                            </button>
-                        }
-                    }
-                    else if (AppState.SelectedProject is not null && AppState.SelectedProject.Items.Count == 0)
-                    {
-                        <div class="flex flex-col items-center text-center px-6 select-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" class="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600">
-                                <!-- Back slide -->
-                                <rect x="50" y="10" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.5"/>
-                                <!-- Middle slide -->
-                                <rect x="35" y="25" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" fill="none" opacity="0.7"/>
-                                <!-- Front slide -->
-                                <rect x="20" y="40" width="120" height="80" rx="8" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                                <!-- Lines on front slide -->
-                                <line x1="40" y1="65" x2="120" y2="65" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
-                                <line x1="40" y1="78" x2="100" y2="78" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.3"/>
-                                <line x1="40" y1="91" x2="110" y2="91" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.2"/>
-                                <!-- Plus circle -->
-                                <circle cx="160" cy="130" r="20" stroke="currentColor" stroke-width="2" class="fill-neutral-100 dark:fill-neutral-800"/>
-                                <line x1="160" y1="120" x2="160" y2="140" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                                <line x1="150" y1="130" x2="170" y2="130" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-                            </svg>
-                            <h2 class="text-lg font-semibold text-neutral-500 dark:text-neutral-400 mb-2">@L["Presentation.Empty"]</h2>
-                            <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">
-                                @((MarkupString)L["Presentation.EmptyHint"].Value)
-                            </p>
-                        </div>
-                    }
-                    else if (AppState.SelectedProject is not null && AppState.SelectedProject.Items.Count > 0)
-                    {
-                        var hint = idleHints[idleHintIndex];
-                        <div class="flex flex-col items-center text-center select-none gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-8 text-neutral-300 dark:text-neutral-600">
-                                @((MarkupString)hint.Icon)
-                            </svg>
-                            <div class="max-w-sm">
-                                <p class="text-sm text-neutral-300 dark:text-neutral-600 italic">
-                                    @hint.Text
-                                </p>
-                                @if (hint.Source is not null)
-                                {
-                                    <p class="text-xs text-neutral-300 dark:text-neutral-600 mt-1">
-                                        – @hint.Source
-                                    </p>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
+                <SlideGrid
+                    SessionId="@EffectiveSessionId"
+                    PresentationId="@EffectiveId"
+                    OnSelectSlide="HandleSelectSlide"
+                    OnRemoveImagePart="ConfirmRemoveImagePart"
+                    OnAddImages="OpenAddImagesToExisting"/>
                 }
 
                 <div class="absolute bottom-0 left-0 right-0 h-24 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent lg:hidden z-20 pointer-events-none"></div>
@@ -469,11 +238,11 @@
                                 Scale="@miscSlideScale"
                                 BaseWidth="@AppState.BaseSlideWidth"
                                 BaseHeight="@AppState.BaseSlideHeight"
-                                OverlaySlides="@overlaySlides"
+                                OverlaySlides="@Editor.OverlaySlides"
                                 ActiveOverlayId="@activeOverlayId"
                                 SessionId="@EffectiveSessionId"
                                 IsRemoteController="@IsRemoteMode"
-                                SavedDisplays="@savedDisplays"
+                                SavedDisplays="@Editor.SavedDisplays"
                                 Collapsible
                                 OnClearSlide="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
                                 OnToggleOverlay="ToggleOverlay"
@@ -497,11 +266,11 @@
                             Scale="@desktopLiveScale"
                             BaseWidth="@AppState.BaseSlideWidth"
                             BaseHeight="@AppState.BaseSlideHeight"
-                            OverlaySlides="@overlaySlides"
+                            OverlaySlides="@Editor.OverlaySlides"
                             ActiveOverlayId="@activeOverlayId"
                             SessionId="@EffectiveSessionId"
                             IsRemoteController="@IsRemoteMode"
-                            SavedDisplays="@savedDisplays"
+                            SavedDisplays="@Editor.SavedDisplays"
                             ShowGrow
                             OnClearSlide="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
                             OnToggleOverlay="ToggleOverlay"
@@ -549,7 +318,7 @@
 {
     <AddItemModal OnClose="@CloseAddModal"
                   PresentationId="@EffectiveId"
-                  Theme="@theme"
+                  Theme="@Editor.Theme"
                   OnSongAdded="@HandleSongAdded"
                   OnSongAddedKeepOpen="@HandleSongAddedKeepOpen"
                   OnBibleVersesAdded="@HandleBibleVersesAdded"
@@ -855,24 +624,13 @@
     }
 
     private string? loadedPresentationId;
-    private Models.Presentation? loadedPresentation;
-    private SlideTheme theme = SlideTheme.Fallback;
     private ProjectItem? itemToRemove;
     private List<ProjectItem>? itemsToRemove;
     private bool isRemovingMultiple;
     private bool showDeleteConfirmation;
-    private Song? SelectedSong { get; set; }
-    private IList<SongPart> EffectiveSongParts => SelectedSong is not null ? GetEffectiveSongParts(SelectedSong) : [];
-    private string? SongCredits { get; set; }
-    private BibleText? SelectedBibleText { get; set; }
-    private Image? SelectedImage { get; set; }
-    private Audio? SelectedAudio { get; set; }
-    private SlidesState? SelectedSlides { get; set; }
     private bool showAddModal;
     private bool showSessionExpired;
 
-    private List<OverlaySlide> overlaySlides = [];
-    private List<RemoteDisplay> savedDisplays = [];
 
     /// <summary>
     /// Read from the live state rather than kept alongside it. The overlay can be changed by a
@@ -880,85 +638,11 @@
     /// wrong — this page is a view of the session, not a second owner of it.
     /// </summary>
     private string? activeOverlayId => SharedAppState.GetActiveOverlay(EffectiveSessionId)?.Id;
-    private bool isEditingImageOrder;
-    private bool imageSortableInitialized;
-    private bool isEditingItemTitle;
-    private string editItemTitle = "";
-    private ElementReference itemTitleInput;
     private bool showSongEditor;
     private AutoSaveIndicator? songEditorSaveIndicator;
     private bool showAddImagesToExisting;
     private int? imagePartToRemoveIndex;
-    private int idleHintIndex;
     private bool showSaveAsTemplateDialog;
-
-    private record IdleHint(string Icon, string Text, string? Source = null);
-
-    // Icon SVG inner content constants
-    private const string IconMusic = """<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>""";
-    private const string IconBook = """<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>""";
-    private const string IconHeart = """<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>""";
-    private const string IconSun = """<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>""";
-    private const string IconStar = """<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>""";
-    private const string IconFeather = """<path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/>""";
-    private const string IconMic = """<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>""";
-    private const string IconCloud = """<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>""";
-    private const string IconFlame = """<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>""";
-    private const string IconCoffee = """<path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>""";
-    private const string IconMountain = """<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>""";
-    private const string IconDove = """<path d="M12 22c-4-3-8-6-8-10a4 4 0 0 1 8 0 4 4 0 0 1 8 0c0 4-4 7-8 10z"/>""";
-    private const string IconSparkle = """<path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 1l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5L19 1z" opacity="0.6"/><path d="M5 19l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5L5 19z" opacity="0.6"/>""";
-
-    private static readonly IdleHint[] idleHints =
-    [
-        // Music quotes
-        new(IconMusic, "\"Utan musik vore livet ett misstag.\"", "Friedrich Nietzsche"),
-        new(IconMusic, "\"Musik uttrycker det som inte kan sägas med ord.\"", "Victor Hugo"),
-        new(IconMusic, "\"Bortom orden tar musiken vid.\""),
-        new(IconMusic, "\"En värld utan musik är som en kropp utan själ.\""),
-        new(IconMic, "\"Sång är glädjens modersmål.\""),
-        new(IconMic, "\"Rösten är det mest personliga instrumentet.\""),
-
-        // Bible verses (Bibel 2000)
-        new(IconBook, "\"Herren är min kraft och mitt värn, han blev min räddning.\"", "2 Mos 15:2"),
-        new(IconBook, "\"Sjung till Herrens ära, sjung en ny sång, sjung till Herrens ära, hela världen!\"", "Psalm 96:1"),
-        new(IconBook, "\"Allt som lever och andas skall prisa Herren. Halleluja!\"", "Psalm 150:6"),
-        new(IconBook, "\"Hylla Herren, hela världen!\"", "Psalm 100:1"),
-        new(IconBook, "\"Tacka Herren, ty han är god, evigt varar hans nåd.\"", "Psalm 136:1"),
-        new(IconBook, "\"Herren är god, evigt varar hans nåd, från släkte till släkte hans trofasthet.\"", "Psalm 100:5"),
-        new(IconBook, "\"Lugn! Besinna att jag är Gud, upphöjd över folken, upphöjd över jorden.\"", "Psalm 46:11"),
-        new(IconBook, "\"Herren är mitt ljus och min räddning, vem skulle jag frukta?\"", "Psalm 27:1"),
-        new(IconBook, "\"Tacka Herren, ty han är god, evigt varar hans nåd.\"", "Psalm 107:1"),
-        new(IconBook, "\"Om Herrens nåd vill jag alltid sjunga.\"", "Psalm 89:2"),
-        new(IconBook, "\"Herren är nära alla som ropar, alla som av hjärtat ropar till honom.\"", "Psalm 145:18"),
-        new(IconBook, "\"Se, jag gör allting nytt.\"", "Upp 21:5"),
-        new(IconBook, "\"Gud är min räddning, jag är trygg och utan fruktan.\"", "Jes 12:2"),
-        new(IconBook, "\"Lova Herren, min själ, minns allt det goda han gör.\"", "Psalm 103:2"),
-        new(IconBook, "\"Se och smaka Herrens godhet, lycklig den som flyr till honom!\"", "Psalm 34:9"),
-        new(IconBook, "\"Herren är min herde, ingenting skall fattas mig.\"", "Psalm 23:1"),
-
-        // Faith & worship
-        new(IconHeart, "\"Där Guds folk samlas, där klingar lovsången.\""),
-        new(IconHeart, "\"Lovsång är hjärtats naturliga svar på nåd.\""),
-        new(IconHeart, "\"Glädjens frukt är tacksamhet.\""),
-        new(IconHeart, "\"Tillbedjan är inte en del av livet – det är livet.\""),
-        new(IconFlame, "\"Elden i lovsången tänds i bönens stillhet.\""),
-        new(IconFlame, "\"Herren, det är Anden, och där Herrens ande är, där är frihet.\"", "2 Kor 3:17"),
-        new(IconDove, "\"Frid lämnar jag kvar åt er, min frid ger jag er.\"", "Joh 14:27"),
-
-        // Inspiration
-        new(IconStar, "\"En sång kan förändra ett ögonblick, en lovsång kan förändra en evighet.\""),
-        new(IconStar, "\"Varje gudstjänst är en ny början.\""),
-        new(IconStar, "\"Det finns en melodi i varje morgon.\""),
-        new(IconSun, "\"Varje dag är en gåva att tacka för.\""),
-        new(IconSun, "\"Herrens nåd tar inte slut, hans barmhärtighet upphör aldrig. Varje morgon är den ny.\"", "Klag 3:22–23"),
-        new(IconSun, "\"Ljuset lyser i mörkret, och mörkret har inte övervunnit det.\"", "Joh 1:5"),
-        new(IconMountain, "\"Jag ser upp emot bergen: varifrån skall jag få hjälp?\"", "Psalm 121:1"),
-        new(IconCloud, "\"Han för mig i vall på gröna ängar, han låter mig vila vid lugna vatten.\"", "Psalm 23:2"),
-        new(IconFeather, "\"De som litar till Herren får ny kraft, de får vingar som örnar.\"", "Jes 40:31"),
-        new(IconSparkle, "\"Guds nåd är alltid större.\""),
-        new(IconCoffee, "\"Även Jesus tog en paus ibland.\""),
-    ];
 
     private DotNetObjectReference<Presentation>? dotNetRef;
 
@@ -971,16 +655,6 @@
                 await JsRuntime.InvokeVoidAsync("gospelPresenter.registerAudioRelay", dotNetRef);
         }
 
-        if (isEditingItemTitle)
-        {
-            try { await itemTitleInput.FocusAsync(); } catch { }
-        }
-
-        if (isEditingImageOrder && !imageSortableInitialized)
-        {
-            await JsRuntime.InvokeVoidAsync("initSortableList", "image-slide-list", dotNetRef);
-            imageSortableInitialized = true;
-        }
     }
 
     private async Task StartPresentation()
@@ -998,6 +672,13 @@
         // only while live, so browsing and editing behave as before.
         try { await JsRuntime.InvokeVoidAsync("gospelPresenter.requestWakeLock"); } catch { }
     }
+
+    /// <summary>
+    /// The grid reports which tile was pressed rather than writing the live slide itself: choosing
+    /// what is shown is the page's job, and the grid is a view of the choice.
+    /// </summary>
+    private void HandleSelectSlide((string ItemId, int PartIndex) selection) =>
+        SetSelectedLiveSlide(selection.ItemId, selection.PartIndex);
 
     private async Task HandleStageSelectSlide((string ItemId, int PartIndex) selection)
     {
@@ -1052,8 +733,8 @@
         if (liveSessionMirror is not null)
             await liveSessionMirror.StopAsync();
         try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
-        if (SelectedAudio is not null)
-            SharedAppState.SetSessionAudio(AppState.SessionId, SelectedAudio);
+        if (Editor.SelectedAudio is not null)
+            SharedAppState.SetSessionAudio(AppState.SessionId, Editor.SelectedAudio);
     }
 
     private void ResetLiveSlide()
@@ -1063,60 +744,6 @@
         {
             Status = LiveSlideStatus.ShowingBlackScreen
         });
-    }
-
-    [JSInvokable]
-    public async Task OnItemReordered(int oldIndex, int newIndex)
-    {
-        if (SelectedImage is null || SelectedImage.PartIds.Count == 0) return;
-        if (oldIndex < 0 || oldIndex >= SelectedImage.Urls.Count || newIndex < 0 || newIndex >= SelectedImage.Urls.Count) return;
-
-        var urls = SelectedImage.Urls.ToList();
-        var partIds = SelectedImage.PartIds.ToList();
-
-        var movedUrl = urls[oldIndex];
-        urls.RemoveAt(oldIndex);
-        urls.Insert(newIndex, movedUrl);
-
-        var movedPartId = partIds[oldIndex];
-        partIds.RemoveAt(oldIndex);
-        partIds.Insert(newIndex, movedPartId);
-
-        SelectedImage = new Image(SelectedImage.Id, urls, partIds);
-
-        // Update the in-memory model
-        var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == SelectedImage.Id);
-        if (imageItem is not null)
-        {
-            for (var i = 0; i < partIds.Count; i++)
-            {
-                var part = imageItem.Parts.FirstOrDefault(p => p.Id == partIds[i]);
-                if (part is not null)
-                    part.SortOrder = i;
-            }
-        }
-
-        // Persist to database
-        if (EffectiveId is not null)
-        {
-            var orgId = OrgState.ActiveOrganizationId;
-            if (orgId is not null)
-                await PresentationService.ReorderItemPartsAsync(orgId, EffectiveId, SelectedImage.Id, partIds, OrgState.ToCallerContext());
-        }
-
-        NotifyPresentationChanged();
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task ToggleImageEditMode()
-    {
-        isEditingImageOrder = !isEditingImageOrder;
-
-        if (!isEditingImageOrder)
-        {
-            imageSortableInitialized = false;
-            await JsRuntime.InvokeVoidAsync("destroySortableList", "image-slide-list");
-        }
     }
 
     private void ConfirmRemoveImagePart(int index)
@@ -1134,17 +761,17 @@
 
     private async Task RemoveImagePart(int index)
     {
-        if (SelectedImage is null || index < 0 || index >= SelectedImage.Urls.Count) return;
+        if (Editor.SelectedImage is null || index < 0 || index >= Editor.SelectedImage.Urls.Count) return;
 
-        var partId = SelectedImage.PartIds.ElementAtOrDefault(index);
-        var urls = SelectedImage.Urls.ToList();
-        var partIds = SelectedImage.PartIds.ToList();
+        var partId = Editor.SelectedImage.PartIds.ElementAtOrDefault(index);
+        var urls = Editor.SelectedImage.Urls.ToList();
+        var partIds = Editor.SelectedImage.PartIds.ToList();
 
         urls.RemoveAt(index);
         if (index < partIds.Count) partIds.RemoveAt(index);
 
         // Update in-memory model
-        var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == SelectedImage.Id);
+        var imageItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == Editor.SelectedImage.Id);
         if (imageItem is not null && partId is not null)
         {
             imageItem.Parts.RemoveAll(p => p.Id == partId);
@@ -1155,16 +782,15 @@
         if (urls.Count == 0)
         {
             // No images left — remove the entire item
-            isEditingImageOrder = false;
-            imageSortableInitialized = false;
+            Editor.IsEditingImageOrder = false;
             var projectItem = AppState.SelectedProjectItem;
             if (projectItem is not null)
             {
                 AppState.SelectedProject?.Items.Remove(projectItem);
-                loadedPresentation?.Items.RemoveAll(x => x.Id == projectItem.Id);
+                Editor.LoadedPresentation?.Items.RemoveAll(x => x.Id == projectItem.Id);
                 AppState.SelectedProjectItem = null;
             }
-            SelectedImage = null;
+            Editor.SelectedImage = null;
 
             if (EffectiveId is not null && projectItem is not null)
             {
@@ -1176,14 +802,14 @@
             return;
         }
 
-        SelectedImage = new Image(SelectedImage.Id, urls, partIds);
+        Editor.SelectedImage = new Image(Editor.SelectedImage.Id, urls, partIds);
 
         // Persist to database
         if (EffectiveId is not null && partId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
-                await PresentationService.RemoveItemPartAsync(orgId, EffectiveId, SelectedImage.Id, partId, OrgState.ToCallerContext());
+                await PresentationService.RemoveItemPartAsync(orgId, EffectiveId, Editor.SelectedImage.Id, partId, OrgState.ToCallerContext());
         }
         NotifyPresentationChanged();
     }
@@ -1211,9 +837,9 @@
 
     private async Task AddImagesToExistingItem(List<OrganizationImage> images)
     {
-        if (images.Count == 0 || SelectedImage is null) return;
+        if (images.Count == 0 || Editor.SelectedImage is null) return;
 
-        var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == SelectedImage.Id);
+        var imageItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == Editor.SelectedImage.Id);
         if (imageItem is null) return;
 
         var maxSortOrder = imageItem.Parts.Count > 0
@@ -1230,18 +856,15 @@
 
         imageItem.Parts.AddRange(newParts);
 
-        // Rebuild SelectedImage with new URLs
-        var urls = SelectedImage.Urls.ToList();
-        var partIds = SelectedImage.PartIds.ToList();
+        // Rebuild the selected image with new URLs
+        var urls = Editor.SelectedImage.Urls.ToList();
+        var partIds = Editor.SelectedImage.PartIds.ToList();
         foreach (var img in images)
         {
             urls.Add(ImageUrlHelper.OrgImageUrl(img.Id, "full"));
             partIds.Add(newParts[images.IndexOf(img)].Id);
         }
-        SelectedImage = new Image(SelectedImage.Id, urls, partIds);
-
-        // Reinitialize sortable after render
-        imageSortableInitialized = false;
+        Editor.SelectedImage = new Image(Editor.SelectedImage.Id, urls, partIds);
 
         // Persist to database
         if (EffectiveId is not null)
@@ -1254,47 +877,40 @@
         NotifyPresentationChanged();
     }
 
-    private void StartEditingItemTitle()
-    {
-        editItemTitle = AppState.SelectedProjectItem?.Title ?? "";
-        isEditingItemTitle = true;
-    }
 
-    private async Task OnItemTitleKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter")
-            await SaveItemTitleAsync();
-        else if (e.Key == "Escape")
-            isEditingItemTitle = false;
-    }
 
-    private async Task SaveItemTitleAsync()
+    /// <summary>
+    /// Persists a rename the header collected. The header owns the text field and the cursor; where
+    /// the new name has to be written is the page's business, because it is the page that loaded the
+    /// presentation and knows the organisation.
+    /// </summary>
+    private async Task RenameSelectedItemAsync(string title)
     {
-        isEditingItemTitle = false;
-        var trimmed = editItemTitle.Trim();
         var item = AppState.SelectedProjectItem;
 
-        if (item is null || string.IsNullOrWhiteSpace(trimmed) || trimmed == item.Title)
+        if (item is null || string.IsNullOrWhiteSpace(title) || title == item.Title)
             return;
 
-        item.Title = trimmed;
+        item.Title = title;
 
         // Update in-memory presentation model
-        var presentationItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == item.Id);
+        var presentationItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == item.Id);
         if (presentationItem is not null)
-            presentationItem.Title = trimmed;
+            presentationItem.Title = title;
 
         // Persist to database
         if (EffectiveId is not null)
         {
             var orgId = OrgState.ActiveOrganizationId;
             if (orgId is not null)
-                await PresentationService.RenameItemAsync(orgId, EffectiveId, item.Id, trimmed, OrgState.ToCallerContext());
+                await PresentationService.RenameItemAsync(orgId, EffectiveId, item.Id, title, OrgState.ToCallerContext());
         }
 
         NotifyPresentationChanged();
         AppState.NotifyProjectChanged();
     }
+
+    private void ShowSongEditor() => showSongEditor = true;
 
     private ILiveSessionMirror? liveSessionMirror;
 
@@ -1310,7 +926,6 @@
         if (liveSessionPresence is not null)
             liveSessionPresence.OwnerPresenceChanged += OnOwnerPresenceChanged;
 
-        idleHintIndex = Random.Shared.Next(idleHints.Length);
         // AppState is this circuit's own, so only this circuit raises it. Everything on
         // SharedAppState below is a singleton event that somebody else can raise — the device
         // owning the session echoing through the hub, another operator's circuit, an MCP call — and
@@ -1349,10 +964,10 @@
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        loadedPresentation = IsTemplateMode
+        Editor.LoadedPresentation = IsTemplateMode
             ? await PresentationService.GetTemplateByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext())
             : await PresentationService.GetPresentationByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext());
-        if (loadedPresentation is null)
+        if (Editor.LoadedPresentation is null)
         {
             AppState.SelectedProject = null;
             AppState.SelectedProjectItem = null;
@@ -1361,21 +976,21 @@
 
         // Resolved after the presentation is loaded, since a presentation without a theme of its own
         // follows the organisation's default.
-        theme = await ThemeService.GetForPresentationAsync(
-            orgId, loadedPresentation.ThemeId, OrgState.ToCallerContext());
+        Editor.Theme = await ThemeService.GetForPresentationAsync(
+            orgId, Editor.LoadedPresentation.ThemeId, OrgState.ToCallerContext());
 
         AppState.SelectedProject = new Project
         {
-            Id = loadedPresentation.Id,
-            Name = loadedPresentation.Name,
-            ScheduledDayOfWeek = loadedPresentation.ScheduledDayOfWeek,
-            ScheduledTime = loadedPresentation.ScheduledTime,
-            EventDate = loadedPresentation.EventDate,
-            EventTime = loadedPresentation.EventTime,
-            EventLocation = loadedPresentation.EventLocation,
-            Description = loadedPresentation.Description,
-            ThemeId = loadedPresentation.ThemeId,
-            Items = loadedPresentation.Items.Select(item => new ProjectItem
+            Id = Editor.LoadedPresentation.Id,
+            Name = Editor.LoadedPresentation.Name,
+            ScheduledDayOfWeek = Editor.LoadedPresentation.ScheduledDayOfWeek,
+            ScheduledTime = Editor.LoadedPresentation.ScheduledTime,
+            EventDate = Editor.LoadedPresentation.EventDate,
+            EventTime = Editor.LoadedPresentation.EventTime,
+            EventLocation = Editor.LoadedPresentation.EventLocation,
+            Description = Editor.LoadedPresentation.Description,
+            ThemeId = Editor.LoadedPresentation.ThemeId,
+            Items = Editor.LoadedPresentation.Items.Select(item => new ProjectItem
             {
                 Id = item.Id,
                 SourceId = item.SourceId,
@@ -1386,9 +1001,9 @@
 
         if (!IsTemplateMode)
         {
-            overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
+            Editor.OverlaySlides = await PresentationService.GetOverlaysAsync(Editor.LoadedPresentation.OrganizationId, OrgState.ToCallerContext());
 
-            savedDisplays = await RemoteDisplayService.GetDisplaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
+            Editor.SavedDisplays = await RemoteDisplayService.GetDisplaysAsync(Editor.LoadedPresentation.OrganizationId, OrgState.ToCallerContext());
         }
 
         var liveItemId = SharedAppState.GetLiveSlide(EffectiveSessionId).ProjectItemId;
@@ -1401,28 +1016,28 @@
     private async Task HandleScheduleChanged((int? DayOfWeek, TimeOnly? Time, string? Location) schedule)
     {
         var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null || loadedPresentation is null) return;
+        if (orgId is null || Editor.LoadedPresentation is null) return;
 
-        loadedPresentation.ScheduledDayOfWeek = schedule.DayOfWeek;
-        loadedPresentation.ScheduledTime = schedule.Time;
-        loadedPresentation.EventLocation = schedule.Location;
+        Editor.LoadedPresentation.ScheduledDayOfWeek = schedule.DayOfWeek;
+        Editor.LoadedPresentation.ScheduledTime = schedule.Time;
+        Editor.LoadedPresentation.EventLocation = schedule.Location;
 
         await PresentationService.UpdateTemplateScheduleAsync(
-            orgId, loadedPresentation.Id, schedule.DayOfWeek, schedule.Time, schedule.Location, OrgState.ToCallerContext());
+            orgId, Editor.LoadedPresentation.Id, schedule.DayOfWeek, schedule.Time, schedule.Location, OrgState.ToCallerContext());
     }
 
     private async Task HandleEventChanged((DateOnly? Date, TimeOnly? Time, string? Location, string? Description) ev)
     {
         var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null || loadedPresentation is null) return;
+        if (orgId is null || Editor.LoadedPresentation is null) return;
 
-        loadedPresentation.EventDate = ev.Date;
-        loadedPresentation.EventTime = ev.Time;
-        loadedPresentation.EventLocation = ev.Location;
-        loadedPresentation.Description = ev.Description;
+        Editor.LoadedPresentation.EventDate = ev.Date;
+        Editor.LoadedPresentation.EventTime = ev.Time;
+        Editor.LoadedPresentation.EventLocation = ev.Location;
+        Editor.LoadedPresentation.Description = ev.Description;
 
         await PresentationService.UpdatePresentationEventAsync(
-            orgId, loadedPresentation.Id, ev.Date, ev.Time, ev.Location, ev.Description, OrgState.ToCallerContext());
+            orgId, Editor.LoadedPresentation.Id, ev.Date, ev.Time, ev.Location, ev.Description, OrgState.ToCallerContext());
     }
 
     private void ConfirmSaveAsTemplate()
@@ -1499,7 +1114,7 @@
     {
         if (presentationId != EffectiveId) return;
 
-        theme = newTheme;
+        Editor.Theme = newTheme;
 
         // Push the theme onto whatever is showing, so projectors, stage mode and the public output change
         // with the operator rather than at the next slide.
@@ -1528,8 +1143,6 @@
         if (e.PropertyName is nameof(AppState.SelectedProjectItem))
         {
             await GetDataForSelectedItem();
-            if (AppState.SelectedProjectItem is null)
-                idleHintIndex = Random.Shared.Next(idleHints.Length);
             await InvokeAsync(StateHasChanged);
         }
         else if (e.PropertyName is
@@ -1609,29 +1222,26 @@
 
     private async Task GetDataForSelectedItem()
     {
-        SelectedSong = null;
-        SongCredits = null;
-        SelectedBibleText = null;
-        SelectedImage = null;
-        SelectedAudio = null;
-        SelectedSlides = null;
-        isEditingImageOrder = false;
-        isEditingItemTitle = false;
-        imageSortableInitialized = false;
+        Editor.SelectedSong = null;
+        Editor.SelectedBibleText = null;
+        Editor.SelectedImage = null;
+        Editor.SelectedAudio = null;
+        Editor.SelectedSlides = null;
+        Editor.IsEditingImageOrder = false;
 
         switch (AppState.SelectedProjectItem?.Type)
         {
             case ProjectItemType.Song:
                 var songSourceId = AppState.SelectedProjectItem.SourceId;
                 if (songSourceId is not null)
-                    SelectedSong = SongService.GetSongById(songSourceId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
-                if (SelectedSong is null)
+                    Editor.SelectedSong = SongService.GetSongById(songSourceId, OrgState.ActiveOrganizationId ?? "", OrgState.ToCallerContext());
+                if (Editor.SelectedSong is null)
                 {
                     // Fallback: reconstruct from saved parts (legacy data)
-                    var songItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                    var songItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
                     if (songItem is not null && songItem.Parts.Count > 0)
                     {
-                        SelectedSong = new Song(
+                        Editor.SelectedSong = new Song(
                             songItem.SourceId ?? songItem.Id,
                             songItem.Title,
                             null, null, null, null,
@@ -1640,13 +1250,12 @@
                         );
                     }
                 }
-                SongCredits = FormatSongCredits(SelectedSong);
                 break;
             case ProjectItemType.BibleText:
-                var dbItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                var dbItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
                 if (dbItem is not null)
                 {
-                    SelectedBibleText = new BibleText(
+                    Editor.SelectedBibleText = new BibleText(
                         dbItem.Id,
                         dbItem.Title,
                         dbItem.Parts.Select(p => p.Content).ToList()
@@ -1654,7 +1263,7 @@
                 }
                 break;
             case ProjectItemType.Image:
-                var imageItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                var imageItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
                 if (imageItem is not null)
                 {
                     var urls = new List<string>();
@@ -1669,12 +1278,12 @@
                     }
                     if (urls.Count > 0)
                     {
-                        SelectedImage = new Image(imageItem.Id, urls, partIds);
+                        Editor.SelectedImage = new Image(imageItem.Id, urls, partIds);
                     }
                 }
                 break;
             case ProjectItemType.Audio:
-                var audioItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                var audioItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
                 if (audioItem is not null && audioItem.Parts.Count > 0)
                 {
                     var audioParts = audioItem.Parts.OrderBy(p => p.SortOrder)
@@ -1687,14 +1296,14 @@
                         })
                         .ToList();
                     var audio = new Audio(audioItem.Id, audioParts);
-                    SelectedAudio = audio;
+                    Editor.SelectedAudio = audio;
                     if (IsRemoteMode && _presenterSessionId is not null)
                         SharedAppState.SetSessionAudio(_presenterSessionId, audio);
                     SharedAppState.SetSessionAudio(AppState.SessionId, audio);
                 }
                 break;
             case ProjectItemType.Slides:
-                var slidesItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
+                var slidesItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem.Id);
                 if (slidesItem is not null && slidesItem.SourceId is not null)
                 {
                     var urls = slidesItem.Parts.OrderBy(p => p.SortOrder)
@@ -1702,7 +1311,7 @@
                         .Where(u => u is not null)
                         .Select(u => u!)
                         .ToList();
-                    SelectedSlides = new SlidesState(slidesItem.Id, slidesItem.SourceId, urls);
+                    Editor.SelectedSlides = new SlidesState(slidesItem.Id, slidesItem.SourceId, urls);
                 }
                 break;
         }
@@ -1722,8 +1331,8 @@
                 projectItem.Type,
                 projectItem.SourceId,
                 partIndex,
-                loadedPresentation,
-                theme,
+                Editor.LoadedPresentation,
+                Editor.Theme,
                 OrgState.ToCallerContext()));
 
         // Audio items have no slide of their own — leave what is showing alone.
@@ -1760,16 +1369,6 @@
             }
             SharedAppState.SetOverlay(EffectiveSessionId, overlay.Content, imageUrl, overlay.Id);
         }
-    }
-
-    private async Task ReloadOverlays()
-    {
-        if (loadedPresentation is null) return;
-        overlaySlides = await PresentationService.GetOverlaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
-
-        // If the active overlay was deleted, clear it
-        if (activeOverlayId is { } active && overlaySlides.All(o => o.Id != active))
-            SharedAppState.ClearOverlay(EffectiveSessionId);
     }
 
 
@@ -1816,7 +1415,7 @@
         itemToRemove = null;
 
         AppState.SelectedProject.Items.Remove(removedItem);
-        loadedPresentation?.Items.RemoveAll(x => x.Id == removedItem.Id);
+        Editor.LoadedPresentation?.Items.RemoveAll(x => x.Id == removedItem.Id);
 
         if (AppState.SelectedProjectItem?.Id == removedItem.Id)
         {
@@ -1866,7 +1465,7 @@
             foreach (var item in items)
             {
                 AppState.SelectedProject.Items.Remove(item);
-                loadedPresentation?.Items.RemoveAll(x => x.Id == item.Id);
+                Editor.LoadedPresentation?.Items.RemoveAll(x => x.Id == item.Id);
 
                 if (AppState.SelectedProjectItem?.Id == item.Id)
                     AppState.SelectedProjectItem = null;
@@ -1889,9 +1488,9 @@
 
     private async Task HandleItemsReordered(List<string> itemIds)
     {
-        if (loadedPresentation is not null)
+        if (Editor.LoadedPresentation is not null)
         {
-            loadedPresentation.Items = loadedPresentation.Items
+            Editor.LoadedPresentation.Items = Editor.LoadedPresentation.Items
                 .OrderBy(x => itemIds.IndexOf(x.Id))
                 .ToList();
         }
@@ -1918,18 +1517,18 @@
 
         // Update the item title in case the song name changed
         var item = AppState.SelectedProjectItem;
-        if (item is not null && SelectedSong is not null && item.Title != SelectedSong.Name)
+        if (item is not null && Editor.SelectedSong is not null && item.Title != Editor.SelectedSong.Name)
         {
-            item.Title = SelectedSong.Name;
-            var presentationItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == item.Id);
+            item.Title = Editor.SelectedSong.Name;
+            var presentationItem = Editor.LoadedPresentation?.Items.FirstOrDefault(x => x.Id == item.Id);
             if (presentationItem is not null)
-                presentationItem.Title = SelectedSong.Name;
+                presentationItem.Title = Editor.SelectedSong.Name;
 
             if (EffectiveId is not null)
             {
                 var orgId = OrgState.ActiveOrganizationId;
                 if (orgId is not null)
-                    await PresentationService.RenameItemAsync(orgId, EffectiveId, item.Id, SelectedSong.Name, OrgState.ToCallerContext());
+                    await PresentationService.RenameItemAsync(orgId, EffectiveId, item.Id, Editor.SelectedSong.Name, OrgState.ToCallerContext());
             }
 
             NotifyPresentationChanged();
@@ -1942,7 +1541,7 @@
     private void HandleSongDeletedFromEditor()
     {
         showSongEditor = false;
-        SelectedSong = null;
+        Editor.SelectedSong = null;
     }
 
     private void CloseAddModal()
@@ -1950,16 +1549,6 @@
         showAddModal = false;
     }
 
-    private IList<SongPart> GetEffectiveSongParts(Song song)
-    {
-        var presentationItem = loadedPresentation?.Items.FirstOrDefault(x => x.Id == AppState.SelectedProjectItem?.Id);
-        var arrangementId = presentationItem?.ArrangementId;
-        if (arrangementId is null && song.Arrangements.Count > 0)
-            arrangementId = song.Arrangements[0].Id;
-        return song.GetArrangedParts(arrangementId);
-    }
-
-    private static string? FormatSongCredits(Song? song) => LiveSlideBuilder.FormatSongCredits(song);
 
     private async Task HandleBibleVersesAdded(List<Verse> verses)
     {
@@ -1999,7 +1588,7 @@
             });
         }
 
-        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        InsertAfterSelected(Editor.LoadedPresentation?.Items, presentationItem);
         var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
@@ -2048,7 +1637,7 @@
             ArrangementId = arrangementId
         };
 
-        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        InsertAfterSelected(Editor.LoadedPresentation?.Items, presentationItem);
         var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
@@ -2111,7 +1700,7 @@
             Parts = parts
         };
 
-        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        InsertAfterSelected(Editor.LoadedPresentation?.Items, presentationItem);
         var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
@@ -2176,7 +1765,7 @@
             Parts = parts
         };
 
-        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        InsertAfterSelected(Editor.LoadedPresentation?.Items, presentationItem);
         var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 
@@ -2226,7 +1815,7 @@
             Title = result.FileName
         };
 
-        InsertAfterSelected(loadedPresentation?.Items, presentationItem);
+        InsertAfterSelected(Editor.LoadedPresentation?.Items, presentationItem);
         var inserted = InsertAfterSelected(AppState.SelectedProject?.Items, projectItem);
         AppState.SelectedProjectItem = projectItem;
 

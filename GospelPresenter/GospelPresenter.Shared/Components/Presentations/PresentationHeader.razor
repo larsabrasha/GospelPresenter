@@ -1,0 +1,190 @@
+@using GospelPresenter.Shared.State
+@using System.ComponentModel
+@using Microsoft.AspNetCore.Components.Web
+
+@inject AppState AppState
+@inject PresentationEditorState Editor
+@inject SharedAppState SharedAppState
+@inject CircuitCulture Culture
+
+@implements IDisposable
+
+<div
+    class="flex justify-between absolute top-0 left-0 right-0 bg-linear-to-b from-neutral-100 via-neutral-100/80 dark:from-neutral-900 dark:via-neutral-900/80 to-transparent lg:bg-none lg:bg-neutral-100 lg:dark:bg-neutral-900 z-10 lg:z-[5] pointer-events-none h-20 lg:h-auto">
+    <div class="px-5 py-1 lg:py-3 lg:pointer-events-auto flex items-center gap-3">
+        @if (isEditing)
+        {
+            <input @ref="titleInput"
+                   type="text"
+                   class="pointer-events-auto text-xl font-semibold px-2 py-1 -mx-2 rounded-lg border border-sky-500 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                   @bind="editedTitle"
+                   @bind:event="oninput"
+                   @onblur="SaveItemTitleAsync"
+                   @onkeydown="OnItemTitleKeyDown"/>
+        }
+        else
+        {
+            <span class="text-xl font-semibold text-left truncate lg:hidden">
+                @AppState.SelectedProjectItem?.Title
+            </span>
+            <button class="text-xl font-semibold cursor-pointer hover:text-sky-500 text-left truncate hidden lg:block"
+                    @onclick="StartEditingItemTitle"
+                    title="@L["Sidebar.Rename"]">
+                @AppState.SelectedProjectItem?.Title
+            </button>
+        }
+        @if (Editor.SelectedSong is not null && AppState.SelectedProjectItem?.SourceId is not null)
+        {
+            <button class="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
+                           text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"
+                    @onclick="() => OnEditSong.InvokeAsync()"
+                    title="@L["Presentation.EditSong"]">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
+                </svg>
+                @L["Presentation.EditSong"]
+            </button>
+        }
+        @if (Editor.SelectedImage is not null)
+        {
+            <button class="pointer-events-auto flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer
+                           @(Editor.IsEditingImageOrder
+                               ? "bg-sky-500 text-white hover:bg-sky-600"
+                               : "text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300")"
+                    @onclick="ToggleImageEditMode"
+                    title="@(Editor.IsEditingImageOrder ? L["Presentation.DoneEditingImages"] : L["Presentation.EditImageOrder"])">
+                @if (Editor.IsEditingImageOrder)
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+                    </svg>
+                    @L["Presentation.DoneEditingImages"]
+                }
+                else
+                {
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"/>
+                    </svg>
+                    @L["Presentation.EditImageOrder"]
+                }
+            </button>
+        }
+    </div>
+
+    <div class="p-3 hidden lg:flex items-center gap-2">
+        @if (!IsTemplateMode && !IsRemoteMode && !SharedAppState.IsPresentationActive(SessionId))
+        {
+            <button @onclick="() => OnStartPresentation.InvokeAsync()"
+                    class="px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer pointer-events-auto bg-emerald-500 text-white hover:bg-emerald-600"
+                    title="@L["Presentation.StartPresentation"]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5">
+                    <path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd"/>
+                </svg>
+                <span class="text-sm font-medium">@L["Presentation.StartPresentation"]</span>
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>This browser's own session, which decides whether the start button is offered.</summary>
+    [Parameter, EditorRequired] public required string SessionId { get; set; }
+
+    [Parameter] public bool IsTemplateMode { get; set; }
+    [Parameter] public bool IsRemoteMode { get; set; }
+
+    /// <summary>Raised with the new title once the operator has finished typing it.</summary>
+    [Parameter] public EventCallback<string> OnRenameItem { get; set; }
+
+    [Parameter] public EventCallback OnEditSong { get; set; }
+    [Parameter] public EventCallback OnStartPresentation { get; set; }
+
+    /// <summary>
+    /// The title being typed, and the field to put the cursor in. Held here rather than on the page
+    /// because it was the reason the page's OnAfterRenderAsync had to care about a text field: the
+    /// focus call ran on every render of the whole editor. Now it runs on renders of the header.
+    /// </summary>
+    private bool isEditing;
+    private string editedTitle = "";
+    private ElementReference titleInput;
+    private bool focusWanted;
+
+    /// <summary>
+    /// Listens for itself, like SlideGrid, so that a page render does not rebuild the header and a
+    /// change the header does not read does not reach it at all.
+    /// </summary>
+    protected override void OnInitialized()
+    {
+        AppState.PropertyChanged += OnAppStateChanged;
+        Editor.PropertyChanged += OnEditorChanged;
+        SharedAppState.SessionChanged += OnSessionChanged;
+    }
+
+    private void OnAppStateChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(AppState.SelectedProjectItem) or nameof(AppState.SelectedProject))
+            _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnEditorChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(PresentationEditorState.SelectedSong)
+            or nameof(PresentationEditorState.SelectedImage)
+            or nameof(PresentationEditorState.IsEditingImageOrder))
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void OnSessionChanged(SessionChange change)
+    {
+        // Only whether this session is presenting, which is what the start button asks.
+        if (change.SessionId != SessionId || change.Kind is not SessionChangeKind.Activation) return;
+
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
+    }
+
+    /// <summary>
+    /// Only flips the flag. SlideGrid follows it and owns the sortable, because the list the
+    /// sortable binds to is rendered there.
+    /// </summary>
+    private void ToggleImageEditMode() => Editor.IsEditingImageOrder = !Editor.IsEditingImageOrder;
+
+    private void StartEditingItemTitle()
+    {
+        editedTitle = AppState.SelectedProjectItem?.Title ?? "";
+        isEditing = true;
+        focusWanted = true;
+    }
+
+    private async Task SaveItemTitleAsync()
+    {
+        if (!isEditing) return;
+
+        isEditing = false;
+        await OnRenameItem.InvokeAsync(editedTitle.Trim());
+    }
+
+    private async Task OnItemTitleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await SaveItemTitleAsync();
+        else if (e.Key == "Escape")
+            isEditing = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusWanted) return;
+
+        focusWanted = false;
+        try { await titleInput.FocusAsync(); } catch { }
+    }
+
+    public void Dispose()
+    {
+        AppState.PropertyChanged -= OnAppStateChanged;
+        Editor.PropertyChanged -= OnEditorChanged;
+        SharedAppState.SessionChanged -= OnSessionChanged;
+    }
+}
