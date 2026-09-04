@@ -39,6 +39,8 @@
     var isLiveShowing = SharedAppState.IsPresentationActive(EffectiveSessionId) && liveSlide.Status != LiveSlideStatus.ShowingBlackScreen;
 }
 
+<RefreshOnSync Reload="ReloadAfterSyncAsync"/>
+
 @if (IsStageReady && AppState.SelectedProject is not null)
 {
     <StageView
@@ -1342,6 +1344,9 @@
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
+        // Read before the rebuild below replaces AppState.SelectedProject.
+        var selectedItemIdBeforeLoad = AppState.SelectedProjectItem?.Id;
+
         loadedPresentation = IsTemplateMode
             ? await PresentationService.GetTemplateByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext())
             : await PresentationService.GetPresentationByIdAsync(EffectiveId, orgId, OrgState.ToCallerContext());
@@ -1384,11 +1389,32 @@
             savedDisplays = await RemoteDisplayService.GetDisplaysAsync(loadedPresentation.OrganizationId, OrgState.ToCallerContext());
         }
 
+        // The live slide still wins — following the presentation is the whole point while one is
+        // running — but otherwise the operator stays where they were. With nothing live this used
+        // to clear the selection, which was harmless while only an own edit or a change of
+        // presentation reloaded. A sync reload happens whenever anybody in the organisation writes
+        // anything, so clearing it would empty the pane out from under someone reading a song, and
+        // close the song editor with it. Matched by id because the items are rebuilt above.
         var liveItemId = SharedAppState.GetLiveSlide(EffectiveSessionId).ProjectItemId;
-        var activeItem = liveItemId is not null
-            ? AppState.SelectedProject.Items.FirstOrDefault(x => x.Id == liveItemId)
-            : null;
-        AppState.SelectedProjectItem = activeItem;
+        var items = AppState.SelectedProject.Items;
+        AppState.SelectedProjectItem =
+            (liveItemId is not null ? items.FirstOrDefault(x => x.Id == liveItemId) : null)
+            ?? items.FirstOrDefault(x => x.Id == selectedItemIdBeforeLoad);
+    }
+
+    /// <summary>
+    /// A pull wrote rows into the local database, so this presentation may no longer be what is on
+    /// screen — an item somebody else removed is still listed until this runs.
+    ///
+    /// Silent, unlike <see cref="OnPresentationChanged"/>, which toasts: that one fires for this
+    /// presentation only, while the doorbell announces any change in the organisation, so a toast
+    /// per sync would be noise. Resolves to nothing on a host without the signal, so the web is
+    /// unaffected beyond what IOrganizationChangeNotifier already gives it.
+    /// </summary>
+    private async Task ReloadAfterSyncAsync()
+    {
+        await LoadPresentationAsync();
+        await GetDataForSelectedItem();
     }
 
     private async Task HandleScheduleChanged((int? DayOfWeek, TimeOnly? Time, string? Location) schedule)
