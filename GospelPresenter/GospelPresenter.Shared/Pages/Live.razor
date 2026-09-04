@@ -71,8 +71,8 @@
         JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
         JsRuntime.InvokeVoidAsync("initLiveViewListener", sessionId, windowId);
 
-        AppState.PropertyChanged += OnPropertyChanged;
-        SharedAppState.PropertyChanged += OnPropertyChanged;
+        AppState.PropertyChanged += OnAppStateChanged;
+        SharedAppState.SessionChanged += OnSessionChanged;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -104,8 +104,8 @@
 
     public void Dispose()
     {
-        AppState.PropertyChanged -= OnPropertyChanged;
-        SharedAppState.PropertyChanged -= OnPropertyChanged;
+        AppState.PropertyChanged -= OnAppStateChanged;
+        SharedAppState.SessionChanged -= OnSessionChanged;
         if (wakeLockRequested) _ = ReleaseWakeLockAsync();
     }
 
@@ -116,28 +116,33 @@
         try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
     }
 
-    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    /// <summary>
+    /// This window is a projector for one session, so anything happening to that session concerns
+    /// it — including a black screen and an overlay — and nothing happening to another one does.
+    /// </summary>
+    private void OnSessionChanged(SessionChange change)
     {
-        if (sender is SharedAppState && e.PropertyName == sessionId)
-        {
-            if (SharedAppState.IsSessionExpired(sessionId) || !SharedAppState.IsPresentationActive(sessionId))
-            {
-                _ = InvokeAsync(async () =>
-                {
-                    if (liveWindowLauncher is not null)
-                        await liveWindowLauncher.CloseAsync(windowId);
-                    else
-                        await JsRuntime.InvokeVoidAsync("eval", "window.close()");
-                });
-                return;
-            }
+        if (change.SessionId != sessionId) return;
 
-            _ = InvokeAsync(Culture.Restore(StateHasChanged));
-        }
-        else if (e.PropertyName is nameof(AppState.PresentationViewport))
+        if (SharedAppState.IsSessionExpired(sessionId) || !SharedAppState.IsPresentationActive(sessionId))
         {
-            _ = InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(async () =>
+            {
+                if (liveWindowLauncher is not null)
+                    await liveWindowLauncher.CloseAsync(windowId);
+                else
+                    await JsRuntime.InvokeVoidAsync("eval", "window.close()");
+            });
+            return;
         }
+
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
+    }
+
+    private void OnAppStateChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(AppState.PresentationViewport))
+            _ = InvokeAsync(StateHasChanged);
     }
 
 }

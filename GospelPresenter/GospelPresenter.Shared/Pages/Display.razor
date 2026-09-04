@@ -137,8 +137,8 @@ else
         RemoteDisplayState.DisplayPaired += OnDisplayPaired;
         RemoteDisplayState.DisplayUnpaired += OnDisplayUnpaired;
         SharedAppState.PresentationActivated += OnPresentationActivated;
-        AppState.PropertyChanged += OnPropertyChanged;
-        SharedAppState.PropertyChanged += OnPropertyChanged;
+        AppState.PropertyChanged += OnAppStateChanged;
+        SharedAppState.SessionChanged += OnSessionChanged;
 
         if (stableDisplayId is not null)
         {
@@ -230,23 +230,28 @@ else
         _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
-    private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    /// <summary>
+    /// A paired screen shows one session and every change to it, so the only filter is which
+    /// session. The touch keeps the pairing from idling out while the session is being used.
+    /// </summary>
+    private void OnSessionChanged(SessionChange change)
     {
-        if (sender is SharedAppState && pairedSessionId is not null && e.PropertyName == pairedSessionId)
-        {
-            if (SharedAppState.IsSessionExpired(pairedSessionId))
-            {
-                RemoteDisplayState.DisconnectDisplay(displayId);
-                return;
-            }
+        if (pairedSessionId is null || change.SessionId != pairedSessionId) return;
 
-            RemoteDisplayState.TouchDisplay(displayId);
-            _ = InvokeAsync(Culture.Restore(StateHasChanged));
-        }
-        else if (e.PropertyName is nameof(AppState.PresentationViewport))
+        if (SharedAppState.IsSessionExpired(pairedSessionId))
         {
-            _ = InvokeAsync(StateHasChanged);
+            RemoteDisplayState.DisconnectDisplay(displayId);
+            return;
         }
+
+        RemoteDisplayState.TouchDisplay(displayId);
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
+    }
+
+    private void OnAppStateChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(AppState.PresentationViewport))
+            _ = InvokeAsync(StateHasChanged);
     }
 
     private async Task RequestFullscreen()
@@ -262,8 +267,8 @@ else
         RemoteDisplayState.DisplayPaired -= OnDisplayPaired;
         RemoteDisplayState.DisplayUnpaired -= OnDisplayUnpaired;
         SharedAppState.PresentationActivated -= OnPresentationActivated;
-        AppState.PropertyChanged -= OnPropertyChanged;
-        SharedAppState.PropertyChanged -= OnPropertyChanged;
+        AppState.PropertyChanged -= OnAppStateChanged;
+        SharedAppState.SessionChanged -= OnSessionChanged;
 
         // For stable displays, unregister online status (pairing is managed by the controller)
         // For ad-hoc displays, don't unregister — displayId is persisted in sessionStorage

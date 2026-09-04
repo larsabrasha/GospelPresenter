@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -13,7 +12,31 @@ public record CcliSongDisplayedEvent(
 
 public record AudioCommand(string Action, string AudioElementId, double? Position);
 
-public partial class SharedAppState : ObservableObject
+/// <summary>
+/// Which part of a session changed. Here so that a subscriber can say what it cares about instead
+/// of waking for everything: the dashboard's list of live services is unaffected by a slide moving,
+/// and a projector has no interest in whether remote control was switched on.
+/// </summary>
+public enum SessionChangeKind
+{
+    Slide,
+    Overlay,
+    Activation,
+    RemoteControl,
+    Audio
+}
+
+/// <summary>
+/// One change to one session, addressed well enough to be ignored.
+///
+/// <paramref name="OrganizationId"/> is null when the session has no presentation running — which
+/// also means it appears in no organisation's list of live services. It is resolved at the moment
+/// the change happens, because the answer does not survive the change: deactivation and eviction
+/// both take the session out of the active set before anyone is told.
+/// </summary>
+public record SessionChange(string SessionId, string? OrganizationId, SessionChangeKind Kind);
+
+public class SharedAppState
 {
     private readonly TimeSpan sessionTimeout;
     private readonly ILogger<SharedAppState> logger;
@@ -39,6 +62,30 @@ public partial class SharedAppState : ObservableObject
     private readonly ConcurrentDictionary<string, AudioCommand> pendingAudioCommands = new();
     private readonly ConcurrentDictionary<string, bool> ccliReportedElsewhere = new();
 
+    /// <summary>
+    /// Raised when something about a session changed, on the thread that changed it.
+    ///
+    /// This used to be INotifyPropertyChanged with the session id smuggled in as the property name,
+    /// which left every subscriber comparing strings and unable to tell what had happened or whom
+    /// it concerned. The dashboard consequently filtered on nothing at all and repainted for every
+    /// session in every organisation. A subscriber is expected to read <see cref="SessionChange"/>
+    /// and ignore what is not addressed to it.
+    ///
+    /// Raised synchronously, so a handler that renders must dispatch — and restore its own culture
+    /// when it does, because this thread's is not necessarily the viewer's. See CircuitCulture.
+    /// </summary>
+    public event Action<SessionChange>? SessionChanged;
+
+    /// <summary>
+    /// Announces a change, resolving the organisation from the session's active presentation. Use
+    /// the overload below where the change is what removes it.
+    /// </summary>
+    private void Announce(string sessionId, SessionChangeKind kind) =>
+        Announce(sessionId, kind, presentationActive.GetValueOrDefault(sessionId)?.OrganizationId);
+
+    private void Announce(string sessionId, SessionChangeKind kind, string? organizationId) =>
+        SessionChanged?.Invoke(new SessionChange(sessionId, organizationId, kind));
+
     public static readonly LiveSlide DefaultSlide = new(
         LiveSlideStatus.ShowingPresentation,
         null,
@@ -58,11 +105,26 @@ public partial class SharedAppState : ObservableObject
 
     public void SetLiveSlide(string sessionId, LiveSlide slide)
     {
+        // Touched before the comparison below: a write that changes nothing is still someone using
+        // the session, and letting it age out under an operator who keeps pressing the same slide
+        // would be the wrong reading of "stale".
         TouchSession(sessionId);
+
+        // Writing the same slide is not an event, and announcing it as one is what made a click
+        // repaint every open page several times over. The surfaces that report their own state —
+        // a mirroring desktop client above all — send what they are showing rather than what they
+        // changed, so most of what arrives here is already on screen.
+        //
+        // Returning early also protects the CCLI timer, which is the part that actually breaks:
+        // the two calls below cancel and restart the ten-second count, so a session re-reporting
+        // the same slide faster than that would never report the song at all.
+        if (liveSlides.TryGetValue(sessionId, out var current) && current == slide)
+            return;
+
         CancelCcliTimer(sessionId);
         StartCcliTimerIfNeeded(sessionId, slide);
         liveSlides[sessionId] = slide;
-        OnPropertyChanged(sessionId);
+        Announce(sessionId, SessionChangeKind.Slide);
     }
 
     public ActiveOverlay? GetActiveOverlay(string sessionId)
@@ -73,15 +135,27 @@ public partial class SharedAppState : ObservableObject
     public void SetOverlay(string sessionId, string? text, string? imageUrl, string? overlayId = null)
     {
         TouchSession(sessionId);
-        activeOverlays[sessionId] = new ActiveOverlay(text, imageUrl, overlayId);
-        OnPropertyChanged(sessionId);
+
+        // A new instance every time, so the comparison has to be on the value. ActiveOverlay is a
+        // record, which makes that free.
+        var overlay = new ActiveOverlay(text, imageUrl, overlayId);
+        if (activeOverlays.TryGetValue(sessionId, out var current) && current == overlay)
+            return;
+
+        activeOverlays[sessionId] = overlay;
+        Announce(sessionId, SessionChangeKind.Overlay);
     }
 
     public void ClearOverlay(string sessionId)
     {
         TouchSession(sessionId);
-        activeOverlays.TryRemove(sessionId, out _);
-        OnPropertyChanged(sessionId);
+
+        // Clearing an overlay that was not showing is the commonest empty notification of them all:
+        // a mirroring client reports "no overlay" on every single slide change.
+        if (!activeOverlays.TryRemove(sessionId, out _))
+            return;
+
+        Announce(sessionId, SessionChangeKind.Overlay);
     }
 
     public void ToggleBlackScreen(string sessionId)
@@ -133,49 +207,75 @@ public partial class SharedAppState : ObservableObject
     public void ActivatePresentation(string sessionId, string organizationId, string? presentationId = null, string? presentationName = null)
     {
         TouchSession(sessionId);
-        presentationActive[sessionId] = new ActiveSession(organizationId, presentationId, presentationName);
+
+        // A mirroring client re-announces its session on every report, so most calls here say what
+        // is already true. Nothing downstream needs the repetition: a display that pairs later is
+        // told by RemoteDisplayState.DisplayPaired, and Display.OnPresentationActivated is only
+        // the catch-up for a display that was already connected when the presentation started.
+        var session = new ActiveSession(organizationId, presentationId, presentationName);
+        if (presentationActive.TryGetValue(sessionId, out var current) && current == session)
+            return;
+
+        presentationActive[sessionId] = session;
         logger.LogDebug(
             "ActivatePresentation sessionId={SessionId} organizationId={OrganizationId} presentationId={PresentationId} activeCount={ActiveCount}",
             sessionId, organizationId, presentationId, presentationActive.Count);
-        OnPropertyChanged(sessionId);
+        Announce(sessionId, SessionChangeKind.Activation);
         PresentationActivated?.Invoke(sessionId);
     }
 
     public void DeactivatePresentation(string sessionId)
     {
         TouchSession(sessionId);
-        var hadActive = presentationActive.TryRemove(sessionId, out _);
+        // The removed session is kept, not discarded: it holds the organisation, and stopping the
+        // presentation is precisely what makes that unanswerable afterwards. A dashboard filtering
+        // on its own organisation would otherwise miss the one event it most needs.
+        var hadActive = presentationActive.TryRemove(sessionId, out var stopped);
         var wasRemoteEnabled = remoteControlEnabled.ContainsKey(sessionId);
         // NOTE: remoteControlEnabled is intentionally preserved here so the
         // user's explicit "remote control" choice survives a Stop→Start cycle
         // within the same session. Disabling is via DisableRemoteControl only.
-        sessionAudio.TryRemove(sessionId, out _);
-        pendingAudioCommands.TryRemove(sessionId, out _);
+        var hadAudio = sessionAudio.TryRemove(sessionId, out _);
+        var hadPendingCommand = pendingAudioCommands.TryRemove(sessionId, out _);
+
+        // Stopping a presentation that was not running takes nothing down with it. Presentation
+        // .Dispose and MirroredSessionProjector.End both call this without knowing whether the
+        // session was ever live, so the empty case is the common one.
+        if (!hadActive && !hadAudio && !hadPendingCommand)
+            return;
+
         logger.LogDebug(
             "DeactivatePresentation sessionId={SessionId} hadActivePresentation={HadActive} remoteControlWasEnabled={RemoteControlWasEnabled}",
             sessionId, hadActive, wasRemoteEnabled);
-        OnPropertyChanged(sessionId);
+        Announce(sessionId, SessionChangeKind.Activation, stopped?.OrganizationId);
         PresentationDeactivated?.Invoke(sessionId);
     }
 
     public void EnableRemoteControl(string sessionId)
     {
         TouchSession(sessionId);
+
+        // Reported on every mirrored update, so it is nearly always already on.
+        if (remoteControlEnabled.GetValueOrDefault(sessionId))
+            return;
+
         remoteControlEnabled[sessionId] = true;
         var hasActivePresentation = presentationActive.ContainsKey(sessionId);
         logger.LogDebug(
             "EnableRemoteControl sessionId={SessionId} hasActivePresentation={HasActivePresentation}",
             sessionId, hasActivePresentation);
-        OnPropertyChanged(sessionId);
+        Announce(sessionId, SessionChangeKind.RemoteControl);
     }
 
     public void DisableRemoteControl(string sessionId)
     {
-        var removed = remoteControlEnabled.TryRemove(sessionId, out _);
-        logger.LogDebug(
-            "DisableRemoteControl sessionId={SessionId} hadEntry={HadEntry}",
-            sessionId, removed);
-        OnPropertyChanged(sessionId);
+        // The other half of the same report: a client with remote control switched off says so
+        // every time it tells the server what it is showing.
+        if (!remoteControlEnabled.TryRemove(sessionId, out _))
+            return;
+
+        logger.LogDebug("DisableRemoteControl sessionId={SessionId}", sessionId);
+        Announce(sessionId, SessionChangeKind.RemoteControl);
     }
 
     public bool IsRemoteControlEnabled(string sessionId) =>
@@ -184,19 +284,38 @@ public partial class SharedAppState : ObservableObject
     public void SetSessionAudio(string sessionId, Audio? audio)
     {
         if (audio is null)
-            sessionAudio.TryRemove(sessionId, out _);
+        {
+            if (!sessionAudio.TryRemove(sessionId, out _))
+                return;
+        }
         else
+        {
+            // Only catches the identical instance and the case where the parts list is shared.
+            // Audio is a record but holds a List<AudioPart>, so record equality compares that list
+            // by reference — a freshly built Audio with the same contents is not equal to the old
+            // one, and Presentation.razor builds one on every selection change. Making that path
+            // quiet needs a comparison of its own, which this is not.
+            if (sessionAudio.TryGetValue(sessionId, out var current) && current == audio)
+                return;
+
             sessionAudio[sessionId] = audio;
-        OnPropertyChanged(sessionId);
+        }
+
+        Announce(sessionId, SessionChangeKind.Audio);
     }
 
     public Audio? GetSessionAudio(string sessionId) =>
         sessionAudio.GetValueOrDefault(sessionId);
 
+    /// <summary>
+    /// Deliberately not guarded against writing an equal value, unlike everything else here. This
+    /// is an inbox, not a value: two identical "play" commands are two requests, and dropping the
+    /// second because it looks like the first would lose a press of the button.
+    /// </summary>
     public void SetAudioCommand(string sessionId, AudioCommand command)
     {
         pendingAudioCommands[sessionId] = command;
-        OnPropertyChanged(sessionId);
+        Announce(sessionId, SessionChangeKind.Audio);
     }
 
     public AudioCommand? TakeAudioCommand(string sessionId)
@@ -245,10 +364,19 @@ public partial class SharedAppState : ObservableObject
     public bool IsPresentationActiveForSession(string sessionId, string presentationId) =>
         presentationActive.TryGetValue(sessionId, out var session) && session.PresentationId == presentationId;
 
+    /// <summary>
+    /// Announces the change, which it did not do before. It used to get away with silence because
+    /// the caller writes a slide immediately afterwards and everyone repainted on that; now that a
+    /// dashboard ignores slide changes, the only thing that would tell it this session has moved to
+    /// another service is this call. The guard keeps it to once per presentation, not once per click.
+    /// </summary>
     public void UpdateActivePresentationId(string sessionId, string presentationId, string? presentationName = null)
     {
-        if (presentationActive.TryGetValue(sessionId, out var session) && session.PresentationId != presentationId)
-            presentationActive[sessionId] = session with { PresentationId = presentationId, PresentationName = presentationName };
+        if (!presentationActive.TryGetValue(sessionId, out var session) || session.PresentationId == presentationId)
+            return;
+
+        presentationActive[sessionId] = session with { PresentationId = presentationId, PresentationName = presentationName };
+        Announce(sessionId, SessionChangeKind.Activation);
     }
 
     /// <summary>
@@ -348,13 +476,14 @@ public partial class SharedAppState : ObservableObject
         {
             if (now - accessed <= sessionTimeout) continue;
 
-            var wasActive = presentationActive.ContainsKey(sessionId);
             var wasRemoteEnabled = remoteControlEnabled.ContainsKey(sessionId);
 
             CancelCcliTimer(sessionId);
             liveSlides.TryRemove(sessionId, out _);
             activeOverlays.TryRemove(sessionId, out _);
-            presentationActive.TryRemove(sessionId, out _);
+            // Kept for the same reason as in DeactivatePresentation: the organisation is gone from
+            // the active set the moment the session is evicted, and the announcement below needs it.
+            var wasActive = presentationActive.TryRemove(sessionId, out var evicted);
             remoteControlEnabled.TryRemove(sessionId, out _);
             sessionAudio.TryRemove(sessionId, out _);
             pendingAudioCommands.TryRemove(sessionId, out _);
@@ -371,7 +500,7 @@ public partial class SharedAppState : ObservableObject
             if (wasActive)
             {
                 expiredSessions[sessionId] = now;
-                OnPropertyChanged(sessionId);
+                Announce(sessionId, SessionChangeKind.Activation, evicted?.OrganizationId);
             }
         }
 

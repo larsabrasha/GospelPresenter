@@ -164,7 +164,6 @@
     <WelcomeModal OnClose="DismissWelcomeAsync"/>
 }
 
-@using System.ComponentModel
 @implements IDisposable
 
 @code {
@@ -198,7 +197,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        SharedAppState.PropertyChanged += OnSharedStateChanged;
+        SharedAppState.SessionChanged += OnSessionChanged;
         SharedAppState.PresentationActivated += OnPresentationActivatedOrDeactivated;
         SharedAppState.PresentationDeactivated += OnPresentationActivatedOrDeactivated;
 
@@ -333,8 +332,21 @@
         NavigationManager.NavigateTo($"/presentations/{presentation.Id}");
     }
 
-    private void OnSharedStateChanged(object? sender, PropertyChangedEventArgs e)
+    /// <summary>
+    /// The dashboard lists this organisation's live, remotely controllable services, so it needs to
+    /// hear about sessions starting, stopping and turning remote control on or off — and nothing
+    /// else. Both filters are new: the notification used to carry only a session id, so there was
+    /// nothing to filter on and every slide moving in every organisation in the process repainted
+    /// every open dashboard.
+    ///
+    /// A session with no presentation running has no organisation, and is in no organisation's list
+    /// either, so a null OrganizationId is correctly dropped by the first line.
+    /// </summary>
+    private void OnSessionChanged(SessionChange change)
     {
+        if (change.OrganizationId != OrgState.ActiveOrganizationId) return;
+        if (change.Kind is not (SessionChangeKind.Activation or SessionChangeKind.RemoteControl)) return;
+
         _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
@@ -345,7 +357,7 @@
 
     public void Dispose()
     {
-        SharedAppState.PropertyChanged -= OnSharedStateChanged;
+        SharedAppState.SessionChanged -= OnSessionChanged;
         SharedAppState.PresentationActivated -= OnPresentationActivatedOrDeactivated;
         SharedAppState.PresentationDeactivated -= OnPresentationActivatedOrDeactivated;
     }

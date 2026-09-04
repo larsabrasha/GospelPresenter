@@ -186,7 +186,7 @@ public class LocalSessionProjectorTests : IDisposable
         await projector.ApplyAsync(SessionId, command);
 
         var writes = 0;
-        state.PropertyChanged += (_, e) => { if (e.PropertyName == SessionId) writes++; };
+        state.SessionChanged += change => { if (change.SessionId == SessionId) writes++; };
         await projector.ApplyAsync(SessionId, command);
 
         writes.ShouldBe(0);

@@ -1,7 +1,6 @@
 @page "/presentations"
 @attribute [Authorize(Policy = ViewPresentations)]
 
-@using System.ComponentModel
 @using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Localization
@@ -96,7 +95,7 @@
 
     protected override void OnInitialized()
     {
-        SharedAppState.PropertyChanged += OnSharedStateChanged;
+        SharedAppState.SessionChanged += OnSessionChanged;
     }
 
     private async ValueTask<ItemsProviderResult<PresentationSummary>> LoadItems(ItemsProviderRequest request)
@@ -131,14 +130,20 @@
             await virtualize.RefreshDataAsync();
     }
 
-    private void OnSharedStateChanged(object? sender, PropertyChangedEventArgs e)
+    /// <summary>
+    /// The list marks which presentation this browser is currently showing live, so only this
+    /// session's own activation and deactivation change anything on screen.
+    /// </summary>
+    private void OnSessionChanged(SessionChange change)
     {
-        if (e.PropertyName == AppState.SessionId)
-            _ = InvokeAsync(Culture.Restore(StateHasChanged));
+        if (change.SessionId != AppState.SessionId) return;
+        if (change.Kind is not SessionChangeKind.Activation) return;
+
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     public void Dispose()
     {
-        SharedAppState.PropertyChanged -= OnSharedStateChanged;
+        SharedAppState.SessionChanged -= OnSessionChanged;
     }
 }

@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using GospelPresenter.Shared.Components.Presentations;
 using GospelPresenter.Shared.Services;
 using Microsoft.AspNetCore.Components;
@@ -38,9 +37,9 @@ public class PublicOutputBroadcaster : IDisposable
         this.publicOutputState = publicOutputState;
         logger = loggerFactory.CreateLogger<PublicOutputBroadcaster>();
 
-        // SharedAppState raises PropertyChanged with the session id as the property name, and
-        // does so for slide changes, black screen, overlays, activation and deactivation alike.
-        sharedAppState.PropertyChanged += OnSharedAppStateChanged;
+        // Every kind of change matters here — slide, black screen, overlay, activation and
+        // deactivation all change what a visitor should be looking at.
+        sharedAppState.SessionChanged += OnSessionChanged;
         remoteDisplayState.DisplayPaired += OnOutputBindingChanged;
         remoteDisplayState.DisplayUnpaired += OnOutputBindingChanged;
     }
@@ -146,18 +145,14 @@ public class PublicOutputBroadcaster : IDisposable
         });
     }
 
-    private void OnSharedAppStateChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnSessionChanged(SessionChange change)
     {
-        var sessionId = e.PropertyName;
-        if (string.IsNullOrEmpty(sessionId))
-            return;
-
         // Only outputs that actually have viewers are worth rendering for. That set is small,
         // so the reverse lookup from session to output needs no bookkeeping of its own — and it
         // keeps the knowledge of which displays are public out of the state layer.
         foreach (var outputCode in publicOutputState.GetCodesWithViewers())
         {
-            if (remoteDisplayState.GetSessionForDisplay(outputCode) == sessionId)
+            if (remoteDisplayState.GetSessionForDisplay(outputCode) == change.SessionId)
                 RefreshOutput(outputCode);
         }
     }
@@ -190,7 +185,7 @@ public class PublicOutputBroadcaster : IDisposable
 
     public void Dispose()
     {
-        sharedAppState.PropertyChanged -= OnSharedAppStateChanged;
+        sharedAppState.SessionChanged -= OnSessionChanged;
         remoteDisplayState.DisplayPaired -= OnOutputBindingChanged;
         remoteDisplayState.DisplayUnpaired -= OnOutputBindingChanged;
     }

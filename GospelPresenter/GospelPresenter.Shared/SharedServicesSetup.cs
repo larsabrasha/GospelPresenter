@@ -32,6 +32,7 @@ public static class SharedServicesSetup
         services.AddSingleton<IOrganizationChangeNotifier, NullOrganizationChangeNotifier>();
         services.AddScoped<ToastService>();
         services.AddScoped<AppState>();
+        services.AddScoped<PresentationEditorState>();
         services.AddScoped<ActiveOrganizationState>();
         services.AddSingleton<SharedAppState>(sp => new SharedAppState(
             TimeSpan.FromMinutes(timeoutMinutes),

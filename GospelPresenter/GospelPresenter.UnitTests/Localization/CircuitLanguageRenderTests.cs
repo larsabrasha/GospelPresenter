@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Globalization;
 using Bunit;
 using GospelPresenter.Shared.Localization;
@@ -16,7 +15,7 @@ namespace GospelPresenter.UnitTests.Localization;
 /// <summary>
 /// What a page looks like when somebody else's thread repaints it.
 ///
-/// SharedAppState is a singleton with a synchronous PropertyChanged, and every open page subscribes.
+/// SharedAppState is a singleton with a synchronous SessionChanged, and every open page subscribes.
 /// The writer is not always the viewer: the device owning the session echoes a slide change back
 /// through the live hub, an announcement timer fires, another operator's circuit changes a theme.
 /// The subscribing page answers with InvokeAsync(StateHasChanged), which carries the writer's
@@ -100,14 +99,23 @@ public class CircuitLanguageRenderTests : TestContext
         page.Markup.ShouldContain(EnglishNumber);
     }
 
+    /// <summary>
+    /// Somebody else's thread moving the presentation on. The slide has to differ from the one
+    /// before: SharedAppState announces a change only when there is one, so writing the same slide
+    /// twice would leave the page untouched and these tests asserting nothing.
+    /// </summary>
     private Task RaiseLiveStateChangeFromAThreadSpeaking(string language) =>
         Task.Run(() =>
         {
             var culture = new CultureInfo(language);
             CultureInfo.CurrentCulture = culture;
             CultureInfo.CurrentUICulture = culture;
-            liveState.ClearOverlay(SessionId);
+            liveState.SetLiveSlide(
+                SessionId,
+                SharedAppState.DefaultSlide with { Text = $"slide {++slidesWritten}" });
         });
+
+    private int slidesWritten;
 
     /// <summary>Shaped like the handlers in Presentation.razor, Display.razor and Live.razor.</summary>
     private sealed class PageRestoringTheCircuitsCulture : PageListeningToLiveState
@@ -129,9 +137,9 @@ public class CircuitLanguageRenderTests : TestContext
 
         protected abstract void Dispatch();
 
-        protected override void OnInitialized() => LiveState.PropertyChanged += OnLiveStateChanged;
+        protected override void OnInitialized() => LiveState.SessionChanged += OnSessionChanged;
 
-        private void OnLiveStateChanged(object? sender, PropertyChangedEventArgs e) => Dispatch();
+        private void OnSessionChanged(SessionChange change) => Dispatch();
 
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
@@ -142,6 +150,6 @@ public class CircuitLanguageRenderTests : TestContext
             builder.CloseElement();
         }
 
-        public void Dispose() => LiveState.PropertyChanged -= OnLiveStateChanged;
+        public void Dispose() => LiveState.SessionChanged -= OnSessionChanged;
     }
 }
