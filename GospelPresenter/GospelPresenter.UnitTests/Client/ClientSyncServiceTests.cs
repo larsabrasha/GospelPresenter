@@ -740,6 +740,20 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         scheduler.Start();
         await WaitUntil(() => Volatile.Read(ref pulls) >= 3);
 
+        // Stopped, and waited out, before the database is read. This is the only scheduler in this
+        // class that loops in earnest — twenty milliseconds and no idle interval at all — and every
+        // context in the test shares one in-memory connection, which SQLite will not let two
+        // threads inside at once. Reading the journal while a sync was still in flight is a
+        // "database is locked" that says nothing about what is being asserted; it passed here every
+        // time and failed on a loaded CI runner.
+        //
+        // Waited out by watching the pull count stop moving, not by watching Status: cancelling the
+        // loop does not join a run already in flight, and such a run never reaches
+        // SetStatus(Idle) — so Status stays Syncing for ever and waiting on it hangs. Measured, not
+        // assumed. Dispose is idempotent, so the using above still has its say.
+        scheduler.Dispose();
+        await WaitUntilStill(() => Volatile.Read(ref pulls));
+
         // Assert
         Volatile.Read(ref pulls).ShouldBeGreaterThanOrEqualTo(3);
         await using var db = await factory.CreateDbContextAsync();
@@ -1016,6 +1030,24 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
     /// Polls a condition to a deadline rather than sleeping for a fixed time: the loop under test is
     /// driven by a timer, and a fixed sleep is either flaky or slow.
     /// </summary>
+    /// <summary>
+    /// Waits until a counter has stopped moving, which is the only signal from outside that the
+    /// scheduler's thread has finished with the shared connection.
+    /// </summary>
+    private static async Task WaitUntilStill(Func<int> count)
+    {
+        var last = count();
+        var still = 0;
+
+        while (still < 5)
+        {
+            await Task.Delay(20);
+            var now = count();
+            still = now == last ? still + 1 : 0;
+            last = now;
+        }
+    }
+
     private static async Task WaitUntil(Func<bool> condition)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
