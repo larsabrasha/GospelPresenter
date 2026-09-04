@@ -29,6 +29,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\GospelPresenter.Client\GospelPresenter.Client.csproj" />
         <ProjectReference Include="..\GospelPresenter.Shared\GospelPresenter.Shared.csproj" />
         <ProjectReference Include="..\GospelPresenter.Web\GospelPresenter.Web.csproj" />
     </ItemGroup>

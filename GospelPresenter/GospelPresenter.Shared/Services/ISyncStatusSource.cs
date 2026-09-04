@@ -15,11 +15,30 @@ public enum SyncStatus
 }
 
 /// <summary>
+/// "The data under an open view has changed underneath it." Separate from
+/// <see cref="ISyncStatusSource"/> because both hosts have this and only one of them syncs: on a
+/// device it is a pull that wrote rows, on the web it is another user's edit arriving through
+/// <c>IOrganizationChangeNotifier</c>. Views resolve this optionally and reload when it fires.
+///
+/// Splitting it out is what lets the web have live reloads without a sync status indicator: the
+/// indicator resolves <see cref="ISyncStatusSource"/>, which the web still does not register,
+/// because there is no sync there to report on.
+/// </summary>
+public interface IRemoteChangeSignal
+{
+    /// <summary>
+    /// Raised when data an open view may be showing has changed — on a device after the shared
+    /// caches have been reloaded, so a view that reloads sees the new rows.
+    /// </summary>
+    event Action? RemoteChangesApplied;
+}
+
+/// <summary>
 /// What the sync engine exposes to the UI. Only the hosts that sync — the desktop app and MAUI —
 /// register an implementation; the web app talks to the database directly and has no sync at all,
 /// so shared components resolve this optionally and do nothing without it.
 /// </summary>
-public interface ISyncStatusSource
+public interface ISyncStatusSource : IRemoteChangeSignal
 {
     SyncStatus Status { get; }
     DateTimeOffset? LastSyncAt { get; }
@@ -30,16 +49,10 @@ public interface ISyncStatusSource
     /// <summary>Raised whenever Status, LastSyncAt or PendingChanges changed.</summary>
     event Action? Changed;
 
-    /// <summary>
-    /// Raised when a pull actually wrote rows to the local database, after the shared caches have
-    /// been reloaded — the moment an open view is showing something that is no longer true.
-    ///
-    /// Deliberately separate from <see cref="Changed"/>, which fires on every status transition and
-    /// therefore several times a minute while nothing whatsoever has changed. A view that reloaded
-    /// on that would re-query the database on a timer. This one is quiet: no incoming rows, no
-    /// event.
-    /// </summary>
-    event Action? RemoteChangesApplied;
+    // RemoteChangesApplied comes from IRemoteChangeSignal. It is deliberately separate from Changed,
+    // which fires on every status transition and therefore several times a minute while nothing
+    // whatsoever has changed: a view that reloaded on that would re-query the database on a timer.
+    // The other one is quiet — no incoming rows, no event.
 
     /// <summary>A push unit the server resolved against the client — surfaced as a toast.</summary>
     event Action<SyncPushResult>? ConflictReported;

@@ -1,6 +1,8 @@
 using System.Net;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Services;
+using GospelPresenter.Shared.Sync;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Mvc.Testing.Handlers;
@@ -50,6 +52,20 @@ public class WebAppFixture : WebApplicationFactory<Program>
     /// <summary>Zero disables the preferred-language cache, so every request asks the database.</summary>
     public int PreferredLanguageCacheSeconds { get; init; } = 300;
 
+    /// <summary>
+    /// Whether this test server can store blobs.
+    ///
+    /// False by default, which is what the application itself does with no S3 settings: it registers
+    /// <c>NullObjectStorageService</c>, and that one throws rather than doing nothing. That is right
+    /// for a deployment which has forgotten to configure storage, and it is what
+    /// <c>MediaUpload_WithoutObjectStorageConfigured_AnswersServiceUnavailable</c> is about.
+    ///
+    /// Set it where a test needs a path that touches storage only in passing — deleting a
+    /// presentation that owns slides, say, where leaving it false fails the request after the rows
+    /// are already gone, and proves nothing about storage.
+    /// </summary>
+    public bool ObjectStorageConfigured { get; init; }
+
     public WebAppFixture()
     {
         connection = new SqliteConnection("DataSource=:memory:");
@@ -67,9 +83,22 @@ public class WebAppFixture : WebApplicationFactory<Program>
         {
             services.RemoveAll<IDbContextFactory<PresentationContext>>();
             services.RemoveAll<DbContextOptions<PresentationContext>>();
-            services.AddDbContextFactory<PresentationContext>(options => options
+            // Both interceptors, because replacing the factory replaces everything the application
+            // configured on it. Leaving out the change interceptor cost nothing visible and would
+            // have quietly stopped every tracked save from announcing itself — the tests would have
+            // proved a mechanism the app has and this fixture does not.
+            services.AddDbContextFactory<PresentationContext>((sp, options) => options
                 .UseSqlite(connection)
-                .AddInterceptors(new CountingCommandInterceptor(Queries)));
+                .AddInterceptors(
+                    new CountingCommandInterceptor(Queries),
+                    new OrganizationChangeInterceptor(
+                        sp.GetRequiredService<IOrganizationChangeNotifier>())));
+
+            if (ObjectStorageConfigured)
+            {
+                services.RemoveAll<IObjectStorageService>();
+                services.AddSingleton<IObjectStorageService, NoObjectStorage>();
+            }
         });
     }
 

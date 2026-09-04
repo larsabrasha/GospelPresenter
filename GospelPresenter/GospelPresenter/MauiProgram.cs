@@ -178,6 +178,16 @@ public static class MauiProgram
             builder.Services.AddSingleton<GospelPresenter.Client.Sync.SyncScheduler>();
             builder.Services.AddSingleton<Shared.Services.ISyncStatusSource>(sp =>
                 sp.GetRequiredService<GospelPresenter.Client.Sync.SyncScheduler>());
+            builder.Services.AddSingleton<Shared.Services.IRemoteChangeSignal>(sp =>
+                sp.GetRequiredService<GospelPresenter.Client.Sync.SyncScheduler>());
+
+            // The doorbell: a socket that only listens, so someone else's edit arrives in about a
+            // second instead of within the scheduler's five-minute backstop. See ADR 0006.
+            builder.Services.AddSingleton(sp => new GospelPresenter.Client.Sync.OrganizationChangesClient(
+                sp.GetRequiredService<GospelPresenter.Client.Sync.SyncScheduler>(),
+                sp.GetRequiredService<GospelPresenter.Client.Auth.DeviceAuthService>(),
+                Configuration.Settings.ApiBaseUrl!,
+                sp.GetRequiredService<ILogger<GospelPresenter.Client.Sync.OrganizationChangesClient>>()));
 
             // Blobs: pending local uploads go to PUT /api/sync/media, and the pin set (media the
             // local presentations reference) is downloaded and kept, after every metadata sync.
@@ -231,6 +241,7 @@ public static class MauiProgram
             // Catch up with the server in the background, and keep watching for local edits and
             // connectivity from here on.
             app.Services.GetRequiredService<GospelPresenter.Client.Sync.SyncScheduler>().Start();
+            app.Services.GetRequiredService<GospelPresenter.Client.Sync.OrganizationChangesClient>().Start();
         }
 
         return app;

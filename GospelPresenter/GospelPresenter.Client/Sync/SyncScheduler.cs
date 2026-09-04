@@ -9,7 +9,9 @@ namespace GospelPresenter.Client.Sync;
 
 /// <summary>
 /// Decides WHEN to sync; the engine decides what. Triggers: app start, connectivity returning,
-/// a manual "sync now", local edits, and simply time passing — see <see cref="IdlePullInterval"/>.
+/// a manual "sync now", local edits, a change announced by the server
+/// (<see cref="NotifyRemoteChanges"/>), and simply time passing — see
+/// <see cref="IdlePullInterval"/>.
 ///
 /// Local edits are detected by polling the journal's max rowid, which catches every write path
 /// including ExecuteUpdate/ExecuteDelete. An edit only syncs once the journal has been quiet for one
@@ -57,19 +59,32 @@ public class SyncScheduler(
     /// showing yesterday's library until it is restarted.
     ///
     /// Longer than the journal poll on purpose. A push has a local edit waiting behind it and should
-    /// leave promptly; an idle pull is a question whose answer is almost always "nothing", so it is
-    /// asked at a rate that keeps a second person's edits arriving while someone is preparing a
-    /// service, without making a church laptop chat with the server six times a minute all evening.
+    /// leave promptly; an idle pull is a question whose answer is almost always "nothing".
+    ///
+    /// Five minutes rather than the thirty seconds this was before change announcements existed
+    /// (ADR 0006). It is now the backstop and not the mechanism: a missed announcement costs
+    /// latency, and this is what stops it from costing correctness. It is deliberately kept rather
+    /// than removed — a doorbell that has to be perfect would be a worse design than one that only
+    /// has to be quick — and a church laptop left on all evening now stops asking twice a minute
+    /// for nothing.
     ///
     /// Overridable for tests.
     /// </summary>
-    public TimeSpan IdlePullInterval { get; init; } = TimeSpan.FromSeconds(30);
+    public TimeSpan IdlePullInterval { get; init; } = TimeSpan.FromMinutes(5);
 
     private readonly SemaphoreSlim syncGate = new(1, 1);
     private CancellationTokenSource? loopCts;
 
     private Timer? writeSignalTimer;
     private int writeSignalPending;
+
+    /// <summary>
+    /// Set while the server has announced a change this scheduler has not yet answered with a
+    /// completed sync. A flag rather than a queue: announcements carry nothing, so two of them are
+    /// worth exactly one sync — but one that arrives while a sync is already running must not be
+    /// forgotten, and that is what <see cref="SyncAsync"/> would otherwise do with it.
+    /// </summary>
+    private int remoteChangesPending;
 
     /// <summary>
     /// Greater than zero while the scheduler is itself using the database, so that its own reads and
@@ -167,6 +182,40 @@ public class SyncScheduler(
         }
     }
 
+    /// <summary>
+    /// The server says this organisation has changed. Called by the change-hub client, and by it
+    /// again after a reconnection — anything may have happened while the socket was down.
+    ///
+    /// Not <see cref="SyncNowAsync"/>: a call that lands while a sync is running is dropped by the
+    /// gate, and an announcement has no local trace to pick it up again from. The flag is how it
+    /// survives, and there is no debounce here on purpose — the server coalesces announcements
+    /// already, and doing it at both ends would pay the latency twice.
+    /// </summary>
+    public void NotifyRemoteChanges()
+    {
+        Interlocked.Exchange(ref remoteChangesPending, 1);
+        _ = HandleRemoteAnnouncementAsync();
+    }
+
+    private async Task HandleRemoteAnnouncementAsync()
+    {
+        var ct = loopCts?.Token ?? CancellationToken.None;
+        try
+        {
+            // Straight to the sync, without the pending-changes check the local write signal makes
+            // first: that one asks "have we anything to send?", and this one has already been told
+            // that the server has.
+            await SyncAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Could not act on an announced change");
+        }
+    }
+
     public Task SyncNowAsync() => SyncAsync(loopCts?.Token ?? CancellationToken.None);
 
     private async Task RunLoopAsync(CancellationToken ct)
@@ -202,9 +251,15 @@ public class SyncScheduler(
             {
                 await SyncAsync(ct);
             }
-            else if (DateTimeOffset.UtcNow - lastSyncAttemptAt >= IdlePullInterval)
+            else if (Volatile.Read(ref remoteChangesPending) == 1
+                     || DateTimeOffset.UtcNow - lastSyncAttemptAt >= IdlePullInterval)
             {
                 // Nothing of ours to send, so this is purely "has anything happened at your end?".
+                //
+                // The flag is checked here as well as in the finally below, because a run that was
+                // asked for by an announcement and then failed leaves it set: without this the
+                // retry would wait for the idle interval, which since it became five minutes is far
+                // too long to make someone wait for a change the server already said it had.
                 await SyncAsync(ct);
             }
         }
@@ -242,6 +297,13 @@ public class SyncScheduler(
         if (!await syncGate.WaitAsync(0, ct))
             return;
 
+        // Cleared as the run begins, not when it ends: an announcement that arrives while this run
+        // is in flight describes something this run may already have missed, and has to be seen as
+        // new work rather than as the request this run is serving. A run that then FAILS puts it
+        // back — see the catch blocks — because a consumed announcement that delivered nothing is
+        // still outstanding.
+        var servingAnnouncement = Interlocked.Exchange(ref remoteChangesPending, 0) == 1;
+
         lastSyncAttemptAt = DateTimeOffset.UtcNow;
         SetStatus(SyncStatus.Syncing);
         Interlocked.Increment(ref ownDatabaseWork);
@@ -265,19 +327,23 @@ public class SyncScheduler(
         catch (SyncAuthorizationException)
         {
             logger.LogWarning("The device token was rejected; the user must sign in again");
+            ReArmAnnouncement(servingAnnouncement);
             SetStatus(SyncStatus.AuthRequired);
         }
         catch (OperationCanceledException)
         {
+            ReArmAnnouncement(servingAnnouncement);
         }
         catch (Exception e) when (e is HttpRequestException or IOException)
         {
             logger.LogInformation("Sync could not reach the server: {Message}", e.Message);
+            ReArmAnnouncement(servingAnnouncement);
             SetStatus(SyncStatus.Offline);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Sync failed");
+            ReArmAnnouncement(servingAnnouncement);
             SetStatus(SyncStatus.Error);
         }
         finally
@@ -297,6 +363,17 @@ public class SyncScheduler(
                 // journal consumed, so anything still pending is new work.
                 if (Status == SyncStatus.Idle && PendingChanges > 0)
                     ScheduleWriteSync();
+
+                // An announcement that arrived while this run was in flight. Same reasoning as the
+                // line above, and it cannot spin either: the flag was cleared when this run started,
+                // so reaching here with it set means something genuinely arrived since.
+                //
+                // This check comes AFTER syncGate.Release() above, and has to. An announcement that
+                // lands in the window between the two is not lost, because by then the gate is free
+                // and its own call gets in; were the order reversed, one that landed between the
+                // check and the release would find the gate taken and nothing left to notice it.
+                if (Status == SyncStatus.Idle && Volatile.Read(ref remoteChangesPending) == 1)
+                    _ = HandleRemoteAnnouncementAsync();
             }
             catch (Exception e)
             {
@@ -309,6 +386,17 @@ public class SyncScheduler(
     /// How many distinct rows are waiting to be pushed. The answer to every write signal, so it has
     /// to be cheap: measured at six microseconds against a real device database.
     /// </summary>
+    /// <summary>
+    /// Puts an announcement back after a run that failed to deliver it. The poll tick picks it up on
+    /// its next pass, which is how a change the server already said it had survives a moment of bad
+    /// network without waiting out the five-minute backstop.
+    /// </summary>
+    private void ReArmAnnouncement(bool servingAnnouncement)
+    {
+        if (servingAnnouncement)
+            Interlocked.Exchange(ref remoteChangesPending, 1);
+    }
+
     private async Task<int> ReadPendingCountAsync(CancellationToken ct)
     {
         Interlocked.Increment(ref ownDatabaseWork);

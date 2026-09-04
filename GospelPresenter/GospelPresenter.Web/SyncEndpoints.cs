@@ -57,8 +57,15 @@ public static partial class SyncEndpoints
             if (caller is null) return Results.Unauthorized();
             if (caller.OrganizationId is null) return Results.Forbid();
 
-            var response = await syncService.PushAsync(caller.OrganizationId, request, caller, context.RequestAborted);
-            return Results.Ok(response);
+            // Everything this push writes announces itself to the organisation, and this is what
+            // keeps the pushing device off that announcement — it has the change already, and
+            // answering it with its own echo would cost every push a wasted sync cycle. Null for a
+            // cookie session, which belongs to no device and excludes nobody.
+            using (DeviceWriteScope.For(context.User.FindFirst("device_id")?.Value))
+            {
+                var response = await syncService.PushAsync(caller.OrganizationId, request, caller, context.RequestAborted);
+                return Results.Ok(response);
+            }
         }).RequireAuthorization();
 
         // One Bible translation's verses, for offline pinning. The payload is megabytes of highly

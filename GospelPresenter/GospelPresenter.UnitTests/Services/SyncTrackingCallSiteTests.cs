@@ -1,6 +1,8 @@
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
+using GospelPresenter.Shared.Sync;
+using GospelPresenter.UnitTests.Sync;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -13,6 +15,14 @@ namespace GospelPresenter.UnitTests.Services;
 /// or that must move an aggregate root's ModifiedAt when a child changes. Sync correctness depends
 /// on each of these call sites: a path that forgets to stamp ModifiedAt makes the change invisible
 /// to pulling clients, and a delete without a tombstone can never be propagated at all.
+///
+/// Since ADR 0006 each of them must also announce the change, or it reaches other people's devices
+/// five minutes late instead of in a second — a bug nobody reports. That assertion is made in
+/// <see cref="Dispose"/> rather than test by test, so a mutation path added here later is pinned
+/// whether or not whoever adds it thinks to check. It is exact for the tests that only act, which
+/// includes every ExecuteUpdate-only path; a test that seeds rows through the same context in its
+/// own body would announce during that seeding too, and for those the interceptor's own tests carry
+/// the weight.
 /// </summary>
 public class SyncTrackingCallSiteTests : IDisposable
 {
@@ -26,6 +36,7 @@ public class SyncTrackingCallSiteTests : IDisposable
     private const string SongPartId = "song-part-1";
 
     private readonly SqliteConnection connection;
+    private readonly RecordingChangeNotifier changes = new();
     private readonly IDbContextFactory<PresentationContext> factory;
     private readonly PresentationService presentationService;
     private readonly SongService songService;
@@ -39,9 +50,13 @@ public class SyncTrackingCallSiteTests : IDisposable
 
         var options = new DbContextOptionsBuilder<PresentationContext>()
             .UseSqlite(connection)
+            // The web host's arrangement: tracked saves announce themselves through the interceptor,
+            // and the ExecuteUpdate paths announce by hand. Both are pinned here together, because
+            // from a caller's point of view the difference is invisible and must stay that way.
+            .AddInterceptors(new OrganizationChangeInterceptor(changes))
             .Options;
         factory = new TestDbContextFactory(options);
-        presentationService = new PresentationService(factory, new NoOpObjectStorageService());
+        presentationService = new PresentationService(factory, new NoOpObjectStorageService(), changes);
         songService = new SongService(factory);
 
         using var context = factory.CreateDbContext();
@@ -66,10 +81,22 @@ public class SyncTrackingCallSiteTests : IDisposable
 
         // Every test asserts that ModifiedAt moved; starting from the past makes that observable.
         BackdateAll(context);
+
+        // The seeding above announced; what each test does is what is being pinned.
+        changes.Clear();
     }
 
     public void Dispose()
     {
+        changes.Announcements.ShouldNotBeEmpty(
+            "the mutation announced no change, so other devices will not hear about it until the " +
+            "five-minute idle pull — an ExecuteUpdate/ExecuteDelete path has to call " +
+            "IOrganizationChangeNotifier.Notify itself");
+
+        // Never another organisation's. An announcement addressed wrongly is a wasted sync for
+        // strangers and no sync at all for the people who needed it.
+        changes.Organizations.ShouldAllBe(id => id == null || id == org.Id);
+
         connection.Dispose();
     }
 
@@ -279,7 +306,7 @@ public class SyncTrackingCallSiteTests : IDisposable
         // ExecuteUpdate, so nothing stamps ModifiedAt unless this call site does. A rename that
         // stayed invisible to pulling clients would leave the desktops naming an output one thing
         // and the QR sign beside it another.
-        var displays = new RemoteDisplayService(factory);
+        var displays = new RemoteDisplayService(factory, changes);
         var display = await SeedDisplayAsync();
 
         await displays.UpdateDisplayAsync(org.Id, display.Id, "Renamed", caller);
@@ -291,7 +318,7 @@ public class SyncTrackingCallSiteTests : IDisposable
     [Fact]
     public async Task RemoveDisplayAsync_TombstonesTheOutput()
     {
-        var displays = new RemoteDisplayService(factory);
+        var displays = new RemoteDisplayService(factory, changes);
         var display = await SeedDisplayAsync();
 
         await displays.RemoveDisplayAsync(org.Id, display.Id, caller);
@@ -484,7 +511,7 @@ public class SyncTrackingCallSiteTests : IDisposable
             seed.UserSettings.Add(new UserSetting { Id = "setting-1", UserId = "user-1", Key = "k", Value = "v" });
             await seed.SaveChangesAsync();
         }
-        var service = new UserService(factory, new SongPartLabelService(factory));
+        var service = new UserService(factory, new SongPartLabelService(factory), changes);
 
         // Act
         await service.DeleteUserSettingAsync("user-1", "k", new CallerContext("user-1", UserRole.User, org.Id));
@@ -505,7 +532,7 @@ public class SyncTrackingCallSiteTests : IDisposable
             seed.Bibles.Add(new DbBible { Id = "bible-1", Name = "Bibel 2000", Abbreviation = "B2000", OrganizationId = org.Id });
             await seed.SaveChangesAsync();
         }
-        var service = new BibleService(factory, NullLogger<BibleService>.Instance);
+        var service = new BibleService(factory, NullLogger<BibleService>.Instance, changes);
 
         // Act
         await service.DeleteBibleAsync("B2000", org.Id, caller);

@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Sync;
 using GospelPresenter.Shared.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -25,7 +26,11 @@ public interface IBibleService
     Task DeleteBibleAsync(string bibleId, string organizationId, CallerContext caller);
 }
 
-public class BibleService(IDbContextFactory<PresentationContext> dbContextFactory, ILogger<BibleService> logger) : IBibleService
+public class BibleService(
+    IDbContextFactory<PresentationContext> dbContextFactory,
+    ILogger<BibleService> logger,
+    // Replacing an existing translation goes through ExecuteUpdateAsync, which no interceptor sees.
+    IOrganizationChangeNotifier? changeNotifier = null) : IBibleService
 {
     private Dictionary<string, Dictionary<string, Bible>> cacheByOrg = new();
 
@@ -124,6 +129,10 @@ public class BibleService(IDbContextFactory<PresentationContext> dbContextFactor
 
         var bible = new Bible(abbreviation, name, verses);
         UpdateOrgCache(organizationId, orgCache => orgCache[bible.Id] = bible);
+
+        // Announced for both branches. The insert would be covered by the save interceptor anyway,
+        // and one announcement per import is what the coalescing window would have made of two.
+        changeNotifier?.Notify(organizationId);
 
         logger.LogInformation("Imported bible {Name} ({Abbreviation}) with {Count} verses for org {OrgId}",
             name, abbreviation, verses.Count, organizationId);
