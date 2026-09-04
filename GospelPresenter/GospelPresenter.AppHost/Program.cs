@@ -16,6 +16,20 @@ var postgres = builder
 var postgresdb = postgres
     .AddDatabase("postgresdb");
 
+// Docker answers a missing bind-mount source by silently creating a directory in its place, so a
+// forgotten garage.toml becomes a container that starts, finds a directory where its configuration
+// should be, and dies with nothing anywhere saying why. A worktree makes it likelier: the file is
+// gitignored, so a fresh checkout never has it and the README step is easy to skip. Fail here, with
+// the fix in the message, rather than leaving it to be read out of container logs.
+var garageConfigPath = Path.GetFullPath(Path.Combine(builder.AppHostDirectory, "..", "garage.toml"));
+if (!File.Exists(garageConfigPath))
+{
+    throw new InvalidOperationException(
+        $"There is no garage.toml at {garageConfigPath}. Run 'cp garage.toml.example garage.toml' "
+        + "in the GospelPresenter directory first (see the README). If a directory of that name is "
+        + "in the way, an earlier run without the file made it — remove it before copying.");
+}
+
 var garage = builder
     .AddContainer("garage", "dxflrs/garage", "v2.2.0")
     .WithBindMount("../garage.toml", "/etc/garage.toml", isReadOnly: true)
@@ -67,30 +81,32 @@ var web = builder
         endpoint.IsProxied = false;
     });
 
-// The Mac Catalyst app, pointed at the local server through the DEBUG-only GP_API_BASE_URL
-// override (Configuration/Settings.cs) — so it runs the real device flow (browser sign-in,
-// device token, sync) against this stack instead of the offline developer identity.
+// The desktop app, pointed at the local server through GP_API_BASE_URL
+// (GospelPresenter.Desktop/DesktopSettings.cs) — so it runs the real device flow (browser
+// sign-in, device token, sync, the change hub) against this stack rather than the offline
+// developer identity, and a change to either half can be seen working without tagging a release
+// and waiting for a deploy.
 //
-// Not a project reference: the MAUI project multi-targets and cannot be referenced by the
-// AppHost. Builds, then execs the app binary straight out of the bundle — MSBuild's Run target
-// only builds on Catalyst, and launching via `open` would drop the environment; a direct exec
-// keeps the process attached (stopping the resource stops the app) and inherits the URL.
-// Explicit start, because the first build takes minutes and web-only sessions should not pay
-// for it — press play on the resource in the dashboard when the client is wanted.
-if (OperatingSystem.IsMacOS())
-{
-    builder
-        .AddExecutable("mac-app", "/bin/sh", workingDirectory: "..",
-            "-c",
-            "dotnet build GospelPresenter/GospelPresenter.csproj -f net10.0-maccatalyst && " +
-            "exec GospelPresenter/bin/Debug/net10.0-maccatalyst/maccatalyst-*/GospelPresenter.app/Contents/MacOS/GospelPresenter")
-        // The https endpoint (the dev certificate is trusted locally): pointing the app at http
-        // would bounce every API call through UseHttpsRedirection's 307, and HttpClient drops the
-        // Authorization header on cross-origin redirects.
-        .WithEnvironment("GP_API_BASE_URL", web.GetEndpoint("https"))
-        .WithExplicitStart()
-        .WaitFor(web);
-}
+// It replaces a mac-app resource that built net10.0-maccatalyst: that target left the MAUI
+// project when the desktop moved to Electron (adr/0003), so the resource had been unbuildable
+// ever since. The MAUI clients are dormant and are not started from here.
+//
+// Run rather than AddProject: this is an Electron host, and it picks its own port for the local
+// Kestrel that serves the UI into the window — an injected ASPNETCORE_URLS would fight it. The
+// scheme defaults to GospelPresenterLocal, which is what keeps this installation's database,
+// callback scheme and keychain entry apart from a real one.
+//
+// Explicit start, because the first build takes a while and web-only sessions should not pay for
+// it — press play on the resource in the dashboard when the client is wanted.
+builder
+    .AddExecutable("desktop", "dotnet", workingDirectory: "..",
+        "run", "--project", "GospelPresenter/GospelPresenter.Desktop/GospelPresenter.Desktop.csproj")
+    // The https endpoint (the dev certificate is trusted locally): pointing the app at http
+    // would bounce every API call through UseHttpsRedirection's 307, and HttpClient drops the
+    // Authorization header on cross-origin redirects.
+    .WithEnvironment("GP_API_BASE_URL", web.GetEndpoint("https"))
+    .WithExplicitStart()
+    .WaitFor(web);
 
 builder.Build().Run();
 

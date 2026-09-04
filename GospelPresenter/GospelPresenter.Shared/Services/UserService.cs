@@ -501,11 +501,50 @@ public class UserService(
         return setting?.Value;
     }
 
+    /// <summary>
+    /// Writes one user setting, and survives losing a race for it.
+    ///
+    /// Read-then-insert is not atomic, and these rows are synced: on a device the pull writes them
+    /// from the server in a transaction of its own, so a write from the UI can read no row, have the
+    /// pull commit the same key underneath it, and then collide on (UserId, Key). Called from a
+    /// Blazor event handler that took the whole circuit down with it -- dismissing the welcome modal
+    /// three seconds after launch, while the first pull of the session was still applying, which is
+    /// exactly when the setting it writes arrives from the server.
+    ///
+    /// One retry, on a fresh context: the row the other writer committed is there to be found the
+    /// second time. A retry rather than an atomic upsert in SQL because UserSetting is ISyncTracked
+    /// -- raw SQL would bypass the ModifiedAt stamping and tombstones that
+    /// PresentationContext.SaveChanges owns, which is the same trap the ExecuteUpdate rule in
+    /// CLAUDE.md exists for. Not narrowed to a unique-violation code, which has no
+    /// provider-independent form: setting a value is idempotent, so a second attempt costs nothing
+    /// and a genuine failure throws from it unchanged.
+    /// </summary>
     public async Task SetUserSettingAsync(string userId, string key, string value, CallerContext caller)
     {
         caller.RequireUserAccess(userId);
         ValidationHelper.RequireMaxLength(key, AppConstraints.SettingsKeyMaxLength, "Key");
         ValidationHelper.RequireMaxLength(value, AppConstraints.SettingsValueMaxLength, "Value");
+
+        bool written;
+        try
+        {
+            written = await WriteUserSettingAsync(userId, key, value);
+        }
+        catch (DbUpdateException)
+        {
+            written = await WriteUserSettingAsync(userId, key, value);
+        }
+
+        if (written)
+            changeNotifier?.Notify(caller.OrganizationId);
+    }
+
+    /// <summary>
+    /// One attempt at the write. False when there is no such user, which is not an error: the
+    /// caller may be a device applying a setting for a user it has not pulled yet.
+    /// </summary>
+    private async Task<bool> WriteUserSettingAsync(string userId, string key, string value)
+    {
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var setting = await context.UserSettings
             .FirstOrDefaultAsync(us => us.UserId == userId && us.Key == key);
@@ -517,7 +556,7 @@ public class UserService(
         else
         {
             if (!await context.Users.AnyAsync(u => u.Id == userId))
-                return;
+                return false;
 
             await ValidationHelper.RequireMaxCountAsync(
                 context.UserSettings.Where(us => us.UserId == userId),
@@ -531,7 +570,7 @@ public class UserService(
         }
 
         await context.SaveChangesAsync();
-        changeNotifier?.Notify(caller.OrganizationId);
+        return true;
     }
 
     public async Task DeleteUserSettingAsync(string userId, string key, CallerContext caller)

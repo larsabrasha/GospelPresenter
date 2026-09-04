@@ -24,6 +24,7 @@ public class UserServiceTests : IDisposable
     private const string UnknownUserId = "no-such-user";
 
     private readonly SqliteConnection connection;
+    private readonly DbContextOptions<PresentationContext> options;
     private readonly IDbContextFactory<PresentationContext> factory;
     private readonly UserService service;
     private readonly Organization org;
@@ -34,7 +35,7 @@ public class UserServiceTests : IDisposable
         connection = new SqliteConnection("DataSource=:memory:");
         connection.Open();
 
-        var options = new DbContextOptionsBuilder<PresentationContext>()
+        options = new DbContextOptionsBuilder<PresentationContext>()
             .UseSqlite(connection)
             .Options;
         factory = new TestDbContextFactory(options);
@@ -312,6 +313,97 @@ public class UserServiceTests : IDisposable
         context.Users.Add(newUser);
         context.SaveChanges();
         return newUser;
+    }
+
+
+    /// <summary>
+    /// Setting a value is a read followed by an insert, and nothing makes the two atomic. On a
+    /// device the sync pull writes these same rows from the server in its own transaction, so the
+    /// insert can collide on (UserId, Key) with a row that appeared after the read — which took a
+    /// Blazor circuit down in production, three seconds after launch, when dismissing the welcome
+    /// modal raced the first pull of the session writing the very setting it stores.
+    ///
+    /// The collision is simulated rather than raced for: the context throws once, exactly as EF
+    /// reports a unique violation, and commits the other writer's row on the way out so the retry
+    /// has something to find. Racing two real writers here would hit the shared in-memory
+    /// connection instead and fail as "database is locked", proving something else entirely.
+    /// </summary>
+    [Fact]
+    public async Task SetUserSetting_WhenAnotherWriterWinsTheRace_UpdatesTheRowItLeftBehind()
+    {
+        var racing = new RaceOnceDbContextFactory(options, user.Id, "from the pull");
+        var racedService = new UserService(racing, new SongPartLabelService(racing));
+
+        await racedService.SetUserSettingAsync(
+            user.Id, UserSetting.PreferredLanguage, "from the ui", CallerFor(user));
+
+        racing.Attempts.ShouldBe(2, "the first attempt must have been retried, not swallowed");
+        await using var context = await factory.CreateDbContextAsync();
+        var settings = await context.UserSettings
+            .Where(us => us.UserId == user.Id && us.Key == UserSetting.PreferredLanguage)
+            .ToListAsync();
+        settings.Count.ShouldBe(1, "the retry must update the existing row, not add a second one");
+        settings[0].Value.ShouldBe("from the ui");
+    }
+
+    /// <summary>
+    /// A failure that is not a lost race must still reach the caller, rather than being retried
+    /// into silence.
+    /// </summary>
+    [Fact]
+    public async Task SetUserSetting_WhenTheWriteKeepsFailing_Throws()
+    {
+        var failing = new RaceOnceDbContextFactory(options, user.Id, null) { AlwaysThrow = true };
+        var failingService = new UserService(failing, new SongPartLabelService(failing));
+
+        await Should.ThrowAsync<DbUpdateException>(() => failingService.SetUserSettingAsync(
+            user.Id, UserSetting.PreferredLanguage, "sv", CallerFor(user)));
+
+        failing.Attempts.ShouldBe(2, "one retry, not a loop");
+    }
+
+    /// <summary>
+    /// Hands out a context whose first save fails the way a unique violation does. When
+    /// <c>otherWritersValue</c> is given it also commits that row first, standing in for the writer
+    /// that won the race.
+    /// </summary>
+    private sealed class RaceOnceDbContextFactory(
+        DbContextOptions<PresentationContext> options, string userId, string? otherWritersValue)
+        : IDbContextFactory<PresentationContext>
+    {
+        public int Attempts { get; private set; }
+        public bool AlwaysThrow { get; init; }
+
+        public PresentationContext CreateDbContext()
+        {
+            Attempts++;
+            var failThisOne = AlwaysThrow || Attempts == 1;
+            if (failThisOne && otherWritersValue is not null)
+            {
+                using var other = new PresentationContext(options);
+                other.UserSettings.Add(new UserSetting
+                {
+                    UserId = userId,
+                    Key = UserSetting.PreferredLanguage,
+                    Value = otherWritersValue,
+                });
+                other.SaveChanges();
+            }
+
+            return new FailingSaveContext(options, failThisOne);
+        }
+
+        private sealed class FailingSaveContext(DbContextOptions<PresentationContext> options, bool fail)
+            : PresentationContext(options)
+        {
+            public override Task<int> SaveChangesAsync(
+                bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+            {
+                if (fail)
+                    throw new DbUpdateException("simulated unique violation on (UserId, Key)");
+                return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            }
+        }
     }
 
     private class TestDbContextFactory(DbContextOptions<PresentationContext> options)
