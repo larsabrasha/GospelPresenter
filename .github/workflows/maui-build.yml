@@ -1,14 +1,14 @@
 name: MAUI build
 
-# Keeps every app target compiling and the test suite green. The desktop app is
-# GospelPresenter.Desktop (Electron) and is built on ubuntu with everything else; the MAUI project
-# is iOS, Android and Windows, none of which ships yet -- they build here so they never silently
-# rot.
+# Keeps the test suite green and the desktop app compiling. The desktop app is
+# GospelPresenter.Desktop (Electron) and builds on ubuntu together with everything else.
 #
-# The tests run on every pull request. The three platform builds do not: they occupy a macOS and
-# a Windows runner for up to an hour each, and they answer "does iOS still compile", which does
-# not need asking on every push to a feature branch. They run on main, and on demand via
-# workflow_dispatch when a change is likely to break a target.
+# The MAUI project -- iOS, Android and Windows -- is dormant since the desktop moved to Electron
+# (adr/0003), and none of its targets has a consumer. Its three build jobs therefore run on
+# workflow_dispatch only: they occupied a macOS and a Windows runner for up to an hour each to
+# answer "does iOS still compile" about an app nobody ships. They are kept rather than deleted
+# because the Xcode and workload pinning below is the expensive part, and it is right here ready
+# for the day those clients are picked up again. Start them from the Actions tab.
 #
 # The Apple workloads demand a specific Xcode, not merely a sufficient one. Keep sdk.version in the
 # same feature band as the workload set and rollForward no looser than latestPatch: a workload set
@@ -98,8 +98,8 @@ jobs:
           echo "tailwind-output.css is in the static web asset manifest."
 
   apple-and-android:
-    # Not on pull requests -- see the note at the top of this file.
-    if: github.event_name != 'pull_request'
+    # On demand only -- see the note at the top of this file.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     timeout-minutes: 60
     steps:
@@ -149,8 +149,8 @@ jobs:
         run: dotnet build GospelPresenter/GospelPresenter.csproj -f net10.0-android
 
   windows:
-    # Not on pull requests -- see the note at the top of this file.
-    if: github.event_name != 'pull_request'
+    # On demand only -- see the note at the top of this file.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 60
     steps:
