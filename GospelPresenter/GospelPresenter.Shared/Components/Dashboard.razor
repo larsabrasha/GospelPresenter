@@ -1,5 +1,6 @@
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Components.Symbols
+@using GospelPresenter.Shared.Localization
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
@@ -10,6 +11,7 @@
 @inject ActiveOrganizationState OrgState
 @inject SharedAppState SharedAppState
 @inject AppState AppState
+@inject CircuitCulture Culture
 
 <RefreshOnSync Reload="LoadPresentationsAsync"/>
 
@@ -333,12 +335,12 @@
 
     private void OnSharedStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     private void OnPresentationActivatedOrDeactivated(string sessionId)
     {
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     public void Dispose()
