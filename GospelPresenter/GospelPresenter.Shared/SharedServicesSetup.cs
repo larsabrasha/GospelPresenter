@@ -1,9 +1,11 @@
 using GospelPresenter.Shared.Configuration;
+using GospelPresenter.Shared.Localization;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using GospelPresenter.Shared.Sync;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Localization;
 using Microsoft.Extensions.Logging;
 
 namespace GospelPresenter.Shared;
@@ -16,6 +18,11 @@ public static class SharedServicesSetup
         var maxPublicViewers = configuration?.GetValue("Settings:PublicOutputMaxViewers", 500) ?? 500;
 
         services.AddLocalization(options => options.ResourcesPath = "Resources");
+        // Registered after AddLocalization so this wins: every component resolves its localizer
+        // against the circuit's own language instead of whatever thread happened to trigger the
+        // render. CircuitCulture explains which threads those are and why it matters.
+        services.AddScoped<CircuitCulture>();
+        services.AddScoped(typeof(IStringLocalizer<>), typeof(CircuitStringLocalizer<>));
         // The MAUI host overrides this with its own reduced capability set after calling this.
         services.AddSingleton<IAppCapabilities, FullAppCapabilities>();
         // Does nothing here. The web host replaces it with the throttling one that feeds the change

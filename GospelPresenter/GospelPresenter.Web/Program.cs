@@ -25,6 +25,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Prometheus;
+using System.Globalization;
 using System.Security.Claims;
 using Serilog;
 
@@ -266,11 +267,22 @@ try
     string[] supportedCultures = ["en", "sv"];
     builder.Services.Configure<RequestLocalizationOptions>(options =>
     {
-        options.SetDefaultCulture("en")
+        options.SetDefaultCulture(supportedCultures[0])
             .AddSupportedCultures(supportedCultures)
             .AddSupportedUICultures(supportedCultures);
+        // Ahead of the query-string provider the defaults put first, so a stored choice is not
+        // overridden by a ?culture= that happens to be on a link.
         options.RequestCultureProviders.Insert(0, new CookieRequestCultureProvider());
     });
+
+    // A deliberate answer for every thread that never went through request localization: a timer, a
+    // hosted service, a hub dispatch. Without this they take the machine's locale, which is the
+    // developer's own language locally and the invariant culture in the container — so the same code
+    // rendered in two different languages depending on where it ran. Circuits do not rely on this
+    // (see CircuitCulture); this is only about making the floor predictable.
+    var fallbackCulture = new CultureInfo(supportedCultures[0]);
+    CultureInfo.DefaultThreadCurrentCulture = fallbackCulture;
+    CultureInfo.DefaultThreadCurrentUICulture = fallbackCulture;
 
     // The interceptor announces every save that touched synced data. Added here rather than in the
     // context itself, deliberately: a device inherits the same context and must not announce its own
@@ -529,7 +541,11 @@ builder.Services.AddMetricServer(options =>
         await next(context);
     });
 
-    app.UseRequestLocalization(supportedCultures);
+    // Parameterless on purpose: the overload taking culture names builds its own
+    // RequestLocalizationOptions and silently discards the one configured above, cookie priority
+    // and all. It only ever worked because the default provider list happens to contain a cookie
+    // provider too.
+    app.UseRequestLocalization();
 
     app.MapStaticAssets();
     app.MapRazorComponents<App>()

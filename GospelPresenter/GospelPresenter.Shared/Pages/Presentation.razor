@@ -1,5 +1,6 @@
 @page "/presentations/{presentationId}"
 @using GospelPresenter.Shared.Live
+@using GospelPresenter.Shared.Localization
 @page "/templates/{templateId}"
 @attribute [Authorize]
 
@@ -31,6 +32,7 @@
 @inject IThemeService ThemeService
 @inject IRemoteDisplayService RemoteDisplayService
 @inject IServiceProvider Services
+@inject CircuitCulture Culture
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -712,7 +714,7 @@
     private void OnOwnerPresenceChanged(string sessionId)
     {
         if (sessionId == _presenterSessionId)
-            _ = InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     /// <summary>
@@ -1309,6 +1311,11 @@
             liveSessionPresence.OwnerPresenceChanged += OnOwnerPresenceChanged;
 
         idleHintIndex = Random.Shared.Next(idleHints.Length);
+        // AppState is this circuit's own, so only this circuit raises it. Everything on
+        // SharedAppState below is a singleton event that somebody else can raise — the device
+        // owning the session echoing through the hub, another operator's circuit, an MCP call — and
+        // the handler then renders this page on the raiser's thread. Hence Culture.Restore on the
+        // dispatch in each of those handlers; see CircuitCulture.
         AppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PropertyChanged += OnPropertyChanged;
         SharedAppState.PresentationChanged += OnPresentationChanged;
@@ -1485,7 +1492,7 @@
 
         if (_presenterSessionId == previous && _presenterCandidates.Count == previousCount) return;
 
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     private void OnPresentationThemeChanged(string presentationId, SlideTheme newTheme)
@@ -1499,7 +1506,7 @@
         var current = SharedAppState.GetLiveSlide(EffectiveSessionId);
         SharedAppState.SetLiveSlide(EffectiveSessionId, current with { Theme = newTheme });
 
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     private async void OnPresentationChanged(string presentationId, string? senderSessionId)
@@ -1507,13 +1514,13 @@
         if (presentationId != EffectiveId) return;
         if (senderSessionId == AppState.SessionId) return;
 
-        await InvokeAsync(async () =>
+        await InvokeAsync(Culture.Restore(async () =>
         {
             await LoadPresentationAsync();
             await GetDataForSelectedItem();
             ToastService.Show(L["Toast.PresentationUpdatedExternally"]);
             StateHasChanged();
-        });
+        }));
     }
 
     private async void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1545,13 +1552,13 @@
                     "gospelPresenter.executeAudioCommand", cmd.Action, cmd.AudioElementId, cmd.Position).AsTask());
 
             SyncStageSelectionFromLiveSlide();
-            _ = InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(Culture.Restore(StateHasChanged));
         }
         else if (sender is SharedAppState && IsRemoteMode && e.PropertyName == _presenterSessionId)
         {
             SyncStageSelectionFromLiveSlide();
             ExpectConfirmation();
-            _ = InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(Culture.Restore(StateHasChanged));
         }
     }
 

@@ -1,6 +1,8 @@
+@using GospelPresenter.Shared.Localization
 @using GospelPresenter.Shared.Services
 
 @inject IServiceProvider Services
+@inject CircuitCulture Culture
 
 @implements IDisposable
 
@@ -44,8 +46,10 @@
     }
 
     // The event is raised off the renderer — the sync loop's thread on a device, an announcement
-    // timer on the web — so hop to it before touching anything a component owns.
-    private void OnRemoteChangesApplied() => _ = InvokeAsync(ReloadAsync);
+    // timer on the web — so hop to it before touching anything a component owns. And carry the
+    // circuit's language over with it: that thread has none, or somebody else's, and the reload
+    // both re-renders every string in the view and sorts its list. See CircuitCulture.
+    private void OnRemoteChangesApplied() => _ = InvokeAsync(Culture.Restore(ReloadAsync));
 
     private async Task ReloadAsync()
     {
