@@ -1,5 +1,6 @@
 using System.Net;
 using GospelPresenter.Client.Auth;
+using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.Sync;
 using Microsoft.AspNetCore.Http.Connections.Client;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -56,6 +57,13 @@ public sealed class OrganizationChangesClient : IAsyncDisposable
     public bool IsConnected => connection?.State == HubConnectionState.Connected;
 
     /// <summary>
+    /// True once a rejected token has stopped the doorbell for good — the one state it does not
+    /// retry out of. Exposed because <see cref="IsConnected"/> cannot tell "gave up" from "still
+    /// trying", and the difference between those two is the whole of the retry policy.
+    /// </summary>
+    public bool StoppedByRejectedToken { get; private set; }
+
+    /// <summary>
     /// Begins listening, and keeps the connection in step with the sign-in state from then on: a
     /// device that signs out stops listening, and one that signs in on the login page starts
     /// without waiting for a restart.
@@ -88,6 +96,7 @@ public sealed class OrganizationChangesClient : IAsyncDisposable
             if (connection is not null)
                 return;
 
+            StoppedByRejectedToken = false;
             connection = BuildConnection();
             // No arguments to read: the announcement is the message. What changed, and whether any
             // of it matters here, is the pull's business.
@@ -112,8 +121,8 @@ public sealed class OrganizationChangesClient : IAsyncDisposable
     /// wifi should begin listening by itself the moment the network appears, without anyone
     /// noticing there was anything to fix.
     ///
-    /// Except for a rejected token: that will not fix itself, and the sync engine already tells the
-    /// user what to do about it.
+    /// Except for a token the sync engine agrees has been rejected: that will not fix itself, and
+    /// the engine already tells the user what to do about it.
     /// </summary>
     private async Task StartWithRetriesAsync(CancellationToken scope)
     {
@@ -136,14 +145,31 @@ public sealed class OrganizationChangesClient : IAsyncDisposable
             {
                 return;
             }
-            catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.Unauthorized)
+            catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.Unauthorized
+                                                 && scheduler.Status == SyncStatus.AuthRequired)
             {
                 // Retrying forever here would leave a decommissioned machine knocking on the hub
-                // until someone reads the server's logs. The sync engine reaches AuthRequired on its
-                // own, and signing in again raises auth.Changed, which starts this over.
+                // until someone reads the server's logs. Signing in again raises auth.Changed,
+                // which starts this over.
                 logger.LogWarning("The device token was rejected by the change hub; not retrying");
+                StoppedByRejectedToken = true;
                 await StopAsync();
                 return;
+            }
+            catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                // A 401 the sync engine has not reached the same conclusion about is not a revoked
+                // token: the pull carries the same token over HTTP and would be in AuthRequired
+                // too. Something in front of the hub answered for it — the stored-language
+                // redirect used to, eating the Authorization header on the way — so keep trying
+                // instead of going quiet until the next sign-in.
+                //
+                // The race is deliberate and harmless: a genuinely revoked token can land here
+                // before the pull has caught up, and then this retries a few times and stops on a
+                // later attempt instead of the first.
+                logger.LogWarning(e,
+                    "The change hub answered 401 while sync is {Status}, which is not a revoked "
+                    + "token; retrying", scheduler.Status);
             }
             catch (Exception e)
             {

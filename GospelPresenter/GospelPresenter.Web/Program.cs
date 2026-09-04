@@ -489,13 +489,11 @@ builder.Services.AddMetricServer(options =>
         // token into a login-page HTML response. API responses are not localized via cookies;
         // the sync paths read the user's stored language directly where they need it.
         //
-        // The live session hub is the same kind of caller and has to be exempt for the same
-        // reason: it authenticates with a device token and serves no localized content. It only
-        // does not live under /api because it is a hub, and without this its first negotiate is
-        // redirected, loses the Authorization header and 401s — costing a retry before a
-        // presentation starts mirroring.
-        if (!context.Request.Path.StartsWithSegments("/api")
-            && !context.Request.Path.StartsWithSegments(LiveSessionHubMethods.Path)
+        // The hubs are the same kind of caller and are exempt for the same reason: they
+        // authenticate with a device token and serve no localized content. They only do not live
+        // under /api because they are hubs, and without this their first negotiate is redirected,
+        // loses the Authorization header and 401s.
+        if (!IsExemptFromTheCultureRedirect(context.Request.Path)
             && context.User.Identity?.IsAuthenticated == true
             && !context.Request.Cookies.ContainsKey(CookieRequestCultureProvider.DefaultCookieName))
         {
@@ -937,6 +935,22 @@ static string? ResolveScheme(string? provider, IAuthProviderService authProvider
 
     return null;
 }
+
+/// <summary>
+/// Which paths the stored-language redirect has to leave alone: everything a device app calls with
+/// a Bearer token. A redirect there is answered by HttpClient without the Authorization header, so
+/// a perfectly good device token comes back as a 401.
+///
+/// The hubs are named here, in one place, rather than tested for at the call site: leaving a new
+/// one out is invisible until someone reads a log. It has already happened twice — the live hub
+/// recovered on its next retry, the doorbell did not, because it reads a 401 as a revoked token and
+/// stops for good. Pinned by the two hubs'
+/// <c>Negotiate_ForAUserWithAStoredLanguage_IsNotRedirected</c> tests.
+/// </summary>
+static bool IsExemptFromTheCultureRedirect(PathString path) =>
+    path.StartsWithSegments("/api")
+    || path.StartsWithSegments(LiveSessionHubMethods.Path)
+    || path.StartsWithSegments(OrganizationChangesHubMethods.Path);
 
 static string SelectCookieOrDeviceTokenScheme(HttpContext context) =>
     context.Request.Headers.Authorization.FirstOrDefault()

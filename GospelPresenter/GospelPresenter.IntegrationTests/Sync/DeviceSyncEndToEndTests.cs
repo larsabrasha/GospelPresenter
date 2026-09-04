@@ -285,6 +285,35 @@ public class DeviceSyncEndToEndTests
         // Long enough that a retrying client would have had several attempts.
         await Task.Delay(TimeSpan.FromSeconds(2));
         device.Doorbell.IsConnected.ShouldBeFalse("a revoked token must not reach the hub");
+        device.Doorbell.StoppedByRejectedToken.ShouldBeTrue(
+            "and it must have given up rather than still be retrying — IsConnected alone cannot "
+            + "tell those apart");
+    }
+
+    /// <summary>
+    /// The other half of the same decision. A 401 the sync engine has not also concluded is a
+    /// revoked token means something in front of the hub answered for it — the stored-language
+    /// redirect used to do exactly that, eating the Authorization header, and because the doorbell
+    /// read it as a revocation it went silent for the rest of the session on every single start.
+    /// A latency bug turned into a permanent one by a wrong inference.
+    /// </summary>
+    [Fact]
+    public async Task ADoorbell_RejectedWhileTheSyncEngineIsHappy_KeepsTrying()
+    {
+        using var app = new WebAppFixture();
+        await using var device = await DeviceHarness.CreateAsync(app);
+
+        // Revoked without ever running a sync, so the engine has formed no opinion: exactly the
+        // race the retry decision has to survive.
+        await RevokeEveryDeviceTokenAsync(app);
+        device.Scheduler.Status.ShouldNotBe(SyncStatus.AuthRequired,
+            "this test is about a 401 the engine has not agreed with");
+
+        device.Doorbell.Start();
+
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        device.Doorbell.StoppedByRejectedToken.ShouldBeFalse(
+            "a 401 nothing else corroborates must leave the doorbell retrying");
     }
 
     // --- The server side of each test ---

@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http.Headers;
 using GospelPresenter.IntegrationTests.Fixtures;
 using GospelPresenter.IntegrationTests.Helpers;
 using GospelPresenter.Shared.Contexts;
@@ -84,6 +86,36 @@ public class OrganizationChangesHubIntegrationTests
         await RenameSwedishPresentationAsync(app, "Söndagsgudstjänst");
         await WaitUntilAsync(() => Volatile.Read(ref announcements) > quiet,
             "the connection had stopped listening, so the assertion above proved nothing");
+    }
+
+    /// <summary>
+    /// The doorbell has to be exempt from the stored-language redirect, the way the live hub and
+    /// every /api path already are. Neither hub lives under /api — they are hubs — and without the
+    /// exemption the first negotiate is answered with a redirect to itself; HttpClient follows it,
+    /// drops the Authorization header on the way, and the device is told 401.
+    ///
+    /// Where the live hub pays one retry for that, the doorbell pays everything: a 401 there means
+    /// a revoked token, so <c>OrganizationChangesClient</c> stops for good and the device is left
+    /// with the five-minute pull until someone restarts it. Every start has a fresh cookie
+    /// container, so it happens every time.
+    /// </summary>
+    [Fact]
+    public async Task Negotiate_ForAUserWithAStoredLanguage_IsNotRedirected()
+    {
+        using var app = new WebAppFixture();
+        await app.SetPreferredLanguageAsync("sv");
+        var token = await IssueDeviceTokenAsync(app);
+
+        // No cookie container and no redirect following: exactly what SignalR's first negotiate
+        // looks like, and the only way to see the redirect rather than its recovery.
+        var client = app.CreateDefaultClient(BaseAddress);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.PostAsync(
+            $"{OrganizationChangesHubMethods.Path}/negotiate?negotiateVersion=1", null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK,
+            "a device token on the doorbell must reach the hub, not a culture redirect");
     }
 
     /// <summary>
