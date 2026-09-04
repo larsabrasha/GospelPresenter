@@ -100,14 +100,23 @@ public class CircuitLanguageRenderTests : TestContext
         page.Markup.ShouldContain(EnglishNumber);
     }
 
+    /// <summary>
+    /// Somebody else's thread moving the presentation on. The slide has to differ from the one
+    /// before: SharedAppState announces a change only when there is one, so writing the same slide
+    /// twice would leave the page untouched and these tests asserting nothing.
+    /// </summary>
     private Task RaiseLiveStateChangeFromAThreadSpeaking(string language) =>
         Task.Run(() =>
         {
             var culture = new CultureInfo(language);
             CultureInfo.CurrentCulture = culture;
             CultureInfo.CurrentUICulture = culture;
-            liveState.ClearOverlay(SessionId);
+            liveState.SetLiveSlide(
+                SessionId,
+                SharedAppState.DefaultSlide with { Text = $"slide {++slidesWritten}" });
         });
+
+    private int slidesWritten;
 
     /// <summary>Shaped like the handlers in Presentation.razor, Display.razor and Live.razor.</summary>
     private sealed class PageRestoringTheCircuitsCulture : PageListeningToLiveState
