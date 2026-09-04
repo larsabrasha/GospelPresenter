@@ -94,7 +94,7 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
             connection.Reconnected += OnReconnectedAsync;
             connection.Closed += OnClosedAsync;
 
-            sharedAppState.PropertyChanged += OnSharedStateChanged;
+            sharedAppState.SessionChanged += OnSessionChanged;
             // Switching an output on is not a change to the live state and raises nothing there,
             // but the server has to hear about it: the output it should feed is bound in a map of
             // its own, and only the owner knows what the operator switched on.
@@ -253,10 +253,11 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    private void OnSharedStateChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnSessionChanged(SessionChange change)
     {
-        // SharedAppState raises PropertyChanged with the session id as the property name.
-        if (e.PropertyName != sessionId) return;
+        // This client mirrors one session, and the report carries its whole state, so which kind of
+        // change it was does not narrow anything down.
+        if (change.SessionId != sessionId) return;
 
         _ = SendStateAsync(force: false);
     }
@@ -270,7 +271,7 @@ public class LiveSessionClient : ILiveSessionMirror, IAsyncDisposable
 
     private void Unsubscribe()
     {
-        sharedAppState.PropertyChanged -= OnSharedStateChanged;
+        sharedAppState.SessionChanged -= OnSessionChanged;
         remoteDisplayState.DisplayPaired -= OnOutputBindingChanged;
         remoteDisplayState.DisplayUnpaired -= OnOutputBindingChanged;
     }

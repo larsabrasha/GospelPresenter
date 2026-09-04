@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Globalization;
 using Bunit;
 using GospelPresenter.Shared.Localization;
@@ -16,7 +15,7 @@ namespace GospelPresenter.UnitTests.Localization;
 /// <summary>
 /// What a page looks like when somebody else's thread repaints it.
 ///
-/// SharedAppState is a singleton with a synchronous PropertyChanged, and every open page subscribes.
+/// SharedAppState is a singleton with a synchronous SessionChanged, and every open page subscribes.
 /// The writer is not always the viewer: the device owning the session echoes a slide change back
 /// through the live hub, an announcement timer fires, another operator's circuit changes a theme.
 /// The subscribing page answers with InvokeAsync(StateHasChanged), which carries the writer's
@@ -138,9 +137,9 @@ public class CircuitLanguageRenderTests : TestContext
 
         protected abstract void Dispatch();
 
-        protected override void OnInitialized() => LiveState.PropertyChanged += OnLiveStateChanged;
+        protected override void OnInitialized() => LiveState.SessionChanged += OnSessionChanged;
 
-        private void OnLiveStateChanged(object? sender, PropertyChangedEventArgs e) => Dispatch();
+        private void OnSessionChanged(SessionChange change) => Dispatch();
 
         protected override void BuildRenderTree(RenderTreeBuilder builder)
         {
@@ -151,6 +150,6 @@ public class CircuitLanguageRenderTests : TestContext
             builder.CloseElement();
         }
 
-        public void Dispose() => LiveState.PropertyChanged -= OnLiveStateChanged;
+        public void Dispose() => LiveState.SessionChanged -= OnSessionChanged;
     }
 }

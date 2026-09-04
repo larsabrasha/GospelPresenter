@@ -35,15 +35,14 @@ public class LiveCommandForwarder : IDisposable
         this.hub = hub;
         this.logger = logger;
 
-        sharedAppState.PropertyChanged += OnLiveStateChanged;
+        sharedAppState.SessionChanged += OnSessionChanged;
     }
 
-    private void OnLiveStateChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnSessionChanged(SessionChange change)
     {
-        // SharedAppState raises PropertyChanged with the session id as the property name.
-        var sessionId = e.PropertyName;
-        if (string.IsNullOrEmpty(sessionId)) return;
-
+        // No filter on Kind: the report sent to the owner carries the whole state, so every kind
+        // of change can make it differ from what the owner last said.
+        var sessionId = change.SessionId;
         var session = registry.Find(sessionId);
         if (session is null) return;
 
@@ -85,7 +84,7 @@ public class LiveCommandForwarder : IDisposable
 
     public void Dispose()
     {
-        sharedAppState.PropertyChanged -= OnLiveStateChanged;
+        sharedAppState.SessionChanged -= OnSessionChanged;
         GC.SuppressFinalize(this);
     }
 }

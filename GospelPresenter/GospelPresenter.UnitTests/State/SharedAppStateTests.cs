@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.State;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -186,6 +185,102 @@ public class SharedAppStateTests
         }).ShouldBe(2);
     }
 
+    [Fact]
+    public void SetLiveSlide_MovingToAnotherSlide_SaysItWasTheSlide()
+    {
+        state.SetLiveSlide(SessionId, Slide);
+
+        Announced(() => state.SetLiveSlide(SessionId, Slide with { ItemPartIndex = 1 }))!
+            .Kind.ShouldBe(SessionChangeKind.Slide);
+    }
+
+    [Fact]
+    public void EnableRemoteControl_TurningItOn_SaysItWasRemoteControl()
+    {
+        Announced(() => state.EnableRemoteControl(SessionId))!.Kind.ShouldBe(SessionChangeKind.RemoteControl);
+    }
+
+    [Fact]
+    public void ActivatePresentation_StartingAPresentation_SaysItWasAnActivation()
+    {
+        Announced(() => state.ActivatePresentation(SessionId, OrganizationId, PresentationId))!
+            .Kind.ShouldBe(SessionChangeKind.Activation);
+    }
+
+    [Fact]
+    public void ActivatePresentation_StartingAPresentation_NamesTheOrganization()
+    {
+        Announced(() => state.ActivatePresentation(SessionId, OrganizationId, PresentationId))!
+            .OrganizationId.ShouldBe(OrganizationId);
+    }
+
+    /// <summary>
+    /// The hard case, and the reason the organisation travels in the notification at all: stopping
+    /// the presentation is what makes the organisation unanswerable, because it takes the session
+    /// out of the active set. Looked up afterwards it would be null, and a dashboard filtering on
+    /// its own organisation would miss the one event it most needs to hear.
+    /// </summary>
+    [Fact]
+    public void DeactivatePresentation_StoppingAPresentation_StillNamesTheOrganization()
+    {
+        state.ActivatePresentation(SessionId, OrganizationId, PresentationId);
+
+        Announced(() => state.DeactivatePresentation(SessionId))!.OrganizationId.ShouldBe(OrganizationId);
+    }
+
+    /// <summary>
+    /// The same problem in the eviction sweep, which removes the session before announcing it.
+    ///
+    /// A negative timeout makes a session stale the moment anything looks at it, which is the only
+    /// way to reach the sweep without waiting out a real clock. ActivatePresentation touches the
+    /// session before it writes it, so the session survives its own activation and is evicted by
+    /// the next read.
+    /// </summary>
+    [Fact]
+    public void CleanupStaleSessions_EvictingALiveSession_StillNamesTheOrganization()
+    {
+        var expiring = new SharedAppState(TimeSpan.FromMilliseconds(-1), NullLogger<SharedAppState>.Instance);
+        expiring.ActivatePresentation(SessionId, OrganizationId, PresentationId);
+        SessionChange? announced = null;
+        expiring.SessionChanged += change => announced ??= change;
+
+        expiring.GetLiveSlide(SessionId);
+
+        announced?.OrganizationId.ShouldBe(OrganizationId);
+    }
+
+    /// <summary>
+    /// A session with nothing running belongs to no organisation, and appears in no organisation's
+    /// list of live services either — so null is the honest answer rather than a missing one.
+    /// </summary>
+    [Fact]
+    public void SetLiveSlide_OnASessionWithNoPresentation_NamesNoOrganization()
+    {
+        Announced(() => state.SetLiveSlide(SessionId, Slide))!.OrganizationId.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// Moving a live session to another presentation used to announce nothing, and got away with it
+    /// because the caller writes a slide immediately afterwards and every page repainted on that.
+    /// A dashboard now ignores slide changes, so this is what tells it the service has changed.
+    /// </summary>
+    [Fact]
+    public void UpdateActivePresentationId_MovingToAnotherPresentation_SaysItWasAnActivation()
+    {
+        state.ActivatePresentation(SessionId, OrganizationId, PresentationId);
+
+        Announced(() => state.UpdateActivePresentationId(SessionId, "pres-2", "Evening service"))!
+            .Kind.ShouldBe(SessionChangeKind.Activation);
+    }
+
+    [Fact]
+    public void UpdateActivePresentationId_RepeatingThePresentationItIsAlreadyOn_AnnouncesNothing()
+    {
+        state.ActivatePresentation(SessionId, OrganizationId, PresentationId);
+
+        CountingChanges(() => state.UpdateActivePresentationId(SessionId, PresentationId)).ShouldBe(0);
+    }
+
     /// <summary>
     /// Counts the notifications this session's pages would act on while <paramref name="write"/>
     /// runs. Subscribed inside rather than in the fixture so that the set-up above a test does not
@@ -195,21 +290,44 @@ public class SharedAppStateTests
     {
         var changes = 0;
 
-        void Count(object? sender, PropertyChangedEventArgs e)
+        void Count(SessionChange change)
         {
-            if (e.PropertyName == SessionId) changes++;
+            if (change.SessionId == SessionId) changes++;
         }
 
-        state.PropertyChanged += Count;
+        state.SessionChanged += Count;
         try
         {
             write();
         }
         finally
         {
-            state.PropertyChanged -= Count;
+            state.SessionChanged -= Count;
         }
 
         return changes;
+    }
+
+    /// <summary>The first notification this session's pages would receive, or null if there was none.</summary>
+    private SessionChange? Announced(Action write)
+    {
+        SessionChange? announced = null;
+
+        void Remember(SessionChange change)
+        {
+            if (change.SessionId == SessionId) announced ??= change;
+        }
+
+        state.SessionChanged += Remember;
+        try
+        {
+            write();
+        }
+        finally
+        {
+            state.SessionChanged -= Remember;
+        }
+
+        return announced;
     }
 }

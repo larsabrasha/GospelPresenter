@@ -1316,8 +1316,8 @@
         // owning the session echoing through the hub, another operator's circuit, an MCP call — and
         // the handler then renders this page on the raiser's thread. Hence Culture.Restore on the
         // dispatch in each of those handlers; see CircuitCulture.
-        AppState.PropertyChanged += OnPropertyChanged;
-        SharedAppState.PropertyChanged += OnPropertyChanged;
+        AppState.PropertyChanged += OnAppStateChanged;
+        SharedAppState.SessionChanged += OnSessionChanged;
         SharedAppState.PresentationChanged += OnPresentationChanged;
         SharedAppState.PresentationThemeChanged += OnPresentationThemeChanged;
         SharedAppState.PresentationActivated += OnPresenterActivated;
@@ -1463,8 +1463,8 @@
         confirmationCts?.Cancel();
         confirmationCts?.Dispose();
 
-        AppState.PropertyChanged -= OnPropertyChanged;
-        SharedAppState.PropertyChanged -= OnPropertyChanged;
+        AppState.PropertyChanged -= OnAppStateChanged;
+        SharedAppState.SessionChanged -= OnSessionChanged;
         SharedAppState.PresentationChanged -= OnPresentationChanged;
         SharedAppState.PresentationThemeChanged -= OnPresentationThemeChanged;
         SharedAppState.PresentationActivated -= OnPresenterActivated;
@@ -1523,7 +1523,7 @@
         }));
     }
 
-    private async void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private async void OnAppStateChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(AppState.SelectedProjectItem))
         {
@@ -1538,7 +1538,21 @@
         {
             _ = InvokeAsync(StateHasChanged);
         }
-        else if (sender is SharedAppState && e.PropertyName == AppState.SessionId)
+    }
+
+    /// <summary>
+    /// Two sessions concern this page and it treats them differently. Its own is where it writes,
+    /// and it needs every change to it — including the ones it did not make, because a phone or the
+    /// desktop client owning the session can move the slide underneath it. The presenter session in
+    /// remote mode is the machine being driven, where the page is a controller waiting to see its
+    /// command land.
+    ///
+    /// No filter on Kind: every kind changes something visible here. The audio command is the one
+    /// that must not be missed, since taking it consumes it.
+    /// </summary>
+    private void OnSessionChanged(SessionChange change)
+    {
+        if (change.SessionId == AppState.SessionId)
         {
             if (SharedAppState.IsSessionExpired(AppState.SessionId))
             {
@@ -1554,7 +1568,7 @@
             SyncStageSelectionFromLiveSlide();
             _ = InvokeAsync(Culture.Restore(StateHasChanged));
         }
-        else if (sender is SharedAppState && IsRemoteMode && e.PropertyName == _presenterSessionId)
+        else if (IsRemoteMode && change.SessionId == _presenterSessionId)
         {
             SyncStageSelectionFromLiveSlide();
             ExpectConfirmation();
