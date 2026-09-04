@@ -6,10 +6,12 @@
 @inject RemoteDisplayState RemoteDisplayState
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
+@inject CircuitCulture Culture
 
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Localization
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.WebUtilities
 @implements IDisposable
@@ -202,7 +204,7 @@ else
         if (RemoteDisplayState.IsDisplayConnected(displayId))
         {
             pairedSessionId = RemoteDisplayState.GetSessionForDisplay(displayId);
-            _ = InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(Culture.Restore(StateHasChanged));
         }
     }
 
@@ -211,7 +213,7 @@ else
         if (pairedDisplayId != displayId) return;
 
         pairedSessionId = RemoteDisplayState.GetSessionForDisplay(displayId);
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     private void OnDisplayUnpaired(string unpairedDisplayId)
@@ -225,7 +227,7 @@ else
             pairingCode = RemoteDisplayState.GeneratePairingCode(displayId, displayName);
         }
 
-        _ = InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     private void OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -239,7 +241,7 @@ else
             }
 
             RemoteDisplayState.TouchDisplay(displayId);
-            _ = InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(Culture.Restore(StateHasChanged));
         }
         else if (e.PropertyName is nameof(AppState.PresentationViewport))
         {

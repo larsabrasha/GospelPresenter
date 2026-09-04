@@ -130,6 +130,12 @@ public class PublicOutputBroadcaster : IDisposable
 
         // A scope of its own: the render components take everything as parameters, but every
         // component in this assembly inherits an IStringLocalizer injection from _Imports.razor.
+        //
+        // That scope is not a circuit, so nothing pins its language and CircuitCulture falls back to
+        // the ambient culture of whichever thread got here — the caller's, or none at all. It does
+        // not show today because PublicSlideView has no localized text: it renders the operator's
+        // slide, whose words come from the presentation. The first L[...] added under here will need
+        // a language decided on purpose, and the honest source is the organisation, not the thread.
         await using var scope = services.CreateAsyncScope();
         await using var renderer = new HtmlRenderer(scope.ServiceProvider, loggerFactory);
 

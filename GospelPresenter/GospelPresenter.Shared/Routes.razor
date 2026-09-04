@@ -1,6 +1,9 @@
-﻿@using System.Globalization
+@using System.Globalization
 @using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Localization
 @using Microsoft.AspNetCore.Components.Authorization
+
+@inject CircuitCulture Culture
 
 <Router AppAssembly="typeof(MainLayout).Assembly">
     <Found Context="routeData">
@@ -15,13 +18,22 @@
 
 @code {
 
+    /// <summary>
+    /// The one moment the ambient culture is known to be the right one. This runs on the circuit's
+    /// own startup context, inside the request that established it, so request localization has
+    /// already decided — and it runs before any child component looks a string up. From here on the
+    /// ambient culture proves nothing: a render can be reached from a device's hub call, an
+    /// announcement timer or another user's circuit, and none of those know who is looking at this
+    /// page. See <see cref="CircuitCulture"/>.
+    ///
+    /// This used to assign CultureInfo.DefaultThreadCurrent*Culture instead, under #if DEBUG, to
+    /// work around the culture reverting to "en" on hot reload. Those fields are process-wide, so on
+    /// a server they made the most recently connected visitor's language the fallback for every
+    /// thread that had none. Pinning it here covers the hot reload case properly and in every
+    /// configuration: the pin outlives a hot reload, because OnInitialized does not run again.
+    /// </summary>
     protected override void OnInitialized()
     {
-#if DEBUG
-        // Work around for bug where current culture is set to "en" on hot reload
-        var culture = CultureInfo.CurrentUICulture;
-        CultureInfo.DefaultThreadCurrentCulture = culture;
-        CultureInfo.DefaultThreadCurrentUICulture = culture;
-#endif
+        Culture.Pin(CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture);
     }
 }

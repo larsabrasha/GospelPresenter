@@ -6,11 +6,13 @@
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
 @inject IServiceProvider ServiceProvider
+@inject CircuitCulture Culture
 
 @using System.ComponentModel
 @using GospelPresenter.Shared.Components
 @using GospelPresenter.Shared.Components.Presentations
 @using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Localization
 @using GospelPresenter.Shared.State
 @using Microsoft.AspNetCore.WebUtilities
 @implements IDisposable
@@ -130,7 +132,7 @@
                 return;
             }
 
-            _ = InvokeAsync(StateHasChanged);
+            _ = InvokeAsync(Culture.Restore(StateHasChanged));
         }
         else if (e.PropertyName is nameof(AppState.PresentationViewport))
         {

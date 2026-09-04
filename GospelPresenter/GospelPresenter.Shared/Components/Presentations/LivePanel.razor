@@ -1,5 +1,6 @@
 @using GospelPresenter.Shared.Models
 @using GospelPresenter.Shared.State
+@using GospelPresenter.Shared.Localization
 
 @implements IDisposable
 
@@ -10,6 +11,7 @@
 @inject IServiceProvider Services
 @inject GospelPresenter.Shared.Services.IAppCapabilities Capabilities
 @inject ToastService ToastService
+@inject CircuitCulture Culture
 
 @{
     var isBlackScreen = LiveSlide.Status == LiveSlideStatus.ShowingBlackScreen;
@@ -594,7 +596,10 @@ else
 
     private void OnDisplayStatusChanged(string displayId)
     {
-        _ = InvokeAsync(StateHasChanged);
+        // Raised from wherever the display or the viewer count changed — another circuit, the live
+        // hub, or the throttle timer in PublicOutputState, whose context is an anonymous visitor's
+        // request. None of them know this operator's language; see CircuitCulture.
+        _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
     public void Dispose()
