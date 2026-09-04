@@ -1,5 +1,6 @@
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Sync;
 using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Shared.Services;
@@ -29,7 +30,10 @@ public interface IRemoteDisplayService
 }
 
 public class RemoteDisplayService(
-    IDbContextFactory<PresentationContext> dbContextFactory) : IRemoteDisplayService
+    IDbContextFactory<PresentationContext> dbContextFactory,
+    // Only for the one path here that updates through ExecuteUpdateAsync; the tracked ones announce
+    // themselves. Optional for the tests that build this directly.
+    IOrganizationChangeNotifier? changeNotifier = null) : IRemoteDisplayService
 {
     public async Task<List<RemoteDisplay>> GetDisplaysAsync(string organizationId, CallerContext caller)
     {
@@ -112,6 +116,8 @@ public class RemoteDisplayService(
             .ExecuteUpdateAsync(s => s
                 .SetProperty(d => d.Name, name)
                 .SetProperty(d => d.ModifiedAt, DateTimeOffset.UtcNow));
+
+        changeNotifier?.Notify(organizationId);
     }
 
     public async Task<string?> RegenerateIdentifierAsync(string organizationId, string id, CallerContext caller)

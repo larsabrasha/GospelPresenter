@@ -555,6 +555,120 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task TheScheduler_SyncsOnAnAnnouncement_WithNothingOfItsOwnToSend()
+    {
+        // The local write signal asks "have we anything to push?" and stops there when the answer
+        // is no. An announcement is the server saying that IT has something, so reusing that check
+        // would answer every announcement by doing nothing — which is the whole feature.
+
+        // Arrange
+        var pulled = new TaskCompletionSource();
+        server.OnPull = _ =>
+        {
+            pulled.TrySetResult();
+            return Pull(T1);
+        };
+
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance);
+
+        // Act
+        scheduler.NotifyRemoteChanges();
+
+        // Assert
+        await pulled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task TheScheduler_SyncsAgain_WhenAnAnnouncementArrivesDuringASync()
+    {
+        // A sync in flight drops any further call at the gate, and an announcement leaves no local
+        // trace to be picked up from later the way a journalled edit does. Without the flag, a
+        // change announced during a sync would wait for the five-minute backstop.
+
+        // Arrange
+        SyncScheduler? scheduler = null;
+        var pulls = 0;
+        var secondPull = new TaskCompletionSource();
+        server.OnPull = _ =>
+        {
+            pulls++;
+            if (pulls == 1)
+                scheduler!.NotifyRemoteChanges();
+            else
+                secondPull.TrySetResult();
+            return Pull(T1);
+        };
+
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var owned = scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance);
+
+        // Act
+        await scheduler.SyncNowAsync();
+
+        // Assert
+        await secondPull.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        pulls.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task TheScheduler_RetriesPromptly_WhenTheSyncAnAnnouncementAskedForFailed()
+    {
+        // The flag is cleared when a run starts, so that an announcement arriving mid-run counts as
+        // new work. A run that then fails would otherwise have consumed the announcement without
+        // delivering anything, and the change the server said it had would wait for the idle pull —
+        // five minutes since announcements exist, where it used to be thirty seconds.
+
+        // Arrange
+        var pulls = 0;
+        var secondPull = new TaskCompletionSource();
+        server.Intercept = request =>
+        {
+            if (request.RequestUri!.AbsolutePath != "/api/sync/pull")
+                return null;
+
+            // The first pull is the one Start() makes. The second is the announcement's own run,
+            // and that is the one that has to fail — a failure anywhere else would be retried by
+            // machinery that already existed, and this test would prove nothing.
+            var attempt = Interlocked.Increment(ref pulls);
+            if (attempt == 2)
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+
+            if (attempt >= 3)
+                secondPull.TrySetResult();
+            return null;
+        };
+
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance)
+        {
+            PollInterval = TimeSpan.FromMilliseconds(200),
+            // Long enough that reaching the assertion can only be the re-armed announcement, never
+            // the backstop.
+            IdlePullInterval = TimeSpan.FromMinutes(5),
+        };
+        scheduler.Start();
+        await WaitForAsync(() => pulls >= 1);
+
+        // Act
+        scheduler.NotifyRemoteChanges();
+        await WaitForAsync(() => pulls >= 2);
+
+        // Assert -- the retry can only be the re-armed announcement: there is nothing local to push,
+        // and the idle interval is five minutes away.
+        await secondPull.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    private static async Task WaitForAsync(Func<bool> condition)
+    {
+        for (var i = 0; i < 100 && !condition(); i++)
+            await Task.Delay(TimeSpan.FromMilliseconds(50));
+    }
+
+    [Fact]
     public async Task TheScheduler_AnnouncesRemoteChanges_WhenAPullAppliedRows()
     {
         // Arrange

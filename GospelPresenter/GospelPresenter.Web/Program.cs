@@ -6,6 +6,7 @@ using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
+using GospelPresenter.Shared.Sync;
 using GospelPresenter.Web;
 using GospelPresenter.Web.Configuration;
 using GospelPresenter.Web.Mcp;
@@ -234,6 +235,16 @@ try
     builder.Services.AddSingleton<GospelPresenter.Web.Live.LiveCommandForwarder>();
     builder.Services.AddScoped<GospelPresenter.Web.Live.MirroredSessionProjector>();
 
+    // Change announcements: this replaces the no-op the shared setup registered, so that saves in
+    // this process reach the devices on the hub and the browser circuits in it. Both hear the same
+    // event; only the devices need a socket. See adr/0006-organization-change-notifications.md.
+    builder.Services.AddSingleton<IOrganizationChangeNotifier>(sp =>
+        new OrganizationChangeNotifier(
+            logger: sp.GetRequiredService<ILogger<OrganizationChangeNotifier>>()));
+    builder.Services.AddSingleton<GospelPresenter.Web.Sync.OrganizationChangeConnectionRegistry>();
+    builder.Services.AddHostedService<GospelPresenter.Web.Sync.OrganizationChangeBroadcaster>();
+    builder.Services.AddScoped<IRemoteChangeSignal, GospelPresenter.Web.Sync.CircuitRemoteChangeSignal>();
+
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
     builder.Services.AddSingleton<SetupStatusService>();
 
@@ -261,16 +272,23 @@ try
         options.RequestCultureProviders.Insert(0, new CookieRequestCultureProvider());
     });
 
+    // The interceptor announces every save that touched synced data. Added here rather than in the
+    // context itself, deliberately: a device inherits the same context and must not announce its own
+    // writes, so this is the one host that adds it.
     if (!isMockMode)
     {
-        builder.Services.AddDbContextFactory<PresentationContext>(opt =>
-            opt.UseNpgsql(connectionString));
+        builder.Services.AddDbContextFactory<PresentationContext>((sp, opt) =>
+            opt.UseNpgsql(connectionString)
+                .AddInterceptors(new OrganizationChangeInterceptor(
+                    sp.GetRequiredService<IOrganizationChangeNotifier>())));
     }
     else
     {
         Log.Warning("No database connection string found — using SQLite mock database");
-        builder.Services.AddDbContextFactory<PresentationContext>(opt =>
-            opt.UseSqlite("Data Source=gospelpresenter-mock.db"));
+        builder.Services.AddDbContextFactory<PresentationContext>((sp, opt) =>
+            opt.UseSqlite("Data Source=gospelpresenter-mock.db")
+                .AddInterceptors(new OrganizationChangeInterceptor(
+                    sp.GetRequiredService<IOrganizationChangeNotifier>())));
     }
 
     builder.Services.AddMemoryCache();
@@ -833,6 +851,9 @@ builder.Services.AddMetricServer(options =>
     app.MapDeviceTokenEndpoints();
     app.MapSyncEndpoints();
     app.MapHub<GospelPresenter.Web.Live.LiveSessionHub>(LiveSessionHubMethods.Path);
+    // No protocol floor filter here, and none is needed: the announcement carries no payload, so
+    // there is no wire contract an older client could misread. See ADR 0006 (1).
+    app.MapHub<GospelPresenter.Web.Sync.OrganizationChangesHub>(OrganizationChangesHubMethods.Path);
 
     // Resolve the broadcaster eagerly: it subscribes to live-state events in its constructor,
     // and a lazily created singleton would miss every change until the first visitor connected.

@@ -1,6 +1,7 @@
 using GospelPresenter.Shared.Configuration;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
+using GospelPresenter.Shared.Sync;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,11 @@ public static class SharedServicesSetup
         services.AddLocalization(options => options.ResourcesPath = "Resources");
         // The MAUI host overrides this with its own reduced capability set after calling this.
         services.AddSingleton<IAppCapabilities, FullAppCapabilities>();
+        // Does nothing here. The web host replaces it with the throttling one that feeds the change
+        // hub and its own circuits; a device has no use for it — it already knows about its own
+        // writes, and ClientDataContext inherits the context that announces them. Registered rather
+        // than left out so that a service can take it as an ordinary dependency.
+        services.AddSingleton<IOrganizationChangeNotifier, NullOrganizationChangeNotifier>();
         services.AddScoped<ToastService>();
         services.AddScoped<AppState>();
         services.AddScoped<ActiveOrganizationState>();

@@ -27,7 +27,11 @@ public class SyncService(
     ISongService songService,
     ISongPartLabelService songPartLabelService,
     IOrganizationImageService organizationImageService,
-    IOrganizationAudioService organizationAudioService) : ISyncService
+    IOrganizationAudioService organizationAudioService,
+    // Only for pushed user settings: they carry a user rather than an organisation, so the save
+    // interceptor skips them and the caller's organisation is what addresses the announcement.
+    // Everything else this class writes is announced by that interceptor.
+    IOrganizationChangeNotifier? changeNotifier = null) : ISyncService
 {
     /// <summary>Enums as names, matching how Theme.Definition is stored in its column.</summary>
     private static readonly JsonSerializerOptions ThemeJsonOptions = new()
@@ -1191,6 +1195,9 @@ public class SyncService(
             };
             db.UserSettings.Add(setting);
             await db.SaveChangesAsync(cancellationToken);
+            // A setting the user changed on one machine belongs on their others too. Announced here
+            // rather than by the save interceptor, which cannot address a user-scoped row.
+            changeNotifier?.Notify(caller.OrganizationId);
             return new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied, NewVersion: setting.Version);
         }
 
@@ -1199,6 +1206,7 @@ public class SyncService(
 
         existing.Value = row.Value;
         await db.SaveChangesAsync(cancellationToken);
+        changeNotifier?.Notify(caller.OrganizationId);
         return existing.Id == row.Id
             ? new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version)
             : new SyncPushResult(nameof(UserSetting), row.Id, SyncPushOutcome.Remapped, NewId: existing.Id, NewVersion: existing.Version);

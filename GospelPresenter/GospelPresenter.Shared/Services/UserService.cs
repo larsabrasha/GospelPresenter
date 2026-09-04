@@ -1,5 +1,6 @@
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Sync;
 using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Shared.Services;
@@ -85,7 +86,11 @@ public interface IUserService
 
 public class UserService(
     IDbContextFactory<PresentationContext> dbContextFactory,
-    ISongPartLabelService songPartLabelService) : IUserService
+    ISongPartLabelService songPartLabelService,
+    // User settings are the one synced kind of row that carries a user rather than an organisation,
+    // so the save interceptor cannot address an announcement for them and skips them. Here the
+    // caller's organisation is known exactly. Optional for the tests that build this directly.
+    IOrganizationChangeNotifier? changeNotifier = null) : IUserService
 {
     public async Task<User?> GetByLoginAsync(string provider, string providerSubjectId)
     {
@@ -526,6 +531,7 @@ public class UserService(
         }
 
         await context.SaveChangesAsync();
+        changeNotifier?.Notify(caller.OrganizationId);
     }
 
     public async Task DeleteUserSettingAsync(string userId, string key, CallerContext caller)
@@ -540,6 +546,7 @@ public class UserService(
 
         context.UserSettings.Remove(setting);
         await context.SaveChangesAsync();
+        changeNotifier?.Notify(caller.OrganizationId);
     }
 
     public async Task<List<McpApiKey>> GetMcpApiKeysAsync(string organizationId, CallerContext caller)

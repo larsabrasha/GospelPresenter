@@ -176,6 +176,15 @@ if (apiBaseUrl.Length > 0)
         sp.GetRequiredService<ILogger<ClientSyncService>>()));
     builder.Services.AddSingleton<SyncScheduler>();
     builder.Services.AddSingleton<ISyncStatusSource>(sp => sp.GetRequiredService<SyncScheduler>());
+    builder.Services.AddSingleton<IRemoteChangeSignal>(sp => sp.GetRequiredService<SyncScheduler>());
+
+    // The doorbell: a socket that only listens, so someone else's edit arrives in about a second
+    // instead of within the scheduler's five-minute backstop. See ADR 0006.
+    builder.Services.AddSingleton(sp => new OrganizationChangesClient(
+        sp.GetRequiredService<SyncScheduler>(),
+        sp.GetRequiredService<DeviceAuthService>(),
+        apiBaseUrl,
+        sp.GetRequiredService<ILogger<OrganizationChangesClient>>()));
 
     // Blobs: pending local uploads go to PUT /api/sync/media, and the pin set — media the local
     // presentations reference — is downloaded and kept after every metadata sync.
@@ -294,6 +303,9 @@ if (apiBaseUrl.Length > 0)
     // login page, then catch up with the server in the background.
     await app.Services.GetRequiredService<DeviceAuthService>().LoadAsync();
     app.Services.GetRequiredService<SyncScheduler>().Start();
+    // After the scheduler, and after the sign-in has been restored: it connects straight away if
+    // there is a token, and follows auth.Changed from then on.
+    app.Services.GetRequiredService<OrganizationChangesClient>().Start();
 
     // Not awaited: it is a network call, and nothing on the first screen depends on it. It is what
     // gives an installation that signed in before device ids existed one, so the session id stops

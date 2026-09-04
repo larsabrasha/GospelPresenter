@@ -1,5 +1,6 @@
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Sync;
 using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Shared.Services;
@@ -61,7 +62,12 @@ public interface IPresentationService
 
 public class PresentationService(
     IDbContextFactory<PresentationContext> dbContextFactory,
-    IObjectStorageService storage) : IPresentationService
+    IObjectStorageService storage,
+    // Announces changes made through ExecuteUpdateAsync, which reaches no change tracker and so is
+    // invisible to the interceptor that announces ordinary saves — the same reason those call sites
+    // have to stamp ModifiedAt by hand. Optional so the many tests that build this service directly
+    // stay unchanged; the container always has at least the null implementation.
+    IOrganizationChangeNotifier? changeNotifier = null) : IPresentationService
 {
     public async Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
@@ -270,6 +276,8 @@ public class PresentationService(
                 .SetProperty(p => p.Name, name)
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
+
+        changeNotifier?.Notify(organizationId);
     }
 
     public async Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default)
@@ -817,6 +825,8 @@ public class PresentationService(
                 .SetProperty(p => p.EventLocation, location)
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
+
+        changeNotifier?.Notify(organizationId);
     }
 
     public async Task UpdatePresentationEventAsync(string organizationId, string presentationId, DateOnly? date, TimeOnly? time, string? location, string? description, CallerContext caller, CancellationToken cancellationToken = default)
@@ -836,6 +846,8 @@ public class PresentationService(
                 .SetProperty(p => p.Description, description)
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
+
+        changeNotifier?.Notify(organizationId);
     }
 
     public async Task UpdatePresentationThemeAsync(string organizationId, string presentationId, string? themeId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -861,6 +873,8 @@ public class PresentationService(
                 .SetProperty(p => p.ThemeId, themeId)
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
+
+        changeNotifier?.Notify(organizationId);
     }
 
     public async Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)
@@ -1018,12 +1032,21 @@ public class PresentationService(
     /// user-visible "last edited" semantics; ModifiedAt is the sync watermark and aggregate version
     /// that push conflict detection compares against.
     /// </summary>
-    private static Task BumpPresentationAsync(PresentationContext context, string presentationId, string organizationId, CancellationToken cancellationToken) =>
-        context.Presentations
+    /// <summary>
+    /// Moves the aggregate root's stamp when a child changed, and announces it. Every child
+    /// mutation in this service passes through here, which is why one announcement here covers them
+    /// all — and why a new child mutation that skips it is a bug in two ways at once.
+    /// </summary>
+    private async Task BumpPresentationAsync(PresentationContext context, string presentationId, string organizationId, CancellationToken cancellationToken)
+    {
+        await context.Presentations
             .Where(x => x.Id == presentationId && x.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
+
+        changeNotifier?.Notify(organizationId);
+    }
 
     private async Task<string?> UploadOverlayImageAsync(OverlaySlide overlay, string organizationId, CancellationToken cancellationToken)
     {
