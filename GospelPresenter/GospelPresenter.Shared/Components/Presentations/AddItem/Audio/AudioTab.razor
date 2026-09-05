@@ -53,11 +53,20 @@ else
         <div class="flex-1 min-h-0 overflow-y-auto">
             @if (audios.Count > 0)
             {
-                <div class="flex flex-col gap-1 p-3">
-                    @foreach (var audio in audios)
+                <div id="audio-tab-list" class="flex flex-col gap-1 p-3">
+                    @for (var audioPosition = 0; audioPosition < audios.Count; audioPosition++)
                     {
+                        var audio = audios[audioPosition];
+                        var itemIndex = audioPosition;
                         var isSelected = selectedAudios.Contains(audio.Id);
-                        <div class="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition ring-2 @(isSelected ? "ring-sky-500 bg-sky-50 dark:bg-sky-900/20" : "ring-transparent hover:bg-neutral-100 dark:hover:bg-neutral-700")"
+                        @* A div rather than a button because it holds its own menu button, which may
+                           not be nested inside one. The role and tabindex give it back what a button
+                           would have provided; Enter and Space are handled in OnKeyDown. *@
+                        <div class="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 @(isSelected ? "ring-sky-500 bg-sky-50 dark:bg-sky-900/20" : "ring-transparent hover:bg-neutral-100 dark:hover:bg-neutral-700")"
+                             role="button"
+                             aria-pressed="@isSelected"
+                             data-nav-index="@itemIndex"
+                             tabindex="@(itemIndex == FocusTargetIndex ? 0 : -1)"
                              @onclick="() => ToggleAudio(audio)">
                             @if (isSelected)
                             {
@@ -309,8 +318,28 @@ else
         }
     }
 
+    private int focusedIndex = -1;
+    private int FocusTargetIndex => focusedIndex < 0 ? 0 : focusedIndex;
+
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
+        // Enter and Space on a focused row, which a real button would have given for free. Checked
+        // before the add combinations below so that a bare Enter picks the row rather than falling
+        // through to them.
+        if (e.Key is "Enter" or " " && !e.ShiftKey && !e.CtrlKey && !e.MetaKey
+            && focusedIndex >= 0 && focusedIndex < audios.Count)
+        {
+            ToggleAudio(audios[focusedIndex]);
+            return;
+        }
+
+        if (ListNavigation.TryMove(e, focusedIndex, audios.Count, ListOrientation.Vertical, out var next))
+        {
+            focusedIndex = next;
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.focusNavItem", "audio-tab-list", focusedIndex);
+            return;
+        }
+
         if (e.Key == "Enter" && e.ShiftKey && selectedAudios.Count > 0 && !isAdding)
         {
             await HandleAddKeepOpen();

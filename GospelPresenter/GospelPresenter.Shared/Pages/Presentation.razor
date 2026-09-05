@@ -34,6 +34,7 @@
 @inject IServiceProvider Services
 @inject CircuitCulture Culture
 @inject PresentationEditorState Editor
+@inject KeyboardShortcutService Shortcuts
 
 @{
     var statusBarHeight = StatusBarService.GetStatusBarHeight();
@@ -128,6 +129,7 @@
         <div class="flex flex-col lg:flex-row h-full">
             <div class="flex flex-col grow overflow-hidden h-full relative min-w-0">
                 <PresentationHeader
+                    @ref="header"
                     SessionId="@AppState.SessionId"
                     IsTemplateMode="@IsTemplateMode"
                     IsRemoteMode="@IsRemoteMode"
@@ -1013,6 +1015,14 @@
 
     protected override void OnInitialized()
     {
+        scope = Shortcuts.PushScope("Shortcuts.Group.Presentation", () => InvokeAsync(StateHasChanged));
+        scope.Add(new Shortcut("a"), "Shortcuts.AddItem", AddItemShortcut);
+        scope.Add(new Shortcut("F2"), "Shortcuts.RenameItem", RenameItemShortcut);
+        scope.Add(new Shortcut("Delete"), "Shortcuts.RemoveItem", RemoveItemShortcut);
+        scope.Document(new Shortcut("ArrowDown"), "Shortcuts.MoveThroughItems");
+        scope.Document(new Shortcut("ArrowRight"), "Shortcuts.MoveThroughSlides");
+        scope.Document(new Shortcut("Enter"), "Shortcuts.ShowSlide");
+
         // Only the device hosts mirror their live session to the server; the web is already there.
         // A controller's commands are applied by ILiveSessionCommandApplier, not here: this page
         // must be free to come and go without the machine going deaf. It only follows along.
@@ -1191,6 +1201,7 @@
 
     public void Dispose()
     {
+        scope?.Dispose();
         if (!SharedAppState.IsPresentationActive(AppState.SessionId))
             SharedAppState.SetSessionAudio(AppState.SessionId, null);
         if (IsRemoteMode)
@@ -1627,6 +1638,39 @@
         }
 
         NotifyPresentationChanged();
+    }
+
+    private ShortcutScope? scope;
+    private PresentationHeader? header;
+
+    /// <summary>
+    /// Stage mode covers the screen and runs its own key handling for the foot pedal. The page's
+    /// editing shortcuts are inert underneath it: opening the add-item modal behind a full-screen
+    /// stage view would be invisible until the operator left it.
+    /// </summary>
+    private bool ShortcutsSuppressed => IsStageMode;
+
+    private void AddItemShortcut()
+    {
+        if (ShortcutsSuppressed || IsRemoteMode) return;
+        OpenAddModal();
+    }
+
+    private void RenameItemShortcut()
+    {
+        if (ShortcutsSuppressed || AppState.SelectedProjectItem is null) return;
+        header?.StartRename();
+    }
+
+    /// <summary>
+    /// Goes through the same confirmation dialog the menu does. A shortcut that deleted an item
+    /// outright would be one mistyped keystroke away from losing a song mid-service.
+    /// </summary>
+    private void RemoveItemShortcut()
+    {
+        if (ShortcutsSuppressed || IsRemoteMode) return;
+        if (AppState.SelectedProjectItem is not { } item) return;
+        ConfirmRemoveItem(item);
     }
 
     private void OpenAddModal()

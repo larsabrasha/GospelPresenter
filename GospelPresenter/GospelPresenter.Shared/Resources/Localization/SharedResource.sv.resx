@@ -1841,4 +1841,82 @@
   <data name="Devices.Empty" xml:space="preserve">
     <value>Ingen app har loggat in ännu. Enheter dyker upp här när någon installerat appen och loggat in.</value>
   </data>
+  <data name="Shortcuts.Title" xml:space="preserve">
+    <value>Kortkommandon</value>
+  </data>
+  <data name="Shortcuts.Hint" xml:space="preserve">
+    <value>Kortkommandon fungerar när du inte skriver i ett textfält.</value>
+  </data>
+  <data name="Shortcuts.Group.Global" xml:space="preserve">
+    <value>Överallt</value>
+  </data>
+  <data name="Shortcuts.Group.Help" xml:space="preserve">
+    <value>Den här rutan</value>
+  </data>
+  <data name="Shortcuts.Group.Dashboard" xml:space="preserve">
+    <value>Startsidan</value>
+  </data>
+  <data name="Shortcuts.Group.Presentation" xml:space="preserve">
+    <value>Presentation</value>
+  </data>
+  <data name="Shortcuts.Group.AddItem" xml:space="preserve">
+    <value>Lägg till</value>
+  </data>
+  <data name="Shortcuts.ShowHelp" xml:space="preserve">
+    <value>Visa kortkommandon</value>
+  </data>
+  <data name="Shortcuts.CloseHelp" xml:space="preserve">
+    <value>Stäng rutan</value>
+  </data>
+  <data name="Shortcuts.NewPresentation" xml:space="preserve">
+    <value>Ny presentation</value>
+  </data>
+  <data name="Shortcuts.MoveThroughList" xml:space="preserve">
+    <value>Flytta i listan</value>
+  </data>
+  <data name="Shortcuts.OpenPresentation" xml:space="preserve">
+    <value>Öppna vald presentation</value>
+  </data>
+  <data name="Shortcuts.AddItem" xml:space="preserve">
+    <value>Lägg till i presentationen</value>
+  </data>
+  <data name="Shortcuts.RenameItem" xml:space="preserve">
+    <value>Byt namn på valt inslag</value>
+  </data>
+  <data name="Shortcuts.RemoveItem" xml:space="preserve">
+    <value>Ta bort valt inslag</value>
+  </data>
+  <data name="Shortcuts.MoveThroughItems" xml:space="preserve">
+    <value>Flytta i körordningen</value>
+  </data>
+  <data name="Shortcuts.MoveThroughSlides" xml:space="preserve">
+    <value>Flytta mellan slides</value>
+  </data>
+  <data name="Shortcuts.ShowSlide" xml:space="preserve">
+    <value>Visa vald slide</value>
+  </data>
+  <data name="Shortcuts.MoveThroughResults" xml:space="preserve">
+    <value>Flytta i träfflistan</value>
+  </data>
+  <data name="Shortcuts.AddAndClose" xml:space="preserve">
+    <value>Lägg till och stäng</value>
+  </data>
+  <data name="Shortcuts.AddAndStay" xml:space="preserve">
+    <value>Lägg till och fortsätt</value>
+  </data>
+  <data name="Shortcuts.Tab.song" xml:space="preserve">
+    <value>Fliken Sånger</value>
+  </data>
+  <data name="Shortcuts.Tab.bible" xml:space="preserve">
+    <value>Fliken Bibeltext</value>
+  </data>
+  <data name="Shortcuts.Tab.image" xml:space="preserve">
+    <value>Fliken Bilder</value>
+  </data>
+  <data name="Shortcuts.Tab.audio" xml:space="preserve">
+    <value>Fliken Ljud</value>
+  </data>
+  <data name="Shortcuts.Tab.slides" xml:space="preserve">
+    <value>Fliken Slides</value>
+  </data>
 </root>

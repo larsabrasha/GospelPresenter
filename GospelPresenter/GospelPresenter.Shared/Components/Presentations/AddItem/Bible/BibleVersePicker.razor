@@ -1,17 +1,22 @@
 @using GospelPresenter.Shared.Services
 
 @inject IBibleService BibleService
+@inject IJSRuntime JsRuntime
 
-<div class="flex-1 min-h-0 overflow-y-auto">
+<div id="bible-verse-list" class="flex-1 min-h-0 overflow-y-auto" @onkeydown="OnKeyDown">
     <div class="flex flex-col gap-1.5 text-sm">
-        @foreach (var verse in verses)
+        @for (var i = 0; i < verses.Count; i++)
         {
+            var verse = verses[i];
+            var itemIndex = i;
             var isSelected = IsSelected(verse.VerseNumber);
             var bgClass = isSelected
                 ? "bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30"
                 : "bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600";
 
-            <button class="px-3 py-2 rounded-lg text-left cursor-pointer @bgClass"
+            <button class="px-3 py-2 rounded-lg text-left cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 @bgClass"
+                    data-nav-index="@itemIndex"
+                    tabindex="@(itemIndex == FocusTargetIndex ? 0 : -1)"
                     @onclick="() => OnPicked.InvokeAsync(verse.VerseNumber)">
                 <span class="font-semibold whitespace-nowrap text-sky-500">@verse.VerseNumber</span>
                 <span class="ml-1 text-neutral-700 dark:text-neutral-300">@verse.Text</span>
@@ -34,12 +39,25 @@
     private List<Verse> verses = [];
     private int loadedChapter;
 
+    private int focusedIndex = -1;
+    private int FocusTargetIndex => focusedIndex < 0 ? 0 : focusedIndex;
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (!ListNavigation.TryMove(e, focusedIndex, verses.Count, ListOrientation.Vertical, out var next))
+            return;
+
+        focusedIndex = next;
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.focusNavItem", "bible-verse-list", focusedIndex);
+    }
+
     protected override void OnParametersSet()
     {
         if (Chapter != loadedChapter)
         {
             loadedChapter = Chapter;
             verses = BibleService.GetVerses(OrganizationId, BibleId, BookId, Chapter).ToList();
+            focusedIndex = -1;
         }
     }
 

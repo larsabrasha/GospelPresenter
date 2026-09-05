@@ -1252,3 +1252,100 @@ window.gospelPresenter.scrollStageStripToPart = function(stripId, partIndex) {
     strip.scrollTo({ left: target, behavior: 'smooth' });
 };
 
+
+// Keyboard shortcuts ----------------------------------------------------------
+//
+// One document listener for the whole app, owned by KeyboardShortcuts.razor in the layout and fed
+// by KeyboardShortcutService. The set of keystrokes to intercept is mirrored here rather than
+// queried per keypress: preventDefault has to be decided before the handler returns, and a round
+// trip to .NET is not synchronous. Without the mirror, "/" would type a slash into the page and
+// Delete would navigate back before the server got a word in.
+
+window.gospelPresenter._shortcuts = {
+    handler: null,
+    ref: null,
+    active: new Set()
+};
+
+window.gospelPresenter._shortcutToken = function(e) {
+    // metaKey folds into the same flag as ctrlKey so that Cmd on a Mac and Ctrl elsewhere match one
+    // shortcut definition. See the Shortcut record for why the app never tells them apart.
+    var key = e.key || '';
+    // Shift is dropped for a single printable character: the key value already reflects it, and
+    // which physical keys produce "?" differs per layout. See Shortcut.ToToken for the same rule.
+    var shift = e.shiftKey && key.length > 1;
+    var mods = ((e.ctrlKey || e.metaKey) ? 'c' : '') + (shift ? 's' : '') + (e.altKey ? 'a' : '');
+    return mods + ':' + key.toLowerCase();
+};
+
+window.gospelPresenter._isTextEntry = function(el) {
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    var tag = el.tagName;
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (tag !== 'INPUT') return false;
+    // Checkboxes, radios and buttons are inputs that nobody types into: a plain letter shortcut
+    // should still work while one of them has focus.
+    var type = (el.type || 'text').toLowerCase();
+    return ['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'range', 'color'].indexOf(type) === -1;
+};
+
+window.gospelPresenter.installShortcuts = function(dotNetRef) {
+    window.gospelPresenter.uninstallShortcuts();
+    window.gospelPresenter._shortcuts.ref = dotNetRef;
+    window.gospelPresenter._shortcuts.handler = function(e) {
+        // Mid-word in an IME, every keystroke belongs to the composition, not to us.
+        if (e.isComposing || e.keyCode === 229) return;
+        // Actions do not auto-repeat: holding "n" should not open a dialog per frame.
+        if (e.repeat) return;
+
+        var token = window.gospelPresenter._shortcutToken(e);
+        if (!window.gospelPresenter._shortcuts.active.has(token)) return;
+
+        // While the user is typing, only combinations they cannot produce by typing get through.
+        // Escape is the exception every text field already expects to lose.
+        if (window.gospelPresenter._isTextEntry(e.target)) {
+            var passesThroughText = (e.ctrlKey || e.metaKey) || e.key === 'Escape';
+            if (!passesThroughText) return;
+        }
+
+        e.preventDefault();
+        var ref = window.gospelPresenter._shortcuts.ref;
+        if (ref) ref.invokeMethodAsync('OnShortcut', token);
+    };
+    document.addEventListener('keydown', window.gospelPresenter._shortcuts.handler);
+};
+
+window.gospelPresenter.setActiveShortcuts = function(tokens) {
+    window.gospelPresenter._shortcuts.active = new Set(tokens || []);
+};
+
+window.gospelPresenter.uninstallShortcuts = function() {
+    if (window.gospelPresenter._shortcuts.handler) {
+        document.removeEventListener('keydown', window.gospelPresenter._shortcuts.handler);
+        window.gospelPresenter._shortcuts.handler = null;
+    }
+    window.gospelPresenter._shortcuts.ref = null;
+    window.gospelPresenter._shortcuts.active = new Set();
+};
+
+// Moves real DOM focus to one item of a keyboard-navigable list, so that Enter, screen readers and
+// the browser's own focus ring all follow along. Blazor keeps the roving tabindex in the markup;
+// this only does the part the server cannot reach.
+window.gospelPresenter.focusNavItem = function(containerId, index) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var item = container.querySelector('[data-nav-index="' + index + '"]');
+    if (!item) return;
+    // Focus first without scrolling, then scroll deliberately: focus() alone jumps the item to the
+    // middle of the viewport, which makes a long list lurch on every arrow press.
+    item.focus({ preventScroll: true });
+    item.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+};
+
+// True on a Mac, so shortcuts can be written the way that machine writes them.
+window.gospelPresenter.isMacPlatform = function() {
+    var platform = (navigator.userAgentData && navigator.userAgentData.platform)
+        || navigator.platform || '';
+    return /mac|iphone|ipad|ipod/i.test(platform);
+};

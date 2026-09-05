@@ -5,7 +5,10 @@
 @inject AppState AppState
 
 <a href="/presentations/@Presentation.Id"
-   class="flex items-center px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+   data-nav-index="@NavIndex"
+   tabindex="@(IsFocusTarget ? 0 : -1)"
+   @onfocus="() => OnFocused.InvokeAsync(NavIndex)"
+   class="flex items-center px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500">
     <div class="flex-1 min-w-0">
         <div class="truncate">@Presentation.Name</div>
         @if (subtitle.Length > 0)
@@ -26,6 +29,26 @@
     [Parameter, EditorRequired] public PresentationSummary Presentation { get; set; } = null!;
     [Parameter] public bool ShowDate { get; set; } = true;
     [Parameter] public bool ShowYear { get; set; }
+
+    /// <summary>
+    /// This row's place in the dashboard's single arrow-key sequence, which runs across all three
+    /// lists on the page. -1 leaves the row out of it.
+    /// </summary>
+    [Parameter] public int NavIndex { get; set; } = -1;
+
+    /// <summary>
+    /// Whether this is the one row Tab reaches. Exactly one row in the sequence carries tabindex 0
+    /// and the rest carry -1, so Tab treats the whole list as a single stop and the arrows move
+    /// within it. Without the roving tabindex, tabbing past a long list would mean one press per
+    /// presentation.
+    /// </summary>
+    [Parameter] public bool IsFocusTarget { get; set; }
+
+    /// <summary>
+    /// Reports focus landing here, so the page's idea of the current row follows the browser's
+    /// rather than drifting from it when the user tabs or clicks instead of using the arrows.
+    /// </summary>
+    [Parameter] public EventCallback<int> OnFocused { get; set; }
 
     private string subtitle = "";
     private string subtitleTitle = "";

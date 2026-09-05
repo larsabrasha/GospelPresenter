@@ -1,12 +1,17 @@
 @using GospelPresenter.Shared.Services
 
 @inject IBibleService BibleService
+@inject IJSRuntime JsRuntime
 
-<div class="flex-1 min-h-0 overflow-y-auto">
+<div id="bible-chapter-list" class="flex-1 min-h-0 overflow-y-auto" @onkeydown="OnKeyDown">
     <div class="flex flex-wrap gap-1.5 text-sm">
-        @foreach (var chapter in chapters)
+        @for (var i = 0; i < chapters.Count; i++)
         {
-            <button class="size-10 flex items-center justify-center rounded-lg bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer"
+            var chapter = chapters[i];
+            var itemIndex = i;
+            <button class="size-10 flex items-center justify-center rounded-lg bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                    data-nav-index="@itemIndex"
+                    tabindex="@(itemIndex == FocusTargetIndex ? 0 : -1)"
                     @onclick="() => OnPicked.InvokeAsync(chapter)">
                 @chapter
             </button>
@@ -23,12 +28,26 @@
     private string loadedBookId = "";
     private List<int> chapters = [];
 
+    private int focusedIndex = -1;
+    private int FocusTargetIndex => focusedIndex < 0 ? 0 : focusedIndex;
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        // Grid: the numbers wrap across as many columns as the modal is wide.
+        if (!ListNavigation.TryMove(e, focusedIndex, chapters.Count, ListOrientation.Grid, out var next))
+            return;
+
+        focusedIndex = next;
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.focusNavItem", "bible-chapter-list", focusedIndex);
+    }
+
     protected override void OnParametersSet()
     {
         if (BookId != loadedBookId)
         {
             loadedBookId = BookId;
             chapters = BibleService.GetChapters(OrganizationId, BibleId, BookId).ToList();
+            focusedIndex = -1;
         }
     }
 }

@@ -157,6 +157,17 @@
         focusWanted = true;
     }
 
+    /// <summary>
+    /// Starts the rename from outside — the page's F2 shortcut. The field and its focus live here,
+    /// so the page asks rather than reaching for them itself.
+    /// </summary>
+    public void StartRename()
+    {
+        if (AppState.SelectedProjectItem is null) return;
+        StartEditingItemTitle();
+        StateHasChanged();
+    }
+
     private async Task SaveItemTitleAsync()
     {
         if (!isEditing) return;

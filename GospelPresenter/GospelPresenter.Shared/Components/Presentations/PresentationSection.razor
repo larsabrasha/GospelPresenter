@@ -5,9 +5,15 @@
     <div class="space-y-2">
         <div class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-5">@Title</div>
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
-            @foreach (var presentation in Presentations)
+            @for (var i = 0; i < Presentations.Count; i++)
             {
-                <PresentationRow Presentation="presentation" ShowDate="ShowDate"/>
+                var navIndex = StartIndex + i;
+                <PresentationRow @key="Presentations[i].Id"
+                                 Presentation="Presentations[i]"
+                                 ShowDate="ShowDate"
+                                 NavIndex="navIndex"
+                                 IsFocusTarget="@(navIndex == FocusTargetIndex)"
+                                 OnFocused="OnFocused"/>
             }
         </div>
     </div>
@@ -17,4 +23,12 @@
     [Parameter, EditorRequired] public string Title { get; set; } = "";
     [Parameter, EditorRequired] public IList<PresentationSummary> Presentations { get; set; } = [];
     [Parameter] public bool ShowDate { get; set; } = true;
+
+    /// <summary>Where this section's rows start in the dashboard's shared arrow-key sequence.</summary>
+    [Parameter] public int StartIndex { get; set; }
+
+    /// <summary>The one index across the whole page that Tab reaches. See PresentationRow.</summary>
+    [Parameter] public int FocusTargetIndex { get; set; }
+
+    [Parameter] public EventCallback<int> OnFocused { get; set; }
 }

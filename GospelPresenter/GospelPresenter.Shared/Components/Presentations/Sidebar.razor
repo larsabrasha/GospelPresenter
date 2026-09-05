@@ -120,9 +120,11 @@
         </div>
 
         <div class="flex-1 min-h-0 overflow-y-auto">
-            <div id="sidebar-item-list" class="pb-8">
-                @foreach (var item in AppState.SelectedProject.Items)
+            <div id="sidebar-item-list" class="pb-8" @onkeydown="OnItemListKeyDown">
+                @for (var itemPosition = 0; itemPosition < AppState.SelectedProject.Items.Count; itemPosition++)
                 {
+                    var navIndex = itemPosition;
+                    var item = AppState.SelectedProject.Items[itemPosition];
                     var isSelected = AppState.SelectedProjectItem?.Id == item.Id;
                     var itemClass = isSelected
                         ? "bg-sky-500 text-white"
@@ -168,7 +170,9 @@
                         }
                         else
                         {
-                            <button class="flex items-center space-x-3 px-3 py-3 grow cursor-pointer min-w-0"
+                            <button class="flex items-center space-x-3 px-3 py-3 grow cursor-pointer min-w-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 rounded-lg"
+                                    data-nav-index="@navIndex"
+                                    tabindex="@(isSelected || (AppState.SelectedProjectItem is null && navIndex == 0) ? 0 : -1)"
                                     @onclick="() => SelectItemAsync(item)">
                                 <div class="size-3 shrink-0">
                                     @switch (item.Type)
@@ -383,6 +387,34 @@
         AppState.IsMenuVisible = false;
 
         await JsRuntime.InvokeVoidAsync("scrollElementToTop", "main");
+    }
+
+    /// <summary>
+    /// Arrow keys select as they move, rather than moving a focus ring that Enter would then have to
+    /// confirm. That is what an operator expects from a running order — the same thing clicking the
+    /// row does — and it is the behaviour every other presentation tool has trained them on.
+    ///
+    /// Selecting loads the item's slides from the server, so holding an arrow key down issues one
+    /// request per repeat. That is left as it is: the sortable list is short enough that the round
+    /// trips are cheap, and debouncing would put a lag between the keypress and the slides
+    /// appearing, which is the worse trade in front of a congregation.
+    /// </summary>
+    private async Task OnItemListKeyDown(KeyboardEventArgs e)
+    {
+        if (AppState.SelectedProject is null || isEditMode) return;
+
+        var items = AppState.SelectedProject.Items;
+        var current = AppState.SelectedProjectItem is null
+            ? -1
+            : items.ToList().FindIndex(x => x.Id == AppState.SelectedProjectItem.Id);
+
+        if (!ListNavigation.TryMove(e, current, items.Count, ListOrientation.Vertical, out var next))
+            return;
+
+        await SelectItemAsync(items[next]);
+        // Focus follows the selection so the next arrow press still reaches this handler: the row
+        // that had focus is about to be re-rendered with tabindex -1.
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.focusNavItem", "sidebar-item-list", next);
     }
 
     private async Task RequestDelete()

@@ -35,14 +35,17 @@
         : "flex items-center justify-center h-full overflow-auto";
 }
 
-<div class="@mainClass" id="main">
+<div class="@mainClass" id="main" @onkeydown="OnKeyDown">
     @if (Editor.SelectedSong is not null)
     {
         var effectiveParts = Editor.EffectiveSongParts(AppState.SelectedProjectItem?.Id);
         @for (var i = 0; i < effectiveParts.Count; i++)
         {
             var partIndex = i;
-            <button @onclick="() => SelectSlide(AppState.SelectedProjectItem!.Id, partIndex)">
+            <button data-nav-index="@partIndex"
+                    tabindex="@(partIndex == FocusTargetIndex ? 0 : -1)"
+                    class="focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded-2xl"
+                    @onclick="() => SelectSlide(AppState.SelectedProjectItem!.Id, partIndex)">
                 <SongSlide
                     Content="@effectiveParts[i].Content"
                     Label="@effectiveParts[i].Label"
@@ -61,7 +64,10 @@
         @for (var i = 0; i < Editor.SelectedBibleText.Parts.Count; i++)
         {
             var partIndex = i;
-            <button @onclick="() => SelectSlide(Editor.SelectedBibleText.Id, partIndex)">
+            <button data-nav-index="@partIndex"
+                    tabindex="@(partIndex == FocusTargetIndex ? 0 : -1)"
+                    class="focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded-2xl"
+                    @onclick="() => SelectSlide(Editor.SelectedBibleText.Id, partIndex)">
                 <BibleTextSlide
                     Content="@Editor.SelectedBibleText.Parts[i]"
                     Style="@Editor.Theme.BibleText"
@@ -103,7 +109,10 @@
                     }
                     else
                     {
-                        <button @onclick="() => SelectSlide(Editor.SelectedImage.Id, partIndex)">
+                        <button data-nav-index="@partIndex"
+                    tabindex="@(partIndex == FocusTargetIndex ? 0 : -1)"
+                    class="focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded-2xl"
+                    @onclick="() => SelectSlide(Editor.SelectedImage.Id, partIndex)">
                             <ImageSlide
                                 Url="@Editor.SelectedImage.Urls[i]"
                                 Background="@Editor.Theme.Media"
@@ -134,7 +143,10 @@
         @for (var i = 0; i < Editor.SelectedSlides.Urls.Count; i++)
         {
             var partIndex = i;
-            <button @onclick="() => SelectSlide(Editor.SelectedSlides.Id, partIndex)">
+            <button data-nav-index="@partIndex"
+                    tabindex="@(partIndex == FocusTargetIndex ? 0 : -1)"
+                    class="focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 rounded-2xl"
+                    @onclick="() => SelectSlide(Editor.SelectedSlides.Id, partIndex)">
                 <ImageSlide
                     Url="@Editor.SelectedSlides.Urls[i]"
                     Background="@Editor.Theme.Media"
@@ -316,6 +328,11 @@
         if (e.PropertyName is nameof(AppState.SelectedProjectItem) && AppState.SelectedProjectItem is null)
             idleHintIndex = Random.Shared.Next(idleHints.Length);
 
+        // A different item means a different set of tiles: start over at the top rather than
+        // leaving the arrows halfway down a grid the operator has not seen yet.
+        if (e.PropertyName is nameof(AppState.SelectedProjectItem) or nameof(AppState.SelectedProject))
+            navIndex = -1;
+
         _ = InvokeAsync(StateHasChanged);
     }
 
@@ -344,6 +361,46 @@
 
     private Task SelectSlide(string itemId, int partIndex) =>
         OnSelectSlide.InvokeAsync((itemId, partIndex));
+
+    /// <summary>
+    /// The tile the arrows are on. Kept separate from which slide is live: moving here only moves
+    /// focus, and Enter — the button's own default — is what puts the slide on the screens. Arrows
+    /// that went live as they moved would broadcast every slide the operator scrolled past.
+    /// </summary>
+    private int navIndex = -1;
+
+    private int FocusTargetIndex => navIndex < 0 ? 0 : navIndex;
+
+    /// <summary>
+    /// How many tiles the arrows can reach. Zero while the image order is being edited: those tiles
+    /// are drag handles with a delete button, not slides to pick.
+    /// </summary>
+    private int NavCount
+    {
+        get
+        {
+            if (Editor.SelectedSong is not null)
+                return Editor.EffectiveSongParts(AppState.SelectedProjectItem?.Id).Count;
+            if (Editor.SelectedBibleText is not null)
+                return Editor.SelectedBibleText.Parts.Count;
+            if (Editor.SelectedImage is not null)
+                return Editor.IsEditingImageOrder ? 0 : Editor.SelectedImage.Urls.Count;
+            if (Editor.SelectedSlides is not null)
+                return Editor.SelectedSlides.Urls.Count;
+            return 0;
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        // Grid, not vertical: the tiles wrap by CSS, so how many fit on a row is a fact only the
+        // browser holds. All four arrows step one tile, which behaves the same in every window size.
+        if (!ListNavigation.TryMove(e, navIndex, NavCount, ListOrientation.Grid, out var next))
+            return;
+
+        navIndex = next;
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.focusNavItem", "main", navIndex);
+    }
 
     /// <summary>
     /// Follows IsEditingImageOrder rather than being told about it, so the header only has to flip

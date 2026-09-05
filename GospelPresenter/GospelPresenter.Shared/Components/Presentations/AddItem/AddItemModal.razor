@@ -8,6 +8,10 @@
 @using GospelPresenter.Shared.Services
 @using GospelPresenter.Shared.State
 
+@inject KeyboardShortcutService Shortcuts
+
+@implements IDisposable
+
 <Modal Class="bg-white dark:bg-neutral-800 max-w-4xl" OnClose="@OnClose">
     <Title>
         <span>@L["Common.Add"]</span>
@@ -22,23 +26,23 @@
 
         <div class="@(editingSongId is not null ? "hidden" : "mb-4 md:flex md:justify-center")">
             <PillTabs>
-                <button class="@TabClass("song")" @onclick="@(() => activeTab = "song")">
+                <button class="@TabClass("song")" title="@TabTooltip("song", L["Sidebar.Song"])" @onclick="@(() => activeTab = "song")">
                     <MusicalNoteSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Song"]
                 </button>
-                <button class="@TabClass("bible")" @onclick="@(() => activeTab = "bible")">
+                <button class="@TabClass("bible")" title="@TabTooltip("bible", L["Sidebar.BibleText"])" @onclick="@(() => activeTab = "bible")">
                     <BookOpenSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.BibleText"]
                 </button>
-                <button class="@TabClass("image")" @onclick="@(() => activeTab = "image")">
+                <button class="@TabClass("image")" title="@TabTooltip("image", L["Sidebar.Images"])" @onclick="@(() => activeTab = "image")">
                     <PhotoSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Images"]
                 </button>
-                <button class="@TabClass("audio")" @onclick="@(() => activeTab = "audio")">
+                <button class="@TabClass("audio")" title="@TabTooltip("audio", L["Sidebar.Audio"])" @onclick="@(() => activeTab = "audio")">
                     <SpeakerWaveSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Audio"]
                 </button>
-                <button class="@TabClass("slides")" @onclick="@(() => activeTab = "slides")">
+                <button class="@TabClass("slides")" title="@TabTooltip("slides", L["Sidebar.Slides"])" @onclick="@(() => activeTab = "slides")">
                     <RectangleStackSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Slides"]
                 </button>
@@ -80,6 +84,10 @@
     [Parameter] public EventCallback<List<OrganizationAudio>> OnAudiosAddedKeepOpen { get; set; }
     [Parameter] public EventCallback<SlidesAddResult> OnSlidesAdded { get; set; }
 
+    private ShortcutScope? scope;
+
+    private static readonly string[] TabOrder = ["song", "bible", "image", "audio", "slides"];
+
     private string activeTab = "song";
     private AddMoreToggle addMoreState = new();
     private string? editingSongId;
@@ -94,7 +102,32 @@
     protected override void OnInitialized()
     {
         activeTab = InitialTab;
+
+        // Blocking: while this is open, the page behind it must not hear "a" and open a second copy
+        // of itself, or Delete and remove the item being added to.
+        scope = Shortcuts.PushScope("Shortcuts.Group.AddItem", () => InvokeAsync(StateHasChanged), blocking: true);
+
+        // Ctrl/Cmd rather than the bare digits: the search box in each tab takes focus on open, and
+        // a bare "1" belongs to whoever is typing a hymn number.
+        for (var i = 0; i < TabOrder.Length; i++)
+        {
+            var tab = TabOrder[i];
+            scope.Add(TabShortcut(i), $"Shortcuts.Tab.{tab}", () => activeTab = tab);
+        }
+
+        // Handled by each tab's own container, which can see what is selected in it. Listed here so
+        // that the two ways to add are documented in the one place a reader will look.
+        scope.Document(new Shortcut("Enter", Ctrl: true), "Shortcuts.AddAndClose");
+        scope.Document(new Shortcut("Enter", Shift: true), "Shortcuts.AddAndStay");
+        scope.Document(new Shortcut("ArrowDown"), "Shortcuts.MoveThroughResults");
     }
+
+    private static Shortcut TabShortcut(int index) => new((index + 1).ToString(), Ctrl: true);
+
+    private string TabTooltip(string tab, string label) =>
+        $"{label} ({TabShortcut(Array.IndexOf(TabOrder, tab)).ToDisplay(Shortcuts.IsMac)})";
+
+    public void Dispose() => scope?.Dispose();
 
     private async Task HandleSongAdd(GospelPresenter.Shared.State.SongAddRequest request)
     {

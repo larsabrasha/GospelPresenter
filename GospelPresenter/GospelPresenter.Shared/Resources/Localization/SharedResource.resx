@@ -1841,4 +1841,82 @@
   <data name="Devices.Empty" xml:space="preserve">
     <value>No app has signed in yet. Devices appear here once someone installs the app and signs in.</value>
   </data>
+  <data name="Shortcuts.Title" xml:space="preserve">
+    <value>Keyboard shortcuts</value>
+  </data>
+  <data name="Shortcuts.Hint" xml:space="preserve">
+    <value>Shortcuts work while you are not typing in a text field.</value>
+  </data>
+  <data name="Shortcuts.Group.Global" xml:space="preserve">
+    <value>Everywhere</value>
+  </data>
+  <data name="Shortcuts.Group.Help" xml:space="preserve">
+    <value>This dialog</value>
+  </data>
+  <data name="Shortcuts.Group.Dashboard" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
+  <data name="Shortcuts.Group.Presentation" xml:space="preserve">
+    <value>Presentation</value>
+  </data>
+  <data name="Shortcuts.Group.AddItem" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="Shortcuts.ShowHelp" xml:space="preserve">
+    <value>Show keyboard shortcuts</value>
+  </data>
+  <data name="Shortcuts.CloseHelp" xml:space="preserve">
+    <value>Close this dialog</value>
+  </data>
+  <data name="Shortcuts.NewPresentation" xml:space="preserve">
+    <value>New presentation</value>
+  </data>
+  <data name="Shortcuts.MoveThroughList" xml:space="preserve">
+    <value>Move through the list</value>
+  </data>
+  <data name="Shortcuts.OpenPresentation" xml:space="preserve">
+    <value>Open the selected presentation</value>
+  </data>
+  <data name="Shortcuts.AddItem" xml:space="preserve">
+    <value>Add to the presentation</value>
+  </data>
+  <data name="Shortcuts.RenameItem" xml:space="preserve">
+    <value>Rename the selected item</value>
+  </data>
+  <data name="Shortcuts.RemoveItem" xml:space="preserve">
+    <value>Remove the selected item</value>
+  </data>
+  <data name="Shortcuts.MoveThroughItems" xml:space="preserve">
+    <value>Move through the running order</value>
+  </data>
+  <data name="Shortcuts.MoveThroughSlides" xml:space="preserve">
+    <value>Move through the slides</value>
+  </data>
+  <data name="Shortcuts.ShowSlide" xml:space="preserve">
+    <value>Show the selected slide</value>
+  </data>
+  <data name="Shortcuts.MoveThroughResults" xml:space="preserve">
+    <value>Move through the results</value>
+  </data>
+  <data name="Shortcuts.AddAndClose" xml:space="preserve">
+    <value>Add and close</value>
+  </data>
+  <data name="Shortcuts.AddAndStay" xml:space="preserve">
+    <value>Add and keep adding</value>
+  </data>
+  <data name="Shortcuts.Tab.song" xml:space="preserve">
+    <value>Songs tab</value>
+  </data>
+  <data name="Shortcuts.Tab.bible" xml:space="preserve">
+    <value>Bible text tab</value>
+  </data>
+  <data name="Shortcuts.Tab.image" xml:space="preserve">
+    <value>Images tab</value>
+  </data>
+  <data name="Shortcuts.Tab.audio" xml:space="preserve">
+    <value>Audio tab</value>
+  </data>
+  <data name="Shortcuts.Tab.slides" xml:space="preserve">
+    <value>Slides tab</value>
+  </data>
 </root>

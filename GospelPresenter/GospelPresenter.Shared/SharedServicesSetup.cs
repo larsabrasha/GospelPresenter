@@ -31,6 +31,8 @@ public static class SharedServicesSetup
         // than left out so that a service can take it as an ordinary dependency.
         services.AddSingleton<IOrganizationChangeNotifier, NullOrganizationChangeNotifier>();
         services.AddScoped<ToastService>();
+        // One registry per circuit: the shortcut stack describes what this browser is looking at.
+        services.AddScoped<KeyboardShortcutService>();
         services.AddScoped<AppState>();
         services.AddScoped<PresentationEditorState>();
         // One owner per circuit for the live windows and the projector output. The presentation

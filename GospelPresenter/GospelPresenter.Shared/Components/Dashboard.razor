@@ -12,16 +12,20 @@
 @inject SharedAppState SharedAppState
 @inject AppState AppState
 @inject CircuitCulture Culture
+@inject KeyboardShortcutService Shortcuts
+@inject IJSRuntime JsRuntime
 
 <RefreshOnSync Reload="LoadPresentationsAsync"/>
 
-<div class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
+<div id="dashboard-nav" @onkeydown="OnKeyDown"
+     class="flex flex-col p-3 pt-8 w-full sm:w-180 mx-auto space-y-5">
 
     <div class="relative flex items-center justify-between px-5">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Dashboard.Presentations"]</div>
         @if (hasAny)
         {
-            <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center">
+            <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center"
+                       Title="@CreateTooltip">
                 <PlusSymbol Class="size-4 mr-2"/>@L["Dashboard.Create"]
             </AppButton>
         }
@@ -76,7 +80,8 @@
                 <p class="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">
                     @L["Dashboard.Description"]
                 </p>
-                <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center gap-1.5">
+                <AppButton Variant="ButtonVariant.Primary" OnClick="@OpenNewPresentationPicker" Class="flex items-center gap-1.5"
+                           Title="@CreateTooltip">
                     <PlusSymbol Class="size-4"/>
                     @L["Dashboard.Create"]
                 </AppButton>
@@ -85,16 +90,24 @@
     }
     else
     {
-        <PresentationSection Title="@L["Dashboard.Today"]" Presentations="dashboard.Today" ShowDate="false"/>
-        <PresentationSection Title="@L["Dashboard.Upcoming"]" Presentations="dashboard.Upcoming"/>
+        <PresentationSection Title="@L["Dashboard.Today"]" Presentations="dashboard.Today" ShowDate="false"
+                             StartIndex="0" FocusTargetIndex="@FocusTargetIndex" OnFocused="OnRowFocused"/>
+        <PresentationSection Title="@L["Dashboard.Upcoming"]" Presentations="dashboard.Upcoming"
+                             StartIndex="@dashboard.Today.Count" FocusTargetIndex="@FocusTargetIndex" OnFocused="OnRowFocused"/>
 
         @if (allPresentations.Count > 0)
         {
             <div class="space-y-2">
                 <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
-                    @foreach (var presentation in allPresentations)
+                    @for (var i = 0; i < allPresentations.Count; i++)
                     {
-                        <PresentationRow @key="presentation.Id" Presentation="presentation" ShowYear="true"/>
+                        var navIndex = TailStartIndex + i;
+                        <PresentationRow @key="allPresentations[i].Id"
+                                         Presentation="allPresentations[i]"
+                                         ShowYear="true"
+                                         NavIndex="navIndex"
+                                         IsFocusTarget="@(navIndex == FocusTargetIndex)"
+                                         OnFocused="OnRowFocused"/>
                     }
                 </div>
 
@@ -178,6 +191,16 @@
 
 @code {
 
+    private ShortcutScope? scope;
+
+    /// <summary>
+    /// The row the arrows are on. The dashboard shows presentations in three separate lists, so the
+    /// sequence is a single flat index across all of them: Today first, then Upcoming, then the
+    /// dated-and-undated tail. The live-session banners are left out on purpose — they are a
+    /// different kind of row with a different destination, and Tab still reaches them.
+    /// </summary>
+    private int navIndex = -1;
+
     private DashboardPresentations? dashboard;
     private IList<PresentationSummary>? recentTemplates;
     private const int PageSize = 20;
@@ -218,6 +241,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        scope = Shortcuts.PushScope("Shortcuts.Group.Dashboard", () => InvokeAsync(StateHasChanged));
+        scope.Add(new Shortcut("n"), "Shortcuts.NewPresentation", OpenNewPresentationPicker);
+        scope.Document(new Shortcut("ArrowDown"), "Shortcuts.MoveThroughList");
+        scope.Document(new Shortcut("Enter"), "Shortcuts.OpenPresentation");
+
         SharedAppState.SessionChanged += OnSessionChanged;
         SharedAppState.PresentationActivated += OnPresentationActivatedOrDeactivated;
         SharedAppState.PresentationDeactivated += OnPresentationActivatedOrDeactivated;
@@ -269,6 +297,10 @@
         allPresentations.Clear();
         allPresentations.AddRange(page.Items);
         totalPresentations = page.TotalCount;
+
+        // A sync can delete rows out from under the arrows. Left alone, the index would point past
+        // the end and the next arrow press would focus nothing at all.
+        navIndex = navIndex < 0 ? -1 : ListNavigation.Clamp(navIndex, NavCount);
     }
 
     private async Task LoadMoreAsync()
@@ -300,6 +332,34 @@
             await OnboardingService.MarkWelcomeShownAsync(userId, OrgState.ToCallerContext());
         }
     }
+
+    private int TailStartIndex => dashboard is null ? 0 : dashboard.Today.Count + dashboard.Upcoming.Count;
+
+    private int NavCount => TailStartIndex + allPresentations.Count;
+
+    /// <summary>
+    /// The single row Tab lands on: wherever the arrows left off, or the first row before they have
+    /// been used at all.
+    /// </summary>
+    private int FocusTargetIndex => navIndex < 0 ? 0 : navIndex;
+
+    private string CreateTooltip =>
+        $"{L["Dashboard.Create"]} ({new Shortcut("n").ToDisplay(Shortcuts.IsMac)})";
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (!ListNavigation.TryMove(e, navIndex, NavCount, ListOrientation.Vertical, out var next))
+            return;
+
+        navIndex = next;
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.focusNavItem", "dashboard-nav", navIndex);
+    }
+
+    /// <summary>
+    /// Follows the browser rather than leading it: clicking or tabbing to a row makes that row the
+    /// one the arrows continue from.
+    /// </summary>
+    private void OnRowFocused(int index) => navIndex = index;
 
     private void OpenNewPresentationPicker()
     {
@@ -419,6 +479,7 @@
 
     public void Dispose()
     {
+        scope?.Dispose();
         SharedAppState.SessionChanged -= OnSessionChanged;
         SharedAppState.PresentationActivated -= OnPresentationActivatedOrDeactivated;
         SharedAppState.PresentationDeactivated -= OnPresentationActivatedOrDeactivated;

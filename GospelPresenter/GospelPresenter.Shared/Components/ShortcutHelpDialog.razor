@@ -1,0 +1,58 @@
+@using GospelPresenter.Shared.Services
+
+@inject KeyboardShortcutService Shortcuts
+
+@implements IDisposable
+
+<Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" ShowCloseButton OnClose="OnClose">
+    <div class="p-6 space-y-5">
+        <div>
+            <h2 class="font-semibold text-lg pr-8">@L["Shortcuts.Title"]</h2>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-1">@L["Shortcuts.Hint"]</p>
+        </div>
+
+        <div class="max-h-[60vh] overflow-y-auto space-y-5 -mx-1 px-1">
+            @foreach (var group in groups)
+            {
+                <div class="space-y-1">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                        @L[group.TitleKey]
+                    </div>
+                    <div class="rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+                        @foreach (var entry in group.Entries)
+                        {
+                            <div class="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                                <span class="text-sm min-w-0">@L[entry.DescriptionKey]</span>
+                                <kbd class="shrink-0 px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-700 border-b-2 border-neutral-300 dark:border-neutral-600 text-xs font-sans font-medium text-neutral-700 dark:text-neutral-200 whitespace-nowrap">
+                                    @entry.Shortcut.ToDisplay(Shortcuts.IsMac)
+                                </kbd>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</Dialog>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ShortcutScope? scope;
+    private IReadOnlyList<ShortcutGroup> groups = [];
+
+    protected override void OnInitialized()
+    {
+        // Blocking, so that a keystroke aimed at the page behind — "n", "a", Delete — does nothing
+        // while the reader is looking one up. Rebinding "?" here keeps the dialog closable the same
+        // way it was opened; the root scope's binding is shadowed rather than reachable.
+        scope = Shortcuts.PushScope("Shortcuts.Group.Help", () => InvokeAsync(StateHasChanged), blocking: true);
+        scope.Add(new Shortcut("?"), "Shortcuts.CloseHelp", () => OnClose.InvokeAsync());
+
+        // Read after pushing, and excluding this scope: the list describes the page waiting behind
+        // the dialog, which is what the reader came here to learn.
+        groups = Shortcuts.Describe(scope);
+    }
+
+    public void Dispose() => scope?.Dispose();
+}

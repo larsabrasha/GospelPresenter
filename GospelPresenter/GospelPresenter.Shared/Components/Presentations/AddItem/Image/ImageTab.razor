@@ -52,14 +52,18 @@ else
         <div class="flex-1 min-h-0 overflow-y-auto">
             @if (images.Count > 0)
             {
-                <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center">
-                    @foreach (var image in images)
+                <div id="image-tab-list" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center">
+                    @for (var imagePosition = 0; imagePosition < images.Count; imagePosition++)
                     {
+                        var image = images[imagePosition];
+                        var itemIndex = imagePosition;
                         <div class="relative p-2 flex flex-col items-center min-w-0">
                             @{
                                 var isSelected = selectedImages.Contains(image.Id);
                             }
-                            <button class="relative rounded-lg cursor-pointer transition-shadow ring-3 @(isSelected ? "ring-sky-500" : "ring-transparent")"
+                            <button class="relative rounded-lg cursor-pointer transition-shadow ring-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 @(isSelected ? "ring-sky-500" : "ring-transparent")"
+                                    data-nav-index="@itemIndex"
+                                    tabindex="@(itemIndex == FocusTargetIndex ? 0 : -1)"
                                     @onclick="() => ToggleImage(image)">
                                 <img src="@ImageUrlHelper.OrgImageUrl(image.Id, "thumb")"
                                      alt="@image.FileName"
@@ -316,6 +320,9 @@ else
         }
     }
 
+    private int focusedIndex = -1;
+    private int FocusTargetIndex => focusedIndex < 0 ? 0 : focusedIndex;
+
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter" && e.ShiftKey && selectedImages.Count > 0 && !isAdding)
@@ -325,6 +332,12 @@ else
         else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedImages.Count > 0 && !isAdding)
         {
             await HandleAdd();
+        }
+        // Grid: the thumbnails run three to five across depending on the width.
+        else if (ListNavigation.TryMove(e, focusedIndex, images.Count, ListOrientation.Grid, out var next))
+        {
+            focusedIndex = next;
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.focusNavItem", "image-tab-list", focusedIndex);
         }
     }
 

@@ -1,0 +1,94 @@
+@using GospelPresenter.Shared.Services
+
+@inject KeyboardShortcutService Shortcuts
+@inject IJSRuntime JsRuntime
+
+@implements IDisposable
+
+@* Renders nothing. It owns the app's single keydown listener and the help dialog it opens. *@
+
+@if (showHelp)
+{
+    <ShortcutHelpDialog OnClose="CloseHelp"/>
+}
+
+@code {
+    private ShortcutScope? rootScope;
+    private DotNetObjectReference<KeyboardShortcuts>? selfRef;
+    private bool showHelp;
+    private bool installed;
+
+    protected override void OnInitialized()
+    {
+        // The bottom of the stack. Pages push non-blocking scopes on top, so these keep working
+        // everywhere; only a modal dialog shuts them out.
+        rootScope = Shortcuts.PushScope("Shortcuts.Group.Global", () => InvokeAsync(StateHasChanged));
+        rootScope.Add(new Shortcut("?"), "Shortcuts.ShowHelp", ToggleHelp);
+
+        Shortcuts.ActiveShortcutsChanged += OnActiveShortcutsChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        selfRef = DotNetObjectReference.Create(this);
+        try
+        {
+            Shortcuts.IsMac = await JsRuntime.InvokeAsync<bool>("gospelPresenter.isMacPlatform");
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.installShortcuts", selfRef);
+            installed = true;
+            await PushActiveTokensAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit went away mid-startup. Nothing to install onto.
+        }
+    }
+
+    [JSInvokable]
+    public Task OnShortcut(string token) => Shortcuts.HandleAsync(token);
+
+    /// <summary>
+    /// Mirrors the reachable keystrokes into the browser. The listener has to decide preventDefault
+    /// before it can hear back from here, so it keeps its own copy rather than asking per keypress.
+    /// </summary>
+    private async Task PushActiveTokensAsync()
+    {
+        if (!installed) return;
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.setActiveShortcuts", Shortcuts.ActiveTokens);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private void OnActiveShortcutsChanged() => _ = InvokeAsync(PushActiveTokensAsync);
+
+    private void ToggleHelp()
+    {
+        showHelp = !showHelp;
+    }
+
+    private void CloseHelp() => showHelp = false;
+
+    public void Dispose()
+    {
+        Shortcuts.ActiveShortcutsChanged -= OnActiveShortcutsChanged;
+        rootScope?.Dispose();
+        if (installed)
+        {
+            try
+            {
+                _ = JsRuntime.InvokeVoidAsync("gospelPresenter.uninstallShortcuts");
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        selfRef?.Dispose();
+    }
+}
