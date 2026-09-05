@@ -185,6 +185,23 @@
                                     @L["RemoteControl.NotEnabled"]
                                 }
                             </div>
+                            @* The only way left to end it. The machine that owns the session is not
+                               listening, so nothing can ask it to stop — and left alone it stays on
+                               the dashboard and on the congregation's screens until it ages out
+                               hours later. See CanEndAbandonedSession. *@
+                            @if (CanEndAbandonedSession)
+                            {
+                                <div class="space-y-2 pt-2">
+                                    <div class="text-neutral-400 dark:text-neutral-500 text-xs">
+                                        @L["RemoteControl.EndAbandonedHint"]
+                                    </div>
+                                    <AppButton Variant="ButtonVariant.Danger" Filled="true"
+                                               Disabled="@changingPresentationState"
+                                               OnClick="StopPresentation">
+                                        @L["RemoteControl.EndAbandoned"]
+                                    </AppButton>
+                                </div>
+                            }
                         </div>
                     </div>
                 }
@@ -473,6 +490,8 @@
     private string? _presenterSessionId;
     private IReadOnlyList<string> _presenterCandidates = [];
     private ILiveSessionPresence? liveSessionPresence;
+    private ILiveSessionEnder? liveSessionEnder;
+    private bool endingAbandonedSession;
 
     /// <summary>
     /// The machine running this presentation has dropped off the network. What it last showed is
@@ -625,7 +644,24 @@
     /// connection freezes and only the owner ends the session.
     /// </summary>
     private bool CanStopPresentation =>
-        !IsRemoteMode || liveSessionPresence?.IsMirrored(EffectiveSessionId) != true;
+        !IsRemoteMode
+        || liveSessionPresence?.IsMirrored(EffectiveSessionId) != true
+        || CanEndAbandonedSession;
+
+    /// <summary>
+    /// Whether this page may end a mirrored session outright, because there is no owner left to ask.
+    ///
+    /// The rule above holds while the device is listening: it keeps mirroring, its next report
+    /// activates the session again, and "stopped" would be a lie. An owner that has dropped off
+    /// sends no next report, so there is nothing left to contradict — and without this nothing
+    /// could end the session at all. It stayed on the dashboard and on the congregation's screens,
+    /// frozen on its last slide, until the session aged out hours later.
+    ///
+    /// Deliberately still not a stop command down the wire: if the device comes back and is really
+    /// still presenting, it reports itself and the session returns, which is the truth.
+    /// </summary>
+    private bool CanEndAbandonedSession =>
+        IsPresenterOffline && liveSessionEnder is not null && _presenterSessionId is not null;
 
     private bool IsStageReady => IsStageMode
         && IsRemoteReady
@@ -772,7 +808,16 @@
         {
             await JsRuntime.InvokeVoidAsync("stopLivePresentation", EffectiveSessionId);
             ResetLiveSlide();
-            SharedAppState.DeactivatePresentation(EffectiveSessionId);
+
+            // A mirrored session ends the way its own device would end it, outputs and all. Only
+            // an abandoned one reaches this — see CanEndAbandonedSession — but it must not end any
+            // less completely for having been ended from here: deactivating it directly would
+            // leave the screens and public outputs bound to a session that no longer exists.
+            if (liveSessionEnder is not null
+                && liveSessionPresence?.IsMirrored(EffectiveSessionId) == true)
+                liveSessionEnder.End(EffectiveSessionId);
+            else
+                SharedAppState.DeactivatePresentation(EffectiveSessionId);
             if (liveSessionMirror is not null)
                 await liveSessionMirror.StopAsync();
             try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
@@ -977,6 +1022,9 @@
         liveSessionPresence = Services.GetService(typeof(ILiveSessionPresence)) as ILiveSessionPresence;
         if (liveSessionPresence is not null)
             liveSessionPresence.OwnerPresenceChanged += OnOwnerPresenceChanged;
+
+        // And only the web host can end one that its device has abandoned. See ILiveSessionEnder.
+        liveSessionEnder = Services.GetService(typeof(ILiveSessionEnder)) as ILiveSessionEnder;
 
         // AppState is this circuit's own, so only this circuit raises it. Everything on
         // SharedAppState below is a singleton event that somebody else can raise — the device

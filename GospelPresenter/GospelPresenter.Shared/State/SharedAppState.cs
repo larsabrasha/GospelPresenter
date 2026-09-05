@@ -376,6 +376,18 @@ public class SharedAppState
         return resolved;
     }
 
+    /// <summary>
+    /// Every presentation running on this server, whoever owns it and whichever organisation it
+    /// belongs to. For the one view that is allowed to see across organisations: a live service
+    /// nobody can account for is exactly what a superadmin is looking for, so this deliberately
+    /// filters nothing. Every other caller wants one of the scoped accessors above.
+    /// </summary>
+    public IReadOnlyList<(string SessionId, ActiveSession Session)> GetAllActiveSessions() =>
+        presentationActive
+            .Select(kvp => (kvp.Key, kvp.Value))
+            .OrderBy(s => s.Key, StringComparer.Ordinal)
+            .ToList();
+
     public IReadOnlyList<(string SessionId, ActiveSession Session)> GetRemoteEnabledSessionsForOrganization(string organizationId)
     {
         return presentationActive
@@ -493,6 +505,16 @@ public class SharedAppState
         lastAccessed[sessionId] = now;
         CleanupStaleSessions(now);
     }
+
+    /// <summary>
+    /// Runs the eviction sweep without anything having been touched.
+    ///
+    /// The sweep below is otherwise reached only from <see cref="TouchSession"/> — that is, only
+    /// when somebody is using some session. A server that has gone quiet therefore never runs it,
+    /// and a session left behind by a browser that was closed outlives the timeout it is supposed
+    /// to have until the next time anyone starts anything. The web host calls this on a timer.
+    /// </summary>
+    public void SweepStaleSessions() => CleanupStaleSessions(DateTime.UtcNow);
 
     private void CleanupStaleSessions(DateTime now)
     {

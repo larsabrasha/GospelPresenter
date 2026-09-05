@@ -1,0 +1,214 @@
+@page "/admin/sessions"
+@attribute [Authorize(Policy = ManageOrganizations)]
+
+@using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Live
+@using GospelPresenter.Shared.Models
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+@implements IDisposable
+
+@inject SharedAppState SharedAppState
+@inject RemoteDisplayState RemoteDisplayState
+@inject IUserService UserService
+@inject ActiveOrganizationState OrgState
+@inject IServiceProvider Services
+@inject CircuitCulture Culture
+
+<PageContainer>
+    <div class="px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["LiveSessions.Title"]</div>
+        <div class="text-sm text-neutral-400 dark:text-neutral-500 mt-1">@L["LiveSessions.Subtitle"]</div>
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+        @if (organizationNames is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+        }
+        else if (sessions.Count == 0)
+        {
+            <div class="flex flex-col items-center text-center py-8 px-4 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160"
+                     class="w-40 h-auto mb-4 text-neutral-300 dark:text-neutral-600">
+                    <rect x="40" y="30" width="120" height="76" rx="6" stroke="currentColor" stroke-width="2"/>
+                    <line x1="80" y1="118" x2="120" y2="118" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <line x1="70" y1="130" x2="130" y2="130" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="100" cy="68" r="14" stroke="currentColor" stroke-width="2" opacity="0.5"/>
+                    <line x1="90" y1="58" x2="110" y2="78" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                </svg>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">@L["LiveSessions.None"]</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var (sessionId, session) in sessions)
+            {
+                var owner = OwnerLabel(sessionId);
+                var outputs = RemoteDisplayState.GetConnectedDisplayCount(sessionId);
+                var isFrozen = presence?.IsMirrored(sessionId) == true && !presence.IsOwnerOnline(sessionId);
+
+                <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate">
+                            @(session.PresentationName ?? L["LiveSessions.UnnamedPresentation"])
+                        </div>
+                        <div class="text-xs text-neutral-400 dark:text-neutral-500 truncate">
+                            @OrganizationName(session.OrganizationId) · @owner · @sessionId
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        @if (isFrozen)
+                        {
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+                                @L["LiveSessions.OwnerOffline"]
+                            </span>
+                        }
+                        @if (SharedAppState.IsRemoteControlEnabled(sessionId))
+                        {
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300">
+                                @L["LiveSessions.RemoteOn"]
+                            </span>
+                        }
+                        @if (outputs > 0)
+                        {
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300">
+                                @L["LiveSessions.OutputCount", outputs]
+                            </span>
+                        }
+                        <AppButton Variant="ButtonVariant.Danger" OnClick="() => ConfirmEnd(sessionId, session)">
+                            @L["LiveSessions.End"]
+                        </AppButton>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</PageContainer>
+
+@if (sessionToEnd is not null)
+{
+    @* Confirmed rather than silent, the same way taking over a public output is: nobody stands
+       next to the congregation whose service this is to notice that it stopped. *@
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-lg" OnClose="CancelEnd">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@L["LiveSessions.EndTitle"]</div>
+            <div class="text-sm text-neutral-500 dark:text-neutral-400">
+                <LocalizedEmphasis Key="LiveSessions.EndConfirm" Value="@sessionToEndName"/>
+            </div>
+            <div class="flex justify-end gap-3">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelEnd">@L["Common.Cancel"]</AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled="true" OnClick="EndSession">
+                    @L["LiveSessions.End"]
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+    private IReadOnlyList<(string SessionId, ActiveSession Session)> sessions = [];
+    private Dictionary<string, string>? organizationNames;
+    private ILiveSessionPresence? presence;
+    private ILiveSessionEnder? ender;
+
+    private string? sessionToEnd;
+    private string sessionToEndName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Only the web host has either: a device-owned session is a thing only the server that
+        // hosts the hub can have. Without them this is still an honest list of what is running,
+        // just without the ownership column.
+        presence = Services.GetService(typeof(ILiveSessionPresence)) as ILiveSessionPresence;
+        ender = Services.GetService(typeof(ILiveSessionEnder)) as ILiveSessionEnder;
+
+        SharedAppState.PresentationActivated += OnSessionsChanged;
+        SharedAppState.PresentationDeactivated += OnSessionsChanged;
+        if (presence is not null)
+            presence.OwnerPresenceChanged += OnSessionsChanged;
+
+        Reload();
+
+        try
+        {
+            var organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
+            organizationNames = organizations.ToDictionary(o => o.Id, o => o.Name);
+        }
+        catch (Exception)
+        {
+            // Names are a convenience; the list is the point. An empty map falls back to showing
+            // the identifier, which is worse to read and still tells the whole truth — better than
+            // a page that fails to open because the database was slow to answer.
+            organizationNames = [];
+        }
+    }
+
+    private void Reload() => sessions = SharedAppState.GetAllActiveSessions();
+
+    /// <summary>
+    /// Raised from wherever the session changed — another operator's circuit, a device on the hub,
+    /// the reaper's timer. None of them know this page's language; see CircuitCulture.
+    /// </summary>
+    private void OnSessionsChanged(string sessionId) => _ = InvokeAsync(Culture.Restore(() =>
+    {
+        Reload();
+        StateHasChanged();
+    }));
+
+    private string OrganizationName(string organizationId) =>
+        organizationNames?.GetValueOrDefault(organizationId) ?? organizationId;
+
+    /// <summary>
+    /// Which machine is presenting. A device says its name; anything else is a browser on this
+    /// server, which is the only other thing it can be.
+    /// </summary>
+    private string OwnerLabel(string sessionId)
+    {
+        if (presence?.IsMirrored(sessionId) != true)
+            return L["LiveSessions.OwnerBrowser"];
+
+        return presence.OwnerName(sessionId) ?? L["LiveSessions.OwnerDevice"];
+    }
+
+    private void ConfirmEnd(string sessionId, ActiveSession session)
+    {
+        sessionToEnd = sessionId;
+        sessionToEndName = session.PresentationName ?? L["LiveSessions.UnnamedPresentation"];
+    }
+
+    private void CancelEnd()
+    {
+        sessionToEnd = null;
+        sessionToEndName = "";
+    }
+
+    private void EndSession()
+    {
+        var sessionId = sessionToEnd;
+        CancelEnd();
+        if (sessionId is null) return;
+
+        // The same End the device's own Stop uses, which also releases the outputs the session
+        // held. Without one — a host that has no mirrored sessions to end — deactivating is all
+        // there is, and all its own Stop button does either.
+        if (ender is not null)
+            ender.End(sessionId);
+        else
+            SharedAppState.DeactivatePresentation(sessionId);
+
+        Reload();
+    }
+
+    public void Dispose()
+    {
+        SharedAppState.PresentationActivated -= OnSessionsChanged;
+        SharedAppState.PresentationDeactivated -= OnSessionsChanged;
+        if (presence is not null)
+            presence.OwnerPresenceChanged -= OnSessionsChanged;
+    }
+}

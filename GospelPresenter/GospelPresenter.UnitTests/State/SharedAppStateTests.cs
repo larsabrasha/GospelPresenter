@@ -333,6 +333,31 @@ public class SharedAppStateTests
     }
 
     /// <summary>
+    /// And the sweep can be run without anything having been touched, which is the only way a
+    /// server that has gone quiet ever runs it at all. A presentation left behind by a browser that
+    /// was closed used to outlive its own timeout until somebody happened to start something else.
+    ///
+    /// A real, very short timeout rather than the negative one the tests above use: a negative one
+    /// makes the session stale inside its own activation, which takes it out of the sweep's list
+    /// before there is anything to sweep. Waiting out twenty milliseconds is the price of having
+    /// nothing else touch the session in between, which is the whole point here.
+    /// </summary>
+    [Fact]
+    public void SweepStaleSessions_OnAServerNobodyIsUsing_StillEvictsTheSessionLeftBehind()
+    {
+        var expiring = new SharedAppState(TimeSpan.FromMilliseconds(20), NullLogger<SharedAppState>.Instance);
+        expiring.ActivatePresentation(SessionId, OrganizationId, PresentationId);
+        Thread.Sleep(60);
+        var stopped = new List<string>();
+        expiring.PresentationDeactivated += id => stopped.Add(id);
+
+        expiring.SweepStaleSessions();
+
+        stopped.ShouldBe([SessionId]);
+        expiring.IsPresentationActive(SessionId).ShouldBeFalse();
+    }
+
+    /// <summary>
     /// A session with nothing running belongs to no organisation, and appears in no organisation's
     /// list of live services either — so null is the honest answer rather than a missing one.
     /// </summary>

@@ -145,6 +145,52 @@ public class LiveSessionHubIntegrationTests
         state.GetLiveSlide(sessionId).ItemPartIndex.ShouldBe(1);
     }
 
+    /// <summary>
+    /// The way out of the case above: a device that is not coming back.
+    ///
+    /// Freezing is right for a moment of bad wifi and wrong for the rest of the evening. While the
+    /// only stop was the owner's own, a session whose machine had been shut, killed or carried out
+    /// of the building stayed active here — on the dashboard, and on the congregation's screens —
+    /// until it aged out hours later, and nothing anywhere could end it. A controller can now end
+    /// one whose owner is offline, and it sticks for the same reason the deactivation above did not:
+    /// there is no next report to undo it.
+    /// </summary>
+    [Fact]
+    public async Task AnAbandonedSession_CanBeEndedFromThisServerAndStaysEnded()
+    {
+        using var app = new WebAppFixture();
+        var token = await IssueDeviceTokenAsync(app);
+        var connection = BuildConnection(app, token);
+
+        await connection.StartAsync();
+        var sessionId = await WaitForRegisteredSessionAsync(app);
+        await connection.InvokeAsync(LiveSessionHubMethods.ReportState, new MirroredSessionState(
+            PresentationId, "Söndagsgudstjänst", true, false, await FirstSongItemIdAsync(app), 0, null));
+
+        // A screen the operator had switched on before the machine went away.
+        var displays = app.Services.GetRequiredService<RemoteDisplayState>();
+        displays.EnableDisplay("screen-1", sessionId, "Stora salen");
+
+        await connection.DisposeAsync();
+
+        var registry = app.Services.GetRequiredService<MirroredSessionRegistry>();
+        await WaitUntilAsync(() => !registry.IsOwnerOnline(sessionId),
+            "the registry should notice the device is gone");
+
+        // What the controller's button reaches. Scoped, as it is for the circuit that presses it.
+        using (var scope = app.Services.CreateScope())
+            scope.ServiceProvider.GetRequiredService<ILiveSessionEnder>().End(sessionId);
+
+        var state = app.Services.GetRequiredService<SharedAppState>();
+        state.IsPresentationActive(sessionId).ShouldBeFalse();
+        state.IsCcliReportedElsewhere(sessionId).ShouldBeFalse();
+        registry.IsMirrored(sessionId).ShouldBeFalse();
+
+        // And the outputs go with it. Ending it any less completely than the device would have
+        // left the screens bound to a session that no longer exists.
+        displays.IsDisplayConnectedToSession("screen-1", sessionId).ShouldBeFalse();
+    }
+
     [Fact]
     public async Task EndingTheSession_ClearsItAndTheCcliExemptionWithIt()
     {

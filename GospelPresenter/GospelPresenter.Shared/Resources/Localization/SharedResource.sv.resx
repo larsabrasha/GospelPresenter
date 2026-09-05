@@ -1100,6 +1100,78 @@
   <data name="RemoteControl.PresenterOffline" xml:space="preserve">
     <value>Datorn som presenterar har tappat kontakten. Det som visades ligger kvar; den går att styra igen när den är tillbaka.</value>
   </data>
+  <data name="LiveSessions.Title" xml:space="preserve">
+    <value>Aktiva sessioner</value>
+  </data>
+  <data name="LiveSessions.Subtitle" xml:space="preserve">
+    <value>Alla presentationer som körs just nu, i alla organisationer.</value>
+  </data>
+  <data name="LiveSessions.None" xml:space="preserve">
+    <value>Ingen presenterar just nu.</value>
+  </data>
+  <data name="LiveSessions.UnnamedPresentation" xml:space="preserve">
+    <value>Presentation utan namn</value>
+  </data>
+  <data name="LiveSessions.OwnerBrowser" xml:space="preserve">
+    <value>Webbläsare</value>
+  </data>
+  <data name="LiveSessions.OwnerDevice" xml:space="preserve">
+    <value>Enhet</value>
+  </data>
+  <data name="LiveSessions.OwnerOffline" xml:space="preserve">
+    <value>Datorn är inte nåbar</value>
+  </data>
+  <data name="LiveSessions.RemoteOn" xml:space="preserve">
+    <value>Fjärrstyrning</value>
+  </data>
+  <data name="LiveSessions.OutputCount" xml:space="preserve">
+    <value>{0} utgångar</value>
+  </data>
+  <data name="LiveSessions.End" xml:space="preserve">
+    <value>Avsluta</value>
+  </data>
+  <data name="LiveSessions.EndTitle" xml:space="preserve">
+    <value>Avsluta presentationen?</value>
+  </data>
+  <data name="LiveSessions.EndConfirm" xml:space="preserve">
+    <value>{0} stannar för alla som tittar, och skärmarna och de publika utgångarna som den använder släpps.</value>
+  </data>
+  <data name="ConnectedUsers.Title" xml:space="preserve">
+    <value>Inloggade just nu</value>
+  </data>
+  <data name="ConnectedUsers.Subtitle" xml:space="preserve">
+    <value>Vem som har appen öppen just nu. En sida som lämnats öppen räknas tills den stängs.</value>
+  </data>
+  <data name="ConnectedUsers.None" xml:space="preserve">
+    <value>Ingen har appen öppen just nu.</value>
+  </data>
+  <data name="ConnectedUsers.NotAvailable" xml:space="preserve">
+    <value>Den här värden räknar inga anslutningar.</value>
+  </data>
+  <data name="ConnectedUsers.Since" xml:space="preserve">
+    <value>inne sedan {0}</value>
+  </data>
+  <data name="ConnectedUsers.TabCount" xml:space="preserve">
+    <value>{0} flikar</value>
+  </data>
+  <data name="ConnectedUsers.Disconnected" xml:space="preserve">
+    <value>Tappat kontakten</value>
+  </data>
+  <data name="ConnectedUsers.NoOrganization" xml:space="preserve">
+    <value>Ingen organisation</value>
+  </data>
+  <data name="Nav.LiveSessions" xml:space="preserve">
+    <value>Aktiva sessioner</value>
+  </data>
+  <data name="Nav.ConnectedUsers" xml:space="preserve">
+    <value>Inloggade just nu</value>
+  </data>
+  <data name="RemoteControl.EndAbandoned" xml:space="preserve">
+    <value>Avsluta presentationen</value>
+  </data>
+  <data name="RemoteControl.EndAbandonedHint" xml:space="preserve">
+    <value>Om datorn inte kommer tillbaka kan du avsluta presentationen härifrån. Skärmarna och de publika utgångarna som den använde släpps.</value>
+  </data>
   <data name="RemoteControl.StopOnOwnerOnly" xml:space="preserve">
     <value>Bara datorn som presenterar kan stoppa presentationen.</value>
   </data>
