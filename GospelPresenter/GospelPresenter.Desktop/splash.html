@@ -30,8 +30,15 @@
     default; someone who has explicitly overridden the theme gets a splash matching their desktop
     rather than their override, which is the closest an unaskable question can be answered.
 
-    The wordmark repeats MainLayout's. System fonts rather than the app's Inter: one file, no font
-    loading, and a splash that is already gone by the time a webfont would have arrived.
+    The mark and the wordmark repeat MainLayout's. The mark is a copy of LogoSymbol.razor's path
+    rather than a reference to it -- a <img src> would be the second file this page cannot have, and
+    the app's own SVG is served by a server that is not listening yet. It is a copy in the plain
+    sense: same path data, same 24-unit coordinate space, only the matrix folded into the viewBox
+    (LogoSymbol scales a 24-unit path into a 1024 box; 1024/24 is exactly the 42.6667 it uses). If
+    the logo is ever redrawn, this file is a place that has to be redrawn with it.
+
+    System fonts rather than the app's Inter: one file, no font loading, and a splash that is
+    already gone by the time a webfont would have arrived.
 -->
 <body>
 <style>
@@ -41,9 +48,15 @@
            background rather than a surface. The dark block below overrides both. */
         --surface: #f5f5f5;
         --track: #d4d4d4;
-        /* sky-600 and sky-500: the darker pair, for contrast against a light surface. */
-        --gospel: #0284c7;
-        --presenter: #0ea5e9;
+
+        /* sky-500 and sky-400: the brand pair, and NOT theme-dependent. Every other place the
+           logo appears -- MainLayout, Setup, Login, Home, InvitePage, WelcomeModal, and the
+           marketing site's header -- writes text-sky-500 for the mark and "Gospel" and
+           text-sky-400 for "Presenter", with no dark: variant on any of them. The surface below
+           them changes with the theme; the mark does not. So these two are defined once, outside
+           the dark block, and the dark block overrides only the surface and the track. */
+        --gospel: #0ea5e9;
+        --presenter: #38bdf8;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -51,9 +64,6 @@
             /* neutral-800, the surface MainLayout uses under `dark:`. */
             --surface: #262626;
             --track: #404040;
-            /* sky-500 and sky-400, exactly as in MainLayout. */
-            --gospel: #0ea5e9;
-            --presenter: #38bdf8;
         }
     }
 
@@ -72,6 +82,24 @@
         justify-content: center;
         gap: 2.5rem;
         user-select: none;
+    }
+
+    /*
+        The mark and the wordmark are one unit with the tight gap Setup.razor gives them, and the
+        2.5rem on the body is what separates that unit from the progress bar.
+    */
+    .brand {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.25rem;
+    }
+
+    /* var(--gospel) is sky-500, which is what every LogoSymbol in the app is given. */
+    .mark {
+        width: 6.5rem;
+        height: 6.5rem;
+        color: var(--gospel);
     }
 
     .wordmark {
@@ -123,7 +151,12 @@
     }
 </style>
 
-<div class="wordmark"><span class="gospel">Gospel</span> <span class="presenter">Presenter</span></div>
+<div class="brand">
+    <svg class="mark" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path d="M4.5,5.653C4.5,4.226 6.029,3.323 7.279,4.01L18.819,10.357C20.114,11.069 20.114,12.93 18.819,13.643L10.898,18C10.883,18.008 10.852,17.994 10.852,17.977L10.852,14.109C10.852,14.087 10.876,14.063 10.898,14.063L12.703,14.063C12.725,14.062 12.749,14.038 12.75,14.016L12.75,12.867C12.749,12.845 12.725,12.821 12.703,12.82L10.898,12.82C10.876,12.82 10.852,12.796 10.852,12.773L10.852,10.969C10.851,10.947 10.827,10.923 10.805,10.922L9.656,10.922C9.634,10.923 9.61,10.947 9.609,10.969L9.609,12.773C9.609,12.796 9.585,12.82 9.563,12.82L7.758,12.82C7.736,12.821 7.712,12.845 7.711,12.867L7.711,14.016C7.712,14.038 7.736,14.062 7.758,14.063L9.562,14.062C9.585,14.063 9.609,14.087 9.609,14.109L9.609,18.656C9.609,18.687 9.589,18.719 9.563,18.735L7.28,19.99C6.03,20.677 4.501,19.773 4.501,18.347L4.501,5.653L4.5,5.653Z"/>
+    </svg>
+    <div class="wordmark"><span class="gospel">Gospel</span> <span class="presenter">Presenter</span></div>
+</div>
 <div class="track"></div>
 </body>
 </html>
