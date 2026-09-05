@@ -7,26 +7,23 @@ namespace GospelPresenter.Shared.Services;
 
 public record DashboardPresentations(
     IList<PresentationSummary> Today,
-    IList<PresentationSummary> Upcoming,
-    IList<PresentationSummary> Previous);
+    IList<PresentationSummary> Upcoming);
 
 public record PresentationSummaryPage(
     IReadOnlyList<PresentationSummary> Items,
     int TotalCount);
 
-public enum PresentationSortOrder
-{
-    UpdatedDesc,
-    NameAsc,
-    EventDateDesc,
-    EventDateAsc
-}
-
 public interface IPresentationService
 {
     Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<DashboardPresentations> GetDashboardPresentationsAsync(string organizationId, DateOnly today, CallerContext caller, CancellationToken cancellationToken = default);
-    Task<PresentationSummaryPage> GetPresentationSummariesPageAsync(string organizationId, int skip, int take, PresentationSortOrder sort, CallerContext caller, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// One page of the organisation's presentations, most recently changed first.
+    /// <paramref name="eventDateBefore"/> keeps only those dated before it, plus the undated ones —
+    /// the dashboard passes today so its own Today and Upcoming sections are not repeated in the
+    /// list below them.
+    /// </summary>
+    Task<PresentationSummaryPage> GetPresentationSummariesPageAsync(string organizationId, int skip, int take, CallerContext caller, DateOnly? eventDateBefore = null, CancellationToken cancellationToken = default);
     Task<Presentation?> GetPresentationByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation?> GetTemplateByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation> CreatePresentationAsync(string name, string organizationId, string userId, CallerContext caller, DateOnly? eventDate = null, TimeOnly? eventTime = null, string? eventLocation = null, string? description = null, CancellationToken cancellationToken = default);
@@ -101,28 +98,21 @@ public class PresentationService(
             .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt) { Location = x.EventLocation, EventDate = x.EventDate, EventTime = x.EventTime })
             .ToListAsync(cancellationToken);
 
+        // Uncapped, like today's. The list below these sections holds only what is dated before
+        // today or not dated at all, so anything cut off here would be shown nowhere.
         var upcomingList = await orgPresentations
             .Where(x => x.EventDate > today)
             .OrderBy(x => x.EventDate)
             .ThenBy(x => x.EventTime ?? TimeOnly.MaxValue)
-            .Take(5)
             .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt) { Location = x.EventLocation, EventDate = x.EventDate, EventTime = x.EventTime })
             .ToListAsync(cancellationToken);
 
-        var previousList = await orgPresentations
-            .Where(x => x.EventDate == null || x.EventDate < today)
-            .OrderByDescending(x => x.EventDate.HasValue)
-            .ThenByDescending(x => x.EventDate)
-            .ThenByDescending(x => x.EventTime ?? TimeOnly.MinValue)
-            .ThenByDescending(x => x.UpdatedAt)
-            .Take(5)
-            .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt) { Location = x.EventLocation, EventDate = x.EventDate, EventTime = x.EventTime })
-            .ToListAsync(cancellationToken);
-
-        return new DashboardPresentations(todayList, upcomingList, previousList);
+        // Everything else the dashboard shows comes from the paged list below these two sections,
+        // which counts the rest for itself.
+        return new DashboardPresentations(todayList, upcomingList);
     }
 
-    public async Task<PresentationSummaryPage> GetPresentationSummariesPageAsync(string organizationId, int skip, int take, PresentationSortOrder sort, CallerContext caller, CancellationToken cancellationToken = default)
+    public async Task<PresentationSummaryPage> GetPresentationSummariesPageAsync(string organizationId, int skip, int take, CallerContext caller, DateOnly? eventDateBefore = null, CancellationToken cancellationToken = default)
     {
         caller.RequirePermission(Permission.ViewPresentations);
         caller.RequireOrganizationAccess(organizationId);
@@ -135,25 +125,25 @@ public class PresentationService(
         var query = context.Presentations
             .Where(x => x.OrganizationId == organizationId && !x.IsTemplate);
 
+        if (eventDateBefore is { } cutoff)
+            query = query.Where(x => x.EventDate == null || x.EventDate < cutoff);
+
         var total = await query.CountAsync(cancellationToken);
 
-        var ordered = sort switch
-        {
-            PresentationSortOrder.NameAsc => query
-                .OrderBy(x => x.Name)
-                .ThenByDescending(x => x.UpdatedAt),
-            PresentationSortOrder.EventDateDesc => query
-                .OrderByDescending(x => x.EventDate.HasValue)
-                .ThenByDescending(x => x.EventDate)
-                .ThenByDescending(x => x.EventTime ?? TimeOnly.MinValue)
-                .ThenByDescending(x => x.UpdatedAt),
-            PresentationSortOrder.EventDateAsc => query
-                .OrderByDescending(x => x.EventDate.HasValue)
-                .ThenBy(x => x.EventDate)
-                .ThenBy(x => x.EventTime ?? TimeOnly.MaxValue)
-                .ThenByDescending(x => x.UpdatedAt),
-            _ => query.OrderByDescending(x => x.UpdatedAt)
-        };
+        // Last changed first, dated and undated alike. Ordering by the event date instead would read
+        // better for services, but it has nowhere to put a presentation with no date: appended to
+        // either end it is either always on top or buried behind every past service, and the one you
+        // just made and never dated is exactly the one you are looking for. Coalescing the two —
+        // event date, falling back to the day it was last changed — is what this wants to say, but
+        // no SQLite provider translates that expression, and this same query runs on the desktop
+        // app's local database. A stored sort column would be the way to say it, at the price of a
+        // migration and one more field to keep in step on every write.
+        //
+        // Id last, so the order is total: two presentations saved in the same tick would otherwise
+        // be free to swap places between two pages and so be shown twice, or not at all.
+        var ordered = query
+            .OrderByDescending(x => x.UpdatedAt)
+            .ThenBy(x => x.Id);
 
         var items = await ordered
             .Skip(skip)

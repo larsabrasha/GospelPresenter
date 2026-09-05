@@ -87,17 +87,27 @@
     {
         <PresentationSection Title="@L["Dashboard.Today"]" Presentations="dashboard.Today" ShowDate="false"/>
         <PresentationSection Title="@L["Dashboard.Upcoming"]" Presentations="dashboard.Upcoming"/>
-        <PresentationSection Title="@L["Dashboard.Previous"]" Presentations="dashboard.Previous"/>
 
-        <div class="px-5">
-            <a href="/presentations"
-               class="inline-flex items-center gap-1 text-sm text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 no-underline">
-                @L["Dashboard.AllPresentations"]
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
-                </svg>
-            </a>
-        </div>
+        @if (allPresentations.Count > 0)
+        {
+            <div class="space-y-2">
+                <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+                    @foreach (var presentation in allPresentations)
+                    {
+                        <PresentationRow @key="presentation.Id" Presentation="presentation" ShowYear="true"/>
+                    }
+                </div>
+
+                @if (allPresentations.Count < totalPresentations)
+                {
+                    <div class="flex justify-center pt-2">
+                        <AppButton Variant="ButtonVariant.Cancel" Disabled="@isLoadingMore" OnClick="LoadMoreAsync">
+                            @(isLoadingMore ? L["Common.Loading"] : L["Common.ShowMore"])
+                        </AppButton>
+                    </div>
+                }
+            </div>
+        }
     }
 
 </div>
@@ -170,6 +180,11 @@
 
     private DashboardPresentations? dashboard;
     private IList<PresentationSummary>? recentTemplates;
+    private const int PageSize = 20;
+
+    private readonly List<PresentationSummary> allPresentations = [];
+    private int totalPresentations;
+    private bool isLoadingMore;
     private bool showPicker;
     private bool showCreateDialog;
     private bool showWelcomeModal;
@@ -179,7 +194,13 @@
     private TimeOnly? prefillTime;
     private string? prefillLocation;
 
-    private bool hasAny => dashboard is { } d && (d.Today.Count + d.Upcoming.Count + d.Previous.Count) > 0;
+    /// <summary>
+    /// The list holds what the Today and Upcoming sections do not: everything dated before today,
+    /// plus everything with no date at all.
+    /// </summary>
+    private static DateOnly ListCutoff => DateOnly.FromDateTime(DateTime.Today);
+
+    private bool hasAny => dashboard is { } d && (d.Today.Count + d.Upcoming.Count + totalPresentations) > 0;
 
     private IReadOnlyList<(string SessionId, ActiveSession Session)> liveSessions
     {
@@ -228,7 +249,48 @@
         await Task.WhenAll(dashboardTask, templatesTask);
         dashboard = await dashboardTask;
         recentTemplates = await templatesTask;
+
+        // Reload as many rows as are already on screen, not just the first page: a sync that lands
+        // while someone has pressed "show more" four times should not fold their list back up.
+        await ReloadListAsync(Math.Max(PageSize, allPresentations.Count));
     }
+
+    /// <summary>
+    /// Replaces the visible rows with the first <paramref name="take"/> in the current sort order.
+    /// </summary>
+    private async Task ReloadListAsync(int take)
+    {
+        if (OrgState.ActiveOrganizationId is not { } orgId)
+            return;
+
+        var page = await PresentationService.GetPresentationSummariesPageAsync(
+            orgId, 0, take, OrgState.ToCallerContext(), ListCutoff);
+
+        allPresentations.Clear();
+        allPresentations.AddRange(page.Items);
+        totalPresentations = page.TotalCount;
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        if (isLoadingMore) return;
+        if (OrgState.ActiveOrganizationId is not { } orgId) return;
+
+        isLoadingMore = true;
+        try
+        {
+            var page = await PresentationService.GetPresentationSummariesPageAsync(
+                orgId, allPresentations.Count, PageSize, OrgState.ToCallerContext(), ListCutoff);
+
+            allPresentations.AddRange(page.Items);
+            totalPresentations = page.TotalCount;
+        }
+        finally
+        {
+            isLoadingMore = false;
+        }
+    }
+
 
     private async Task DismissWelcomeAsync()
     {

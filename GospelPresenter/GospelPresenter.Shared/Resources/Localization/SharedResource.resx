@@ -86,6 +86,9 @@
   <data name="Common.Role" xml:space="preserve">
     <value>Role</value>
   </data>
+  <data name="Common.ShowMore" xml:space="preserve">
+    <value>Show more</value>
+  </data>
   <data name="Common.OK" xml:space="preserve">
     <value>OK</value>
   </data>
@@ -1250,33 +1253,6 @@
   <data name="Dashboard.Upcoming" xml:space="preserve">
     <value>Upcoming</value>
   </data>
-  <data name="Dashboard.Previous" xml:space="preserve">
-    <value>Previous</value>
-  </data>
-  <data name="Dashboard.AllPresentations" xml:space="preserve">
-    <value>All presentations</value>
-  </data>
-  <data name="Presentations.Title" xml:space="preserve">
-    <value>All presentations</value>
-  </data>
-  <data name="Presentations.Empty" xml:space="preserve">
-    <value>No presentations</value>
-  </data>
-  <data name="Presentations.Description" xml:space="preserve">
-    <value>All your presentations.</value>
-  </data>
-  <data name="Presentations.Sort.UpdatedDesc" xml:space="preserve">
-    <value>Recently modified</value>
-  </data>
-  <data name="Presentations.Sort.NameAsc" xml:space="preserve">
-    <value>Name (A–Z)</value>
-  </data>
-  <data name="Presentations.Sort.EventDateDesc" xml:space="preserve">
-    <value>Event date (newest first)</value>
-  </data>
-  <data name="Presentations.Sort.EventDateAsc" xml:space="preserve">
-    <value>Event date (oldest first)</value>
-  </data>
   <data name="Sidebar.SaveAsTemplate" xml:space="preserve">
     <value>Save as template</value>
   </data>
@@ -1366,9 +1342,6 @@
   </data>
   <data name="CcliReport.FilterReported" xml:space="preserve">
     <value>Reported</value>
-  </data>
-  <data name="CcliReport.LoadMore" xml:space="preserve">
-    <value>Load more</value>
   </data>
   <data name="CcliReport.OtherPresentation" xml:space="preserve">
     <value>Other</value>
