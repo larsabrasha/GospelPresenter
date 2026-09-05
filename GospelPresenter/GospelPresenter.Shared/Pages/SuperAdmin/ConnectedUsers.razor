@@ -1,0 +1,130 @@
+@page "/admin/connected-users"
+@attribute [Authorize(Policy = ManageOrganizations)]
+
+@using GospelPresenter.Shared.Components
+@using GospelPresenter.Shared.Layout
+@using GospelPresenter.Shared.Localization
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+
+@layout AdminLayout
+@implements IDisposable
+
+@inject IUserService UserService
+@inject ActiveOrganizationState OrgState
+@inject IServiceProvider Services
+@inject CircuitCulture Culture
+
+<PageContainer>
+    <div class="px-5">
+        <div class="text-xl font-bold dark:text-neutral-100">@L["ConnectedUsers.Title"]</div>
+        @* Said on the page, not just in the code: this counts open pages, and a page left open
+           overnight is a row here while its owner is asleep. *@
+        <div class="text-sm text-neutral-400 dark:text-neutral-500 mt-1">@L["ConnectedUsers.Subtitle"]</div>
+    </div>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+        @if (directory is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">@L["ConnectedUsers.NotAvailable"]</div>
+        }
+        else if (organizationNames is null)
+        {
+            <div class="px-7 py-4 text-neutral-400">@L["Common.Loading"]</div>
+        }
+        else if (users.Count == 0)
+        {
+            <div class="flex flex-col items-center text-center py-8 px-4 select-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160"
+                     class="w-40 h-auto mb-4 text-neutral-300 dark:text-neutral-600">
+                    <circle cx="100" cy="60" r="20" stroke="currentColor" stroke-width="2"/>
+                    <path d="M60 118c0-22 18-34 40-34s40 12 40 34" stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round"/>
+                    <line x1="52" y1="34" x2="148" y2="126" stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round" opacity="0.4"/>
+                </svg>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500 leading-relaxed">@L["ConnectedUsers.None"]</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var user in users)
+            {
+                <div class="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium truncate">@user.Name</div>
+                        <div class="text-xs text-neutral-400 dark:text-neutral-500 truncate">
+                            @OrganizationName(user.OrganizationId) · @L["ConnectedUsers.Since", user.Since.ToLocalTime().ToString("HH:mm")]
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        @if (!user.IsConnected)
+                        {
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">
+                                @L["ConnectedUsers.Disconnected"]
+                            </span>
+                        }
+                        @if (user.Tabs > 1)
+                        {
+                            <span class="text-[11px] px-2 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300">
+                                @L["ConnectedUsers.TabCount", user.Tabs]
+                            </span>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</PageContainer>
+
+@code {
+    private IConnectedUserDirectory? directory;
+    private IReadOnlyList<ConnectedUser> users = [];
+    private Dictionary<string, string>? organizationNames;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Only the web host counts circuits. A device app is one person on one machine, and this
+        // page has nothing to tell them.
+        directory = Services.GetService(typeof(IConnectedUserDirectory)) as IConnectedUserDirectory;
+        if (directory is null) return;
+
+        directory.Changed += OnDirectoryChanged;
+        users = directory.All();
+
+        try
+        {
+            var organizations = await UserService.GetAllOrganizationsAsync(OrgState.ToCallerContext());
+            organizationNames = organizations.ToDictionary(o => o.Id, o => o.Name);
+        }
+        catch (Exception)
+        {
+            // Names are a convenience; the list is the point. An empty map falls back to showing
+            // the identifier, which is worse to read and still tells the whole truth — better than
+            // a page that fails to open because the database was slow to answer.
+            organizationNames = [];
+        }
+    }
+
+    /// <summary>
+    /// Raised on whichever circuit came or went, which is never this one. See CircuitCulture for
+    /// why the language has to be put back before rendering.
+    /// </summary>
+    private void OnDirectoryChanged() => _ = InvokeAsync(Culture.Restore(() =>
+    {
+        users = directory?.All() ?? [];
+        StateHasChanged();
+    }));
+
+    private string OrganizationName(string? organizationId) =>
+        organizationId is null
+            ? L["ConnectedUsers.NoOrganization"]
+            : organizationNames?.GetValueOrDefault(organizationId) ?? organizationId;
+
+    public void Dispose()
+    {
+        if (directory is not null)
+            directory.Changed -= OnDirectoryChanged;
+    }
+}

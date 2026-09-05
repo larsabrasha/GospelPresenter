@@ -12,6 +12,12 @@ namespace GospelPresenter.Web.Live;
 /// from a controller and has to be forwarded down. Without that comparison the two would chase each
 /// other — a controller's write would be forwarded, echoed back, written again, and forwarded again.
 /// </param>
+/// <param name="OwnerLastSeen">
+/// When this server last had contact with the owner: its last report, or the moment its connection
+/// dropped. What <see cref="AbandonedSessionReaper"/> measures against, so it has to be the drop
+/// rather than the last report — a device that went quiet before it went away would otherwise be
+/// given less time than one that was chatty right up to the end.
+/// </param>
 /// <param name="OwnerName">
 /// What the user called this device when they registered it. Empty for a token issued before the
 /// name existed; a controller falls back to numbering then.
@@ -89,7 +95,7 @@ public class MirroredSessionRegistry : ILiveSessionPresence
             {
                 if (existing.ConnectionId != connectionId) return existing;
                 wentOffline = true;
-                return existing with { OwnerConnected = false };
+                return existing with { OwnerConnected = false, OwnerLastSeen = DateTimeOffset.UtcNow };
             });
 
         if (!wentOffline) return null;

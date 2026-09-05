@@ -45,6 +45,9 @@
     private bool wakeLockRequested;
     private string sessionId = "";
     private string windowId = "";
+    private string role = "Live";
+    private int index;
+    private string title = "";
     private GospelPresenter.Shared.Services.ILiveWindowLauncher? liveWindowLauncher;
 
     protected override void OnInitialized()
@@ -63,13 +66,25 @@
         {
             windowId = wid.ToString();
         }
-        if (query.TryGetValue("title", out var title))
+        // Carried in the URL so this window can say what it is when the operator's panel asks who
+        // is out there — see initLiveViewListener. A window opened by an older build says nothing,
+        // and the defaults make it a plain live view, which is what it was.
+        if (query.TryGetValue("role", out var r))
         {
-            JsRuntime.InvokeVoidAsync("eval", $"document.title = {System.Text.Json.JsonSerializer.Serialize(title.ToString())}");
+            role = r.ToString();
+        }
+        if (query.TryGetValue("index", out var i) && int.TryParse(i.ToString(), out var parsedIndex))
+        {
+            index = parsedIndex;
+        }
+        if (query.TryGetValue("title", out var t))
+        {
+            title = t.ToString();
+            JsRuntime.InvokeVoidAsync("eval", $"document.title = {System.Text.Json.JsonSerializer.Serialize(title)}");
         }
 
         JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
-        JsRuntime.InvokeVoidAsync("initLiveViewListener", sessionId, windowId);
+        JsRuntime.InvokeVoidAsync("initLiveViewListener", sessionId, windowId, role, index, title);
 
         AppState.PropertyChanged += OnAppStateChanged;
         SharedAppState.SessionChanged += OnSessionChanged;

@@ -221,6 +221,41 @@ public class LiveCommandForwarderTests : IDisposable
         MirroredSessionStateReader.ShowsTheSame(current, registry.LastReported(SessionId)!).ShouldBeTrue();
     }
 
+    /// <summary>
+    /// Why a controller driving a mirrored session is not offered a Stop button.
+    ///
+    /// It used to be, and pressing it took the session out of this server's live state — which is
+    /// all a controller can reach. The device hears nothing: the protocol carries no stop, and a
+    /// session that is no longer presenting reads as nothing to forward. The projector therefore
+    /// carried on while the dashboard and the controller both said the service had stopped, until
+    /// the owner's next report put the session back. See adr/0004: only the owner ends a session.
+    /// </summary>
+    [Fact]
+    public async Task DeactivatingAMirroredSession_TellsTheDeviceNothing()
+    {
+        GoLive(reportedItemId: "item-1", reportedPartIndex: 0);
+
+        sharedAppState.DeactivatePresentation(SessionId);
+
+        await hub.ShouldStayQuietAsync();
+    }
+
+    /// <summary>
+    /// And the device is still there, still registered, still the owner — so nothing about the
+    /// deactivation is final. This is the state the controller was left describing.
+    /// </summary>
+    [Fact]
+    public void DeactivatingAMirroredSession_LeavesTheDeviceOwningIt()
+    {
+        GoLive(reportedItemId: "item-1", reportedPartIndex: 0);
+
+        sharedAppState.DeactivatePresentation(SessionId);
+
+        sharedAppState.IsPresentationActive(SessionId).ShouldBeFalse();
+        registry.IsMirrored(SessionId).ShouldBeTrue();
+        registry.IsOwnerOnline(SessionId).ShouldBeTrue();
+    }
+
     // ---------- helpers ----------
 
     private void GoLive(string reportedItemId, int reportedPartIndex)

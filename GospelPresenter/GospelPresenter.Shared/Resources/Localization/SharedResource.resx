@@ -1100,6 +1100,81 @@
   <data name="RemoteControl.PresenterOffline" xml:space="preserve">
     <value>The presenting machine has lost its connection. What it was showing is still up; it can be controlled again once it is back.</value>
   </data>
+  <data name="LiveSessions.Title" xml:space="preserve">
+    <value>Live sessions</value>
+  </data>
+  <data name="LiveSessions.Subtitle" xml:space="preserve">
+    <value>Every presentation running right now, across all organizations.</value>
+  </data>
+  <data name="LiveSessions.None" xml:space="preserve">
+    <value>Nothing is being presented right now.</value>
+  </data>
+  <data name="LiveSessions.UnnamedPresentation" xml:space="preserve">
+    <value>Presentation without a name</value>
+  </data>
+  <data name="LiveSessions.OwnerBrowser" xml:space="preserve">
+    <value>Browser</value>
+  </data>
+  <data name="LiveSessions.OwnerDevice" xml:space="preserve">
+    <value>Device</value>
+  </data>
+  <data name="LiveSessions.OwnerOffline" xml:space="preserve">
+    <value>Machine unreachable</value>
+  </data>
+  <data name="LiveSessions.RemoteOn" xml:space="preserve">
+    <value>Remote control</value>
+  </data>
+  <data name="LiveSessions.OutputCount" xml:space="preserve">
+    <value>{0} outputs</value>
+  </data>
+  <data name="LiveSessions.End" xml:space="preserve">
+    <value>End</value>
+  </data>
+  <data name="LiveSessions.EndTitle" xml:space="preserve">
+    <value>End the presentation?</value>
+  </data>
+  <data name="LiveSessions.EndConfirm" xml:space="preserve">
+    <value>{0} stops for everyone watching it, and the screens and public outputs it is using are released.</value>
+  </data>
+  <data name="ConnectedUsers.Title" xml:space="preserve">
+    <value>Users online</value>
+  </data>
+  <data name="ConnectedUsers.Subtitle" xml:space="preserve">
+    <value>Who has the app open right now. A page left open counts until it is closed.</value>
+  </data>
+  <data name="ConnectedUsers.None" xml:space="preserve">
+    <value>Nobody has the app open right now.</value>
+  </data>
+  <data name="ConnectedUsers.NotAvailable" xml:space="preserve">
+    <value>This host does not count connections.</value>
+  </data>
+  <data name="ConnectedUsers.Since" xml:space="preserve">
+    <value>here since {0}</value>
+  </data>
+  <data name="ConnectedUsers.TabCount" xml:space="preserve">
+    <value>{0} tabs</value>
+  </data>
+  <data name="ConnectedUsers.Disconnected" xml:space="preserve">
+    <value>Out of touch</value>
+  </data>
+  <data name="ConnectedUsers.NoOrganization" xml:space="preserve">
+    <value>No organization</value>
+  </data>
+  <data name="Nav.LiveSessions" xml:space="preserve">
+    <value>Live sessions</value>
+  </data>
+  <data name="Nav.ConnectedUsers" xml:space="preserve">
+    <value>Users online</value>
+  </data>
+  <data name="RemoteControl.EndAbandoned" xml:space="preserve">
+    <value>End the presentation</value>
+  </data>
+  <data name="RemoteControl.EndAbandonedHint" xml:space="preserve">
+    <value>If the machine is not coming back, you can end the presentation here. The screens and public outputs it was using are released.</value>
+  </data>
+  <data name="RemoteControl.StopOnOwnerOnly" xml:space="preserve">
+    <value>Only the machine that is presenting can stop the presentation.</value>
+  </data>
   <data name="RemoteControl.CommandNotConfirmed" xml:space="preserve">
     <value>The presenting machine has not confirmed the change. Check what is on the screen.</value>
   </data>

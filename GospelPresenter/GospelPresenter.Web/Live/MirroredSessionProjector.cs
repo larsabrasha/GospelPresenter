@@ -23,7 +23,7 @@ public class MirroredSessionProjector(
     IRemoteDisplayService remoteDisplays,
     IThemeService themes,
     ILiveSlideBuilder slideBuilder,
-    ILogger<MirroredSessionProjector> logger)
+    ILogger<MirroredSessionProjector> logger) : ILiveSessionEnder
 {
     public async Task ApplyAsync(string sessionId, string organizationId, MirroredSessionState state, CallerContext caller)
     {
@@ -170,6 +170,10 @@ public class MirroredSessionProjector(
     /// <summary>
     /// The owner has stopped presenting. Everything the session held goes with it, including the
     /// CCLI exemption — the next session under this id may well be an ordinary browser one.
+    ///
+    /// Also reached, through <see cref="ILiveSessionEnder"/>, by a controller ending a session
+    /// whose owner has gone away and cannot be asked. The two are the same act and must stay the
+    /// same code: a session ended one way and not the other would leave its outputs bound.
     /// </summary>
     public void End(string sessionId)
     {

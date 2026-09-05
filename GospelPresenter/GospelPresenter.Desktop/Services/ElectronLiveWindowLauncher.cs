@@ -41,21 +41,26 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
     /// </summary>
     private const string ProjectorTitlePrefix = "Gospel Presenter Projector";
 
-    private readonly ConcurrentDictionary<string, BrowserWindow> windows = new();
+    private readonly ConcurrentDictionary<string, (LiveWindowEntry Entry, BrowserWindow Window)> windows = new();
 
     public event Action<string>? WindowClosed;
 
-    public async Task<bool> OpenAsync(string sessionId, string windowId, string title)
+    public async Task<bool> OpenAsync(LiveWindowEntry entry)
     {
+        var windowId = entry.WindowId;
         try
         {
             var target = await ChooseDisplayAsync();
-            var windowTitle = $"{ProjectorTitlePrefix} — {title}";
+            var windowTitle = $"{ProjectorTitlePrefix} — {entry.Title}";
             var options = target is null ? Windowed(windowTitle) : FillingDisplay(windowTitle, target);
 
-            var url = $"{BaseAddress()}/live?session={Uri.EscapeDataString(sessionId)}" +
+            // The role and the number go with it, so the window can identify itself when an
+            // operator page that has been reloaded asks what is open. See LiveOutputsState.
+            var url = $"{BaseAddress()}/live?session={Uri.EscapeDataString(entry.SessionId)}" +
                       $"&windowId={Uri.EscapeDataString(windowId)}" +
-                      $"&title={Uri.EscapeDataString(title)}";
+                      $"&role={entry.Role}" +
+                      $"&index={entry.Index}" +
+                      $"&title={Uri.EscapeDataString(entry.Title)}";
 
             var window = await Electron.WindowManager.CreateWindowAsync(options, url);
             window.OnClosed += () =>
@@ -74,7 +79,7 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
                     window.SetKiosk(true);
             };
 
-            windows[windowId] = window;
+            windows[windowId] = (entry, window);
             logger.LogInformation("Live window {WindowId} opened on {Where}",
                 windowId, target is null ? "the primary display, windowed" : $"display {target.Id}");
             return true;
@@ -89,12 +94,22 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
 
     public async Task<bool> HasExternalDisplayAsync() => await ChooseDisplayAsync() is not null;
 
+    /// <summary>
+    /// This launcher is a singleton and the operator's circuit is not, so this is what an operator
+    /// page coming back from a reload reads instead of opening a second set of windows.
+    /// </summary>
+    public IReadOnlyList<LiveWindowEntry> OpenWindowsFor(string sessionId) => windows.Values
+        .Select(w => w.Entry)
+        .Where(e => e.SessionId == sessionId)
+        .OrderBy(e => e.Index)
+        .ToList();
+
     public Task CloseAsync(string windowId)
     {
         // Close, not Destroy: OnClosed still fires, so the panel hears about it the same way it
         // would if the user had closed the window themselves.
-        if (windows.TryGetValue(windowId, out var window))
-            window.Close();
+        if (windows.TryGetValue(windowId, out var tracked))
+            tracked.Window.Close();
 
         return Task.CompletedTask;
     }
@@ -132,7 +147,7 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
     {
         try
         {
-            var ours = windows.Values.Select(w => w.Id).ToHashSet();
+            var ours = windows.Values.Select(w => w.Window.Id).ToHashSet();
             var operatorWindow = Electron.WindowManager.BrowserWindows
                 .FirstOrDefault(w => !ours.Contains(w.Id));
 

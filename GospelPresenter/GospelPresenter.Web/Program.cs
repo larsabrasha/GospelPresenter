@@ -2,6 +2,7 @@ using GospelPresenter.Shared;
 using GospelPresenter.Shared.Authorization;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Live;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
@@ -235,6 +236,32 @@ try
         sp.GetRequiredService<GospelPresenter.Web.Live.MirroredSessionRegistry>());
     builder.Services.AddSingleton<GospelPresenter.Web.Live.LiveCommandForwarder>();
     builder.Services.AddScoped<GospelPresenter.Web.Live.MirroredSessionProjector>();
+    // The same projector, under the one thing a page in the shared assembly is allowed to ask of
+    // it: end a session whose owning device is gone. See ILiveSessionEnder.
+    builder.Services.AddScoped<ILiveSessionEnder>(sp =>
+        sp.GetRequiredService<GospelPresenter.Web.Live.MirroredSessionProjector>());
+
+    // How long a device may be unreachable before its session is ended for it. Longer than any
+    // outage a service survives, shorter than the general session timeout — see
+    // AbandonedSessionReaper for why that timeout is not an answer to this on its own.
+    var abandonedAfter = TimeSpan.FromMinutes(
+        builder.Configuration.GetValue("Settings:AbandonedSessionMinutes", 120));
+    builder.Services.AddSingleton(sp => new GospelPresenter.Web.Live.AbandonedSessionReaper(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<GospelPresenter.Web.Live.MirroredSessionRegistry>(),
+        sp.GetRequiredService<SharedAppState>(),
+        abandonedAfter,
+        TimeSpan.FromMinutes(1),
+        sp.GetRequiredService<ILogger<GospelPresenter.Web.Live.AbandonedSessionReaper>>()));
+    builder.Services.AddHostedService(sp =>
+        sp.GetRequiredService<GospelPresenter.Web.Live.AbandonedSessionReaper>());
+
+    // Who has the app open right now. A cookie cannot answer that — see IConnectedUserDirectory —
+    // so the circuits are counted instead, one handler per circuit reporting into one registry.
+    builder.Services.AddSingleton<GospelPresenter.Web.Live.ConnectedUserRegistry>();
+    builder.Services.AddSingleton<IConnectedUserDirectory>(sp =>
+        sp.GetRequiredService<GospelPresenter.Web.Live.ConnectedUserRegistry>());
+    builder.Services.AddScoped<CircuitHandler, GospelPresenter.Web.Live.ConnectedUserCircuitHandler>();
 
     // Change announcements: this replaces the no-op the shared setup registered, so that saves in
     // this process reach the devices on the hub and the browser circuits in it. Both hear the same

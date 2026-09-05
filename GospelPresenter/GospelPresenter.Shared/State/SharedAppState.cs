@@ -127,6 +127,19 @@ public class SharedAppState
         Announce(sessionId, SessionChangeKind.Slide);
     }
 
+    /// <summary>
+    /// Puts the session back to showing nothing, blacked out.
+    ///
+    /// Where a presentation starts from. A session id outlives the presentations run under it — a
+    /// browser tab keeps one for as long as it is open, a device for as long as it is installed —
+    /// so the slide the last service ended on is still here when the next one begins. Blacking that
+    /// out without clearing it left the previous presentation's slide one press of "show slide"
+    /// away from the projector, and nothing on screen said so: the grid marks nothing as live while
+    /// the output is black, so the operator had no way to know what was behind it.
+    /// </summary>
+    public void ClearLiveSlide(string sessionId) =>
+        SetLiveSlide(sessionId, DefaultSlide with { Status = LiveSlideStatus.ShowingBlackScreen });
+
     public ActiveOverlay? GetActiveOverlay(string sessionId)
     {
         return activeOverlays.GetValueOrDefault(sessionId);
@@ -244,6 +257,17 @@ public class SharedAppState
         if (!hadActive && !hadAudio && !hadPendingCommand)
             return;
 
+        // Said once, and said as what it was. A session that was only holding the audio a stopped
+        // presentation had left behind is not a presentation ending: announcing that as an
+        // activation told every dashboard a service had stopped, and raising
+        // PresentationDeactivated for it told the update button a presentation it had never seen
+        // start was over.
+        if (!hadActive)
+        {
+            Announce(sessionId, SessionChangeKind.Audio, null);
+            return;
+        }
+
         logger.LogDebug(
             "DeactivatePresentation sessionId={SessionId} hadActivePresentation={HadActive} remoteControlWasEnabled={RemoteControlWasEnabled}",
             sessionId, hadActive, wasRemoteEnabled);
@@ -351,6 +375,18 @@ public class SharedAppState
             organizationId, presentationId, resolved.Count);
         return resolved;
     }
+
+    /// <summary>
+    /// Every presentation running on this server, whoever owns it and whichever organisation it
+    /// belongs to. For the one view that is allowed to see across organisations: a live service
+    /// nobody can account for is exactly what a superadmin is looking for, so this deliberately
+    /// filters nothing. Every other caller wants one of the scoped accessors above.
+    /// </summary>
+    public IReadOnlyList<(string SessionId, ActiveSession Session)> GetAllActiveSessions() =>
+        presentationActive
+            .Select(kvp => (kvp.Key, kvp.Value))
+            .OrderBy(s => s.Key, StringComparer.Ordinal)
+            .ToList();
 
     public IReadOnlyList<(string SessionId, ActiveSession Session)> GetRemoteEnabledSessionsForOrganization(string organizationId)
     {
@@ -470,6 +506,16 @@ public class SharedAppState
         CleanupStaleSessions(now);
     }
 
+    /// <summary>
+    /// Runs the eviction sweep without anything having been touched.
+    ///
+    /// The sweep below is otherwise reached only from <see cref="TouchSession"/> — that is, only
+    /// when somebody is using some session. A server that has gone quiet therefore never runs it,
+    /// and a session left behind by a browser that was closed outlives the timeout it is supposed
+    /// to have until the next time anyone starts anything. The web host calls this on a timer.
+    /// </summary>
+    public void SweepStaleSessions() => CleanupStaleSessions(DateTime.UtcNow);
+
     private void CleanupStaleSessions(DateTime now)
     {
         foreach (var (sessionId, accessed) in lastAccessed)
@@ -501,6 +547,11 @@ public class SharedAppState
             {
                 expiredSessions[sessionId] = now;
                 Announce(sessionId, SessionChangeKind.Activation, evicted?.OrganizationId);
+                // Said the same way an operator's own Stop says it. Eviction used to announce the
+                // change and stop there, which left a remote controller still pointed at the
+                // session it had picked: nothing re-ran its choice, so it went on describing a
+                // machine this server had already forgotten.
+                PresentationDeactivated?.Invoke(sessionId);
             }
         }
 

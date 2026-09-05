@@ -302,7 +302,21 @@ window.scrollSidebarItemIntoView = function(itemId) {
     if (el) el.scrollIntoView({ block: 'nearest' });
 }
 
-window.liveViewChannel = new BroadcastChannel('gospel-live');
+// Every live window and every operator page talks over this one channel: roll calls, "I am here",
+// "I am gone", and "close yourself". A browser without BroadcastChannel gets a stand-in that drops
+// everything on the floor, because the alternative is this file failing to load at all — the live
+// windows are then simply not discoverable, which is what they were before this channel existed.
+window.liveViewChannel = (function () {
+    try {
+        return new BroadcastChannel('gospel-live');
+    } catch (e) {
+        return {
+            addEventListener: function () { },
+            removeEventListener: function () { },
+            postMessage: function () { }
+        };
+    }
+})();
 
 window.presentationState = { connection: null };
 
@@ -664,12 +678,36 @@ window.positionDropdownPortal = function(menuEl, triggerEl) {
     }
 };
 
-window.initLiveViewListener = function(sessionId, windowId) {
-    window.liveViewChannel.addEventListener('message', function(e) {
-        if (e.data?.sessionId !== sessionId) return;
+// A live window's own end of the channel: it answers roll calls, announces itself on every load,
+// says when it is going away, and closes when asked.
+//
+// The announcements are what the operator's panel is built on. Its state dies with its circuit,
+// while these windows do not — reload the operator page mid-service and the only thing that still
+// knows what is open is the windows themselves.
+window.initLiveViewListener = function(sessionId, windowId, role, index, title) {
+    var me = {
+        type: 'window-alive',
+        sessionId: sessionId,
+        windowId: windowId,
+        role: role || 'Live',
+        index: index || 0,
+        title: title || ''
+    };
 
-        if (e.data.type === 'close') {
+    window.liveViewChannel.addEventListener('message', function(e) {
+        var message = e.data;
+        if (!message) return;
+
+        // Either this window by name, or every window of the session — the second is how a
+        // presentation that stopped reaches windows nobody is keeping track of any more.
+        if (message.type === 'close'
+            && (message.windowId === windowId || (!message.windowId && message.sessionId === sessionId))) {
             window.close();
+            return;
+        }
+
+        if (message.type === 'roll-call' && message.sessionId === sessionId) {
+            window.liveViewChannel.postMessage(me);
         }
     });
 
@@ -680,6 +718,14 @@ window.initLiveViewListener = function(sessionId, windowId) {
             windowId: windowId
         });
     });
+
+    // Restored from the back/forward cache the page never loads again, so the announcement below
+    // has to be repeated here — pagehide already told the panel this window had gone.
+    window.addEventListener('pageshow', function(e) {
+        if (e.persisted) window.liveViewChannel.postMessage(me);
+    });
+
+    window.liveViewChannel.postMessage(me);
 }
 
 window.gospelPresenter.liveWindows = [];
@@ -689,13 +735,23 @@ window.gospelPresenter.setLivePanelRef = function(dotNetRef) {
     window.gospelPresenter.livePanelRef = dotNetRef;
 }
 
-window.gospelPresenter.openLiveWindow = function(sessionId, windowId, title) {
-    var url = '/live?session=' + sessionId + '&windowId=' + windowId;
-    if (title) url += '&title=' + encodeURIComponent(title);
-    var win = window.open(url, '_blank');
+// The role and the number travel in the URL so the window can say them back when it announces
+// itself. Without them a projector rediscovered after a reload comes home as "Live view (1)".
+window.gospelPresenter.liveWindowUrl = function(entry) {
+    var url = '/live?session=' + encodeURIComponent(entry.sessionId)
+        + '&windowId=' + encodeURIComponent(entry.windowId)
+        + '&role=' + encodeURIComponent(entry.role || 'Live')
+        + '&index=' + encodeURIComponent(entry.index || 0);
+    if (entry.title) url += '&title=' + encodeURIComponent(entry.title);
+    return url;
+}
+
+window.gospelPresenter.openLiveWindow = function(entry) {
+    var win = window.open(window.gospelPresenter.liveWindowUrl(entry), '_blank');
     if (!win) return false;
 
-    window.gospelPresenter.liveWindows.push({ ref: win, windowId: windowId });
+    window.gospelPresenter.liveWindows.push(
+        { ref: win, windowId: entry.windowId, sessionId: entry.sessionId });
     return true;
 }
 
@@ -707,8 +763,8 @@ window.gospelPresenter.openLiveWindowFromClick = function(button) {
     if (!sessionId) return;
 
     var titlePrefix = button.dataset.titlePrefix || '';
-    var nextIndex = button.dataset.nextIndex || '';
-    var title = titlePrefix && nextIndex ? titlePrefix + ' (' + nextIndex + ')' : titlePrefix;
+    var index = parseInt(button.dataset.nextIndex, 10) || 1;
+    var title = titlePrefix ? titlePrefix + ' (' + index + ')' : '';
 
     // Generate an 8-character hex id matching Guid.NewGuid().ToString("N")[..8]
     var windowId = '';
@@ -717,16 +773,20 @@ window.gospelPresenter.openLiveWindowFromClick = function(button) {
         windowId += chars.charAt(Math.floor(Math.random() * 16));
     }
 
-    var url = '/live?session=' + encodeURIComponent(sessionId) + '&windowId=' + windowId;
-    if (title) url += '&title=' + encodeURIComponent(title);
+    var entry = {
+        sessionId: sessionId,
+        windowId: windowId,
+        title: title,
+        role: 'Live',
+        index: index
+    };
 
-    var win = window.open(url, '_blank');
-    if (!win) return;
+    if (!window.gospelPresenter.openLiveWindow(entry)) return;
 
-    window.gospelPresenter.liveWindows.push({ ref: win, windowId: windowId });
-
+    // The window announces itself as well, once it has loaded. This is the same news sooner, so
+    // the row appears as the operator clicks rather than a page load later.
     if (window.gospelPresenter.livePanelRef) {
-        window.gospelPresenter.livePanelRef.invokeMethodAsync('OnLiveWindowOpened', windowId);
+        window.gospelPresenter.livePanelRef.invokeMethodAsync('OnLiveWindowOpened', entry);
     }
 }
 
@@ -736,15 +796,91 @@ window.gospelPresenter.closeLiveWindow = function(windowId) {
         entry.ref.close();
     }
     window.gospelPresenter.liveWindows = window.gospelPresenter.liveWindows.filter(function(w) { return w && w.windowId !== windowId; });
+
+    // Also over the channel: a window opened before this page was reloaded is a window whose
+    // handle is gone, and asking it to close itself is the only way left to reach it.
+    window.liveViewChannel.postMessage({ type: 'close', windowId: windowId });
 }
 
-window.gospelPresenter.onLiveWindowClosed = function(dotNetRef) {
-    window.liveViewChannel.addEventListener('message', function(e) {
-        if (e.data?.type === 'window-closed' && e.data.windowId) {
-            window.gospelPresenter.liveWindows = window.gospelPresenter.liveWindows.filter(function(w) { return w && w.windowId !== e.data.windowId; });
-            dotNetRef.invokeMethodAsync('OnLiveWindowClosed', e.data.windowId);
-        }
+// Every live window of a session, whoever opened it: the handles this page still holds, plus a
+// message for the ones it does not.
+window.gospelPresenter.closeLiveWindowsFor = function(sessionId) {
+    window.gospelPresenter.liveWindows.forEach(function(w) {
+        if (w && w.sessionId === sessionId && w.ref && !w.ref.closed) w.ref.close();
     });
+    window.gospelPresenter.liveWindows = window.gospelPresenter.liveWindows.filter(function(w) {
+        return w && w.sessionId !== sessionId;
+    });
+
+    window.liveViewChannel.postMessage({ type: 'close', sessionId: sessionId });
+}
+
+// Who is still open for this session? Asked at attach time, because nothing on the server knows:
+// a live window is a browser tab of its own, and the operator page that opened it may have been
+// reloaded since. Windows that do not answer within the window below are treated as gone — they
+// are local windows on one machine, so an answer is a postMessage away, not a network round trip.
+window.gospelPresenter.discoverLiveWindows = function(sessionId) {
+    return new Promise(function(resolve) {
+        var found = [];
+
+        var listener = function(e) {
+            var message = e.data;
+            if (!message || message.type !== 'window-alive' || message.sessionId !== sessionId) return;
+            // No id, no row: a /live opened by hand has none, and a row that cannot be told apart
+            // from the next one cannot be closed either. The listener below drops those too.
+            if (!message.windowId) return;
+            if (found.some(function(w) { return w.windowId === message.windowId; })) return;
+
+            found.push({
+                sessionId: message.sessionId,
+                windowId: message.windowId,
+                title: message.title || '',
+                role: message.role || 'Live',
+                index: message.index || 0
+            });
+        };
+
+        window.liveViewChannel.addEventListener('message', listener);
+        window.liveViewChannel.postMessage({ type: 'roll-call', sessionId: sessionId });
+
+        setTimeout(function() {
+            window.liveViewChannel.removeEventListener('message', listener);
+            resolve(found);
+        }, 400);
+    });
+}
+
+// One listener for the panel, replaced rather than added to: attaching can run more than once —
+// the first attempt happens while the page is still prerendering, where interop is not there yet.
+window.gospelPresenter.listenToLiveWindows = function(dotNetRef) {
+    if (window.gospelPresenter.liveWindowListener) {
+        window.liveViewChannel.removeEventListener('message', window.gospelPresenter.liveWindowListener);
+    }
+
+    window.gospelPresenter.liveWindowListener = function(e) {
+        var message = e.data;
+        if (!message) return;
+
+        if (message.type === 'window-closed' && message.windowId) {
+            window.gospelPresenter.liveWindows = window.gospelPresenter.liveWindows.filter(function(w) {
+                return w && w.windowId !== message.windowId;
+            });
+            dotNetRef.invokeMethodAsync('OnLiveWindowClosed', message.windowId);
+            return;
+        }
+
+        if (message.type === 'window-alive' && message.windowId) {
+            dotNetRef.invokeMethodAsync('OnLiveWindowOpened', {
+                sessionId: message.sessionId,
+                windowId: message.windowId,
+                title: message.title || '',
+                role: message.role || 'Live',
+                index: message.index || 0
+            });
+        }
+    };
+
+    window.liveViewChannel.addEventListener('message', window.gospelPresenter.liveWindowListener);
 }
 
 window.gospelPresenter.saveOutputConfig = function(config) {

@@ -11,17 +11,21 @@ namespace GospelPresenter;
 /// </summary>
 public class LivePage : ContentPage
 {
-    public LivePage(string sessionId, string windowId, string title)
+    public LivePage(Shared.Services.LiveWindowEntry entry)
     {
-        Title = title;
+        Title = entry.Title;
         BackgroundColor = Colors.Black;
 
         var webView = new BlazorWebView
         {
             HostPage = "wwwroot/index.html",
-            StartPath = $"/live?session={Uri.EscapeDataString(sessionId)}"
-                        + $"&windowId={Uri.EscapeDataString(windowId)}"
-                        + $"&title={Uri.EscapeDataString(title)}",
+            // The role and the number travel with it so the window can identify itself to an
+            // operator page that has been reloaded. See LiveOutputsState.
+            StartPath = $"/live?session={Uri.EscapeDataString(entry.SessionId)}"
+                        + $"&windowId={Uri.EscapeDataString(entry.WindowId)}"
+                        + $"&role={entry.Role}"
+                        + $"&index={entry.Index}"
+                        + $"&title={Uri.EscapeDataString(entry.Title)}",
         };
         webView.RootComponents.Add(new RootComponent { Selector = "#app", ComponentType = typeof(Shared.Routes) });
         webView.BlazorWebViewInitializing += OnInitializing;

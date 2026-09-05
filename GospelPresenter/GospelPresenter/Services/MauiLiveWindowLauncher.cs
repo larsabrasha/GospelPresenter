@@ -13,17 +13,18 @@ namespace GospelPresenter.Services;
 /// </summary>
 public class MauiLiveWindowLauncher(ILogger<MauiLiveWindowLauncher> logger) : ILiveWindowLauncher
 {
-    private readonly Dictionary<string, Window> windows = new();
+    private readonly Dictionary<string, (LiveWindowEntry Entry, Window Window)> windows = new();
 
     public event Action<string>? WindowClosed;
 
-    public Task<bool> OpenAsync(string sessionId, string windowId, string title) =>
+    public Task<bool> OpenAsync(LiveWindowEntry entry) =>
         MainThread.InvokeOnMainThreadAsync(() =>
         {
             if (Application.Current is not { } application)
                 return false;
 
-            var window = new Window(new LivePage(sessionId, windowId, title)) { Title = title };
+            var windowId = entry.WindowId;
+            var window = new Window(new LivePage(entry)) { Title = entry.Title };
             window.Destroying += (_, _) =>
             {
                 windows.Remove(windowId);
@@ -43,7 +44,7 @@ public class MauiLiveWindowLauncher(ILogger<MauiLiveWindowLauncher> logger) : IL
                 return false;
             }
 
-            windows[windowId] = window;
+            windows[windowId] = (entry, window);
             return true;
         });
 
@@ -53,10 +54,20 @@ public class MauiLiveWindowLauncher(ILogger<MauiLiveWindowLauncher> logger) : IL
     /// </summary>
     public Task<bool> HasExternalDisplayAsync() => Task.FromResult(false);
 
+    /// <summary>
+    /// This launcher is a singleton and the operator's circuit is not, so this is what an operator
+    /// page coming back from a reload reads instead of opening a second set of windows.
+    /// </summary>
+    public IReadOnlyList<LiveWindowEntry> OpenWindowsFor(string sessionId) => windows.Values
+        .Select(w => w.Entry)
+        .Where(e => e.SessionId == sessionId)
+        .OrderBy(e => e.Index)
+        .ToList();
+
     public Task CloseAsync(string windowId) =>
         MainThread.InvokeOnMainThreadAsync(() =>
         {
-            if (windows.TryGetValue(windowId, out var window))
-                Application.Current?.CloseWindow(window);
+            if (windows.TryGetValue(windowId, out var tracked))
+                Application.Current?.CloseWindow(tracked.Window);
         });
 }
