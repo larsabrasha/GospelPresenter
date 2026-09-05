@@ -141,6 +141,71 @@ public class SharedAppStateTests
         CountingChanges(() => state.DeactivatePresentation(SessionId)).ShouldBe(1);
     }
 
+    /// <summary>
+    /// The audio a stopped presentation leaves behind for the operator to keep playing is held on
+    /// the same session, and taking it away is not a presentation ending. Announcing it as an
+    /// activation told every dashboard in the organisation that a service had stopped.
+    /// </summary>
+    [Fact]
+    public void DeactivatePresentation_WhenOnlyLeftoverAudioWasHeld_DoesNotCallItAnActivation()
+    {
+        state.SetSessionAudio(SessionId, new Audio("audio-1", []));
+
+        Announced(() => state.DeactivatePresentation(SessionId))!
+            .Kind.ShouldBe(SessionChangeKind.Audio);
+    }
+
+    [Fact]
+    public void DeactivatePresentation_WhenOnlyLeftoverAudioWasHeld_DoesNotSayAPresentationStopped()
+    {
+        state.SetSessionAudio(SessionId, new Audio("audio-1", []));
+        var stopped = 0;
+        state.PresentationDeactivated += _ => stopped++;
+
+        state.DeactivatePresentation(SessionId);
+
+        stopped.ShouldBe(0);
+    }
+
+    [Fact]
+    public void DeactivatePresentation_WhenAPresentationWasRunning_SaysAPresentationStopped()
+    {
+        state.ActivatePresentation(SessionId, OrganizationId, PresentationId);
+        var stopped = 0;
+        state.PresentationDeactivated += _ => stopped++;
+
+        state.DeactivatePresentation(SessionId);
+
+        stopped.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Starting a presentation must not inherit the last one's slide. The session id outlives the
+    /// presentations run under it, and blacking the old slide out rather than clearing it left it
+    /// one press of "show slide" from the projector — with nothing on screen to say so, because a
+    /// blacked-out output marks no tile as live.
+    /// </summary>
+    [Fact]
+    public void ClearLiveSlide_AfterAnotherPresentationHasBeenShown_LeavesNothingSelected()
+    {
+        state.SetLiveSlide(SessionId, Slide);
+
+        state.ClearLiveSlide(SessionId);
+
+        var cleared = state.GetLiveSlide(SessionId);
+        cleared.ProjectItemId.ShouldBeNull();
+        cleared.ItemPartIndex.ShouldBeNull();
+        cleared.Text.ShouldBeNull();
+    }
+
+    [Fact]
+    public void ClearLiveSlide_LeavesTheOutputBlack()
+    {
+        state.ClearLiveSlide(SessionId);
+
+        state.GetLiveSlide(SessionId).Status.ShouldBe(LiveSlideStatus.ShowingBlackScreen);
+    }
+
     [Fact]
     public void EnableRemoteControl_WhenItIsAlreadyOn_AnnouncesNothing()
     {
@@ -247,6 +312,24 @@ public class SharedAppStateTests
         expiring.GetLiveSlide(SessionId);
 
         announced?.OrganizationId.ShouldBe(OrganizationId);
+    }
+
+    /// <summary>
+    /// Eviction is a presentation ending, and has to be said the way an operator's own Stop says
+    /// it. It used to announce the change and stop there, which left a remote controller pointed at
+    /// a session this server had forgotten: nothing re-ran the controller's choice of machine.
+    /// </summary>
+    [Fact]
+    public void CleanupStaleSessions_EvictingALiveSession_SaysThePresentationStopped()
+    {
+        var expiring = new SharedAppState(TimeSpan.FromMilliseconds(-1), NullLogger<SharedAppState>.Instance);
+        expiring.ActivatePresentation(SessionId, OrganizationId, PresentationId);
+        var stopped = new List<string>();
+        expiring.PresentationDeactivated += id => stopped.Add(id);
+
+        expiring.GetLiveSlide(SessionId);
+
+        stopped.ShouldBe([SessionId]);
     }
 
     /// <summary>

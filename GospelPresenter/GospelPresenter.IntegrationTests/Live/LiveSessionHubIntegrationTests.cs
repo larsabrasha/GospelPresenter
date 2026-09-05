@@ -107,6 +107,44 @@ public class LiveSessionHubIntegrationTests
         state.GetLiveSlide(sessionId).Text.ShouldNotBeNullOrWhiteSpace();
     }
 
+    /// <summary>
+    /// Why a remote controller cannot stop a mirrored presentation, shown against the real pipeline.
+    ///
+    /// A controller only ever reaches this server's live state. Taking the session out of it looks
+    /// like a stop for as long as it takes the device to report its next change — which is seconds,
+    /// and which puts the session straight back, because a report is absolute and says the device is
+    /// presenting. The projector never stopped at any point. Compare
+    /// EndingTheSession_ClearsItAndTheCcliExemptionWithIt below, which is the owner doing it, and
+    /// which sticks.
+    /// </summary>
+    [Fact]
+    public async Task ADeactivationOnThisServer_IsUndoneByTheOwnersNextReport()
+    {
+        using var app = new WebAppFixture();
+        var token = await IssueDeviceTokenAsync(app);
+        await using var connection = BuildConnection(app, token);
+
+        await connection.StartAsync();
+        var sessionId = await WaitForRegisteredSessionAsync(app);
+        var itemId = await FirstSongItemIdAsync(app);
+        var state = app.Services.GetRequiredService<SharedAppState>();
+
+        await connection.InvokeAsync(LiveSessionHubMethods.ReportState, new MirroredSessionState(
+            PresentationId, "Söndagsgudstjänst", true, false, itemId, 0, null));
+        state.IsPresentationActive(sessionId).ShouldBeTrue();
+
+        // All a controller's Stop button ever reached.
+        state.DeactivatePresentation(sessionId);
+        state.IsPresentationActive(sessionId).ShouldBeFalse();
+
+        // The operator on the device moves to the next verse, and the report comes up as usual.
+        await connection.InvokeAsync(LiveSessionHubMethods.ReportState, new MirroredSessionState(
+            PresentationId, "Söndagsgudstjänst", true, false, itemId, 1, null));
+
+        state.IsPresentationActive(sessionId).ShouldBeTrue();
+        state.GetLiveSlide(sessionId).ItemPartIndex.ShouldBe(1);
+    }
+
     [Fact]
     public async Task EndingTheSession_ClearsItAndTheCcliExemptionWithIt()
     {

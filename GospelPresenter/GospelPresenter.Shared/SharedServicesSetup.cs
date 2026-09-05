@@ -33,6 +33,9 @@ public static class SharedServicesSetup
         services.AddScoped<ToastService>();
         services.AddScoped<AppState>();
         services.AddScoped<PresentationEditorState>();
+        // One owner per circuit for the live windows and the projector output. The presentation
+        // page renders two LivePanels and lets CSS pick one, so the panel cannot hold this.
+        services.AddScoped<LiveOutputsState>();
         services.AddScoped<ActiveOrganizationState>();
         services.AddSingleton<SharedAppState>(sp => new SharedAppState(
             TimeSpan.FromMinutes(timeoutMinutes),

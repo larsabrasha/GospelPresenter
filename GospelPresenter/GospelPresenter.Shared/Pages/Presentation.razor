@@ -248,6 +248,7 @@
                                 Collapsible
                                 OnClearSlide="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
                                 OnToggleOverlay="ToggleOverlay"
+                                CanStop="@CanStopPresentation"
                                 OnStopPresentation="StopPresentation"
                                 OnEnterStageMode="EnterStageMode"/>
                         </div>
@@ -276,6 +277,7 @@
                             ShowGrow
                             OnClearSlide="() => SharedAppState.ToggleBlackScreen(EffectiveSessionId)"
                             OnToggleOverlay="ToggleOverlay"
+                            CanStop="@CanStopPresentation"
                             OnStopPresentation="StopPresentation"
                             OnEnterStageMode="EnterStageMode"/>
                     </div>
@@ -611,6 +613,20 @@
         || (!IsPresenterOffline
             && _presenterSessionId is not null
             && SharedAppState.IsRemoteControlEnabled(_presenterSessionId));
+
+    /// <summary>
+    /// Whether this page may end the presentation it is looking at. Its own, always; a session it
+    /// is only controlling, only when that session runs in a browser on this server.
+    ///
+    /// A mirrored session is owned by a device, and deactivating it here changed nothing on the
+    /// projector: the owner keeps mirroring, its next report activates the session again, and in
+    /// between the dashboard and this page both said "stopped" about a service that was still
+    /// running. The protocol carries no stop, deliberately — see adr/0004, where losing the
+    /// connection freezes and only the owner ends the session.
+    /// </summary>
+    private bool CanStopPresentation =>
+        !IsRemoteMode || liveSessionPresence?.IsMirrored(EffectiveSessionId) != true;
+
     private bool IsStageReady => IsStageMode
         && IsRemoteReady
         && SharedAppState.IsPresentationActive(EffectiveSessionId);
@@ -659,20 +675,38 @@
 
     }
 
+    /// <summary>
+    /// Held while starting or stopping, so the second of two quick presses does not run against a
+    /// half-finished first. Both methods await the browser and, on a device, the mirror; the state
+    /// they leave behind in between is neither started nor stopped, and a Start landing there
+    /// blacked out a slide the first press had already put up.
+    /// </summary>
+    private bool changingPresentationState;
+
     private async Task StartPresentation()
     {
         var orgId = OrgState.ActiveOrganizationId;
-        if (orgId is null) return;
+        if (orgId is null || changingPresentationState) return;
+        changingPresentationState = true;
 
-        ResetLiveSlide();
-        SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId, AppState.SelectedProject?.Name);
+        try
+        {
+            // Cleared, not just blacked out: the session may have run another presentation before
+            // this one, and its last slide is still here. See SharedAppState.ClearLiveSlide.
+            SharedAppState.ClearLiveSlide(AppState.SessionId);
+            SharedAppState.ActivatePresentation(AppState.SessionId, orgId, EffectiveId, AppState.SelectedProject?.Name);
 
-        if (liveSessionMirror is not null)
-            await liveSessionMirror.StartAsync(AppState.SessionId);
+            if (liveSessionMirror is not null)
+                await liveSessionMirror.StartAsync(AppState.SessionId);
 
-        // A sleeping operator machine takes the circuit and the projector window with it. Held
-        // only while live, so browsing and editing behave as before.
-        try { await JsRuntime.InvokeVoidAsync("gospelPresenter.requestWakeLock"); } catch { }
+            // A sleeping operator machine takes the circuit and the projector window with it. Held
+            // only while live, so browsing and editing behave as before.
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.requestWakeLock"); } catch { }
+        }
+        finally
+        {
+            changingPresentationState = false;
+        }
     }
 
     /// <summary>
@@ -729,14 +763,30 @@
 
     private async Task StopPresentation()
     {
-        await JsRuntime.InvokeVoidAsync("stopLivePresentation", EffectiveSessionId);
-        ResetLiveSlide();
-        SharedAppState.DeactivatePresentation(EffectiveSessionId);
-        if (liveSessionMirror is not null)
-            await liveSessionMirror.StopAsync();
-        try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
-        if (Editor.SelectedAudio is not null)
-            SharedAppState.SetSessionAudio(AppState.SessionId, Editor.SelectedAudio);
+        // The button is hidden in this case; the guard is here because the state it would leave
+        // behind is a lie rather than a mess — see CanStopPresentation.
+        if (!CanStopPresentation || changingPresentationState) return;
+        changingPresentationState = true;
+
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("stopLivePresentation", EffectiveSessionId);
+            ResetLiveSlide();
+            SharedAppState.DeactivatePresentation(EffectiveSessionId);
+            if (liveSessionMirror is not null)
+                await liveSessionMirror.StopAsync();
+            try { await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseWakeLock"); } catch { }
+            if (Editor.SelectedAudio is not null)
+                SharedAppState.SetSessionAudio(AppState.SessionId, Editor.SelectedAudio);
+
+            // Nothing here lets go of the outputs. LiveOutputsState follows the deactivation
+            // above, so it does the same whether the operator pressed Stop, a phone did, or the
+            // session simply aged out.
+        }
+        finally
+        {
+            changingPresentationState = false;
+        }
     }
 
     private void ResetLiveSlide()

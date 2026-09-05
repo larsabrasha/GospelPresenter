@@ -77,6 +77,35 @@ public class SharedServicesSetupTests : IDisposable
     }
 
     /// <summary>
+    /// The other half of the live-panel fix. The presentation page renders two live panels and lets
+    /// CSS pick which one the operator sees; the outputs they show — the windows this host opened
+    /// and the projector output — are only one answer if both panels resolve the same object.
+    /// Registered per panel, each restored the saved configuration on the way in and the operator
+    /// got two of everything. See LiveOutputsStateTests.
+    /// </summary>
+    [Fact]
+    public void LiveOutputsState_IsOnePerScope()
+    {
+        using var provider = BuildProvider();
+        using var scope = provider.CreateScope();
+
+        scope.ServiceProvider.GetRequiredService<LiveOutputsState>()
+            .ShouldBeSameAs(scope.ServiceProvider.GetRequiredService<LiveOutputsState>());
+    }
+
+    /// <summary>And not shared between circuits: the windows belong to one browser.</summary>
+    [Fact]
+    public void LiveOutputsState_IsNotSharedBetweenScopes()
+    {
+        using var provider = BuildProvider();
+        using var first = provider.CreateScope();
+        using var second = provider.CreateScope();
+
+        first.ServiceProvider.GetRequiredService<LiveOutputsState>()
+            .ShouldNotBeSameAs(second.ServiceProvider.GetRequiredService<LiveOutputsState>());
+    }
+
+    /// <summary>
     /// The live state is the opposite case, and the pair is worth stating together: it is one object
     /// for the whole process, because a phone and the machine it drives are two circuits looking at
     /// the same session.
