@@ -1,0 +1,144 @@
+@implements IDisposable
+@inject IJSRuntime JsRuntime
+@inject ToastService ToastService
+
+@*
+    Makes an area accept dropped files.
+
+    On the web the zone uploads nothing itself: it hands the dropped files to the hidden
+    <input type="file"> inside it and dispatches a change event, so the drop takes the same path as
+    the file picker — same validation, same progress, same errors.
+
+    The device apps (Electron, MAUI) render no such input, because they have no upload endpoint to
+    POST to and ingest through the domain services instead. There the zone hands the files to
+    OnFilesDropped, reading each one over the interop channel when its turn comes.
+
+    The hover highlight is toggled from JavaScript rather than from a field here, so dragging over
+    a long list does not push a render per mouse move.
+*@
+<div @ref="element" data-dropzone class="relative @Class">
+    @ChildContent
+    <div data-dropzone-overlay
+         class="hidden absolute inset-0 z-20 overflow-hidden rounded-xl border-2 border-dashed border-sky-500 bg-white/85 dark:bg-neutral-900/85 pointer-events-none">
+        @* Sticky so the hint stays in view when the zone is taller than the window. *@
+        <div class="sticky top-0 h-screen max-h-full flex flex-col items-center justify-center gap-2 px-4 text-center">
+            @if (!Compact)
+            {
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-10 text-sky-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"/>
+                </svg>
+            }
+            <span class="text-sm font-medium text-sky-700 dark:text-sky-300">@(Label ?? L["DropZone.Hint"])</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>Classes for the wrapper. It is always <c>relative</c>, which the overlay needs.</summary>
+    [Parameter] public string? Class { get; set; }
+
+    /// <summary>Overrides the hint shown while files hover over the zone.</summary>
+    [Parameter] public string? Label { get; set; }
+
+    /// <summary>Leaves out the icon, for a zone too short to hold one.</summary>
+    [Parameter] public bool Compact { get; set; }
+
+    /// <summary>Picks the file input to feed when a zone contains more than one.</summary>
+    [Parameter] public string InputSelector { get; set; } = "input[type=\"file\"]";
+
+    /// <summary>
+    /// Where dropped files go when the zone has no file input: the device apps. Leave unset for a
+    /// zone that always has one, and the drop cannot go anywhere else.
+    /// </summary>
+    [Parameter] public EventCallback<IReadOnlyList<DroppedFile>> OnFilesDropped { get; set; }
+
+    /// <summary>
+    /// The accept list to match against where there is no input to read one from. Pass the same
+    /// value the input carries, so both routes accept the same files.
+    /// </summary>
+    [Parameter] public string? Accept { get; set; }
+
+    /// <summary>Whether a drop with no input may deliver more than one file.</summary>
+    [Parameter] public bool Multiple { get; set; } = true;
+
+    /// <summary>
+    /// The largest file the zone reads over the interop channel. A bigger one fails to open, which
+    /// the ingest reports as a failed file — the same answer the endpoints give a too-large upload.
+    /// </summary>
+    [Parameter] public long MaxFileSize { get; set; } = AppConstraints.MaxImageFileSizeBytes;
+
+    private ElementReference element;
+    private DotNetObjectReference<DropZone>? dotNetRef;
+    private readonly List<IJSStreamReference> openedContents = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        dotNetRef = DotNetObjectReference.Create(this);
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.registerDropZone",
+            element, InputSelector, Accept, Multiple, OnFilesDropped.HasDelegate, dotNetRef);
+    }
+
+    /// <summary>Nothing in the drop was a file type the zone accepts, so nothing was uploaded.</summary>
+    [JSInvokable]
+    public void OnFilesRejected() =>
+        ToastService.Show(L["DropZone.Unsupported"], ToastKind.Warning);
+
+    /// <summary>
+    /// The files are still held by the browser: only their names come over now, and each one's
+    /// bytes are fetched when whoever handles the drop gets to it.
+    /// </summary>
+    [JSInvokable]
+    public async Task OnBrowserDrop(string[] fileNames)
+    {
+        var files = fileNames
+            .Select((fileName, position) => new DroppedFile(fileName, () => OpenDroppedAsync(position)))
+            .ToList();
+
+        try
+        {
+            await OnFilesDropped.InvokeAsync(files);
+        }
+        finally
+        {
+            await ReleaseDroppedAsync();
+        }
+    }
+
+    private async Task<Stream> OpenDroppedAsync(int position)
+    {
+        var content = await JsRuntime.InvokeAsync<IJSStreamReference>(
+            "gospelPresenter.takeDroppedFile", element, position);
+        openedContents.Add(content);
+        return await content.OpenReadStreamAsync(MaxFileSize);
+    }
+
+    private async Task ReleaseDroppedAsync()
+    {
+        foreach (var content in openedContents)
+        {
+            try
+            {
+                await content.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit went away with the files; there is nothing left to release.
+            }
+        }
+        openedContents.Clear();
+
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.releaseDroppedFiles", element);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    public void Dispose() => dotNetRef?.Dispose();
+}

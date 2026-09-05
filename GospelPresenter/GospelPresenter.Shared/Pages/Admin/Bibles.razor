@@ -12,8 +12,12 @@
 @inject ActiveOrganizationState OrgState
 @inject ToastService Toast
 @inject IServiceProvider Services
+@inject IAppCapabilities Capabilities
 
 <PageContainer>
+<DropZone Class="flex flex-col space-y-5" Label="@L["DropZone.HintBible"]"
+          Accept=".zip" Multiple="false" MaxFileSize="AppConstraints.MaxBibleFileSizeBytes"
+          OnFilesDropped="ImportDropped">
     <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Bibles.Title"]</div>
     </div>
@@ -31,6 +35,7 @@
             @(isImporting ? L["Bibles.Importing"] : L["Bibles.ChooseFile"])
             <input @ref="fileInput" type="file" @onchange="OnFileSelected" accept=".zip" class="hidden" disabled="@isImporting"/>
         </AppButton>
+        <DropHint Text="@L["DropZone.AffordanceBible"]" Class="hidden sm:inline ml-3"/>
 
         @if (isImporting)
         {
@@ -116,6 +121,7 @@
             </div>
         }
     </div>
+</DropZone>
 </PageContainer>
 
 @if (bibleToDelete is not null)
@@ -204,11 +210,95 @@
     private async Task OnFileSelected()
     {
         if (isImporting || organizationId is null) return;
+        BeginImport();
+
+        // No endpoint to post to on the device apps: read the file here and import it locally,
+        // which also means the import works with no server at all.
+        if (!Capabilities.UploadEndpoints)
+        {
+            var names = await JsRuntime.InvokeAsync<string[]>("gospelPresenter.fileInputNames", fileInput);
+            var position = Array.FindIndex(names, IsZipFile);
+            if (position < 0)
+            {
+                FailImport(L["Bibles.OnlyZip"]);
+                return;
+            }
+
+            var content = await JsRuntime.InvokeAsync<IJSStreamReference>(
+                "gospelPresenter.takeFileInputFile", fileInput, position);
+            await JsRuntime.InvokeVoidAsync("gospelPresenter.clearFileInput", fileInput);
+            await ImportHere(async () => await content.OpenReadStreamAsync(AppConstraints.MaxBibleFileSizeBytes));
+            return;
+        }
+
+        await PostToEndpoint();
+    }
+
+    /// <summary>A drop where there is no file input to feed: the device apps.</summary>
+    private async Task ImportDropped(IReadOnlyList<DroppedFile> files)
+    {
+        if (isImporting || organizationId is null) return;
+
+        var file = files.FirstOrDefault(f => IsZipFile(f.FileName));
+        if (file is null) return;
+
+        BeginImport();
+        await ImportHere(file.Open);
+    }
+
+    private void BeginImport()
+    {
         isImporting = true;
         importMessage = null;
         importError = false;
         StateHasChanged();
+    }
 
+    private void FailImport(string message)
+    {
+        importMessage = message;
+        importError = true;
+        isImporting = false;
+    }
+
+    private static bool IsZipFile(string fileName) =>
+        fileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The import itself, against the domain service in this process — the same call the endpoint
+    /// makes. The zip is buffered first because reading its central directory needs to seek, and
+    /// the browser hands the file over as a forward-only stream.
+    /// </summary>
+    private async Task ImportHere(Func<Task<Stream>> open)
+    {
+        try
+        {
+            using var zip = new MemoryStream();
+            await using (var source = await open())
+                await source.CopyToAsync(zip);
+            zip.Position = 0;
+
+            var result = await BibleService.ImportBibleAsync(zip, organizationId!, OrgState.ToCallerContext());
+
+            importMessage = result.Replaced
+                ? L["Bibles.ImportReplaced", result.BibleName, result.VerseCount]
+                : L["Bibles.ImportSuccess", result.BibleName, result.VerseCount];
+            RefreshBibles();
+        }
+        catch (Exception ex)
+        {
+            importMessage = L["Bibles.ImportError", ex.Message];
+            importError = true;
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    /// <summary>The web's route: the browser posts the file to the endpoint.</summary>
+    private async Task PostToEndpoint()
+    {
         try
         {
             var result = await JsRuntime.InvokeAsync<BibleImportResponse?>(

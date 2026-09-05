@@ -1,0 +1,17 @@
+@*
+    Says, next to an upload button, that the button is not the only way in. Without it dropping
+    files is a secret: nothing on screen suggests the area takes them.
+
+    Hidden on the narrowest screens, where there is no pointer to drag a file with.
+*@
+<span class="text-xs text-neutral-400 dark:text-neutral-500 @(Class ?? "hidden sm:inline")">
+    @(Text ?? L["DropZone.Affordance"])
+</span>
+
+@code {
+    /// <summary>Overrides the wording, for a zone that takes one particular thing.</summary>
+    [Parameter] public string? Text { get; set; }
+
+    /// <summary>Replaces the default visibility and layout classes.</summary>
+    [Parameter] public string? Class { get; set; }
+}

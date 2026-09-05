@@ -29,7 +29,7 @@
         <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden p-5 space-y-4">
             <div>
                 <label class="block text-sm font-medium mb-1">@L["OrgDetail.Logo"]</label>
-                <div class="flex items-center gap-4">
+                <DropZone Class="flex items-center gap-4" Compact Label="@L["DropZone.HintImage"]">
                     <label class="cursor-pointer group relative" @onclick="() => ClickFileInput()" @onclick:preventDefault>
                         <OrganizationAvatar LogoUrl="@organization.LogoSmall" Name="@organization.Name" Size="lg" Class="group-hover:brightness-75 transition"/>
                     </label>
@@ -38,6 +38,7 @@
                             @(string.IsNullOrEmpty(organization.LogoSmall) ? L["OrgDetail.ChooseLogo"] : L["OrgDetail.ChangeLogo"])
                             <input @ref="fileInput" type="file" @onchange="OnLogoSelected" accept="@AppConstraints.ImageAccept" class="hidden"/>
                         </AppButton>
+                        <DropHint Text="@L["DropZone.AffordanceImage"]" Class="hidden sm:block"/>
                         @if (!string.IsNullOrEmpty(organization.LogoSmall))
                         {
                             <AppButton Variant="ButtonVariant.Danger" OnClick="RemoveLogo"
@@ -50,7 +51,7 @@
                             <div class="text-sm text-red-500 dark:text-red-400">@logoError</div>
                         }
                     </div>
-                </div>
+                </DropZone>
             </div>
             <FloatingInput Id="org-name" Label="@L["OrgDetail.OrgName"]" Value="@editName" OnInput="HandleNameChanged"
                            MaxLength="AppConstraints.NameMaxLength"/>

@@ -63,6 +63,10 @@ public static class AppConstraints
     public const long MaxAudioFileSizeBytes = 20 * 1024 * 1024;
     public const long MaxSlidesFileSizeBytes = 50 * 1024 * 1024;
 
+    // A ProPresenter file is mostly text, but one can carry embedded media as well. Only the
+    // device apps enforce this: the web posts the files to an endpoint, which has its own limits.
+    public const long MaxSongImportFileSizeBytes = 25 * 1024 * 1024;
+
     // Slides constraints
     public const int MaxSlidesPageCount = 100;
 

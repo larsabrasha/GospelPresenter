@@ -18,8 +18,11 @@ namespace GospelPresenter.Desktop.Services;
 ///
 /// The rest stays as it was: calendar feeds are served by the web host, and users, organisations
 /// and profiles live in tables outside the sync protocol — administer those on the web.
-/// (PowerPoint import needs no flag: it disables itself when Gotenberg is unconfigured, which it
-/// always is here.)
+///
+/// This host serves no /api/upload endpoints, so imports that need one are told to. Images, audio,
+/// songs and Bibles do not need one: they run through the domain services and work offline. Slides
+/// do — a PowerPoint has to reach the converter the web host talks to — so that tab says where to
+/// go instead of offering a button that fails.
 /// </summary>
 public class DesktopAppCapabilities : IAppCapabilities
 {
@@ -29,4 +32,5 @@ public class DesktopAppCapabilities : IAppCapabilities
     public bool CalendarSubscriptions => false;
     public bool UserAdministration => false;
     public bool ProfileEditing => false;
+    public bool UploadEndpoints => false;
 }

@@ -1349,3 +1349,192 @@ window.gospelPresenter.isMacPlatform = function() {
         || navigator.platform || '';
     return /mac|iphone|ipad|ipod/i.test(platform);
 };
+
+// Drag-and-drop uploads. A dropped file is handed to the hidden <input type="file"> the zone
+// already contains, then a change event is dispatched on it — so dropping and picking run through
+// exactly the same upload code, validation and progress reporting.
+window.gospelPresenter._dropGuardInstalled = false;
+
+window.gospelPresenter._dropHasFiles = function (e) {
+    var types = e.dataTransfer && e.dataTransfer.types;
+    if (!types) return false;
+    // Dragging text, or a list item under SortableJS, must leave the zone alone.
+    return Array.prototype.indexOf.call(types, 'Files') !== -1;
+};
+
+// Matches a file against an accept attribute the same way the file picker does, so the zone never
+// needs its own copy of the allowed types.
+window.gospelPresenter._acceptsFile = function (file, accept) {
+    if (!accept) return true;
+    var name = (file.name || '').toLowerCase();
+    var type = (file.type || '').toLowerCase();
+    var patterns = accept.split(',');
+    for (var i = 0; i < patterns.length; i++) {
+        var pattern = patterns[i].trim().toLowerCase();
+        if (!pattern) continue;
+        if (pattern.charAt(0) === '.') {
+            if (name.length > pattern.length && name.slice(-pattern.length) === pattern) return true;
+        } else if (pattern.slice(-2) === '/*') {
+            if (type && type.indexOf(pattern.slice(0, -1)) === 0) return true;
+        } else if (type && type === pattern) {
+            return true;
+        }
+    }
+    return false;
+};
+
+// Without this, a file dropped just outside a zone makes the browser navigate away from the app to
+// open the file, losing whatever the user was in the middle of.
+window.gospelPresenter._installDropGuard = function () {
+    if (window.gospelPresenter._dropGuardInstalled) return;
+    window.gospelPresenter._dropGuardInstalled = true;
+
+    var swallow = function (e) {
+        if (!window.gospelPresenter._dropHasFiles(e)) return;
+        var target = e.target;
+        if (target && typeof target.closest === 'function'
+            && target.closest('[data-dropzone], input[type="file"]')) return;
+        e.preventDefault();
+    };
+
+    window.addEventListener('dragover', swallow);
+    window.addEventListener('drop', swallow);
+};
+
+window.gospelPresenter.registerDropZone = function (element, inputSelector, accept, multiple, handsOver, dotNetRef) {
+    if (!element) return;
+    window.gospelPresenter._installDropGuard();
+
+    // The input is looked up per event, not once: it can be behind a conditional, and the device
+    // apps render no input at all because they have no upload endpoint to POST to. There the files
+    // are handed to .NET instead, which is what handsOver says.
+    var findInput = function () {
+        return element.querySelector(inputSelector);
+    };
+
+    var canAcceptDrop = function () {
+        var input = findInput();
+        if (input) return !input.disabled;
+        return handsOver;
+    };
+
+    // Scoped to direct children so a nested zone keeps its own overlay.
+    var overlay = function () {
+        return element.querySelector(':scope > [data-dropzone-overlay]');
+    };
+
+    // dragenter and dragleave fire for every child element the pointer crosses, so the depth
+    // counter is what tells an actual departure from a move between children.
+    var depth = 0;
+
+    var show = function () {
+        var el = overlay();
+        if (el) el.classList.remove('hidden');
+    };
+
+    var hide = function () {
+        depth = 0;
+        var el = overlay();
+        if (el) el.classList.add('hidden');
+    };
+
+    element.addEventListener('dragenter', function (e) {
+        if (!window.gospelPresenter._dropHasFiles(e)) return;
+        depth++;
+        // No promise of a drop the zone cannot honour right now.
+        if (canAcceptDrop()) show();
+    });
+
+    element.addEventListener('dragleave', function (e) {
+        if (!window.gospelPresenter._dropHasFiles(e)) return;
+        depth--;
+        if (depth <= 0) hide();
+    });
+
+    element.addEventListener('dragover', function (e) {
+        if (!window.gospelPresenter._dropHasFiles(e)) return;
+        if (!canAcceptDrop()) return;
+        // preventDefault here is what makes the element a drop target at all.
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    });
+
+    element.addEventListener('drop', function (e) {
+        if (!window.gospelPresenter._dropHasFiles(e)) return;
+        e.preventDefault();
+        hide();
+
+        var input = findInput();
+        if (input && input.disabled) return;
+        if (!input && !handsOver) return;
+
+        var dropped = e.dataTransfer.files;
+        if (!dropped || dropped.length === 0) return;
+
+        // The input's own accept list, so the zone keeps no second copy of it. Where there is no
+        // input the zone was given the same list to match against.
+        var acceptList = input ? input.accept : accept;
+        var accepted = [];
+        for (var i = 0; i < dropped.length; i++) {
+            if (window.gospelPresenter._acceptsFile(dropped[i], acceptList)) accepted.push(dropped[i]);
+        }
+
+        if (accepted.length === 0) {
+            if (dotNetRef) dotNetRef.invokeMethodAsync('OnFilesRejected');
+            return;
+        }
+
+        // A single-file target takes one file, the same as when the picker opens it.
+        if (input ? !input.multiple : !multiple) accepted = accepted.slice(0, 1);
+
+        if (!input) {
+            // Held for .NET to read one at a time, as each file's turn to be ingested comes.
+            element.__gospelPresenterDropped = accepted;
+            dotNetRef.invokeMethodAsync('OnBrowserDrop', accepted.map(function (f) { return f.name; }));
+            return;
+        }
+
+        try {
+            var transfer = new DataTransfer();
+            for (var j = 0; j < accepted.length; j++) transfer.items.add(accepted[j]);
+            input.files = transfer.files;
+        } catch (err) {
+            console.error('Drop zone could not hand the files to the input', err);
+            if (dotNetRef) dotNetRef.invokeMethodAsync('OnFilesRejected');
+            return;
+        }
+
+        // Blazor listens for change on the input; bubbling is required to reach its handler.
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+};
+
+// Hands one held file to .NET, when the ingest reaches it. The File is returned as it is: a File
+// is a Blob, and .NET asking for an IJSStreamReference is what turns it into a stream — wrapping it
+// here in a stream reference of our own is what Blazor rejects as "not a typed array or blob".
+window.gospelPresenter.takeDroppedFile = function (element, index) {
+    var files = (element && element.__gospelPresenterDropped) || [];
+    return files[index];
+};
+
+window.gospelPresenter.releaseDroppedFiles = function (element) {
+    if (element) element.__gospelPresenterDropped = null;
+};
+
+// The names of the files an input holds. Where there is no upload endpoint to POST to, .NET reads
+// the files itself and needs to know what it is about to read.
+window.gospelPresenter.fileInputNames = function (input) {
+    if (!input || !input.files) return [];
+    return Array.prototype.map.call(input.files, function (file) { return file.name; });
+};
+
+// One of those files, returned as it is: .NET asking for an IJSStreamReference is what turns a
+// File into a stream. See takeDroppedFile.
+window.gospelPresenter.takeFileInputFile = function (input, index) {
+    return input && input.files ? input.files[index] : undefined;
+};
+
+// Lets go of the files, so picking the same one again still raises a change event.
+window.gospelPresenter.clearFileInput = function (input) {
+    if (input) input.value = '';
+};

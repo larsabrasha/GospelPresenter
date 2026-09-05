@@ -22,8 +22,12 @@
 <RefreshOnSync Reload="LoadImagesAsync"/>
 
 <PageContainer>
+<DropZone Class="flex flex-col space-y-5" Label="@L["DropZone.HintImages"]"
+          Accept="@AppConstraints.ImageAccept" MaxFileSize="AppConstraints.MaxImageFileSizeBytes" OnFilesDropped="UploadDropped">
     <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Images.Title"]</div>
+        <div class="flex items-center gap-3">
+        <DropHint/>
         <AppButton Variant="ButtonVariant.Primary" AsLabel="@(mediaUploader is null)" OnClick="PickAndUpload" Disabled="@(isUploading || organizationId is null)"
                    Class="inline-flex items-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 shrink-0">
@@ -35,6 +39,7 @@
                 <input @ref="fileInput" type="file" @onchange="HandleFilesSelected" accept="@AppConstraints.ImageAccept" multiple class="hidden"/>
             }
         </AppButton>
+        </div>
     </div>
 
     @if (isUploading || uploadError is not null)
@@ -136,6 +141,7 @@
             </div>
         }
     </div>
+</DropZone>
 </PageContainer>
 
 @if (imageToDelete is not null)
@@ -172,10 +178,14 @@
     private DotNetObjectReference<Images>? dotNetRef;
 
     private IMediaUploader? mediaUploader;
+    private MediaIngestService? mediaIngest;
 
-    // Only the device app registers an uploader; the web keeps the file input.
-    protected override void OnInitialized() =>
+    // Only the device apps register these; the web keeps the file input and its endpoints.
+    protected override void OnInitialized()
+    {
         mediaUploader = Services.GetService(typeof(IMediaUploader)) as IMediaUploader;
+        mediaIngest = Services.GetService(typeof(MediaIngestService)) as MediaIngestService;
+    }
 
     protected override Task OnInitializedAsync() => LoadImagesAsync();
 
@@ -207,6 +217,24 @@
 
         await mediaUploader.PickAndUploadAsync(
             new MediaUploadTarget(MediaUploadKind.OrganizationImage, organizationId),
+            new MediaUploadCallbacks(OnUploadStarted, OnFileUploaded, OnFileUploadFailed, OnAllUploadsComplete));
+    }
+
+    /// <summary>
+    /// The device path for a drop. The browser did the picking, so only the ingest is left — the
+    /// same one the picker ends in, with the same callbacks.
+    /// </summary>
+    private async Task UploadDropped(IReadOnlyList<DroppedFile> files)
+    {
+        if (mediaIngest is null || isUploading || organizationId is null) return;
+        uploadError = null;
+        failedCount = 0;
+        isUploading = true;
+        StateHasChanged();
+
+        await mediaIngest.UploadDroppedAsync(
+            new MediaUploadTarget(MediaUploadKind.OrganizationImage, organizationId),
+            files,
             new MediaUploadCallbacks(OnUploadStarted, OnFileUploaded, OnFileUploadFailed, OnAllUploadsComplete));
     }
 

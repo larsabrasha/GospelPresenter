@@ -13,12 +13,15 @@
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
 @inject ActiveOrganizationState OrgState
+@inject IAppCapabilities Capabilities
 
 @* RefreshDisplayedSongs, not a plain reload: it keeps whatever the user has typed in the search
    box, so a sync landing mid-search re-filters rather than dumping them back to the full library. *@
 <RefreshOnSync Reload="RefreshDisplayedSongs"/>
 
 <PageContainer>
+<DropZone Class="flex flex-col space-y-5" Label="@L["DropZone.HintSongs"]"
+          Accept=".pro" MaxFileSize="AppConstraints.MaxSongImportFileSizeBytes" OnFilesDropped="ImportDropped">
     <div class="px-5 flex items-center justify-between">
         <div class="text-xl font-bold dark:text-neutral-100">@L["Songs.Title"]</div>
         @if (displayedSongs.Count > 0)
@@ -45,6 +48,7 @@
             @(isImporting ? L["Songs.Importing"] : L["Songs.ChooseFiles"])
             <input @ref="fileInput" type="file" @onchange="OnFilesSelected" multiple accept=".pro" class="hidden" disabled="@isImporting"/>
         </AppButton>
+        <DropHint Text="@L["DropZone.AffordanceSongs"]" Class="hidden sm:inline ml-3"/>
 
         @if (isImporting)
         {
@@ -135,6 +139,7 @@
             </div>
         }
     </div>
+</DropZone>
 </PageContainer>
 
 @if (duplicateNames is not null)
@@ -190,6 +195,10 @@
     private List<Song> displayedSongs = [];
     private ElementReference fileInput;
 
+    // Held between the two halves of the duplicate question, so answering it does not depend on
+    // the browser still holding the files.
+    private List<(string FileName, byte[] Data)> filesToImport = [];
+
 
     private IReadOnlyList<Song> OrgSongs => organizationId is not null
         ? SongService.GetSongsByOrganization(organizationId, OrgState.ToCallerContext())
@@ -204,16 +213,136 @@
     private async Task OnFilesSelected()
     {
         if (isImporting || organizationId is null) return;
+        if (!await BeginImport()) return;
+
+        if (!Capabilities.UploadEndpoints)
+        {
+            filesToImport = await ReadFileInputAsync();
+            await ImportHere(replaceExisting: false);
+            return;
+        }
+
+        await PostToEndpoint(replaceExisting: false);
+    }
+
+    /// <summary>
+    /// A drop where there is no file input to feed: the device apps. The browser held the files
+    /// and hands them over one at a time, which is all that differs from picking them.
+    /// </summary>
+    private async Task ImportDropped(IReadOnlyList<DroppedFile> files)
+    {
+        if (isImporting || organizationId is null) return;
+        if (!await BeginImport()) return;
+
+        filesToImport = [];
+        foreach (var file in files.Where(f => IsProFile(f.FileName)))
+            filesToImport.Add((file.FileName, await ReadAllBytesAsync(file)));
+
+        await ImportHere(replaceExisting: false);
+    }
+
+    private Task<bool> BeginImport()
+    {
         isImporting = true;
         importMessage = null;
         importError = false;
         importProgressText = L["Songs.ProcessingFiles"];
         StateHasChanged();
-
-        await DoImport(replaceExisting: false);
+        return Task.FromResult(true);
     }
 
-    private async Task DoImport(bool replaceExisting)
+    /// <summary>Reads the files the input holds, which is what the web posts to the endpoint.</summary>
+    private async Task<List<(string FileName, byte[] Data)>> ReadFileInputAsync()
+    {
+        var files = new List<(string, byte[])>();
+        var names = await JsRuntime.InvokeAsync<string[]>("gospelPresenter.fileInputNames", fileInput);
+
+        for (var position = 0; position < names.Length; position++)
+        {
+            if (!IsProFile(names[position])) continue;
+            var content = await JsRuntime.InvokeAsync<IJSStreamReference>(
+                "gospelPresenter.takeFileInputFile", fileInput, position);
+            files.Add((names[position], await ReadAllBytesAsync(content)));
+        }
+
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.clearFileInput", fileInput);
+        return files;
+    }
+
+    private static async Task<byte[]> ReadAllBytesAsync(DroppedFile file)
+    {
+        using var buffer = new MemoryStream();
+        await using (var source = await file.Open())
+            await source.CopyToAsync(buffer);
+        return buffer.ToArray();
+    }
+
+    private static async Task<byte[]> ReadAllBytesAsync(IJSStreamReference content)
+    {
+        using var buffer = new MemoryStream();
+        await using (var source = await content.OpenReadStreamAsync(AppConstraints.MaxSongImportFileSizeBytes))
+            await source.CopyToAsync(buffer);
+        return buffer.ToArray();
+    }
+
+    private static bool IsProFile(string fileName) =>
+        fileName.EndsWith(".pro", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The import itself, run against the domain services in this process. The endpoint does the
+    /// same three steps; this is the route for a host that serves no endpoints.
+    /// </summary>
+    private async Task ImportHere(bool replaceExisting)
+    {
+        try
+        {
+            if (filesToImport.Count == 0)
+            {
+                importMessage = L["Songs.NoProFiles"];
+                importError = true;
+                return;
+            }
+
+            var caller = OrgState.ToCallerContext();
+
+            if (!replaceExisting)
+            {
+                var names = filesToImport
+                    .Select(file => ProPresenterParser.Parse(file.Data, Path.GetFileNameWithoutExtension(file.FileName)))
+                    .Where(song => song is not null)
+                    .Select(song => song!.Name)
+                    .ToList();
+
+                var duplicates = await SongService.FindDuplicateNamesAsync(names, organizationId!, caller);
+                if (duplicates.Count > 0)
+                {
+                    duplicateNames = duplicates;
+                    pendingFileCount = filesToImport.Count;
+                    hasPendingDuplicates = true;
+                    return;
+                }
+            }
+
+            var result = await SongService.ImportProPresenterFilesAsync(
+                filesToImport, organizationId!, caller, replaceExisting);
+
+            filesToImport = [];
+            importMessage = FormatImportResult(result);
+            RefreshDisplayedSongs();
+        }
+        catch (Exception ex)
+        {
+            importMessage = L["Songs.ImportError", ex.Message];
+            importError = true;
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    /// <summary>The web's route: the browser posts the files, which is one request for the lot.</summary>
+    private async Task PostToEndpoint(bool replaceExisting)
     {
         try
         {
@@ -262,7 +391,10 @@
         importProgressText = L["Songs.SavingSongs"];
         StateHasChanged();
 
-        await DoImport(replaceExisting);
+        if (!Capabilities.UploadEndpoints)
+            await ImportHere(replaceExisting);
+        else
+            await PostToEndpoint(replaceExisting);
     }
 
     private string FormatImportResult(ImportResult result)

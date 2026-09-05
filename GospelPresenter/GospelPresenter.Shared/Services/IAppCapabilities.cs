@@ -35,6 +35,14 @@ public interface IAppCapabilities
 
     /// <summary>The own-profile page (name and picture live in the unsynced Users table).</summary>
     bool ProfileEditing { get; }
+
+    /// <summary>
+    /// The host serves the /api/upload endpoints a browser posts files to. False in the device
+    /// apps, which have no such server. What they can do without one they do through the domain
+    /// services instead — images, audio, songs and Bibles all import locally — and what needs the
+    /// web host's converters says so rather than offering a button that cannot work.
+    /// </summary>
+    bool UploadEndpoints { get; }
 }
 
 /// <summary>The web host: everything is available.</summary>
@@ -46,4 +54,5 @@ public class FullAppCapabilities : IAppCapabilities
     public bool CalendarSubscriptions => true;
     public bool UserAdministration => true;
     public bool ProfileEditing => true;
+    public bool UploadEndpoints => true;
 }

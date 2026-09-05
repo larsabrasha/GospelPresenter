@@ -17,7 +17,8 @@
         <FloatingTextarea Id="overlay-content" Label="@L["OverlayEditor.TextContent"]"
                           Value="@Overlay.Content" OnInput="HandleContentChanged" Rows="4"
                           MaxLength="AppConstraints.OverlayContentMaxLength"/>
-        <div>
+        <DropZone Compact Label="@L["DropZone.HintImage"]"
+                  Accept="@AppConstraints.ImageAccept" Multiple="false" OnFilesDropped="UploadDropped">
             <label class="block text-sm font-medium mb-1">@L["OverlayEditor.ImageOptional"]</label>
             @if (Overlay.HasImage)
             {
@@ -46,7 +47,8 @@
                     }
                 </AppButton>
             }
-        </div>
+            <DropHint Text="@L["DropZone.AffordanceImage"]" Class="hidden sm:block mt-1"/>
+        </DropZone>
     </div>
 </div>
 
@@ -59,6 +61,7 @@
     private ElementReference fileInput;
     private DotNetObjectReference<OverlayEditor>? dotNetRef;
     private IMediaUploader? mediaUploader;
+    private MediaIngestService? mediaIngest;
 
     public void Dispose()
     {
@@ -98,9 +101,12 @@
         await OnSaved.InvokeAsync();
     }
 
-    // Only the device app registers an uploader; the web keeps the file input.
-    protected override void OnInitialized() =>
+    // Only the device apps register these; the web keeps the file input and its endpoints.
+    protected override void OnInitialized()
+    {
         mediaUploader = Services.GetService(typeof(IMediaUploader)) as IMediaUploader;
+        mediaIngest = Services.GetService(typeof(MediaIngestService)) as MediaIngestService;
+    }
 
     /// <summary>The device path: the picker and the ingest both live behind the seam.</summary>
     private async Task PickAndUpload()
@@ -113,6 +119,24 @@
         Overlay.Title = Overlay.Title.Trim();
         await mediaUploader.PickAndUploadAsync(
             new MediaUploadTarget(MediaUploadKind.OverlayImage, OrgState.ActiveOrganizationId, Overlay.Id),
+            new MediaUploadCallbacks(OnUploadStarted, json => _ = OnFileUploaded(json), OnFileUploadFailed, OnAllUploadsComplete));
+    }
+
+    /// <summary>
+    /// The device path for a drop. The browser did the picking, so only the ingest is left — the
+    /// same one the picker ends in, with the same callbacks.
+    /// </summary>
+    private async Task UploadDropped(IReadOnlyList<DroppedFile> files)
+    {
+        if (mediaIngest is null) return;
+        if (string.IsNullOrWhiteSpace(Overlay.Title)) return;
+        if (string.IsNullOrEmpty(Overlay.Id)) return;
+        if (OrgState.ActiveOrganizationId is null) return;
+
+        Overlay.Title = Overlay.Title.Trim();
+        await mediaIngest.UploadDroppedAsync(
+            new MediaUploadTarget(MediaUploadKind.OverlayImage, OrgState.ActiveOrganizationId, Overlay.Id),
+            files,
             new MediaUploadCallbacks(OnUploadStarted, json => _ = OnFileUploaded(json), OnFileUploadFailed, OnAllUploadsComplete));
     }
 

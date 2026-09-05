@@ -5,8 +5,9 @@ namespace GospelPresenter.Services;
 /// <summary>
 /// What the device app cannot offer: remote displays pair with the web server's hub, calendar
 /// feeds are served by the web host, and users/organisations/profiles live in tables outside the
-/// sync protocol — administer those on the web. (PowerPoint import needs no flag: it disables
-/// itself when Gotenberg is unconfigured, which it always is on the device.)
+/// sync protocol — administer those on the web. There are no /api/upload endpoints here either:
+/// images, audio, songs and Bibles import through the domain services and work offline, while the
+/// slides tab says where PowerPoint import has to be done.
 /// </summary>
 public class DeviceAppCapabilities : IAppCapabilities
 {
@@ -16,4 +17,5 @@ public class DeviceAppCapabilities : IAppCapabilities
     public bool CalendarSubscriptions => false;
     public bool UserAdministration => false;
     public bool ProfileEditing => false;
+    public bool UploadEndpoints => false;
 }

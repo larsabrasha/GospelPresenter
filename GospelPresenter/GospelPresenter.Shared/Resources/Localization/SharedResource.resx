@@ -1919,4 +1919,52 @@
   <data name="Shortcuts.Tab.slides" xml:space="preserve">
     <value>Slides tab</value>
   </data>
+  <data name="DropZone.Hint" xml:space="preserve">
+    <value>Drop the files here</value>
+  </data>
+  <data name="DropZone.HintImages" xml:space="preserve">
+    <value>Drop images here</value>
+  </data>
+  <data name="DropZone.HintImage" xml:space="preserve">
+    <value>Drop an image here</value>
+  </data>
+  <data name="DropZone.HintAudio" xml:space="preserve">
+    <value>Drop audio files here</value>
+  </data>
+  <data name="DropZone.HintSlides" xml:space="preserve">
+    <value>Drop a PDF or PowerPoint here</value>
+  </data>
+  <data name="DropZone.HintSongs" xml:space="preserve">
+    <value>Drop ProPresenter files here</value>
+  </data>
+  <data name="DropZone.HintBible" xml:space="preserve">
+    <value>Drop the Bible zip file here</value>
+  </data>
+  <data name="DropZone.Unsupported" xml:space="preserve">
+    <value>That file type cannot be used here</value>
+  </data>
+  <data name="Songs.NoProFiles" xml:space="preserve">
+    <value>No .pro files to import</value>
+  </data>
+  <data name="DropZone.Affordance" xml:space="preserve">
+    <value>or drop the files here</value>
+  </data>
+  <data name="DropZone.AffordanceImage" xml:space="preserve">
+    <value>or drop an image here</value>
+  </data>
+  <data name="DropZone.AffordanceSongs" xml:space="preserve">
+    <value>or drop the .pro files here</value>
+  </data>
+  <data name="DropZone.AffordanceBible" xml:space="preserve">
+    <value>or drop the zip file here</value>
+  </data>
+  <data name="DropZone.AffordanceSlides" xml:space="preserve">
+    <value>or drop the file here</value>
+  </data>
+  <data name="SlidesTab.NeedsWebApp" xml:space="preserve">
+    <value>PowerPoint and PDF import is done in the web app. This app cannot convert the files on its own.</value>
+  </data>
+  <data name="Bibles.OnlyZip" xml:space="preserve">
+    <value>Only .zip files can be imported</value>
+  </data>
 </root>

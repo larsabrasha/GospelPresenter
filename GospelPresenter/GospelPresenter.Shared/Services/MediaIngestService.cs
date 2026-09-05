@@ -9,6 +9,12 @@ namespace GospelPresenter.Shared.Services;
 public sealed record PickedFile(string FileName, string ContentType, Func<Task<Stream>> Open);
 
 /// <summary>
+/// A file the browser handed over from a drop. The name is all it tells us up front; the bytes
+/// come over the interop channel when the file's turn to be ingested arrives.
+/// </summary>
+public sealed record DroppedFile(string FileName, Func<Task<Stream>> Open);
+
+/// <summary>
 /// Everything an <see cref="IMediaUploader"/> does once the user has chosen files: the same size
 /// and type limits the /api/upload endpoints enforce, the same resize, the same domain services.
 /// The blobs land in the local store, which queues them for the sync engine to push, so an upload
@@ -63,6 +69,17 @@ public class MediaIngestService(
 
         callbacks.Completed();
     }
+
+    /// <summary>
+    /// Ingests files a browser handed over from a drop. Only where the files came from differs:
+    /// the extension decides the type exactly as it does for a picked file, and an extension with
+    /// no type reaches <see cref="UploadAllAsync"/> as a rejected file rather than vanishing.
+    /// </summary>
+    public Task UploadDroppedAsync(MediaUploadTarget target, IReadOnlyList<DroppedFile> files,
+        MediaUploadCallbacks callbacks, CancellationToken cancellationToken = default) =>
+        UploadAllAsync(target,
+            [.. files.Select(file => new PickedFile(file.FileName, ContentTypeFor(file.FileName) ?? "", file.Open))],
+            callbacks, cancellationToken);
 
     /// <summary>
     /// The extension decides the type, matching the accept lists the web sends: pickers report a

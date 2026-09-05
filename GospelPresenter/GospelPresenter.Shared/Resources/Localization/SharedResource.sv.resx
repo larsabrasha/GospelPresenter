@@ -1919,4 +1919,52 @@
   <data name="Shortcuts.Tab.slides" xml:space="preserve">
     <value>Fliken Slides</value>
   </data>
+  <data name="DropZone.Hint" xml:space="preserve">
+    <value>Släpp filerna här</value>
+  </data>
+  <data name="DropZone.HintImages" xml:space="preserve">
+    <value>Släpp bilder här</value>
+  </data>
+  <data name="DropZone.HintImage" xml:space="preserve">
+    <value>Släpp en bild här</value>
+  </data>
+  <data name="DropZone.HintAudio" xml:space="preserve">
+    <value>Släpp ljudfiler här</value>
+  </data>
+  <data name="DropZone.HintSlides" xml:space="preserve">
+    <value>Släpp en PDF eller PowerPoint här</value>
+  </data>
+  <data name="DropZone.HintSongs" xml:space="preserve">
+    <value>Släpp ProPresenter-filer här</value>
+  </data>
+  <data name="DropZone.HintBible" xml:space="preserve">
+    <value>Släpp bibelns zip-fil här</value>
+  </data>
+  <data name="DropZone.Unsupported" xml:space="preserve">
+    <value>Den filtypen kan inte användas här</value>
+  </data>
+  <data name="Songs.NoProFiles" xml:space="preserve">
+    <value>Inga .pro-filer att importera</value>
+  </data>
+  <data name="DropZone.Affordance" xml:space="preserve">
+    <value>eller släpp filerna här</value>
+  </data>
+  <data name="DropZone.AffordanceImage" xml:space="preserve">
+    <value>eller släpp en bild här</value>
+  </data>
+  <data name="DropZone.AffordanceSongs" xml:space="preserve">
+    <value>eller släpp .pro-filerna här</value>
+  </data>
+  <data name="DropZone.AffordanceBible" xml:space="preserve">
+    <value>eller släpp zip-filen här</value>
+  </data>
+  <data name="DropZone.AffordanceSlides" xml:space="preserve">
+    <value>eller släpp filen här</value>
+  </data>
+  <data name="SlidesTab.NeedsWebApp" xml:space="preserve">
+    <value>PowerPoint- och PDF-import görs i webbappen. Den här appen kan inte omvandla filerna själv.</value>
+  </data>
+  <data name="Bibles.OnlyZip" xml:space="preserve">
+    <value>Bara .zip-filer kan importeras</value>
+  </data>
 </root>
