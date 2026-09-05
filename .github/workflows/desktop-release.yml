@@ -177,6 +177,11 @@ jobs:
           --self-contained true
           -p:Scheme=GospelPresenterProd
           -p:Version=${{ env.APP_VERSION }}
+          # The commit the installer was built from, which is what tells two builds of the same tag
+          # apart in the app's own version line. The SDK's SourceLink would derive the same value
+          # from the checkout; passing it explicitly means the version does not quietly lose its sha
+          # if SourceLink is ever disabled or the checkout stops carrying history.
+          -p:SourceRevisionId=${{ github.sha }}
 
       - name: Show what was produced
         # The installers land beside the published app. Listing them makes a run where

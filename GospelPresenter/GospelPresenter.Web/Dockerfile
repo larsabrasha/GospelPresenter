@@ -47,7 +47,24 @@ RUN dotnet build "GospelPresenter.Web.csproj" -c $BUILD_CONFIGURATION -o /app/bu
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "GospelPresenter.Web.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+
+# The version the running app reports (see AppVersion). The image is built here rather than on the
+# runner, so a -p:Version on the workflow's build step would never reach dotnet -- it has to come in
+# as a build arg and be forwarded by hand.
+#
+# SOURCE_REVISION is not redundant with the SDK's built-in SourceLink, which sets the same property
+# by itself for any build that can see a .git directory. This build cannot: docker-publish.yml
+# passes GospelPresenter as the context and .git sits above it, so the container gets source with no
+# repository attached and the commit has to be handed in.
+#
+# The defaults are what a plain `docker build` gets and are deliberately the SDK's own: an image
+# built outside CI claims no version and no commit rather than inheriting the last release's. Empty
+# is what keeps the "+sha" suffix off entirely, because the SDK appends it only when
+# SourceRevisionId is non-empty.
+ARG APP_VERSION=1.0.0
+ARG SOURCE_REVISION=
+RUN dotnet publish "GospelPresenter.Web.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false \
+    /p:Version="$APP_VERSION" /p:SourceRevisionId="$SOURCE_REVISION"
 
 FROM base AS final
 WORKDIR /app

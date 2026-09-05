@@ -125,6 +125,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Derive the version from the tag
+        # web-v1.4.2 -> 1.4.2, matching what desktop-release.yml does with v*. Images are also
+        # built from main, which carries no tag and therefore no version -- those fall back to the
+        # SDK's own 1.0.0, and the commit sha below is what tells them apart. Two prefixes are
+        # stripped rather than one because ${GITHUB_REF_NAME#web-v} leaves a branch name untouched
+        # and would otherwise be used verbatim as a version.
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ] && [ "${GITHUB_REF_NAME#web-v}" != "$GITHUB_REF_NAME" ]; then
+            echo "APP_VERSION=${GITHUB_REF_NAME#web-v}" >> "$GITHUB_ENV"
+          else
+            echo "APP_VERSION=1.0.0" >> "$GITHUB_ENV"
+          fi
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v6
@@ -154,6 +168,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          # Forwarded into dotnet publish by the Dockerfile. The sha is what makes an untagged
+          # build from main identifiable at all, and what separates two images built from the same
+          # release tag.
+          build-args: |
+            APP_VERSION=${{ env.APP_VERSION }}
+            SOURCE_REVISION=${{ github.sha }}
 
       - name: Generate artifact attestation
         # Nothing was pushed from a pull request, so there is no digest in the registry to attest.

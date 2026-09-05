@@ -1,0 +1,21 @@
+@*
+    The running build's version, for us rather than for the operator.
+
+    Two callers today — the settings page, for when you are signed in, and the sign-in screen, for
+    when you cannot get that far. The null check and the development marker live here rather than in
+    both of them, because the marker is the part that must not be forgotten: 1.0.0 is what a local
+    build reports and also what an untagged web deployment reports, so a bare number would read as a
+    release either way. See AppVersion.
+*@
+@if (AppVersion.Display is { } version)
+{
+    <span class="@Class">
+        @(AppVersion.IsDevelopmentBuild
+            ? L["App.VersionDevelopment", version]
+            : L["App.Version", version])
+    </span>
+}
+
+@code {
+    [Parameter] public string? Class { get; set; }
+}

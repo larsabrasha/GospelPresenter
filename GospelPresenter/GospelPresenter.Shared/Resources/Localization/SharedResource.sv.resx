@@ -878,6 +878,12 @@
   <data name="Nav.Settings" xml:space="preserve">
     <value>Mina inställningar</value>
   </data>
+  <data name="App.Version" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="App.VersionDevelopment" xml:space="preserve">
+    <value>Version {0} (utvecklingsbygge)</value>
+  </data>
   <data name="Settings.Title" xml:space="preserve">
     <value>Mina inställningar</value>
   </data>
@@ -898,6 +904,9 @@
   </data>
   <data name="Settings.ThemeDark" xml:space="preserve">
     <value>Mörkt</value>
+  </data>
+  <data name="Settings.About" xml:space="preserve">
+    <value>Om</value>
   </data>
   <data name="Presentation.StopPresentation" xml:space="preserve">
     <value>Avsluta presentation</value>
