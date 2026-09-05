@@ -102,7 +102,11 @@ else
                     class="grid transition-[grid-template-rows] duration-300 ease-in-out @(isOutputsCollapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")">
                     <div class="overflow-hidden min-h-0">
                         <div class="flex flex-col gap-3 p-1 pt-3">
-                            @if (Outputs.HasPresentationApi || Outputs.HasNativeExternalDisplay)
+                            @* Also when the host says it cannot do this any more but the output is
+                               on anyway: unplug the projector mid-service and the window is still
+                               there, on the operator's own screen now, and the row is the only way
+                               to close it. *@
+                            @if (Outputs.HasPresentationApi || Outputs.HasNativeExternalDisplay || Outputs.IsExternalDisplayOn)
                             {
                                 var isActive = Outputs.IsExternalDisplayOn;
                                 <button @onclick="ToggleExternalDisplay"

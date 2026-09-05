@@ -5,9 +5,6 @@ using Microsoft.JSInterop;
 
 namespace GospelPresenter.Shared.State;
 
-/// <summary>One live window this host opened, and the number the operator sees next to it.</summary>
-public record LiveWindowEntry(string WindowId, int Index);
-
 /// <summary>
 /// What was on last time, as it is written to this browser's local storage. Public because it is
 /// the shape both the JS side and the tests have to agree on, not an implementation detail of the
@@ -32,6 +29,12 @@ public record LiveOutputsConfig(string[]? EnabledDisplayIds, int? WindowCount, b
 /// panel that opened it, and whichever panel saved last overwrote the other's idea of how many
 /// windows were open.
 ///
+/// Scoped also means it dies with the circuit while the windows it opened do not: the session id
+/// lives in session storage on the web and is the machine's identity on the desktop, so reloading
+/// the operator page comes back to a presentation that is still running, with its windows still
+/// open. Nothing here may be believed across that gap, so the outputs are found rather than
+/// remembered — see <see cref="AttachAsync"/>.
+///
 /// The bindings for paired screens and public outputs are not here: those live in
 /// <see cref="RemoteDisplayState"/>, which is a singleton and therefore already one answer. Only
 /// what belongs to this browser or this app window needs an owner of its own.
@@ -51,7 +54,7 @@ public class LiveOutputsState : IDisposable
     private bool attaching;
     private IReadOnlyList<RemoteDisplay> savedDisplays = [];
     private DotNetObjectReference<LiveOutputsState>? selfRef;
-    private string? externalWindowId;
+    private LiveWindowEntry? projectorWindow;
 
     public LiveOutputsState(
         SharedAppState sharedAppState, RemoteDisplayState remoteDisplayState, IServiceProvider services)
@@ -108,12 +111,19 @@ public class LiveOutputsState : IDisposable
     /// </summary>
     public bool HasNativeLauncher => launcher is not null;
 
-    public bool IsExternalDisplayOn => presentationDisplays.Count > 0 || externalWindowId is not null;
+    public bool IsExternalDisplayOn => presentationDisplays.Count > 0 || projectorWindow is not null;
 
     /// <summary>
-    /// Takes ownership of the outputs for a session, restoring what was saved last time. The first
-    /// caller does the work and the second is a no-op: the two panels attach independently, and
-    /// restoring twice is what opened everything twice.
+    /// Takes ownership of the outputs for a session: finds the windows that are already open for it
+    /// and adopts them, and only restores what was saved last time when there are none.
+    ///
+    /// Both halves of that matter. The first caller does the work and the second is a no-op,
+    /// because the two panels attach independently and restoring twice is what opened everything
+    /// twice. And a circuit is not the life of a presentation: reload the operator page mid-service
+    /// and this object is new while the session, the live windows and the projector are all still
+    /// there. Restoring then opened a second set on top of the first and listed only the second, so
+    /// the operator was looking at a panel that disagreed with their screens and offered no way to
+    /// close the windows it had forgotten.
     /// </summary>
     public async Task AttachAsync(string sessionId, IReadOnlyList<RemoteDisplay> savedDisplays, string localLiveViewTitle, string externalDisplayTitle)
     {
@@ -124,6 +134,11 @@ public class LiveOutputsState : IDisposable
         // the first is restoring, and the session id covers every call after that. A panel coming
         // back to a session already attached to must not restore a second time.
         if (this.sessionId == sessionId || attaching) return;
+
+        // A different session than the one this was holding: those outputs are not this
+        // presentation's to list, whoever is still using them.
+        if (this.sessionId is not null) Reset();
+
         attaching = true;
         this.sessionId = sessionId;
 
@@ -137,7 +152,7 @@ public class LiveOutputsState : IDisposable
             // One listener and one reference, whatever the panel count. Registering these per panel
             // left the JS click path reporting an opened window to whichever panel happened to be
             // rendered last, which was never the narrow one the operator had tapped.
-            await js.InvokeVoidAsync("gospelPresenter.onLiveWindowClosed", selfRef);
+            await js.InvokeVoidAsync("gospelPresenter.listenToLiveWindows", selfRef);
             await js.InvokeVoidAsync("gospelPresenter.setLivePanelRef", selfRef);
         }
         catch
@@ -153,7 +168,11 @@ public class LiveOutputsState : IDisposable
 
         try
         {
-            await RestoreAsync(localLiveViewTitle, externalDisplayTitle);
+            // Adopt first, restore only into an empty room.
+            Adopt(await DiscoverAsync(sessionId));
+
+            if (windows.Count == 0 && projectorWindow is null)
+                await RestoreAsync(localLiveViewTitle, externalDisplayTitle);
         }
         catch
         {
@@ -180,17 +199,85 @@ public class LiveOutputsState : IDisposable
     /// </summary>
     public void Track(IReadOnlyList<RemoteDisplay> displays) => savedDisplays = displays;
 
-    private void OnPresentationDeactivated(string stoppedSessionId)
+    /// <summary>
+    /// Which live windows are open for this session, asked of whoever actually knows.
+    ///
+    /// A native host's launcher is a singleton that outlives circuits, so it is simply asked. The
+    /// web has nowhere on the server that knows — a live window is a browser tab of its own — so
+    /// the windows are asked directly: a roll call goes out on the channel they already use to
+    /// report themselves closed, and the ones still open answer with what they are.
+    /// </summary>
+    private async Task<IReadOnlyList<LiveWindowEntry>> DiscoverAsync(string session)
     {
-        if (stoppedSessionId != sessionId) return;
-        Reset();
+        try
+        {
+            if (launcher is not null)
+                return launcher.OpenWindowsFor(session);
+
+            // Null rather than an empty array is what a host without the script answers — and one
+            // without a browser at all, which is how the tests reach this.
+            return await js.InvokeAsync<LiveWindowEntry[]?>("gospelPresenter.discoverLiveWindows", session) ?? [];
+        }
+        catch
+        {
+            // Nothing found is the same answer as nobody home, and both mean "restore the saved
+            // configuration". Worse than opening a window too many would be throwing here.
+            return [];
+        }
     }
 
     /// <summary>
-    /// Forgets the session without touching what is open, and without writing anything down. The
-    /// live windows close themselves once the session is inactive, and the saved configuration is
-    /// what puts them back next time — saving here would record the empty state and lose the
-    /// operator's outputs for good.
+    /// Takes windows that were already open into the list, keeping the numbers they were opened
+    /// with — the operator reads those numbers on the window itself, so renumbering them here would
+    /// point at the wrong screen.
+    /// </summary>
+    /// <returns>Whether any of them was new here.</returns>
+    private bool Adopt(IReadOnlyList<LiveWindowEntry> existing)
+    {
+        var adopted = false;
+
+        foreach (var window in existing)
+        {
+            if (window.SessionId != sessionId) continue;
+
+            if (window.Role == LiveWindowRole.Projector)
+            {
+                if (projectorWindow is not null) continue;
+                projectorWindow = window;
+                adopted = true;
+            }
+            else
+            {
+                if (windows.Any(w => w.WindowId == window.WindowId)) continue;
+                windows.Add(window);
+                adopted = true;
+            }
+        }
+
+        if (!adopted) return false;
+
+        windows.Sort((a, b) => a.Index.CompareTo(b.Index));
+        Windows = windows.ToList();
+        NextWindowIndex = Math.Max(NextWindowIndex, windows.Count == 0 ? 1 : windows.Max(w => w.Index) + 1);
+        return true;
+    }
+
+    private void OnPresentationDeactivated(string stoppedSessionId)
+    {
+        if (stoppedSessionId != sessionId) return;
+
+        // Read before the reset clears them, closed after it. The order is what keeps the saved
+        // configuration intact: by the time the windows report themselves closed there is no
+        // session left for their report to write against.
+        var connections = presentationDisplays.ToList();
+
+        Reset();
+        _ = CloseEverythingAsync(stoppedSessionId, connections);
+    }
+
+    /// <summary>
+    /// Forgets the session without writing anything down. The saved configuration is what puts the
+    /// outputs back next time, and saving here would record the empty state and lose them for good.
     ///
     /// Runs on the same call stack as the deactivation, which is what makes it safe: the windows
     /// report themselves closed asynchronously, so by the time they do there is no session left for
@@ -203,9 +290,47 @@ public class LiveOutputsState : IDisposable
         windows.Clear();
         Windows = [];
         presentationDisplays.Clear();
-        externalWindowId = null;
+        projectorWindow = null;
         NextWindowIndex = 1;
         Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Shuts the session's outputs down for real, rather than trusting each of them to notice.
+    ///
+    /// A live window does watch its own session and close itself, but only while its circuit is
+    /// alive: a projector on a machine that went to sleep, or a tab whose connection dropped, sat
+    /// there showing the last slide of a service that had ended. Asked by session rather than by
+    /// window id on purpose — that also reaches windows this circuit never opened and does not
+    /// know about, which is precisely the case where nothing else would.
+    /// </summary>
+    private async Task CloseEverythingAsync(string session, IReadOnlyList<int> connections)
+    {
+        try
+        {
+            if (launcher is not null)
+                foreach (var window in launcher.OpenWindowsFor(session))
+                    await launcher.CloseAsync(window.WindowId);
+            else
+                await js.InvokeVoidAsync("gospelPresenter.closeLiveWindowsFor", session);
+        }
+        catch
+        {
+            // A circuit going away at the same moment as the presentation is the ordinary case for
+            // this, and the windows still close themselves when they see the session end.
+        }
+
+        foreach (var id in connections)
+        {
+            try
+            {
+                await js.InvokeVoidAsync("gospelPresenter.stopPresentation", id);
+            }
+            catch
+            {
+                // As above. A receiver left connected is the browser's to clean up.
+            }
+        }
     }
 
     /// <summary>Opens a live window. False when it could not be opened, so the caller can say so.</summary>
@@ -213,18 +338,18 @@ public class LiveOutputsState : IDisposable
     {
         if (sessionId is not { } session) return false;
 
-        var windowId = Guid.NewGuid().ToString("N")[..8];
         var index = NextWindowIndex;
-        var title = $"{titlePrefix} ({index})";
+        var entry = new LiveWindowEntry(
+            session, Guid.NewGuid().ToString("N")[..8], $"{titlePrefix} ({index})", LiveWindowRole.Live, index);
 
         var opened = launcher is not null
-            ? await launcher.OpenAsync(session, windowId, title)
-            : await js.InvokeAsync<bool>("gospelPresenter.openLiveWindow", session, windowId, title);
+            ? await launcher.OpenAsync(entry)
+            : await js.InvokeAsync<bool>("gospelPresenter.openLiveWindow", entry);
 
         if (!opened) return false;
 
         NextWindowIndex = index + 1;
-        windows.Add(new LiveWindowEntry(windowId, index));
+        windows.Add(entry);
         Windows = windows.ToList();
         await SaveAsync();
         Changed?.Invoke();
@@ -233,13 +358,16 @@ public class LiveOutputsState : IDisposable
 
     public async Task CloseWindowAsync(string windowId)
     {
+        // Dropped here rather than waiting for the report back, so the row goes as the operator
+        // clicks it. The report still arrives and finds nothing left to remove.
+        windows.RemoveAll(w => w.WindowId == windowId);
+        Windows = windows.ToList();
+
         if (launcher is not null)
             await launcher.CloseAsync(windowId);
         else
             await js.InvokeVoidAsync("gospelPresenter.closeLiveWindow", windowId);
 
-        windows.RemoveAll(w => w.WindowId == windowId);
-        Windows = windows.ToList();
         await SaveAsync();
         Changed?.Invoke();
     }
@@ -250,12 +378,21 @@ public class LiveOutputsState : IDisposable
     /// </summary>
     public async Task<bool> ToggleExternalDisplayAsync(string title)
     {
-        if (HasNativeExternalDisplay)
+        // What is on is asked before what the host can do. Unplug the projector mid-service and
+        // the host stops offering one while the window is still there, on the operator's screen
+        // now — and this is the row they reach for to close it.
+        if (projectorWindow is { } open)
         {
-            if (externalWindowId is { } open)
-                await launcher!.CloseAsync(open);
-            else if (!await StartNativeExternalDisplayAsync(title))
-                return false;
+            // Forgotten before the close is asked for: the window reports itself closed
+            // asynchronously, and the save below used to run first and write the output down as
+            // still on — so the next presentation opened a projector the operator had just
+            // switched off.
+            projectorWindow = null;
+
+            if (launcher is not null)
+                await launcher.CloseAsync(open.WindowId);
+            else
+                await js.InvokeVoidAsync("gospelPresenter.closeLiveWindow", open.WindowId);
         }
         else if (presentationDisplays.Count > 0)
         {
@@ -263,6 +400,10 @@ public class LiveOutputsState : IDisposable
                 await js.InvokeVoidAsync("gospelPresenter.stopPresentation", id);
 
             presentationDisplays.Clear();
+        }
+        else if (HasNativeExternalDisplay)
+        {
+            if (!await StartNativeExternalDisplayAsync(title)) return false;
         }
         else
         {
@@ -282,10 +423,12 @@ public class LiveOutputsState : IDisposable
     {
         if (sessionId is not { } session || launcher is null) return false;
 
-        var windowId = Guid.NewGuid().ToString("N")[..8];
-        if (!await launcher.OpenAsync(session, windowId, title)) return false;
+        var entry = new LiveWindowEntry(
+            session, Guid.NewGuid().ToString("N")[..8], title, LiveWindowRole.Projector, Index: 0);
 
-        externalWindowId = windowId;
+        if (!await launcher.OpenAsync(entry)) return false;
+
+        projectorWindow = entry;
         return true;
     }
 
@@ -363,7 +506,7 @@ public class LiveOutputsState : IDisposable
 
         if (config.PresentationDisplay != true) return;
 
-        if (HasNativeExternalDisplay && externalWindowId is null)
+        if (HasNativeExternalDisplay && projectorWindow is null)
             await StartNativeExternalDisplayAsync(externalDisplayTitle);
         else if (HasPresentationApi && presentationDisplays.Count == 0)
             await StartPresentationDisplayAsync();
@@ -373,9 +516,9 @@ public class LiveOutputsState : IDisposable
     {
         // Whoever closed it — the operator's toggle, the window's own controls, the presentation
         // stopping — the launcher reports it here and the row goes back to off.
-        if (windowId == externalWindowId)
+        if (windowId == projectorWindow?.WindowId)
         {
-            externalWindowId = null;
+            projectorWindow = null;
         }
         else
         {
@@ -386,25 +529,40 @@ public class LiveOutputsState : IDisposable
         _ = SaveThenAnnounceAsync();
     }
 
-    /// <summary>Registered by the synchronous JS click path, which opens the window itself.</summary>
+    /// <summary>
+    /// A live window saying it is here. Two paths arrive at this: the synchronous JS click path,
+    /// which opens the window itself and reports it afterwards, and the window's own announcement
+    /// on every load.
+    ///
+    /// The second is what makes a reloaded live window survive. Reloading fires the page's "I am
+    /// going away" first, which takes its row off the panel, and nothing but this puts it back — so
+    /// an operator who refreshed a stuck projector was left with a window nothing could close and a
+    /// panel that swore nothing was open. A window that is already listed is simply already listed.
+    /// </summary>
     [JSInvokable]
-    public void OnLiveWindowOpened(string windowId)
+    public void OnLiveWindowOpened(LiveWindowEntry window)
     {
         // Nothing is attached before a presentation is running, and a click that raced the stop
         // must not invent a window for a session that is over.
-        if (sessionId is null) return;
+        if (sessionId is null || window.SessionId != sessionId) return;
 
-        var index = NextWindowIndex++;
-        windows.Add(new LiveWindowEntry(windowId, index));
-        Windows = windows.ToList();
-        _ = SaveThenAnnounceAsync();
+        if (Adopt([window]))
+            _ = SaveThenAnnounceAsync();
     }
 
     [JSInvokable]
     public void OnLiveWindowClosed(string windowId)
     {
-        if (windows.RemoveAll(w => w.WindowId == windowId) == 0) return;
-        Windows = windows.ToList();
+        if (windowId == projectorWindow?.WindowId)
+        {
+            projectorWindow = null;
+        }
+        else
+        {
+            if (windows.RemoveAll(w => w.WindowId == windowId) == 0) return;
+            Windows = windows.ToList();
+        }
+
         _ = SaveThenAnnounceAsync();
     }
 

@@ -1,4 +1,5 @@
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using Microsoft.JSInterop;
 using Microsoft.JSInterop.Infrastructure;
@@ -37,7 +38,8 @@ public class LiveOutputsStateTests
         js.Returns("gospelPresenter.openLiveWindow", true);
     }
 
-    private LiveOutputsState Create() => new(liveState, displays, new StubProvider(js));
+    private LiveOutputsState Create(ILiveWindowLauncher? launcher = null) =>
+        new(liveState, displays, new StubProvider(js, launcher));
 
     private Task AttachAsync(LiveOutputsState state, params RemoteDisplay[] savedDisplays) =>
         state.AttachAsync(SessionId, savedDisplays, LiveViewTitle, ProjectorTitle);
@@ -102,7 +104,7 @@ public class LiveOutputsStateTests
         var state = Create();
         await AttachAsync(state);
 
-        state.OnLiveWindowOpened("window-1");
+        state.OnLiveWindowOpened(LiveWindow("window-1", index: 1));
 
         state.Windows.Select(w => w.WindowId).ShouldBe(["window-1"]);
         state.NextWindowIndex.ShouldBe(2);
@@ -122,7 +124,7 @@ public class LiveOutputsStateTests
         var state = Create();
         await AttachAsync(state, screen);
 
-        state.OnLiveWindowOpened("window-1");
+        state.OnLiveWindowOpened(LiveWindow("window-1", index: 1));
         await state.SaveAsync();
 
         var saved = js.LastSaved();
@@ -180,7 +182,7 @@ public class LiveOutputsStateTests
         await AttachAsync(state);
         liveState.DeactivatePresentation(SessionId);
 
-        state.OnLiveWindowOpened("window-1");
+        state.OnLiveWindowOpened(LiveWindow("window-1", index: 1));
 
         state.Windows.ShouldBeEmpty();
     }
@@ -332,14 +334,266 @@ public class LiveOutputsStateTests
     }
 
     /// <summary>
+    /// The other half of the same bug, and the one an operator actually hit: this object dies with
+    /// the circuit and the windows do not. Reload the operator page mid-service and the session is
+    /// still running, the live window is still open — and restoring the saved configuration opened a
+    /// second one on top of it, listed only the second, and left the first with no row to close it.
+    /// </summary>
+    [Fact]
+    public async Task AttachAsync_WithAWindowAlreadyOpenForTheSession_AdoptsItRatherThanOpeningAnother()
+    {
+        js.Returns("gospelPresenter.loadOutputConfig", new LiveOutputsConfig(null, 1, false));
+        js.Returns("gospelPresenter.discoverLiveWindows", new[] { LiveWindow("already-open", index: 1) });
+        var state = Create();
+
+        await AttachAsync(state);
+
+        js.CallCount("gospelPresenter.openLiveWindow").ShouldBe(0);
+        state.Windows.Select(w => w.WindowId).ShouldBe(["already-open"]);
+    }
+
+    /// <summary>
+    /// And it keeps the number the window was opened with. The operator reads that number off the
+    /// row to know which screen they are closing, so renumbering from one would point at the wrong
+    /// window — and the next window opened has to continue past it rather than collide with it.
+    /// </summary>
+    [Fact]
+    public async Task AttachAsync_AdoptingAWindow_KeepsItsNumberAndCountsOnFromThere()
+    {
+        js.Returns("gospelPresenter.discoverLiveWindows", new[] { LiveWindow("already-open", index: 3) });
+        var state = Create();
+
+        await AttachAsync(state);
+
+        state.Windows[0].Index.ShouldBe(3);
+        state.NextWindowIndex.ShouldBe(4);
+    }
+
+    /// <summary>
+    /// A projector comes back as the projector. It travels as a role in the window's own URL for
+    /// exactly this: adopted without one it would come home as an ordinary live view, giving the
+    /// operator a numbered row for their projector and a projector toggle that said "off".
+    /// </summary>
+    [Fact]
+    public async Task AttachAsync_WithAProjectorAlreadyOpen_AdoptsItAsTheProjector()
+    {
+        var launcher = new StubLauncher { HasExternalDisplay = true };
+        launcher.AlreadyOpen(Projector("projector-1"));
+        js.Returns("gospelPresenter.loadOutputConfig", new LiveOutputsConfig(null, 0, PresentationDisplay: true));
+        var state = Create(launcher);
+
+        await AttachAsync(state);
+
+        state.IsExternalDisplayOn.ShouldBeTrue();
+        state.Windows.ShouldBeEmpty();
+        launcher.Opened.ShouldBeEmpty();
+    }
+
+    /// <summary>Somebody else's session is somebody else's windows.</summary>
+    [Fact]
+    public async Task AttachAsync_WithAWindowOpenForAnotherSession_LeavesItAloneAndRestoresAsUsual()
+    {
+        js.Returns("gospelPresenter.loadOutputConfig", new LiveOutputsConfig(null, 1, false));
+        js.Returns("gospelPresenter.discoverLiveWindows",
+            new[] { LiveWindow("someone-elses", index: 1) with { SessionId = "another-session" } });
+        var state = Create();
+
+        await AttachAsync(state);
+
+        state.Windows.Count.ShouldBe(1);
+        state.Windows[0].WindowId.ShouldNotBe("someone-elses");
+    }
+
+    /// <summary>
+    /// Asking who is out there can fail — an old script, a browser without the channel. Then it is
+    /// the saved configuration again, which is where this started: worse than one window too many
+    /// would be a service with no projector because a question went unanswered.
+    /// </summary>
+    [Fact]
+    public async Task AttachAsync_WhenNobodyCanBeAsked_FallsBackToRestoringWhatWasSaved()
+    {
+        js.Returns("gospelPresenter.loadOutputConfig", new LiveOutputsConfig(null, 1, false));
+        js.Throws("gospelPresenter.discoverLiveWindows");
+        var state = Create();
+
+        await AttachAsync(state);
+
+        state.Windows.Count.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// A live window that was refreshed says so, and gets its row back. Refreshing fires the page's
+    /// own "I am going away" first, so without the announcement on the way back in the operator was
+    /// left with a window nothing could close and a panel that swore nothing was open.
+    /// </summary>
+    [Fact]
+    public async Task OnLiveWindowOpened_ForAWindowThatReportedItselfClosedAndCameBack_ListsItAgain()
+    {
+        js.Returns("gospelPresenter.loadOutputConfig", (LiveOutputsConfig?)null);
+        var state = Create();
+        await AttachAsync(state);
+        state.OnLiveWindowOpened(LiveWindow("window-1", index: 1));
+
+        state.OnLiveWindowClosed("window-1");
+        state.OnLiveWindowOpened(LiveWindow("window-1", index: 1));
+
+        state.Windows.Select(w => w.WindowId).ShouldBe(["window-1"]);
+    }
+
+    /// <summary>
+    /// Every live window announces itself on load, and the one the click path just opened announces
+    /// itself too. The same window twice is one row, not two.
+    /// </summary>
+    [Fact]
+    public async Task OnLiveWindowOpened_TwiceForTheSameWindow_ListsItOnce()
+    {
+        js.Returns("gospelPresenter.loadOutputConfig", (LiveOutputsConfig?)null);
+        var state = Create();
+        await AttachAsync(state);
+
+        state.OnLiveWindowOpened(LiveWindow("window-1", index: 1));
+        state.OnLiveWindowOpened(LiveWindow("window-1", index: 1));
+
+        state.Windows.Count.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Stopping the presentation shuts the windows rather than trusting each of them to notice. A
+    /// window only closes itself while its own circuit is alive, and a projector on a machine that
+    /// had gone to sleep sat there showing the last slide of a service that had ended.
+    /// </summary>
+    [Fact]
+    public async Task PresentationStopped_ClosesTheWindowsOpenForThatSession()
+    {
+        var launcher = new StubLauncher();
+        launcher.AlreadyOpen(LiveWindow("window-1", index: 1));
+        var state = Create(launcher);
+        liveState.ActivatePresentation(SessionId, "org-1", "pres-1");
+        await AttachAsync(state);
+
+        liveState.DeactivatePresentation(SessionId);
+
+        launcher.Closed.ShouldBe(["window-1"]);
+        state.Windows.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// On the web the same order goes out by session rather than by window id, which also reaches
+    /// windows this circuit never opened and knows nothing about — the case where nothing else would.
+    /// </summary>
+    [Fact]
+    public async Task PresentationStopped_OnTheWeb_TellsEveryWindowOfTheSessionToClose()
+    {
+        js.Returns("gospelPresenter.loadOutputConfig", (LiveOutputsConfig?)null);
+        var state = Create();
+        liveState.ActivatePresentation(SessionId, "org-1", "pres-1");
+        await AttachAsync(state);
+
+        liveState.DeactivatePresentation(SessionId);
+        await Task.Yield();
+
+        js.CallCount("gospelPresenter.closeLiveWindowsFor").ShouldBe(1);
+    }
+
+    /// <summary>
+    /// Switching the projector off writes it down as off. The window reports itself closed
+    /// asynchronously, so the save used to run first and record it as still on — and the next
+    /// presentation dutifully opened a projector the operator had just switched off.
+    /// </summary>
+    [Fact]
+    public async Task ToggleExternalDisplayAsync_SwitchingTheProjectorOff_SavesItAsOff()
+    {
+        var launcher = new StubLauncher { HasExternalDisplay = true };
+        js.Returns("gospelPresenter.loadOutputConfig", new LiveOutputsConfig(null, 0, PresentationDisplay: true));
+        var state = Create(launcher);
+        await AttachAsync(state);
+        state.IsExternalDisplayOn.ShouldBeTrue();
+
+        await state.ToggleExternalDisplayAsync(ProjectorTitle);
+
+        state.IsExternalDisplayOn.ShouldBeFalse();
+        js.LastSaved().PresentationDisplay.ShouldBe(false);
+    }
+
+    /// <summary>
+    /// The projector can be unplugged mid-service. The host then stops offering a second display
+    /// while the window is still open — on the operator's own screen now — so switching it off has
+    /// to keep working, and must not be read as "switch a new one on".
+    /// </summary>
+    [Fact]
+    public async Task ToggleExternalDisplayAsync_AfterTheSecondDisplayWentAway_StillClosesTheProjector()
+    {
+        var launcher = new StubLauncher { HasExternalDisplay = false };
+        launcher.AlreadyOpen(Projector("projector-1"));
+        var state = Create(launcher);
+        await AttachAsync(state);
+        state.IsExternalDisplayOn.ShouldBeTrue();
+
+        await state.ToggleExternalDisplayAsync(ProjectorTitle);
+
+        launcher.Closed.ShouldBe(["projector-1"]);
+        state.IsExternalDisplayOn.ShouldBeFalse();
+        launcher.Opened.ShouldBeEmpty();
+    }
+
+    private static LiveWindowEntry LiveWindow(string windowId, int index) =>
+        new(SessionId, windowId, $"Live view ({index})", LiveWindowRole.Live, index);
+
+    private static LiveWindowEntry Projector(string windowId) =>
+        new(SessionId, windowId, ProjectorTitle, LiveWindowRole.Projector, Index: 0);
+
+    /// <summary>
+    /// A native host's launcher: it owns the windows, it outlives the circuit that asked for them,
+    /// and it is therefore what an operator page coming back from a reload asks.
+    /// </summary>
+    private sealed class StubLauncher : ILiveWindowLauncher
+    {
+        private readonly List<LiveWindowEntry> open = [];
+
+        public bool HasExternalDisplay { get; init; }
+
+        public List<string> Opened { get; } = [];
+
+        public List<string> Closed { get; } = [];
+
+        public event Action<string>? WindowClosed;
+
+        /// <summary>A window from before this circuit existed.</summary>
+        public void AlreadyOpen(LiveWindowEntry window) => open.Add(window);
+
+        public Task<bool> OpenAsync(LiveWindowEntry window)
+        {
+            Opened.Add(window.WindowId);
+            open.Add(window);
+            return Task.FromResult(true);
+        }
+
+        public Task CloseAsync(string windowId)
+        {
+            Closed.Add(windowId);
+            if (open.RemoveAll(w => w.WindowId == windowId) > 0)
+                WindowClosed?.Invoke(windowId);
+
+            return Task.CompletedTask;
+        }
+
+        public IReadOnlyList<LiveWindowEntry> OpenWindowsFor(string sessionId) =>
+            open.Where(w => w.SessionId == sessionId).ToList();
+
+        public Task<bool> HasExternalDisplayAsync() => Task.FromResult(HasExternalDisplay);
+    }
+
+    /// <summary>
     /// Only what the container brings: this state resolves the JS runtime on use rather than taking
     /// it as a dependency, so that the migration tool — which shares these registrations and has no
     /// Blazor — still starts. See LiveOutputsState.
     /// </summary>
-    private sealed class StubProvider(IJSRuntime js) : IServiceProvider
+    private sealed class StubProvider(IJSRuntime js, ILiveWindowLauncher? launcher) : IServiceProvider
     {
         public object? GetService(Type serviceType) =>
-            serviceType == typeof(IJSRuntime) ? js : null;
+            serviceType == typeof(IJSRuntime) ? js
+            : serviceType == typeof(ILiveWindowLauncher) ? launcher
+            : null;
     }
 
     /// <summary>
