@@ -66,7 +66,7 @@
   "faq_a14": "Gränssnittet finns idag på engelska och svenska.",
   "faq_q15": "Var lagras vår data?",
   "faq_a15": "All data – sånger, presentationer, bilder och uppladdade filer – lagras på din egen server (PostgreSQL plus ett S3-kompatibelt objektlager). Ingen data skickas till oss eller någon tredje part.",
-  "faq_q16": "Vad innebär \"Alpha\"?",
+  "faq_q16": "Vad innebär \"Beta\"?",
   "faq_a16": "Gospel Presenter är under aktiv utveckling. Det betyder att funktioner tillkommer löpande, att saker kan ändras och att buggar kan förekomma. Prova gärna verktyget, men räkna med att det fortfarande mognar. Återkoppling hjälper oss att prioritera rätt.",
   "faq_q17": "Hur kan jag bidra eller rapportera fel?",
   "faq_a17": "All utveckling sker öppet på GitHub. Där kan du rapportera buggar, föreslå funktioner eller bidra med kod. Pull requests och feedback är välkomna.",
