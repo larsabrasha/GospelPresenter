@@ -269,6 +269,12 @@
   <data name="Songs.SkippedPlural" xml:space="preserve">
     <value>{0} skipped (already exist)</value>
   </data>
+  <data name="Songs.FailedSingular" xml:space="preserve">
+    <value>{0} file contained no song text</value>
+  </data>
+  <data name="Songs.FailedPlural" xml:space="preserve">
+    <value>{0} files contained no song text</value>
+  </data>
   <data name="Songs.ProcessingFiles" xml:space="preserve">
     <value>Processing files...</value>
   </data>

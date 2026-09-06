@@ -269,6 +269,12 @@
   <data name="Songs.SkippedPlural" xml:space="preserve">
     <value>{0} överhoppade (fanns redan)</value>
   </data>
+  <data name="Songs.FailedSingular" xml:space="preserve">
+    <value>{0} fil saknade sångtext</value>
+  </data>
+  <data name="Songs.FailedPlural" xml:space="preserve">
+    <value>{0} filer saknade sångtext</value>
+  </data>
   <data name="Songs.ProcessingFiles" xml:space="preserve">
     <value>Bearbetar filer...</value>
   </data>

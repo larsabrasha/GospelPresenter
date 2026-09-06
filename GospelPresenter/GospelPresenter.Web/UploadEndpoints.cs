@@ -3,6 +3,7 @@ using GospelPresenter.Shared;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
+using GospelPresenter.Shared.State;
 
 namespace GospelPresenter.Web;
 
@@ -253,7 +254,7 @@ public static class UploadEndpoints
             if (!replaceExisting)
             {
                 var parsedNames = files
-                    .Select(f => ProPresenterParser.Parse(f.Data, Path.GetFileNameWithoutExtension(f.FileName)))
+                    .Select(f => TryParse(f.Data, f.FileName))
                     .Where(s => s is not null)
                     .Select(s => s!.Name)
                     .ToList();
@@ -265,9 +266,22 @@ public static class UploadEndpoints
 
             var result = await songService.ImportProPresenterFilesAsync(files, orgId, caller, replaceExisting);
 
-            return Results.Ok(new { result.Imported, result.Skipped, result.Replaced });
+            return Results.Ok(new { result.Imported, result.Skipped, result.Replaced, result.Failed });
         }).RequireAuthorization()
           .DisableAntiforgery();
+    }
+
+    /// <summary>A corrupt file must not fail the duplicate check for the whole batch.</summary>
+    private static Song? TryParse(byte[] data, string fileName)
+    {
+        try
+        {
+            return ProPresenterParser.Parse(data, Path.GetFileNameWithoutExtension(fileName));
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static CallerContext? GetCaller(HttpContext context)

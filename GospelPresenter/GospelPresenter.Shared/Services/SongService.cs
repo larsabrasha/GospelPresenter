@@ -4,6 +4,7 @@ using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.State;
 using GospelPresenter.Shared.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace GospelPresenter.Shared.Services;
 
@@ -36,7 +37,9 @@ public interface ISongService
     Task DeleteSongArrangementAsync(string songId, string organizationId, string arrangementId, CallerContext caller);
 }
 
-public class SongService(IDbContextFactory<PresentationContext> dbContextFactory) : ISongService
+public class SongService(
+    IDbContextFactory<PresentationContext> dbContextFactory,
+    ILogger<SongService>? logger = null) : ISongService
 {
     private Dictionary<string, OrgSongCache> cacheByOrg = new();
 
@@ -111,8 +114,8 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             .Select(s => s.Name)
             .ToListAsync();
 
-        var existingSet = new HashSet<string>(existingNames, StringComparer.OrdinalIgnoreCase);
-        return nameList.Where(n => existingSet.Contains(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var existingSet = new HashSet<string>(existingNames, TextUtils.NormalizedIgnoreCase);
+        return nameList.Where(existingSet.Contains).Distinct(TextUtils.NormalizedIgnoreCase).ToList();
     }
 
     public async Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, CallerContext caller, bool replaceExisting = false)
@@ -126,20 +129,37 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             .Include(s => s.Parts)
             .ToListAsync();
 
-        var existingByName = new Dictionary<string, Models.DbSong>(StringComparer.OrdinalIgnoreCase);
+        var existingByName = new Dictionary<string, Models.DbSong>(TextUtils.NormalizedIgnoreCase);
         foreach (var s in existingSongs)
             existingByName.TryAdd(s.Name, s);
 
         var songCount = existingSongs.Count;
         int imported = 0, replaced = 0, skipped = 0;
+        var failedFiles = new List<string>();
 
         // Parse all files first to collect label texts
         var parsedSongs = new List<Song>();
         foreach (var (fileName, data) in files)
         {
             var fallbackTitle = Path.GetFileNameWithoutExtension(fileName);
-            var parsed = ProPresenterParser.Parse(data, fallbackTitle);
-            if (parsed is null) continue;
+            Song? parsed;
+            try
+            {
+                parsed = ProPresenterParser.Parse(data, fallbackTitle);
+            }
+            catch (Exception ex)
+            {
+                // A corrupt or non-ProPresenter file must not abort the whole batch.
+                logger?.LogWarning(ex, "Could not parse ProPresenter file {FileName}", fileName);
+                parsed = null;
+            }
+
+            if (parsed is null)
+            {
+                // No slide text to import: a media-only presentation, or a file we cannot read.
+                failedFiles.Add(fileName);
+                continue;
+            }
 
             parsed = parsed with
             {
@@ -274,7 +294,11 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
             await LoadSongsAsync();
         }
 
-        return new ImportResult(imported, replaced, skipped);
+        if (failedFiles.Count > 0)
+            logger?.LogInformation("Import skipped {Count} file(s) with no readable song text: {Files}",
+                failedFiles.Count, string.Join(", ", failedFiles));
+
+        return new ImportResult(imported, replaced, skipped, failedFiles.Count);
     }
 
     public async Task DeleteSongAsync(string id, string organizationId, CallerContext caller)
@@ -992,14 +1016,14 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     /// </summary>
     private async Task<Dictionary<string, string>> ResolveLabelsByTextAsync(PresentationContext db, string organizationId, IEnumerable<string> labelTexts)
     {
-        var uniqueTexts = labelTexts.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var uniqueTexts = labelTexts.Distinct(TextUtils.NormalizedIgnoreCase).ToList();
         if (uniqueTexts.Count == 0) return new Dictionary<string, string>();
 
         var existingLabels = await db.SongPartLabels
             .Where(l => l.OrganizationId == organizationId)
             .ToListAsync();
 
-        var labelMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var labelMap = new Dictionary<string, string>(TextUtils.NormalizedIgnoreCase);
         foreach (var label in existingLabels)
             labelMap[label.Text] = label.Id;
 
@@ -1074,9 +1098,13 @@ public class SongService(IDbContextFactory<PresentationContext> dbContextFactory
     }
 }
 
-public record ImportResult(int Imported, int Replaced, int Skipped)
+/// <summary>
+/// <paramref name="Skipped"/> counts songs that already existed and were left alone;
+/// <paramref name="Failed"/> counts files that held no readable song text at all.
+/// </summary>
+public record ImportResult(int Imported, int Replaced, int Skipped, int Failed = 0)
 {
-    public int Total => Imported + Replaced + Skipped;
+    public int Total => Imported + Replaced + Skipped + Failed;
 }
 
 public record TrashedSong(string Id, string Name, string? Author, DateTime DeletedAt)

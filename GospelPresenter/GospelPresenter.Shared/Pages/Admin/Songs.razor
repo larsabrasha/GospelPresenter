@@ -308,7 +308,7 @@
             if (!replaceExisting)
             {
                 var names = filesToImport
-                    .Select(file => ProPresenterParser.Parse(file.Data, Path.GetFileNameWithoutExtension(file.FileName)))
+                    .Select(file => TryParse(file.Data, file.FileName))
                     .Where(song => song is not null)
                     .Select(song => song!.Name)
                     .ToList();
@@ -361,7 +361,7 @@
                 return;
             }
 
-            importMessage = FormatImportResult(new ImportResult(result.Imported, result.Replaced, result.Skipped));
+            importMessage = FormatImportResult(new ImportResult(result.Imported, result.Replaced, result.Skipped, result.Failed));
             RefreshDisplayedSongs();
         }
         catch (Exception ex)
@@ -372,6 +372,19 @@
         finally
         {
             isImporting = false;
+        }
+    }
+
+    /// <summary>A corrupt file must not fail the duplicate check for the whole batch.</summary>
+    private static Song? TryParse(byte[] data, string fileName)
+    {
+        try
+        {
+            return ProPresenterParser.Parse(data, Path.GetFileNameWithoutExtension(fileName));
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -412,6 +425,10 @@
             parts.Add(result.Skipped == 1
                 ? L["Songs.SkippedSingular", result.Skipped]
                 : L["Songs.SkippedPlural", result.Skipped]);
+        if (result.Failed > 0)
+            parts.Add(result.Failed == 1
+                ? L["Songs.FailedSingular", result.Failed]
+                : L["Songs.FailedPlural", result.Failed]);
 
         if (parts.Count == 0)
             return L["Songs.NoSongsImportable"];
@@ -473,5 +490,5 @@
 
     private string Highlight(string text) => SearchHighlighter.Highlight(text, searchTerms);
 
-    private record SongImportResponse(int Imported = 0, int Skipped = 0, int Replaced = 0, int FileCount = 0, List<string>? Duplicates = null);
+    private record SongImportResponse(int Imported = 0, int Skipped = 0, int Replaced = 0, int Failed = 0, int FileCount = 0, List<string>? Duplicates = null);
 }
