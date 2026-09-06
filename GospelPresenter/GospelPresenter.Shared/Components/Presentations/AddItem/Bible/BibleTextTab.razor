@@ -108,6 +108,7 @@ else
 
     private ElementReference container;
     private ElementReference searchInput;
+    private bool focusSearchPending;
     private string organizationId = "";
     private string selectedBibleId = "";
     private IReadOnlyList<Bible> orgBibles = [];
@@ -135,6 +136,31 @@ else
         selectedBibleId = orgBibles.FirstOrDefault()?.Id ?? "";
     }
 
+    /// <summary>
+    /// Asks for the caret to land in the search box after the next render, which is when the input is
+    /// guaranteed to exist.
+    /// </summary>
+    public void FocusSearch()
+    {
+        focusSearchPending = true;
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusSearchPending) return;
+        focusSearchPending = false;
+
+        // No search box while browsing a book, and on narrow screens focusing an input pops up the
+        // on-screen keyboard over the very list the user came here to look at.
+        if (orgBibles.Count == 0 || browseBook is not null) return;
+        if (await IsMobileAsync()) return;
+        await searchInput.FocusAsync();
+    }
+
+    private ValueTask<bool> IsMobileAsync() =>
+        JsRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
+
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
         if (e.Key == "Enter" && e.ShiftKey && ShowAddButton && !isAdding)
@@ -148,9 +174,24 @@ else
             {
                 isAdding = false;
             }
+
+            ResetForNextSearch();
         }
         else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && ShowAddButton)
             await HandleAdd();
+    }
+
+    /// <summary>
+    /// Empties the search box and leaves any book being browsed, so the next reference can be typed
+    /// straight away.
+    /// </summary>
+    private void ResetForNextSearch()
+    {
+        ClearSearch();
+        browseBook = null;
+        browseSelectionLabel = "";
+        browseSelectedVerses = [];
+        FocusSearch();
     }
 
     private void OnBibleChanged(ChangeEventArgs e)
@@ -237,5 +278,9 @@ else
         {
             isAdding = false;
         }
+
+        // Only worth doing when the modal is staying open; otherwise this component is on its way out.
+        if (AddMoreState.Value)
+            ResetForNextSearch();
     }
 }

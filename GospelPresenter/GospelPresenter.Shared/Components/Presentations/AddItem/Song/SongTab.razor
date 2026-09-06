@@ -42,6 +42,7 @@ else
                     <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
                 </svg>
                 <input type="text"
+                       @ref="searchInput"
                        maxlength="@AppConstraints.SearchMaxLength"
                        class="w-full py-2.5 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(query) ? "" : "!pr-9")"
                        placeholder="@L["SongTab.SearchPlaceholder"]"
@@ -252,6 +253,8 @@ else
     /// <summary>The theme of the presentation the song is being added to, so the preview matches it.</summary>
     [Parameter] public SlideTheme Theme { get; set; } = SlideTheme.Fallback;
 
+    private ElementReference searchInput;
+    private bool focusSearchPending;
     private string query = "";
     private string[] searchTerms = [];
     private List<Song> results = [];
@@ -292,7 +295,30 @@ else
             pendingScrollIndex = null;
             await ScrollSelectedIntoView(index);
         }
+
+        if (focusSearchPending)
+        {
+            focusSearchPending = false;
+
+            // Nothing to focus without songs, and on narrow screens focusing an input pops up the
+            // on-screen keyboard over the very list the user came here to look at.
+            if (OrgSongs.Count > 0 && !await IsMobileAsync())
+                await searchInput.FocusAsync();
+        }
     }
+
+    /// <summary>
+    /// Asks for the caret to land in the search box after the next render, which is when the input is
+    /// guaranteed to exist.
+    /// </summary>
+    public void FocusSearch()
+    {
+        focusSearchPending = true;
+        StateHasChanged();
+    }
+
+    private ValueTask<bool> IsMobileAsync() =>
+        JsRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
@@ -307,6 +333,8 @@ else
             {
                 isAdding = false;
             }
+
+            await ResetForNextSearch();
         }
         else if (e.Key == "Enter" && (e.MetaKey || e.CtrlKey) && selectedSong is not null)
         {
@@ -416,6 +444,9 @@ else
         {
             isAdding = false;
         }
+
+        if (AddMoreState.Value)
+            await ResetForNextSearch();
     }
 
     private async Task HandleAdd()
@@ -430,6 +461,10 @@ else
         {
             isAdding = false;
         }
+
+        // Only worth doing when the modal is staying open; otherwise this component is on its way out.
+        if (AddMoreState.Value)
+            await ResetForNextSearch();
     }
 
     private bool wasInMobilePreview;
@@ -473,12 +508,19 @@ else
         await OnEditSong.InvokeAsync(song.Id);
     }
 
-    private void RefreshSongList()
+    /// <summary>
+    /// Empties the search box after an add, so the next song can be typed straight away.
+    /// </summary>
+    private async Task ResetForNextSearch()
     {
         query = "";
         searchTerms = [];
         results = OrgSongs.ToList();
         selectedSong = null;
+        selectedArrangementId = null;
+        mobilePreviewSong = null;
+        FocusSearch();
+        await ScrollListsToTop();
     }
 
     private string Highlight(string text) => SearchHighlighter.Highlight(text, searchTerms);
