@@ -1,0 +1,410 @@
+@page "/trash"
+@attribute [Authorize]
+
+@using GospelPresenter.Shared.Services
+@using GospelPresenter.Shared.State
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.Extensions.Logging
+@using GospelPresenter.Shared.Utils
+@implements IDisposable
+
+@inject ITrashService TrashService
+@inject ActiveOrganizationState OrgState
+@inject ToastService ToastService
+@inject ILogger<Trash> Logger
+
+<PageContainer>
+    <DetailHeader BackHref="/" Title="@L["Trash.Title"].Value" Class="px-5"/>
+
+    <div class="bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden">
+        @if (entries is null)
+        {
+            <div class="px-5 py-4 text-neutral-400 text-sm">@L["Common.Loading"]</div>
+        }
+        else if (entries.Count == 0)
+        {
+            <div class="flex flex-col items-center justify-center py-16 text-neutral-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-12 mb-3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                </svg>
+                <span class="text-sm">@L["Trash.Empty"]</span>
+                <span class="text-xs mt-1 max-w-xs text-center">@L["Trash.EmptyHint"]</span>
+            </div>
+        }
+        else
+        {
+            <div class="px-5 pt-4 pb-2 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="font-semibold">
+                        @(shown.Count == 1 ? L["Trash.CountOne"] : L["Trash.Count", shown.Count])
+                        @if (shown.Count != entries.Count)
+                        {
+                            <span class="font-normal text-neutral-400 text-sm ml-1">@L["Trash.OfTotal", entries.Count]</span>
+                        }
+                    </div>
+                    <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmEmpty">
+                        @L["Trash.Empty.Action"]
+                    </AppButton>
+                </div>
+
+                @* Only kinds that are actually in there. A tab that always says nothing is noise. *@
+                @if (kindsPresent.Count > 1)
+                {
+                    <PillTabs>
+                        <AppButton Variant="@(kindFilter is null ? ButtonVariant.PillActive : ButtonVariant.Pill)"
+                                   OnClick="() => SetKindFilter(null)">
+                            @L["Trash.Filter.All"]
+                        </AppButton>
+                        @foreach (var kind in kindsPresent)
+                        {
+                            var thisKind = kind;
+                            <AppButton Variant="@(kindFilter == thisKind ? ButtonVariant.PillActive : ButtonVariant.Pill)"
+                                       OnClick="() => SetKindFilter(thisKind)">
+                                @L[$"Trash.KindPlural.{thisKind}"]
+                            </AppButton>
+                        }
+                    </PillTabs>
+                }
+
+                <div class="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/>
+                    </svg>
+                    <input type="text"
+                           maxlength="@AppConstraints.SearchMaxLength"
+                           class="w-full py-2 pl-10 pr-4 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 @(string.IsNullOrEmpty(searchQuery) ? "" : "!pr-9")"
+                           placeholder="@L["Common.Search"]"
+                           value="@searchQuery"
+                           @oninput="OnSearchInput"/>
+                    @if (!string.IsNullOrEmpty(searchQuery))
+                    {
+                        <AppButton Variant="ButtonVariant.Icon" Class="absolute right-2.5 top-1/2 -translate-y-1/2 size-6"
+                                   OnClick="ClearSearch">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+                            </svg>
+                        </AppButton>
+                    }
+                </div>
+            </div>
+
+            @* Newest first, so what someone just deleted by mistake is the first thing they see. *@
+            <div>
+                @if (shown.Count == 0)
+                {
+                    <div class="px-5 py-10 text-center text-sm text-neutral-400">@L["Trash.NoMatches"]</div>
+                }
+                @foreach (var entry in shown)
+                {
+                    var detail = Detail(entry);
+                    <div @key="@($"{entry.Kind}:{entry.Id}")"
+                         class="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                        <div class="shrink-0 text-neutral-400 dark:text-neutral-500" title="@KindName(entry.Kind)">
+                            @KindIcon(entry.Kind)
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium truncate">@entry.Name</div>
+                            <div class="text-xs text-neutral-400 truncate">
+                                <span>@KindName(entry.Kind)</span>
+                                @if (detail.Length > 0)
+                                {
+                                    <span class="mx-1">&middot;</span>
+                                    <span>@detail</span>
+                                }
+                                <span class="mx-1">&middot;</span>
+                                @if (entry.DaysRemaining == 0)
+                                {
+                                    <span class="text-red-500 dark:text-red-400">@L["Trash.DeletesSoon"]</span>
+                                }
+                                else if (entry.DaysRemaining == 1)
+                                {
+                                    <span class="text-red-500 dark:text-red-400">@L["Trash.OneDayLeft"]</span>
+                                }
+                                else
+                                {
+                                    <span>@L["Trash.DaysLeft", entry.DaysRemaining]</span>
+                                }
+                            </div>
+                        </div>
+                        <AppButton Variant="ButtonVariant.Secondary"
+                                   Disabled="@(busyKey == Key(entry))"
+                                   OnClick="() => RestoreAsync(entry)">
+                            @L["Trash.Restore"]
+                        </AppButton>
+                        <AppButton Variant="ButtonVariant.Danger"
+                                   Title="@L["Trash.DeletePermanently"].Value"
+                                   OnClick="() => ConfirmPurge(entry)">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+                            </svg>
+                        </AppButton>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</PageContainer>
+
+@* Only the permanent deletions ask. Restoring is reversible — it is the delete button again. *@
+@if (confirmMessageKey is not null)
+{
+    <Dialog Class="bg-white dark:bg-neutral-800 max-w-md" OnClose="CancelConfirm">
+        <div class="p-6 space-y-4">
+            <div class="font-semibold text-lg">@confirmTitle</div>
+            <p class="text-sm text-neutral-600 dark:text-neutral-300">
+                <LocalizedEmphasis Key="@confirmMessageKey" Value="@confirmMessageValue"/>
+            </p>
+            <div class="flex justify-end gap-3">
+                <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelConfirm">
+                    @L["Common.Cancel"]
+                </AppButton>
+                <AppButton Variant="ButtonVariant.Danger" Filled Disabled="isProcessing" OnClick="ExecuteConfirm">
+                    @(isProcessing ? L["Common.Deleting"] : L["Trash.DeletePermanently"])
+                </AppButton>
+            </div>
+        </div>
+    </Dialog>
+}
+
+@code {
+
+    /// <summary>
+    /// Which kind to open on, from the link that led here: the songs page opens the trash on songs,
+    /// the images page on images. The tabs are still right there, so the whole trash is one click
+    /// away — this only saves the click for whoever already knows what they lost.
+    ///
+    /// An unknown or absent value opens on everything, and so does a kind that turns out to have
+    /// nothing in it (see ReloadAsync) — an empty list behind a tab is worse than no filter.
+    /// </summary>
+    [SupplyParameterFromQuery(Name = "kind")]
+    public string? KindParameter { get; set; }
+
+    private IReadOnlyList<TrashEntry>? entries;
+    private IReadOnlyList<TrashKind> kindsPresent = [];
+    private TrashKind? kindFilter;
+    private string searchQuery = "";
+    private readonly Debouncer searchDebouncer = new(200);
+    private string? organizationId;
+    private string? busyKey;
+
+    /// <summary>
+    /// What the list shows: the kind tab and the search box applied to what came back. Filtering in
+    /// memory because the trash is one page of rows the service has already gathered — going back
+    /// to five services for every keystroke would be slower and no more correct.
+    ///
+    /// Held in a field and rebuilt by <see cref="ApplyFilters"/> rather than computed on read: the
+    /// markup asks for it five times per render, and an organisation that empties a full image
+    /// library has a thousand rows here.
+    /// </summary>
+    private IReadOnlyList<TrashEntry> shown = [];
+
+    private void ApplyFilters()
+    {
+        if (entries is null)
+        {
+            shown = [];
+            return;
+        }
+
+        IEnumerable<TrashEntry> filtered = entries;
+        if (kindFilter is { } kind)
+            filtered = filtered.Where(e => e.Kind == kind);
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+            filtered = filtered.Where(e => e.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
+                                           || (e.Author?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false));
+        shown = filtered.ToList();
+    }
+
+    private string? confirmMessageKey;
+    private string? confirmMessageValue;
+    private string confirmTitle = "";
+    private Func<Task>? confirmAction;
+    private bool isProcessing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        organizationId = OrgState.ActiveOrganizationId;
+        if (organizationId is null) return;
+
+        if (Enum.TryParse<TrashKind>(KindParameter, ignoreCase: true, out var requested))
+            kindFilter = requested;
+
+        try
+        {
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load the trash");
+            entries = [];
+            ToastService.Show(L["Common.ErrorOccurred"], ToastKind.Warning);
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        entries = await TrashService.GetAsync(organizationId!, OrgState.ToCallerContext());
+        kindsPresent = entries.Select(e => e.Kind).Distinct().OrderBy(k => (int)k).ToList();
+
+        // A tab whose last row was just restored or purged would otherwise leave the list looking
+        // empty with no way back to the rest.
+        if (kindFilter is { } kind && !kindsPresent.Contains(kind))
+            kindFilter = null;
+
+        ApplyFilters();
+    }
+
+    private void SetKindFilter(TrashKind? kind)
+    {
+        kindFilter = kind;
+        ApplyFilters();
+    }
+
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        searchDebouncer.Run(() =>
+        {
+            searchQuery = value;
+            ApplyFilters();
+            return InvokeAsync(StateHasChanged);
+        });
+    }
+
+    /// <summary>
+    /// Cancels the pending debounce first. Without that, a keystroke from up to 200 ms ago fires
+    /// after this and puts the old text straight back into the box.
+    /// </summary>
+    private void ClearSearch()
+    {
+        searchDebouncer.Cancel();
+        searchQuery = "";
+        ApplyFilters();
+    }
+
+    public void Dispose() => searchDebouncer.Dispose();
+
+    /// <summary>Kind and id together: two kinds could in principle share an id.</summary>
+    private static string Key(TrashEntry entry) => $"{entry.Kind}:{entry.Id}";
+
+    private async Task RestoreAsync(TrashEntry entry)
+    {
+        if (busyKey is not null) return;
+        busyKey = Key(entry);
+        try
+        {
+            await TrashService.RestoreAsync(entry.Kind, entry.Id, organizationId!, OrgState.ToCallerContext());
+            await ReloadAsync();
+            ToastService.Show(L["Trash.Restored", entry.Name]);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to restore {Kind} {Id} from the trash", entry.Kind, entry.Id);
+            ToastService.Show(L["Common.ErrorOccurred"], ToastKind.Warning);
+        }
+        finally
+        {
+            busyKey = null;
+        }
+    }
+
+    private void ConfirmPurge(TrashEntry entry)
+    {
+        confirmTitle = L["Trash.DeletePermanently"];
+        confirmMessageKey = entry.Kind switch
+        {
+            TrashKind.Presentation => "Trash.ConfirmPurge.Presentation",
+            TrashKind.Template => "Trash.ConfirmPurge.Template",
+            TrashKind.Song => "Trash.ConfirmPurge.Song",
+            _ => "Trash.ConfirmPurge.File"
+        };
+        confirmMessageValue = entry.Name;
+        confirmAction = () => TrashService.PurgeAsync(entry.Kind, entry.Id, organizationId!, OrgState.ToCallerContext());
+    }
+
+    private void ConfirmEmpty()
+    {
+        confirmTitle = L["Trash.Empty.Action"];
+        // Deliberately the whole trash, not the filtered view: "Empty trash" that emptied only the
+        // current tab would be a trap.
+        confirmMessageKey = "Trash.ConfirmEmpty";
+        confirmMessageValue = entries!.Count.ToString();
+        confirmAction = () => TrashService.EmptyAsync(organizationId!, OrgState.ToCallerContext());
+    }
+
+    private void CancelConfirm()
+    {
+        confirmMessageKey = null;
+        confirmMessageValue = null;
+        confirmAction = null;
+    }
+
+    private async Task ExecuteConfirm()
+    {
+        if (isProcessing || confirmAction is null) return;
+        isProcessing = true;
+        try
+        {
+            await confirmAction();
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to purge from the trash");
+            ToastService.Show(L["Common.ErrorOccurred"], ToastKind.Warning);
+
+            // A purge deletes rows before it clears storage, and emptying walks five services in
+            // turn, so a failure part-way through leaves the list on screen disagreeing with the
+            // database. Re-read rather than leave it lying.
+            try
+            {
+                await ReloadAsync();
+            }
+            catch (Exception reloadEx)
+            {
+                Logger.LogError(reloadEx, "Failed to reload the trash after a failed purge");
+            }
+        }
+        finally
+        {
+            isProcessing = false;
+            CancelConfirm();
+        }
+    }
+
+    private string KindName(TrashKind kind) => L[$"Trash.Kind.{kind}"];
+
+    /// <summary>
+    /// The second line: whatever tells two things of the same kind apart. A date for a service, the
+    /// weekly slot for a template, the author for a song. Files have only their name.
+    /// </summary>
+    private string Detail(TrashEntry entry)
+    {
+        if (entry.Kind == TrashKind.Song)
+            return entry.Author ?? "";
+
+        if (entry.Kind == TrashKind.Presentation)
+            return entry.EventDate?.ToString("d") ?? "";
+
+        if (entry.Kind != TrashKind.Template)
+            return "";
+
+        var schedule = "";
+        if (entry.ScheduledDayOfWeek is { } day)
+            schedule = L[$"Weekday.{day}"];
+        if (entry.ScheduledTime is { } time)
+            schedule += (schedule.Length > 0 ? " " : "") + time.ToString("HH:mm");
+        if (!string.IsNullOrWhiteSpace(entry.Location))
+            schedule += (schedule.Length > 0 ? " · " : "") + entry.Location;
+        return schedule;
+    }
+
+    private static RenderFragment KindIcon(TrashKind kind) => kind switch
+    {
+        TrashKind.Song => @<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"/></svg>,
+        TrashKind.Image => @<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/></svg>,
+        TrashKind.Audio => @<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/></svg>,
+        TrashKind.Template => @<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"/></svg>,
+        _ => @<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"/></svg>
+    };
+}

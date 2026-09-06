@@ -3,6 +3,7 @@ using System;
 using GospelPresenter.Client.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GospelPresenter.Client.Migrations
 {
     [DbContext(typeof(ClientDataContext))]
-    partial class ClientDataContextModelSnapshot : ModelSnapshot
+    [Migration("20260906052356_AddPresentationSoftDelete")]
+    partial class AddPresentationSoftDelete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.5");
@@ -585,9 +588,6 @@ namespace GospelPresenter.Client.Migrations
                     b.Property<long>("CreatedAt")
                         .HasColumnType("INTEGER");
 
-                    b.Property<long?>("DeletedAt")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -621,9 +621,6 @@ namespace GospelPresenter.Client.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<long>("CreatedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long?>("DeletedAt")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("FileName")

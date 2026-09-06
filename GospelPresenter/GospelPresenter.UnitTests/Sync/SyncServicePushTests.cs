@@ -318,7 +318,7 @@ public class SyncServicePushTests : IDisposable
     }
 
     [Fact]
-    public async Task Push_ADeleteWithAMatchingBase_DeletesAndTombstones()
+    public async Task Push_ADeleteWithAMatchingBase_TrashesThePresentation()
     {
         // Arrange
         var baseVersion = await SeedPresentationAsync();
@@ -329,12 +329,12 @@ public class SyncServicePushTests : IDisposable
             Deletes = [new SyncDeletePush(nameof(Presentation), "pres-1", baseVersion)]
         }, caller);
 
-        // Assert
+        // Assert -- a delete made offline lands in the trash, the same as one made here, so it is
+        // recoverable from any device rather than only from the one that made it.
         response.Results.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Applied);
         await using var context = await factory.CreateDbContextAsync();
-        (await context.Presentations.AnyAsync()).ShouldBeFalse();
-        (await context.SyncTombstones.SingleAsync(t => t.EntityType == nameof(Presentation)))
-            .EntityId.ShouldBe("pres-1");
+        (await context.Presentations.SingleAsync(p => p.Id == "pres-1")).DeletedAt.ShouldNotBeNull();
+        (await context.SyncTombstones.AnyAsync(t => t.EntityType == nameof(Presentation))).ShouldBeFalse();
     }
 
     [Fact]
@@ -423,7 +423,7 @@ public class SyncServicePushTests : IDisposable
         new(id, name, null, null, null, null, null, default, 0);
 
     private static SyncPresentationDto NewPresentationDto(string id, string name) =>
-        new(id, name, default, "", default, "", false, null, null, 0, null, null, null, null, null, null, default, 0);
+        new(id, name, default, "", default, "", false, null, null, 0, null, null, null, null, null, null, null, default, 0);
 
     private async Task<long> SeedSongAsync()
     {

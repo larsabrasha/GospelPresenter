@@ -337,6 +337,8 @@ try
     builder.Services.AddScoped<IOnboardingService, OnboardingService>();
     builder.Services.AddScoped<IOrganizationImageService, OrganizationImageService>();
     builder.Services.AddScoped<IOrganizationAudioService, OrganizationAudioService>();
+    // Gathers the trashes above into one list; holds no trash of its own.
+    builder.Services.AddScoped<ITrashService, TrashService>();
     builder.Services.AddScoped<IOrganizationSettingService, OrganizationSettingService>();
     builder.Services.AddSingleton<ICcliReportService, CcliReportService>();
     builder.Services.AddSingleton<IPdfRenderService, PdfRenderService>();

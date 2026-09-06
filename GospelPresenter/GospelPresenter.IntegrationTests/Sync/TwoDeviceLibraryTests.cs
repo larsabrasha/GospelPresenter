@@ -55,12 +55,43 @@ public class TwoDeviceLibraryTests
     }
 
     [Fact]
-    public async Task APresentationDeletedOnTheServer_IsRemovedFromTheDevice()
+    public async Task APresentationTrashedOnTheServer_ReachesTheDeviceTrashWhole()
     {
-        // The other kind of delete: a tombstone for the aggregate root, which the device cascades
-        // to the items and parts underneath it.
+        // Deleting a presentation is soft: DeletedAt travels as an ordinary column, so the device
+        // hides it from the library and offers the same trash the server does. No tombstone, and
+        // the aggregate underneath it is untouched — that is what a restore needs to find.
+        using var app = new WebAppFixture { ObjectStorageConfigured = true };
+        await using var device = await DeviceHarness.CreateAsync(app);
+
+        await device.Scheduler.SyncNowAsync();
+        (await device.HasPresentationAsync(PresentationId)).ShouldBeTrue();
+        var itemsBefore = await device.ItemCountAsync(PresentationId);
+        itemsBefore.ShouldBeGreaterThan(0, "the seeded presentation should have arrived with its items");
+
+        device.Doorbell.Start();
+        await device.WaitUntilListeningAsync();
+
+        using (var scope = app.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<IPresentationService>()
+                .DeletePresentationAsync(OrganizationId, PresentationId, Caller());
+
+        await WaitUntilAsync(
+            async () => !await device.HasPresentationAsync(PresentationId),
+            "the trashing should have reached the device");
+
+        (await device.HasTrashedPresentationAsync(PresentationId)).ShouldBeTrue(
+            "the device should offer the same trash as the server");
+        (await device.ItemCountAsync(PresentationId)).ShouldBe(itemsBefore,
+            "trashing destroys nothing, so the items must still be there to restore");
+    }
+
+    [Fact]
+    public async Task APresentationPurgedOnTheServer_IsRemovedFromTheDevice()
+    {
+        // Emptying the trash is the delete that is final: a tombstone for the aggregate root, which
+        // the device cascades to the items and parts underneath it.
         //
-        // With storage, because this presentation owns slides and deleting it clears their blobs —
+        // With storage, because this presentation owns slides and purging it clears their blobs —
         // incidental to the sync, and the default fixture's storage throws.
         using var app = new WebAppFixture { ObjectStorageConfigured = true };
         await using var device = await DeviceHarness.CreateAsync(app);
@@ -74,11 +105,15 @@ public class TwoDeviceLibraryTests
         await device.WaitUntilListeningAsync();
 
         using (var scope = app.Services.CreateScope())
-            await scope.ServiceProvider.GetRequiredService<IPresentationService>()
-                .DeletePresentationAsync(OrganizationId, PresentationId, Caller());
+        {
+            var presentations = scope.ServiceProvider.GetRequiredService<IPresentationService>();
+            await presentations.DeletePresentationAsync(OrganizationId, PresentationId, Caller());
+            await presentations.PermanentlyDeletePresentationAsync(OrganizationId, PresentationId, Caller());
+        }
 
         await WaitUntilAsync(
-            async () => !await device.HasPresentationAsync(PresentationId),
+            async () => !await device.HasTrashedPresentationAsync(PresentationId)
+                && !await device.HasPresentationAsync(PresentationId),
             "the tombstone should have reached the device");
 
         (await device.ItemCountAsync(PresentationId)).ShouldBe(0,
@@ -296,7 +331,7 @@ public class TwoDeviceLibraryTests
     private static async Task<bool> ServerHasPresentationAsync(WebAppFixture app, string id)
     {
         await using var context = Context(app);
-        return await context.Presentations.AnyAsync(p => p.Id == id);
+        return await context.Presentations.NotDeleted().AnyAsync(p => p.Id == id);
     }
 
     private static async Task<string?> ServerPresentationNameAsync(WebAppFixture app, string id)

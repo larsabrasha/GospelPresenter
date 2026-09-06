@@ -62,7 +62,7 @@
                         <AppButton Variant="ButtonVariant.Primary" Class="shrink-0"
                                    Disabled="@isRestoring"
                                    OnClick="ConfirmRestore">
-                            @(isRestoring ? L["SongTrash.Restoring"] : L["SongHistory.RestoreVersion"])
+                            @(isRestoring ? L["Trash.Restoring"] : L["SongHistory.RestoreVersion"])
                         </AppButton>
                     </div>
 
@@ -101,7 +101,7 @@
                 <AppButton Variant="ButtonVariant.Primary"
                            Disabled="@isRestoring"
                            OnClick="ExecuteRestore">
-                    @L["SongTrash.Restore"]
+                    @L["Trash.Restore"]
                 </AppButton>
             </div>
         </div>

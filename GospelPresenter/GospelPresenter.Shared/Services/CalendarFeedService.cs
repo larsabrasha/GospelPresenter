@@ -30,6 +30,7 @@ public class CalendarFeedService(IDbContextFactory<PresentationContext> dbContex
             .FirstOrDefaultAsync(o => o.Id == organizationId, cancellationToken);
 
         var presentations = await context.Presentations
+            .NotDeleted()
             .AsNoTracking()
             .Include(p => p.Items.OrderBy(i => i.SortOrder))
             .Where(p => p.OrganizationId == organizationId

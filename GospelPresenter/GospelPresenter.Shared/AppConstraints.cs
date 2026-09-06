@@ -48,6 +48,13 @@ public static class AppConstraints
     public const int MaxApiKeysPerUser = 10;
     public const int MaxDeviceTokensPerUser = 10;
     public const int MaxCalendarSubscriptionsPerUser = 10;
+
+    /// <summary>
+    /// How long a trashed song or presentation is kept before it is purged for good. Purging is
+    /// lazy — it runs when someone opens the trash — so a row may outlive this without anyone
+    /// looking, which is the safe direction to be wrong in.
+    /// </summary>
+    public const int TrashRetentionDays = 30;
     public const int MaxInvitesPerUser = 20;
     public const int MaxLoginsPerUser = 5;
     public const int MaxSettingsPerUser = 50;

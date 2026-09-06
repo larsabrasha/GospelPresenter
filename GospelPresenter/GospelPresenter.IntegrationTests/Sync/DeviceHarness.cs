@@ -235,10 +235,21 @@ internal sealed class DeviceHarness : IAsyncDisposable
             .FirstOrDefaultAsync();
     }
 
+    /// <summary>
+    /// Whether the device shows this presentation in its library. A trashed one does not count:
+    /// the row is still there, which is what makes it restorable, but nothing lists it.
+    /// </summary>
     public async Task<bool> HasPresentationAsync(string id)
     {
         await using var db = Factory.CreateDbContext();
-        return await db.Presentations.AnyAsync(p => p.Id == id);
+        return await db.Presentations.NotDeleted().AnyAsync(p => p.Id == id);
+    }
+
+    /// <summary>Whether this presentation reached the device's trash.</summary>
+    public async Task<bool> HasTrashedPresentationAsync(string id)
+    {
+        await using var db = Factory.CreateDbContext();
+        return await db.Presentations.OnlyDeleted().AnyAsync(p => p.Id == id);
     }
 
     public async Task<int> ItemCountAsync(string presentationId)

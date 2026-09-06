@@ -8,5 +8,9 @@ public enum ButtonVariant
     Cancel,
     Danger,
     Icon,
-    DangerIcon
+    DangerIcon,
+
+    /// <summary>A tab inside <see cref="PillTabs"/>. Use PillActive for the selected one.</summary>
+    Pill,
+    PillActive
 }

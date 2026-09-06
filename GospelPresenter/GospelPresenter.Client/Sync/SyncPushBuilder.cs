@@ -76,7 +76,7 @@ internal static class SyncPushBuilder
         foreach (var i in await db.OrganizationImages.AsNoTracking().Where(i => imageIds.Contains(i.Id)).ToListAsync(ct))
         {
             request.OrganizationImages.Add(new SyncRowPush<SyncOrganizationImageDto>(
-                new SyncOrganizationImageDto(i.Id, i.FileName, i.ContentType, i.CreatedAt, i.ModifiedAt, i.Version),
+                new SyncOrganizationImageDto(i.Id, i.FileName, i.ContentType, i.CreatedAt, i.DeletedAt, i.ModifiedAt, i.Version),
                 Base("OrganizationImages", i.Id)));
             pushedIds.Add(new RootRef("OrganizationImages", i.Id));
         }
@@ -85,7 +85,7 @@ internal static class SyncPushBuilder
         foreach (var a in await db.OrganizationAudios.AsNoTracking().Where(a => audioIds.Contains(a.Id)).ToListAsync(ct))
         {
             request.OrganizationAudios.Add(new SyncRowPush<SyncOrganizationAudioDto>(
-                new SyncOrganizationAudioDto(a.Id, a.FileName, a.ContentType, a.CreatedAt, a.ModifiedAt, a.Version),
+                new SyncOrganizationAudioDto(a.Id, a.FileName, a.ContentType, a.CreatedAt, a.DeletedAt, a.ModifiedAt, a.Version),
                 Base("OrganizationAudios", a.Id)));
             pushedIds.Add(new RootRef("OrganizationAudios", a.Id));
         }
@@ -111,8 +111,8 @@ internal static class SyncPushBuilder
             request.Presentations.Add(new SyncPresentationPush(
                 new SyncPresentationDto(p.Id, p.Name, p.CreatedAt, p.CreatedBy, p.UpdatedAt, p.UpdatedBy,
                     p.IsTemplate, p.Description, p.LastUsedAt, p.UseCount, p.ScheduledDayOfWeek,
-                    p.ScheduledTime, p.EventDate, p.EventTime, p.EventLocation, p.ThemeId, p.ModifiedAt,
-                    p.Version),
+                    p.ScheduledTime, p.EventDate, p.EventTime, p.EventLocation, p.ThemeId, p.DeletedAt,
+                    p.ModifiedAt, p.Version),
                 p.Items.OrderBy(i => i.SortOrder)
                     .Select(i => new SyncPresentationItemDto(i.Id, i.SourceId, i.Type, i.Title, i.ArrangementId, i.SortOrder, i.PresentationId, i.ModifiedAt))
                     .ToList(),

@@ -176,9 +176,6 @@
   <data name="Presentation.ClearSlide" xml:space="preserve">
     <value>Clear</value>
   </data>
-  <data name="Presentation.DeletePresentation" xml:space="preserve">
-    <value>Delete presentation</value>
-  </data>
   <data name="Sidebar.DeletePresentation" xml:space="preserve">
     <value>Delete presentation</value>
   </data>
@@ -214,9 +211,6 @@
   </data>
   <data name="Songs.AllSongs" xml:space="preserve">
     <value>All songs</value>
-  </data>
-  <data name="Songs.Trash" xml:space="preserve">
-    <value>Trash</value>
   </data>
   <data name="Songs.NoSongsImported" xml:space="preserve">
     <value>No songs in the library yet</value>
@@ -298,54 +292,6 @@
   </data>
   <data name="SongDetail.ConfirmTrashSong" xml:space="preserve">
     <value>Do you want to move {0} to trash? The song will be permanently deleted after 30 days.</value>
-  </data>
-  <data name="SongTrash.Title" xml:space="preserve">
-    <value>Trash</value>
-  </data>
-  <data name="SongTrash.Empty" xml:space="preserve">
-    <value>Trash is empty.</value>
-  </data>
-  <data name="SongTrash.SongSingular" xml:space="preserve">
-    <value>song</value>
-  </data>
-  <data name="SongTrash.SongPlural" xml:space="preserve">
-    <value>songs</value>
-  </data>
-  <data name="SongTrash.RestoreAll" xml:space="preserve">
-    <value>Restore all</value>
-  </data>
-  <data name="SongTrash.EmptyTrash" xml:space="preserve">
-    <value>Empty trash</value>
-  </data>
-  <data name="SongTrash.DeletesSoon" xml:space="preserve">
-    <value>Deleting soon</value>
-  </data>
-  <data name="SongTrash.OneDayLeft" xml:space="preserve">
-    <value>1 day left</value>
-  </data>
-  <data name="SongTrash.DaysLeft" xml:space="preserve">
-    <value>{0} days left</value>
-  </data>
-  <data name="SongTrash.Restore" xml:space="preserve">
-    <value>Restore</value>
-  </data>
-  <data name="SongTrash.Restoring" xml:space="preserve">
-    <value>Restoring...</value>
-  </data>
-  <data name="SongTrash.ConfirmRestore" xml:space="preserve">
-    <value>Do you want to restore {0}?</value>
-  </data>
-  <data name="SongTrash.ConfirmRestoreAll" xml:space="preserve">
-    <value>Do you want to restore all {0} songs in the trash?</value>
-  </data>
-  <data name="SongTrash.ConfirmPermanentDelete" xml:space="preserve">
-    <value>Do you want to permanently delete {0}?</value>
-  </data>
-  <data name="SongTrash.ConfirmEmptyTrash" xml:space="preserve">
-    <value>Do you want to permanently delete all {0} songs in the trash?</value>
-  </data>
-  <data name="SongTrash.DeletePermanently" xml:space="preserve">
-    <value>Delete permanently</value>
   </data>
   <data name="SongHistory.Title" xml:space="preserve">
     <value>History</value>
@@ -433,12 +379,6 @@
   </data>
   <data name="ImageTab.NoImages" xml:space="preserve">
     <value>No images yet</value>
-  </data>
-  <data name="ImageTab.DeleteImage" xml:space="preserve">
-    <value>Delete image</value>
-  </data>
-  <data name="ImageTab.ConfirmDelete" xml:space="preserve">
-    <value>Do you want to delete {0}?</value>
   </data>
   <data name="Images.Title" xml:space="preserve">
     <value>Images</value>
@@ -848,12 +788,6 @@
   <data name="AudioTab.FadeOut" xml:space="preserve">
     <value>Fade out</value>
   </data>
-  <data name="AudioTab.DeleteAudio" xml:space="preserve">
-    <value>Delete audio file</value>
-  </data>
-  <data name="AudioTab.ConfirmDelete" xml:space="preserve">
-    <value>Are you sure you want to delete {0}?</value>
-  </data>
   <data name="SlidesTab.Upload" xml:space="preserve">
     <value>Import slides</value>
   </data>
@@ -928,9 +862,6 @@
   </data>
   <data name="Presentation.ConfirmRemoveItem" xml:space="preserve">
     <value>Do you want to remove {0}?</value>
-  </data>
-  <data name="Presentation.ConfirmDeletePresentation" xml:space="preserve">
-    <value>Do you want to delete {0}? This cannot be undone.</value>
   </data>
   <data name="Common.Options" xml:space="preserve">
     <value>Options</value>
@@ -1201,9 +1132,6 @@
   </data>
   <data name="RemoteControl.SessionChoice" xml:space="preserve">
     <value>Presentation {0}</value>
-  </data>
-  <data name="Templates.DeleteConfirm" xml:space="preserve">
-    <value>Are you sure you want to delete this template?</value>
   </data>
   <data name="Templates.Create" xml:space="preserve">
     <value>Create</value>
@@ -1972,5 +1900,107 @@
   </data>
   <data name="Bibles.OnlyZip" xml:space="preserve">
     <value>Only .zip files can be imported</value>
+  </data>
+  <data name="Toast.PresentationTrashed" xml:space="preserve">
+    <value>{0} moved to the trash</value>
+  </data>
+  <data name="Toast.TemplateTrashed" xml:space="preserve">
+    <value>{0} moved to the trash</value>
+  </data>
+  <data name="Toast.FileTrashed" xml:space="preserve">
+    <value>{0} moved to the trash</value>
+  </data>
+  <data name="Trash.Title" xml:space="preserve">
+    <value>Trash</value>
+  </data>
+  <data name="Trash.Empty" xml:space="preserve">
+    <value>Trash is empty.</value>
+  </data>
+  <data name="Trash.EmptyHint" xml:space="preserve">
+    <value>Anything you delete is kept here for 30 days before it is removed for good.</value>
+  </data>
+  <data name="Trash.Empty.Action" xml:space="preserve">
+    <value>Empty trash</value>
+  </data>
+  <data name="Trash.Count" xml:space="preserve">
+    <value>{0} items</value>
+  </data>
+  <data name="Trash.CountOne" xml:space="preserve">
+    <value>1 item</value>
+  </data>
+  <data name="Trash.OfTotal" xml:space="preserve">
+    <value>of {0}</value>
+  </data>
+  <data name="Trash.NoMatches" xml:space="preserve">
+    <value>Nothing here matches what you are looking for.</value>
+  </data>
+  <data name="Trash.Filter.All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="Trash.Restore" xml:space="preserve">
+    <value>Restore</value>
+  </data>
+  <data name="Trash.Restored" xml:space="preserve">
+    <value>{0} restored</value>
+  </data>
+  <data name="Trash.DeletePermanently" xml:space="preserve">
+    <value>Delete permanently</value>
+  </data>
+  <data name="Trash.DaysLeft" xml:space="preserve">
+    <value>{0} days left</value>
+  </data>
+  <data name="Trash.OneDayLeft" xml:space="preserve">
+    <value>1 day left</value>
+  </data>
+  <data name="Trash.DeletesSoon" xml:space="preserve">
+    <value>Deleting soon</value>
+  </data>
+  <data name="Trash.Kind.Presentation" xml:space="preserve">
+    <value>Presentation</value>
+  </data>
+  <data name="Trash.Kind.Template" xml:space="preserve">
+    <value>Template</value>
+  </data>
+  <data name="Trash.Kind.Song" xml:space="preserve">
+    <value>Song</value>
+  </data>
+  <data name="Trash.Kind.Image" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="Trash.Kind.Audio" xml:space="preserve">
+    <value>Audio file</value>
+  </data>
+  <data name="Trash.KindPlural.Presentation" xml:space="preserve">
+    <value>Presentations</value>
+  </data>
+  <data name="Trash.KindPlural.Template" xml:space="preserve">
+    <value>Templates</value>
+  </data>
+  <data name="Trash.KindPlural.Song" xml:space="preserve">
+    <value>Songs</value>
+  </data>
+  <data name="Trash.KindPlural.Image" xml:space="preserve">
+    <value>Images</value>
+  </data>
+  <data name="Trash.KindPlural.Audio" xml:space="preserve">
+    <value>Audio files</value>
+  </data>
+  <data name="Trash.ConfirmPurge.Presentation" xml:space="preserve">
+    <value>Do you want to permanently delete {0}? Its songs, Bible passages and slides go with it.</value>
+  </data>
+  <data name="Trash.ConfirmPurge.Template" xml:space="preserve">
+    <value>Do you want to permanently delete {0}? Presentations already made from it are not affected.</value>
+  </data>
+  <data name="Trash.ConfirmPurge.Song" xml:space="preserve">
+    <value>Do you want to permanently delete {0}?</value>
+  </data>
+  <data name="Trash.ConfirmPurge.File" xml:space="preserve">
+    <value>Do you want to permanently delete {0}? Any presentation still using it will lose it.</value>
+  </data>
+  <data name="Trash.ConfirmEmpty" xml:space="preserve">
+    <value>Do you want to permanently delete all {0} items in the trash?</value>
+  </data>
+  <data name="Trash.Restoring" xml:space="preserve">
+    <value>Restoring…</value>
   </data>
 </root>

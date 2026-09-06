@@ -225,9 +225,37 @@ public class SyncTrackingCallSiteTests : IDisposable
     }
 
     [Fact]
-    public async Task DeletePresentationAsync_TombstonesOnlyTheAggregateRoot()
+    public async Task DeletePresentationAsync_StampsDeletedAtAndWritesNoTombstone()
     {
         await presentationService.DeletePresentationAsync(org.Id, PresentationId, caller);
+
+        // Trashing is an ordinary edit, not a deletion. A tombstone here would make every synced
+        // client delete its local copy for good, leaving the trash on the server alone.
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.SyncTombstones.AnyAsync()).ShouldBeFalse();
+
+        var presentation = await context.Presentations.SingleAsync(p => p.Id == PresentationId);
+        presentation.DeletedAt.ShouldNotBeNull();
+        presentation.ModifiedAt.ShouldBeGreaterThan(Past);
+    }
+
+    [Fact]
+    public async Task RestorePresentationAsync_ClearsDeletedAtAndBumpsTheRoot()
+    {
+        await presentationService.DeletePresentationAsync(org.Id, PresentationId, caller);
+        await presentationService.RestorePresentationAsync(org.Id, PresentationId, caller);
+
+        await using var context = await factory.CreateDbContextAsync();
+        var presentation = await context.Presentations.SingleAsync(p => p.Id == PresentationId);
+        presentation.DeletedAt.ShouldBeNull();
+        presentation.ModifiedAt.ShouldBeGreaterThan(Past);
+    }
+
+    [Fact]
+    public async Task PermanentlyDeletePresentationAsync_TombstonesOnlyTheAggregateRoot()
+    {
+        await presentationService.DeletePresentationAsync(org.Id, PresentationId, caller);
+        await presentationService.PermanentlyDeletePresentationAsync(org.Id, PresentationId, caller);
 
         // The presentation tombstone covers items, parts and slides; clients cascade locally.
         var tombstone = await GetSingleTombstoneAsync();
@@ -236,9 +264,37 @@ public class SyncTrackingCallSiteTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteTemplateAsync_TombstonesTheTemplate()
+    public async Task DeleteTemplateAsync_StampsDeletedAtAndWritesNoTombstone()
     {
         await presentationService.DeleteTemplateAsync(org.Id, TemplateId, caller);
+
+        // Templates trash like presentations do, for the same reason: a tombstone here would make
+        // every synced client delete its local copy for good.
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.SyncTombstones.AnyAsync()).ShouldBeFalse();
+
+        var template = await context.Presentations.SingleAsync(p => p.Id == TemplateId);
+        template.DeletedAt.ShouldNotBeNull();
+        template.ModifiedAt.ShouldBeGreaterThan(Past);
+    }
+
+    [Fact]
+    public async Task RestoreTemplateAsync_ClearsDeletedAtAndBumpsTheRoot()
+    {
+        await presentationService.DeleteTemplateAsync(org.Id, TemplateId, caller);
+        await presentationService.RestoreTemplateAsync(org.Id, TemplateId, caller);
+
+        await using var context = await factory.CreateDbContextAsync();
+        var template = await context.Presentations.SingleAsync(p => p.Id == TemplateId);
+        template.DeletedAt.ShouldBeNull();
+        template.ModifiedAt.ShouldBeGreaterThan(Past);
+    }
+
+    [Fact]
+    public async Task PermanentlyDeleteTemplateAsync_TombstonesTheTemplate()
+    {
+        await presentationService.DeleteTemplateAsync(org.Id, TemplateId, caller);
+        await presentationService.PermanentlyDeleteTemplateAsync(org.Id, TemplateId, caller);
 
         var tombstone = await GetSingleTombstoneAsync();
         tombstone.EntityType.ShouldBe(nameof(Presentation));
@@ -462,7 +518,7 @@ public class SyncTrackingCallSiteTests : IDisposable
     // --- Media, settings and bibles ---
 
     [Fact]
-    public async Task DeleteImageAsync_TombstonesTheImage()
+    public async Task DeleteImageAsync_StampsDeletedAtAndWritesNoTombstone()
     {
         // Arrange
         await using (var seed = await factory.CreateDbContextAsync())
@@ -475,6 +531,28 @@ public class SyncTrackingCallSiteTests : IDisposable
         // Act
         await service.DeleteImageAsync("image-1", org.Id, caller);
 
+        // Assert -- trashing is an ordinary edit. A tombstone would make every synced client delete
+        // its local copy for good, leaving the trash on the server alone.
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.SyncTombstones.AnyAsync()).ShouldBeFalse();
+        (await context.OrganizationImages.SingleAsync(i => i.Id == "image-1")).DeletedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task PermanentlyDeleteImageAsync_TombstonesTheImage()
+    {
+        // Arrange
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.OrganizationImages.Add(new OrganizationImage { Id = "image-1", FileName = "a.jpg", OrganizationId = org.Id });
+            await seed.SaveChangesAsync();
+        }
+        var service = new OrganizationImageService(factory, new NoOpObjectStorageService());
+
+        // Act
+        await service.DeleteImageAsync("image-1", org.Id, caller);
+        await service.PermanentlyDeleteImageAsync("image-1", org.Id, caller);
+
         // Assert
         var tombstone = await GetSingleTombstoneAsync();
         tombstone.EntityType.ShouldBe(nameof(OrganizationImage));
@@ -482,7 +560,7 @@ public class SyncTrackingCallSiteTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteAudioAsync_TombstonesTheAudio()
+    public async Task DeleteAudioAsync_StampsDeletedAtAndWritesNoTombstone()
     {
         // Arrange
         await using (var seed = await factory.CreateDbContextAsync())
@@ -494,6 +572,27 @@ public class SyncTrackingCallSiteTests : IDisposable
 
         // Act
         await service.DeleteAudioAsync("audio-1", org.Id, caller);
+
+        // Assert
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.SyncTombstones.AnyAsync()).ShouldBeFalse();
+        (await context.OrganizationAudios.SingleAsync(a => a.Id == "audio-1")).DeletedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task PermanentlyDeleteAudioAsync_TombstonesTheAudio()
+    {
+        // Arrange
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.OrganizationAudios.Add(new OrganizationAudio { Id = "audio-1", FileName = "a.mp3", OrganizationId = org.Id });
+            await seed.SaveChangesAsync();
+        }
+        var service = new OrganizationAudioService(factory, new NoOpObjectStorageService());
+
+        // Act
+        await service.DeleteAudioAsync("audio-1", org.Id, caller);
+        await service.PermanentlyDeleteAudioAsync("audio-1", org.Id, caller);
 
         // Assert
         var tombstone = await GetSingleTombstoneAsync();

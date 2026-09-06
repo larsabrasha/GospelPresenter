@@ -43,6 +43,7 @@ public class PresentationSlidesService(
         await using (var verifyContext = await dbContextFactory.CreateDbContextAsync(cancellationToken))
         {
             var exists = await verifyContext.Presentations
+                .NotDeleted()
                 .AnyAsync(p => p.Id == presentationId && p.OrganizationId == organizationId, cancellationToken);
             if (!exists) throw new InvalidOperationException("Presentation not found.");
         }
@@ -99,6 +100,7 @@ public class PresentationSlidesService(
             context.PresentationItems.Add(item);
 
             await context.Presentations
+                .NotDeleted()
                 .Where(x => x.Id == presentationId)
                 .ExecuteUpdateAsync(x => x
                     .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)

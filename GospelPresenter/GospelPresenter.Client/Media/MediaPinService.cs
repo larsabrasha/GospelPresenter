@@ -65,6 +65,12 @@ public class MediaPinService(
             .ToListAsync(cancellationToken);
 
         // Library thumbnails ride along in full: they are small and keep the pickers browsable.
+        //
+        // Deliberately including what is in the trash. The id sets below are also what decides
+        // whether a referenced file gets pinned, and a presentation may well use a file someone has
+        // since trashed — dropping it here would take that file out of the offline cache and break
+        // the presentation on a device with no network. The cost is a handful of extra thumbnails
+        // for at most the retention window.
         var imageIds = (await db.OrganizationImages.AsNoTracking().Select(i => i.Id).ToListAsync(cancellationToken)).ToHashSet();
         foreach (var imageId in imageIds)
             wanted.Add(ImageUrlHelper.OrgImageKey(organizationId, imageId, "thumb"));

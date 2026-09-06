@@ -116,7 +116,7 @@
                  OnRemoveRequested="@ConfirmRemoveItem"
                  OnRemoveMultipleRequested="@ConfirmRemoveMultipleItems"
                  OnItemsReordered="@HandleItemsReordered"
-                 OnDeleteRequested="@ConfirmDeletePresentation"
+                 OnDeleteRequested="@DeletePresentationAsync"
                  IsTemplateMode="@IsTemplateMode"
                  OnSaveAsTemplate="@ConfirmSaveAsTemplate"
                  OnScheduleChanged="@HandleScheduleChanged"
@@ -427,33 +427,6 @@
 }
 
 
-@if (showDeleteConfirmation)
-{
-    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDeletePresentation">
-        <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@(IsTemplateMode ? L["Sidebar.DeleteTemplate"] : L["Presentation.DeletePresentation"])</div>
-            <div>
-                @if (IsTemplateMode)
-                {
-                    @L["Templates.DeleteConfirm"]
-                }
-                else
-                {
-                    <LocalizedEmphasis Key="Presentation.ConfirmDeletePresentation" Value="@(AppState.SelectedProject?.Name ?? "")"/>
-                }
-            </div>
-            <div class="flex justify-end gap-3">
-                <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDeletePresentation">
-                    @L["Common.Cancel"]
-                </AppButton>
-                <AppButton Variant="ButtonVariant.Danger" Filled OnClick="DeletePresentationAsync">
-                    @L["Common.Delete"]
-                </AppButton>
-            </div>
-        </div>
-    </Dialog>
-}
-
 @if (showSaveAsTemplateDialog)
 {
     <NameDialog Title="@L["Sidebar.SaveAsTemplate"]"
@@ -683,7 +656,6 @@
     private ProjectItem? itemToRemove;
     private List<ProjectItem>? itemsToRemove;
     private bool isRemovingMultiple;
-    private bool showDeleteConfirmation;
     private bool showAddModal;
     private bool showSessionExpired;
 
@@ -1512,33 +1484,40 @@
         itemToRemove = null;
     }
 
-    private void ConfirmDeletePresentation()
-    {
-        showDeleteConfirmation = true;
-    }
-
-    private void CancelDeletePresentation()
-    {
-        showDeleteConfirmation = false;
-    }
-
+    /// <summary>
+    /// Nothing to confirm: presentations and templates both go to the trash, and the toast says
+    /// where. A dialog belongs to what cannot be undone.
+    /// </summary>
     private async Task DeletePresentationAsync()
     {
         if (EffectiveId is null) return;
 
-        showDeleteConfirmation = false;
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        if (IsTemplateMode)
-            await PresentationService.DeleteTemplateAsync(orgId, EffectiveId, OrgState.ToCallerContext());
-        else
-            await PresentationService.DeletePresentationAsync(orgId, EffectiveId, OrgState.ToCallerContext());
+        var name = AppState.SelectedProject?.Name ?? "";
+
+        try
+        {
+            if (IsTemplateMode)
+                await PresentationService.DeleteTemplateAsync(orgId, EffectiveId, OrgState.ToCallerContext());
+            else
+                await PresentationService.DeletePresentationAsync(orgId, EffectiveId, OrgState.ToCallerContext());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete presentation {PresentationId}", EffectiveId);
+            ToastService.Show(L["Common.ErrorOccurred"], ToastKind.Warning);
+            return;
+        }
 
         NotifyPresentationChanged();
 
         AppState.SelectedProject = null;
         AppState.SelectedProjectItem = null;
+
+        ToastService.Show(L[IsTemplateMode ? "Toast.TemplateTrashed" : "Toast.PresentationTrashed", name]);
+
         NavigationManager.NavigateTo(IsTemplateMode ? "/admin/templates" : "/");
     }
 
