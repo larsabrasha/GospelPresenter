@@ -21,6 +21,19 @@ public sealed class Debouncer : IDisposable
         _ = RunAsync(action, cts.Token);
     }
 
+    /// <summary>
+    /// Drops whatever is pending. Needed wherever something other than a keystroke sets the same
+    /// state — a Clear button, say, which would otherwise be overwritten by the callback from the
+    /// keystroke just before it.
+    /// </summary>
+    public void Cancel()
+    {
+        if (disposed) return;
+        cts?.Cancel();
+        cts?.Dispose();
+        cts = null;
+    }
+
     private async Task RunAsync(Func<Task> action, CancellationToken token)
     {
         try

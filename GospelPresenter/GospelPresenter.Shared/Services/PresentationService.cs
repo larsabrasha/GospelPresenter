@@ -13,6 +13,30 @@ public record PresentationSummaryPage(
     IReadOnlyList<PresentationSummary> Items,
     int TotalCount);
 
+/// <summary>A presentation in the trash, and how long it has left there.</summary>
+public record TrashedPresentation(string Id, string Name, DateOnly? EventDate, DateTimeOffset DeletedAt)
+{
+    public int DaysRemaining => TrashRetention.DaysRemaining(DeletedAt);
+}
+
+/// <summary>
+/// A template in the trash. Its own record rather than a reuse of <see cref="TrashedPresentation"/>:
+/// a template has no event date but a weekly slot, and that slot is what tells two similarly named
+/// templates apart in the list.
+/// </summary>
+public record TrashedTemplate(
+    string Id, string Name, int? ScheduledDayOfWeek, TimeOnly? ScheduledTime, string? Location,
+    DateTimeOffset DeletedAt)
+{
+    public int DaysRemaining => TrashRetention.DaysRemaining(DeletedAt);
+}
+
+internal static class TrashRetention
+{
+    public static int DaysRemaining(DateTimeOffset deletedAt) =>
+        Math.Max(0, AppConstraints.TrashRetentionDays - (int)(DateTimeOffset.UtcNow - deletedAt).TotalDays);
+}
+
 public interface IPresentationService
 {
     Task<IList<PresentationSummary>> GetRecentPresentationSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
@@ -38,7 +62,24 @@ public interface IPresentationService
     Task RemoveItemAsync(string organizationId, string presentationId, string itemId, CallerContext caller, CancellationToken cancellationToken = default);
     Task RemoveItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default);
     Task SaveAsync(string organizationId, Presentation presentation, CallerContext caller, CancellationToken cancellationToken = default);
+    /// <summary>Moves a presentation to the trash. Reversible until it is purged.</summary>
     Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
+
+    /// <summary>The organisation's trashed presentations, newest first. Purges what has expired first.</summary>
+    Task<IList<TrashedPresentation>> GetTrashedPresentationsAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task RestorePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
+    Task PermanentlyDeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
+    Task EmptyPresentationTrashAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+
+    /// <summary>Purges what has been in the trash past the retention window. Safe to call at any time.</summary>
+    Task PurgeExpiredPresentationsAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+
+    /// <summary>The organisation's trashed templates, newest first. Purges what has expired first.</summary>
+    Task<IList<TrashedTemplate>> GetTrashedTemplatesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task RestoreTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
+    Task PermanentlyDeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
+    Task EmptyTemplateTrashAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task PurgeExpiredTemplatesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<IList<PresentationSummary>> GetRecentTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<IList<PresentationSummary>> GetAllTemplateSummariesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<Presentation> SaveAsTemplateAsync(string presentationId, string name, string organizationId, string userId, CallerContext caller, CancellationToken cancellationToken = default);
@@ -49,6 +90,7 @@ public interface IPresentationService
 
     /// <summary>Sets or clears the presentation's theme. Null means it follows the organisation's default.</summary>
     Task UpdatePresentationThemeAsync(string organizationId, string presentationId, string? themeId, CallerContext caller, CancellationToken cancellationToken = default);
+    /// <summary>Moves a template to the trash. Reversible until it is purged.</summary>
     Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default);
     Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<OverlaySlide?> GetOverlayByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
@@ -73,6 +115,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var presentations = await context.Presentations
+            .NotDeleted()
             .Where(x => x.OrganizationId == organizationId && !x.IsTemplate)
             .OrderByDescending(x => x.UpdatedAt)
             .Take(20)
@@ -89,6 +132,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var orgPresentations = context.Presentations
+            .NotDeleted()
             .Where(x => x.OrganizationId == organizationId && !x.IsTemplate);
 
         var todayList = await orgPresentations
@@ -123,6 +167,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var query = context.Presentations
+            .NotDeleted()
             .Where(x => x.OrganizationId == organizationId && !x.IsTemplate);
 
         if (eventDateBefore is { } cutoff)
@@ -173,6 +218,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         return await context.Presentations
+            .NotDeleted()
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
                 .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder))
             .Where(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate == isTemplate)
@@ -187,8 +233,10 @@ public class PresentationService(
         ValidationHelper.RequireMaxLength(eventLocation, AppConstraints.LocationMaxLength, "Location");
         ValidationHelper.RequireMaxLength(description, AppConstraints.DescriptionMaxLength, "Description");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        // The trash does not count against the quota: a presentation the user believes is gone
+        // must not be what stops them creating the next one.
         await ValidationHelper.RequireMaxCountAsync(
-            context.Presentations.Where(x => x.OrganizationId == organizationId && !x.IsTemplate),
+            context.Presentations.NotDeleted().Where(x => x.OrganizationId == organizationId && !x.IsTemplate),
             AppConstraints.MaxPresentationsPerOrg, "presentations", cancellationToken);
 
         var organization = await context.Organizations.FindAsync([organizationId], cancellationToken);
@@ -231,6 +279,7 @@ public class PresentationService(
         // the target presentation does. Verify the presentation belongs to the org before inserting,
         // otherwise a caller could add items to another organization's presentation by its id.
         var presentationExists = await context.Presentations
+            .NotDeleted()
             .AnyAsync(p => p.Id == presentationId && p.OrganizationId == organizationId, cancellationToken);
         if (!presentationExists) throw new InvalidOperationException("Presentation not found.");
 
@@ -261,6 +310,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.Presentations
+            .NotDeleted()
             .Where(x => x.Id == id && x.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.Name, name)
@@ -507,6 +557,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         var existing = await context.Presentations
+            .NotDeleted()
             .FirstOrDefaultAsync(x => x.Id == presentation.Id && x.OrganizationId == organizationId, cancellationToken);
         if (existing is null) return;
 
@@ -515,14 +566,162 @@ public class PresentationService(
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)
+    public Task DeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default) =>
+        TrashAsync(organizationId, id, isTemplate: false, Permission.ManagePresentations, caller, cancellationToken);
+
+    public Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default) =>
+        TrashAsync(organizationId, id, isTemplate: true, Permission.ManageTemplates, caller, cancellationToken);
+
+    public async Task<IList<TrashedPresentation>> GetTrashedPresentationsAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
-        caller.RequirePermission(Permission.ManagePresentations);
+        caller.RequirePermission(Permission.ViewPresentations);
+        caller.RequireOrganizationAccess(organizationId);
+
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await TrashQuery(context, organizationId, isTemplate: false)
+            .Select(x => new TrashedPresentation(x.Id, x.Name, x.EventDate, x.DeletedAt!.Value))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IList<TrashedTemplate>> GetTrashedTemplatesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ViewTemplates);
+        caller.RequireOrganizationAccess(organizationId);
+
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await TrashQuery(context, organizationId, isTemplate: true)
+            .Select(x => new TrashedTemplate(x.Id, x.Name, x.ScheduledDayOfWeek, x.ScheduledTime, x.EventLocation, x.DeletedAt!.Value))
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task RestorePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default) =>
+        RestoreAsync(organizationId, id, isTemplate: false, Permission.ManagePresentations, caller, cancellationToken);
+
+    public Task RestoreTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default) =>
+        RestoreAsync(organizationId, id, isTemplate: true, Permission.ManageTemplates, caller, cancellationToken);
+
+    public Task PermanentlyDeletePresentationAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default) =>
+        PurgeOneAsync(organizationId, id, isTemplate: false, Permission.ManagePresentations, caller, cancellationToken);
+
+    public Task PermanentlyDeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default) =>
+        PurgeOneAsync(organizationId, id, isTemplate: true, Permission.ManageTemplates, caller, cancellationToken);
+
+    public Task EmptyPresentationTrashAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default) =>
+        PurgeAllAsync(organizationId, isTemplate: false, Permission.ManagePresentations, caller, cancellationToken);
+
+    public Task EmptyTemplateTrashAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default) =>
+        PurgeAllAsync(organizationId, isTemplate: true, Permission.ManageTemplates, caller, cancellationToken);
+
+    public Task PurgeExpiredPresentationsAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default) =>
+        PurgeExpiredAsync(organizationId, isTemplate: false, Permission.ManagePresentations, caller, cancellationToken);
+
+    public Task PurgeExpiredTemplatesAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default) =>
+        PurgeExpiredAsync(organizationId, isTemplate: true, Permission.ManageTemplates, caller, cancellationToken);
+
+    // --- The trash, shared by presentations and templates ---
+    //
+    // Both live in the Presentations table and differ only by IsTemplate and by which permission
+    // governs them, so they share one implementation. Keeping them apart in the public API is
+    // deliberate: they are separate lists in separate places in the app, and a caller that could
+    // pass the wrong flag would empty the wrong trash.
+
+    /// <summary>
+    /// Moves a row to the trash. A tracked update, so the save stamps ModifiedAt and announces the
+    /// change by itself. No tombstone: the row is still there, and DeletedAt travels to clients as
+    /// an ordinary column so every device shows the same trash. The tombstone belongs to the purge.
+    /// </summary>
+    private async Task TrashAsync(string organizationId, string id, bool isTemplate, Permission permission, CallerContext caller, CancellationToken cancellationToken)
+    {
+        caller.RequirePermission(permission);
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
+        var row = await context.Presentations
+            .NotDeleted()
+            .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate == isTemplate, cancellationToken);
+        if (row is null) return;
+
+        row.DeletedAt = DateTimeOffset.UtcNow;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task RestoreAsync(string organizationId, string id, bool isTemplate, Permission permission, CallerContext caller, CancellationToken cancellationToken)
+    {
+        caller.RequirePermission(permission);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var row = await context.Presentations
+            .OnlyDeleted()
+            .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate == isTemplate, cancellationToken);
+        if (row is null) return;
+
+        // Restoring can carry the organisation past its quota — it was under it when the row was
+        // trashed, and refusing here would strand the row with nowhere to go.
+        row.DeletedAt = null;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task PurgeOneAsync(string organizationId, string id, bool isTemplate, Permission permission, CallerContext caller, CancellationToken cancellationToken)
+    {
+        caller.RequirePermission(permission);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var trashed = await TrashQuery(context, organizationId, isTemplate)
+            .Where(x => x.Id == id)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        await PurgeAsync(context, organizationId, trashed, cancellationToken);
+    }
+
+    private async Task PurgeAllAsync(string organizationId, bool isTemplate, Permission permission, CallerContext caller, CancellationToken cancellationToken)
+    {
+        caller.RequirePermission(permission);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var trashed = await TrashQuery(context, organizationId, isTemplate)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        await PurgeAsync(context, organizationId, trashed, cancellationToken);
+    }
+
+    private async Task PurgeExpiredAsync(string organizationId, bool isTemplate, Permission permission, CallerContext caller, CancellationToken cancellationToken)
+    {
+        caller.RequirePermission(permission);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-AppConstraints.TrashRetentionDays);
+        var expired = await TrashQuery(context, organizationId, isTemplate)
+            .Where(x => x.DeletedAt < cutoff)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        await PurgeAsync(context, organizationId, expired, cancellationToken);
+    }
+
+    /// <summary>One organisation's trash, newest first.</summary>
+    private static IQueryable<Presentation> TrashQuery(PresentationContext context, string organizationId, bool isTemplate) =>
+        context.Presentations
+            .OnlyDeleted()
+            .Where(x => x.OrganizationId == organizationId && x.IsTemplate == isTemplate)
+            .OrderByDescending(x => x.DeletedAt);
+
+    /// <summary>
+    /// Deletes presentations or templates for good: rows, tombstones and the slide files behind
+    /// them. This is what the delete methods used to do on the user's first click, and the only
+    /// place that still does it — the caller has already checked that every id is in the trash.
+    /// </summary>
+    private async Task PurgeAsync(PresentationContext context, string organizationId, List<string> ids, CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0) return;
+
         var slidesIds = await context.PresentationItems
-            .Where(x => x.PresentationId == id && x.Presentation.OrganizationId == organizationId
+            .Where(x => ids.Contains(x.PresentationId) && x.Presentation.OrganizationId == organizationId
                 && x.Type == PresentationItemType.Slides && x.SourceId != null)
             .Select(x => x.SourceId!)
             .ToListAsync(cancellationToken);
@@ -530,11 +729,11 @@ public class PresentationService(
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         await context.PresentationItemParts
-            .Where(p => p.PresentationItem.PresentationId == id)
+            .Where(p => ids.Contains(p.PresentationItem.PresentationId))
             .ExecuteDeleteAsync(cancellationToken);
 
         await context.PresentationItems
-            .Where(x => x.PresentationId == id)
+            .Where(x => ids.Contains(x.PresentationId))
             .ExecuteDeleteAsync(cancellationToken);
 
         if (slidesIds.Count > 0)
@@ -545,13 +744,13 @@ public class PresentationService(
         }
 
         var deletedCount = await context.Presentations
-            .Where(x => x.Id == id && x.OrganizationId == organizationId)
+            .Where(x => ids.Contains(x.Id) && x.OrganizationId == organizationId)
             .ExecuteDeleteAsync(cancellationToken);
 
         if (deletedCount > 0)
         {
-            // One tombstone for the aggregate root; clients cascade to items, parts and slides.
-            context.AddTombstones(nameof(Presentation), [id], organizationId);
+            // One tombstone per aggregate root; clients cascade to items, parts and slides.
+            context.AddTombstones(nameof(Presentation), ids, organizationId);
             await context.SaveChangesAsync(cancellationToken);
         }
 
@@ -568,6 +767,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         return await context.Presentations
+            .NotDeleted()
             .Where(x => x.OrganizationId == organizationId && x.IsTemplate)
             .OrderByDescending(x => x.LastUsedAt)
             .ThenByDescending(x => x.UpdatedAt)
@@ -583,6 +783,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         return await context.Presentations
+            .NotDeleted()
             .Where(x => x.OrganizationId == organizationId && x.IsTemplate)
             .OrderByDescending(x => x.UpdatedAt)
             .Select(x => new PresentationSummary(x.Id, x.Name, x.UpdatedAt))
@@ -597,7 +798,7 @@ public class PresentationService(
         ValidationHelper.RequireMaxLength(location, AppConstraints.LocationMaxLength, "Location");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await ValidationHelper.RequireMaxCountAsync(
-            context.Presentations.Where(x => x.OrganizationId == organizationId && x.IsTemplate),
+            context.Presentations.NotDeleted().Where(x => x.OrganizationId == organizationId && x.IsTemplate),
             AppConstraints.MaxTemplatesPerOrg, "templates", cancellationToken);
 
         var now = DateTimeOffset.UtcNow;
@@ -629,11 +830,12 @@ public class PresentationService(
         ValidationHelper.RequireMaxLength(name, AppConstraints.NameMaxLength, "Name");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await ValidationHelper.RequireMaxCountAsync(
-            context.Presentations.Where(x => x.OrganizationId == organizationId && x.IsTemplate),
+            context.Presentations.NotDeleted().Where(x => x.OrganizationId == organizationId && x.IsTemplate),
             AppConstraints.MaxTemplatesPerOrg, "templates", cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         var source = await context.Presentations
+            .NotDeleted()
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
                 .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder))
             .FirstOrDefaultAsync(x => x.Id == presentationId && x.OrganizationId == organizationId && !x.IsTemplate, cancellationToken);
@@ -699,11 +901,12 @@ public class PresentationService(
         ValidationHelper.RequireMaxLength(description, AppConstraints.DescriptionMaxLength, "Description");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await ValidationHelper.RequireMaxCountAsync(
-            context.Presentations.Where(x => x.OrganizationId == organizationId && !x.IsTemplate),
+            context.Presentations.NotDeleted().Where(x => x.OrganizationId == organizationId && !x.IsTemplate),
             AppConstraints.MaxPresentationsPerOrg, "presentations", cancellationToken);
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         var template = await context.Presentations
+            .NotDeleted()
             .Include(x => x.Items.OrderBy(i => i.SortOrder))
                 .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder))
             .FirstOrDefaultAsync(x => x.Id == templateId && x.OrganizationId == organizationId && x.IsTemplate, cancellationToken);
@@ -808,6 +1011,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.Presentations
+            .NotDeleted()
             .Where(x => x.Id == templateId && x.OrganizationId == organizationId && x.IsTemplate)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.ScheduledDayOfWeek, dayOfWeek)
@@ -828,6 +1032,7 @@ public class PresentationService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         await context.Presentations
+            .NotDeleted()
             .Where(x => x.Id == presentationId && x.OrganizationId == organizationId && !x.IsTemplate)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.EventDate, date)
@@ -858,6 +1063,7 @@ public class PresentationService(
         }
 
         await context.Presentations
+            .NotDeleted()
             .Where(x => x.Id == presentationId && x.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.ThemeId, themeId)
@@ -865,52 +1071,6 @@ public class PresentationService(
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
 
         changeNotifier?.Notify(organizationId);
-    }
-
-    public async Task DeleteTemplateAsync(string organizationId, string id, CallerContext caller, CancellationToken cancellationToken = default)
-    {
-        caller.RequirePermission(Permission.ManageTemplates);
-        caller.RequireOrganizationAccess(organizationId);
-        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        var slidesIds = await context.PresentationItems
-            .Where(x => x.PresentationId == id && x.Presentation.OrganizationId == organizationId
-                && x.Type == PresentationItemType.Slides && x.SourceId != null)
-            .Select(x => x.SourceId!)
-            .ToListAsync(cancellationToken);
-
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-
-        await context.PresentationItemParts
-            .Where(p => p.PresentationItem.PresentationId == id)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        await context.PresentationItems
-            .Where(x => x.PresentationId == id)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        if (slidesIds.Count > 0)
-        {
-            await context.PresentationSlides
-                .Where(s => slidesIds.Contains(s.Id))
-                .ExecuteDeleteAsync(cancellationToken);
-        }
-
-        var deletedCount = await context.Presentations
-            .Where(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate)
-            .ExecuteDeleteAsync(cancellationToken);
-
-        if (deletedCount > 0)
-        {
-            // One tombstone for the aggregate root; clients cascade to items, parts and slides.
-            context.AddTombstones(nameof(Presentation), [id], organizationId);
-            await context.SaveChangesAsync(cancellationToken);
-        }
-
-        await transaction.CommitAsync(cancellationToken);
-
-        foreach (var slidesId in slidesIds)
-            await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, slidesId), cancellationToken);
     }
 
     public async Task<List<OverlaySlide>> GetOverlaysAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -1030,6 +1190,7 @@ public class PresentationService(
     private async Task BumpPresentationAsync(PresentationContext context, string presentationId, string organizationId, CancellationToken cancellationToken)
     {
         await context.Presentations
+            .NotDeleted()
             .Where(x => x.Id == presentationId && x.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)

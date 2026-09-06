@@ -176,10 +176,12 @@ public class SyncService(
             case PresentationsTable when caller.HasPermission(Permission.ViewPresentations):
                 return await PageAsync(
                     Window(db.Presentations.Where(p => p.OrganizationId == organizationId), low, watermark, position)
+                        // Trashed rows are delivered too: a client that never learns DeletedAt would
+                        // keep showing a presentation everyone else sees in the trash.
                         .Select(p => new SyncPresentationDto(p.Id, p.Name, p.CreatedAt, p.CreatedBy,
                             p.UpdatedAt, p.UpdatedBy, p.IsTemplate, p.Description, p.LastUsedAt, p.UseCount,
                             p.ScheduledDayOfWeek, p.ScheduledTime, p.EventDate, p.EventTime, p.EventLocation,
-                            p.ThemeId, p.ModifiedAt, p.Version)),
+                            p.ThemeId, p.DeletedAt, p.ModifiedAt, p.Version)),
                     remaining, changes.Presentations, cancellationToken);
 
             case PresentationItemsTable when caller.HasPermission(Permission.ViewPresentations):
@@ -225,16 +227,18 @@ public class SyncService(
                         .Select(o => new SyncOverlaySlideDto(o.Id, o.Title, o.Content, o.HasImage, o.SortOrder, o.ModifiedAt, o.Version)),
                     remaining, changes.OverlaySlides, cancellationToken);
 
+            // Both media cases deliver trashed rows too: a client that never learns DeletedAt would
+            // keep showing a file everyone else sees in the trash.
             case OrganizationImagesTable when caller.HasPermission(Permission.ViewOrganizationImages):
                 return await PageAsync(
                     Window(db.OrganizationImages.Where(i => i.OrganizationId == organizationId), low, watermark, position)
-                        .Select(i => new SyncOrganizationImageDto(i.Id, i.FileName, i.ContentType, i.CreatedAt, i.ModifiedAt, i.Version)),
+                        .Select(i => new SyncOrganizationImageDto(i.Id, i.FileName, i.ContentType, i.CreatedAt, i.DeletedAt, i.ModifiedAt, i.Version)),
                     remaining, changes.OrganizationImages, cancellationToken);
 
             case OrganizationAudiosTable when caller.HasPermission(Permission.ViewOrganizationAudios):
                 return await PageAsync(
                     Window(db.OrganizationAudios.Where(a => a.OrganizationId == organizationId), low, watermark, position)
-                        .Select(a => new SyncOrganizationAudioDto(a.Id, a.FileName, a.ContentType, a.CreatedAt, a.ModifiedAt, a.Version)),
+                        .Select(a => new SyncOrganizationAudioDto(a.Id, a.FileName, a.ContentType, a.CreatedAt, a.DeletedAt, a.ModifiedAt, a.Version)),
                     remaining, changes.OrganizationAudios, cancellationToken);
 
             case OrganizationSettingsTable:
@@ -652,6 +656,7 @@ public class SyncService(
                 EventTime = dto.EventTime,
                 EventLocation = dto.EventLocation,
                 ThemeId = themeId,
+                DeletedAt = dto.DeletedAt,
                 OrganizationId = organizationId,
                 CreatedAt = now,
                 CreatedBy = caller.UserId,
@@ -688,6 +693,7 @@ public class SyncService(
         existing.EventTime = dto.EventTime;
         existing.EventLocation = dto.EventLocation;
         existing.ThemeId = themeId;
+        existing.DeletedAt = dto.DeletedAt;
         existing.UpdatedAt = DateTimeOffset.UtcNow;
         existing.UpdatedBy = caller.UserId;
 
@@ -806,6 +812,7 @@ public class SyncService(
             existing.EventTime = dto.EventTime;
             existing.EventLocation = dto.EventLocation;
             existing.ThemeId = themeId;
+            existing.DeletedAt = dto.DeletedAt;
             existing.UpdatedAt = DateTimeOffset.UtcNow;
             existing.UpdatedBy = caller.UserId;
         }
@@ -927,7 +934,7 @@ public class SyncService(
             presentation.Description, presentation.LastUsedAt, presentation.UseCount,
             presentation.ScheduledDayOfWeek, presentation.ScheduledTime, presentation.EventDate,
             presentation.EventTime, presentation.EventLocation, presentation.ThemeId,
-            presentation.ModifiedAt, presentation.Version));
+            presentation.DeletedAt, presentation.ModifiedAt, presentation.Version));
 
         foreach (var item in presentation.Items)
         {
@@ -1018,7 +1025,7 @@ public class SyncService(
                 return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
-                db.OrganizationImages.Where(i => i.OrganizationId == organizationId),
+                db.OrganizationImages.NotDeleted().Where(i => i.OrganizationId == organizationId),
                 AppConstraints.MaxImagesPerOrg, "images", cancellationToken);
             var image = new OrganizationImage
             {
@@ -1026,6 +1033,7 @@ public class SyncService(
                 FileName = row.FileName,
                 ContentType = row.ContentType,
                 CreatedAt = row.CreatedAt,
+                DeletedAt = row.DeletedAt,
                 OrganizationId = organizationId,
             };
             db.OrganizationImages.Add(image);
@@ -1038,6 +1046,7 @@ public class SyncService(
 
         existing.FileName = row.FileName;
         existing.ContentType = row.ContentType;
+        existing.DeletedAt = row.DeletedAt;
         await db.SaveChangesAsync(cancellationToken);
         return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
     }
@@ -1059,7 +1068,7 @@ public class SyncService(
                 return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
-                db.OrganizationAudios.Where(a => a.OrganizationId == organizationId),
+                db.OrganizationAudios.NotDeleted().Where(a => a.OrganizationId == organizationId),
                 AppConstraints.MaxAudioPerOrg, "audio files", cancellationToken);
             var audio = new OrganizationAudio
             {
@@ -1067,6 +1076,7 @@ public class SyncService(
                 FileName = row.FileName,
                 ContentType = row.ContentType,
                 CreatedAt = row.CreatedAt,
+                DeletedAt = row.DeletedAt,
                 OrganizationId = organizationId,
             };
             db.OrganizationAudios.Add(audio);
@@ -1079,6 +1089,7 @@ public class SyncService(
 
         existing.FileName = row.FileName;
         existing.ContentType = row.ContentType;
+        existing.DeletedAt = row.DeletedAt;
         await db.SaveChangesAsync(cancellationToken);
         return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.Applied, NewVersion: existing.Version);
     }
@@ -1485,11 +1496,11 @@ public class SyncService(
     {
         if (isTemplate)
             await ValidationHelper.RequireMaxCountAsync(
-                db.Presentations.Where(p => p.OrganizationId == organizationId && p.IsTemplate),
+                db.Presentations.NotDeleted().Where(p => p.OrganizationId == organizationId && p.IsTemplate),
                 AppConstraints.MaxTemplatesPerOrg, "templates", cancellationToken);
         else
             await ValidationHelper.RequireMaxCountAsync(
-                db.Presentations.Where(p => p.OrganizationId == organizationId && !p.IsTemplate),
+                db.Presentations.NotDeleted().Where(p => p.OrganizationId == organizationId && !p.IsTemplate),
                 AppConstraints.MaxPresentationsPerOrg, "presentations", cancellationToken);
     }
 

@@ -1059,7 +1059,7 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
     }
 
     private static SyncPresentationDto PresentationDto(string id, string name, DateTimeOffset modifiedAt, long version = V1) =>
-        new(id, name, T1, "user-1", T1, "user-1", false, null, null, 0, null, null, null, null, null, null, modifiedAt, version);
+        new(id, name, T1, "user-1", T1, "user-1", false, null, null, 0, null, null, null, null, null, null, null, modifiedAt, version);
 
     /// <summary>A single-page pull response.</summary>
     private static SyncPullResponse Pull(

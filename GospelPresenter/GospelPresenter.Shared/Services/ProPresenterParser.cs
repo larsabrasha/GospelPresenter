@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using GospelPresenter.Shared.Proto;
 using GospelPresenter.Shared.State;
-using Google.Protobuf;
+using GospelPresenter.Shared.Utils;
 
 namespace GospelPresenter.Shared.Services;
 
@@ -30,20 +30,23 @@ public static partial class ProPresenterParser
     {
         var presentation = Presentation.Parser.ParseFrom(data);
 
-        var title = presentation.Name;
-        if (string.IsNullOrWhiteSpace(title))
-            title = fallbackTitle ?? "Untitled";
-
         string? author = null;
         string? publisher = null;
+        string? ccliTitle = null;
         int? ccli = null;
 
         if (presentation.Ccli is { } ccliData)
         {
-            author = string.IsNullOrWhiteSpace(ccliData.Author) ? null : ccliData.Author;
-            publisher = string.IsNullOrWhiteSpace(ccliData.Publisher) ? null : ccliData.Publisher;
+            author = Clean(ccliData.Author);
+            publisher = Clean(ccliData.Publisher);
+            ccliTitle = Clean(ccliData.SongTitle);
             if (ccliData.SongNumber != 0) ccli = (int)ccliData.SongNumber;
         }
+
+        // ProPresenter keeps its own presentation name inside the file, and it is not always the
+        // real title: a file saved from the "Untitled" default keeps that placeholder no matter what
+        // the file is later called. Fall back to the file name, then to the CCLI song title.
+        var title = FirstRealTitle(presentation.Name, fallbackTitle, ccliTitle) ?? "Untitled";
 
         // Index cues by UUID
         var cuesById = new Dictionary<string, Cue>();
@@ -61,8 +64,7 @@ public static partial class ProPresenterParser
         foreach (var cueGroup in presentation.CueGroups)
         {
             var groupId = cueGroup.Group?.Uuid?.String;
-            var label = cueGroup.Group?.Name;
-            if (string.IsNullOrWhiteSpace(label)) label = null;
+            var label = Clean(cueGroup.Group?.Name);
 
             var groupPartIds = new List<string>();
             foreach (var cueId in cueGroup.CueIdentifiers)
@@ -95,13 +97,31 @@ public static partial class ProPresenterParser
             }
             if (arrPartIds.Count > 0)
             {
-                var arrName = string.IsNullOrWhiteSpace(ppArrangement.Name) ? null : ppArrangement.Name;
+                var arrName = Clean(ppArrangement.Name);
                 arrangements.Add(new SongArrangement(Guid.NewGuid().ToString(), arrName, arrPartIds));
             }
         }
 
         var id = Guid.NewGuid().ToString();
         return new Song(id, title, author, publisher, null, ccli?.ToString(), parts, arrangements);
+    }
+
+    /// <summary>Trims, NFC-normalises, and maps blank to null.</summary>
+    private static string? Clean(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return TextUtils.NormalizeUnicode(value.Trim());
+    }
+
+    private static string? FirstRealTitle(params string?[] candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            var cleaned = Clean(candidate);
+            if (cleaned is not null && !PlaceholderTitleRegex().IsMatch(cleaned))
+                return cleaned;
+        }
+        return null;
     }
 
     private static string? ExtractSlideText(Cue cue)
@@ -121,7 +141,7 @@ public static partial class ProPresenterParser
 
                 var plain = RtfToPlainText(rtf);
                 if (!string.IsNullOrWhiteSpace(plain))
-                    return plain;
+                    return TextUtils.NormalizeUnicode(plain);
             }
         }
         return null;
@@ -173,6 +193,10 @@ public static partial class ProPresenterParser
 
         return text.Trim();
     }
+
+    /// <summary>ProPresenter's default presentation name, with the copy suffix it adds for duplicates.</summary>
+    [GeneratedRegex(@"^untitled([ _-]*\d+)?$", RegexOptions.IgnoreCase)]
+    private static partial Regex PlaceholderTitleRegex();
 
     [GeneratedRegex(@"\\'([0-9a-fA-F]{2})")]
     private static partial Regex HexEscapeRegex();

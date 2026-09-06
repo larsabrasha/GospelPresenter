@@ -377,7 +377,7 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
                 Description = r.Description, LastUsedAt = r.LastUsedAt, UseCount = r.UseCount,
                 ScheduledDayOfWeek = r.ScheduledDayOfWeek, ScheduledTime = r.ScheduledTime,
                 EventDate = r.EventDate, EventTime = r.EventTime, EventLocation = r.EventLocation,
-                ThemeId = ValidOrNull(r.ThemeId, validThemeIds),
+                ThemeId = ValidOrNull(r.ThemeId, validThemeIds), DeletedAt = r.DeletedAt,
                 OrganizationId = identity?.OrganizationId ?? "", ModifiedAt = r.ModifiedAt,
             },
             (r, p) =>
@@ -397,6 +397,7 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
                 p.EventTime = r.EventTime;
                 p.EventLocation = r.EventLocation;
                 p.ThemeId = ValidOrNull(r.ThemeId, validThemeIds);
+                p.DeletedAt = r.DeletedAt;
                 p.ModifiedAt = r.ModifiedAt;
             }, ct);
         RecordBases("Presentations", applied);
@@ -514,6 +515,7 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
             r => new OrganizationImage
             {
                 Id = r.Id, FileName = r.FileName, ContentType = r.ContentType, CreatedAt = r.CreatedAt,
+                DeletedAt = r.DeletedAt,
                 OrganizationId = identity?.OrganizationId ?? "", ModifiedAt = r.ModifiedAt,
             },
             (r, i) =>
@@ -521,6 +523,7 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
                 i.FileName = r.FileName;
                 i.ContentType = r.ContentType;
                 i.CreatedAt = r.CreatedAt;
+                i.DeletedAt = r.DeletedAt;
                 i.ModifiedAt = r.ModifiedAt;
             }, ct);
         RecordBases("OrganizationImages", applied);
@@ -534,6 +537,7 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
             r => new OrganizationAudio
             {
                 Id = r.Id, FileName = r.FileName, ContentType = r.ContentType, CreatedAt = r.CreatedAt,
+                DeletedAt = r.DeletedAt,
                 OrganizationId = identity?.OrganizationId ?? "", ModifiedAt = r.ModifiedAt,
             },
             (r, a) =>
@@ -541,6 +545,7 @@ internal class SyncPullApplier(ClientDataContext db, DeviceIdentity? identity, I
                 a.FileName = r.FileName;
                 a.ContentType = r.ContentType;
                 a.CreatedAt = r.CreatedAt;
+                a.DeletedAt = r.DeletedAt;
                 a.ModifiedAt = r.ModifiedAt;
             }, ct);
         RecordBases("OrganizationAudios", applied);

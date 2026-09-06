@@ -9,7 +9,17 @@ public interface IOrganizationAudioService
     Task<List<OrganizationAudio>> GetAudiosAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<OrganizationAudio?> GetAudioByIdAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<OrganizationAudio> AddAudioAsync(string organizationId, string fileName, string contentType, byte[] data, CallerContext caller, CancellationToken cancellationToken = default);
+    /// <summary>Moves the file to the trash. Reversible until it is purged.</summary>
     Task DeleteAudioAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+
+    /// <summary>The organisation's trashed files, newest first. Purges what has expired first.</summary>
+    Task<IList<TrashedAudio>> GetTrashedAudiosAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task RestoreAudioAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task PermanentlyDeleteAudioAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+    Task EmptyAudioTrashAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
+
+    /// <summary>Purges what has been in the trash past the retention window. Safe to call at any time.</summary>
+    Task PurgeExpiredAudiosAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
 }
 
 public class OrganizationAudioService(
@@ -23,6 +33,7 @@ public class OrganizationAudioService(
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
         return await context.OrganizationAudios
+            .NotDeleted()
             .Where(x => x.OrganizationId == organizationId)
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new OrganizationAudio
@@ -42,6 +53,9 @@ public class OrganizationAudioService(
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
+        // Deliberately unfiltered. This is the lookup behind the media endpoint, and a file in the
+        // trash must keep being served: a presentation that already uses it would otherwise break
+        // mid-service. The bytes survive until the purge, so serving them is always possible.
         return await context.OrganizationAudios
             .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
     }
@@ -55,7 +69,7 @@ public class OrganizationAudioService(
             throw new InvalidOperationException($"The audio file exceeds the maximum size of {AppConstraints.MaxAudioFileSizeBytes / (1024 * 1024)} MB.");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         await ValidationHelper.RequireMaxCountAsync(
-            context.OrganizationAudios.Where(x => x.OrganizationId == organizationId),
+            context.OrganizationAudios.NotDeleted().Where(x => x.OrganizationId == organizationId),
             AppConstraints.MaxAudioPerOrg, "audio files", cancellationToken);
 
         var audio = new OrganizationAudio
@@ -87,14 +101,115 @@ public class OrganizationAudioService(
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        // Tracked delete rather than ExecuteDelete, so the context writes the tombstone itself.
-        var audio = await context.OrganizationAudios
+        // A tracked update, so the save stamps ModifiedAt and announces the change by itself. No
+        // tombstone and no storage delete: the row and its bytes are still there, and DeletedAt
+        // travels to clients as an ordinary column so every device shows the same trash.
+        var row = await context.OrganizationAudios
+            .NotDeleted()
             .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
-        if (audio is null) return;
+        if (row is null) return;
 
-        context.OrganizationAudios.Remove(audio);
+        row.DeletedAt = DateTimeOffset.UtcNow;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IList<TrashedAudio>> GetTrashedAudiosAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ViewOrganizationAudios);
+        caller.RequireOrganizationAccess(organizationId);
+
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await TrashQuery(context, organizationId)
+            .Select(x => new TrashedAudio(x.Id, x.FileName, x.ContentType, x.DeletedAt!.Value))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task RestoreAudioAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageOrganizationAudios);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var row = await context.OrganizationAudios
+            .OnlyDeleted()
+            .FirstOrDefaultAsync(x => x.Id == id && x.OrganizationId == organizationId, cancellationToken);
+        if (row is null) return;
+
+        // Restoring can carry the organisation past its quota — it was under it when the file was
+        // trashed, and refusing here would strand the file with nowhere to go.
+        row.DeletedAt = null;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task PermanentlyDeleteAudioAsync(string id, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageOrganizationAudios);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var rows = await TrashQuery(context, organizationId)
+            .Where(x => x.Id == id)
+            .ToListAsync(cancellationToken);
+
+        await PurgeAsync(context, organizationId, rows, cancellationToken);
+    }
+
+    public async Task EmptyAudioTrashAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageOrganizationAudios);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var rows = await TrashQuery(context, organizationId).ToListAsync(cancellationToken);
+
+        await PurgeAsync(context, organizationId, rows, cancellationToken);
+    }
+
+    public async Task PurgeExpiredAudiosAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageOrganizationAudios);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-AppConstraints.TrashRetentionDays);
+        var expired = await TrashQuery(context, organizationId)
+            .Where(x => x.DeletedAt < cutoff)
+            .ToListAsync(cancellationToken);
+
+        await PurgeAsync(context, organizationId, expired, cancellationToken);
+    }
+
+    /// <summary>
+    /// Deletes files for good: rows, tombstones and the bytes behind them. This is what
+    /// <c>DeleteAudioAsync</c> used to do on the user's first click, and the only place that still
+    /// does it — the caller has already checked that every row is in the trash.
+    ///
+    /// A tracked delete rather than ExecuteDelete, so the context writes the tombstones itself.
+    /// Storage is cleared after the save: a file left behind by a crash between the two is waste,
+    /// whereas a row pointing at bytes that are already gone is a broken image.
+    /// </summary>
+    private async Task PurgeAsync(PresentationContext context, string organizationId, List<OrganizationAudio> rows, CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0) return;
+
+        context.OrganizationAudios.RemoveRange(rows);
         await context.SaveChangesAsync(cancellationToken);
 
-        await storage.DeleteByPrefixAsync(ImageUrlHelper.OrgAudioPrefix(organizationId, id), cancellationToken);
+        foreach (var row in rows)
+            await storage.DeleteByPrefixAsync(ImageUrlHelper.OrgAudioPrefix(organizationId, row.Id), cancellationToken);
     }
+
+    /// <summary>One organisation's trash, newest first.</summary>
+    private static IQueryable<OrganizationAudio> TrashQuery(PresentationContext context, string organizationId) =>
+        context.OrganizationAudios
+            .OnlyDeleted()
+            .Where(x => x.OrganizationId == organizationId)
+            .OrderByDescending(x => x.DeletedAt);
+}
+
+/// <summary>A file in the trash, and how long it has left there.</summary>
+public record TrashedAudio(string Id, string FileName, string ContentType, DateTimeOffset DeletedAt)
+{
+    public int DaysRemaining =>
+        Math.Max(0, AppConstraints.TrashRetentionDays - (int)(DateTimeOffset.UtcNow - DeletedAt).TotalDays);
 }

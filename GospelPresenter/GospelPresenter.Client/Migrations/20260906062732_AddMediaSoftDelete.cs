@@ -1,0 +1,38 @@
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+
+#nullable disable
+
+namespace GospelPresenter.Client.Migrations
+{
+    /// <inheritdoc />
+    public partial class AddMediaSoftDelete : Migration
+    {
+        /// <inheritdoc />
+        protected override void Up(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.AddColumn<long>(
+                name: "DeletedAt",
+                table: "OrganizationImages",
+                type: "INTEGER",
+                nullable: true);
+
+            migrationBuilder.AddColumn<long>(
+                name: "DeletedAt",
+                table: "OrganizationAudios",
+                type: "INTEGER",
+                nullable: true);
+        }
+
+        /// <inheritdoc />
+        protected override void Down(MigrationBuilder migrationBuilder)
+        {
+            migrationBuilder.DropColumn(
+                name: "DeletedAt",
+                table: "OrganizationImages");
+
+            migrationBuilder.DropColumn(
+                name: "DeletedAt",
+                table: "OrganizationAudios");
+        }
+    }
+}

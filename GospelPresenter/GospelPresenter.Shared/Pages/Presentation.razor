@@ -116,7 +116,7 @@
                  OnRemoveRequested="@ConfirmRemoveItem"
                  OnRemoveMultipleRequested="@ConfirmRemoveMultipleItems"
                  OnItemsReordered="@HandleItemsReordered"
-                 OnDeleteRequested="@ConfirmDeletePresentation"
+                 OnDeleteRequested="@DeletePresentationAsync"
                  IsTemplateMode="@IsTemplateMode"
                  OnSaveAsTemplate="@ConfirmSaveAsTemplate"
                  OnScheduleChanged="@HandleScheduleChanged"
@@ -427,33 +427,6 @@
 }
 
 
-@if (showDeleteConfirmation)
-{
-    <Dialog Class="bg-white dark:bg-neutral-800 max-w-sm" OnClose="CancelDeletePresentation">
-        <div class="p-6 space-y-4">
-            <div class="font-semibold text-lg">@(IsTemplateMode ? L["Sidebar.DeleteTemplate"] : L["Presentation.DeletePresentation"])</div>
-            <div>
-                @if (IsTemplateMode)
-                {
-                    @L["Templates.DeleteConfirm"]
-                }
-                else
-                {
-                    <LocalizedEmphasis Key="Presentation.ConfirmDeletePresentation" Value="@(AppState.SelectedProject?.Name ?? "")"/>
-                }
-            </div>
-            <div class="flex justify-end gap-3">
-                <AppButton Variant="ButtonVariant.Cancel" OnClick="CancelDeletePresentation">
-                    @L["Common.Cancel"]
-                </AppButton>
-                <AppButton Variant="ButtonVariant.Danger" Filled OnClick="DeletePresentationAsync">
-                    @L["Common.Delete"]
-                </AppButton>
-            </div>
-        </div>
-    </Dialog>
-}
-
 @if (showSaveAsTemplateDialog)
 {
     <NameDialog Title="@L["Sidebar.SaveAsTemplate"]"
@@ -683,7 +656,6 @@
     private ProjectItem? itemToRemove;
     private List<ProjectItem>? itemsToRemove;
     private bool isRemovingMultiple;
-    private bool showDeleteConfirmation;
     private bool showAddModal;
     private bool showSessionExpired;
 
@@ -1325,29 +1297,21 @@
     }
 
     /// <summary>
-    /// The item the live slide belonged to last time we looked, so that moving to another one can
-    /// be told apart from staying on it.
-    /// </summary>
-    private string? followedLiveItemId;
-
-    /// <summary>
-    /// Follows the live slide into the running order when something else moves it — a phone driving
-    /// this machine, or another surface on the same session.
+    /// Follows the live slide into the running order — stage mode only.
     ///
-    /// Stage mode follows every change: it is a view of what is showing and nothing else. The
-    /// operator's own view follows only when the live slide moves to a *different* item, because
-    /// there the selection is also how you look ahead at what is coming — pulling it back on every
-    /// tap would make it impossible to line up the next song while someone else advances this one.
+    /// Stage mode is a view of what is showing and nothing else, so it follows every change. No
+    /// other surface does. What is selected is each client's own business: the whole point of
+    /// picking up a phone, or of a second operator opening the same service, is to look somewhere
+    /// other than where the projector is — lining up the next song while someone else advances
+    /// this one. Only what is actually showing is shared, and the running order marks that with
+    /// its own live dot rather than by moving anyone's selection.
     /// </summary>
     private void SyncStageSelectionFromLiveSlide()
     {
+        if (!IsStageMode) return;
+
         var live = SharedAppState.GetLiveSlide(EffectiveSessionId);
         if (live.ProjectItemId is null) return;
-
-        var movedToAnotherItem = live.ProjectItemId != followedLiveItemId;
-        followedLiveItemId = live.ProjectItemId;
-
-        if (!IsStageMode && !movedToAnotherItem) return;
         if (live.ProjectItemId == AppState.SelectedProjectItem?.Id) return;
 
         var item = AppState.SelectedProject?.Items.FirstOrDefault(x => x.Id == live.ProjectItemId);
@@ -1512,33 +1476,40 @@
         itemToRemove = null;
     }
 
-    private void ConfirmDeletePresentation()
-    {
-        showDeleteConfirmation = true;
-    }
-
-    private void CancelDeletePresentation()
-    {
-        showDeleteConfirmation = false;
-    }
-
+    /// <summary>
+    /// Nothing to confirm: presentations and templates both go to the trash, and the toast says
+    /// where. A dialog belongs to what cannot be undone.
+    /// </summary>
     private async Task DeletePresentationAsync()
     {
         if (EffectiveId is null) return;
 
-        showDeleteConfirmation = false;
         var orgId = OrgState.ActiveOrganizationId;
         if (orgId is null) return;
 
-        if (IsTemplateMode)
-            await PresentationService.DeleteTemplateAsync(orgId, EffectiveId, OrgState.ToCallerContext());
-        else
-            await PresentationService.DeletePresentationAsync(orgId, EffectiveId, OrgState.ToCallerContext());
+        var name = AppState.SelectedProject?.Name ?? "";
+
+        try
+        {
+            if (IsTemplateMode)
+                await PresentationService.DeleteTemplateAsync(orgId, EffectiveId, OrgState.ToCallerContext());
+            else
+                await PresentationService.DeletePresentationAsync(orgId, EffectiveId, OrgState.ToCallerContext());
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to delete presentation {PresentationId}", EffectiveId);
+            ToastService.Show(L["Common.ErrorOccurred"], ToastKind.Warning);
+            return;
+        }
 
         NotifyPresentationChanged();
 
         AppState.SelectedProject = null;
         AppState.SelectedProjectItem = null;
+
+        ToastService.Show(L[IsTemplateMode ? "Toast.TemplateTrashed" : "Toast.PresentationTrashed", name]);
+
         NavigationManager.NavigateTo(IsTemplateMode ? "/admin/templates" : "/");
     }
 

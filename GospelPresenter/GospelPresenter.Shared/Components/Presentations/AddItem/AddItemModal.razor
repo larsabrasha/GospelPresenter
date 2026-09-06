@@ -26,23 +26,23 @@
 
         <div class="@(editingSongId is not null ? "hidden" : "mb-4 md:flex md:justify-center")">
             <PillTabs>
-                <button class="@TabClass("song")" title="@TabTooltip("song", L["Sidebar.Song"])" @onclick="@(() => activeTab = "song")">
+                <button class="@TabClass("song")" title="@TabTooltip("song", L["Sidebar.Song"])" @onclick="@(() => SetTab("song"))">
                     <MusicalNoteSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Song"]
                 </button>
-                <button class="@TabClass("bible")" title="@TabTooltip("bible", L["Sidebar.BibleText"])" @onclick="@(() => activeTab = "bible")">
+                <button class="@TabClass("bible")" title="@TabTooltip("bible", L["Sidebar.BibleText"])" @onclick="@(() => SetTab("bible"))">
                     <BookOpenSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.BibleText"]
                 </button>
-                <button class="@TabClass("image")" title="@TabTooltip("image", L["Sidebar.Images"])" @onclick="@(() => activeTab = "image")">
+                <button class="@TabClass("image")" title="@TabTooltip("image", L["Sidebar.Images"])" @onclick="@(() => SetTab("image"))">
                     <PhotoSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Images"]
                 </button>
-                <button class="@TabClass("audio")" title="@TabTooltip("audio", L["Sidebar.Audio"])" @onclick="@(() => activeTab = "audio")">
+                <button class="@TabClass("audio")" title="@TabTooltip("audio", L["Sidebar.Audio"])" @onclick="@(() => SetTab("audio"))">
                     <SpeakerWaveSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Audio"]
                 </button>
-                <button class="@TabClass("slides")" title="@TabTooltip("slides", L["Sidebar.Slides"])" @onclick="@(() => activeTab = "slides")">
+                <button class="@TabClass("slides")" title="@TabTooltip("slides", L["Sidebar.Slides"])" @onclick="@(() => SetTab("slides"))">
                     <RectangleStackSymbol Class="hidden md:block size-4"/>
                     @L["Sidebar.Slides"]
                 </button>
@@ -53,7 +53,7 @@
             <SongTab @ref="songTab" OnAdd="@HandleSongAdd" OnAddKeepOpen="@HandleSongAddKeepOpen" AddMoreState="@addMoreState" OnEditSong="EnterSongEdit" Theme="@Theme"/>
         </div>
         <div class="@(editingSongId is null && activeTab == "bible" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
-            <BibleTextTab OnAdd="@HandleBibleAdd" OnAddKeepOpen="@HandleBibleAddKeepOpen" AddMoreState="@addMoreState"/>
+            <BibleTextTab @ref="bibleTab" OnAdd="@HandleBibleAdd" OnAddKeepOpen="@HandleBibleAddKeepOpen" AddMoreState="@addMoreState"/>
         </div>
         <div class="@(editingSongId is null && activeTab == "image" ? "flex-1 min-h-0 flex flex-col" : "hidden")">
             <ImageTab OnAdd="@HandleImageAdd" OnAddKeepOpen="@HandleImageAddKeepOpen" AddMoreState="@addMoreState"/>
@@ -92,6 +92,8 @@
     private AddMoreToggle addMoreState = new();
     private string? editingSongId;
     private SongTab? songTab;
+    private BibleTextTab? bibleTab;
+    private bool focusPending;
 
     private string TabClass(string tab) =>
         "flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all whitespace-nowrap " +
@@ -112,7 +114,7 @@
         for (var i = 0; i < TabOrder.Length; i++)
         {
             var tab = TabOrder[i];
-            scope.Add(TabShortcut(i), $"Shortcuts.Tab.{tab}", () => activeTab = tab);
+            scope.Add(TabShortcut(i), $"Shortcuts.Tab.{tab}", () => SetTab(tab));
         }
 
         // Handled by each tab's own container, which can see what is selected in it. Listed here so
@@ -120,6 +122,25 @@
         scope.Document(new Shortcut("Enter", Ctrl: true), "Shortcuts.AddAndClose");
         scope.Document(new Shortcut("Enter", Shift: true), "Shortcuts.AddAndStay");
         scope.Document(new Shortcut("ArrowDown"), "Shortcuts.MoveThroughResults");
+    }
+
+    private void SetTab(string tab)
+    {
+        activeTab = tab;
+        focusPending = true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // On open, and again after every tab switch, so the user can type straight away instead of
+        // clicking into the search box first. Deferred to after the render that reveals the tab: the
+        // inactive tabs are display:none, and focusing a hidden input does nothing.
+        if (!firstRender && !focusPending) return;
+        focusPending = false;
+
+        if (editingSongId is not null) return;
+        if (activeTab == "song") songTab?.FocusSearch();
+        else if (activeTab == "bible") bibleTab?.FocusSearch();
     }
 
     private static Shortcut TabShortcut(int index) => new((index + 1).ToString(), Ctrl: true);

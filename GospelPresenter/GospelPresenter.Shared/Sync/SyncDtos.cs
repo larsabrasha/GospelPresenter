@@ -83,6 +83,9 @@ public record SyncPresentationDto(
     DateTimeOffset UpdatedAt, string UpdatedBy, bool IsTemplate, string? Description,
     DateTimeOffset? LastUsedAt, int UseCount, int? ScheduledDayOfWeek, TimeOnly? ScheduledTime,
     DateOnly? EventDate, TimeOnly? EventTime, string? EventLocation, string? ThemeId,
+    // Trash state, carried as an ordinary column rather than a tombstone so that every device shows
+    // the same trash and a restore travels like any other edit. Purging is what writes a tombstone.
+    DateTimeOffset? DeletedAt,
     DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
 
 public record SyncPresentationItemDto(
@@ -109,13 +112,16 @@ public record SyncOverlaySlideDto(
     string Id, string Title, string? Content, bool HasImage, int SortOrder, DateTimeOffset ModifiedAt,
     long Version) : ISyncRootRow;
 
+// DeletedAt on both: trash state is carried as an ordinary column rather than a tombstone, so that
+// every device shows the same trash and a restore travels like any other edit. Purging is what
+// writes a tombstone.
 public record SyncOrganizationImageDto(
-    string Id, string FileName, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset ModifiedAt,
-    long Version) : ISyncRootRow;
+    string Id, string FileName, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset? DeletedAt,
+    DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
 
 public record SyncOrganizationAudioDto(
-    string Id, string FileName, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset ModifiedAt,
-    long Version) : ISyncRootRow;
+    string Id, string FileName, string ContentType, DateTimeOffset CreatedAt, DateTimeOffset? DeletedAt,
+    DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;
 
 public record SyncOrganizationSettingDto(
     string Id, string Key, string Value, DateTimeOffset ModifiedAt, long Version) : ISyncRootRow;

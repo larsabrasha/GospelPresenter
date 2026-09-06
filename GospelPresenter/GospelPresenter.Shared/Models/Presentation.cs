@@ -14,6 +14,18 @@ public class Presentation : ISyncTracked
 
     public bool IsTemplate { get; set; }
     public string? Description { get; set; }
+
+    /// <summary>
+    /// When the presentation was moved to the trash, or null while it is in use. Soft deletion so a
+    /// mis-click is recoverable: nothing in the aggregate is touched, and the slide files stay in
+    /// object storage until the row is purged. Every read path filters this out with
+    /// <c>NotDeleted()</c>; the trash is the one place that asks for the rows it hides.
+    ///
+    /// This is not a tombstone. It travels to clients as an ordinary column, the way
+    /// <see cref="DbSong.DeletedAt"/> does, so every device shows the same trash. The tombstone is
+    /// written when the row is purged for good.
+    /// </summary>
+    public DateTimeOffset? DeletedAt { get; set; }
     public DateTimeOffset? LastUsedAt { get; set; }
     public int UseCount { get; set; }
 
