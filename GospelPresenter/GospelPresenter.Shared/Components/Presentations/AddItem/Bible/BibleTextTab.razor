@@ -159,7 +159,7 @@ else
     }
 
     private ValueTask<bool> IsMobileAsync() =>
-        JsRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
+        JsRuntime.InvokeAsync<bool>("gospelPresenter.isNarrowViewport");
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {

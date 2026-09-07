@@ -1,4 +1,5 @@
 using GospelPresenter.Shared.Services;
+using GospelPresenter.Web.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GospelPresenter.Web;
@@ -49,6 +50,8 @@ public static class CalendarEndpoints
             }
 
             return Results.Text(ics, "text/calendar; charset=utf-8");
-        }).AllowAnonymous();
+        }).AllowAnonymous()
+          // The token is the only credential; a wrong one is a guess.
+          .AddEndpointFilter<GuessThrottleFilter>();
     }
 }

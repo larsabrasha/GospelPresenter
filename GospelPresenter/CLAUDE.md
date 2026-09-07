@@ -42,6 +42,8 @@
 ## Authorization
 - All actions (read and write) must be permission-checked. Users must never be able to access or modify data they are not authorized for.
 - Enforce permissions on the server side — never rely solely on hiding UI elements for access control.
+- An anonymous endpoint whose only credential is a secret in the URL (a watch code, a calendar token, an API key) gets `.AddEndpointFilter<GuessThrottleFilter>()` so wrong guesses from one address are cut off; the anonymous image proxies serve only what `LiveMediaScope.IsOnScreen` says is on screen. Request-rate limits per address are the wrong tool for the public pages — a congregation on one wifi is one address.
+- Never call `IJSRuntime.InvokeAsync("eval", …)`. Add a named function to `wwwroot/utils.js` under `window.gospelPresenter` instead; a Content-Security-Policy cannot allow eval.
 
 ## Database
 - All database operations must be atomic. Use transactions when multiple writes depend on each other to ensure data consistency.

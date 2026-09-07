@@ -95,7 +95,7 @@
         if (query.TryGetValue("title", out var t))
         {
             title = t.ToString();
-            _ = JsRuntime.InvokeVoidAsync("eval", $"document.title = {System.Text.Json.JsonSerializer.Serialize(title)}");
+            _ = JsRuntime.InvokeVoidAsync("gospelPresenter.setDocumentTitle", title);
         }
 
         _ = JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
@@ -139,7 +139,7 @@
     {
         if (fullscreenRequested) return;
         fullscreenRequested = true;
-        await JsRuntime.InvokeVoidAsync("eval", "document.documentElement.requestFullscreen?.() || document.documentElement.webkitRequestFullscreen?.()");
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.requestFullscreen");
     }
 
     public void Dispose()
@@ -171,7 +171,7 @@
                 if (liveWindowLauncher is not null)
                     await liveWindowLauncher.CloseAsync(windowId);
                 else
-                    await JsRuntime.InvokeVoidAsync("eval", "window.close()");
+                    await JsRuntime.InvokeVoidAsync("gospelPresenter.closeWindow");
             });
             return;
         }

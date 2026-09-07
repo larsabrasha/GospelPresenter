@@ -285,8 +285,7 @@ else
         if (firstRender)
         {
             // Measure available content width: clientWidth minus padding and scrollbar
-            previewWidth = await JsRuntime.InvokeAsync<double>("eval",
-                "((el) => { if(!el) return 0; var s=getComputedStyle(el); return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - 2; })(document.querySelector('[data-song-preview]'))");
+            previewWidth = await JsRuntime.InvokeAsync<double>("gospelPresenter.measureContentWidth", "[data-song-preview]");
             StateHasChanged();
         }
 
@@ -318,7 +317,7 @@ else
     }
 
     private ValueTask<bool> IsMobileAsync() =>
-        JsRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
+        JsRuntime.InvokeAsync<bool>("gospelPresenter.isNarrowViewport");
 
     private async Task OnKeyDown(KeyboardEventArgs e)
     {
@@ -363,11 +362,9 @@ else
     private async Task ScrollSelectedIntoView(int index)
     {
         // Scroll song list to keep selected item visible
-        await JsRuntime.InvokeVoidAsync("eval",
-            $"((el,i)=>{{if(!el)return;var top=i*56;if(top<el.scrollTop)el.scrollTop=top;else if(top+56>el.scrollTop+el.clientHeight)el.scrollTop=top+56-el.clientHeight}})(document.querySelector('[data-song-list]'),{index})");
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.scrollRowIntoView", "[data-song-list]", index, 56);
         // Scroll preview to top when changing selection
-        await JsRuntime.InvokeVoidAsync("eval",
-            "document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.scrollToTop", new[] { "[data-song-preview]" });
     }
 
     private async Task OnSearchInput(ChangeEventArgs e)
@@ -392,8 +389,7 @@ else
 
     private async Task ScrollListsToTop()
     {
-        await JsRuntime.InvokeVoidAsync("eval",
-            "document.querySelector('[data-song-list]')?.scrollTo(0,0);document.querySelector('[data-song-preview]')?.scrollTo(0,0)");
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.scrollToTop", new[] { "[data-song-list]", "[data-song-preview]" });
     }
 
     private string? GetEffectiveArrangementId(Song song)
@@ -414,14 +410,13 @@ else
         selectedSong = song;
         selectedArrangementId = song.Arrangements.Count > 0 ? song.Arrangements[0].Id : null;
         // On mobile, open full-screen preview
-        var isMobile = await JsRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
+        var isMobile = await JsRuntime.InvokeAsync<bool>("gospelPresenter.isNarrowViewport");
         if (isMobile)
         {
             mobilePreviewSong = song;
             StateHasChanged();
             await Task.Yield();
-            mobilePreviewWidth = await JsRuntime.InvokeAsync<double>("eval",
-                "((el) => { if(!el) return 0; var s=getComputedStyle(el); return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - 2; })(document.querySelector('[data-mobile-song-preview]'))");
+            mobilePreviewWidth = await JsRuntime.InvokeAsync<double>("gospelPresenter.measureContentWidth", "[data-mobile-song-preview]");
         }
     }
 

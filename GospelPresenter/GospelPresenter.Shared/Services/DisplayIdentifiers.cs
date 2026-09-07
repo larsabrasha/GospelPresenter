@@ -27,11 +27,17 @@ public static class DisplayIdentifiers
     public static InvalidOperationException Exhausted() =>
         new($"Failed to generate a unique display ID after {MaxRetries} attempts.");
 
-    public static string Generate()
+    public static string Generate() => GenerateCode(Length);
+
+    /// <summary>A code of the given length from the same alphabet; the pairing codes use this.</summary>
+    public static string GenerateCode(int length)
     {
-        Span<char> buffer = stackalloc char[Length];
-        for (var i = 0; i < Length; i++)
+        Span<char> buffer = stackalloc char[length];
+        for (var i = 0; i < length; i++)
             buffer[i] = Alphabet[RandomNumberGenerator.GetInt32(Alphabet.Length)];
         return new string(buffer);
     }
+
+    /// <summary>Whether a character can occur in a code — used by the pairing inputs to filter typing.</summary>
+    public static bool IsCodeCharacter(char c) => Alphabet.Contains(char.ToLowerInvariant(c));
 }

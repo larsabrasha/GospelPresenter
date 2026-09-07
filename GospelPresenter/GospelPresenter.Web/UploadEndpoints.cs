@@ -50,7 +50,12 @@ public static class UploadEndpoints
             {
                 return Results.StatusCode(503);
             }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
         }).RequireAuthorization()
+          .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
           .DisableAntiforgery();
 
         app.MapPost("/api/upload/overlay-image/{overlayId}", async (
@@ -86,6 +91,10 @@ public static class UploadEndpoints
             {
                 return Results.StatusCode(503);
             }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
 
             overlay.HasImage = true;
             overlay.ImageData = null;
@@ -94,6 +103,7 @@ public static class UploadEndpoints
 
             return Results.Ok(new { overlayId, hasImage = true });
         }).RequireAuthorization()
+          .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
           .DisableAntiforgery();
 
         app.MapPost("/api/upload/org-audio", async (
@@ -131,7 +141,12 @@ public static class UploadEndpoints
             {
                 return Results.StatusCode(503);
             }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
         }).RequireAuthorization()
+          .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
           .DisableAntiforgery();
 
         app.MapPost("/api/upload/presentation-slides/{presentationId}", async (
@@ -200,7 +215,12 @@ public static class UploadEndpoints
             {
                 return Results.StatusCode(503);
             }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
         }).RequireAuthorization()
+          .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
           .DisableAntiforgery();
 
         app.MapPost("/api/upload/import-bible", async (
@@ -226,9 +246,15 @@ public static class UploadEndpoints
             }
             catch (InvalidOperationException ex)
             {
+                // Validation messages the import writes for the user, not internals.
                 return Results.BadRequest(ex.Message);
             }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
         }).RequireAuthorization()
+          .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
           .DisableAntiforgery();
 
         app.MapPost("/api/upload/import-songs", async (
@@ -258,23 +284,31 @@ public static class UploadEndpoints
 
             var replaceExisting = form.TryGetValue("replaceExisting", out var val) && val == "true";
 
-            if (!replaceExisting)
+            try
             {
-                var parsedNames = files
-                    .Select(f => TryParse(f.Data, f.FileName))
-                    .Where(s => s is not null)
-                    .Select(s => s!.Name)
-                    .ToList();
+                if (!replaceExisting)
+                {
+                    var parsedNames = files
+                        .Select(f => TryParse(f.Data, f.FileName))
+                        .Where(s => s is not null)
+                        .Select(s => s!.Name)
+                        .ToList();
 
-                var duplicates = await songService.FindDuplicateNamesAsync(parsedNames, orgId, caller);
-                if (duplicates.Count > 0)
-                    return Results.Ok(new { Duplicates = duplicates });
+                    var duplicates = await songService.FindDuplicateNamesAsync(parsedNames, orgId, caller);
+                    if (duplicates.Count > 0)
+                        return Results.Ok(new { Duplicates = duplicates });
+                }
+
+                var result = await songService.ImportProPresenterFilesAsync(files, orgId, caller, replaceExisting);
+
+                return Results.Ok(new { result.Imported, result.Skipped, result.Replaced, result.Failed });
             }
-
-            var result = await songService.ImportProPresenterFilesAsync(files, orgId, caller, replaceExisting);
-
-            return Results.Ok(new { result.Imported, result.Skipped, result.Replaced, result.Failed });
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
         }).RequireAuthorization()
+          .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
           .DisableAntiforgery();
     }
 

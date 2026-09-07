@@ -164,14 +164,15 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fun
     }
 });
 
-// MAUI serves Blazor from app://0.0.0.0/, a custom scheme that is not a secure context:
-// crypto.randomUUID is undefined there and sessionStorage can throw. Fall back rather than
-// leave the caller without a session id.
+// The session id ends up in the anonymous live-image URLs and in what a phone is pointed at to
+// follow the session, so it is a capability and is sized like one: 128 bits, from the CSPRNG.
+// crypto.getRandomValues exists in every engine including the non-secure app:// context the MAUI
+// host used (only randomUUID is missing there), so there is no fallback: a session id that could
+// be guessed is worse than a loud error.
 window.newSessionId = function () {
-    if (window.crypto && typeof crypto.randomUUID === 'function') {
-        return crypto.randomUUID().replace(/-/g, '').substring(0, 8);
-    }
-    return Math.random().toString(16).substring(2, 10);
+    var bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
 }
 
 window.getOrCreateSessionId = function () {
@@ -332,6 +333,44 @@ window.stopLivePresentation = function(sessionId) {
 }
 
 window.gospelPresenter = window.gospelPresenter || {};
+
+// Named entry points for what components used to hand to eval. A string handed to eval cannot be
+// allowed by a Content-Security-Policy, and a named function reads as what it does.
+window.gospelPresenter.setDocumentTitle = function (title) {
+    document.title = title;
+};
+window.gospelPresenter.requestFullscreen = function () {
+    var root = document.documentElement;
+    if (root.requestFullscreen) root.requestFullscreen();
+    else if (root.webkitRequestFullscreen) root.webkitRequestFullscreen();
+};
+window.gospelPresenter.closeWindow = function () {
+    window.close();
+};
+window.gospelPresenter.isNarrowViewport = function () {
+    return window.innerWidth < 768;
+};
+// The width a slide preview can use: the element's inner width minus its padding, less a hair.
+window.gospelPresenter.measureContentWidth = function (selector) {
+    var el = document.querySelector(selector);
+    if (!el) return 0;
+    var s = getComputedStyle(el);
+    return el.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight) - 2;
+};
+window.gospelPresenter.scrollToTop = function (selectors) {
+    selectors.forEach(function (selector) {
+        var el = document.querySelector(selector);
+        if (el) el.scrollTo(0, 0);
+    });
+};
+// Keeps row `index` of a list of fixed-height rows inside the scrolled viewport.
+window.gospelPresenter.scrollRowIntoView = function (selector, index, rowHeight) {
+    var el = document.querySelector(selector);
+    if (!el) return;
+    var top = index * rowHeight;
+    if (top < el.scrollTop) el.scrollTop = top;
+    else if (top + rowHeight > el.scrollTop + el.clientHeight) el.scrollTop = top + rowHeight - el.clientHeight;
+};
 
 window.gospelPresenter.resizeImage = function(base64, maxWidth, maxHeight, quality, mimeType) {
     var format = mimeType || 'image/jpeg';

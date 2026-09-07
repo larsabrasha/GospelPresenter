@@ -212,9 +212,24 @@ public class BibleService(
             : null;
     }
 
+    /// <summary>
+    /// A whole translation in USX is some tens of megabytes unpacked; these are well above that and
+    /// well below what would make the parser a way to exhaust the server's memory from a 50 MB zip.
+    /// </summary>
+    private const long MaxUnpackedBibleBytes = 300L * 1024 * 1024;
+    private const int MaxBibleZipEntries = 500;
+
     private static (string Abbreviation, string Name, List<Verse> Verses) ParseZip(Stream zipStream)
     {
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
+
+        // Declared sizes, checked before anything is inflated. The parsers read every entry into
+        // memory, so an archive that lies about its size is caught when its entry runs long instead
+        // — see the wrapped reads below — but an honest bomb is refused here, cheaply.
+        if (archive.Entries.Count > MaxBibleZipEntries)
+            throw new InvalidOperationException($"The zip file contains too many files (more than {MaxBibleZipEntries}).");
+        if (archive.Entries.Sum(e => e.Length) > MaxUnpackedBibleBytes)
+            throw new InvalidOperationException("The zip file is too large when unpacked.");
 
         var prefix = FindRootPrefix(archive);
         var (abbreviation, name) = ReadBibleMetadata(archive, prefix);

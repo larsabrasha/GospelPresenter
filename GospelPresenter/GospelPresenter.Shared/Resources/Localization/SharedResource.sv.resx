@@ -2006,4 +2006,7 @@
   <data name="Display.UnknownDisplay" xml:space="preserve">
     <value>Den här skärmen är inte registrerad. Lägg till den under Utgångar i adminvyn och öppna adressen som visas där.</value>
   </data>
+  <data name="Display.TooManyAttempts" xml:space="preserve">
+    <value>För många felaktiga koder. Vänta tio minuter, eller använd länken eller QR-koden på skärmen i stället.</value>
+  </data>
 </root>

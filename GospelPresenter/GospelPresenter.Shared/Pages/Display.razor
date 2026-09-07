@@ -88,7 +88,7 @@ else
                 <div class="text-neutral-300 text-[3vw] font-semibold">@displayName</div>
             }
             <div class="text-neutral-400 text-[2.5vw] tracking-widest uppercase">@L["Display.PairingCode"]</div>
-            <div class="text-[14vw] leading-none font-bold tracking-[0.3em] font-mono">@pairingCode</div>
+            <div class="text-[12vw] leading-none font-bold tracking-[0.25em] font-mono uppercase">@pairingCode</div>
             <div class="text-neutral-500 text-[2.5vw] text-center max-w-3xl leading-snug">@L["Display.WaitingForPairing"]</div>
         </div>
         <div class="flex items-center gap-3 text-neutral-600 pb-8">
@@ -287,7 +287,7 @@ else
     {
         if (fullscreenRequested) return;
         fullscreenRequested = true;
-        await JsRuntime.InvokeVoidAsync("eval", "document.documentElement.requestFullscreen?.() || document.documentElement.webkitRequestFullscreen?.()");
+        await JsRuntime.InvokeVoidAsync("gospelPresenter.requestFullscreen");
     }
 
     public void Dispose()

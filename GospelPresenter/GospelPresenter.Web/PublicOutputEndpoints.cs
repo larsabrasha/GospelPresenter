@@ -4,6 +4,7 @@ using System.Threading.Channels;
 using GospelPresenter.Shared.Components.Presentations;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
+using GospelPresenter.Web.Security;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ namespace GospelPresenter.Web;
 public static class PublicOutputEndpoints
 {
     private static readonly TimeSpan PingInterval = TimeSpan.FromSeconds(15);
+    private const int MaxViewerIdLength = 64;
 
     public static void MapPublicOutputEndpoints(this WebApplication app)
     {
@@ -54,7 +56,9 @@ public static class PublicOutputEndpoints
                 (await renderer.RenderComponentAsync<PublicWatchPage>(parameters)).ToHtmlString());
 
             return Results.Content(html, "text/html; charset=utf-8");
-        }).AllowAnonymous();
+        }).AllowAnonymous()
+          // A wrong code is a guess; too many from one address and that address is turned away.
+          .AddEndpointFilter<GuessThrottleFilter>();
     }
 
     private static void MapEventStream(WebApplication app)
@@ -72,7 +76,10 @@ public static class PublicOutputEndpoints
             if (output is null)
                 return Results.NotFound();
 
-            if (string.IsNullOrWhiteSpace(v))
+            // The viewer id is minted by the visitor's own page and is only a key in a dictionary
+            // here, so it is bounded rather than trusted: an unbounded one is a way to make the
+            // server keep arbitrary amounts of somebody else's text.
+            if (string.IsNullOrWhiteSpace(v) || v.Length > MaxViewerIdLength)
                 return Results.BadRequest();
 
             var viewerId = v;
@@ -127,7 +134,8 @@ public static class PublicOutputEndpoints
             }
 
             return Results.Empty;
-        }).AllowAnonymous();
+        }).AllowAnonymous()
+          .AddEndpointFilter<GuessThrottleFilter>();
     }
 
     private static void MapImageProxy(WebApplication app)
@@ -137,10 +145,22 @@ public static class PublicOutputEndpoints
             string code, string slidesId, int page,
             HttpContext context,
             [FromServices] PublicOutputBroadcaster broadcaster,
+            [FromServices] SharedAppState sharedAppState,
+            [FromServices] FailureThrottle throttle,
             [FromServices] IObjectStorageService storage) =>
         {
+            var sessionId = broadcaster.GetBroadcastingSessionId(code);
             var orgId = broadcaster.GetBroadcastingOrganizationId(code);
-            if (orgId is null) return Results.NotFound();
+            if (sessionId is null || orgId is null)
+            {
+                // An unknown or silent code is a guess. A right code asking for the wrong page is
+                // not — it is a phone that was a slide behind — so only this branch counts.
+                throttle.RecordFailure(FailureThrottle.KeyFor(context));
+                return Results.NotFound();
+            }
+
+            if (!LiveMediaScope.IsOnScreen(sharedAppState, sessionId, $"slides/{slidesId}/{page}"))
+                return Results.NotFound();
 
             return await ServeAsync(context, storage, ImageUrlHelper.SlidesPageKey(orgId, slidesId, page));
         }).AllowAnonymous();
@@ -150,10 +170,21 @@ public static class PublicOutputEndpoints
             string code, string type, string id, string variant,
             HttpContext context,
             [FromServices] PublicOutputBroadcaster broadcaster,
+            [FromServices] SharedAppState sharedAppState,
+            [FromServices] FailureThrottle throttle,
             [FromServices] IObjectStorageService storage) =>
         {
+            var sessionId = broadcaster.GetBroadcastingSessionId(code);
             var orgId = broadcaster.GetBroadcastingOrganizationId(code);
-            if (orgId is null) return Results.NotFound();
+            if (sessionId is null || orgId is null)
+            {
+                throttle.RecordFailure(FailureThrottle.KeyFor(context));
+                return Results.NotFound();
+            }
+
+            // The image on screen, or the overlay over it — never the rest of the library.
+            if (!LiveMediaScope.IsOnScreen(sharedAppState, sessionId, $"{type}/{id}/{variant}"))
+                return Results.NotFound();
 
             var s3Key = type switch
             {
