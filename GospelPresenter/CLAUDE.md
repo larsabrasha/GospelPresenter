@@ -72,6 +72,7 @@
 - Use `@L["Key"]` in Razor templates and `L["Key"]` in `@code` blocks. For formatted strings, use `L["Key", arg1, arg2]`.
 - When a localized string with no arguments contains markup, render it with `@((MarkupString)L["Key"].Value)`.
 - Never pass user-authored data (names, titles, filenames) as an argument to a localized string that is rendered as a `MarkupString` — the argument is not encoded and the markup executes. Keep markup out of the `.resx` value and render it in Razor instead, so the framework encodes the value: use `<LocalizedEmphasis Key="..." Value="@name"/>` for the common "…<strong>{0}</strong>…" case.
+- Bible slide content is stored as HTML and is the only stored data that is ever rendered as a `MarkupString`. It must always pass through `BibleSlideHtml.Sanitize` on the way to a `MarkupString`, and the sync push rejects Bible parts `BibleSlideHtml.IsWellFormed` does not accept. If `BibleTextService` ever emits a new tag or attribute, extend the grammar in `BibleSlideHtml` in the same change — otherwise the new output renders as text.
 - Translations are stored in `.resx` files under `GospelPresenter.Shared/Resources/`: `SharedResource.resx` (English) and `SharedResource.sv.resx` (Swedish).
 - The app defaults to the browser's `Accept-Language` header, with English as the fallback language.
 - Never hardcode UI-visible strings — always add them to both `.resx` files.

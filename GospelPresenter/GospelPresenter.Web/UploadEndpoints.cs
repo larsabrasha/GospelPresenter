@@ -115,9 +115,16 @@ public static class UploadEndpoints
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms, cancellationToken);
 
+            // The part header said audio/*; the bytes decide which, or whether it is audio at all.
+            // Images are re-encoded on upload and so cannot lie about their type; audio is stored as
+            // it came, so this is where it is checked.
+            var bytes = ms.ToArray();
+            var contentType = MediaSniffer.DetectAudioContentType(bytes);
+            if (contentType is null) return Results.BadRequest("Unsupported file type");
+
             try
             {
-                var audio = await audioService.AddAudioAsync(orgId, file.FileName, file.ContentType, ms.ToArray(), caller, cancellationToken);
+                var audio = await audioService.AddAudioAsync(orgId, file.FileName, contentType, bytes, caller, cancellationToken);
                 return Results.Ok(new { audio.Id, audio.FileName, audio.ContentType, audio.CreatedAt });
             }
             catch (NotSupportedException)

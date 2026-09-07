@@ -2003,4 +2003,7 @@
   <data name="Trash.Restoring" xml:space="preserve">
     <value>Återställer…</value>
   </data>
+  <data name="Display.UnknownDisplay" xml:space="preserve">
+    <value>Den här skärmen är inte registrerad. Lägg till den under Utgångar i adminvyn och öppna adressen som visas där.</value>
+  </data>
 </root>

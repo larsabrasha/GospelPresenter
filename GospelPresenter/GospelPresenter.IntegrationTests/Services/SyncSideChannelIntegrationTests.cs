@@ -84,10 +84,10 @@ public class SyncSideChannelIntegrationTests
         // Act
         var own = await client.PutAsync(
             $"/api/sync/media/org/mock-org-sv/images/{imageId}/full",
-            new ByteArrayContent([1, 2, 3]));
+            new ByteArrayContent(TinyPng));
         var foreign = await client.PutAsync(
             $"/api/sync/media/org/someone-else/images/{imageId}/full",
-            new ByteArrayContent([1, 2, 3]));
+            new ByteArrayContent(TinyPng));
 
         // Assert
         own.StatusCode.ShouldBe(HttpStatusCode.NoContent);
@@ -105,11 +105,44 @@ public class SyncSideChannelIntegrationTests
         // Act
         var response = await client.PutAsync(
             $"/api/sync/media/org/mock-org-sv/images/{Guid.NewGuid()}/full",
-            new ByteArrayContent([1, 2, 3]));
+            new ByteArrayContent(TinyPng));
 
         // Assert
         response.StatusCode.ShouldBe(HttpStatusCode.ServiceUnavailable);
     }
+
+    /// <summary>
+    /// The stored type is what every media endpoint serves the blob back under, from this origin.
+    /// It therefore comes from the bytes, not from the request: a device claiming text/html for a
+    /// script under an image key must be turned away, whatever header it sends, and a real image
+    /// must be stored under the type it actually is even when the header says otherwise.
+    /// </summary>
+    [Fact]
+    public async Task MediaUpload_StoresTheTypeTheBytesAre_NotTheTypeTheRequestClaims()
+    {
+        // Arrange
+        using var app = new StorageWebAppFixture();
+        var client = await CreateDeviceClientAsync(app);
+        var imageId = Guid.NewGuid().ToString();
+
+        var html = new ByteArrayContent("<script>alert(1)</script>"u8.ToArray());
+        html.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
+        var mislabelledPng = new ByteArrayContent(TinyPng);
+        mislabelledPng.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/html");
+
+        // Act
+        var scriptUnderImageKey = await client.PutAsync($"/api/sync/media/org/mock-org-sv/images/{imageId}/full", html);
+        var pngCalledHtml = await client.PutAsync($"/api/sync/media/org/mock-org-sv/images/{imageId}/thumb", mislabelledPng);
+
+        // Assert
+        scriptUnderImageKey.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        pngCalledHtml.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        app.Storage.Keys.ShouldBe([$"org/mock-org-sv/images/{imageId}/thumb"]);
+        app.Storage.ContentTypeOf($"org/mock-org-sv/images/{imageId}/thumb").ShouldBe("image/png");
+    }
+
+    /// <summary>An 8-byte PNG signature followed by nothing: enough to be recognised as a PNG.</summary>
+    private static readonly byte[] TinyPng = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0];
 
     private sealed record RecordedResponse(int Recorded);
 
@@ -131,19 +164,21 @@ public class SyncSideChannelIntegrationTests
 
     private sealed class InMemoryObjectStorageService : IObjectStorageService
     {
-        private readonly Dictionary<string, byte[]> blobs = [];
+        private readonly Dictionary<string, (byte[] Data, string ContentType)> blobs = [];
 
         public IReadOnlyCollection<string> Keys => blobs.Keys;
 
+        public string ContentTypeOf(string key) => blobs[key].ContentType;
+
         public Task UploadAsync(string key, byte[] data, string contentType, CancellationToken cancellationToken = default)
         {
-            blobs[key] = data;
+            blobs[key] = (data, contentType);
             return Task.CompletedTask;
         }
 
         public Task<(Stream Stream, string ContentType)?> GetAsync(string key, CancellationToken cancellationToken = default) =>
-            Task.FromResult<(Stream, string)?>(blobs.TryGetValue(key, out var data)
-                ? (new MemoryStream(data), "application/octet-stream")
+            Task.FromResult<(Stream, string)?>(blobs.TryGetValue(key, out var blob)
+                ? (new MemoryStream(blob.Data), blob.ContentType)
                 : null);
 
         public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
@@ -161,8 +196,8 @@ public class SyncSideChannelIntegrationTests
 
         public Task CopyByPrefixAsync(string sourcePrefix, string destPrefix, CancellationToken cancellationToken = default)
         {
-            foreach (var (key, data) in blobs.Where(kv => kv.Key.StartsWith(sourcePrefix, StringComparison.Ordinal)).ToList())
-                blobs[string.Concat(destPrefix, key.AsSpan(sourcePrefix.Length))] = data;
+            foreach (var (key, blob) in blobs.Where(kv => kv.Key.StartsWith(sourcePrefix, StringComparison.Ordinal)).ToList())
+                blobs[string.Concat(destPrefix, key.AsSpan(sourcePrefix.Length))] = blob;
             return Task.CompletedTask;
         }
     }

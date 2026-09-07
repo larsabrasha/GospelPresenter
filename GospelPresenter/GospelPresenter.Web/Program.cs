@@ -608,7 +608,10 @@ builder.Services.AddMetricServer(options =>
         if (scheme == null)
             return Results.Redirect("/authentication-error");
 
-        return Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }, [scheme]);
+        return Results.Challenge(new AuthenticationProperties
+        {
+            RedirectUri = GospelPresenter.Web.Auth.LocalReturnUrl.Sanitize(returnUrl)
+        }, [scheme]);
     }).AllowAnonymous();
 
     app.MapGet("/invite/{token}/signin", async (string token, string provider, IUserService userService, IAuthProviderService authProviders) =>
@@ -712,8 +715,7 @@ builder.Services.AddMetricServer(options =>
         if (result is null) return Results.NotFound();
 
         var (stream, contentType) = result.Value;
-        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-        return Results.File(stream, contentType);
+        return MediaResponses.File(context, stream, contentType, MediaResponses.CacheForever);
     }).RequireAuthorization();
 
     app.MapGet("/api/images/slides/{slidesId}/{page}", async (
@@ -749,8 +751,7 @@ builder.Services.AddMetricServer(options =>
         if (result is null) return Results.NotFound();
 
         var (stream, contentType) = result.Value;
-        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-        return Results.File(stream, contentType);
+        return MediaResponses.File(context, stream, contentType, MediaResponses.CacheForever);
     }).RequireAuthorization();
 
     // Built-in theme art. Product graphics rather than congregation data, so it is anonymous and cached
@@ -776,10 +777,7 @@ builder.Services.AddMetricServer(options =>
         {
             var stored = await storage.GetAsync(ImageUrlHelper.ThemeAssetKey(assetPath, variant, hash));
             if (stored is not null)
-            {
-                context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-                return Results.File(stored.Value.Stream, stored.Value.ContentType);
-            }
+                return MediaResponses.File(context, stored.Value.Stream, stored.Value.ContentType, MediaResponses.CacheForever);
         }
         catch (NotSupportedException)
         {
@@ -789,8 +787,7 @@ builder.Services.AddMetricServer(options =>
         var bytes = themeAssets.ReadAsset(assetPath);
         if (bytes is null) return Results.NotFound();
 
-        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-        return Results.File(bytes, "image/webp");
+        return MediaResponses.File(context, bytes, "image/webp", MediaResponses.CacheForever);
     }).AllowAnonymous();
 
     app.MapUploadEndpoints();
@@ -813,8 +810,7 @@ builder.Services.AddMetricServer(options =>
         if (result is null) return Results.NotFound();
 
         var (stream, contentType) = result.Value;
-        context.Response.Headers.CacheControl = "public, max-age=3600";
-        return Results.File(stream, contentType);
+        return MediaResponses.File(context, stream, contentType, MediaResponses.CacheBrieflyAndPrivately);
     }).AllowAnonymous();
 
     // Unauthenticated endpoint for the live view — only serves images while the session's presentation is active.
@@ -845,8 +841,7 @@ builder.Services.AddMetricServer(options =>
         if (result is null) return Results.NotFound();
 
         var (stream, contentType) = result.Value;
-        context.Response.Headers.CacheControl = "public, max-age=3600";
-        return Results.File(stream, contentType);
+        return MediaResponses.File(context, stream, contentType, MediaResponses.CacheBrieflyAndPrivately);
     }).AllowAnonymous();
 
     // Authenticated audio endpoint
@@ -885,8 +880,7 @@ builder.Services.AddMetricServer(options =>
         var ms = new MemoryStream();
         await stream.CopyToAsync(ms);
         ms.Seek(0, SeekOrigin.Begin);
-        context.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
-        return Results.File(ms, contentType, enableRangeProcessing: true);
+        return MediaResponses.File(context, ms, contentType, MediaResponses.CacheForever, enableRangeProcessing: true);
     }).RequireAuthorization();
 
     app.MapCalendarEndpoints();
@@ -1130,7 +1124,8 @@ static async Task HandleAuthenticatedUser(
         identity?.AddClaim(new Claim("organization_id", user.OrganizationId));
     identity?.AddClaim(new Claim("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()));
     identity?.AddClaim(new Claim("login_provider", loginProvider));
-    identity?.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
+    if (identity is not null)
+        GospelPresenter.Web.Auth.RoleClaims.SetRole(identity, user.Role);
 
     Log.Information("Signed in user {UserId} via {Provider}", user.Id, loginProvider);
 }
