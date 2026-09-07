@@ -148,7 +148,7 @@
 
                 @{
                     var remoteNotReady = IsRemoteMode && !IsRemoteReady;
-                    var remoteNoSession = IsRemoteMode && _presenterSessionId is null;
+                    var remoteNoSession = IsRemoteMode && presenterSessionId is null;
                 }
                 @if (NeedsSessionChoice)
                 {
@@ -157,9 +157,9 @@
                             <div class="text-sm text-neutral-500 dark:text-neutral-400">
                                 @L["RemoteControl.ChooseSession"]
                             </div>
-                            @for (var i = 0; i < _presenterCandidates.Count; i++)
+                            @for (var i = 0; i < presenterCandidates.Count; i++)
                             {
-                                var candidate = _presenterCandidates[i];
+                                var candidate = presenterCandidates[i];
                                 var label = SessionChoiceLabel(i, candidate);
                                 <AppButton Variant="ButtonVariant.Primary" Filled="true" Class="w-full"
                                            OnClick="() => ControlSession(candidate)">
@@ -462,8 +462,8 @@
     private bool IsStageMode => Stage && !IsTemplateMode;
     private string? EffectiveId => TemplateId ?? PresentationId;
 
-    private string? _presenterSessionId;
-    private IReadOnlyList<string> _presenterCandidates = [];
+    private string? presenterSessionId;
+    private IReadOnlyList<string> presenterCandidates = [];
     private ILiveSessionPresence? liveSessionPresence;
     private ILiveSessionEnder? liveSessionEnder;
     private bool endingAbandonedSession;
@@ -475,12 +475,12 @@
     /// </summary>
     private bool IsPresenterOffline =>
         IsRemoteMode
-        && _presenterSessionId is not null
-        && liveSessionPresence?.IsOwnerOnline(_presenterSessionId) == false;
+        && presenterSessionId is not null
+        && liveSessionPresence?.IsOwnerOnline(presenterSessionId) == false;
 
     private void OnOwnerPresenceChanged(string sessionId)
     {
-        if (sessionId == _presenterSessionId)
+        if (sessionId == presenterSessionId)
             _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
@@ -509,7 +509,7 @@
     /// </summary>
     private void ExpectConfirmation()
     {
-        if (!IsRemoteMode || _presenterSessionId is not { } session) return;
+        if (!IsRemoteMode || presenterSessionId is not { } session) return;
         if (liveSessionPresence?.IsMirrored(session) != true) return;
 
         var expected = MirroredSessionStateReader.Read(SharedAppState, session);
@@ -566,23 +566,23 @@
     private void ResolvePresenterSession()
     {
         var orgId = OrgState.ActiveOrganizationId;
-        _presenterCandidates = orgId is not null && PresentationId is not null
+        presenterCandidates = orgId is not null && PresentationId is not null
             ? SharedAppState.GetActiveSessionIdsForPresentation(orgId, PresentationId)
             : [];
 
-        _presenterSessionId = Session is not null && _presenterCandidates.Contains(Session)
+        presenterSessionId = Session is not null && presenterCandidates.Contains(Session)
             ? Session
-            : _presenterCandidates.Count == 1
-                ? _presenterCandidates[0]
+            : presenterCandidates.Count == 1
+                ? presenterCandidates[0]
                 : null;
     }
 
     /// <summary>Carries the chosen session through navigation, so a picked machine stays picked.</summary>
-    private string RemoteSessionQuery => _presenterSessionId is null ? "" : $"&session={_presenterSessionId}";
+    private string RemoteSessionQuery => presenterSessionId is null ? "" : $"&session={presenterSessionId}";
 
     /// <summary>Several places are presenting this and the controller has not said which it means.</summary>
     private bool NeedsSessionChoice =>
-        IsRemoteMode && _presenterSessionId is null && _presenterCandidates.Count > 1;
+        IsRemoteMode && presenterSessionId is null && presenterCandidates.Count > 1;
 
     private void ControlSession(string sessionId) =>
         NavigationManager.NavigateTo($"/presentations/{PresentationId}?remote=true&session={sessionId}");
@@ -602,11 +602,11 @@
             : L["RemoteControl.SessionChoice", index + 1];
 
     private string EffectiveSessionId =>
-        IsRemoteMode && _presenterSessionId is not null ? _presenterSessionId : AppState.SessionId;
+        IsRemoteMode && presenterSessionId is not null ? presenterSessionId : AppState.SessionId;
     private bool IsRemoteReady => !IsRemoteMode
         || (!IsPresenterOffline
-            && _presenterSessionId is not null
-            && SharedAppState.IsRemoteControlEnabled(_presenterSessionId));
+            && presenterSessionId is not null
+            && SharedAppState.IsRemoteControlEnabled(presenterSessionId));
 
     /// <summary>
     /// Whether this page may end the presentation it is looking at. Its own, always; a session it
@@ -636,7 +636,7 @@
     /// still presenting, it reports itself and the session returns, which is the truth.
     /// </summary>
     private bool CanEndAbandonedSession =>
-        IsPresenterOffline && liveSessionEnder is not null && _presenterSessionId is not null;
+        IsPresenterOffline && liveSessionEnder is not null && presenterSessionId is not null;
 
     private bool IsStageReady => IsStageMode
         && IsRemoteReady
@@ -1028,7 +1028,7 @@
             ResolvePresenterSession();
             Logger.LogDebug(
                 "Remote viewer resolving presenter session: viewerSessionId={ViewerSessionId} presentationId={PresentationId} requestedSessionId={RequestedSessionId} candidates={CandidateCount} resolvedPresenterSessionId={PresenterSessionId} isRemoteReady={IsRemoteReady}",
-                AppState.SessionId, PresentationId, Session, _presenterCandidates.Count, _presenterSessionId, IsRemoteReady);
+                AppState.SessionId, PresentationId, Session, presenterCandidates.Count, presenterSessionId, IsRemoteReady);
         }
 
         if (EffectiveId == loadedPresentationId) return;
@@ -1167,8 +1167,8 @@
     [JSInvokable]
     public void OnRemoteAudioCommand(string action, string audioElementId, double? position)
     {
-        if (!IsRemoteMode || _presenterSessionId is null) return;
-        SharedAppState.SetAudioCommand(_presenterSessionId, new AudioCommand(action, audioElementId, position));
+        if (!IsRemoteMode || presenterSessionId is null) return;
+        SharedAppState.SetAudioCommand(presenterSessionId, new AudioCommand(action, audioElementId, position));
     }
 
     public void Dispose()
@@ -1208,11 +1208,11 @@
     {
         if (!IsRemoteMode || PresentationId is null) return;
 
-        var previous = _presenterSessionId;
-        var previousCount = _presenterCandidates.Count;
+        var previous = presenterSessionId;
+        var previousCount = presenterCandidates.Count;
         ResolvePresenterSession();
 
-        if (_presenterSessionId == previous && _presenterCandidates.Count == previousCount) return;
+        if (presenterSessionId == previous && presenterCandidates.Count == previousCount) return;
 
         _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
@@ -1306,7 +1306,7 @@
             SyncStageSelectionFromLiveSlide();
             _ = InvokeAsync(Culture.Restore(StateHasChanged));
         }
-        else if (IsRemoteMode && change.SessionId == _presenterSessionId)
+        else if (IsRemoteMode && change.SessionId == presenterSessionId)
         {
             SyncStageSelectionFromLiveSlide();
             ExpectConfirmation();
@@ -1414,8 +1414,8 @@
                         .ToList();
                     var audio = new Audio(audioItem.Id, audioParts);
                     Editor.SelectedAudio = audio;
-                    if (IsRemoteMode && _presenterSessionId is not null)
-                        SharedAppState.SetSessionAudio(_presenterSessionId, audio);
+                    if (IsRemoteMode && presenterSessionId is not null)
+                        SharedAppState.SetSessionAudio(presenterSessionId, audio);
                     SharedAppState.SetSessionAudio(AppState.SessionId, audio);
                 }
                 break;

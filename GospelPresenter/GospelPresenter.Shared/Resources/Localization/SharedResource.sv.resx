@@ -2009,4 +2009,205 @@
   <data name="Display.TooManyAttempts" xml:space="preserve">
     <value>För många felaktiga koder. Vänta tio minuter, eller använd länken eller QR-koden på skärmen i stället.</value>
   </data>
+  <data name="SlideGrid.IdleHint01" xml:space="preserve">
+    <value>Utan musik vore livet ett misstag.</value>
+  </data>
+  <data name="SlideGrid.IdleHint01.Source" xml:space="preserve">
+    <value>Friedrich Nietzsche</value>
+  </data>
+  <data name="SlideGrid.IdleHint02" xml:space="preserve">
+    <value>Musik uttrycker det som inte kan sägas med ord.</value>
+  </data>
+  <data name="SlideGrid.IdleHint02.Source" xml:space="preserve">
+    <value>Victor Hugo</value>
+  </data>
+  <data name="SlideGrid.IdleHint03" xml:space="preserve">
+    <value>Bortom orden tar musiken vid.</value>
+  </data>
+  <data name="SlideGrid.IdleHint04" xml:space="preserve">
+    <value>En värld utan musik är som en kropp utan själ.</value>
+  </data>
+  <data name="SlideGrid.IdleHint05" xml:space="preserve">
+    <value>Sång är glädjens modersmål.</value>
+  </data>
+  <data name="SlideGrid.IdleHint06" xml:space="preserve">
+    <value>Rösten är det mest personliga instrumentet.</value>
+  </data>
+  <data name="SlideGrid.IdleHint07" xml:space="preserve">
+    <value>Herren är min kraft och mitt värn, han blev min räddning.</value>
+  </data>
+  <data name="SlideGrid.IdleHint07.Source" xml:space="preserve">
+    <value>2 Mos 15:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint08" xml:space="preserve">
+    <value>Sjung till Herrens ära, sjung en ny sång, sjung till Herrens ära, hela världen!</value>
+  </data>
+  <data name="SlideGrid.IdleHint08.Source" xml:space="preserve">
+    <value>Psalm 96:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint09" xml:space="preserve">
+    <value>Allt som lever och andas skall prisa Herren. Halleluja!</value>
+  </data>
+  <data name="SlideGrid.IdleHint09.Source" xml:space="preserve">
+    <value>Psalm 150:6</value>
+  </data>
+  <data name="SlideGrid.IdleHint10" xml:space="preserve">
+    <value>Hylla Herren, hela världen!</value>
+  </data>
+  <data name="SlideGrid.IdleHint10.Source" xml:space="preserve">
+    <value>Psalm 100:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint11" xml:space="preserve">
+    <value>Tacka Herren, ty han är god, evigt varar hans nåd.</value>
+  </data>
+  <data name="SlideGrid.IdleHint11.Source" xml:space="preserve">
+    <value>Psalm 136:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint12" xml:space="preserve">
+    <value>Herren är god, evigt varar hans nåd, från släkte till släkte hans trofasthet.</value>
+  </data>
+  <data name="SlideGrid.IdleHint12.Source" xml:space="preserve">
+    <value>Psalm 100:5</value>
+  </data>
+  <data name="SlideGrid.IdleHint13" xml:space="preserve">
+    <value>Lugn! Besinna att jag är Gud, upphöjd över folken, upphöjd över jorden.</value>
+  </data>
+  <data name="SlideGrid.IdleHint13.Source" xml:space="preserve">
+    <value>Psalm 46:11</value>
+  </data>
+  <data name="SlideGrid.IdleHint14" xml:space="preserve">
+    <value>Herren är mitt ljus och min räddning, vem skulle jag frukta?</value>
+  </data>
+  <data name="SlideGrid.IdleHint14.Source" xml:space="preserve">
+    <value>Psalm 27:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint15" xml:space="preserve">
+    <value>Tacka Herren, ty han är god, evigt varar hans nåd.</value>
+  </data>
+  <data name="SlideGrid.IdleHint15.Source" xml:space="preserve">
+    <value>Psalm 107:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint16" xml:space="preserve">
+    <value>Om Herrens nåd vill jag alltid sjunga.</value>
+  </data>
+  <data name="SlideGrid.IdleHint16.Source" xml:space="preserve">
+    <value>Psalm 89:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint17" xml:space="preserve">
+    <value>Herren är nära alla som ropar, alla som av hjärtat ropar till honom.</value>
+  </data>
+  <data name="SlideGrid.IdleHint17.Source" xml:space="preserve">
+    <value>Psalm 145:18</value>
+  </data>
+  <data name="SlideGrid.IdleHint18" xml:space="preserve">
+    <value>Se, jag gör allting nytt.</value>
+  </data>
+  <data name="SlideGrid.IdleHint18.Source" xml:space="preserve">
+    <value>Upp 21:5</value>
+  </data>
+  <data name="SlideGrid.IdleHint19" xml:space="preserve">
+    <value>Gud är min räddning, jag är trygg och utan fruktan.</value>
+  </data>
+  <data name="SlideGrid.IdleHint19.Source" xml:space="preserve">
+    <value>Jes 12:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint20" xml:space="preserve">
+    <value>Lova Herren, min själ, minns allt det goda han gör.</value>
+  </data>
+  <data name="SlideGrid.IdleHint20.Source" xml:space="preserve">
+    <value>Psalm 103:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint21" xml:space="preserve">
+    <value>Se och smaka Herrens godhet, lycklig den som flyr till honom!</value>
+  </data>
+  <data name="SlideGrid.IdleHint21.Source" xml:space="preserve">
+    <value>Psalm 34:9</value>
+  </data>
+  <data name="SlideGrid.IdleHint22" xml:space="preserve">
+    <value>Herren är min herde, ingenting skall fattas mig.</value>
+  </data>
+  <data name="SlideGrid.IdleHint22.Source" xml:space="preserve">
+    <value>Psalm 23:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint23" xml:space="preserve">
+    <value>Där Guds folk samlas, där klingar lovsången.</value>
+  </data>
+  <data name="SlideGrid.IdleHint24" xml:space="preserve">
+    <value>Lovsång är hjärtats naturliga svar på nåd.</value>
+  </data>
+  <data name="SlideGrid.IdleHint25" xml:space="preserve">
+    <value>Glädjens frukt är tacksamhet.</value>
+  </data>
+  <data name="SlideGrid.IdleHint26" xml:space="preserve">
+    <value>Tillbedjan är inte en del av livet – det är livet.</value>
+  </data>
+  <data name="SlideGrid.IdleHint27" xml:space="preserve">
+    <value>Elden i lovsången tänds i bönens stillhet.</value>
+  </data>
+  <data name="SlideGrid.IdleHint28" xml:space="preserve">
+    <value>Herren, det är Anden, och där Herrens ande är, där är frihet.</value>
+  </data>
+  <data name="SlideGrid.IdleHint28.Source" xml:space="preserve">
+    <value>2 Kor 3:17</value>
+  </data>
+  <data name="SlideGrid.IdleHint29" xml:space="preserve">
+    <value>Frid lämnar jag kvar åt er, min frid ger jag er.</value>
+  </data>
+  <data name="SlideGrid.IdleHint29.Source" xml:space="preserve">
+    <value>Joh 14:27</value>
+  </data>
+  <data name="SlideGrid.IdleHint30" xml:space="preserve">
+    <value>En sång kan förändra ett ögonblick, en lovsång kan förändra en evighet.</value>
+  </data>
+  <data name="SlideGrid.IdleHint31" xml:space="preserve">
+    <value>Varje gudstjänst är en ny början.</value>
+  </data>
+  <data name="SlideGrid.IdleHint32" xml:space="preserve">
+    <value>Det finns en melodi i varje morgon.</value>
+  </data>
+  <data name="SlideGrid.IdleHint33" xml:space="preserve">
+    <value>Varje dag är en gåva att tacka för.</value>
+  </data>
+  <data name="SlideGrid.IdleHint34" xml:space="preserve">
+    <value>Herrens nåd tar inte slut, hans barmhärtighet upphör aldrig. Varje morgon är den ny.</value>
+  </data>
+  <data name="SlideGrid.IdleHint34.Source" xml:space="preserve">
+    <value>Klag 3:22–23</value>
+  </data>
+  <data name="SlideGrid.IdleHint35" xml:space="preserve">
+    <value>Ljuset lyser i mörkret, och mörkret har inte övervunnit det.</value>
+  </data>
+  <data name="SlideGrid.IdleHint35.Source" xml:space="preserve">
+    <value>Joh 1:5</value>
+  </data>
+  <data name="SlideGrid.IdleHint36" xml:space="preserve">
+    <value>Jag ser upp emot bergen: varifrån skall jag få hjälp?</value>
+  </data>
+  <data name="SlideGrid.IdleHint36.Source" xml:space="preserve">
+    <value>Psalm 121:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint37" xml:space="preserve">
+    <value>Han för mig i vall på gröna ängar, han låter mig vila vid lugna vatten.</value>
+  </data>
+  <data name="SlideGrid.IdleHint37.Source" xml:space="preserve">
+    <value>Psalm 23:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint38" xml:space="preserve">
+    <value>De som litar till Herren får ny kraft, de får vingar som örnar.</value>
+  </data>
+  <data name="SlideGrid.IdleHint38.Source" xml:space="preserve">
+    <value>Jes 40:31</value>
+  </data>
+  <data name="SlideGrid.IdleHint39" xml:space="preserve">
+    <value>Guds nåd är alltid större.</value>
+  </data>
+  <data name="SlideGrid.IdleHint40" xml:space="preserve">
+    <value>Även Jesus tog en paus ibland.</value>
+  </data>
+  <data name="Event.Date" xml:space="preserve">
+    <value>Datum</value>
+  </data>
+  <data name="Event.Time" xml:space="preserve">
+    <value>Tid</value>
+  </data>
 </root>
