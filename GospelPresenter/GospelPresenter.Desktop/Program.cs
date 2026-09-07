@@ -67,7 +67,9 @@ var databasePath = Path.Combine(DesktopPaths.DataDirectory, "gospelpresenter.db"
 // through a signal object rather than being handed to the interceptor directly.
 var localWrites = new LocalWriteSignal();
 var contextOptions = new DbContextOptionsBuilder<ClientDataContext>()
-    .UseSqlite($"Data Source={databasePath};Cache=Shared")
+    // Default Timeout is SQLite's busy timeout: a writer that finds the file locked waits this long
+    // for the lock to clear instead of failing on the spot. WAL is set by the initializer.
+    .UseSqlite($"Data Source={databasePath};Cache=Shared;Default Timeout=5")
     .AddInterceptors(new LocalWriteInterceptor(localWrites))
     .Options;
 var contextFactory = new ClientDataContextFactory(contextOptions);
@@ -164,7 +166,14 @@ if (apiBaseUrl.Length > 0)
         typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion ?? "0.0"));
     builder.Services.AddHttpClient(ClientSyncService.HttpClientName,
-            client => client.BaseAddress = new Uri(apiBaseUrl))
+            client =>
+            {
+                client.BaseAddress = new Uri(apiBaseUrl);
+                // The default 100 s covers a pull page or a push; it does not cover a Bible
+                // download or a 50 MB slides upload over a slow link, which ended as a timeout
+                // exception mid-sync. Long, but finite: a hung server must still be noticed.
+                client.Timeout = TimeSpan.FromMinutes(5);
+            })
         .AddHttpMessageHandler<DeviceTokenHandler>()
         // The Bible download endpoint gzips its megabytes of JSON when asked.
         .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler

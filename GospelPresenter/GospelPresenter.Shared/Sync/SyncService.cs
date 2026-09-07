@@ -8,6 +8,7 @@ using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Logging;
 
 namespace GospelPresenter.Shared.Sync;
 
@@ -33,9 +34,22 @@ public class SyncService(
     // Everything else this class writes is announced by that interceptor.
     IOrganizationChangeNotifier? changeNotifier = null,
     // The pull's clock. Injectable so a test can move it between pages; production uses the system's.
-    TimeProvider? timeProvider = null) : ISyncService
+    TimeProvider? timeProvider = null,
+    ILogger<SyncService>? logger = null) : ISyncService
 {
     private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
+
+    /// <summary>
+    /// A client's timestamp, but never from the future. Conflict detection moved to Version for the
+    /// reasons ISyncTracked spells out; resolution still asks which side wrote last, and a device
+    /// whose clock runs an hour fast would win every merge. Clamping to the server's now bounds the
+    /// damage to "a fast clock is treated as writing right now", which is the truth of the push.
+    /// </summary>
+    private DateTimeOffset ClampToNow(DateTimeOffset clientStamp)
+    {
+        var now = clock.GetUtcNow();
+        return clientStamp > now ? now : clientStamp;
+    }
 
     /// <summary>Enums as names, matching how Theme.Definition is stored in its column.</summary>
     private static readonly JsonSerializerOptions ThemeJsonOptions = new()
@@ -354,6 +368,12 @@ public class SyncService(
         var results = new List<SyncPushResult>();
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
+        // Blobs whose rows a unit removed. Deleted after the whole batch has been answered: inside a
+        // unit an object-storage hiccup was an exception the guard did not catch, which failed the
+        // batch with a 500 after some units had committed — and the client's retry then pushed those
+        // with a stale base and hit the conflict path for each of them.
+        var orphanedBlobPrefixes = new List<string>();
+
         // Labels a pushed row referenced by an id the server had to remap (same text, different id).
         var labelRemap = new Dictionary<string, string>();
         var validLabelIds = (await db.SongPartLabels
@@ -401,7 +421,7 @@ public class SyncService(
         foreach (var push in request.Presentations)
         {
             results.Add(await GuardAsync(db, nameof(Presentation), push.Presentation.Id, () =>
-                ProcessPresentationPushAsync(db, organizationId, push, caller, cancellationToken)));
+                ProcessPresentationPushAsync(db, organizationId, push, caller, orphanedBlobPrefixes, cancellationToken)));
         }
 
         foreach (var push in request.OrganizationSettings)
@@ -424,17 +444,35 @@ public class SyncService(
 
         foreach (var delete in request.Deletes)
         {
+            // Deletes delegate to the domain services, which open contexts and transactions of their
+            // own; a transaction held open on this context would nest inside theirs on a shared
+            // connection and hold locks against them on separate ones.
             var result = await GuardAsync(db, delete.EntityType, delete.Id, () =>
-                ProcessDeleteAsync(db, organizationId, delete, caller, cancellationToken));
+                ProcessDeleteAsync(db, organizationId, delete, caller, cancellationToken), transactional: false);
             results.Add(result);
             if (delete.EntityType is nameof(DbSong) or nameof(DbSongPartLabel) && result.Outcome == SyncPushOutcome.Applied)
                 songsChanged = true;
         }
 
         // The web UI reads songs from SongService's in-memory cache; a push that changed songs or
-        // labels must refresh it, or the server's own screens would show stale data.
+        // labels must refresh it, or the server's own screens would show stale data. This
+        // organisation's slice only: nothing else changed.
         if (songsChanged)
-            await songService.LoadSongsAsync();
+            await songService.LoadSongsAsync(organizationId);
+
+        foreach (var prefix in orphanedBlobPrefixes)
+        {
+            try
+            {
+                await storage.DeleteByPrefixAsync(prefix, cancellationToken);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // The rows are gone and that is what the client needed; the bytes are waste, not a
+                // broken reference, and a later purge or a person can collect them.
+                logger?.LogWarning(e, "Could not delete orphaned media under {Prefix} after a sync push", prefix);
+            }
+        }
 
         return new SyncPushResponse(results);
     }
@@ -452,22 +490,34 @@ public class SyncService(
     }
 
     /// <summary>
-    /// Runs one push unit, turning validation and permission failures into a Failed result instead
-    /// of failing the whole batch, and leaving the shared change tracker clean for the next unit.
+    /// Runs one push unit as its own unit of work: a transaction that commits when the unit returns
+    /// and rolls back when it throws, so a unit that saved twice and failed between the saves leaves
+    /// nothing behind. Any failure but a cancellation becomes a Failed result for that unit alone —
+    /// the batch carries on, and the client learns which unit to retry. The shared change tracker is
+    /// left clean for the next unit either way.
     /// </summary>
     private static async Task<SyncPushResult> GuardAsync(
-        PresentationContext db, string entityType, string id, Func<Task<SyncPushResult>> action)
+        PresentationContext db, string entityType, string id, Func<Task<SyncPushResult>> action,
+        bool transactional = true)
     {
+        var transaction = transactional ? await db.Database.BeginTransactionAsync() : null;
         try
         {
-            return await action();
+            var result = await action();
+            if (transaction is not null)
+                await transaction.CommitAsync();
+            return result;
         }
-        catch (Exception e) when (e is InvalidOperationException or UnauthorizedAccessException or DbUpdateException)
+        catch (Exception e) when (e is not OperationCanceledException)
         {
+            if (transaction is not null)
+                await transaction.RollbackAsync();
             return new SyncPushResult(entityType, id, SyncPushOutcome.Failed, Warning: e.Message);
         }
         finally
         {
+            if (transaction is not null)
+                await transaction.DisposeAsync();
             db.ChangeTracker.Clear();
         }
     }
@@ -498,7 +548,7 @@ public class SyncService(
                 return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.Remapped, NewId: sameText.Id);
             }
 
-            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(DbSongPartLabel), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, organizationId, nameof(DbSongPartLabel), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(DbSongPartLabel), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             var label = new DbSongPartLabel
@@ -541,7 +591,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(DbSong), dto.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, organizationId, nameof(DbSong), dto.Id, cancellationToken))
                 return new SyncPushResult(nameof(DbSong), dto.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -640,7 +690,7 @@ public class SyncService(
 
     private async Task<SyncPushResult> ProcessPresentationPushAsync(
         PresentationContext db, string organizationId, SyncPresentationPush push, CallerContext caller,
-        CancellationToken cancellationToken)
+        List<string> orphanedBlobPrefixes, CancellationToken cancellationToken)
     {
         var dto = push.Presentation;
         caller.RequirePermission(dto.IsTemplate ? Permission.ManageTemplates : Permission.ManagePresentations);
@@ -782,7 +832,7 @@ public class SyncService(
         await db.SaveChangesAsync(cancellationToken);
 
         foreach (var slidesId in removedSlidesIds)
-            await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, slidesId), cancellationToken);
+            orphanedBlobPrefixes.Add(ImageUrlHelper.SlidesPrefix(organizationId, slidesId));
 
         return new SyncPushResult(nameof(Presentation), dto.Id, SyncPushOutcome.Applied,
             Warning: JoinWarnings(warnings), NewVersion: existing.Version);
@@ -827,7 +877,7 @@ public class SyncService(
         string? themeId, CallerContext caller, List<string> warnings, CancellationToken cancellationToken)
     {
         var dto = push.Presentation;
-        var clientIsNewer = dto.ModifiedAt > existing.ModifiedAt;
+        var clientIsNewer = ClampToNow(dto.ModifiedAt) > existing.ModifiedAt;
 
         if (clientIsNewer)
         {
@@ -844,12 +894,18 @@ public class SyncService(
             existing.UpdatedBy = caller.UserId;
         }
 
+        // One query for every id the push carries, instead of one full scan per row: a conflicted
+        // presentation of a hundred items with fifty parts each was five thousand round trips.
+        var tombstoned = await LoadTombstonedAsync(db, organizationId,
+            push.Items.Select(i => i.Id).Concat(push.Parts.Select(p => p.Id)).Concat(push.SlideDecks.Select(s => s.Id)),
+            cancellationToken);
+
         foreach (var itemDto in push.Items)
         {
             var item = existing.Items.FirstOrDefault(i => i.Id == itemDto.Id);
             if (item is null)
             {
-                if (await HasTombstoneAsync(db, nameof(PresentationItem), itemDto.Id, cancellationToken))
+                if (tombstoned.Contains((nameof(PresentationItem), itemDto.Id)))
                     continue;
 
                 // Added to the tracked collection only. Adding to the DbSet as well would leave the
@@ -858,7 +914,7 @@ public class SyncService(
                 item = new PresentationItem { Id = itemDto.Id, PresentationId = existing.Id };
                 existing.Items.Add(item);
             }
-            else if (itemDto.ModifiedAt <= item.ModifiedAt)
+            else if (ClampToNow(itemDto.ModifiedAt) <= item.ModifiedAt)
             {
                 continue;
             }
@@ -876,7 +932,7 @@ public class SyncService(
             var part = allExistingParts.FirstOrDefault(p => p.Id == partDto.Id);
             if (part is null)
             {
-                if (await HasTombstoneAsync(db, nameof(PresentationItemPart), partDto.Id, cancellationToken))
+                if (tombstoned.Contains((nameof(PresentationItemPart), partDto.Id)))
                     continue;
 
                 // Its item may itself have been dropped as tombstoned just above.
@@ -886,7 +942,7 @@ public class SyncService(
                 part = new PresentationItemPart { Id = partDto.Id, PresentationItemId = partDto.PresentationItemId };
                 existing.Items.Single(i => i.Id == partDto.PresentationItemId).Parts.Add(part);
             }
-            else if (partDto.ModifiedAt <= part.ModifiedAt)
+            else if (ClampToNow(partDto.ModifiedAt) <= part.ModifiedAt)
             {
                 continue;
             }
@@ -901,7 +957,7 @@ public class SyncService(
             var slides = existing.SlideDecks.FirstOrDefault(s => s.Id == slidesDto.Id);
             if (slides is null)
             {
-                if (await HasTombstoneAsync(db, nameof(PresentationSlides), slidesDto.Id, cancellationToken))
+                if (tombstoned.Contains((nameof(PresentationSlides), slidesDto.Id)))
                     continue;
 
                 slides = new PresentationSlides
@@ -910,7 +966,7 @@ public class SyncService(
                 };
                 existing.SlideDecks.Add(slides);
             }
-            else if (slidesDto.ModifiedAt <= slides.ModifiedAt)
+            else if (ClampToNow(slidesDto.ModifiedAt) <= slides.ModifiedAt)
             {
                 continue;
             }
@@ -1048,7 +1104,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(OrganizationImage), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, organizationId, nameof(OrganizationImage), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(OrganizationImage), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -1091,7 +1147,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(OrganizationAudio), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, organizationId, nameof(OrganizationAudio), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(OrganizationAudio), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -1135,7 +1191,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(OverlaySlide), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, organizationId, nameof(OverlaySlide), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(OverlaySlide), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -1269,7 +1325,7 @@ public class SyncService(
 
         if (existing is null)
         {
-            if (push.BaseVersion is not null && await HasTombstoneAsync(db, nameof(RemoteDisplay), row.Id, cancellationToken))
+            if (push.BaseVersion is not null && await HasTombstoneAsync(db, organizationId, nameof(RemoteDisplay), row.Id, cancellationToken))
                 return new SyncPushResult(nameof(RemoteDisplay), row.Id, SyncPushOutcome.ServerWins, Warning: "Deleted on the server.");
 
             await ValidationHelper.RequireMaxCountAsync(
@@ -1602,11 +1658,38 @@ public class SyncService(
             PartsJson = JsonSerializer.Serialize(snapshot),
             CreatedAt = DateTime.UtcNow,
         });
+
+        // The same cap SongService applies to its own snapshots. A device stuck retrying a losing
+        // push would otherwise grow the song's history without end.
+        var surplus = await db.SongVersions
+            .Where(v => v.SongId == songId)
+            .OrderByDescending(v => v.CreatedAt)
+            .Skip(AppConstraints.MaxSongVersionsPerSong - 1)
+            .ToListAsync(cancellationToken);
+        if (surplus.Count > 0)
+            db.SongVersions.RemoveRange(surplus);
+
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    private static Task<bool> HasTombstoneAsync(PresentationContext db, string entityType, string entityId, CancellationToken cancellationToken) =>
-        db.SyncTombstones.AnyAsync(t => t.EntityType == entityType && t.EntityId == entityId, cancellationToken);
+    /// <summary>
+    /// Scoped to the organisation: ids are client-minted strings, and a tombstone another tenant
+    /// happens to hold under the same id must not veto this one's row.
+    /// </summary>
+    private static Task<bool> HasTombstoneAsync(PresentationContext db, string organizationId, string entityType, string entityId, CancellationToken cancellationToken) =>
+        db.SyncTombstones.AnyAsync(t => t.OrganizationId == organizationId && t.EntityType == entityType && t.EntityId == entityId, cancellationToken);
+
+    private static async Task<HashSet<(string EntityType, string EntityId)>> LoadTombstonedAsync(
+        PresentationContext db, string organizationId, IEnumerable<string> entityIds, CancellationToken cancellationToken)
+    {
+        var ids = entityIds.Distinct().ToList();
+        if (ids.Count == 0) return [];
+        var rows = await db.SyncTombstones
+            .Where(t => t.OrganizationId == organizationId && ids.Contains(t.EntityId))
+            .Select(t => new { t.EntityType, t.EntityId })
+            .ToListAsync(cancellationToken);
+        return rows.Select(r => (r.EntityType, r.EntityId)).ToHashSet();
+    }
 
     private static string? JoinWarnings(List<string> warnings) =>
         warnings.Count == 0 ? null : string.Join(" ", warnings);

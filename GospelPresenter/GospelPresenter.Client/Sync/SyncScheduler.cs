@@ -315,13 +315,13 @@ public class SyncScheduler(
             // waiting for blobs would leave them stale for as long as the downloads take. Missing
             // images resolve themselves — LocalObjectStorageService fetches on demand.
             if (summary.PulledRows > 0)
-                RemoteChangesApplied?.Invoke();
+                RaiseSafely(RemoteChangesApplied, nameof(RemoteChangesApplied));
 
             if (mediaSynchronizer is not null)
                 await mediaSynchronizer.SyncAsync(ct);
             LastSyncAt = DateTimeOffset.UtcNow;
             foreach (var conflict in summary.Conflicts)
-                ConflictReported?.Invoke(conflict);
+                RaiseSafely(ConflictReported, conflict, nameof(ConflictReported));
             SetStatus(SyncStatus.Idle);
         }
         catch (SyncAuthorizationException)
@@ -422,7 +422,43 @@ public class SyncScheduler(
         RaiseChanged();
     }
 
-    private void RaiseChanged() => Changed?.Invoke();
+    // A subscriber is a Blazor component, and a component whose renderer is gone throws from
+    // InvokeAsync. Raised from inside SyncAsync outside its own try, such a throw escaped the loop
+    // and silently ended syncing for the rest of the session. Each raise is isolated, the way
+    // OrganizationChangeNotifier.Deliver isolates its subscribers.
+    private void RaiseChanged() => RaiseSafely(Changed, "Changed");
+
+    private void RaiseSafely(Action? handler, string name)
+    {
+        if (handler is null) return;
+        foreach (var subscriber in handler.GetInvocationList().Cast<Action>())
+        {
+            try
+            {
+                subscriber();
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "A {Event} subscriber threw; the sync loop carries on", name);
+            }
+        }
+    }
+
+    private void RaiseSafely<T>(Action<T>? handler, T argument, string name)
+    {
+        if (handler is null) return;
+        foreach (var subscriber in handler.GetInvocationList().Cast<Action<T>>())
+        {
+            try
+            {
+                subscriber(argument);
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "A {Event} subscriber threw; the sync loop carries on", name);
+            }
+        }
+    }
 
     private bool disposed;
 
@@ -444,7 +480,9 @@ public class SyncScheduler(
         if (localWrites is not null)
             localWrites.Written -= OnLocalWrite;
         writeSignalTimer?.Dispose();
+        // Cancelled, not disposed: the write-signal and announcement timers read loopCts.Token
+        // from their callbacks, and one that fires after this ran found a disposed source. A
+        // cancelled source is safe to read from forever and costs nothing to keep.
         loopCts?.Cancel();
-        loopCts?.Dispose();
     }
 }

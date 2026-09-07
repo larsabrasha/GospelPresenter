@@ -326,6 +326,7 @@ try
         .WithToolsFromAssembly();
 
     builder.Services.AddHealthChecks()
+        .AddCheck<GospelPresenter.Web.Health.DatabaseHealthCheck>("database", tags: [GospelPresenter.Web.Health.DatabaseHealthCheck.ReadyTag])
         .ForwardToPrometheus();
 
     builder.Services.UseHttpClientMetrics();
@@ -992,7 +993,12 @@ builder.Services.AddMetricServer(options =>
 
     app.MapMcp("/mcp");
 
-    app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+    // Ready: the database answers. Live: the process answers — no checks, by design, so a database
+    // outage does not make the orchestrator restart a web container that is otherwise fine.
+    app.MapHealthChecks("/health/ready", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains(GospelPresenter.Web.Health.DatabaseHealthCheck.ReadyTag)
+    }).AllowAnonymous();
     app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
 
     // Capture metrics about all received HTTP requests.

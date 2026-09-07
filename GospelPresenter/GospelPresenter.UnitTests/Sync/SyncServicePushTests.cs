@@ -1,3 +1,4 @@
+using GospelPresenter.Shared;
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
@@ -419,6 +420,67 @@ public class SyncServicePushTests : IDisposable
     }
 
     // --- Helpers ---
+
+    /// <summary>
+    /// Ids are client-minted strings, so two organisations can hold the same one. Another tenant's
+    /// tombstone under a colliding id used to veto this tenant's row on the merge path.
+    /// </summary>
+    [Fact]
+    public async Task Push_AnotherOrganizationsTombstoneWithTheSameId_DoesNotBlockTheRow()
+    {
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.Organizations.Add(new Organization { Id = "other-org", Name = "Other" });
+            var mine = new Presentation { Id = "pres-1", Name = "Mine", OrganizationId = org.Id, CreatedBy = "user-1", UpdatedBy = "user-1" };
+            mine.Items.Add(new PresentationItem { Id = "item-1", Type = PresentationItemType.Song, Title = "Sång", SortOrder = 0 });
+            seed.Presentations.Add(mine);
+            seed.AddTombstones(nameof(PresentationItemPart), ["part-1"], "other-org");
+            await seed.SaveChangesAsync();
+        }
+
+        // A stale base, so the merge path (which consults tombstones) runs.
+        var response = await service.PushAsync(org.Id, new SyncPushRequest
+        {
+            Presentations =
+            [
+                new SyncPresentationPush(
+                    NewPresentationDto("pres-1", "Mine"),
+                    [new SyncPresentationItemDto("item-1", null, PresentationItemType.Song, "Sång", null, 0, "pres-1", DateTimeOffset.UtcNow)],
+                    [new SyncPresentationItemPartDto("part-1", "Vers", 0, "item-1", DateTimeOffset.UtcNow)],
+                    [],
+                    BaseVersion: StaleVersion)
+            ]
+        }, caller);
+
+        response.Results.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Merged);
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.PresentationItemParts.AnyAsync(p => p.Id == "part-1")).ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// A losing song push is kept as a version. A device stuck retrying one grew the history without
+    /// end; the cap is the same one SongService applies to its own snapshots.
+    /// </summary>
+    [Fact]
+    public async Task Push_ALosingSongPushedRepeatedly_KeepsAtMostTheVersionCap()
+    {
+        await SeedSongAsync();
+
+        for (var i = 0; i < AppConstraints.MaxSongVersionsPerSong + 5; i++)
+        {
+            await service.PushAsync(org.Id, new SyncPushRequest
+            {
+                Songs =
+                [
+                    new SyncSongPush(NewSongDto("song-1", $"Försök {i}"),
+                        [new SyncSongPartDto("part-1", null, "Text", 0, "song-1", default)], [], BaseVersion: StaleVersion)
+                ]
+            }, caller);
+        }
+
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.SongVersions.CountAsync(v => v.SongId == "song-1")).ShouldBeLessThanOrEqualTo(AppConstraints.MaxSongVersionsPerSong);
+    }
 
     /// <summary>
     /// The clean apply path wrote a part under whatever item id the client named, and the only

@@ -46,7 +46,16 @@ public static class TextUtils
 
     public static string RemoveDiacritics(string text)
     {
-        var normalized = text.Normalize(NormalizationForm.FormD);
+        string normalized;
+        try
+        {
+            normalized = text.Normalize(NormalizationForm.FormD);
+        }
+        catch (ArgumentException)
+        {
+            // Invalid surrogate pairs cannot be decomposed; the text keeps its marks.
+            return text;
+        }
         var sb = new StringBuilder(normalized.Length);
         foreach (var c in normalized)
         {

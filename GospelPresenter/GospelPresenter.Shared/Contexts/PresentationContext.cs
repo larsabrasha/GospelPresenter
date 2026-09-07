@@ -450,6 +450,9 @@ public class PresentationContext : DbContext
         {
             e.Property(t => t.EntityType).HasMaxLength(64);
             e.HasIndex(t => new { t.OrganizationId, t.DeletedAt });
+            // The push asks "is this id tombstoned?" once per pushed row on the conflict path; with
+            // 90 days of retention and no index that was a full scan each time.
+            e.HasIndex(t => new { t.OrganizationId, t.EntityType, t.EntityId });
             e.HasIndex(t => new { t.UserId, t.DeletedAt });
         });
 

@@ -40,6 +40,10 @@ public class SongPartLabelService(
         if (string.IsNullOrWhiteSpace(text))
             throw new ArgumentException("Label text cannot be empty.");
 
+        // What is checked for uniqueness is what is stored: trimmed and composed. Checking the raw
+        // text let " Vers" past the check and into the unique index, which answered 500.
+        text = Utils.TextUtils.NormalizeUnicode(text.Trim());
+
         await using var context = await dbContextFactory.CreateDbContextAsync();
 
         await ValidationHelper.RequireMaxCountAsync(
@@ -57,7 +61,7 @@ public class SongPartLabelService(
 
         var label = new DbSongPartLabel
         {
-            Text = text.Trim(),
+            Text = text,
             Color = color,
             SortOrder = maxOrder + 1,
             OrganizationId = organizationId
@@ -79,6 +83,8 @@ public class SongPartLabelService(
         if (string.IsNullOrWhiteSpace(text))
             throw new ArgumentException("Label text cannot be empty.");
 
+        text = Utils.TextUtils.NormalizeUnicode(text.Trim());
+
         await using var context = await dbContextFactory.CreateDbContextAsync();
 
         var label = await context.SongPartLabels
@@ -94,7 +100,7 @@ public class SongPartLabelService(
                 throw new InvalidOperationException($"A label with text \"{text}\" already exists.");
         }
 
-        label.Text = text.Trim();
+        label.Text = text;
         label.Color = color;
         await context.SaveChangesAsync();
     }

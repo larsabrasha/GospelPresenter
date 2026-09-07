@@ -304,7 +304,8 @@ public class LiveSlideBuilderTests
         public IReadOnlyList<Song> SearchByOrganization(string query, string organizationId, CallerContext caller) =>
             throw new NotSupportedException();
 
-        public Task LoadSongsAsync() => throw new NotSupportedException();
+        public Task LoadSongsAsync(string? organizationId = null) => throw new NotSupportedException();
+        public Task PurgeExpiredSongsAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
         public Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId, CallerContext caller) =>
             throw new NotSupportedException();

@@ -46,6 +46,44 @@ public class SongSearchTests
 
     private static readonly Song[] AllSongs = [Majestat, HogstAvAllt, DetArSaligt, ViVillSeGud];
 
+    /// <summary>
+    /// A title carrying a lone surrogate — imports produce them — made string.Normalize throw inside
+    /// the index rebuild, which runs on every song mutation for the organisation. One bad title took
+    /// the whole library's editing with it.
+    /// </summary>
+    [Fact]
+    public void RebuildIndex_WithALoneSurrogateInATitle_StillIndexesAndSearches()
+    {
+        var broken = MakeSong("Lovs\ud83dng", null, "Text");
+        var service = CreateService(Majestat, broken);
+
+        var result = service.SearchByOrganization("majest", TestOrgId, TestCaller);
+
+        result.Select(s => s.Name).ShouldBe(["Majestät"]);
+        service.GetSongsByOrganization(TestOrgId, TestCaller).Count.ShouldBe(2);
+    }
+
+    /// <summary>
+    /// The cache is shared by every circuit, so its order cannot depend on whichever culture the
+    /// thread that last rebuilt it happened to carry. Swedish rules: Å, Ä and Ö after Z.
+    /// </summary>
+    [Fact]
+    public void GetSongsByOrganization_OrdersBySwedishRulesWhateverTheThreadsCulture()
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("en-US");
+        try
+        {
+            var service = CreateService(MakeSong("Zebra", null, "z"), MakeSong("Ängen", null, "ä"), MakeSong("Abba", null, "a"));
+
+            service.GetSongsByOrganization(TestOrgId, TestCaller).Select(s => s.Name).ShouldBe(["Abba", "Zebra", "Ängen"]);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
     [Fact]
     public void SearchByOrganization_EmptyQuery_ReturnsAllSongs()
     {

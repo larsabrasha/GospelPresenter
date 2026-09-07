@@ -142,6 +142,35 @@ public class PresentationServiceTests : IDisposable
         stored.ThemeId.ShouldBeNull();
     }
 
+    /// <summary>
+    /// A reorder that names only some of the items left the rest at their old numbers, colliding
+    /// with the new ones, and a read ordered by SortOrder alone could show them either way round —
+    /// differently on the server and on a synced device. Every item gets a distinct number: the
+    /// named ones first in the order given, the rest after in their previous order.
+    /// </summary>
+    [Fact]
+    public async Task ReorderItemsAsync_WithAPartialList_GivesEveryItemADistinctOrder()
+    {
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.PresentationItems.AddRange(
+                new PresentationItem { Id = "item-a2", Title = "Second", PresentationId = PresentationAId, SortOrder = 1 },
+                new PresentationItem { Id = "item-a3", Title = "Third", PresentationId = PresentationAId, SortOrder = 2 });
+            await seed.SaveChangesAsync();
+        }
+
+        await service.ReorderItemsAsync(orgA.Id, PresentationAId, ["item-a3"], callerA);
+
+        await using var context = await factory.CreateDbContextAsync();
+        var items = await context.PresentationItems
+            .Where(i => i.PresentationId == PresentationAId)
+            .OrderBy(i => i.SortOrder)
+            .Select(i => new { i.Id, i.SortOrder })
+            .ToListAsync();
+        items.Select(i => i.SortOrder).ShouldBe([0, 1, 2]);
+        items.Select(i => i.Id).ShouldBe(["item-a3", ItemAId, "item-a2"]);
+    }
+
     private async Task SeedBuiltInThemesAsync()
     {
         await using var context = await factory.CreateDbContextAsync();
