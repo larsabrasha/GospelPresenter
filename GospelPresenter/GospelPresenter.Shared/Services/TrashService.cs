@@ -158,7 +158,8 @@ public class TrashService(
         await TryPurgeAsync(Permission.ManageOrganizationAudios, nameof(TrashKind.Audio),
             () => audios.PurgeExpiredAudiosAsync(organizationId, caller, cancellationToken));
 
-        // Songs have no lazy purge of their own: SongService sweeps them when it loads its cache.
+        await TryPurgeAsync(Permission.ManageSongs, nameof(TrashKind.Song),
+            () => songs.PurgeExpiredSongsAsync(organizationId, caller, cancellationToken));
 
         async Task TryPurgeAsync(Permission permission, string kind, Func<Task> purge)
         {

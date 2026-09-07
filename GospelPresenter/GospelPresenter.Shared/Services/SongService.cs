@@ -13,7 +13,13 @@ public interface ISongService
     IReadOnlyList<Song> GetSongsByOrganization(string organizationId, CallerContext caller);
     Song? GetSongById(string id, string organizationId, CallerContext caller);
     IReadOnlyList<Song> SearchByOrganization(string query, string organizationId, CallerContext caller);
-    Task LoadSongsAsync();
+    /// <summary>
+    /// Rebuilds the in-memory cache from the database: one organisation's slice when an id is given,
+    /// every organisation's at startup. Reads only — the trash sweep that used to ride along here
+    /// belongs to <see cref="PurgeExpiredSongsAsync"/>.
+    /// </summary>
+    Task LoadSongsAsync(string? organizationId = null);
+    Task PurgeExpiredSongsAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default);
     Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId, CallerContext caller);
     Task<ImportResult> ImportProPresenterFilesAsync(IEnumerable<(string FileName, byte[] Data)> files, string organizationId, CallerContext caller, bool replaceExisting = false);
     Task DeleteSongAsync(string id, string organizationId, CallerContext caller);
@@ -63,44 +69,73 @@ public class SongService(
         return snapshot.TryGetValue(organizationId, out var cache) ? cache.SongsSorted : [];
     }
 
-    public async Task LoadSongsAsync()
+    public async Task LoadSongsAsync(string? organizationId = null)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync();
 
-        // Auto-delete songs that have been in trash for more than 30 days
-        var cutoff = DateTime.UtcNow.AddDays(-30);
-        var expired = await db.Songs.Where(s => s.DeletedAt != null && s.DeletedAt < cutoff).ToListAsync();
-        if (expired.Count > 0)
-        {
-            db.Songs.RemoveRange(expired);
-            await db.SaveChangesAsync();
-        }
+        // A push that changed one organisation's songs used to reload every organisation's — the
+        // whole Songs table with parts and arrangements, on every push, from a request thread.
+        var query = db.Songs.Where(s => s.DeletedAt == null);
+        if (organizationId is not null)
+            query = query.Where(s => s.OrganizationId == organizationId);
 
-        var dbSongs = await db.Songs
-            .Where(s => s.DeletedAt == null)
+        var dbSongs = await query
             .Include(s => s.Parts.OrderBy(p => p.SortOrder))
                 .ThenInclude(p => p.Label)
             .Include(s => s.Arrangements)
-            .OrderBy(s => s.Name)
             .AsNoTracking()
             .ToListAsync();
 
-        var newCache = new Dictionary<string, OrgSongCache>();
+        var loaded = new Dictionary<string, OrgSongCache>();
         foreach (var dbSong in dbSongs)
         {
             var song = ToStateSong(dbSong);
-            if (!newCache.TryGetValue(song.OrganizationId, out var orgCache))
+            if (!loaded.TryGetValue(song.OrganizationId, out var orgCache))
             {
                 orgCache = new OrgSongCache();
-                newCache[song.OrganizationId] = orgCache;
+                loaded[song.OrganizationId] = orgCache;
             }
             orgCache.SongsById[song.Id] = song;
         }
 
-        foreach (var cache in newCache.Values)
+        foreach (var cache in loaded.Values)
             cache.RebuildIndex();
 
+        if (organizationId is null)
+        {
+            Interlocked.Exchange(ref cacheByOrg, loaded);
+            return;
+        }
+
+        // Replace one organisation's slice and leave the others as they are. An organisation whose
+        // last song was just removed gets an empty slice rather than a stale one.
+        var newCache = new Dictionary<string, OrgSongCache>(cacheByOrg)
+        {
+            [organizationId] = loaded.GetValueOrDefault(organizationId) ?? new OrgSongCache(),
+        };
         Interlocked.Exchange(ref cacheByOrg, newCache);
+    }
+
+    /// <summary>
+    /// Removes songs whose time in the trash has run out. Same shape as the image and audio purges,
+    /// and driven from the same place — the trash — rather than from a cache reload: a read must not
+    /// delete, and two concurrent reloads racing to delete the same rows threw out of a sync push.
+    /// A tracked delete, so the context writes the tombstones.
+    /// </summary>
+    public async Task PurgeExpiredSongsAsync(string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
+    {
+        caller.RequirePermission(Permission.ManageSongs);
+        caller.RequireOrganizationAccess(organizationId);
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        var cutoff = DateTime.UtcNow.AddDays(-AppConstraints.TrashRetentionDays);
+        var expired = await db.Songs
+            .Where(s => s.OrganizationId == organizationId && s.DeletedAt != null && s.DeletedAt < cutoff)
+            .ToListAsync(cancellationToken);
+        if (expired.Count == 0) return;
+
+        db.Songs.RemoveRange(expired);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<List<string>> FindDuplicateNamesAsync(IEnumerable<string> names, string organizationId, CallerContext caller)
@@ -736,8 +771,11 @@ public class SongService(
         caller.RequireOrganizationAccess(organizationId);
         ValidationHelper.RequireMaxLength(name, AppConstraints.SongArrangementNameMaxLength, "Name");
         await using var db = await dbContextFactory.CreateDbContextAsync();
+        // Labels included like every other path that snapshots a version: without them the
+        // snapshot records no label on any part, and restoring it strips every label silently.
         var song = await db.Songs
             .Include(s => s.Parts.OrderBy(p => p.SortOrder))
+                .ThenInclude(p => p.Label)
             .Include(s => s.Arrangements)
             .FirstOrDefaultAsync(s => s.Id == songId && s.OrganizationId == organizationId);
         if (song is null) return;
@@ -856,7 +894,7 @@ public class SongService(
         if (!snapshot.TryGetValue(organizationId, out var cache))
             return [];
 
-        var normalized = query.Normalize().ToLowerInvariant();
+        var normalized = TextUtils.NormalizeUnicode(query).ToLowerInvariant();
         var terms = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var strippedTerms = terms.Select(TextUtils.RemoveDiacritics).ToArray();
         var phrase = string.Join(" ", terms);
@@ -1077,17 +1115,28 @@ public class SongService(
 
         public OrgSongCache Clone() => new() { SongsById = new Dictionary<string, Song>(SongsById) };
 
+        // One fixed order for a cache every circuit reads. CurrentCulture here was whichever
+        // culture the thread that last touched the cache happened to carry — a Swedish user's
+        // edit sorted ÅÄÖ after Z for everyone, an English user's next edit interleaved them.
+        // Swedish rules until sorting is an organisation setting; they are what the songs are in.
+        private static readonly StringComparer NameOrder =
+            StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("sv-SE"), ignoreCase: true);
+
         public void RebuildIndex()
         {
             SongsSorted = SongsById.Values
-                .OrderBy(s => s.Name, StringComparer.CurrentCultureIgnoreCase)
+                .OrderBy(s => s.Name, NameOrder)
+                .ThenBy(s => s.Id, StringComparer.Ordinal)
                 .ToList();
 
+            // NormalizeUnicode, never string.Normalize: one title with a lone surrogate (imports
+            // produce them) would throw here, and this runs on every song mutation for the
+            // organisation — it would have taken the whole library's editing with it.
             SearchIndex = SongsSorted.Select(song =>
             {
-                var name = song.Name.Normalize().ToLowerInvariant();
-                var firstPart = song.Parts.Count > 0 ? song.Parts[0].Content.Normalize().ToLowerInvariant() : "";
-                var allText = string.Concat(song.Name, " ", song.Author, " ", string.Join(" ", song.Parts.Select(p => p.Content))).Normalize().ToLowerInvariant();
+                var name = TextUtils.NormalizeUnicode(song.Name).ToLowerInvariant();
+                var firstPart = song.Parts.Count > 0 ? TextUtils.NormalizeUnicode(song.Parts[0].Content).ToLowerInvariant() : "";
+                var allText = TextUtils.NormalizeUnicode(string.Concat(song.Name, " ", song.Author, " ", string.Join(" ", song.Parts.Select(p => p.Content)))).ToLowerInvariant();
                 return new SongSearchEntry(
                     song,
                     name, TextUtils.RemoveDiacritics(name),
@@ -1109,7 +1158,7 @@ public record ImportResult(int Imported, int Replaced, int Skipped, int Failed =
 
 public record TrashedSong(string Id, string Name, string? Author, DateTime DeletedAt)
 {
-    public int DaysRemaining => Math.Max(0, 30 - (int)(DateTime.UtcNow - DeletedAt).TotalDays);
+    public int DaysRemaining => Math.Max(0, AppConstraints.TrashRetentionDays - (int)(DateTime.UtcNow - DeletedAt).TotalDays);
 }
 
 public record SongVersionSummary(string Id, string Name, DateTime CreatedAt);

@@ -978,6 +978,8 @@ namespace GospelPresenter.Client.Migrations
 
                     b.HasIndex("UserId", "DeletedAt");
 
+                    b.HasIndex("OrganizationId", "EntityType", "EntityId");
+
                     b.ToTable("SyncTombstones");
                 });
 

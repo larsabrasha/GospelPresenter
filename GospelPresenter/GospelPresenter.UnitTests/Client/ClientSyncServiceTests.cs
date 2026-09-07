@@ -477,6 +477,32 @@ public class ClientSyncServiceTests : IAsyncLifetime, IDisposable
         (await verify.SyncJournal.AnyAsync()).ShouldBeTrue("nothing may be consumed on a failed push");
     }
 
+    /// <summary>
+    /// A Changed subscriber is a Blazor component, and one whose renderer is gone throws. Raised
+    /// from inside the sync run outside its own try, that throw escaped the loop and silently
+    /// ended syncing for the rest of the session. A throwing subscriber must cost nobody else.
+    /// </summary>
+    [Fact]
+    public async Task TheScheduler_SurvivesAThrowingSubscriber()
+    {
+        // Arrange
+        server.OnPull = _ => Pull(T1);
+        var connectivity = new FakeConnectivityMonitor { IsOnline = true };
+        using var scheduler = new SyncScheduler(engine, factory, connectivity, auth,
+            NullLogger<SyncScheduler>.Instance);
+        var statuses = new List<SyncStatus>();
+        scheduler.Changed += () => throw new InvalidOperationException("renderer is gone");
+        scheduler.Changed += () => statuses.Add(scheduler.Status);
+
+        // Act
+        await Should.NotThrowAsync(() => scheduler.SyncNowAsync());
+
+        // Assert -- the run completed and the well-behaved subscriber heard every status
+        scheduler.Status.ShouldBe(SyncStatus.Idle);
+        statuses.ShouldContain(SyncStatus.Syncing);
+        statuses.ShouldContain(SyncStatus.Idle);
+    }
+
     [Fact]
     public async Task TheScheduler_ReportsStatusAndConflicts()
     {

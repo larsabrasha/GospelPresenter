@@ -219,8 +219,8 @@ public class PresentationService(
 
         return await context.Presentations
             .NotDeleted()
-            .Include(x => x.Items.OrderBy(i => i.SortOrder))
-                .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder))
+            .Include(x => x.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
+                .ThenInclude(x => x.Parts.OrderBy(p => p.SortOrder).ThenBy(p => p.Id))
             .Where(x => x.Id == id && x.OrganizationId == organizationId && x.IsTemplate == isTemplate)
             .FirstOrDefaultAsync(cancellationToken);
     }
@@ -295,11 +295,14 @@ public class PresentationService(
 
         item.SortOrder = maxSortOrder + 1;
 
+        // Child write and root bump in one transaction: a bump that commits without its child moves
+        // every device's base version for nothing, and the next offline edit takes the merge path.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         context.PresentationItems.Add(item);
-
-        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
-
         await context.SaveChangesAsync(cancellationToken);
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        Announce(organizationId);
     }
 
     public async Task RenamePresentationAsync(string organizationId, string id, string name, CallerContext caller, CancellationToken cancellationToken = default)
@@ -317,7 +320,7 @@ public class PresentationService(
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
 
-        changeNotifier?.Notify(organizationId);
+        Announce(organizationId);
     }
 
     public async Task ReorderItemsAsync(string organizationId, string presentationId, List<string> itemIds, CallerContext caller, CancellationToken cancellationToken = default)
@@ -330,15 +333,37 @@ public class PresentationService(
             .Where(x => x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
             .ToListAsync(cancellationToken);
 
-        foreach (var item in items)
-        {
-            var newIndex = itemIds.IndexOf(item.Id);
-            if (newIndex >= 0)
-                item.SortOrder = newIndex;
-        }
+        ApplyOrder(items, itemIds, x => x.Id, (x, order) => x.SortOrder = order);
 
-        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        Announce(organizationId);
+    }
+
+    /// <summary>
+    /// Gives the rows the order the caller asked for, as a total order. A list that names only some
+    /// of the rows used to leave the rest at their old numbers, which then collided with the new
+    /// ones — and a read that orders by SortOrder alone was free to show the two in either order,
+    /// differently on the server and on a synced device. The unnamed rows follow the named ones in
+    /// their previous order, so every row has a distinct number.
+    /// </summary>
+    private static void ApplyOrder<T>(List<T> rows, List<string> orderedIds, Func<T, string> id, Action<T, int> setOrder)
+    {
+        var position = orderedIds
+            .Select((rowId, index) => (rowId, index))
+            .GroupBy(x => x.rowId)
+            .ToDictionary(g => g.Key, g => g.First().index);
+
+        var ordered = rows
+            .OrderBy(r => position.TryGetValue(id(r), out var p) ? p : int.MaxValue)
+            .ThenBy(r => position.ContainsKey(id(r)) ? 0 : 1)
+            .ThenBy(r => id(r), StringComparer.Ordinal)
+            .ToList();
+
+        for (var i = 0; i < ordered.Count; i++)
+            setOrder(ordered[i], i);
     }
 
     public async Task RenameItemAsync(string organizationId, string presentationId, string itemId, string title, CallerContext caller, CancellationToken cancellationToken = default)
@@ -348,6 +373,7 @@ public class PresentationService(
         ValidationHelper.RequireMaxLength(title, AppConstraints.NameMaxLength, "Title");
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await context.PresentationItems
             .Where(x => x.Id == itemId && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
@@ -355,6 +381,8 @@ public class PresentationService(
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
 
         await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        Announce(organizationId);
     }
 
     public async Task UpdateItemArrangementAsync(string organizationId, string presentationId, string itemId, string? arrangementId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -363,6 +391,7 @@ public class PresentationService(
         caller.RequireOrganizationAccess(organizationId);
         await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await context.PresentationItems
             .Where(x => x.Id == itemId && x.PresentationId == presentationId && x.Presentation.OrganizationId == organizationId)
             .ExecuteUpdateAsync(x => x
@@ -370,6 +399,8 @@ public class PresentationService(
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
 
         await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        Announce(organizationId);
     }
 
     public async Task AddItemPartsAsync(string organizationId, string presentationId, string itemId, List<PresentationItemPart> parts, CallerContext caller, CancellationToken cancellationToken = default)
@@ -403,9 +434,12 @@ public class PresentationService(
             part.SortOrder = ++maxSortOrder;
         }
 
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         context.PresentationItemParts.AddRange(parts);
-        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        Announce(organizationId);
     }
 
     public async Task RemoveItemPartAsync(string organizationId, string presentationId, string itemId, string partId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -420,9 +454,12 @@ public class PresentationService(
             .FirstOrDefaultAsync(cancellationToken);
         if (part is null) return;
 
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         context.PresentationItemParts.Remove(part);
-        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        Announce(organizationId);
     }
 
     public async Task ReorderItemPartsAsync(string organizationId, string presentationId, string itemId, List<string> partIds, CallerContext caller, CancellationToken cancellationToken = default)
@@ -435,15 +472,13 @@ public class PresentationService(
             .Where(x => x.PresentationItemId == itemId && x.PresentationItem.PresentationId == presentationId && x.PresentationItem.Presentation.OrganizationId == organizationId)
             .ToListAsync(cancellationToken);
 
-        foreach (var part in parts)
-        {
-            var newIndex = partIds.IndexOf(part.Id);
-            if (newIndex >= 0)
-                part.SortOrder = newIndex;
-        }
+        ApplyOrder(parts, partIds, x => x.Id, (x, order) => x.SortOrder = order);
 
-        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
+        await BumpPresentationAsync(context, presentationId, organizationId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        Announce(organizationId);
     }
 
     public async Task RemoveItemAsync(string organizationId, string presentationId, string itemId, CallerContext caller, CancellationToken cancellationToken = default)
@@ -480,6 +515,7 @@ public class PresentationService(
             await context.SaveChangesAsync(cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
+            Announce(organizationId);
 
             await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, item.SourceId!), cancellationToken);
         }
@@ -496,6 +532,7 @@ public class PresentationService(
             await context.SaveChangesAsync(cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
+            Announce(organizationId);
         }
     }
 
@@ -544,6 +581,8 @@ public class PresentationService(
         }
 
         await transaction.CommitAsync(cancellationToken);
+        if (existingItemIds.Count > 0)
+            Announce(organizationId);
 
         foreach (var slidesId in slidesIds)
             await storage.DeleteByPrefixAsync(ImageUrlHelper.SlidesPrefix(organizationId, slidesId), cancellationToken);
@@ -1145,7 +1184,12 @@ public class PresentationService(
 
         try
         {
-            context.Entry(existing).CurrentValues.SetValues(overlay);
+            // Field by field: SetValues would also copy OrganizationId, Version and ModifiedAt from
+            // whatever object the caller built, and ownership was verified on the row we loaded.
+            existing.Title = overlay.Title;
+            existing.Content = overlay.Content;
+            existing.HasImage = overlay.HasImage;
+            existing.SortOrder = overlay.SortOrder;
             await context.SaveChangesAsync(cancellationToken);
         }
         catch (Exception) when (uploadedKey is not null)
@@ -1183,11 +1227,11 @@ public class PresentationService(
     /// that push conflict detection compares against.
     /// </summary>
     /// <summary>
-    /// Moves the aggregate root's stamp when a child changed, and announces it. Every child
-    /// mutation in this service passes through here, which is why one announcement here covers them
-    /// all — and why a new child mutation that skips it is a bug in two ways at once.
+    /// Moves the aggregate root's stamp when a child changed. Every child mutation in this service
+    /// passes through here, inside its transaction, and calls <see cref="Announce"/> once that
+    /// transaction has committed — a new child mutation that skips either is a bug in two ways.
     /// </summary>
-    private async Task BumpPresentationAsync(PresentationContext context, string presentationId, string organizationId, CancellationToken cancellationToken)
+    private static async Task BumpPresentationAsync(PresentationContext context, string presentationId, string organizationId, CancellationToken cancellationToken)
     {
         await context.Presentations
             .NotDeleted()
@@ -1195,9 +1239,14 @@ public class PresentationService(
             .ExecuteUpdateAsync(x => x
                 .SetProperty(p => p.UpdatedAt, DateTimeOffset.UtcNow)
                 .SetProperty(p => p.ModifiedAt, DateTimeOffset.UtcNow), cancellationToken);
-
-        changeNotifier?.Notify(organizationId);
     }
+
+    /// <summary>
+    /// Announced after the commit, never before it. The bump is an ExecuteUpdate that runs the
+    /// moment it is called; announcing there, with the child row still unsaved, made devices pull
+    /// half a second later, find nothing new, and wait out the five-minute idle interval.
+    /// </summary>
+    private void Announce(string organizationId) => changeNotifier?.Notify(organizationId);
 
     private async Task<string?> UploadOverlayImageAsync(OverlaySlide overlay, string organizationId, CancellationToken cancellationToken)
     {
