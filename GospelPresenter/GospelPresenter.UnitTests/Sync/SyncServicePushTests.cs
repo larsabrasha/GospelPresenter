@@ -421,6 +421,51 @@ public class SyncServicePushTests : IDisposable
     // --- Helpers ---
 
     /// <summary>
+    /// The clean apply path wrote a part under whatever item id the client named, and the only
+    /// check was the foreign key — which any organisation's item would satisfy. A part that names
+    /// an item outside the push is dropped, as it already was for a new presentation.
+    /// </summary>
+    [Fact]
+    public async Task Push_APartNamingAnItemInAnotherOrganizationsPresentation_IsNotAttachedThere()
+    {
+        // Arrange -- the victim's presentation, and the attacker's own with a matching base
+        long version;
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            var victimOrg = new Organization { Id = "victim-org", Name = "Victim" };
+            seed.Organizations.Add(victimOrg);
+            var victim = new Presentation { Id = "victim-pres", Name = "Theirs", OrganizationId = victimOrg.Id, CreatedBy = "x", UpdatedBy = "x" };
+            victim.Items.Add(new PresentationItem { Id = "victim-item", Type = PresentationItemType.Song, Title = "Sång", SortOrder = 0 });
+            seed.Presentations.Add(victim);
+
+            var mine = new Presentation { Id = "my-pres", Name = "Mine", OrganizationId = org.Id, CreatedBy = "user-1", UpdatedBy = "user-1" };
+            seed.Presentations.Add(mine);
+            await seed.SaveChangesAsync();
+            version = mine.Version;
+        }
+
+        // Act -- a clean apply (matching base) carrying a part that points at the victim's item
+        var response = await service.PushAsync(org.Id, new SyncPushRequest
+        {
+            Presentations =
+            [
+                new SyncPresentationPush(
+                    NewPresentationDto("my-pres", "Mine"),
+                    [],
+                    [new SyncPresentationItemPartDto("planted", "Planted text", 0, "victim-item", default)],
+                    [],
+                    BaseVersion: version)
+            ]
+        }, caller);
+
+        // Assert
+        response.Results.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Applied);
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.PresentationItemParts.AnyAsync(p => p.Id == "planted")).ShouldBeFalse();
+        (await context.PresentationItemParts.CountAsync(p => p.PresentationItemId == "victim-item")).ShouldBe(0);
+    }
+
+    /// <summary>
     /// A Bible part's content is rendered as markup. The push is the one write path with no encoder in
     /// front of it, so it may only carry what BibleTextService itself writes — and a song part, which
     /// is rendered as text, may still say anything, angle brackets included.

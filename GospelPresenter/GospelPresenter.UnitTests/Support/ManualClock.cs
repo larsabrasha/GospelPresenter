@@ -1,4 +1,4 @@
-namespace GospelPresenter.IntegrationTests.Support;
+namespace GospelPresenter.UnitTests.Support;
 
 /// <summary>
 /// A clock the test moves by hand: the system clock plus an offset, so rows the test writes through

@@ -106,6 +106,10 @@ internal class MigrationService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Migration Service failed");
+            // A failed migration has to fail the container: compose starts the web app only after
+            // this one "completed successfully", and a zero exit code here would start it against a
+            // database one or more migrations behind the model — where every query fails instead.
+            Environment.ExitCode = 1;
         }
 
         hostLifetime.StopApplication();

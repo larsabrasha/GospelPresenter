@@ -271,6 +271,11 @@ public class PresentationContext : DbContext
             // No navigation property: the theme is resolved through IThemeService, which caches the
             // built-in definitions, rather than joined into every presentation query. Deleting an
             // organisation's theme drops its presentations back to the organisation default.
+            //
+            // Nothing deletes a theme today. Whatever does must not rely on this SET NULL: the
+            // cascade bumps each presentation's Version through the trigger without touching
+            // ModifiedAt, so no device is told and every device's base version goes stale. Detach
+            // explicitly with ModifiedAt stamped first — see SongPartLabelService.DeleteLabelAsync.
             e.HasOne<Theme>()
                 .WithMany()
                 .HasForeignKey(p => p.ThemeId)

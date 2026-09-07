@@ -642,6 +642,56 @@ public class SyncTrackingCallSiteTests : IDisposable
         tombstone.EntityId.ShouldBe("bible-1");
     }
 
+    // --- Paths that were missing from this file: the audit found each of them by hand ---
+
+    /// <summary>
+    /// The upload path bumps the presentation with an ExecuteUpdate and used to announce nothing,
+    /// so the slides reached other devices at the five-minute idle pull. The one service this file
+    /// did not construct — exactly the gap Dispose() exists to catch.
+    /// </summary>
+    [Fact]
+    public async Task AddSlidesAsync_BumpsThePresentationAndAnnounces()
+    {
+        var service = new PresentationSlidesService(factory, new NoOpObjectStorageService(), changes);
+
+        await service.AddSlidesAsync(org.Id, PresentationId, "deck.pdf", [new RenderedPage(0, [1, 2, 3])], caller);
+
+        (await GetPresentationModifiedAtAsync()).ShouldBeGreaterThan(Past);
+    }
+
+    /// <summary>
+    /// Deleting a label used to leave the detach of its song parts to ON DELETE SET NULL, which
+    /// moves each part's Version through the trigger and nothing else: invisible to every pull.
+    /// The parts and the songs above them must move in ModifiedAt.
+    /// </summary>
+    [Fact]
+    public async Task DeleteLabelAsync_StampsTheDetachedPartsAndTheirSongs()
+    {
+        // Arrange -- the seeded part carries the label
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.SongPartLabels.Add(new DbSongPartLabel { Id = "label-1", Text = "Vers", OrganizationId = org.Id });
+            await seed.SaveChangesAsync();
+            await seed.SongParts.Where(p => p.Id == SongPartId).ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.LabelId, "label-1")
+                .SetProperty(p => p.ModifiedAt, Past));
+            await seed.Songs.ExecuteUpdateAsync(s => s.SetProperty(x => x.ModifiedAt, Past));
+        }
+        changes.Clear();
+        var service = new SongPartLabelService(factory);
+
+        // Act
+        await service.DeleteLabelAsync(org.Id, "label-1", caller);
+
+        // Assert
+        await using var context = await factory.CreateDbContextAsync();
+        var part = await context.SongParts.SingleAsync(p => p.Id == SongPartId);
+        part.LabelId.ShouldBeNull();
+        part.ModifiedAt.ShouldBeGreaterThan(Past);
+        (await GetSongModifiedAtAsync()).ShouldBeGreaterThan(Past);
+        (await context.SyncTombstones.SingleAsync()).EntityType.ShouldBe(nameof(DbSongPartLabel));
+    }
+
     // --- Helpers ---
 
     private void BackdateAll(PresentationContext context)

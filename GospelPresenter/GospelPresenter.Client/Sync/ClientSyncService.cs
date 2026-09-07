@@ -223,7 +223,11 @@ public class ClientSyncService(
         await using var db = await contextFactory.CreateDbContextAsync(ct);
 
         var stored = await SyncSql.GetStateAsync(db, SyncStateEntry.WatermarkKey, ct);
-        DateTimeOffset? since = stored is null ? null : DateTimeOffset.Parse(stored, null, System.Globalization.DateTimeStyles.RoundtripKind);
+        // Written with "O"; read back invariantly, or a device whose culture defaults to another
+        // calendar reinterprets the year and the watermark lands decades off.
+        DateTimeOffset? since = stored is null
+            ? null
+            : DateTimeOffset.Parse(stored, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind);
 
         var batch = await FetchAllPagesAsync(since, ct);
         if (batch.RequiresFullResync)

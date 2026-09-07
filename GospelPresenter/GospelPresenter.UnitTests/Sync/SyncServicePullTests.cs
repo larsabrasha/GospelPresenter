@@ -2,6 +2,7 @@ using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.Sync;
+using GospelPresenter.UnitTests.Support;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
@@ -19,6 +20,8 @@ public class SyncServicePullTests : IDisposable
 
     private readonly SqliteConnection connection;
     private readonly IDbContextFactory<PresentationContext> factory;
+    // Starts at the real time so the seeded rows, stamped by SaveChanges, sit at or before it.
+    private readonly ManualClock clock = new(DateTimeOffset.UtcNow);
     private readonly SyncService service;
     private readonly Organization orgA;
     private readonly Organization orgB;
@@ -33,7 +36,7 @@ public class SyncServicePullTests : IDisposable
             .UseSqlite(connection)
             .Options;
         factory = new TestDbContextFactory(options);
-        service = SyncServiceFactory.Create(factory);
+        service = SyncServiceFactory.Create(factory, clock);
 
         using var context = factory.CreateDbContext();
         context.Database.EnsureCreated();
@@ -223,6 +226,101 @@ public class SyncServicePullTests : IDisposable
 
         // Assert
         second.Changes.Songs.Select(s => s.Name).ShouldContain("Changed after first pull");
+    }
+
+    /// <summary>
+    /// The bug: each page took its own clock reading as the upper bound and the client stored the
+    /// last page's. A row written into a table the sequence had already passed, more than
+    /// PullOverlap before that last reading, was above the bound on the page that served its table
+    /// and below the stored watermark afterwards — never delivered. Every page now uses the first
+    /// page's reading, carried in the cursor.
+    /// </summary>
+    [Fact]
+    public async Task Pull_ARowWrittenIntoAnAlreadyServedTableDuringASlowPull_IsDeliveredByTheNextPull()
+    {
+        // Arrange -- a first full sync, paged past the labels table (first in PullOrder)
+        DateTimeOffset? since = null;
+        var page = await service.PullAsync(orgA.Id, new SyncPullRequest(since, null, Take: 1), callerA);
+        page.Changes.SongPartLabels.Select(l => l.Id).ShouldBe(["label-a"]);
+        page = await service.PullAsync(orgA.Id, new SyncPullRequest(since, page.NextCursor, Take: 1), callerA);
+        page.Changes.Songs.Select(s => s.Id).ShouldBe(["song-a"]);
+
+        // Now a label is written, well after the sequence began but well before it ends, and a
+        // setting (served late in the order) is written even later.
+        var lateLabelAt = clock.UtcNow.AddSeconds(30);
+        var lateSettingAt = clock.UtcNow.AddSeconds(50);
+        await using (var context = await factory.CreateDbContextAsync())
+        {
+            context.SongPartLabels.Add(new DbSongPartLabel { Id = "label-late", Text = "Refräng", OrganizationId = orgA.Id });
+            await context.SaveChangesAsync();
+            await context.SongPartLabels.Where(l => l.Id == "label-late").ExecuteUpdateAsync(s => s.SetProperty(l => l.ModifiedAt, lateLabelAt));
+            await context.OrganizationSettings.Where(o => o.Id == "os-a").ExecuteUpdateAsync(s => s.SetProperty(o => o.ModifiedAt, lateSettingAt));
+        }
+        clock.Advance(TimeSpan.FromSeconds(60));
+
+        // Act -- finish the sequence
+        var served = new List<string>();
+        var pages = 0;
+        while (page.HasMore)
+        {
+            page = await service.PullAsync(orgA.Id, new SyncPullRequest(since, page.NextCursor, Take: 1), callerA);
+            served.AddRange(AllRowIds(page.Changes));
+            (++pages).ShouldBeLessThan(40, "paging must terminate");
+        }
+
+        // Assert -- neither late row belongs to this sequence ...
+        served.ShouldNotContain("label-late");
+        served.ShouldNotContain("os-a");
+
+        // ... and both arrive on the next pull, from the watermark the sequence advertised.
+        clock.Advance(TimeSpan.FromSeconds(60));
+        var next = await service.PullAsync(orgA.Id, new SyncPullRequest(page.ServerWatermark, null), callerA);
+        next.Changes.SongPartLabels.Select(l => l.Id).ShouldContain("label-late");
+        next.Changes.OrganizationSettings.Select(o => o.Id).ShouldContain("os-a");
+    }
+
+    [Fact]
+    public async Task Pull_WithACursorFromBeforeTheWatermarkField_StillPages()
+    {
+        // Arrange -- the shape a server before this change handed out: no Watermark member. The
+        // rows sit at Past, where the cursor says the sequence had got to.
+        await BackdateEverythingAsync();
+        var cursor = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(
+            $$"""{"Table":1,"ModifiedAt":"{{Past:O}}","Id":"song-a"}"""));
+
+        // Act
+        var response = await service.PullAsync(orgA.Id, new SyncPullRequest(null, cursor), callerA);
+
+        // Assert -- resumed after song-a in the songs table, and on through the rest
+        response.Changes.Songs.ShouldBeEmpty();
+        response.Changes.SongParts.Select(p => p.Id).ShouldBe(["part-a"]);
+        response.Changes.Presentations.Select(p => p.Id).ShouldBe(["pres-a"]);
+    }
+
+    /// <summary>
+    /// A tombstone with no organisation is a built-in theme's (everyone's) or a user's setting
+    /// (that user's). The clause that served every organisation-less tombstone to everyone handed
+    /// other users' setting deletions — ids and timestamps — to every client on the server.
+    /// </summary>
+    [Fact]
+    public async Task Pull_DeliversGlobalTombstonesAndTheCallersOwn_ButNotOtherUsersSettings()
+    {
+        // Arrange
+        await BackdateEverythingAsync();
+        await using (var context = await factory.CreateDbContextAsync())
+        {
+            context.AddTombstones(nameof(Theme), ["built-in-gone"], organizationId: null);
+            context.AddTombstones(nameof(UserSetting), ["us-a-gone"], organizationId: null, userId: "user-a");
+            context.AddTombstones(nameof(UserSetting), ["us-b-gone"], organizationId: null, userId: "user-b");
+            await context.SaveChangesAsync();
+        }
+
+        // Act
+        var response = await service.PullAsync(orgA.Id,
+            new SyncPullRequest(DateTimeOffset.UtcNow.AddMinutes(-30), null), callerA);
+
+        // Assert
+        response.Tombstones.Select(t => t.EntityId).OrderBy(x => x).ShouldBe(["built-in-gone", "us-a-gone"]);
     }
 
     private async Task BackdateEverythingAsync()

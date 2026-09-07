@@ -110,12 +110,34 @@ public class SongPartLabelService(
             .FirstOrDefaultAsync(l => l.Id == labelId && l.OrganizationId == organizationId);
         if (label is null) return;
 
+        await using var transaction = await context.Database.BeginTransactionAsync();
+
+        // The parts that carried this label lose it. Left to the database's ON DELETE SET NULL, that
+        // update would bump each part's Version through the trigger without touching ModifiedAt —
+        // and the pull window is keyed on ModifiedAt, so no device would ever be told, every
+        // device's base version for those songs would be stale for good, and each next offline
+        // edit of them would take the merge path. So the detach is done here, stamped, and the
+        // songs above the parts move with them, because push conflicts compare the root.
+        var now = DateTimeOffset.UtcNow;
+        var songIds = await context.SongParts
+            .Where(p => p.LabelId == labelId)
+            .Select(p => p.SongId)
+            .Distinct()
+            .ToListAsync();
+        await context.SongParts
+            .Where(p => p.LabelId == labelId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(p => p.LabelId, (string?)null)
+                .SetProperty(p => p.ModifiedAt, now));
+        await context.Songs
+            .Where(s => songIds.Contains(s.Id))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.ModifiedAt, now));
+
         context.SongPartLabels.Remove(label);
-        await context.SaveChangesAsync();
 
         // Renumber remaining labels
         var remaining = await context.SongPartLabels
-            .Where(l => l.OrganizationId == organizationId)
+            .Where(l => l.OrganizationId == organizationId && l.Id != labelId)
             .OrderBy(l => l.SortOrder)
             .ToListAsync();
 
@@ -123,6 +145,7 @@ public class SongPartLabelService(
             remaining[i].SortOrder = i;
 
         await context.SaveChangesAsync();
+        await transaction.CommitAsync();
     }
 
     public async Task MoveLabelAsync(string organizationId, string labelId, int fromIndex, int toIndex, CallerContext caller)

@@ -1,5 +1,6 @@
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Sync;
 using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Shared.Services;
@@ -15,7 +16,12 @@ public interface IPresentationSlidesService
 
 public class PresentationSlidesService(
     IDbContextFactory<PresentationContext> dbContextFactory,
-    IObjectStorageService storage) : IPresentationSlidesService
+    IObjectStorageService storage,
+    // The presentation bump below is an ExecuteUpdate, which the save interceptor never sees; the
+    // tracked inserts in the same transaction do announce, but only once they are committed, and
+    // the bump is what other devices need to hear about. Optional for the tests that build this
+    // directly.
+    IOrganizationChangeNotifier? changeNotifier = null) : IPresentationSlidesService
 {
     public async Task<PresentationSlides> GetByIdAsync(string slidesId, string organizationId, CallerContext caller, CancellationToken cancellationToken = default)
     {
@@ -109,6 +115,7 @@ public class PresentationSlidesService(
             await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
+            changeNotifier?.Notify(organizationId);
             return (slides, item);
         }
         catch

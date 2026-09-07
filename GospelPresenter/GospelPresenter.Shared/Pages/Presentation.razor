@@ -1231,32 +1231,50 @@
         _ = InvokeAsync(Culture.Restore(StateHasChanged));
     }
 
+    // Both handlers are async void on singleton events raised from other circuits' threads. An
+    // exception that escapes an async void handler is unobserved and takes the whole process down,
+    // every congregation's circuits with it — so nothing may escape. A failed reload here is logged
+    // and the page keeps what it has; the next change will try again.
     private async void OnPresentationChanged(string presentationId, string? senderSessionId)
     {
         if (presentationId != EffectiveId) return;
         if (senderSessionId == AppState.SessionId) return;
 
-        await InvokeAsync(Culture.Restore(async () =>
+        try
         {
-            await LoadPresentationAsync();
-            await GetDataForSelectedItem();
-            ToastService.Show(L["Toast.PresentationUpdatedExternally"]);
-            StateHasChanged();
-        }));
+            await InvokeAsync(Culture.Restore(async () =>
+            {
+                await LoadPresentationAsync();
+                await GetDataForSelectedItem();
+                ToastService.Show(L["Toast.PresentationUpdatedExternally"]);
+                StateHasChanged();
+            }));
+        }
+        catch (Exception e)
+        {
+            Logger.LogWarning(e, "Failed to reload presentation {PresentationId} after an external change", presentationId);
+        }
     }
 
     private async void OnAppStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(AppState.SelectedProjectItem))
+        try
         {
-            await GetDataForSelectedItem();
-            await InvokeAsync(StateHasChanged);
+            if (e.PropertyName is nameof(AppState.SelectedProjectItem))
+            {
+                await GetDataForSelectedItem();
+                await InvokeAsync(StateHasChanged);
+            }
+            else if (e.PropertyName is
+                     nameof(AppState.MainViewport) or
+                     nameof(AppState.IsMenuVisible))
+            {
+                _ = InvokeAsync(StateHasChanged);
+            }
         }
-        else if (e.PropertyName is
-                 nameof(AppState.MainViewport) or
-                 nameof(AppState.IsMenuVisible))
+        catch (Exception ex)
         {
-            _ = InvokeAsync(StateHasChanged);
+            Logger.LogWarning(ex, "Failed to react to app state change {Property}", e.PropertyName);
         }
     }
 
