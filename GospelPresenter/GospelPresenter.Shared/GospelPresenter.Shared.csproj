@@ -27,29 +27,29 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="AWSSDK.S3" Version="4.0.19.1" />
-        <PackageReference Include="PDFtoImage" Version="4.1.0" />
-        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-        <PackageReference Include="Google.Protobuf" Version="3.29.3" />
-        <PackageReference Include="Grpc.Tools" Version="2.71.0" PrivateAssets="All" />
-        <PackageReference Include="Ical.Net" Version="5.2.1" />
-        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.1" />
-        <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.1" />
-        <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="10.0.1" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />
-        <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Localization" Version="10.0.5" />
-        <PackageReference Include="Microsoft.Maui.Essentials" Version="10.0.11" />
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
-        <PackageReference Include="QRCoder" Version="1.6.0" />
-        <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
-        <PackageReference Include="SkiaSharp" Version="3.119.2" />
-        <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.2" />
-        <PackageReference Include="Tailwind.MSBuild" Version="2.0.2">
+        <PackageReference Include="AWSSDK.S3" />
+        <PackageReference Include="PDFtoImage" />
+        <PackageReference Include="CommunityToolkit.Mvvm" />
+        <PackageReference Include="Google.Protobuf" />
+        <PackageReference Include="Grpc.Tools" PrivateAssets="All" />
+        <PackageReference Include="Ical.Net" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.Web" />
+        <PackageReference Include="Microsoft.AspNetCore.WebUtilities" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" />
+        <PackageReference Include="Microsoft.Extensions.Http" />
+        <PackageReference Include="Microsoft.Extensions.Localization" />
+        <PackageReference Include="Microsoft.Maui.Essentials" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+        <PackageReference Include="QRCoder" />
+        <PackageReference Include="Serilog.Sinks.Debug" />
+        <PackageReference Include="SkiaSharp" />
+        <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+        <PackageReference Include="Tailwind.MSBuild">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="USFMToolsSharp" Version="1.18.0" />
+        <PackageReference Include="USFMToolsSharp" />
     </ItemGroup>
 
     <ItemGroup>

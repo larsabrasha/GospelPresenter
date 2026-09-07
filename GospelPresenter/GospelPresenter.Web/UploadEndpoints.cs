@@ -52,7 +52,10 @@ public static class UploadEndpoints
             }
             catch (UnauthorizedAccessException)
             {
-                return Results.Forbid();
+                // A bare 403, not Results.Forbid(): for a cookie session Forbid means "redirect to the
+                // access-denied page", and these are called by fetch from the app, which then follows
+                // the redirect into a 404. The caller wants the status, not a page.
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
         }).RequireAuthorization()
           .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
@@ -93,7 +96,10 @@ public static class UploadEndpoints
             }
             catch (UnauthorizedAccessException)
             {
-                return Results.Forbid();
+                // A bare 403, not Results.Forbid(): for a cookie session Forbid means "redirect to the
+                // access-denied page", and these are called by fetch from the app, which then follows
+                // the redirect into a 404. The caller wants the status, not a page.
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
             overlay.HasImage = true;
@@ -143,7 +149,10 @@ public static class UploadEndpoints
             }
             catch (UnauthorizedAccessException)
             {
-                return Results.Forbid();
+                // A bare 403, not Results.Forbid(): for a cookie session Forbid means "redirect to the
+                // access-denied page", and these are called by fetch from the app, which then follows
+                // the redirect into a 404. The caller wants the status, not a page.
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
         }).RequireAuthorization()
           .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
@@ -217,7 +226,10 @@ public static class UploadEndpoints
             }
             catch (UnauthorizedAccessException)
             {
-                return Results.Forbid();
+                // A bare 403, not Results.Forbid(): for a cookie session Forbid means "redirect to the
+                // access-denied page", and these are called by fetch from the app, which then follows
+                // the redirect into a 404. The caller wants the status, not a page.
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
         }).RequireAuthorization()
           .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
@@ -251,7 +263,10 @@ public static class UploadEndpoints
             }
             catch (UnauthorizedAccessException)
             {
-                return Results.Forbid();
+                // A bare 403, not Results.Forbid(): for a cookie session Forbid means "redirect to the
+                // access-denied page", and these are called by fetch from the app, which then follows
+                // the redirect into a 404. The caller wants the status, not a page.
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
         }).RequireAuthorization()
           .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
@@ -305,7 +320,10 @@ public static class UploadEndpoints
             }
             catch (UnauthorizedAccessException)
             {
-                return Results.Forbid();
+                // A bare 403, not Results.Forbid(): for a cookie session Forbid means "redirect to the
+                // access-denied page", and these are called by fetch from the app, which then follows
+                // the redirect into a 404. The caller wants the status, not a page.
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
         }).RequireAuthorization()
           .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
