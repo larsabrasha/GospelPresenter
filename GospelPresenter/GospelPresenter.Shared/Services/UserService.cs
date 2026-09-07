@@ -357,9 +357,17 @@ public class UserService(
             RequireCanManageAccountOf(targetUser, caller);
         }
 
+        // The user's settings are synced rows and go with the user through the cascade, which
+        // writes no tombstones. Their tombstones are written here so the invariant holds — every
+        // synced delete leaves one — even though the deleted user's own devices can no longer pull.
+        await using var transaction = await context.Database.BeginTransactionAsync();
+        var settingIds = await context.UserSettings.Where(s => s.UserId == id).Select(s => s.Id).ToListAsync();
+        context.AddTombstones(nameof(UserSetting), settingIds, organizationId: null, userId: id);
+        await context.SaveChangesAsync();
         await context.Users
             .Where(u => u.Id == id)
             .ExecuteDeleteAsync();
+        await transaction.CommitAsync();
     }
 
     public async Task<List<UserLogin>> GetLoginsForUserAsync(string userId, CallerContext caller)
@@ -505,6 +513,15 @@ public class UserService(
         await using var context = await dbContextFactory.CreateDbContextAsync();
         await using var transaction = await context.Database.BeginTransactionAsync();
 
+        // Every synced aggregate root the organisation owns goes with it through the cascades, which
+        // write no tombstones. The invariant is that every synced delete leaves one, so they are
+        // written here — for the roots; a root's tombstone covers its children, as the pull applier
+        // treats them. Nobody in a deleted organisation can pull them, since its users go too; they
+        // are the record that the rows were deleted rather than lost.
+        var userIds = await context.Users.Where(u => u.OrganizationId == id).Select(u => u.Id).ToListAsync();
+        await AddOrganizationTombstonesAsync(context, id, userIds);
+        await context.SaveChangesAsync();
+
         await context.Users
             .Where(u => u.OrganizationId == id)
             .ExecuteDeleteAsync();
@@ -514,6 +531,26 @@ public class UserService(
             .ExecuteDeleteAsync();
 
         await transaction.CommitAsync();
+    }
+
+    private static async Task AddOrganizationTombstonesAsync(PresentationContext context, string organizationId, List<string> userIds)
+    {
+        context.AddTombstones(nameof(Presentation), await context.Presentations.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(DbSong), await context.Songs.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(DbSongPartLabel), await context.SongPartLabels.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(OverlaySlide), await context.OverlaySlides.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(OrganizationImage), await context.OrganizationImages.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(OrganizationAudio), await context.OrganizationAudios.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(OrganizationSetting), await context.OrganizationSettings.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(Theme), await context.Themes.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(DbBible), await context.Bibles.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+        context.AddTombstones(nameof(RemoteDisplay), await context.RemoteDisplays.Where(x => x.OrganizationId == organizationId).Select(x => x.Id).ToListAsync(), organizationId);
+
+        foreach (var userId in userIds)
+        {
+            var settingIds = await context.UserSettings.Where(s => s.UserId == userId).Select(s => s.Id).ToListAsync();
+            context.AddTombstones(nameof(UserSetting), settingIds, organizationId: null, userId: userId);
+        }
     }
 
     public async Task UpdateOrganizationLogoAsync(string id, string? logoSmall, CallerContext caller)

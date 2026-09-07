@@ -31,15 +31,28 @@ public class SyncService(
     // Only for pushed user settings: they carry a user rather than an organisation, so the save
     // interceptor skips them and the caller's organisation is what addresses the announcement.
     // Everything else this class writes is announced by that interceptor.
-    IOrganizationChangeNotifier? changeNotifier = null) : ISyncService
+    IOrganizationChangeNotifier? changeNotifier = null,
+    // The pull's clock. Injectable so a test can move it between pages; production uses the system's.
+    TimeProvider? timeProvider = null) : ISyncService
 {
+    private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
+
     /// <summary>Enums as names, matching how Theme.Definition is stored in its column.</summary>
     private static readonly JsonSerializerOptions ThemeJsonOptions = new()
     {
         Converters = { new JsonStringEnumConverter() }
     };
 
-    private sealed record PullCursor(int Table, DateTimeOffset ModifiedAt, string Id);
+    /// <summary>
+    /// Where a page sequence is, and — since Watermark was added — when it started. Every page of
+    /// one sequence is bounded by the first page's clock reading, so a row written mid-sequence
+    /// into a table already served is above the bound on every page: left out of this sequence
+    /// and, because the advertised watermark never exceeds that first reading, inside the next
+    /// pull's window. Without it each page took its own reading and the client stored the last
+    /// one, which hid such a row for good once the sequence outlasted PullOverlap. Nullable so a
+    /// cursor minted before the field existed still pages; the client never looks inside.
+    /// </summary>
+    private sealed record PullCursor(int Table, DateTimeOffset ModifiedAt, string Id, DateTimeOffset? Watermark = null);
 
     private sealed record TablePage(int Count, bool HasMore, DateTimeOffset LastModifiedAt, string LastId);
 
@@ -84,7 +97,8 @@ public class SyncService(
     {
         caller.RequireOrganizationAccess(organizationId);
 
-        var watermark = DateTimeOffset.UtcNow;
+        var cursor = DecodeCursor(request.Cursor);
+        var watermark = cursor?.Watermark ?? clock.GetUtcNow();
         var changes = new SyncChanges();
         var tombstones = new List<SyncTombstoneDto>();
 
@@ -96,7 +110,6 @@ public class SyncService(
         }
 
         var low = request.Since - SyncDefaults.PullOverlap;
-        var cursor = DecodeCursor(request.Cursor);
         var remaining = Math.Clamp(request.Take, 1, SyncDefaults.MaxPullTake);
 
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -122,7 +135,7 @@ public class SyncService(
             if (page.HasMore || (remaining == 0 && i < PullOrder.Length - 1))
             {
                 hasMore = true;
-                nextCursor = EncodeCursor(new PullCursor(table, page.LastModifiedAt, page.LastId));
+                nextCursor = EncodeCursor(new PullCursor(table, page.LastModifiedAt, page.LastId, watermark));
                 break;
             }
         }
@@ -273,10 +286,12 @@ public class SyncService(
 
             case TombstonesTable:
             {
+                // A tombstone with no organisation is either global (a built-in theme: no user
+                // either) or a user's own setting (user set). The second kind is the caller's
+                // business only when it is the caller's.
                 var query = db.SyncTombstones
                     .Where(t => t.OrganizationId == organizationId
-                                || t.OrganizationId == null
-                                || t.UserId == caller.UserId)
+                                || (t.OrganizationId == null && (t.UserId == null || t.UserId == caller.UserId)))
                     .Where(t => t.DeletedAt <= watermark);
                 if (low is not null)
                     query = query.Where(t => t.DeletedAt > low.Value);
@@ -727,6 +742,13 @@ public class SyncService(
             db.PresentationItemParts.Remove(gone);
         foreach (var partDto in push.Parts)
         {
+            // A part belongs to an item in this push, or it belongs nowhere. The item id is a
+            // client-supplied string, and the only thing the database would check is that some
+            // item row has it — in any organisation's presentation. Skipped rather than failed,
+            // as AddPushedChildren does for a new presentation.
+            if (!pushedItemIds.Contains(partDto.PresentationItemId))
+                continue;
+
             var part = allExistingParts.FirstOrDefault(p => p.Id == partDto.Id);
             if (part is null)
             {

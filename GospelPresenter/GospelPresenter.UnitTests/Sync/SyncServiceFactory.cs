@@ -16,7 +16,7 @@ internal static class SyncServiceFactory
 {
     public const string OfflineSuffix = "(offline-ändringar)";
 
-    public static SyncService Create(IDbContextFactory<PresentationContext> factory)
+    public static SyncService Create(IDbContextFactory<PresentationContext> factory, TimeProvider? clock = null)
     {
         var storage = new NoOpObjectStorageService();
         return new SyncService(
@@ -27,7 +27,9 @@ internal static class SyncServiceFactory
             new SongService(factory),
             new SongPartLabelService(factory),
             new OrganizationImageService(factory, storage),
-            new OrganizationAudioService(factory, storage));
+            new OrganizationAudioService(factory, storage),
+            changeNotifier: null,
+            timeProvider: clock);
     }
 
     private class FakeLocalizer : IStringLocalizer<SharedResource>

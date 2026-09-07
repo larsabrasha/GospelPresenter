@@ -420,6 +420,73 @@ public class UserServiceTests : IDisposable
             () => service.GetLoginsForUserAsync(otherUser.Id, CallerFor(user)));
     }
 
+    // --- Deletions leave tombstones for every synced row they cascade through ---
+
+    /// <summary>
+    /// Deleting an organisation cascades through every synced table without a tombstone. Nobody in
+    /// it can pull afterwards, so the tombstones are the record rather than the message — but the
+    /// invariant is that every synced delete leaves one, and this is where it was broken.
+    /// </summary>
+    [Fact]
+    public async Task DeleteOrganizationAsync_TombstonesEverySyncedRootItOwned()
+    {
+        // Arrange -- a second organisation to delete, with one of everything, and a super admin to do it
+        var doomed = new Organization { Id = "doomed", Name = "Doomed" };
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.Organizations.Add(doomed);
+            seed.Users.Add(new User { Id = "doomed-user", Name = "D", Email = "d@example.com", OrganizationId = doomed.Id });
+            seed.Presentations.Add(new Presentation { Id = "doomed-pres", Name = "P", OrganizationId = doomed.Id });
+            seed.Songs.Add(new DbSong { Id = "doomed-song", Name = "S", OrganizationId = doomed.Id });
+            seed.SongPartLabels.Add(new DbSongPartLabel { Id = "doomed-label", Text = "L", OrganizationId = doomed.Id });
+            seed.OrganizationSettings.Add(new OrganizationSetting { Id = "doomed-setting", OrganizationId = doomed.Id, Key = "k", Value = "v" });
+            seed.UserSettings.Add(new UserSetting { Id = "doomed-user-setting", UserId = "doomed-user", Key = "k", Value = "v" });
+            seed.RemoteDisplays.Add(new RemoteDisplay { Id = "doomed-display", OrganizationId = doomed.Id, DisplayIdentifier = "abcdefg", Name = "D" });
+            await seed.SaveChangesAsync();
+        }
+
+        // Act
+        await service.DeleteOrganizationAsync(doomed.Id, new CallerContext("user-1", UserRole.SuperAdmin, org.Id));
+
+        // Assert
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.Organizations.AnyAsync(o => o.Id == doomed.Id)).ShouldBeFalse();
+        var tombstones = await context.SyncTombstones.ToListAsync();
+        tombstones.Select(t => (t.EntityType, t.EntityId)).OrderBy(x => x.EntityId).ShouldBe(
+        [
+            (nameof(RemoteDisplay), "doomed-display"),
+            (nameof(DbSongPartLabel), "doomed-label"),
+            (nameof(Presentation), "doomed-pres"),
+            (nameof(OrganizationSetting), "doomed-setting"),
+            (nameof(DbSong), "doomed-song"),
+            (nameof(UserSetting), "doomed-user-setting"),
+        ]);
+        tombstones.Where(t => t.EntityType != nameof(UserSetting)).ShouldAllBe(t => t.OrganizationId == doomed.Id);
+        tombstones.Single(t => t.EntityType == nameof(UserSetting)).UserId.ShouldBe("doomed-user");
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_TombstonesTheUsersSettings()
+    {
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            seed.Users.AddRange(
+                new User { Id = "admin-1", Name = "Admin", Email = "admin@example.com", OrganizationId = org.Id, Role = UserRole.Admin },
+                new User { Id = "user-2", Name = "Two", Email = "two@example.com", OrganizationId = org.Id });
+            seed.UserSettings.Add(new UserSetting { Id = "setting-2", UserId = "user-2", Key = "k", Value = "v" });
+            await seed.SaveChangesAsync();
+        }
+
+        await service.DeleteUserAsync("user-2", new CallerContext("admin-1", UserRole.Admin, org.Id));
+
+        using var context = factory.CreateDbContext();
+        var tombstone = await context.SyncTombstones.SingleAsync();
+        tombstone.EntityType.ShouldBe(nameof(UserSetting));
+        tombstone.EntityId.ShouldBe("setting-2");
+        tombstone.UserId.ShouldBe("user-2");
+        (await context.Users.AnyAsync(u => u.Id == "user-2")).ShouldBeFalse();
+    }
+
     private User AddUserInNewOrganization()
     {
         var otherOrg = new Organization { Name = OtherOrgName };
