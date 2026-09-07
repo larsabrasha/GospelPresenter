@@ -2009,4 +2009,205 @@
   <data name="Display.TooManyAttempts" xml:space="preserve">
     <value>Too many wrong codes. Wait ten minutes, or use the link or QR code on the screen instead.</value>
   </data>
+  <data name="SlideGrid.IdleHint01" xml:space="preserve">
+    <value>Without music, life would be a mistake.</value>
+  </data>
+  <data name="SlideGrid.IdleHint01.Source" xml:space="preserve">
+    <value>Friedrich Nietzsche</value>
+  </data>
+  <data name="SlideGrid.IdleHint02" xml:space="preserve">
+    <value>Music expresses that which cannot be put into words.</value>
+  </data>
+  <data name="SlideGrid.IdleHint02.Source" xml:space="preserve">
+    <value>Victor Hugo</value>
+  </data>
+  <data name="SlideGrid.IdleHint03" xml:space="preserve">
+    <value>Where words end, music begins.</value>
+  </data>
+  <data name="SlideGrid.IdleHint04" xml:space="preserve">
+    <value>A world without music is like a body without a soul.</value>
+  </data>
+  <data name="SlideGrid.IdleHint05" xml:space="preserve">
+    <value>Singing is the mother tongue of joy.</value>
+  </data>
+  <data name="SlideGrid.IdleHint06" xml:space="preserve">
+    <value>The voice is the most personal instrument of all.</value>
+  </data>
+  <data name="SlideGrid.IdleHint07" xml:space="preserve">
+    <value>The Lord is my strength and my defence; he has become my salvation.</value>
+  </data>
+  <data name="SlideGrid.IdleHint07.Source" xml:space="preserve">
+    <value>Exodus 15:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint08" xml:space="preserve">
+    <value>Sing to the Lord a new song; sing to the Lord, all the earth!</value>
+  </data>
+  <data name="SlideGrid.IdleHint08.Source" xml:space="preserve">
+    <value>Psalm 96:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint09" xml:space="preserve">
+    <value>Let everything that has breath praise the Lord. Hallelujah!</value>
+  </data>
+  <data name="SlideGrid.IdleHint09.Source" xml:space="preserve">
+    <value>Psalm 150:6</value>
+  </data>
+  <data name="SlideGrid.IdleHint10" xml:space="preserve">
+    <value>Shout for joy to the Lord, all the earth!</value>
+  </data>
+  <data name="SlideGrid.IdleHint10.Source" xml:space="preserve">
+    <value>Psalm 100:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint11" xml:space="preserve">
+    <value>Give thanks to the Lord, for he is good; his love endures for ever.</value>
+  </data>
+  <data name="SlideGrid.IdleHint11.Source" xml:space="preserve">
+    <value>Psalm 136:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint12" xml:space="preserve">
+    <value>The Lord is good and his love endures for ever; his faithfulness continues through all generations.</value>
+  </data>
+  <data name="SlideGrid.IdleHint12.Source" xml:space="preserve">
+    <value>Psalm 100:5</value>
+  </data>
+  <data name="SlideGrid.IdleHint13" xml:space="preserve">
+    <value>Be still, and know that I am God; I am exalted among the nations, exalted over the earth.</value>
+  </data>
+  <data name="SlideGrid.IdleHint13.Source" xml:space="preserve">
+    <value>Psalm 46:11</value>
+  </data>
+  <data name="SlideGrid.IdleHint14" xml:space="preserve">
+    <value>The Lord is my light and my salvation — whom shall I fear?</value>
+  </data>
+  <data name="SlideGrid.IdleHint14.Source" xml:space="preserve">
+    <value>Psalm 27:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint15" xml:space="preserve">
+    <value>Give thanks to the Lord, for he is good; his love endures for ever.</value>
+  </data>
+  <data name="SlideGrid.IdleHint15.Source" xml:space="preserve">
+    <value>Psalm 107:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint16" xml:space="preserve">
+    <value>I will sing of the Lord's great love for ever.</value>
+  </data>
+  <data name="SlideGrid.IdleHint16.Source" xml:space="preserve">
+    <value>Psalm 89:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint17" xml:space="preserve">
+    <value>The Lord is near to all who call on him, to all who call on him in truth.</value>
+  </data>
+  <data name="SlideGrid.IdleHint17.Source" xml:space="preserve">
+    <value>Psalm 145:18</value>
+  </data>
+  <data name="SlideGrid.IdleHint18" xml:space="preserve">
+    <value>Behold, I make all things new.</value>
+  </data>
+  <data name="SlideGrid.IdleHint18.Source" xml:space="preserve">
+    <value>Revelation 21:5</value>
+  </data>
+  <data name="SlideGrid.IdleHint19" xml:space="preserve">
+    <value>God is my salvation; I will trust and not be afraid.</value>
+  </data>
+  <data name="SlideGrid.IdleHint19.Source" xml:space="preserve">
+    <value>Isaiah 12:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint20" xml:space="preserve">
+    <value>Praise the Lord, my soul, and forget not all his benefits.</value>
+  </data>
+  <data name="SlideGrid.IdleHint20.Source" xml:space="preserve">
+    <value>Psalm 103:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint21" xml:space="preserve">
+    <value>Taste and see that the Lord is good; blessed is the one who takes refuge in him!</value>
+  </data>
+  <data name="SlideGrid.IdleHint21.Source" xml:space="preserve">
+    <value>Psalm 34:9</value>
+  </data>
+  <data name="SlideGrid.IdleHint22" xml:space="preserve">
+    <value>The Lord is my shepherd, I shall not want.</value>
+  </data>
+  <data name="SlideGrid.IdleHint22.Source" xml:space="preserve">
+    <value>Psalm 23:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint23" xml:space="preserve">
+    <value>Where God's people gather, the song of praise rings out.</value>
+  </data>
+  <data name="SlideGrid.IdleHint24" xml:space="preserve">
+    <value>Worship is the heart's natural answer to grace.</value>
+  </data>
+  <data name="SlideGrid.IdleHint25" xml:space="preserve">
+    <value>Gratitude is the fruit of joy.</value>
+  </data>
+  <data name="SlideGrid.IdleHint26" xml:space="preserve">
+    <value>Worship is not a part of life — it is life.</value>
+  </data>
+  <data name="SlideGrid.IdleHint27" xml:space="preserve">
+    <value>The fire of praise is lit in the stillness of prayer.</value>
+  </data>
+  <data name="SlideGrid.IdleHint28" xml:space="preserve">
+    <value>The Lord is the Spirit, and where the Spirit of the Lord is, there is freedom.</value>
+  </data>
+  <data name="SlideGrid.IdleHint28.Source" xml:space="preserve">
+    <value>2 Corinthians 3:17</value>
+  </data>
+  <data name="SlideGrid.IdleHint29" xml:space="preserve">
+    <value>Peace I leave with you; my peace I give you.</value>
+  </data>
+  <data name="SlideGrid.IdleHint29.Source" xml:space="preserve">
+    <value>John 14:27</value>
+  </data>
+  <data name="SlideGrid.IdleHint30" xml:space="preserve">
+    <value>A song can change a moment; a song of praise can change an eternity.</value>
+  </data>
+  <data name="SlideGrid.IdleHint31" xml:space="preserve">
+    <value>Every service is a new beginning.</value>
+  </data>
+  <data name="SlideGrid.IdleHint32" xml:space="preserve">
+    <value>There is a melody in every morning.</value>
+  </data>
+  <data name="SlideGrid.IdleHint33" xml:space="preserve">
+    <value>Every day is a gift to give thanks for.</value>
+  </data>
+  <data name="SlideGrid.IdleHint34" xml:space="preserve">
+    <value>The steadfast love of the Lord never ceases; his mercies never come to an end. They are new every morning.</value>
+  </data>
+  <data name="SlideGrid.IdleHint34.Source" xml:space="preserve">
+    <value>Lamentations 3:22–23</value>
+  </data>
+  <data name="SlideGrid.IdleHint35" xml:space="preserve">
+    <value>The light shines in the darkness, and the darkness has not overcome it.</value>
+  </data>
+  <data name="SlideGrid.IdleHint35.Source" xml:space="preserve">
+    <value>John 1:5</value>
+  </data>
+  <data name="SlideGrid.IdleHint36" xml:space="preserve">
+    <value>I lift up my eyes to the mountains — where does my help come from?</value>
+  </data>
+  <data name="SlideGrid.IdleHint36.Source" xml:space="preserve">
+    <value>Psalm 121:1</value>
+  </data>
+  <data name="SlideGrid.IdleHint37" xml:space="preserve">
+    <value>He makes me lie down in green pastures; he leads me beside quiet waters.</value>
+  </data>
+  <data name="SlideGrid.IdleHint37.Source" xml:space="preserve">
+    <value>Psalm 23:2</value>
+  </data>
+  <data name="SlideGrid.IdleHint38" xml:space="preserve">
+    <value>Those who hope in the Lord will renew their strength; they will soar on wings like eagles.</value>
+  </data>
+  <data name="SlideGrid.IdleHint38.Source" xml:space="preserve">
+    <value>Isaiah 40:31</value>
+  </data>
+  <data name="SlideGrid.IdleHint39" xml:space="preserve">
+    <value>God's grace is always greater.</value>
+  </data>
+  <data name="SlideGrid.IdleHint40" xml:space="preserve">
+    <value>Even Jesus took a break now and then.</value>
+  </data>
+  <data name="Event.Date" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="Event.Time" xml:space="preserve">
+    <value>Time</value>
+  </data>
 </root>

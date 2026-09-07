@@ -217,7 +217,8 @@ else
                                     </div>
                                     <button @onclick="() => CloseLiveWindow(windowId)"
                                             class="cursor-pointer text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400"
-                                            title="@L["LivePanel.CloseWindow"]">
+                                            title="@L["LivePanel.CloseWindow"]"
+                                            aria-label="@L["LivePanel.CloseWindow"]">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
                                              class="size-4">
                                             <path
@@ -243,7 +244,8 @@ else
                                     </div>
                                     <button @onclick="() => RemoteDisplayState.DisconnectDisplay(adHoc.DisplayId)"
                                             class="cursor-pointer text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400"
-                                            title="@L["Display.Disconnect"]">
+                                            title="@L["Display.Disconnect"]"
+                                            aria-label="@L["Display.Disconnect"]">
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
                                              class="size-4">
                                             <path

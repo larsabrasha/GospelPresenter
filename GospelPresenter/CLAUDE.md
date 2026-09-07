@@ -1,7 +1,7 @@
 # Project Rules
 
 ## UI consistency
-- Always use the `<AppButton>` component for buttons — never use raw `<button>` elements. Use the `Variant` parameter (`ButtonVariant.Primary`, `ButtonVariant.Danger`, `ButtonVariant.Cancel`, etc.) and `Filled` for emphasis.
+- Use the `<AppButton>` component for buttons. Use the `Variant` parameter (`ButtonVariant.Primary`, `ButtonVariant.Danger`, `ButtonVariant.Cancel`, etc.) and `Filled` for emphasis. A raw `<button>` is acceptable only where `AppButton` cannot do the job: a disclosure toggle carrying `aria-expanded`, a selectable list row, or a control that must call plain JS synchronously from `onclick` to survive the popup blocker. An icon-only button — raw or not — carries an `aria-label`; `title` alone is not exposed on touch.
 - UI must support both light and dark mode.
 - All interactive elements (buttons, actions, icons) must always be visible. Never hide them behind hover states — the app must work equally well on mobile, tablet, and desktop.
 - Layouts must work on all screen sizes. Use Tailwind's responsive breakpoints — avoid fixed pixel widths.

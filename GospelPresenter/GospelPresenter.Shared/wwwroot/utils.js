@@ -143,23 +143,39 @@ document.addEventListener('click', function (e) {
     }
 }, true);
 
+// Web storage can throw rather than answer: a webview served from a non-secure app:// origin, a
+// private window, a browser told to block site data. Every read and write goes through these so a
+// throw means "no stored value" instead of a script error on module load. See the Mac Catalyst
+// note in CLAUDE.md.
+window.gospelStorage = {
+    get: function (store, key) {
+        try { return window[store].getItem(key); } catch (e) { return null; }
+    },
+    set: function (store, key, value) {
+        try { window[store].setItem(key, value); } catch (e) { /* not available; the value is simply not remembered */ }
+    },
+    remove: function (store, key) {
+        try { window[store].removeItem(key); } catch (e) { /* nothing to remove */ }
+    }
+};
+
 window.setTheme = function (theme) {
-    localStorage.setItem('theme', theme);
+    window.gospelStorage.set('localStorage', 'theme', theme);
     applyTheme();
 };
 
 window.getTheme = function () {
-    return localStorage.getItem('theme') || 'system';
+    return window.gospelStorage.get('localStorage', 'theme') || 'system';
 };
 
 function applyTheme() {
-    var theme = localStorage.getItem('theme') || 'system';
+    var theme = window.getTheme();
     var dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
 }
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function () {
-    if ((localStorage.getItem('theme') || 'system') === 'system') {
+    if (window.getTheme() === 'system') {
         applyTheme();
     }
 });
@@ -176,16 +192,12 @@ window.newSessionId = function () {
 }
 
 window.getOrCreateSessionId = function () {
-    try {
-        let id = sessionStorage.getItem('session-id');
-        if (!id) {
-            id = window.newSessionId();
-            sessionStorage.setItem('session-id', id);
-        }
-        return id;
-    } catch (e) {
-        return window.newSessionId();
+    let id = window.gospelStorage.get('sessionStorage', 'session-id');
+    if (!id) {
+        id = window.newSessionId();
+        window.gospelStorage.set('sessionStorage', 'session-id', id);
     }
+    return id;
 }
 
 window.initSortableList = function (elementId, dotNetRef) {
@@ -326,8 +338,8 @@ window.stopLivePresentation = function(sessionId) {
     if (state.connection) {
         state.connection.terminate();
         state.connection = null;
-        sessionStorage.removeItem('presentation-id');
-        sessionStorage.removeItem('presentation-url');
+        window.gospelStorage.remove('sessionStorage', 'presentation-id');
+        window.gospelStorage.remove('sessionStorage', 'presentation-url');
     }
     window.liveViewChannel.postMessage({ type: 'close', sessionId: sessionId });
 }
@@ -923,12 +935,14 @@ window.gospelPresenter.listenToLiveWindows = function(dotNetRef) {
 }
 
 window.gospelPresenter.saveOutputConfig = function(config) {
-    localStorage.setItem('output-config', JSON.stringify(config));
+    window.gospelStorage.set('localStorage', 'output-config', JSON.stringify(config));
 }
 
 window.gospelPresenter.loadOutputConfig = function() {
-    var json = localStorage.getItem('output-config');
-    return json ? JSON.parse(json) : null;
+    var json = window.gospelStorage.get('localStorage', 'output-config');
+    if (!json) return null;
+    // A value another build wrote, or a truncated one, must not take the operator page down.
+    try { return JSON.parse(json); } catch (e) { return null; }
 }
 
 window.gospelPresenter.isPresentationApiAvailable = function() {

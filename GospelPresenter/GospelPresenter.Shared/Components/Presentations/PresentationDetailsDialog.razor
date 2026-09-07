@@ -8,10 +8,10 @@
                        HideLabel/>
 
         <div class="flex gap-2 flex-wrap">
-            <SimpleInput Id="presentation-date" Type="date"
+            <SimpleInput Id="presentation-date" Type="date" Label="@L["Event.Date"]"
                          Value="@selectedDate" OnInput="HandleDateChange"/>
 
-            <SimpleInput Id="presentation-time" Type="time"
+            <SimpleInput Id="presentation-time" Type="time" Label="@L["Event.Time"]"
                          Value="@selectedTime" OnInput="HandleTimeChange"/>
 
             <SimpleInput Id="presentation-location" Placeholder="@L["Event.Location"]"

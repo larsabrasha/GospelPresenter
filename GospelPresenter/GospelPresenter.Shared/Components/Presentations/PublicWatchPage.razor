@@ -83,10 +83,13 @@
         // Kept in sessionStorage, not localStorage: it survives a reload so the operator's
         // viewer count does not double-count, but it disappears with the tab and leaves no
         // lasting identifier on a visitor's device.
-        var viewerId = sessionStorage.getItem('watch-viewer-id');
+        // Storage can throw (private mode, blocked site data); a viewer without one just gets a
+        // fresh id on each load, which only affects the operator's viewer count.
+        var viewerId = null;
+        try { viewerId = sessionStorage.getItem('watch-viewer-id'); } catch (e) { }
         if (!viewerId) {
             viewerId = newViewerId();
-            sessionStorage.setItem('watch-viewer-id', viewerId);
+            try { sessionStorage.setItem('watch-viewer-id', viewerId); } catch (e) { }
         }
 
         function showSlide(html) {
