@@ -1,6 +1,9 @@
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libkrb5-3 && rm -rf /var/lib/apt/lists/*
+# The same unprivileged user the web image runs as. This container holds DDL rights on the
+# database; it does not need root on the host as well. Nothing here writes to the filesystem.
+USER $APP_UID
 
 # Pinned to the exact SDK global.json asks for — see the note in GospelPresenter.Web/Dockerfile.
 FROM mcr.microsoft.com/dotnet/sdk:10.0.201 AS build

@@ -48,6 +48,10 @@ env:
 
 # Every dotnet command runs from GospelPresenter/, because that is where global.json lives and SDK
 # selection walks up from the working directory.
+# Read by default; the job that pushes images raises what it needs itself.
+permissions:
+  contents: read
+
 defaults:
   run:
     working-directory: GospelPresenter
@@ -66,16 +70,16 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Cache the Tailwind CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ github.workspace }}/.tailwind-cli
           key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: GospelPresenter/global.json
 
@@ -110,16 +114,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
       - name: Log in to the Container registry
         # Nothing is pushed from a pull request, so no credentials are needed. The layer cache is
         # unaffected: cache-from type=gha reads the Actions cache, not the registry.
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -141,7 +145,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ matrix.suffix }}
           # type=match rather than type=semver because semver parsing runs on the whole tag name and
@@ -158,7 +162,7 @@ jobs:
 
       - name: Build and push image
         id: push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: GospelPresenter
           file: ${{ matrix.dockerfile }}
@@ -178,7 +182,7 @@ jobs:
       - name: Generate artifact attestation
         # Nothing was pushed from a pull request, so there is no digest in the registry to attest.
         if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}${{ matrix.suffix }}
           subject-digest: ${{ steps.push.outputs.digest }}

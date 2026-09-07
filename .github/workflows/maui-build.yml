@@ -28,6 +28,11 @@ on:
       - '.github/workflows/maui-build.yml'
   workflow_dispatch:
 
+# The default token can do a lot; these jobs only read the checkout. Actions are pinned to commit
+# SHAs (the tag is kept as a comment) so a moved tag cannot run other code here.
+permissions:
+  contents: read
+
 # Every dotnet command runs from GospelPresenter/, because that is where global.json lives and SDK
 # selection walks up from the working directory, not down from the project. Run from the repository
 # root and the muxer sees no global.json at all, picks the newest SDK on the runner, and then the
@@ -52,24 +57,37 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Cache the Tailwind CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ github.workspace }}/.tailwind-cli
           key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: GospelPresenter/global.json
 
+      # Coverage is collected so the question "is this area tested?" has an answer that is not a
+      # grep. Cobertura files land under TestResults and go up as an artifact; nothing gates on a
+      # number yet.
       - name: Unit tests
-        run: dotnet test GospelPresenter.UnitTests/GospelPresenter.UnitTests.csproj
+        run: dotnet test GospelPresenter.UnitTests/GospelPresenter.UnitTests.csproj --collect:"XPlat Code Coverage" --results-directory TestResults
 
+      # The integration tests include a real PostgreSQL through Testcontainers (Docker is on the
+      # ubuntu runner), which is the only place the migrations ever execute before a release.
       - name: Integration tests
-        run: dotnet test GospelPresenter.IntegrationTests/GospelPresenter.IntegrationTests.csproj
+        run: dotnet test GospelPresenter.IntegrationTests/GospelPresenter.IntegrationTests.csproj --collect:"XPlat Code Coverage" --results-directory TestResults
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage
+          path: GospelPresenter/TestResults/**/coverage.cobertura.xml
+          if-no-files-found: warn
 
       # The desktop app needs no workload and no Apple toolchain, so it builds here rather than
       # occupying a macOS runner.
@@ -104,16 +122,16 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Cache the Tailwind CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ github.workspace }}/.tailwind-cli
           key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: GospelPresenter/global.json
 
@@ -155,16 +173,16 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Cache the Tailwind CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ github.workspace }}/.tailwind-cli
           key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: GospelPresenter/global.json
 

@@ -31,7 +31,39 @@ defaults:
 env:
   TailwindInstallPath: ${{ github.workspace }}/.tailwind-cli/
 
+# Read by default; the two jobs that write the release raise it themselves.
+permissions:
+  contents: read
+
 jobs:
+  # A published release makes every installed copy of the real app update itself, and until now
+  # nothing stood between a tag and that: maui-build.yml does not run on tags, so a release could
+  # be cut green while the tests were never scheduled. docker-publish.yml made the same argument
+  # for the server images; this is the desktop's copy of it.
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Cache the Tailwind CLI
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ github.workspace }}/.tailwind-cli
+          key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: GospelPresenter/global.json
+
+      - name: Unit tests
+        run: dotnet test GospelPresenter.UnitTests/GospelPresenter.UnitTests.csproj
+
+      - name: Integration tests
+        run: dotnet test GospelPresenter.IntegrationTests/GospelPresenter.IntegrationTests.csproj
+
   draft:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -82,7 +114,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes "$notes" --generate-notes
 
   build:
-    needs: draft
+    needs: [draft, tests]
     strategy:
       # One platform failing should not throw away the two that packaged: what arrived is in the
       # draft, and what is missing from it is visible before anyone publishes.
@@ -108,16 +140,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Cache the Tailwind CLI
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ${{ github.workspace }}/.tailwind-cli
           key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           global-json-file: GospelPresenter/global.json
 
