@@ -63,6 +63,7 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
                       $"&title={Uri.EscapeDataString(entry.Title)}";
 
             var window = await Electron.WindowManager.CreateWindowAsync(options, url);
+            RendererNavigationGuard.Attach(window, RendererNavigationGuard.KestrelOrigin(server), logger);
             window.OnClosed += () =>
             {
                 windows.TryRemove(windowId, out _);
@@ -184,7 +185,7 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
         Frame = false,
         BackgroundColor = "#000000",
         Show = false,
-    }.WithHiddenMenuBar();
+    }.WithHiddenMenuBar().WithLockedDownRenderer();
 
     /// <summary>
     /// One display only: a plain window the operator can move and resize, which is what the web app
@@ -198,7 +199,7 @@ public class ElectronLiveWindowLauncher(IServer server, ILogger<ElectronLiveWind
         Height = 720,
         BackgroundColor = "#000000",
         Show = false,
-    }.WithHiddenMenuBar();
+    }.WithHiddenMenuBar().WithLockedDownRenderer();
 
     /// <summary>
     /// Where Kestrel ended up listening. The port is not ours to choose — Electron.NET starts the

@@ -289,6 +289,137 @@ public class UserServiceTests : IDisposable
         exists.ShouldBeFalse();
     }
 
+    /// <summary>
+    /// Deleting a login and minting an invite are, together, how an account changes hands: whoever
+    /// redeems the invite becomes that user. So they need ManageUsers like any other change to a user,
+    /// and an organisation admin cannot use them to step into the super admin's account.
+    /// </summary>
+    [Fact]
+    public async Task CreateInviteAsync_WithoutManageUsers_ThrowsUnauthorized()
+    {
+        var otherUser = AddUser(OtherUserName, OtherUserEmail, UserRole.User, org.Id);
+
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.CreateInviteAsync(otherUser.Id, CallerFor(user)));
+    }
+
+    [Fact]
+    public async Task CreateInviteAsync_AdminForASuperAdmin_ThrowsUnauthorized()
+    {
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.CreateInviteAsync(superAdmin.Id, CallerFor(admin)));
+
+        using var context = factory.CreateDbContext();
+        (await context.Invites.AnyAsync(i => i.UserId == superAdmin.Id)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task CreateInviteAsync_AdminForAUserInAnotherOrganization_ThrowsUnauthorized()
+    {
+        var outsider = AddUserInNewOrganization();
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.CreateInviteAsync(outsider.Id, CallerFor(admin)));
+    }
+
+    [Fact]
+    public async Task CreateInviteAsync_AdminForAUserInTheirOrganization_CreatesIt()
+    {
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+
+        var invite = await service.CreateInviteAsync(user.Id, CallerFor(admin));
+
+        invite.UserId.ShouldBe(user.Id);
+    }
+
+    [Fact]
+    public async Task CreateInviteAsync_SuperAdminForASuperAdmin_CreatesIt()
+    {
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+
+        var invite = await service.CreateInviteAsync(superAdmin.Id, CallerFor(superAdmin));
+
+        invite.UserId.ShouldBe(superAdmin.Id);
+    }
+
+    [Fact]
+    public async Task DeleteLoginAsync_WithoutManageUsers_ThrowsAndKeepsTheLogin()
+    {
+        var otherUser = AddUser(OtherUserName, OtherUserEmail, UserRole.User, org.Id);
+        var login = await service.LinkLoginAsync(otherUser.Id, "google", "subject-1");
+
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.DeleteLoginAsync(login.Id, CallerFor(user)));
+
+        using var context = factory.CreateDbContext();
+        (await context.UserLogins.AnyAsync(l => l.Id == login.Id)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteLoginAsync_AdminForASuperAdminsLogin_ThrowsAndKeepsTheLogin()
+    {
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+        var login = await service.LinkLoginAsync(superAdmin.Id, "google", "subject-super");
+
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.DeleteLoginAsync(login.Id, CallerFor(admin)));
+
+        using var context = factory.CreateDbContext();
+        (await context.UserLogins.AnyAsync(l => l.Id == login.Id)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteLoginAsync_AdminForAUserInTheirOrganization_DeletesIt()
+    {
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+        var login = await service.LinkLoginAsync(user.Id, "google", "subject-2");
+
+        await service.DeleteLoginAsync(login.Id, CallerFor(admin));
+
+        using var context = factory.CreateDbContext();
+        (await context.UserLogins.AnyAsync(l => l.Id == login.Id)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task UpdateUserAsync_AdminEditingASuperAdmin_ThrowsUnauthorized()
+    {
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.UpdateUserAsync(superAdmin.Id, superAdmin.Name, superAdmin.Email, UserRole.User, CallerFor(admin)));
+
+        using var context = factory.CreateDbContext();
+        (await context.Users.SingleAsync(u => u.Id == superAdmin.Id)).Role.ShouldBe(UserRole.SuperAdmin);
+    }
+
+    [Fact]
+    public async Task DeleteUserAsync_AdminDeletingASuperAdmin_ThrowsUnauthorized()
+    {
+        var superAdmin = AddUser(SuperAdminName, SuperAdminEmail, UserRole.SuperAdmin, org.Id);
+        var admin = AddUser(AdminName, AdminEmail, UserRole.Admin, org.Id);
+
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.DeleteUserAsync(superAdmin.Id, CallerFor(admin)));
+
+        using var context = factory.CreateDbContext();
+        (await context.Users.AnyAsync(u => u.Id == superAdmin.Id)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task GetLoginsForUserAsync_WithoutViewUsers_ThrowsUnauthorized()
+    {
+        var otherUser = AddUser(OtherUserName, OtherUserEmail, UserRole.User, org.Id);
+
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.GetLoginsForUserAsync(otherUser.Id, CallerFor(user)));
+    }
+
     private User AddUserInNewOrganization()
     {
         var otherOrg = new Organization { Name = OtherOrgName };

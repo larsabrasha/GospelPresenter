@@ -1,6 +1,7 @@
 using GospelPresenter.Shared.Contexts;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
+using GospelPresenter.Shared.State;
 using GospelPresenter.Shared.Sync;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -418,6 +419,115 @@ public class SyncServicePushTests : IDisposable
     }
 
     // --- Helpers ---
+
+    /// <summary>
+    /// A Bible part's content is rendered as markup. The push is the one write path with no encoder in
+    /// front of it, so it may only carry what BibleTextService itself writes — and a song part, which
+    /// is rendered as text, may still say anything, angle brackets included.
+    /// </summary>
+    [Fact]
+    public async Task Push_ABibleTextPartWithForeignMarkup_FailsThePresentation()
+    {
+        // Act
+        var response = await service.PushAsync(org.Id, new SyncPushRequest
+        {
+            Presentations =
+            [
+                new SyncPresentationPush(
+                    NewPresentationDto("pres-1", "Gudstjänst"),
+                    [new SyncPresentationItemDto("item-1", null, PresentationItemType.BibleText, "Joh 3:16", null, 0, "pres-1", default)],
+                    [new SyncPresentationItemPartDto("part-1", "<img src=x onerror=alert(1)>", 0, "item-1", default)],
+                    [],
+                    null)
+            ]
+        }, caller);
+
+        // Assert
+        var result = response.Results.ShouldHaveSingleItem();
+        result.Outcome.ShouldBe(SyncPushOutcome.Failed);
+        result.Warning.ShouldNotBeNull();
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.Presentations.AnyAsync()).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Push_ABibleTextPartWithForeignMarkupOnAnItemOnlyTheServerHas_Fails()
+    {
+        // Arrange -- the merge path attaches pushed parts to items the push does not name
+        long version;
+        await using (var seed = await factory.CreateDbContextAsync())
+        {
+            var presentation = new Presentation { Id = "pres-1", Name = "Gudstjänst", OrganizationId = org.Id, CreatedBy = "user-1", UpdatedBy = "user-1" };
+            presentation.Items.Add(new PresentationItem { Id = "bible-item", Type = PresentationItemType.BibleText, Title = "Ps 23", SortOrder = 0 });
+            seed.Presentations.Add(presentation);
+            await seed.SaveChangesAsync();
+            version = presentation.Version;
+        }
+
+        // Act -- a stale base so the merge path runs; the part points at the server's Bible item
+        var response = await service.PushAsync(org.Id, new SyncPushRequest
+        {
+            Presentations =
+            [
+                new SyncPresentationPush(
+                    NewPresentationDto("pres-1", "Gudstjänst"),
+                    [],
+                    [new SyncPresentationItemPartDto("part-x", "<svg onload=alert(1)>", 0, "bible-item", DateTimeOffset.UtcNow)],
+                    [],
+                    BaseVersion: StaleVersion)
+            ]
+        }, caller);
+
+        // Assert
+        response.Results.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Failed);
+        await using var context = await factory.CreateDbContextAsync();
+        (await context.PresentationItemParts.AnyAsync()).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Push_ABibleTextPartFromTheService_IsApplied()
+    {
+        // Arrange
+        var html = new BibleTextService().Create([new Verse("b", 1, 1, "Så älskade Gud & världen")]).Parts.Single();
+
+        // Act
+        var response = await service.PushAsync(org.Id, new SyncPushRequest
+        {
+            Presentations =
+            [
+                new SyncPresentationPush(
+                    NewPresentationDto("pres-1", "Gudstjänst"),
+                    [new SyncPresentationItemDto("item-1", null, PresentationItemType.BibleText, "Joh 3:16", null, 0, "pres-1", default)],
+                    [new SyncPresentationItemPartDto("part-1", html, 0, "item-1", default)],
+                    [],
+                    null)
+            ]
+        }, caller);
+
+        // Assert
+        response.Results.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Applied);
+    }
+
+    [Fact]
+    public async Task Push_ASongPartContainingAngleBrackets_IsStillApplied()
+    {
+        // Act
+        var response = await service.PushAsync(org.Id, new SyncPushRequest
+        {
+            Presentations =
+            [
+                new SyncPresentationPush(
+                    NewPresentationDto("pres-1", "Gudstjänst"),
+                    [new SyncPresentationItemDto("item-1", null, PresentationItemType.Song, "Sång", null, 0, "pres-1", default)],
+                    [new SyncPresentationItemPartDto("part-1", "<Refräng> sjungs 2 ggr", 0, "item-1", default)],
+                    [],
+                    null)
+            ]
+        }, caller);
+
+        // Assert
+        response.Results.ShouldHaveSingleItem().Outcome.ShouldBe(SyncPushOutcome.Applied);
+    }
 
     private static SyncSongDto NewSongDto(string id, string name) =>
         new(id, name, null, null, null, null, null, default, 0);

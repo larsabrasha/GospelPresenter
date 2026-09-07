@@ -639,6 +639,11 @@ public class SyncService(
             .Include(p => p.SlideDecks)
             .FirstOrDefaultAsync(p => p.Id == dto.Id && p.OrganizationId == organizationId, cancellationToken);
 
+        // After the load rather than in ValidatePresentation: the merge path below attaches pushed
+        // parts to items the server has and the push does not name, and their type decides whether
+        // the content is markup that will be rendered.
+        RequireWellFormedBibleTextParts(push, existing);
+
         if (existing is null && push.BaseVersion is null)
         {
             await RequirePresentationCapacityAsync(db, organizationId, dto.IsTemplate, cancellationToken);
@@ -1489,6 +1494,29 @@ public class SyncService(
         }
         foreach (var part in parts)
             ValidationHelper.RequireMaxLength(part.Content, AppConstraints.PresentationItemPartContentMaxLength, "Content");
+    }
+
+    /// <summary>
+    /// A Bible part's content is rendered as markup, so a device may only push what
+    /// <see cref="BibleTextService"/> itself could have written. Song parts are rendered as text and
+    /// may say anything, angle brackets included, which is why this is scoped by item type rather
+    /// than applied to every part. Throwing InvalidOperationException makes GuardAsync fail this one
+    /// aggregate and leave the rest of the batch alone, the same as the length checks.
+    /// </summary>
+    private static void RequireWellFormedBibleTextParts(SyncPresentationPush push, Presentation? existing)
+    {
+        var typeById = push.Items.ToDictionary(i => i.Id, i => i.Type);
+        if (existing is not null)
+            foreach (var item in existing.Items)
+                typeById.TryAdd(item.Id, item.Type);
+
+        foreach (var part in push.Parts)
+        {
+            if (typeById.TryGetValue(part.PresentationItemId, out var type)
+                && type == PresentationItemType.BibleText
+                && !BibleSlideHtml.IsWellFormed(part.Content))
+                throw new InvalidOperationException("Bible text slide content contains markup that is not allowed.");
+        }
     }
 
     private static async Task RequirePresentationCapacityAsync(

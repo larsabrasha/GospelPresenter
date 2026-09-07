@@ -4,6 +4,7 @@
 @inject AppState AppState
 @inject SharedAppState SharedAppState
 @inject RemoteDisplayState RemoteDisplayState
+@inject IRemoteDisplayService RemoteDisplays
 @inject IJSRuntime JsRuntime
 @inject NavigationManager NavigationManager
 @inject CircuitCulture Culture
@@ -48,6 +49,20 @@ else if (pairedSessionId is not null)
     <div class="flex h-full bg-black items-center justify-center" @onclick="RequestFullscreen">
     </div>
 }
+else if (unknownDisplay)
+{
+    // The identifier in the URL names no saved screen. Nothing is registered and nothing can pair:
+    // the page must not become a way to follow a session by presenting some other kind of code.
+    <div class="flex flex-col h-full bg-black text-white items-center justify-center">
+        <div class="flex-1 flex flex-col items-center justify-center gap-6">
+            <div class="text-neutral-400 text-[2vw] text-center max-w-3xl leading-snug">@L["Display.UnknownDisplay"]</div>
+        </div>
+        <div class="flex items-center gap-3 text-neutral-600 pb-8">
+            <LogoSymbol Class="size-8"/>
+            <span class="text-xl font-semibold tracking-wide">Gospel Presenter</span>
+        </div>
+    </div>
+}
 else if (stableDisplayId is not null)
 {
     <div class="flex flex-col h-full bg-black text-white items-center justify-center">
@@ -90,12 +105,14 @@ else
     private string? pairedSessionId;
     private string? displayName;
     private string? autoPairToken;
+    private bool unknownDisplay;
     private bool fullscreenRequested;
     private bool initialized;
     private Timer? codeRefreshTimer;
 
     private void RefreshCodeIfExpired(object? state)
     {
+        if (unknownDisplay) return;
         if (pairedSessionId is not null) return;
         if (stableDisplayId is not null) return;
         if (RemoteDisplayState.IsCodeValid(pairingCode)) return;
@@ -106,7 +123,7 @@ else
 
     private void EnsureValidCode()
     {
-        if (!initialized) return;
+        if (!initialized || unknownDisplay) return;
         if (pairedSessionId is not null) return;
         if (stableDisplayId is not null) return;
         if (RemoteDisplayState.IsCodeValid(pairingCode)) return;
@@ -114,7 +131,7 @@ else
         pairingCode = RemoteDisplayState.GeneratePairingCode(displayId, displayName);
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
         var query = QueryHelpers.ParseQuery(uri.Query);
@@ -132,7 +149,7 @@ else
             autoPairToken = token.ToString();
         }
 
-        JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
+        _ = JsRuntime.InvokeVoidAsync("setRootElementBackgroundColor", "black");
 
         RemoteDisplayState.DisplayPaired += OnDisplayPaired;
         RemoteDisplayState.DisplayUnpaired += OnDisplayUnpaired;
@@ -142,7 +159,19 @@ else
 
         if (stableDisplayId is not null)
         {
-            // Saved display: initialize immediately (no sessionStorage needed)
+            // Saved display: the identifier is the page's only credential, and it is accepted only
+            // for a screen someone registered. A public output's code is the same shape and is on a
+            // poster for everyone; the pairing table does not know the difference, so it is asked
+            // for here, before the identifier is allowed anywhere near it.
+            if (await RemoteDisplays.FindScreenAsync(stableDisplayId) is null)
+            {
+                unknownDisplay = true;
+                stableDisplayId = null;
+                displayId = "";
+                initialized = true;
+                return;
+            }
+
             initialized = true;
             RemoteDisplayState.RegisterDisplayOnline(displayId);
 
@@ -156,7 +185,7 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && stableDisplayId is null)
+        if (firstRender && stableDisplayId is null && !unknownDisplay)
         {
             // Ad-hoc display: read or create displayId from sessionStorage
             var savedId = await JsRuntime.InvokeAsync<string?>("sessionStorage.getItem", "ad-hoc-display-id");

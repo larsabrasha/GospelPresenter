@@ -9,8 +9,11 @@
     BaseHeight="@BaseHeight"
     Scale="@Scale">
     @* Bible slides that were stored before themes existed carry their own left-aligned wrapper div,
-       so the theme's alignment only takes effect on parts added after that. *@
-    <div style="@EffectiveStyle.MainText.ToCss()">@((MarkupString)Content)</div>
+       so the theme's alignment only takes effect on parts added after that. The wrapper survives
+       BibleSlideHtml, which is the only route stored markup takes to a MarkupString: it admits the
+       service's own tags and encodes everything else, because a part can arrive from a device
+       through the sync push with no encoder in between. *@
+    <div style="@EffectiveStyle.MainText.ToCss()">@((MarkupString)BibleSlideHtml.Sanitize(Content))</div>
     @if (!string.IsNullOrEmpty(Credits))
     {
         <div class="absolute bottom-8 left-20 right-20" style="@EffectiveStyle.Credits.ToCss()">

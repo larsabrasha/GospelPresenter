@@ -128,7 +128,8 @@ public static partial class SyncEndpoints
             if (!match.Success || match.Groups["org"].Value != caller.OrganizationId)
                 return Results.Forbid();
 
-            var (permission, maxSize) = match.Groups["kind"].Value switch
+            var kind = match.Groups["kind"].Value;
+            var (permission, maxSize) = kind switch
             {
                 "images" => (Permission.ManageOrganizationImages, AppConstraints.MaxImageFileSizeBytes),
                 "audios" => (Permission.ManageOrganizationAudios, AppConstraints.MaxAudioFileSizeBytes),
@@ -145,10 +146,20 @@ public static partial class SyncEndpoints
             if (buffer.Length == 0 || buffer.Length > maxSize)
                 return Results.BadRequest("Missing or oversized body.");
 
-            var contentType = context.Request.ContentType ?? "application/octet-stream";
+            // The type is read off the bytes, never off the request: the object is served back under
+            // the type it is stored with, and a caller-supplied text/html under an image key would
+            // be HTML served from this origin. The web upload endpoints re-encode images for the
+            // same reason; a device's blobs are stored as they are, so they are sniffed instead.
+            var bytes = buffer.ToArray();
+            var contentType = kind == "audios"
+                ? MediaSniffer.DetectAudioContentType(bytes)
+                : MediaSniffer.DetectImageContentType(bytes);
+            if (contentType is null)
+                return Results.BadRequest("The body is not a supported image or audio file.");
+
             try
             {
-                await storage.UploadAsync(key, buffer.ToArray(), contentType, context.RequestAborted);
+                await storage.UploadAsync(key, bytes, contentType, context.RequestAborted);
             }
             catch (NotSupportedException)
             {
