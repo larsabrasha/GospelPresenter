@@ -16,7 +16,7 @@ The [`docker-compose.yml`](docker-compose.yml) uses pre-built images from GitHub
     cp .env.example .env
     ```
 
-    At minimum, set `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`. Enable at least one authentication provider (Google or OpenID Connect). See [`.env.example`](.env.example) for all available options.
+    At minimum, set `POSTGRES_PASSWORD`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` and `S3_ADMIN_TOKEN` (the last must match `admin_token` in `garage.toml`). Set `ALLOWED_HOSTS` to your host name before going live. Enable at least one authentication provider (Google or OpenID Connect). See [`.env.example`](.env.example) for all available options.
 
 2. Copy the Garage configuration and edit it:
 

@@ -22,5 +22,13 @@ public class Settings
     /// </summary>
     public int PreferredLanguageCacheSeconds { get; set; } = 300;
 
+    /// <summary>
+    /// The networks whose X-Forwarded-For / X-Forwarded-Proto headers are believed. Production sits
+    /// behind a Cloudflare Tunnel connector in the same Docker network, so the private ranges cover
+    /// it; anything arriving from elsewhere has its forwarded headers ignored rather than trusted.
+    /// Comma-separated CIDR notation.
+    /// </summary>
+    public string TrustedProxyNetworks { get; set; } = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128";
+
     public static readonly string ApiBaseUrl = "";
 }

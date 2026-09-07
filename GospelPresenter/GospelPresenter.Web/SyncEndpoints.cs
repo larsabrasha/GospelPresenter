@@ -168,6 +168,7 @@ public static partial class SyncEndpoints
             }
             return Results.NoContent();
         }).RequireAuthorization()
+          .RequireRateLimiting(GospelPresenter.Web.Security.RateLimitPolicies.Uploads)
           .DisableAntiforgery();
 
         // The protocol floor applies to every sync surface, not just pull and push: a client too

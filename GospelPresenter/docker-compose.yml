@@ -56,7 +56,7 @@ services:
       S3__BucketName: ${S3_BUCKET_NAME:-gospelpresenter}
       S3__Region: garage
       S3__AdminEndpoint: http://garage:3903
-      S3__AdminToken: ${S3_ADMIN_TOKEN:-gospelpresenter-admin-token}
+      S3__AdminToken: ${S3_ADMIN_TOKEN:?Set S3_ADMIN_TOKEN in .env to the admin_token from garage.toml}
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,6 +71,7 @@ services:
       - "${WEB_PORT:-8082}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      AllowedHosts: ${ALLOWED_HOSTS:-*}
       ConnectionStrings__postgresdb: "Host=postgres;Database=gospelpresenter;Username=gospelpresenter;Password=${POSTGRES_PASSWORD}"
       Settings__DataProtectionKeysDirectory: /app/data-protection-keys
       S3__Endpoint: http://garage:3900

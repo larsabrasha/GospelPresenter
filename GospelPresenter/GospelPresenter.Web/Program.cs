@@ -11,6 +11,7 @@ using GospelPresenter.Shared.Sync;
 using GospelPresenter.Web;
 using GospelPresenter.Web.Configuration;
 using GospelPresenter.Web.Mcp;
+using GospelPresenter.Web.Security;
 using GospelPresenter.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -47,6 +48,44 @@ try
     );
 
     builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
+
+    // Behind the tunnel every request arrives from the connector's address over http. The headers
+    // it adds are believed only from the networks named in settings — the middleware's default is
+    // to trust nothing, which made an unconfigured UseForwardedHeaders a no-op and every client
+    // look like the proxy.
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor
+                                   | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+        var trusted = builder.Configuration.GetValue<string>("Settings:TrustedProxyNetworks")
+                      ?? new Settings().TrustedProxyNetworks;
+        foreach (var cidr in trusted.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(cidr));
+    });
+
+    // Uploads hold memory for as long as they run, so a signed-in user gets a few at a time and a
+    // short queue; more than that waits or is told to come back. Per user rather than per address:
+    // a device pushing its library after a first sync is one user, and a congregation's wifi is one
+    // address for everyone.
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.AddPolicy(GospelPresenter.Web.Security.RateLimitPolicies.Uploads, context =>
+            System.Threading.RateLimiting.RateLimitPartition.GetConcurrencyLimiter(
+                context.User.FindFirst("user_id")?.Value ?? GospelPresenter.Web.Security.FailureThrottle.KeyFor(context),
+                _ => new System.Threading.RateLimiting.ConcurrencyLimiterOptions
+                {
+                    PermitLimit = 4,
+                    QueueLimit = 16,
+                    QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                }));
+    });
+
+    // Guessing at URL-borne secrets (watch codes, calendar tokens, MCP keys) is counted per client
+    // address and cut off; see FailureThrottle for why it counts failures and not requests.
+    builder.Services.AddSingleton<GospelPresenter.Web.Security.FailureThrottle>();
 
     if (builder.Environment.IsProduction())
     {
@@ -409,6 +448,7 @@ builder.Services.AddMetricServer(options =>
     }
 
     app.UseForwardedHeaders();
+    app.UseSecurityHeaders();
 
 // Configure the HTTP request pipeline.
     if (!app.Environment.IsDevelopment())
@@ -473,6 +513,7 @@ builder.Services.AddMetricServer(options =>
     }
 
     app.UseAuthorization();
+    app.UseRateLimiter();
 
     app.Use(async (context, next) =>
     {
@@ -805,6 +846,11 @@ builder.Services.AddMetricServer(options =>
         var orgId = sharedAppState.GetSessionOrganizationId(sessionId);
         if (orgId is null) return Results.NotFound();
 
+        // The slide on screen and nothing else: a session id is a key to what the congregation is
+        // looking at, not to the organisation's library.
+        if (!LiveMediaScope.IsOnScreen(sharedAppState, sessionId, $"slides/{slidesId}/{page}"))
+            return Results.NotFound();
+
         var s3Key = ImageUrlHelper.SlidesPageKey(orgId, slidesId, page);
         var result = await storage.GetAsync(s3Key);
         if (result is null) return Results.NotFound();
@@ -827,6 +873,9 @@ builder.Services.AddMetricServer(options =>
 
         var orgId = sharedAppState.GetSessionOrganizationId(sessionId);
         if (orgId is null) return Results.NotFound();
+
+        if (!LiveMediaScope.IsOnScreen(sharedAppState, sessionId, $"{type}/{id}/{variant}"))
+            return Results.NotFound();
 
         var s3Key = type switch
         {
@@ -912,6 +961,14 @@ builder.Services.AddMetricServer(options =>
                 return;
             }
 
+            var throttle = context.RequestServices.GetRequiredService<GospelPresenter.Web.Security.FailureThrottle>();
+            var throttleKey = GospelPresenter.Web.Security.FailureThrottle.KeyFor(context);
+            if (throttle.IsBlocked(throttleKey))
+            {
+                context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                return;
+            }
+
             var apiKey = authHeader["Bearer ".Length..];
             var keyHash = McpApiKey.HashKey(apiKey);
             var db = context.RequestServices.GetRequiredService<PresentationContext>();
@@ -919,6 +976,7 @@ builder.Services.AddMetricServer(options =>
 
             if (key is null)
             {
+                throttle.RecordFailure(throttleKey);
                 context.Response.StatusCode = 401;
                 return;
             }
@@ -1005,7 +1063,7 @@ static async Task RejectDeletedUser(CookieValidatePrincipalContext context)
 
     var services = context.HttpContext.RequestServices;
     var cache = services.GetRequiredService<IMemoryCache>();
-    var cacheKey = $"user-exists:{userId}";
+    var cacheKey = $"session-identity:{userId}";
     var cacheDuration = TimeSpan.FromSeconds(
         services.GetRequiredService<IOptions<Settings>>().Value.SessionRevalidationCacheSeconds);
 
@@ -1020,8 +1078,14 @@ static async Task RejectDeletedUser(CookieValidatePrincipalContext context)
     var userService = services.GetRequiredService<IUserService>();
     try
     {
-        if (await userService.UserExistsAsync(userId, context.HttpContext.RequestAborted))
+        var identity = await userService.GetSessionIdentityAsync(userId, context.HttpContext.RequestAborted);
+        if (identity is { } current)
         {
+            // The account is still there. Its role and organisation are what the claims say they
+            // are — or were, when the cookie was issued: a demoted admin must lose ManageUsers
+            // now, not when the cookie expires four hours later. Device tokens already reload the
+            // role on every request; this gives a cookie the same property, at the cache's cadence.
+            GospelPresenter.Web.Auth.SessionClaims.Refresh(context, current.Role, current.OrganizationId);
             if (cachingEnabled)
                 cache.Set(cacheKey, true, cacheDuration);
             return;

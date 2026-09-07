@@ -2006,4 +2006,7 @@
   <data name="Display.UnknownDisplay" xml:space="preserve">
     <value>This screen is not registered. Add it under Outputs in the admin area and open the address shown there.</value>
   </data>
+  <data name="Display.TooManyAttempts" xml:space="preserve">
+    <value>Too many wrong codes. Wait ten minutes, or use the link or QR code on the screen instead.</value>
+  </data>
 </root>

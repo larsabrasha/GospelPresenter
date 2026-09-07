@@ -1,3 +1,7 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
+using GospelPresenter.Shared.Models;
+using GospelPresenter.Shared.Contexts;
 using GospelPresenter.IntegrationTests.Fixtures;
 using Microsoft.AspNetCore.Localization;
 using Shouldly;
@@ -163,4 +167,35 @@ public class SessionRevalidationIntegrationTests
         // Assert
         response.RequestMessage?.RequestUri?.AbsolutePath.ShouldBe(AnyPath);
     }
+
+    /// <summary>
+    /// A cookie used to carry the role it was issued with until it expired — four hours in which a
+    /// demoted admin kept every admin page. The revalidation now refreshes role and organisation
+    /// from the database at the same cadence it checks that the account still exists.
+    /// </summary>
+    [Fact]
+    public async Task ADemotedAdmin_LosesTheAdminPagesOnTheNextRevalidatedRequest()
+    {
+        // Arrange -- no cache, so the very next request revalidates
+        using var app = new WebAppFixture { RevalidationCacheSeconds = 0 };
+        var client = await app.CreateAuthenticatedClientAsync();
+        var asAdmin = await client.GetAsync(AdminOnlyPage);
+        asAdmin.StatusCode.ShouldBe(System.Net.HttpStatusCode.OK);
+        asAdmin.RequestMessage!.RequestUri!.AbsolutePath.ShouldBe(AdminOnlyPage);
+
+        await using (var context = app.Services
+                         .GetRequiredService<IDbContextFactory<PresentationContext>>().CreateDbContext())
+        {
+            await context.Users.Where(u => u.Id == WebAppFixture.MockUserId)
+                .ExecuteUpdateAsync(s => s.SetProperty(u => u.Role, UserRole.User));
+        }
+
+        // Act -- the page is gated on the cookie's role claim, which is what the revalidation refreshes
+        var asUser = await client.GetAsync(AdminOnlyPage);
+
+        // Assert -- turned away (the client follows the redirect, so the final address tells)
+        asUser.RequestMessage!.RequestUri!.AbsolutePath.ShouldNotBe(AdminOnlyPage);
+    }
+
+    private const string AdminOnlyPage = "/admin/users";
 }

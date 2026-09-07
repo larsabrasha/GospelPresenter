@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GospelPresenter.Shared.Services;
 
+/// <summary>The parts of an account a signed-in session carries as claims.</summary>
+public record SessionIdentity(UserRole Role, string? OrganizationId);
+
 public record CallerContext(string UserId, UserRole Role, string? OrganizationId)
 {
     public bool HasPermission(Permission permission) => PermissionMap.HasPermission(Role, permission);
@@ -38,6 +41,12 @@ public interface IUserService
 
     Task<bool> IsEmailTakenAsync(string email, string? excludeUserId = null);
     Task<bool> UserExistsAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// What a session's claims must say about this account right now, or null when the account is
+    /// gone. One indexed read; it runs on every cookie-bearing request that misses the cache.
+    /// </summary>
+    Task<SessionIdentity?> GetSessionIdentityAsync(string id, CancellationToken cancellationToken = default);
     Task<List<User>> GetAllUsersAsync(CallerContext caller);
     Task<User?> GetByIdAsync(string id, CallerContext caller);
     Task<User> CreateUserAsync(string name, string email, string organizationId, UserRole role, CallerContext caller);
@@ -161,6 +170,16 @@ public class UserService(
     /// Checks whether a user account still exists. Used to revalidate live sessions, so it
     /// deliberately takes no <see cref="CallerContext"/> — the caller is the session being checked.
     /// </summary>
+    public async Task<SessionIdentity?> GetSessionIdentityAsync(string id, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        await using var context = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        return await context.Users
+            .Where(u => u.Id == id)
+            .Select(u => new SessionIdentity(u.Role, u.OrganizationId))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<bool> UserExistsAsync(string id, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(id)) return false;

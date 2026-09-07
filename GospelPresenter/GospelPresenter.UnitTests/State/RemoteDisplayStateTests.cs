@@ -8,14 +8,51 @@ public class RemoteDisplayStateTests
     private readonly RemoteDisplayState state = new();
 
     [Fact]
-    public void GeneratePairingCode_Returns4DigitCode()
+    public void GeneratePairingCode_ReturnsSixCharactersFromTheUnambiguousAlphabet()
     {
         var code = state.GeneratePairingCode("display-1");
 
-        code.Length.ShouldBe(4);
-        int.TryParse(code, out var num).ShouldBeTrue();
-        num.ShouldBeGreaterThanOrEqualTo(1000);
-        num.ShouldBeLessThan(9999);
+        code.Length.ShouldBe(RemoteDisplayState.PairingCodeLength);
+        code.ShouldAllBe(c => "abcdefghjkmnpqrstuvwxyz23456789".Contains(c));
+    }
+
+    [Fact]
+    public void PairDisplay_IgnoresCaseAndSurroundingWhitespace()
+    {
+        var code = state.GeneratePairingCode("display-1");
+
+        state.PairDisplay($" {code.ToUpperInvariant()} ", "session-1").ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// The code table is shared by every organisation on the server, so a session that keeps
+    /// guessing is cut off well before it could walk through any useful part of the code space.
+    /// </summary>
+    [Fact]
+    public void PairDisplay_AfterTooManyWrongCodes_RefusesEvenTheRightOne()
+    {
+        var code = state.GeneratePairingCode("display-1");
+
+        for (var i = 0; i < RemoteDisplayState.MaxPairingAttempts; i++)
+            state.PairDisplay("wrong!", "guesser").ShouldBeFalse();
+
+        state.IsPairingThrottled("guesser").ShouldBeTrue();
+        state.PairDisplay(code, "guesser").ShouldBeFalse();
+        // The display is still pairable — by someone else.
+        state.IsPairingThrottled("honest").ShouldBeFalse();
+        state.PairDisplay(code, "honest").ShouldBeTrue();
+    }
+
+    [Fact]
+    public void PairDisplay_ASuccessfulPairing_ClearsTheSessionsFailures()
+    {
+        var code = state.GeneratePairingCode("display-1");
+        state.PairDisplay("wrong!", "session-1").ShouldBeFalse();
+        state.PairDisplay("wrong!", "session-1").ShouldBeFalse();
+
+        state.PairDisplay(code, "session-1").ShouldBeTrue();
+
+        state.IsPairingThrottled("session-1").ShouldBeFalse();
     }
 
     [Fact]
