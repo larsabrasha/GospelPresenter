@@ -25,18 +25,21 @@
 <div
     class="select-none group relative @cssClass"
     style="width: @width; height: @height">
-    @if (isLiveSelected)
-    {
-        <div class="absolute top-1 left-1 flex items-center gap-1 bg-red-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full">
-            <span class="size-1.5 rounded-full bg-white animate-pulse"></span>
-            Live
-        </div>
-    }
     <div
         class="origin-top-left flex items-center justify-center px-20 pt-20 pb-36 relative overflow-hidden"
         style="width: @baseWidth; height: @baseHeight; transform: scale(@scale); @background">
         @ChildContent
     </div>
+    @* After the canvas, not before it. Both are positioned with auto z-index, so document order
+       decides what paints on top, and the canvas carries an opaque theme background — a badge
+       written first is rendered but invisible. Same order as the stage strip. *@
+    @if (isLiveSelected)
+    {
+        <div class="absolute top-1 left-1 flex items-center gap-1 bg-red-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full pointer-events-none">
+            <span class="size-1.5 rounded-full bg-white animate-pulse"></span>
+            Live
+        </div>
+    }
 </div>
 
 @code {
