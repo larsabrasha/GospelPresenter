@@ -94,12 +94,17 @@ jobs:
           # osx-x64 build would emit a second latest-mac.yml listing only its own file and overwrite
           # the first — an Intel Mac would then be offered the arm64 build. Supporting both needs a
           # single multi-arch electron-builder run, which these MSBuild targets cannot express.
+          # tailwind_asset is the name of the standalone CLI in the tailwindcss release, and it is
+          # also the file name Tailwind.MSBuild looks for. See the fetch step below.
           - os: macos-latest
             rid: osx-arm64
+            tailwind_asset: tailwindcss-macos-arm64
           - os: windows-latest
             rid: win-x64
+            tailwind_asset: tailwindcss-windows-x64.exe
           - os: ubuntu-latest
             rid: linux-x64
+            tailwind_asset: tailwindcss-linux-x64
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -115,6 +120,34 @@ jobs:
         with:
           path: ${{ github.workspace }}/.tailwind-cli
           key: tailwind-cli-${{ runner.os }}-${{ hashFiles('GospelPresenter/GospelPresenter.Shared/GospelPresenter.Shared.csproj') }}
+
+      - name: Fetch the Tailwind CLI when the cache missed
+        # The cache alone is half a guard. On a miss, Tailwind.MSBuild asks the GitHub API for the
+        # release, unauthenticated, from a shared runner address pool -- and that is the 403 rate
+        # limit that killed the macOS leg of v0.2.0 in 29 seconds while the two legs whose caches hit
+        # went green. The release download URL is not the API and is not rate limited, so a cache
+        # miss now costs a download instead of the release.
+        #
+        # The path layout is the package's own, <TailwindInstallPath>/<TailwindVersion>/<asset>, and
+        # it only downloads when that exact file is absent. Put the binary anywhere else and the
+        # build stays green while the API call happens anyway, with nothing to show for it -- the
+        # same trap the web Dockerfile warns about. Keep the version in step with TailwindVersion in
+        # GospelPresenter.Shared.csproj.
+        shell: bash
+        env:
+          TAILWIND_VERSION: v4.2.2
+          TAILWIND_ASSET: ${{ matrix.tailwind_asset }}
+        run: |
+          dir="$GITHUB_WORKSPACE/.tailwind-cli/$TAILWIND_VERSION"
+          if [ -f "$dir/$TAILWIND_ASSET" ]; then
+            echo "Tailwind CLI restored from the cache."
+            exit 0
+          fi
+          mkdir -p "$dir"
+          curl -fsSL --retry 3 --retry-all-errors \
+            -o "$dir/$TAILWIND_ASSET" \
+            "https://github.com/tailwindlabs/tailwindcss/releases/download/$TAILWIND_VERSION/$TAILWIND_ASSET"
+          chmod +x "$dir/$TAILWIND_ASSET"
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
