@@ -1,4 +1,8 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Pinned for the same reason as the two server Dockerfiles, and this one was missed when they were:
+# global.json holds rollForward at latestPatch, so it accepts 10.0.2xx and nothing else, while mcr's
+# floating 10.0 tag has moved on to 10.0.401 and the build dies on "A compatible .NET SDK was not
+# found". Raise this together with global.json, never on its own.
+FROM mcr.microsoft.com/dotnet/sdk:10.0.201 AS build
 WORKDIR /src
 COPY ["GospelPresenter.Screenshots/GospelPresenter.Screenshots.csproj", "GospelPresenter.Screenshots/"]
 RUN dotnet restore "GospelPresenter.Screenshots/GospelPresenter.Screenshots.csproj"
