@@ -2003,4 +2003,7 @@
   <data name="Trash.Restoring" xml:space="preserve">
     <value>Restoring…</value>
   </data>
+  <data name="Display.UnknownDisplay" xml:space="preserve">
+    <value>This screen is not registered. Add it under Outputs in the admin area and open the address shown there.</value>
+  </data>
 </root>

@@ -298,8 +298,11 @@ app.MapPost("/culture", async ([FromForm] string culture, [FromForm] string? ret
 // left alone here, unlike the MAUI host, because there is a real HTTP server to answer them. The
 // paths are routed straight to MediaRequestHandler, which already knows how to turn one into an
 // object key and read the blob out of the local store.
-foreach (var prefix in new[] { "/api/images", "/api/live-images", "/api/audio", "/api/theme-images" })
-    app.MapGet($"{prefix}/{{**rest}}", ServeMediaAsync);
+// Behind the device's identity like every page that embeds them; only the theme art, which is
+// product graphics with no organisation behind it, is served to anyone — as the web host does.
+foreach (var prefix in new[] { "/api/images", "/api/live-images", "/api/audio" })
+    app.MapGet($"{prefix}/{{**rest}}", ServeMediaAsync).RequireAuthorization();
+app.MapGet("/api/theme-images/{**rest}", ServeMediaAsync);
 
 await InitialiseDatabaseAsync(app.Services);
 app.Services.GetRequiredService<GospelPresenter.Client.CcliReportListener>().Start();
@@ -345,6 +348,8 @@ static async Task ServeMediaAsync(HttpContext http, GospelPresenter.Client.Media
 
     http.Response.StatusCode = result.Status;
     http.Response.ContentType = result.ContentType;
+    // The stored type is the type; the renderer must not sniff a blob into something else.
+    http.Response.Headers.XContentTypeOptions = "nosniff";
     http.Response.Headers.AcceptRanges = "bytes";
     if (result.ContentRange is not null)
         http.Response.Headers.ContentRange = result.ContentRange;
@@ -416,7 +421,11 @@ static async Task OnElectronReadyAsync(IServiceProvider services)
         // Guessing it would flash the wrong colour at everyone it guessed wrong for, which is worse
         // than the short gap between the splash disappearing and this window arriving.
         Show = false,
-    }.WithHiddenMenuBar());
+    }.WithHiddenMenuBar().WithLockedDownRenderer());
+
+    RendererNavigationGuard.Attach(window,
+        RendererNavigationGuard.KestrelOrigin(services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()),
+        services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(RendererNavigationGuard)));
 
     window.OnReadyToShow += () => window.Show();
     window.OnClosed += () => Electron.App.Quit();

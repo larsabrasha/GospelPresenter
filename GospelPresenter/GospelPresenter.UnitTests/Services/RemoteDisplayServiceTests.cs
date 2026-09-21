@@ -46,6 +46,21 @@ public class RemoteDisplayServiceTests : IDisposable
         connection.Dispose();
     }
 
+    /// <summary>
+    /// The screen page accepts an identifier from its URL with no other credential, so the lookup it
+    /// uses must answer only for screens: a public output's identifier is on a poster for everyone.
+    /// </summary>
+    [Fact]
+    public async Task FindScreenAsync_ForAScreen_ReturnsIt_AndForAPublicOutput_ReturnsNothing()
+    {
+        var screen = await service.AddDisplayAsync(org.Id, ScreenName, caller);
+        var output = await service.AddDisplayAsync(org.Id, PublicOutputName, caller, OutputKind.PublicQr);
+
+        (await service.FindScreenAsync(screen.DisplayIdentifier))?.Id.ShouldBe(screen.Id);
+        (await service.FindScreenAsync(output.DisplayIdentifier)).ShouldBeNull();
+        (await service.FindScreenAsync("no-such-code")).ShouldBeNull();
+    }
+
     [Fact]
     public async Task AddDisplayAsync_ByDefault_CreatesAScreen()
     {

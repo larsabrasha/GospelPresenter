@@ -27,6 +27,14 @@ public interface IRemoteDisplayService
     /// anonymous watch endpoints, which only ever get the identifier from the visitor's URL.
     /// </summary>
     Task<RemoteDisplay?> FindPublicOutputAsync(string displayIdentifier);
+
+    /// <summary>
+    /// Resolves a saved screen by its identifier, without a permission check: the screen page is
+    /// opened on a TV or projector that has no account, with the identifier in its URL as the only
+    /// credential. Kind-scoped on purpose — a public output's identifier is printed on a QR poster
+    /// for everyone, and it must not open the projector view of the session it is following.
+    /// </summary>
+    Task<RemoteDisplay?> FindScreenAsync(string displayIdentifier);
 }
 
 public class RemoteDisplayService(
@@ -156,5 +164,13 @@ public class RemoteDisplayService(
             .Include(d => d.Organization)
             .FirstOrDefaultAsync(d =>
                 d.DisplayIdentifier == displayIdentifier && d.Kind == OutputKind.PublicQr);
+    }
+
+    public async Task<RemoteDisplay?> FindScreenAsync(string displayIdentifier)
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.RemoteDisplays
+            .FirstOrDefaultAsync(d =>
+                d.DisplayIdentifier == displayIdentifier && d.Kind == OutputKind.Screen);
     }
 }

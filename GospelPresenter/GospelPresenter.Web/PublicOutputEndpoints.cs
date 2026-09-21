@@ -175,8 +175,7 @@ public static class PublicOutputEndpoints
         if (result is null) return Results.NotFound();
 
         var (stream, contentType) = result.Value;
-        context.Response.Headers.CacheControl = "public, max-age=3600";
-        return Results.File(stream, contentType);
+        return MediaResponses.File(context, stream, contentType, MediaResponses.CacheBrieflyAndPrivately);
     }
 
     private static Task WriteOutputEventAsync(

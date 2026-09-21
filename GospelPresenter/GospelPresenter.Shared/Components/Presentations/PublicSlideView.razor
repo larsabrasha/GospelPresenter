@@ -34,9 +34,12 @@
         }
         else if (LiveSlide.ItemType == ProjectItemType.BibleText && LiveSlide.Text is not null)
         {
+            @* Server-rendered once and pushed to every anonymous viewer's innerHTML, so the stored
+               markup goes through the same gate as on the projector: only the Bible service's own
+               tags survive, the rest is text. *@
             <div class="w-full px-[5vw] py-[4vh] break-words"
                  style="@ResponsiveTextCss(theme.BibleText.MainText)">
-                @((MarkupString)LiveSlide.Text)
+                @((MarkupString)BibleSlideHtml.Sanitize(LiveSlide.Text))
             </div>
         }
         else if (IsImageItem && LiveSlide.ImageUrl is not null)

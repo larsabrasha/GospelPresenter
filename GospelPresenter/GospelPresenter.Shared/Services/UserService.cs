@@ -266,6 +266,7 @@ public class UserService(
                     throw new InvalidOperationException("User not found.");
                 if (targetUser.OrganizationId != caller.OrganizationId)
                     throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
+                RequireCanManageAccountOf(targetUser, caller);
             }
             if (!caller.HasPermission(Permission.AssignSuperAdminRole) && role == UserRole.SuperAdmin)
                 throw new UnauthorizedAccessException("Access denied: you do not have permission to assign the SuperAdmin role.");
@@ -334,6 +335,7 @@ public class UserService(
                 throw new InvalidOperationException("User not found.");
             if (targetUser.OrganizationId != caller.OrganizationId)
                 throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
+            RequireCanManageAccountOf(targetUser, caller);
         }
 
         await context.Users
@@ -343,6 +345,7 @@ public class UserService(
 
     public async Task<List<UserLogin>> GetLoginsForUserAsync(string userId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewUsers);
         await VerifyUserAccessAsync(userId, caller);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         return await context.UserLogins
@@ -353,16 +356,22 @@ public class UserService(
 
     public async Task DeleteLoginAsync(string loginId, CallerContext caller)
     {
+        // Removing a login and minting an invite are, together, how an account changes hands: whoever
+        // redeems the invite becomes that user, role included. So both are gated like any other
+        // change to a user, and neither may reach a super admin from below.
+        caller.RequirePermission(Permission.ManageUsers);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var login = await context.UserLogins.Include(ul => ul.User).FirstOrDefaultAsync(ul => ul.Id == loginId);
         if (login is null) return;
         if (!caller.HasPermission(Permission.CrossOrganizationAccess) && login.User.OrganizationId != caller.OrganizationId)
             throw new UnauthorizedAccessException("Access denied: login belongs to a user in a different organization.");
+        RequireCanManageAccountOf(login.User, caller);
         await context.UserLogins.Where(ul => ul.Id == loginId).ExecuteDeleteAsync();
     }
 
     public async Task<List<Invite>> GetInvitesForUserAsync(string userId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ViewUsers);
         await VerifyUserAccessAsync(userId, caller);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         return await context.Invites
@@ -373,8 +382,13 @@ public class UserService(
 
     public async Task<Invite> CreateInviteAsync(string userId, CallerContext caller)
     {
-        await VerifyUserAccessAsync(userId, caller);
+        caller.RequirePermission(Permission.ManageUsers);
         await using var context = await dbContextFactory.CreateDbContextAsync();
+        var target = await context.Users.FirstOrDefaultAsync(u => u.Id == userId)
+                     ?? throw new InvalidOperationException("User not found.");
+        if (!caller.HasPermission(Permission.CrossOrganizationAccess) && target.OrganizationId != caller.OrganizationId)
+            throw new UnauthorizedAccessException("Access denied: user belongs to a different organization.");
+        RequireCanManageAccountOf(target, caller);
         await ValidationHelper.RequireMaxCountAsync(
             context.Invites.Where(i => i.UserId == userId && !i.Used),
             AppConstraints.MaxInvitesPerUser, "invites");
@@ -386,12 +400,25 @@ public class UserService(
 
     public async Task DeleteInviteAsync(string inviteId, CallerContext caller)
     {
+        caller.RequirePermission(Permission.ManageUsers);
         await using var context = await dbContextFactory.CreateDbContextAsync();
         var invite = await context.Invites.Include(i => i.User).FirstOrDefaultAsync(i => i.Id == inviteId);
         if (invite is null) return;
         if (!caller.HasPermission(Permission.CrossOrganizationAccess) && invite.User.OrganizationId != caller.OrganizationId)
             throw new UnauthorizedAccessException("Access denied: invite belongs to a user in a different organization.");
+        RequireCanManageAccountOf(invite.User, caller);
         await context.Invites.Where(i => i.Id == inviteId).ExecuteDeleteAsync();
+    }
+
+    /// <summary>
+    /// A super admin's account may only be managed by someone who could have made them one. An
+    /// organisation admin has ManageUsers for everyone in the organisation — and the super admin is
+    /// a member of one — but changing, deleting or re-linking that account is a step up, not across.
+    /// </summary>
+    private static void RequireCanManageAccountOf(User target, CallerContext caller)
+    {
+        if (target.Role == UserRole.SuperAdmin && !caller.HasPermission(Permission.AssignSuperAdminRole))
+            throw new UnauthorizedAccessException("Access denied: only a super admin may manage a super admin's account.");
     }
 
     private async Task VerifyUserAccessAsync(string userId, CallerContext caller)

@@ -208,6 +208,39 @@ public class PublicSlideViewTests : TestContext
         rendered.Find("div[style*='font-family']").GetAttribute("style")!.ShouldContain("color: #ffffff");
     }
 
+    /// <summary>
+    /// This fragment is pushed into anonymous visitors' innerHTML. A Bible part that arrived through
+    /// the sync push with foreign markup must come out as text here, not as an element.
+    /// </summary>
+    [Fact]
+    public void BibleSlide_WithForeignMarkupInTheStoredText_RendersNoElementFromIt()
+    {
+        var slide = new LiveSlide(
+            LiveSlideStatus.ShowingPresentation, ProjectItemType.BibleText, "item", 0,
+            "<div class=\"text-left\"><sup class=\"opacity-40\">1</sup>\u00a0I begynnelsen</div><img src=x onerror=alert(1)>",
+            null, null, null, ThemeWith(new SlideTextStyle()));
+
+        var cut = Render(slide);
+
+        cut.FindAll("img").ShouldBeEmpty();
+        cut.Markup.ShouldNotContain("onerror");
+        cut.Markup.ShouldContain("I begynnelsen");
+    }
+
+    [Fact]
+    public void BibleSlide_FromTheService_KeepsItsVerseMarker()
+    {
+        var html = new BibleTextService().Create([new Verse("b", 3, 16, "Ty så älskade Gud världen")]).Parts.Single();
+        var slide = new LiveSlide(
+            LiveSlideStatus.ShowingPresentation, ProjectItemType.BibleText, "item", 0,
+            html, null, null, null, ThemeWith(new SlideTextStyle()));
+
+        var cut = Render(slide);
+
+        cut.Find("sup").TextContent.ShouldBe("16");
+        cut.Markup.ShouldContain("Ty så älskade Gud världen");
+    }
+
     private static SlideTheme ThemeWith(SlideTextStyle mainText) =>
         new() { Song = new SlideStyle { MainText = mainText } };
 
