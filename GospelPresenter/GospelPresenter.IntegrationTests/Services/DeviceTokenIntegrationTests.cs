@@ -163,6 +163,90 @@ public class DeviceTokenIntegrationTests
 
     private sealed record MeRow(string Id, string Name, string Email, string Role, string? OrganizationId, string? OrganizationName);
 
+    /// <summary>
+    /// The handover page closes itself once the app has its token, and learns that by polling
+    /// /app-login/status. "Collected" has to mean the app authenticated with the token, not merely
+    /// that it was minted — closing any earlier leaves nothing to fall back on if the hand-over
+    /// failed.
+    /// </summary>
+    [Fact]
+    public async Task AppLoginStatus_BeforeTheAppUsesTheToken_IsNotCollected()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var cookieClient = await CreateCookieClientAsync(app);
+        await IssueTokenAsync(cookieClient, "Testmaskin");
+        var id = await TokenIdAsync(cookieClient, "Testmaskin");
+
+        // Act
+        var status = await cookieClient.GetFromJsonAsync<StatusRow>($"/app-login/status?id={id}");
+
+        // Assert
+        status.ShouldNotBeNull();
+        status.Collected.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task AppLoginStatus_AfterTheAppUsesTheToken_IsCollected()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var cookieClient = await CreateCookieClientAsync(app);
+        var token = await IssueTokenAsync(cookieClient, "Testmaskin");
+        var id = await TokenIdAsync(cookieClient, "Testmaskin");
+
+        // Act -- what the app does the moment the callback arrives
+        (await CreateBearerClient(app, token).GetAsync("/api/me")).EnsureSuccessStatusCode();
+        var status = await cookieClient.GetFromJsonAsync<StatusRow>($"/app-login/status?id={id}");
+
+        // Assert
+        status.ShouldNotBeNull();
+        status.Collected.ShouldBeTrue();
+    }
+
+    /// <summary>
+    /// Scoped to the caller's own devices, so the endpoint cannot be used to learn anything about
+    /// someone else's token — not even that it exists.
+    /// </summary>
+    [Fact]
+    public async Task AppLoginStatus_ForAnotherUsersToken_IsNotFound()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var ownerClient = await CreateCookieClientAsync(app);
+        await IssueTokenAsync(ownerClient, "Testmaskin");
+        var id = await TokenIdAsync(ownerClient, "Testmaskin");
+        var otherClient = await CreateCookieClientAsync(app, "mock-user-en");
+
+        // Act
+        var response = await otherClient.GetAsync($"/app-login/status?id={id}");
+
+        // Assert
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    /// <summary>
+    /// The page has to poll for the token it just minted and no other, or it would close on the
+    /// strength of some earlier device's sign-in.
+    /// </summary>
+    [Fact]
+    public async Task AppLogin_PollsForTheTokenItMinted()
+    {
+        // Arrange
+        using var app = new WebAppFixture();
+        var cookieClient = await CreateCookieClientAsync(app);
+
+        // Act
+        var html = await (await cookieClient.GetAsync("/app-login?device=Testmaskin")).Content.ReadAsStringAsync();
+        var id = await TokenIdAsync(cookieClient, "Testmaskin");
+
+        // Assert
+        html.ShouldContain("app-login/status");
+        html.ShouldContain(id);
+    }
+
+    private sealed record StatusRow(bool Collected);
+
     [Fact]
     public async Task UnknownDeviceToken_IsRejected()
     {
@@ -180,12 +264,12 @@ public class DeviceTokenIntegrationTests
     /// Signs in as the seeded mock user. The /app-login response hands over to a custom scheme no
     /// HttpClient can follow, so the tests read the token out of the page it renders.
     /// </summary>
-    private static async Task<HttpClient> CreateCookieClientAsync(WebAppFixture app)
+    private static async Task<HttpClient> CreateCookieClientAsync(WebAppFixture app, string userId = WebAppFixture.MockUserId)
     {
         var cookies = new CookieContainerHandler();
         var client = app.CreateDefaultClient(BaseAddress, cookies);
 
-        var response = await client.GetAsync($"/mock-signin/{WebAppFixture.MockUserId}");
+        var response = await client.GetAsync($"/mock-signin/{userId}");
         response.StatusCode.ShouldBe(HttpStatusCode.Redirect, "mock sign-in answers with a redirect carrying the cookie");
         cookies.Container.GetCookies(BaseAddress).Any(c => c.Name == ".AspNetCore.Cookies")
             .ShouldBeTrue("sign-in should have set an authentication cookie");
@@ -197,6 +281,12 @@ public class DeviceTokenIntegrationTests
     {
         var response = await cookieClient.GetAsync($"/app-login?device={Uri.EscapeDataString(deviceName)}");
         return await DeviceLogin.ReadTokenAsync(response);
+    }
+
+    private static async Task<string> TokenIdAsync(HttpClient cookieClient, string deviceName)
+    {
+        var listed = await cookieClient.GetFromJsonAsync<List<TokenRow>>("/api/device-tokens");
+        return listed!.Single(t => t.Name == deviceName).Id;
     }
 
     private static HttpClient CreateBearerClient(WebAppFixture app, string token)

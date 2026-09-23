@@ -660,7 +660,7 @@
     <value>Du är inloggad</value>
   </data>
   <data name="AppLogin.CloseTab" xml:space="preserve">
-    <value>Gospel Presenter öppnas. Du kan stänga den här fliken.</value>
+    <value>Gospel Presenter öppnas. Du kan stänga den här sidan.</value>
   </data>
   <data name="AppLogin.OpenApp" xml:space="preserve">
     <value>Öppna Gospel Presenter</value>

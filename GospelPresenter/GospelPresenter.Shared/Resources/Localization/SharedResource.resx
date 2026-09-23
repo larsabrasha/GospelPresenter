@@ -660,7 +660,7 @@
     <value>You are signed in</value>
   </data>
   <data name="AppLogin.CloseTab" xml:space="preserve">
-    <value>Gospel Presenter is opening. You can close this tab.</value>
+    <value>Gospel Presenter is opening. You can close this page.</value>
   </data>
   <data name="AppLogin.OpenApp" xml:space="preserve">
     <value>Open Gospel Presenter</value>

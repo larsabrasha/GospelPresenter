@@ -47,6 +47,14 @@ public static class AppConstraints
     public const int MaxAudioPerOrg = 500;
     public const int MaxApiKeysPerUser = 10;
     public const int MaxDeviceTokensPerUser = 10;
+
+    /// <summary>
+    /// How long a device sign-in waits for the browser to hand the token back — long enough for a
+    /// real sign-in with a password manager and a second factor. Shared because two sides count
+    /// it: the desktop app gives up on the callback after this, and the handover page stops
+    /// polling for it after the same time.
+    /// </summary>
+    public static readonly TimeSpan DeviceSignInTimeout = TimeSpan.FromMinutes(5);
     public const int MaxCalendarSubscriptionsPerUser = 10;
 
     /// <summary>

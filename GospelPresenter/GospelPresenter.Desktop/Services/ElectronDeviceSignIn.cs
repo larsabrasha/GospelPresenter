@@ -1,6 +1,8 @@
 using System.Net.Http.Json;
 using ElectronNET.API;
+using ElectronNET.API.Entities;
 using GospelPresenter.Client.Auth;
+using GospelPresenter.Shared;
 using GospelPresenter.Shared.Models;
 using GospelPresenter.Shared.Services;
 
@@ -32,8 +34,8 @@ public class ElectronDeviceSignIn(
 {
     private static string CallbackScheme => DesktopBuild.CallbackScheme;
 
-    /// <summary>Long enough for a real sign-in with a password manager and a second factor.</summary>
-    private static readonly TimeSpan CallbackTimeout = TimeSpan.FromMinutes(5);
+    /// <summary>Shared with the handover page, which stops polling after the same time.</summary>
+    private static TimeSpan CallbackTimeout => AppConstraints.DeviceSignInTimeout;
 
     private TaskCompletionSource<Uri>? pendingCallback;
 
@@ -97,9 +99,19 @@ public class ElectronDeviceSignIn(
             }
             catch (OperationCanceledException)
             {
-                // The user closed the browser, or walked away. Neither is an error.
-                logger.LogDebug("The sign-in was abandoned before the callback arrived");
-                return false;
+                // Settled here, as part of deciding, so a callback racing the timeout cannot
+                // complete the waiter after this attempt has given up. If it got there first, the
+                // result is already in and is used.
+                if (!callback.TrySetCanceled())
+                {
+                    url = callback.Task.Result;
+                }
+                else
+                {
+                    // The user closed the browser, or walked away. Neither is an error.
+                    logger.LogDebug("The sign-in was abandoned before the callback arrived");
+                    return false;
+                }
             }
 
             var token = FragmentValue(url, "token");
@@ -199,9 +211,49 @@ public class ElectronDeviceSignIn(
             return;
 
         // A callback with nobody waiting is not an error: the OS will happily hand us one after a
-        // timeout, or because someone clicked an old link.
+        // timeout, or because someone clicked an old link. It is dropped rather than used: acting on
+        // it would sign the app in without anyone asking here, and a handover link left open in the
+        // browser would undo a sign-out for whoever clicks it next.
         if (pendingCallback?.TrySetResult(parsed) is not true)
+        {
             logger.LogDebug("A {Scheme} callback arrived with no sign-in waiting for it", CallbackScheme);
+            return;
+        }
+
+        BringToFront();
+    }
+
+    /// <summary>
+    /// Puts the app back in front of the browser the sign-in happened in. Windows and Linux get
+    /// this for free — there the callback arrives as a second launch, and Electron's own
+    /// second-instance handler restores and focuses the first window — while macOS delivers it as
+    /// an open-url event and does nothing else, leaving the app behind the browser looking like the
+    /// sign-in never finished.
+    /// </summary>
+    private void BringToFront()
+    {
+        try
+        {
+            // The operator window: the one created first, found the way the file picker finds it.
+            if (Electron.WindowManager.BrowserWindows.OrderBy(w => w.Id).FirstOrDefault() is { } window)
+            {
+                // A no-op unless the window really is minimized.
+                window.Restore();
+                window.Focus();
+            }
+
+            // Focusing the window is not enough on macOS: the browser owns the active application,
+            // and only stealing moves us in front of it. Sparingly, as the option asks — this is
+            // the end of something the user started by pressing a button in this app a moment ago.
+            // macOS-only in Electron, and the platforms it does not exist on are the ones that
+            // already restored and focused us before this ran.
+            if (OperatingSystem.IsMacOS())
+                Electron.App.Focus(new FocusOptions { Steal = true });
+        }
+        catch (Exception e)
+        {
+            logger.LogDebug(e, "Could not bring the app to the front after the sign-in");
+        }
     }
 
     private static string? FragmentValue(Uri url, string key)
