@@ -55,8 +55,8 @@ public static class DeviceTokenEndpoints
         // The answer is a page rather than a redirect. A browser that follows a redirect to an
         // external scheme hands the URL to the operating system without navigating, which leaves
         // the tab sitting on whatever it last rendered — for most people the Google account
-        // chooser, looking like the sign-in never finished. A page can hand over and then say what
-        // happened. It cannot close itself: only a window opened by script may do that.
+        // chooser, looking like the sign-in never finished. A page can hand over, say what
+        // happened, and close itself once the app has the token; see HandoverPage.
         app.MapGet("/app-login", async (
             HttpContext context,
             [FromServices] IUserService userService,
@@ -82,7 +82,7 @@ public static class DeviceTokenEndpoints
             if (name.Length > AppConstraints.NameMaxLength)
                 name = name[..AppConstraints.NameMaxLength];
 
-            var (_, plaintextToken) = await userService.CreateDeviceTokenAsync(
+            var (token, plaintextToken) = await userService.CreateDeviceTokenAsync(
                 name, caller.UserId, caller.OrganizationId, caller);
 
             var callback =
@@ -90,7 +90,29 @@ public static class DeviceTokenEndpoints
                 $"&user_id={Uri.EscapeDataString(caller.UserId)}" +
                 $"&organization_id={Uri.EscapeDataString(caller.OrganizationId)}";
 
-            return Results.Content(HandoverPage(callback, localizer), "text/html; charset=utf-8");
+            return Results.Content(HandoverPage(callback, token.Id, localizer), "text/html; charset=utf-8");
+        }).RequireAuthorization();
+
+        // What the handover page polls to learn that the app has its token, so it can close. A
+        // token is collected the moment the app first authenticates with it — it calls /api/me
+        // straight away — which is when DeviceTokenAuthenticationHandler first stamps LastUsedAt.
+        //
+        // Answered from the caller's own devices only: GetDeviceTokenAsync is scoped to the
+        // signed-in user, so an id belonging to anyone else is indistinguishable from one that
+        // does not exist. The answer is a single boolean either way — never the token itself.
+        app.MapGet("/app-login/status", async (
+            HttpContext context,
+            [FromServices] IUserService userService,
+            [FromQuery] string? id) =>
+        {
+            var caller = GetCaller(context);
+            if (caller is null) return Results.Unauthorized();
+            if (string.IsNullOrEmpty(id)) return Results.NotFound();
+
+            var token = await userService.GetDeviceTokenAsync(id, caller.UserId, caller);
+            if (token is null) return Results.NotFound();
+
+            return Results.Ok(new { Collected = token.LastUsedAt is not null });
         }).RequireAuthorization();
 
         // Who the caller is, resolved fresh from the database. The app fetches this right after
@@ -169,14 +191,30 @@ public static class DeviceTokenEndpoints
     }
 
     /// <summary>
-    /// Hands the callback URL to the operating system and tells the reader the tab has done its
-    /// job. The link is the fallback for a browser that refuses the scripted navigation, and it is
-    /// what the integration tests read the token out of, so keep the id.
+    /// Hands the callback URL to the operating system, tells the reader the page has done its job,
+    /// and closes once the app has the token. The link is the fallback for a browser that refuses
+    /// the scripted navigation, and it is what the integration tests read the token out of, so
+    /// keep the id.
+    ///
+    /// It closes on the server's word rather than on an event in the page. Closing on blur was
+    /// tried and broke the sign-in in Safari: the permission prompt Safari raises before opening an
+    /// app blurs the page, so the window closed with the prompt unanswered and the token never
+    /// left. A timer has the same problem with a slower reader. Polling /app-login/status waits for
+    /// the one thing that means there is nothing left to do here.
+    ///
+    /// Best-effort all the same. A page not opened by script may only close its window while the
+    /// session history holds a single entry, which holds when the browser was already signed in
+    /// and not when it went through /login on the way — and Firefox refuses regardless. Whatever
+    /// stays open still says, in words, that it can be closed. The polling stops after
+    /// <see cref="AppConstraints.DeviceSignInTimeout"/>, the time the app waits for its callback, so
+    /// a page nobody collects does not poll forever — and at once if the session is gone.
     /// </summary>
-    private static string HandoverPage(string callback, IStringLocalizer<SharedResource> localizer)
+    private static string HandoverPage(string callback, string tokenId, IStringLocalizer<SharedResource> localizer)
     {
         var href = HtmlEncoder.Default.Encode(callback);
         var script = JavaScriptEncoder.Default.Encode(callback);
+        var status = JavaScriptEncoder.Default.Encode($"/app-login/status?id={Uri.EscapeDataString(tokenId)}");
+        var timeoutMs = ((long)AppConstraints.DeviceSignInTimeout.TotalMilliseconds).ToString(CultureInfo.InvariantCulture);
         var title = HtmlEncoder.Default.Encode(localizer["AppLogin.Title"]);
         var body = HtmlEncoder.Default.Encode(localizer["AppLogin.CloseTab"]);
         var open = HtmlEncoder.Default.Encode(localizer["AppLogin.OpenApp"]);
@@ -203,7 +241,29 @@ public static class DeviceTokenEndpoints
                 <h1>{{title}}</h1>
                 <p>{{body}}</p>
                 <p><a id="app-callback" href="{{href}}">{{open}}</a></p>
-                <script>location.replace("{{script}}");</script>
+                <script>
+                (function () {
+                    var until = Date.now() + {{timeoutMs}};
+                    function poll() {
+                        if (Date.now() > until) return;
+                        fetch("{{status}}", { credentials: "same-origin", cache: "no-store", redirect: "manual" })
+                            .then(function (r) {
+                                // Signed out (the cookie challenge redirects to /login) or not
+                                // ours: asking again will not change the answer.
+                                if (r.type === "opaqueredirect" || (r.status >= 400 && r.status < 500))
+                                    return { done: true };
+                                return r.ok ? r.json() : null;
+                            })
+                            .then(function (s) {
+                                if (s && s.collected) window.close();
+                                else if (!(s && s.done)) setTimeout(poll, 1000);
+                            })
+                            .catch(function () { setTimeout(poll, 1000); });
+                    }
+                    setTimeout(poll, 1000);
+                })();
+                location.replace("{{script}}");
+                </script>
                 </body>
                 </html>
                 """;

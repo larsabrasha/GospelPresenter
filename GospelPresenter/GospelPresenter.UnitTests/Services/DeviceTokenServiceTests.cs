@@ -137,6 +137,45 @@ public class DeviceTokenServiceTests : IDisposable
             () => service.GetDeviceTokensAsync(UserAId, new CallerContext(UserBId, UserRole.Admin, orgB.Id)));
     }
 
+    [Fact]
+    public async Task GetDeviceTokenAsync_ForOwnToken_ReturnsIt()
+    {
+        // Arrange
+        var (token, _) = await service.CreateDeviceTokenAsync("MacBook", UserAId, orgA.Id, callerA);
+
+        // Act
+        var found = await service.GetDeviceTokenAsync(token.Id, UserAId, callerA);
+
+        // Assert
+        found.ShouldNotBeNull();
+        found.Id.ShouldBe(token.Id);
+    }
+
+    [Fact]
+    public async Task GetDeviceTokenAsync_WithAnotherUsersTokenId_ReturnsNull()
+    {
+        // Arrange
+        var (token, _) = await service.CreateDeviceTokenAsync("MacBook", UserAId, orgA.Id, callerA);
+        var callerB = new CallerContext(UserBId, UserRole.User, orgB.Id);
+
+        // Act
+        var found = await service.GetDeviceTokenAsync(token.Id, UserBId, callerB);
+
+        // Assert
+        found.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task GetDeviceTokenAsync_ForAnotherUser_Throws()
+    {
+        // Arrange
+        var (token, _) = await service.CreateDeviceTokenAsync("MacBook", UserAId, orgA.Id, callerA);
+
+        // Act & Assert
+        await Should.ThrowAsync<UnauthorizedAccessException>(
+            () => service.GetDeviceTokenAsync(token.Id, UserAId, new CallerContext(UserBId, UserRole.Admin, orgB.Id)));
+    }
+
     private class TestDbContextFactory(DbContextOptions<PresentationContext> options)
         : IDbContextFactory<PresentationContext>
     {

@@ -73,6 +73,7 @@ public interface IUserService
     Task DeleteMcpApiKeyAsync(string id, CallerContext caller);
 
     Task<List<DeviceToken>> GetDeviceTokensAsync(string userId, CallerContext caller);
+    Task<DeviceToken?> GetDeviceTokenAsync(string id, string userId, CallerContext caller);
     Task<List<DeviceToken>> GetOrganizationDeviceTokensAsync(string organizationId, CallerContext caller);
     Task<(DeviceToken Token, string PlaintextToken)> CreateDeviceTokenAsync(string name, string userId, string organizationId, CallerContext caller);
     Task RevokeDeviceTokenAsync(string id, CallerContext caller);
@@ -650,6 +651,17 @@ public class UserService(
             .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// One of a user's own devices, or null — including when the id belongs to someone else, so a
+    /// caller cannot tell another user's token from one that does not exist.
+    /// </summary>
+    public async Task<DeviceToken?> GetDeviceTokenAsync(string id, string userId, CallerContext caller)
+    {
+        caller.RequireUserAccess(userId);
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.DeviceTokens.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
     }
 
     /// <summary>
