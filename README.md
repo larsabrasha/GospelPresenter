@@ -64,6 +64,12 @@ That publishes `:1.4.0`, `:1.4` and `:latest`. Every build also publishes an imm
 
 ---
 
+### Backup
+
+The server writes backups to a local directory that a NAS pulls from, so nothing on the
+server can reach the backup history. See [`backup/README.md`](GospelPresenter/backup/README.md)
+for what is captured, how to schedule it, and how to restore.
+
 ## Tech stack
 
 - [Blazor](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor) (Server) — UI framework

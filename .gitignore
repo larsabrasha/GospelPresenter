@@ -312,6 +312,8 @@ Generated_Code/
 # because we have git ;-)
 _UpgradeReport_Files/
 Backup*/
+# ...but the backup job is source, not a Visual Studio leftover.
+!GospelPresenter/backup/
 UpgradeLog*.XML
 UpgradeLog*.htm
 ServiceFabricBackup/

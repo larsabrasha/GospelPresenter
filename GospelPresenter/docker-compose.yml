@@ -96,6 +96,39 @@ services:
       gotenberg:
         condition: service_healthy
 
+  # Writes a backup into ${BACKUP_DIR} for the NAS to pull. Not started by `up`; run it
+  # from cron with:  docker compose --profile backup run --rm backup
+  backup:
+    build: ./backup
+    image: gospelpresenter-backup:local
+    profiles: ["backup"]
+    environment:
+      PGHOST: postgres
+      PGUSER: gospelpresenter
+      PGDATABASE: gospelpresenter
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      S3_ENDPOINT: http://garage:3900
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-gospelpresenter}
+      S3_REGION: garage
+      GP_VERSION: ${GP_VERSION:-latest}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      HEALTHCHECK_URL: ${BACKUP_HEALTHCHECK_URL:-}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backup
+      - data-protection-keys:/keys:ro
+      # Same volume, writable, used only by restore.sh. Keeping the backup job's own
+      # mount read-only means a bug in it cannot destroy the keys it is meant to save.
+      - data-protection-keys:/keys-restore
+      - ./.env:/config/env:ro
+      - ./garage.toml:/config/garage.toml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      garage:
+        condition: service_healthy
+
 volumes:
   postgres-data:
   data-protection-keys:
