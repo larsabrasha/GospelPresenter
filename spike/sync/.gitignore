@@ -3,5 +3,3 @@ dist/
 .wrangler/
 *.sqlite
 *.sqlite-*
-# The repository root ignores **/packages/* (a NuGet rule); this workspace needs them.
-!packages/*

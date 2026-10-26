@@ -254,10 +254,11 @@ PublishScripts/
 
 # NuGet Packages
 *.nupkg
-# The packages folder can be ignored because of Package Restore
-**/[Pp]ackages/*
+# The packages folder can be ignored because of Package Restore. Scoped to the .NET solution, so the
+# TypeScript workspaces' packages/ directories are not ignored.
+GospelPresenter/**/[Pp]ackages/*
 # except build/, which is used as an MSBuild target.
-!**/[Pp]ackages/build/
+!GospelPresenter/**/[Pp]ackages/build/
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files
