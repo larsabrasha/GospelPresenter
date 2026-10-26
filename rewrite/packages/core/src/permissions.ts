@@ -1,5 +1,5 @@
 // Roles and permissions (spec 01 "Role and permission"). Permissions follow
-// from the role only. Milestone 1 uses the permissions its mutations need.
+// from the role only. Only the permissions something checks are listed.
 
 export type Role = 'user' | 'admin' | 'superAdmin';
 
@@ -10,19 +10,24 @@ export type Permission =
   | 'ManageSongs'
   | 'ManageTemplates'
   | 'ManageThemes'
+  | 'ViewUsers'
   | 'ManageUsers'
-  | 'ManageOrganizations';
+  | 'ManageOrganizations'
+  | 'AssignSuperAdminRole';
 
 const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewSongs', 'ManageSongs'];
-const admin: Permission[] = [...everyone, 'ManageTemplates', 'ManageThemes', 'ManageUsers'];
+const admin: Permission[] = [...everyone, 'ManageTemplates', 'ManageThemes', 'ViewUsers', 'ManageUsers'];
 
 const grants: Record<Role, ReadonlySet<Permission>> = {
   user: new Set(everyone),
   admin: new Set(admin),
-  superAdmin: new Set([...admin, 'ManageOrganizations']),
+  superAdmin: new Set([...admin, 'ManageOrganizations', 'AssignSuperAdminRole']),
 };
 
-/** The permission policy: a pure function, used by mutators on both ends and by the UI. */
+/**
+ * The permission policy: a pure function, used by mutators on both ends, by
+ * the server's API and by the UI. An unknown role has no permissions.
+ */
 export function can(role: Role, permission: Permission): boolean {
-  return grants[role].has(permission);
+  return Object.hasOwn(grants, role) && grants[role].has(permission);
 }

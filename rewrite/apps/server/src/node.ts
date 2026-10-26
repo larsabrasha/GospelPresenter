@@ -3,14 +3,17 @@ import { createRequire } from 'node:module';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { serve } from '@hono/node-server';
+import { serve, type HttpBindings } from '@hono/node-server';
 import type BetterSqlite3 from 'better-sqlite3';
 import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
-import { adminRoutes, authenticate, globalDdl, syncRoutes, type GlobalStore, type Org } from './app.ts';
+import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
+import { syncRoutes, type Org } from './app.ts';
+import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth.ts';
+import { newSecret } from './crypto.ts';
+import { Accounts, migrateGlobal, type GlobalSql } from './global.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 const require = createRequire(import.meta.url);
@@ -20,6 +23,8 @@ export type NodeDriver = 'better-sqlite3' | 'node:sqlite';
 /** A synchronous SQLite connection, whichever driver opened it. */
 interface SqliteFile {
   query(sql: string, params?: unknown[]): Record<string, unknown>[];
+  /** Runs one writing statement and returns the number of rows it changed. */
+  run(sql: string, params?: unknown[]): number;
   exec(sql: string): void;
   inTransaction(): boolean;
   drizzle(): Tx;
@@ -40,6 +45,7 @@ function openBetterSqlite3(file: string): SqliteFile {
       stmt.run(...params);
       return [];
     },
+    run: (sql, params = []) => db.prepare(sql).run(...params).changes,
     exec: (sql) => void db.exec(sql),
     inTransaction: () => db.inTransaction,
     drizzle: () => drizzle(db, { schema }) as unknown as Tx,
@@ -59,6 +65,7 @@ function openNodeSqlite(file: string): SqliteFile {
   db.exec('PRAGMA foreign_keys = ON'); // better-sqlite3's default; node:sqlite leaves it off
   return {
     query: (sql, params = []) => db.prepare(sql).all(...(params as never[])) as Record<string, unknown>[],
+    run: (sql, params = []) => Number(db.prepare(sql).run(...(params as never[])).changes),
     exec: (sql) => db.exec(sql),
     inTransaction: () => db.isTransaction,
     drizzle: () =>
@@ -115,18 +122,36 @@ export function nodeOrgStore(f: SqliteFile): OrgStore {
   };
 }
 
-function nodeGlobalStore(f: SqliteFile): GlobalStore {
-  for (const s of globalDdl) f.exec(s);
+/** The global SQLite file as `GlobalSql`. Every call is synchronous underneath, so a batch cannot interleave with anything. */
+export function nodeGlobalSql(f: SqliteFile): GlobalSql {
   return {
-    async role(userId, orgId) {
-      const [row] = f.query('SELECT role FROM memberships WHERE user_id = ? AND org_id = ?', [userId, orgId]);
-      return (row?.role as Role | undefined) ?? null;
-    },
-    async setRole(userId, orgId, role) {
-      f.query('INSERT OR REPLACE INTO memberships (user_id, org_id, role) VALUES (?, ?, ?)', [userId, orgId, role]);
+    all: async (sql, params) => f.query(sql, params),
+    run: async (sql, params) => f.run(sql, params),
+    async batch(statements) {
+      f.exec('BEGIN IMMEDIATE');
+      try {
+        const changes = statements.map(([sql, params]) => f.run(sql, params));
+        f.exec('COMMIT');
+        return changes;
+      } catch (e) {
+        if (f.inTransaction()) f.exec('ROLLBACK');
+        throw e;
+      }
     },
   };
 }
+
+/**
+ * Headers for the static app: a strict CSP (ADR 0007, decision 6). wa-sqlite
+ * compiles WebAssembly, and React sets inline style attributes.
+ */
+const STATIC_HEADERS = {
+  'content-security-policy':
+    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+    "connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+};
 
 export interface NodeServerOptions {
   dataDir: string;
@@ -136,15 +161,20 @@ export interface NodeServerOptions {
   hostname?: string;
   pokeWindowMs?: number;
   debug?: boolean;
-  /** Memberships to make sure of at start (placeholder until milestone 2 brings sign-in). */
-  members?: { userId: string; orgId: string; role: Role }[];
   /** A built web app to serve from the same origin, as the desktop does for tablets on the LAN. */
   webRoot?: string;
+  /** What first-run setup must be given (D19). Without one, a random one is made at start; see `RunningServer.setupToken`. */
+  setupToken?: string;
+  /** Refuse every API request from a device that is not paired (the desktop host). */
+  pairing?: Pairing;
+  sessionIdleMs?: number;
 }
 
 export interface RunningServer {
   url: string;
   port: number;
+  /** While no user exists: the token setup needs. Null once set up. */
+  setupToken: string | null;
   close(): Promise<void>;
 }
 
@@ -153,8 +183,10 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const driver = opts.driver ?? 'better-sqlite3';
   mkdirSync(opts.dataDir, { recursive: true });
   const globalFile = openSqlite(join(opts.dataDir, 'global.sqlite'), driver);
-  const global = nodeGlobalStore(globalFile);
-  for (const m of opts.members ?? []) await global.setRole(m.userId, m.orgId, m.role);
+  const globalSql = nodeGlobalSql(globalFile);
+  await migrateGlobal(globalSql);
+  const accounts = new Accounts(globalSql, { sessionIdleMs: opts.sessionIdleMs });
+  const setupToken = opts.setupToken ?? newSecret('gpst_');
   const orgs = new Map<string, Org & { file: SqliteFile; sockets: Map<WebSocket, string> }>();
 
   // Synchronous, so two requests can never open the same organisation twice.
@@ -173,26 +205,49 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     return org;
   }
 
-  const app = new Hono();
-  if (opts.debug) app.route('/', adminRoutes(global));
+  const app = new Hono<{ Bindings: HttpBindings }>();
+  if (opts.pairing) app.use('*', pairingGuard(accounts, opts.pairing));
+  app.route(
+    '/',
+    authRoutes({
+      accounts,
+      setupToken,
+      clientAddress: (c) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown',
+      pairing: opts.pairing,
+      debug: opts.debug,
+    }),
+  );
   app.route(
     '/',
     syncRoutes(async (c) => {
-      const caller = await authenticate(c.req.raw, global);
+      const caller = await authenticate(c.req.raw, accounts);
       if (caller instanceof Response) return caller;
       return { caller, org: openOrg(caller.orgId) };
     }, !!opts.debug),
   );
-  if (opts.webRoot) app.use('/*', serveStatic({ root: opts.webRoot }));
+  if (opts.webRoot) {
+    app.use('/*', async (c, next) => {
+      if (isApiPath(c.req.path)) return c.json({ error: 'not-found' }, 404);
+      await next();
+      for (const [k, v] of Object.entries(STATIC_HEADERS)) c.header(k, v);
+    });
+    app.use('/*', serveStatic({ root: opts.webRoot }));
+  }
 
   const server = serve({ fetch: app.fetch, port: opts.port ?? 0, hostname: opts.hostname ?? '127.0.0.1' });
   await new Promise<void>((resolve) => (server.listening ? resolve() : server.once('listening', () => resolve())));
 
-  const wss = new WebSocketServer({ noServer: true });
+  // Credentials arrive as subprotocols (see `credentials`); the answer names only WS_PROTOCOL.
+  const wss = new WebSocketServer({ noServer: true, handleProtocols: (offered) => (offered.has(WS_PROTOCOL) ? WS_PROTOCOL : false) });
   server.on('upgrade', async (req, socket, head) => {
     const url = new URL(req.url ?? '/', 'http://local');
-    const caller = url.pathname === '/sync/poke' ? await authenticate(new Request(url), global) : null;
-    if (!caller || caller instanceof Response) return void socket.destroy();
+    const headers = new Headers();
+    for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v);
+    const request = new Request(url, { headers });
+    if (url.pathname !== '/sync/poke') return void socket.destroy();
+    if (opts.pairing && !(await deviceOf(request, accounts, opts.pairing))) return void socket.destroy();
+    const caller = await authenticate(request, accounts);
+    if (caller instanceof Response) return void socket.destroy();
     const clientId = url.searchParams.get('clientId') ?? '';
     const org = openOrg(caller.orgId);
     wss.handleUpgrade(req, socket, head, (ws) => {
@@ -205,6 +260,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   return {
     port,
     url: `http://${opts.hostname && opts.hostname !== '0.0.0.0' ? opts.hostname : '127.0.0.1'}:${port}`,
+    setupToken: (await accounts.hasUsers()) ? null : setupToken,
     async close() {
       for (const c of wss.clients) c.terminate();
       wss.close();

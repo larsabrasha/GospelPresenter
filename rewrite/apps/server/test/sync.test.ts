@@ -7,6 +7,7 @@ import {
   api,
   device,
   POKE_WINDOW_MS,
+  pokeProtocols,
   pokeUrl,
   serverDump,
   setRole,
@@ -643,8 +644,8 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     await seed();
     await new Promise((r) => setTimeout(r, POKE_WINDOW_MS + 200)); // let the seed's own poke window drain
     let bobPokes = 0;
-    await alice.client.listen(pokeUrl(h, org, 'alice'));
-    await bob.client.listen(pokeUrl(h, org, 'bob'));
+    await alice.client.listen(pokeUrl(h), { protocols: pokeProtocols(h, org, 'alice') });
+    await bob.client.listen(pokeUrl(h), { protocols: pokeProtocols(h, org, 'bob') });
     const origSync = bob.client.sync.bind(bob.client);
     bob.client.sync = async () => {
       bobPokes++;

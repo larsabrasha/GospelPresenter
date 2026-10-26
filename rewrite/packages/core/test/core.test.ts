@@ -2,7 +2,14 @@ import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, it } from 'vitest';
 import {
   arrangedParts,
+  assignableRoles,
   can,
+  createUserRefusal,
+  emailSchema,
+  inviteRefusal,
+  passwordSchema,
+  removeUserRefusal,
+  roleChangeRefusal,
   daysRemaining,
   DEFAULT_LABELS,
   highlight,
@@ -54,6 +61,52 @@ describe('permissions (spec 01)', () => {
     expect(can('admin', 'ManageUsers')).toBe(true);
     expect(can('admin', 'ManageOrganizations')).toBe(false);
     expect(can('superAdmin', 'ManageOrganizations')).toBe(true);
+  });
+});
+
+describe('account policy (spec 01, D20, D21)', () => {
+  const su = { id: 'su', role: 'superAdmin' as const };
+  const ad = { id: 'ad', role: 'admin' as const };
+  const us = { id: 'us', role: 'user' as const };
+
+  it('only a SuperAdmin hands out or takes away SuperAdmin (PERM-R4, D20)', () => {
+    expect(assignableRoles('admin')).toEqual(['user', 'admin']);
+    expect(assignableRoles('superAdmin')).toEqual(['user', 'admin', 'superAdmin']);
+    expect(createUserRefusal('admin', 'superAdmin')).toBe('super-admin-only');
+    expect(createUserRefusal('user', 'user')).toBe('forbidden');
+    expect(roleChangeRefusal(ad, su, 'user')).toBe('super-admin-only');
+    expect(roleChangeRefusal(ad, us, 'superAdmin')).toBe('super-admin-only');
+    expect(roleChangeRefusal(ad, us, 'admin')).toBeNull();
+    expect(roleChangeRefusal(su, { id: 'su2', role: 'superAdmin' }, 'admin')).toBeNull();
+  });
+
+  it('nobody changes their own role or removes themselves (PERM-R5, R6), so a SuperAdmin always remains', () => {
+    expect(roleChangeRefusal(su, su, 'admin')).toBe('own-role');
+    expect(removeUserRefusal(su, su)).toBe('own-account');
+    expect(removeUserRefusal(ad, su)).toBe('super-admin-only');
+    expect(removeUserRefusal(us, ad)).toBe('forbidden');
+    expect(removeUserRefusal(ad, us)).toBeNull();
+  });
+
+  it('an invite resets a password: an Admin may not make one for a SuperAdmin (D21)', () => {
+    expect(inviteRefusal(ad, su)).toBe('super-admin-only');
+    expect(inviteRefusal(us, us)).toBe('forbidden');
+    expect(inviteRefusal(ad, ad)).toBeNull();
+    expect(inviteRefusal(su, ad)).toBeNull();
+  });
+
+  it('emails are trimmed and lower-cased; passwords need 10 characters', () => {
+    expect(emailSchema.parse('  Anna@Kyrkan.SE ')).toBe('anna@kyrkan.se');
+    expect(emailSchema.safeParse('bo@').success).toBe(false);
+    expect(emailSchema.safeParse('bo@x').success).toBe(false);
+    expect(passwordSchema.safeParse('123456789').success).toBe(false);
+    expect(passwordSchema.safeParse('1234567890').success).toBe(true);
+  });
+
+  it('an unknown role has no permissions', () => {
+    expect(can('constructor' as never, 'ViewSongs')).toBe(false);
+    expect(can('admin', 'ViewUsers')).toBe(true);
+    expect(can('admin', 'AssignSuperAdminRole')).toBe(false);
   });
 });
 

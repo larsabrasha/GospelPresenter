@@ -9,3 +9,4 @@ export * from './slides.ts';
 export * from './live.ts';
 export * from './trash.ts';
 export * from './search.ts';
+export * from './accounts.ts';

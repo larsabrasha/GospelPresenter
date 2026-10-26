@@ -3,8 +3,8 @@ name = "gp-sync-spike"
 main = "src/worker.ts"
 compatibility_date = "2026-08-01"
 
-[vars]
-SPIKE_DEBUG = "1"
+# Debug routes (`SPIKE_DEBUG=1`) and the setup token (`SETUP_TOKEN`) go in
+# .dev.vars for `wrangler dev`, never here: a var here would ship with a deploy.
 
 [[d1_databases]]
 binding = "DB"

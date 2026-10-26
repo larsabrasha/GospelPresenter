@@ -1,5 +1,6 @@
 // A database made by milestone 1 (schema 1, no version row) is brought to the
-// current schema on open, on the server and on a client, keeping its rows.
+// current schema on open, on the server and on a client, keeping its rows. The
+// server's global database has its own version (see the end).
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,7 +8,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION, orgDdl, tableInfo } from '@gp/core';
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
-import { nodeOrgStore, openSqlite, type NodeDriver } from '@gp/server/node';
+import { GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';
+import { nodeGlobalSql, nodeOrgStore, openSqlite, type NodeDriver } from '@gp/server/node';
 
 /** The organisation DDL milestone 1 shipped (schema 1), as it was. */
 const milestone1Ddl = [
@@ -100,5 +102,46 @@ describe('client (wa-sqlite)', () => {
     expect(JSON.parse(String(undo!.before))).toMatchObject({ id: 'I1', arrangement_id: null, sort: 0 });
     expect(orgDdl.length).toBe(tableInfo.length);
     await client.close();
+  });
+});
+
+// The global database: milestones 1 and 2 had only `memberships`, for
+// placeholder user ids. Version 2 adds accounts and drops those rows.
+describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %s', (driver) => {
+  const tables = (f: ReturnType<typeof openSqlite>) =>
+    f.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").map((r) => r.name);
+
+  it('migrates a milestone 2 file: accounts tables appear and placeholder memberships go', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+    dirs.push(dir);
+    const file = join(dir, 'global.sqlite');
+    const old = openSqlite(file, driver);
+    old.exec(`CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
+     PRIMARY KEY (user_id, org_id))`);
+    old.exec(`INSERT INTO memberships VALUES ('operator', 'church', 'admin'), ('second', 'church', 'user')`);
+    old.close();
+
+    const f = openSqlite(file, driver);
+    await migrateGlobal(nodeGlobalSql(f));
+    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: GLOBAL_SCHEMA_VERSION }]);
+    expect(tables(f)).toEqual(['_schema', 'auth_throttle', 'invites', 'memberships', 'orgs', 'pair_codes', 'paired_devices', 'sessions', 'users']);
+    expect(f.query('SELECT * FROM memberships')).toEqual([]);
+    f.close();
+
+    // Opened again, nothing runs; a fresh file gets the same tables.
+    const again = openSqlite(file, driver);
+    await migrateGlobal(nodeGlobalSql(again));
+    expect(tables(again)).toHaveLength(9);
+    again.close();
+    const fresh = openSqlite(join(dir, 'new.sqlite'), driver);
+    await migrateGlobal(nodeGlobalSql(fresh));
+    expect(tables(fresh)).toEqual(tables(openSqlite(file, driver)));
+    expect(fresh.query('SELECT version FROM _schema')).toEqual([{ version: GLOBAL_SCHEMA_VERSION }]);
+    fresh.close();
+  });
+
+  it('refuses a global database newer than this server', () => {
+    expect(() => globalSchemaPlan(GLOBAL_SCHEMA_VERSION + 1, true)).toThrow(/newer than this server/);
+    expect(globalSchemaPlan(GLOBAL_SCHEMA_VERSION, true)).toEqual([]);
   });
 });

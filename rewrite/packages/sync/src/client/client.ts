@@ -43,6 +43,13 @@ export class SyncClient {
   readonly db: Tx;
   /** Set when the server answered "update required": the client stops syncing and keeps its queue. */
   updateRequired = false;
+  /**
+   * Set when the server refused the credentials (signed out elsewhere,
+   * removed, or the device unpaired): the client stops syncing and keeps its
+   * queue, as with a revoked token (ADR 0006, SYNC-A15). Signing in again
+   * opens a new client on the same database.
+   */
+  authError: 'unauthenticated' | 'not-a-member' | 'device-not-paired' | null = null;
   /** Mutations the server rejected, reported once each. */
   readonly rejected: MutationResult[] = [];
   private lock = new SerialQueue();
@@ -145,7 +152,7 @@ export class SyncClient {
 
   /** Sends the pending queue. A network failure leaves it untouched; the server confirms through the next pull. */
   async push(): Promise<void> {
-    if (this.updateRequired) return;
+    if (this.stopped) return;
     const pending = await this.pending();
     if (!pending.length) return;
     const req: PushRequest = {
@@ -155,13 +162,13 @@ export class SyncClient {
       mutations: pending.map((m) => ({ id: m.id, name: m.name, v: m.v, args: JSON.parse(m.args) })),
     };
     const res = await this.opts.transport.post<PushResponse>('/sync/push', req);
-    if (this.isUpdateRequired(res)) return;
+    if (this.isRefused(res)) return;
     if (res.status !== 200) throw new Error(`push failed: ${res.status} ${JSON.stringify(res.body)}`);
   }
 
   /** Fetches every page of changes, then rebases the pending queue onto them in one transaction. */
   async pull(): Promise<void> {
-    if (this.updateRequired) return;
+    if (this.stopped) return;
     const meta = await this.meta();
     const pages: PullResponse[] = [];
     let cookie = meta.cookie;
@@ -174,7 +181,7 @@ export class SyncClient {
         lastMutationId: meta.last_mutation_id,
       };
       const res = await this.opts.transport.post<PullResponse>('/sync/pull', req);
-      if (this.isUpdateRequired(res)) return;
+      if (this.isRefused(res)) return;
       if (res.status !== 200) throw new Error(`pull failed: ${res.status} ${JSON.stringify(res.body)}`);
       pages.push(res.body);
       cookie = res.body.cookie;
@@ -188,9 +195,21 @@ export class SyncClient {
     await this.pull();
   }
 
-  private isUpdateRequired(res: { status: number; body: unknown }) {
-    if (res.status === 426 && (res.body as { error?: string }).error === 'update-required') {
+  /** Whether syncing has stopped until the app is updated or signed in again. */
+  get stopped(): boolean {
+    return this.updateRequired || this.authError !== null;
+  }
+
+  /** An answer that stops syncing: "update required", or credentials the server no longer accepts. */
+  private isRefused(res: { status: number; body: unknown }) {
+    const error = (res.body as { error?: string } | null)?.error;
+    if (res.status === 426 && error === 'update-required') {
       this.updateRequired = true;
+      return true;
+    }
+    if ((res.status === 401 || res.status === 403) && (error === 'unauthenticated' || error === 'not-a-member' || error === 'device-not-paired')) {
+      this.authError = error;
+      this.socket?.close();
       return true;
     }
     return false;
@@ -256,10 +275,10 @@ export class SyncClient {
    * Pulls whenever the server pokes. Sync runs are coalesced: at most one
    * running and one queued. `onClose` runs once if an open socket closes.
    */
-  listen(pokeUrl: string, opts: { onClose?: () => void } = {}): Promise<void> {
+  listen(pokeUrl: string, opts: { onClose?: () => void; protocols?: string[] } = {}): Promise<void> {
     const url = new URL(pokeUrl);
     url.searchParams.set('clientId', this.clientId);
-    const ws = new WebSocket(url);
+    const ws = new WebSocket(url, opts.protocols);
     this.socket = ws;
     ws.addEventListener('message', () => void this.requestSync());
     ws.addEventListener('open', () => ws.addEventListener('close', () => opts.onClose?.(), { once: true }), { once: true });

@@ -2,7 +2,9 @@ import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono } from 'hono';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
-import { adminRoutes, authenticate, globalDdl, syncRoutes, type GlobalStore, type Org } from './app.ts';
+import { syncRoutes, type Org } from './app.ts';
+import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
+import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 interface Env {
@@ -10,6 +12,9 @@ interface Env {
   ORG: DurableObjectNamespace<OrgDurableObject>;
   SPIKE_DEBUG?: string;
   POKE_WINDOW_MS?: string;
+  /** What first-run setup must be given (D19). Unset: setup stays closed. A secret, so never in wrangler.toml. */
+  SETUP_TOKEN?: string;
+  SESSION_IDLE_MS?: string;
 }
 
 /** An organisation's data in its Durable Object's own SQLite (evaluation option (a)). */
@@ -43,7 +48,7 @@ export class OrgDurableObject extends DurableObject<Env> {
     this.app = syncRoutes(async (c) => {
       const userId = c.req.header('x-user')!;
       const role = c.req.header('x-role') as Role;
-      return { caller: { orgId: c.req.header('x-org')!, ctx: { userId, role } }, org: this.org };
+      return { caller: { orgId: c.req.header('x-org')!, sessionId: '', ctx: { userId, role } }, org: this.org };
     }, env.SPIKE_DEBUG === '1');
     this.app.get('/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
     this.app.get('/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
@@ -54,7 +59,8 @@ export class OrgDurableObject extends DurableObject<Env> {
       const clientId = new URL(request.url).searchParams.get('clientId') ?? '';
       const pair = new WebSocketPair();
       this.ctx.acceptWebSocket(pair[1], [clientId]);
-      return new Response(null, { status: 101, webSocket: pair[0] });
+      // The client offered credentials as subprotocols too; the answer names only this one.
+      return new Response(null, { status: 101, webSocket: pair[0], headers: { 'sec-websocket-protocol': WS_PROTOCOL } });
     }
     return this.app.fetch(request);
   }
@@ -118,29 +124,41 @@ async function transactionProbe(storage: DurableObjectStorage) {
   };
 }
 
-function d1Global(db: D1Database): GlobalStore {
-  let ready: Promise<unknown> | undefined;
-  const init = () => (ready ??= db.batch(globalDdl.map((s) => db.prepare(s))));
+function d1Sql(db: D1Database): GlobalSql {
   return {
-    async role(userId, orgId) {
-      await init();
-      const row = await db
-        .prepare('SELECT role FROM memberships WHERE user_id = ? AND org_id = ?')
-        .bind(userId, orgId)
-        .first<{ role: Role }>();
-      return row?.role ?? null;
-    },
-    async setRole(userId, orgId, role) {
-      await init();
-      await db.prepare('INSERT OR REPLACE INTO memberships (user_id, org_id, role) VALUES (?, ?, ?)').bind(userId, orgId, role).run();
-    },
+    all: async (sql, params = []) => (await db.prepare(sql).bind(...params).all<Row>()).results,
+    run: async (sql, params = []) => (await db.prepare(sql).bind(...params).run()).meta.changes,
+    batch: async (statements) => (await db.batch(statements.map(([sql, params]) => db.prepare(sql).bind(...params)))).map((r) => r.meta.changes),
   };
 }
+
+/** The global tables and the auth routes, made once per isolate (and again if the migration failed). */
+let ready: Promise<{ accounts: Accounts; auth: Hono }> | undefined;
+function globals(env: Env) {
+  ready ??= (async () => {
+    const sql = d1Sql(env.DB);
+    await migrateGlobal(sql);
+    const accounts = new Accounts(sql, { sessionIdleMs: env.SESSION_IDLE_MS ? Number(env.SESSION_IDLE_MS) : undefined });
+    const auth = authRoutes({
+      accounts,
+      setupToken: env.SETUP_TOKEN || null,
+      clientAddress: (c) => c.req.header('cf-connecting-ip') ?? 'unknown',
+      debug: env.SPIKE_DEBUG === '1',
+    });
+    return { accounts, auth };
+  })().catch((e: unknown) => {
+    ready = undefined;
+    throw e;
+  });
+  return ready;
+}
+
+/** Paths an organisation's Durable Object answers; everything else is the global auth API. */
+const orgPaths = ['/sync/', '/debug/dump', '/debug/triggers', '/debug/tx-probe'];
 
 const worker = new Hono<{ Bindings: Env }>();
 
 worker.use('/debug/*', async (c, next) => (c.env.SPIKE_DEBUG === '1' ? next() : c.notFound()));
-worker.post('/debug/membership', (c) => adminRoutes(d1Global(c.env.DB)).fetch(c.req.raw));
 // Triggers in local D1: same check as in the Durable Object.
 worker.get('/debug/d1-triggers', async (c) => {
   const db = c.env.DB;
@@ -156,10 +174,12 @@ worker.get('/debug/d1-triggers', async (c) => {
   return c.json({ fired: results.length === 1 });
 });
 
-// Everything else is for an organisation: authenticate against D1, then hand
-// the request to that organisation's Durable Object.
+// Sign-in and users are answered here, against D1. Everything for an
+// organisation is authenticated against D1, then handed to its Durable Object.
 worker.all('*', async (c) => {
-  const caller = await authenticate(c.req.raw, d1Global(c.env.DB));
+  const { accounts, auth } = await globals(c.env);
+  if (!orgPaths.some((p) => c.req.path.startsWith(p))) return auth.fetch(c.req.raw);
+  const caller = await authenticate(c.req.raw, accounts);
   if (caller instanceof Response) return caller;
   const stub = c.env.ORG.get(c.env.ORG.idFromName(caller.orgId));
   const headers = new Headers(c.req.raw.headers);
