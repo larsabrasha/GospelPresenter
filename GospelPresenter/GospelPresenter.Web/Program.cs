@@ -275,6 +275,9 @@ try
 
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
     builder.Services.AddSingleton<SetupStatusService>();
+    builder.Services.AddSingleton(sp => new SetupTokenService(
+        SetupTokenService.ReadConfiguredToken(builder.Configuration),
+        sp.GetRequiredService<ILogger<SetupTokenService>>()));
 
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddTransient<McpCallerContextAccessor>();
@@ -391,6 +394,25 @@ builder.Services.AddMetricServer(options =>
         await songService.LoadSongsAsync();
     }
 
+    // Print the setup token as soon as the server is up when setup is still pending, rather than
+    // only once someone requests a page. The database may still be migrating at this point, so a
+    // failure is only logged: the setup middleware below announces on the first request instead.
+    app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
+    {
+        try
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            if (!await app.Services.GetRequiredService<SetupStatusService>().IsSetupCompleteAsync(userService))
+                app.Services.GetRequiredService<SetupTokenService>().AnnounceSetupPending();
+        }
+        catch (Exception ex)
+        {
+            app.Services.GetRequiredService<ILogger<SetupTokenService>>()
+                .LogDebug(ex, "Could not check setup status at startup");
+        }
+    }));
+
     app.MapDefaultEndpoints();
 
     app.UseSerilogRequestLogging();
@@ -489,6 +511,8 @@ builder.Services.AddMetricServer(options =>
 
             if (!await setupStatus.IsSetupCompleteAsync(userService))
             {
+                context.RequestServices.GetRequiredService<SetupTokenService>().AnnounceSetupPending();
+
                 // Clear any stale auth cookie from a previous session to prevent
                 // MainLayout's auth logic from causing a redirect loop
                 if (context.User.Identity?.IsAuthenticated == true)

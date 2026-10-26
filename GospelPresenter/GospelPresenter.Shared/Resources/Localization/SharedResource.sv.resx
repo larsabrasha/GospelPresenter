@@ -656,6 +656,18 @@
   <data name="Setup.OrganizationRequired" xml:space="preserve">
     <value>Organisationens namn måste fyllas i.</value>
   </data>
+  <data name="Setup.Token" xml:space="preserve">
+    <value>Installationskod</value>
+  </data>
+  <data name="Setup.TokenHint" xml:space="preserve">
+    <value>Den SETUP_TOKEN du har konfigurerat, eller engångskoden som skrivs i serverloggen om ingen är konfigurerad.</value>
+  </data>
+  <data name="Setup.TokenRequired" xml:space="preserve">
+    <value>Installationskoden måste fyllas i.</value>
+  </data>
+  <data name="Setup.TokenInvalid" xml:space="preserve">
+    <value>Installationskoden är inte korrekt.</value>
+  </data>
   <data name="AppLogin.Title" xml:space="preserve">
     <value>Du är inloggad</value>
   </data>
