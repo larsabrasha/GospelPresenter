@@ -44,13 +44,28 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@spike/client':
+        specifier: workspace:*
+        version: link:../../packages/client
+      '@spike/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@spike/server':
         specifier: workspace:*
         version: link:../server
+      better-sqlite3:
+        specifier: 13.0.3
+        version: 13.0.3
     devDependencies:
+      '@journeyapps/wa-sqlite':
+        specifier: 2.0.9
+        version: 2.0.9
       electron:
         specifier: 45.0.0
         version: 45.0.0
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
 
   apps/server:
     dependencies:

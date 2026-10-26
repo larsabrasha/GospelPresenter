@@ -2,6 +2,21 @@
   "name": "@spike/desktop",
   "private": true,
   "type": "module",
-  "dependencies": { "@spike/server": "workspace:*" },
-  "devDependencies": { "electron": "45.0.0" }
+  "main": "dist/main.mjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "lan-check:electron": "node build.mjs && node dist/lan-check.mjs electron",
+    "lan-check:node": "node build.mjs && node dist/lan-check.mjs node"
+  },
+  "dependencies": {
+    "@spike/client": "workspace:*",
+    "@spike/core": "workspace:*",
+    "@spike/server": "workspace:*",
+    "better-sqlite3": "13.0.3"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "esbuild": "0.28.2",
+    "@journeyapps/wa-sqlite": "2.0.9"
+  }
 }
