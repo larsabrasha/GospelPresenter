@@ -91,6 +91,7 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 | D17 | Trashed songs still used in presentations: warn? | **Decided:** flag the item in the editor with a restore action and skip it live; deleting a song that is in use shows where it is used | 02 Q18 |
 | D18 | Real-time co-editing of a song, or conflict warnings? | **Decided:** the editor updates live from sync; edits to different parts merge; a clash in the same part shows a clear warning. No CRDT co-editing | 02 Q16 |
 | D30 | Where does an imported Bible live: on the device (BIBLE-R16) or on the server? | **Decided:** always on the server the device belongs to — the hosted server, a self-hosted one, or the desktop app's own embedded server when running alone. An offline import is stored locally and uploaded when connected. No device-only Bibles (ADR 0007) | 05 BIBLE-R16 |
+| D31 | Where is media stored when self-hosted without Garage? | **Decided:** a folder on disk by default (and in the desktop app); S3 as an option; R2 through its binding on Cloudflare (ADR 0007) | 05 MEDIA-R14, 06 PLAT-R1 |
 
 ### Security and permissions
 

@@ -50,7 +50,7 @@ self-hosted container, and run it beside the current app until it has proved its
    Three reasons. It is the stack of the author's other apps. The development loop is fast — Vite
    HMR, Vitest, and no containers needed to develop. And operation is cheap and simple: on Cloudflare
    there is nothing to run; self-hosted it is **one container and a SQLite file**, with Litestream
-   recommended for backup, beside the S3 store it already needs for media.
+   recommended for backup, and a folder on disk for media (D31).
 
    The same dialect on both ends is what makes (2) workable: a mutation is one function that runs
    against the client's database and the server's without translation.
@@ -128,8 +128,10 @@ self-hosted container, and run it beside the current app until it has proved its
    thumbnails, output and print. Themes are data: JSON validated with Zod, carrying the properties of
    ADR 0001 and spec section 5.
 
-9. **Media keys are content-addressed** (a hash of the content) and stored through the S3 API — R2 on
-   Cloudflare; Garage, MinIO or any S3 when self-hosted. Clients compress before upload. Media is
+9. **Media keys are content-addressed** (a hash of the content) and stored behind a small interface
+   with three adapters (D31): R2 through its Workers binding on Cloudflare; a folder on disk in the
+   desktop app and, by default, when self-hosted; and the S3 API (Garage, MinIO, AWS) as an option for
+   self-hosting. Clients compress before upload. Media is
    served `Cache-Control: private, immutable`, which a content-addressed key makes safe (D28).
 
 10. **PDF and PowerPoint import (D29).**
@@ -289,3 +291,10 @@ for the new app; the mechanisms are retired with the stack.
   (BIBLE-R16), are not built: running alone is already covered by the desktop app, and two kinds of
   Bible would double the cases in the UI, sync and tests. If a translation's licence forbids sharing
   it within a church, this is reopened.
+- **D31, decided after this ADR was written:** media is stored in a folder on disk by default when
+  self-hosted, and in the desktop app; S3 (Garage, MinIO, AWS) is an option; R2 is used through its
+  Workers binding. A content-addressed key needs only put, get and delete, which a folder does as well
+  as S3, so a self-hosted install needs no Garage: one container, a SQLite file and a media folder,
+  backed up by copying. What a folder cannot do: be shared by several server instances (a SQLite file
+  already rules those out) or take uploads straight from clients through presigned URLs, so uploads
+  go through the server, which is fine at a church's sizes.
