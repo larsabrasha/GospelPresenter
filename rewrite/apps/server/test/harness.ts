@@ -25,6 +25,10 @@ export interface AdapterOptions {
   /** Sessions unused for this long are refused (the expiry tests shorten it). */
   sessionIdleMs?: number;
   setupToken?: string;
+  /** Sign-in through this fake Google (test/fake-google.ts). Without it, Google is not configured. */
+  google?: { url: string; clientId: string; clientSecret: string };
+  /** Workers only: bundle as `pnpm build:worker` does for a deploy, where a test issuer is not allowed. */
+  deployBuild?: boolean;
 }
 
 export async function startAdapter(name: AdapterName, opts: AdapterOptions = {}): Promise<Harness> {
@@ -38,7 +42,16 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     // 'node-sqlite' is the driver the Electron build uses (see apps/desktop).
     const dataDir = mkdtempSync(join(tmpdir(), 'gp-sync-'));
     const driver = name === 'node' ? 'better-sqlite3' : 'node:sqlite';
-    const s = await startNodeServer({ dataDir, driver, debug: true, pokeWindowMs: POKE_WINDOW_MS, ...opts });
+    const { google, deployBuild: _, ...rest } = opts;
+    const s = await startNodeServer({
+      dataDir,
+      driver,
+      debug: true,
+      pokeWindowMs: POKE_WINDOW_MS,
+      ...rest,
+      google: google && { clientId: google.clientId, clientSecret: google.clientSecret, testIssuer: google.url },
+      log: () => undefined,
+    });
     return {
       name,
       url: s.url,
@@ -50,8 +63,11 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
   }
   // Workers: bundle the Worker and run it in workerd through Miniflare, with a
   // SQLite-backed Durable Object per organisation and a local D1. Nothing is deployed.
-  const outfile = join(here, '..', 'dist', 'worker.js');
+  const outfile = join(here, '..', 'dist', opts.deployBuild ? 'worker-deploy.js' : 'worker.js');
   await build({
+    // As in package.json's build:worker for a deploy; test builds may use a fake Google.
+    define: { GP_TEST_ISSUER: opts.deployBuild ? 'false' : 'true' },
+    minifySyntax: !!opts.deployBuild,
     entryPoints: [join(here, '..', 'src', 'worker.ts')],
     bundle: true,
     format: 'esm',
@@ -72,6 +88,9 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
       POKE_WINDOW_MS: String(POKE_WINDOW_MS),
       ...(opts.setupToken ? { SETUP_TOKEN: opts.setupToken } : {}),
       ...(opts.sessionIdleMs ? { SESSION_IDLE_MS: String(opts.sessionIdleMs) } : {}),
+      ...(opts.google
+        ? { GOOGLE_CLIENT_ID: opts.google.clientId, GOOGLE_CLIENT_SECRET: opts.google.clientSecret, GOOGLE_TEST_ISSUER: opts.google.url }
+        : {}),
     },
     host: '127.0.0.1',
     port: 0,

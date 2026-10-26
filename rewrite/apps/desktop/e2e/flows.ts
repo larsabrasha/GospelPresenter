@@ -1,5 +1,7 @@
 // Steps the e2e tests share, written as a user would do them.
 import { expect, type Page } from '@playwright/test';
+import type { FakeAccount } from '../../server/test/fake-google.ts';
+import { browserSignIn, type Desktop } from './apps.ts';
 
 /** Creates a song with labelled parts and stays in its editor. */
 export async function createSong(page: Page, name: string, parts: [string, string][]) {
@@ -41,31 +43,37 @@ export async function addSongs(page: Page, names: string[]) {
   await picker.getByRole('button', { name: 'Stäng' }).click();
 }
 
-export const PASSWORD = 'korrekt hästbatteri';
+/** Google accounts for the people in the tests. */
+export const ANNA: FakeAccount = { sub: 'google-anna', email: 'anna@kyrkan.se', name: 'Anna' };
 
-/** First run on the host (D19): the host's own window gets the setup token, so the person only fills in who they are. */
-export async function setUpHost(page: Page, who = { name: 'Anna', org: 'Lilla Kyrkan', email: 'anna@kyrkan.se' }) {
+/**
+ * First run on the host (D19): the host's own window gets the setup token,
+ * so the person only fills in who they are, then signs in with Google in
+ * the system browser (once, with internet).
+ */
+export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Kyrkan', google: ANNA }) {
+  const page = d.page;
   await expect(page.getByRole('heading', { name: 'Välkommen!' })).toBeVisible();
   await expect(page.getByLabel('Installationskod')).toHaveCount(0); // the host hands it over
   await page.getByLabel('Ditt namn').fill(who.name);
   await page.getByLabel('Församlingens eller organisationens namn').fill(who.org);
-  await page.getByLabel('E-post').fill(who.email);
-  await page.getByLabel('Lösenord', { exact: true }).fill(PASSWORD);
-  await page.getByLabel('Upprepa lösenordet').fill(PASSWORD);
   await page.getByRole('button', { name: 'Kom igång' }).click();
+  await expect(page.getByRole('heading', { name: 'Fortsätt i webbläsaren' })).toBeVisible();
+  const { link } = await browserSignIn(d, who.google);
+  expect(link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
   await expect(page.getByTestId('me')).toHaveText(`${who.name} · ${who.org}`);
   await page.getByTestId('status').waitFor();
 }
 
-export async function signIn(page: Page, email: string, password = PASSWORD) {
-  await expect(page.getByRole('heading', { name: 'Logga in' })).toBeVisible();
-  await page.getByLabel('E-post').fill(email);
-  await page.getByLabel('Lösenord').fill(password);
-  await page.getByRole('button', { name: 'Logga in' }).click();
+/** "Logga in med Google" in the app, finished in the system browser as `who`. */
+export async function signInWithGoogle(d: Desktop, who: FakeAccount) {
+  await expect(d.page.getByRole('heading', { name: 'Logga in' })).toBeVisible();
+  await d.page.getByRole('button', { name: 'Logga in med Google' }).click();
+  return browserSignIn(d, who);
 }
 
-/** On the host: a new user, and the invite link it shows once. Returns the link's `#/invite/…` part. */
-export async function inviteUser(page: Page, name: string, email: string, role: 'Användare' | 'Admin' = 'Användare'): Promise<string> {
+/** On the host: a new user. The invite it makes is for accepting at the host; devices are paired instead. */
+export async function createUser(page: Page, name: string, email: string, role: 'Användare' | 'Admin' = 'Användare') {
   await page.getByRole('link', { name: 'Användare' }).click();
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa användare' });
@@ -73,28 +81,20 @@ export async function inviteUser(page: Page, name: string, email: string, role: 
   await dialog.getByLabel('E-post').fill(email);
   await dialog.getByLabel('Roll').selectOption({ label: role });
   await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
-  const link = await page.getByRole('dialog', { name: 'Inbjudningslänk' }).getByLabel('Länk').inputValue();
   await page.getByRole('dialog', { name: 'Inbjudningslänk' }).getByRole('button', { name: 'Stäng' }).click();
-  return link.slice(link.indexOf('#'));
 }
 
-/** Opens an invite link on a device, chooses a password, and lands in the app. */
-export async function acceptInvite(page: Page, base: string, invite: string, name: string) {
-  await page.goto(`${base}/${invite}`);
-  await page.reload(); // a link opened in a new tab loads the page; a hash change alone does not
-  await expect(page.getByRole('heading', { name: `Välkommen ${name}!` })).toBeVisible();
-  await page.getByLabel('Lösenord', { exact: true }).fill(PASSWORD);
-  await page.getByLabel('Upprepa lösenordet').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Spara lösenord och logga in' }).click();
-  await expect(page.getByTestId('me')).toContainText(name);
-  await page.getByTestId('status').waitFor();
-}
-
-/** Pairs a device with the host: a code made on the host, typed on the device (ADR 0007, decision 6). */
-export async function pair(host: Page, device: Page, name: string) {
+/**
+ * Pairs a device with the host (ADR 0007, decision 6): a code made on the
+ * host for the member it signs the device in as, typed on the device.
+ */
+export async function pair(host: Page, device: Page, name: string, as?: string) {
   await expect(device.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
   await host.getByRole('link', { name: 'Enheter' }).click();
   await host.getByRole('button', { name: 'Anslut enhet' }).click();
+  const choose = host.getByRole('dialog', { name: 'Anslut enhet' });
+  if (as) await choose.getByLabel('Logga in som').selectOption({ label: as });
+  await choose.getByRole('button', { name: 'Visa kod' }).click();
   const code = (await host.getByTestId('pair-code').textContent())!.trim();
   await host.getByRole('dialog', { name: 'Anslut enhet' }).getByRole('button', { name: 'Stäng' }).click();
   await device.getByLabel('Kod').fill(code);

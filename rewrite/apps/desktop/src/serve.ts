@@ -14,6 +14,10 @@ const server = await startHost({
   webRoot: process.env.GP_WEB_ROOT ?? join(here, '..', '..', 'web', 'dist'),
   port: Number(process.env.PORT ?? 8787),
   hostToken,
+  google:
+    process.env.GP_GOOGLE_CLIENT_ID && process.env.GP_GOOGLE_CLIENT_SECRET
+      ? { clientId: process.env.GP_GOOGLE_CLIENT_ID, clientSecret: process.env.GP_GOOGLE_CLIENT_SECRET, redirectBaseUrl: process.env.GP_GOOGLE_REDIRECT_BASE_URL || undefined }
+      : undefined,
 });
 console.log(`Gospel Presenter: ${pageUrl(server.url)}`);
 if (hostToken) console.log(`Host device token (send as x-gp-device to make pairing codes): ${hostToken}`);

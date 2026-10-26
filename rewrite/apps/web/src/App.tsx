@@ -135,8 +135,8 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
           {route.page === 'presentation' && <PresentationEditor id={route.id} />}
           {route.page === 'live' && <Live id={route.id} live={live} />}
           {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
-          {route.page === 'users' && (viewUsers ? <Users me={me} /> : <p>{t('users.forbidden')}</p>)}
-          {route.page === 'devices' && (host ? <Devices /> : <p>{t('devices.onlyHost')}</p>)}
+          {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
+          {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}
         </main>
         <StatusBar />
       </div>

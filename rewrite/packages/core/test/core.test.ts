@@ -7,7 +7,7 @@ import {
   createUserRefusal,
   emailSchema,
   inviteRefusal,
-  passwordSchema,
+  isCallbackScheme,
   removeUserRefusal,
   roleChangeRefusal,
   daysRemaining,
@@ -88,19 +88,24 @@ describe('account policy (spec 01, D20, D21)', () => {
     expect(removeUserRefusal(ad, us)).toBeNull();
   });
 
-  it('an invite resets a password: an Admin may not make one for a SuperAdmin (D21)', () => {
+  it('an invite resets the linked Google account: an Admin may not make one for a SuperAdmin (D21)', () => {
     expect(inviteRefusal(ad, su)).toBe('super-admin-only');
     expect(inviteRefusal(us, us)).toBe('forbidden');
     expect(inviteRefusal(ad, ad)).toBeNull();
     expect(inviteRefusal(su, ad)).toBeNull();
   });
 
-  it('emails are trimmed and lower-cased; passwords need 10 characters', () => {
+  it('emails are trimmed and lower-cased', () => {
     expect(emailSchema.parse('  Anna@Kyrkan.SE ')).toBe('anna@kyrkan.se');
     expect(emailSchema.safeParse('bo@').success).toBe(false);
     expect(emailSchema.safeParse('bo@x').success).toBe(false);
-    expect(passwordSchema.safeParse('123456789').success).toBe(false);
-    expect(passwordSchema.safeParse('1234567890').success).toBe(true);
+  });
+
+  it('AUTH-R10: callback schemes are compared exactly and case-sensitively', () => {
+    for (const s of ['gospelpresenter', 'gospelpresenter-test', 'gospelpresenter-local']) expect(isCallbackScheme(s)).toBe(true);
+    for (const s of ['GospelPresenter', 'gospelpresenter ', 'evil', 'gospelpresenter-local:', '', 'https', null, undefined]) {
+      expect(isCallbackScheme(s), String(s)).toBe(false);
+    }
   });
 
   it('an unknown role has no permissions', () => {

@@ -18,6 +18,10 @@ export type Route =
   | { page: 'devices' }
   /** An invite link (spec 01 `/invite/{token}`): the token stays in the fragment, which is never sent to a server. */
   | { page: 'invite'; token: string }
+  /** Back from Google on the web: the page collects its session (`POST /auth/google/finish`). */
+  | { page: 'signedIn' }
+  /** Back from a refused sign-in, with the server's error code. */
+  | { page: 'signIn'; error: string | null }
   | { page: 'output' };
 
 export function parseRoute(hash: string): Route {
@@ -32,6 +36,8 @@ export function parseRoute(hash: string): Route {
   if (page === 'presentations' && id) return { page: 'presentation', id };
   if (page === 'live' && id) return { page: 'live', id };
   if (page === 'invite' && id) return { page: 'invite', token: id };
+  if (page === 'signed-in') return { page: 'signedIn' };
+  if (page === 'signin') return { page: 'signIn', error: new URLSearchParams(query).get('error') };
   if (page === 'output') return { page: 'output' };
   if (page === 'users') return { page: 'users' };
   if (page === 'devices') return { page: 'devices' };
@@ -51,6 +57,10 @@ export function href(r: Route): string {
       return r.kind ? `#/trash?kind=${r.kind}` : '#/trash';
     case 'invite':
       return `#/invite/${encodeURIComponent(r.token)}`;
+    case 'signedIn':
+      return '#/signed-in';
+    case 'signIn':
+      return r.error ? `#/signin?error=${encodeURIComponent(r.error)}` : '#/signin';
     default:
       return `#/${r.page}`;
   }

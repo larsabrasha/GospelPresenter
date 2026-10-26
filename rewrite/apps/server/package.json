@@ -9,7 +9,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run",
-    "build:worker": "esbuild src/worker.ts --bundle --format=esm --platform=neutral --main-fields=module,main --external:cloudflare:workers --outfile=dist/worker.js",
+    "build:worker": "esbuild src/worker.ts --bundle --format=esm --platform=neutral --main-fields=module,main --external:cloudflare:workers --define:GP_TEST_ISSUER=false --minify-syntax --outfile=dist/worker.js",
     "dev:worker": "wrangler dev"
   },
   "dependencies": {

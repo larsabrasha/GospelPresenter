@@ -7,12 +7,13 @@ import { serve, type HttpBindings } from '@hono/node-server';
 import type BetterSqlite3 from 'better-sqlite3';
 import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
 import { syncRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth.ts';
 import { newSecret } from './crypto.ts';
+import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql } from './global.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
@@ -168,12 +169,16 @@ export interface NodeServerOptions {
   /** Refuse every API request from a device that is not paired (the desktop host). */
   pairing?: Pairing;
   sessionIdleMs?: number;
+  /** Sign-in with Google. Without it nobody can sign in or set up; paired devices and existing sessions still work. */
+  google?: GoogleConfig;
+  /** Where refused sign-ins are reported (JSON on stderr by default). */
+  log?: (event: Record<string, unknown>) => void;
 }
 
 export interface RunningServer {
   url: string;
   port: number;
-  /** While no user exists: the token setup needs. Null once set up. */
+  /** While setup is not finished: the token it needs. Null once someone has signed in. */
   setupToken: string | null;
   close(): Promise<void>;
 }
@@ -205,16 +210,20 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     return org;
   }
 
+  const google = opts.google ? new GoogleOidc(opts.google) : null;
+  const clientAddress = (c: Context) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown';
   const app = new Hono<{ Bindings: HttpBindings }>();
-  if (opts.pairing) app.use('*', pairingGuard(accounts, opts.pairing));
+  if (opts.pairing) app.use('*', pairingGuard(accounts, opts.pairing, clientAddress));
   app.route(
     '/',
     authRoutes({
       accounts,
       setupToken,
-      clientAddress: (c) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown',
+      clientAddress,
+      google,
       pairing: opts.pairing,
       debug: opts.debug,
+      log: opts.log ?? ((e) => process.stderr.write(JSON.stringify(e) + '\n')),
     }),
   );
   app.route(
@@ -260,7 +269,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   return {
     port,
     url: `http://${opts.hostname && opts.hostname !== '0.0.0.0' ? opts.hostname : '127.0.0.1'}:${port}`,
-    setupToken: (await accounts.hasUsers()) ? null : setupToken,
+    setupToken: (await accounts.setupDone()) ? null : setupToken,
     async close() {
       for (const c of wss.clients) c.terminate();
       wss.close();

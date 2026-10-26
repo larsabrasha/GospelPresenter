@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { PairClaimResponse, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { deviceName, saveDeviceToken } from '../auth/session.ts';
@@ -8,9 +9,11 @@ import { AuthCard, FormError } from './AuthCard.tsx';
 
 /**
  * A device the desktop host has not paired sees only this (ADR 0007,
- * decision 6): the code shown on the host, typed here, buys a device token.
+ * decision 6): the code shown on the host, typed here, buys a device token
+ * and a session as the user the host chose. On a host this is how a device
+ * signs in: never with Google, which the LAN may not reach.
  */
-export function Pair({ onPaired }: { onPaired: () => void }) {
+export function Pair({ paired, onSignedIn }: { paired: boolean; onSignedIn: (r: SignInResponse) => void }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState(deviceName());
   const [error, setError] = useState<string | null>(null);
@@ -19,16 +22,17 @@ export function Pair({ onPaired }: { onPaired: () => void }) {
   return (
     <AuthCard title={t('pair.title')}>
       <p>{t('pair.text')}</p>
+      {paired && <p className="muted small">{t('pair.signIn')}</p>}
       <form
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy || digits.length !== 6) return;
           setBusy(true);
           try {
-            const r = await api<{ token: string }>('POST', '/pair/claim', { code: digits, name });
+            const r = await api<PairClaimResponse>('POST', '/pair/claim', { code: digits, name });
             if (!r.error) {
-              saveDeviceToken(r.body.token);
-              return onPaired();
+              saveDeviceToken(r.body.device);
+              return onSignedIn(r.body.session);
             }
             setError(errorText(r));
             setCode('');

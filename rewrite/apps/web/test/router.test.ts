@@ -16,6 +16,9 @@ describe('routes', () => {
       { page: 'users' },
       { page: 'devices' },
       { page: 'invite', token: 'gpin_abc-_123' },
+      { page: 'signedIn' },
+      { page: 'signIn', error: null },
+      { page: 'signIn', error: 'not-linked' },
     ];
     for (const r of routes) expect(parseRoute(href(r))).toEqual(r);
   });
@@ -42,7 +45,7 @@ describe('text', () => {
 describe('auth error texts', () => {
   it('every refusal has a Swedish text; a lock says how long; anything else is the generic one', async () => {
     const { errorText } = await import('../src/auth/errors.ts');
-    expect(errorText({ error: 'wrong-credentials', body: null })).toBe('Fel e-post eller lösenord.');
+    expect(errorText({ error: 'not-linked', body: null })).toBe('Det här Google-kontot är inte kopplat till någon användare. Be din administratör om en inbjudan.');
     expect(errorText({ error: 'too-many-attempts', body: { retryAfter: 61 } })).toBe('För många misslyckade försök. Vänta 2 min och försök igen.');
     expect(errorText({ error: 'pair-code-invalid', body: null })).toBe('Ogiltig eller utgången kod');
     expect(errorText({ error: 'something-new', body: null })).toBe('Något gick fel. Försök igen.');

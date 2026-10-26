@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
+import type { GoogleConfig } from '@gp/server';
 import { startNodeServer } from '@gp/server/node';
 
 /** Whether the host listens on the LAN (`GP_LAN=1`) rather than on this machine only. */
@@ -15,7 +16,7 @@ export const onLan = () => process.env.GP_LAN === '1';
  * localhost unless `GP_LAN=1`. Without a host token (the development server)
  * there is no pairing, unless it listens on the LAN.
  */
-export async function startHost(opts: { dataDir: string; webRoot: string; hostToken: string | null; port?: number }) {
+export async function startHost(opts: { dataDir: string; webRoot: string; hostToken: string | null; port?: number; google?: GoogleConfig }) {
   mkdirSync(opts.dataDir, { recursive: true });
   return startNodeServer({
     dataDir: join(opts.dataDir, 'server'),
@@ -26,6 +27,8 @@ export async function startHost(opts: { dataDir: string; webRoot: string; hostTo
     // Off only for the localhost development server (serve.ts); never on the LAN.
     pairing: opts.hostToken || onLan() ? { hostToken: opts.hostToken ?? `gphost_${randomBytes(32).toString('base64url')}` } : undefined,
     setupToken: process.env.GP_SETUP_TOKEN || undefined,
+    // The redirect is to this server on this machine: the system browser beside it comes back here.
+    google: opts.google,
   });
 }
 

@@ -8,7 +8,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { SCHEMA_VERSION, orgDdl, tableInfo } from '@gp/core';
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
-import { GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';
+import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';
+import { sha256 } from '../src/crypto.ts';
 import { nodeGlobalSql, nodeOrgStore, openSqlite, type NodeDriver } from '@gp/server/node';
 
 /** The organisation DDL milestone 1 shipped (schema 1), as it was. */
@@ -106,38 +107,126 @@ describe('client (wa-sqlite)', () => {
 });
 
 // The global database: milestones 1 and 2 had only `memberships`, for
-// placeholder user ids. Version 2 adds accounts and drops those rows.
+// placeholder user ids. Version 2 (milestone 3) added accounts with
+// passwords; version 3 replaces the passwords with linked Google logins.
+const milestone2Global = [
+  `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
+     PRIMARY KEY (user_id, org_id))`,
+  `INSERT INTO memberships VALUES ('operator', 'church', 'admin'), ('second', 'church', 'user')`,
+];
+
+/** The global DDL milestone 3 shipped (version 2), as it was. */
+const milestone3Global = [
+  `CREATE TABLE IF NOT EXISTS _schema (one INTEGER PRIMARY KEY CHECK (one = 1), version INTEGER NOT NULL)`,
+  `INSERT INTO _schema (one, version) VALUES (1, 2)`,
+  `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
+     PRIMARY KEY (user_id, org_id))`,
+  `CREATE TABLE IF NOT EXISTS orgs (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, email TEXT,
+     password_hash TEXT, created_at INTEGER NOT NULL)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email) WHERE email IS NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+     user_id TEXT NOT NULL, org_id TEXT NOT NULL, device_name TEXT NOT NULL, created_at INTEGER NOT NULL,
+     last_used_at INTEGER NOT NULL, revoked_at INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id)`,
+  `CREATE TABLE IF NOT EXISTS invites (token_hash TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL, org_id TEXT NOT NULL,
+     created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER, use_nonce TEXT)`,
+  `CREATE INDEX IF NOT EXISTS invites_user ON invites (user_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_throttle (key TEXT PRIMARY KEY NOT NULL, failures INTEGER NOT NULL,
+     first_at INTEGER NOT NULL, locked_until INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS paired_devices (id TEXT PRIMARY KEY NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+     name TEXT NOT NULL, created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL, revoked_at INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS pair_codes (one INTEGER PRIMARY KEY CHECK (one = 1), code_hash TEXT NOT NULL,
+     expires_at INTEGER NOT NULL, failures INTEGER NOT NULL)`,
+  // A church set up with milestone 3: Anna (SuperAdmin, with a password) and a signed-in device.
+  `INSERT INTO orgs VALUES ('church', 'Lilla Kyrkan', 1)`,
+  `INSERT INTO users VALUES ('anna', 'Anna', 'anna@x.se', 'pbkdf2-sha256$600000$salt$hash', 1)`,
+  `INSERT INTO memberships VALUES ('anna', 'church', 'superAdmin')`,
+  `INSERT INTO sessions VALUES ('s1', 'tokenhash', 'anna', 'church', 'Mac', 1, 1, NULL)`,
+  `INSERT INTO auth_throttle VALUES ('account:anna@x.se', 3, 1, 0), ('address:10.0.0.9', 2, 1, 0)`,
+  `INSERT INTO pair_codes VALUES (1, 'codehash', 9999999999999, 0)`,
+];
+
 describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %s', (driver) => {
   const tables = (f: ReturnType<typeof openSqlite>) =>
     f.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").map((r) => r.name);
+  /** Every table's columns, sorted (a migrated table has its added columns last). */
+  const shape = (f: ReturnType<typeof openSqlite>) =>
+    Object.fromEntries(tables(f).map((t) => [t, f.query(`SELECT name FROM pragma_table_info('${String(t)}')`).map((r) => String(r.name)).toSorted()]));
+  const ALL = ['_schema', 'auth_throttle', 'invites', 'login_flows', 'memberships', 'orgs', 'pair_codes', 'paired_devices', 'sessions', 'user_logins', 'users'];
+
+  async function freshShape(dir: string) {
+    const f = openSqlite(join(dir, `fresh-${crypto.randomUUID()}.sqlite`), driver);
+    await migrateGlobal(nodeGlobalSql(f));
+    const s = shape(f);
+    f.close();
+    return s;
+  }
 
   it('migrates a milestone 2 file: accounts tables appear and placeholder memberships go', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
     dirs.push(dir);
     const file = join(dir, 'global.sqlite');
     const old = openSqlite(file, driver);
-    old.exec(`CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
-     PRIMARY KEY (user_id, org_id))`);
-    old.exec(`INSERT INTO memberships VALUES ('operator', 'church', 'admin'), ('second', 'church', 'user')`);
+    for (const sql of milestone2Global) old.exec(sql);
     old.close();
 
     const f = openSqlite(file, driver);
     await migrateGlobal(nodeGlobalSql(f));
     expect(f.query('SELECT version FROM _schema')).toEqual([{ version: GLOBAL_SCHEMA_VERSION }]);
-    expect(tables(f)).toEqual(['_schema', 'auth_throttle', 'invites', 'memberships', 'orgs', 'pair_codes', 'paired_devices', 'sessions', 'users']);
+    expect(tables(f)).toEqual(ALL);
     expect(f.query('SELECT * FROM memberships')).toEqual([]);
+    expect(shape(f)).toEqual(await freshShape(dir));
     f.close();
 
-    // Opened again, nothing runs; a fresh file gets the same tables.
+    // Opened again, nothing runs.
     const again = openSqlite(file, driver);
     await migrateGlobal(nodeGlobalSql(again));
-    expect(tables(again)).toHaveLength(9);
+    expect(tables(again)).toEqual(ALL);
     again.close();
-    const fresh = openSqlite(join(dir, 'new.sqlite'), driver);
-    await migrateGlobal(nodeGlobalSql(fresh));
-    expect(tables(fresh)).toEqual(tables(openSqlite(file, driver)));
-    expect(fresh.query('SELECT version FROM _schema')).toEqual([{ version: GLOBAL_SCHEMA_VERSION }]);
-    fresh.close();
+  });
+
+  it('migrates a milestone 3 file: passwords and their lockout go; users, memberships and sessions stay; logins can be linked', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+    dirs.push(dir);
+    const file = join(dir, 'global.sqlite');
+    const old = openSqlite(file, driver);
+    for (const sql of milestone3Global) old.exec(sql);
+    old.close();
+
+    const f = openSqlite(file, driver);
+    const sql = nodeGlobalSql(f);
+    await migrateGlobal(sql);
+    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: 3 }]);
+    expect(shape(f)).toEqual(await freshShape(dir));
+    expect(shape(f).users).not.toContain('password_hash');
+    expect(f.query('SELECT id, name, email FROM users')).toEqual([{ id: 'anna', name: 'Anna', email: 'anna@x.se' }]);
+    expect(f.query('SELECT * FROM memberships')).toEqual([{ user_id: 'anna', org_id: 'church', role: 'superAdmin' }]);
+    expect(f.query('SELECT id, paired_device_id FROM sessions')).toEqual([{ id: 's1', paired_device_id: null }]);
+    expect(f.query('SELECT key FROM auth_throttle')).toEqual([{ key: 'address:10.0.0.9' }]);
+    expect(f.query('SELECT * FROM pair_codes')).toEqual([]);
+
+    // Nobody has a login yet, so setup is open again, and it finishes Anna's church rather than making a second one.
+    const accounts = new Accounts(sql);
+    expect(await accounts.setupDone()).toBe(false);
+    const setup = await accounts.setup({ name: 'Anna', orgName: 'Lilla Kyrkan' });
+    expect(setup).toMatchObject({ userId: 'anna', orgId: 'church' });
+    const linked = await accounts.signInWithGoogle({ sub: 'google-anna', email: 'anna@gmail.com', name: 'Anna' }, await sha256((setup as { inviteToken: string }).inviteToken));
+    expect(linked).toEqual({ userId: 'anna', orgId: 'church' });
+    expect(f.query('SELECT provider, subject, user_id FROM user_logins')).toEqual([{ provider: 'google', subject: 'google-anna', user_id: 'anna' }]);
+    expect(await accounts.setupDone()).toBe(true);
+    f.close();
+
+    const again = openSqlite(file, driver);
+    await migrateGlobal(nodeGlobalSql(again));
+    expect(again.query('SELECT count(*) AS n FROM user_logins')).toEqual([{ n: 1 }]);
+    again.close();
+  });
+
+  it('a new file gets the current tables', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+    dirs.push(dir);
+    expect(Object.keys(await freshShape(dir))).toEqual(ALL);
   });
 
   it('refuses a global database newer than this server', () => {

@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { syncRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
+import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
@@ -15,6 +16,24 @@ interface Env {
   /** What first-run setup must be given (D19). Unset: setup stays closed. A secret, so never in wrangler.toml. */
   SETUP_TOKEN?: string;
   SESSION_IDLE_MS?: string;
+  /** Sign-in with Google. Without both, nobody can sign in or set up. The secret is a secret: never in wrangler.toml. */
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  /** The public origin, e.g. https://app.example.org: the redirect URI is `{it}/auth/google/callback`. */
+  GOOGLE_REDIRECT_BASE_URL?: string;
+  /** Test builds only (GP_TEST_ISSUER): a fake issuer instead of Google. A deploy build refuses to start with it set. */
+  GOOGLE_TEST_ISSUER?: string;
+}
+
+function googleOf(env: Env): GoogleOidc | null {
+  if (env.GOOGLE_TEST_ISSUER && !TEST_ISSUER_BUILD) throw new Error('GOOGLE_TEST_ISSUER is set, but this build does not allow a test issuer');
+  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) return null;
+  return new GoogleOidc({
+    clientId: env.GOOGLE_CLIENT_ID,
+    clientSecret: env.GOOGLE_CLIENT_SECRET,
+    redirectBaseUrl: env.GOOGLE_REDIRECT_BASE_URL || undefined,
+    testIssuer: TEST_ISSUER_BUILD ? env.GOOGLE_TEST_ISSUER || undefined : undefined,
+  });
 }
 
 /** An organisation's data in its Durable Object's own SQLite (evaluation option (a)). */
@@ -143,7 +162,9 @@ function globals(env: Env) {
       accounts,
       setupToken: env.SETUP_TOKEN || null,
       clientAddress: (c) => c.req.header('cf-connecting-ip') ?? 'unknown',
+      google: googleOf(env),
       debug: env.SPIKE_DEBUG === '1',
+      log: (e) => console.warn(JSON.stringify(e)),
     });
     return { accounts, auth };
   })().catch((e: unknown) => {

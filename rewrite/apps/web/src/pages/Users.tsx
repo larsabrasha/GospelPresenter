@@ -32,10 +32,33 @@ function copy(input: HTMLInputElement | null, text: string): Promise<void> {
   return Promise.resolve();
 }
 
-/** The link, shown once (AUTH-R13): it is not stored in a form that could show it again. */
-function InviteLinkDialog({ name, url, onClose }: { name: string; url: string; onClose: () => void }) {
+/** Accepts an invite in this window: on a desktop host, Google sign-in happens at the host, in its system browser. */
+function acceptHere(token: string) {
+  history.replaceState(null, '', `${location.pathname}${location.search}#/invite/${token}`);
+  location.reload();
+}
+
+/**
+ * The link, shown once (AUTH-R13): it is not stored in a form that could
+ * show it again. On a desktop host the invited person accepts it at the
+ * host; other devices join by pairing, never by Google against the host.
+ */
+function InviteLinkDialog({ name, url, host, onClose }: { name: string; url: string; host: boolean; onClose: () => void }) {
   const toast = useToast();
   const [input, setInput] = useState<HTMLInputElement | null>(null);
+  if (host) {
+    return (
+      <Dialog title={t('users.inviteTitle')} onClose={onClose}>
+        <p>{t('users.inviteHost', { name })}</p>
+        <div className="row end">
+          <Button onClick={() => acceptHere(url.slice(url.indexOf('#/invite/') + '#/invite/'.length))}>{t('users.acceptHere', { name })}</Button>
+          <Button variant="primary" onClick={onClose}>
+            {t('common.close')}
+          </Button>
+        </div>
+      </Dialog>
+    );
+  }
   return (
     <Dialog title={t('users.inviteTitle')} onClose={onClose}>
       <p>{t('users.inviteText', { name })}</p>
@@ -136,7 +159,7 @@ async function fetchUsers(): Promise<UserRow[] | string> {
  * not synced (spec 06). Needs ViewUsers; the actions need ManageUsers, and the
  * server checks each one again.
  */
-export function Users({ me }: { me: Me }) {
+export function Users({ me, host }: { me: Me; host: boolean }) {
   const [users, setUsers] = useState<UserRow[] | string | null>(null);
   const [creating, setCreating] = useState(false);
   const [link, setLink] = useState<{ name: string; url: string } | null>(null);
@@ -242,7 +265,7 @@ export function Users({ me }: { me: Me }) {
           }}
         />
       )}
-      {link && <InviteLinkDialog name={link.name} url={link.url} onClose={() => setLink(null)} />}
+      {link && <InviteLinkDialog name={link.name} url={link.url} host={host} onClose={() => setLink(null)} />}
       {dialog}
     </section>
   );

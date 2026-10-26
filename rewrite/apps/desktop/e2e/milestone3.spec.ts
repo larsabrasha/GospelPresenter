@@ -1,10 +1,12 @@
-// Milestone 3: sign-in, membership and pairing (spec 01, ADR 0007 decision 6).
-// The host listens on the LAN (GP_LAN=1) and is reached at 127.0.0.1; it
-// refuses everything but pairing from a device it has not paired, so a
-// second desktop on the same machine is a stranger until it pairs.
+// Milestone 3: sign-in, membership and pairing (spec 01, ADR 0007 decisions
+// 6 and 12). The host signs in with Google in the system browser, which this
+// test plays, against a fake Google. The host listens on the LAN (GP_LAN=1)
+// and is reached at 127.0.0.1; it refuses everything but pairing from a
+// device it has not paired, so a second desktop on the same machine is a
+// stranger until it pairs, and pairing is how it signs in.
 import { expect, test } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
-import { acceptInvite, createSong, inviteUser, pair, PASSWORD, setUpHost, signIn } from './flows.ts';
+import { browserSignIn, fakeGoogle, launch, type Desktop } from './apps.ts';
+import { ANNA, createSong, createUser, pair, setUpHost, signInWithGoogle } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -15,42 +17,55 @@ test.afterEach(async () => {
   host = second = undefined;
 });
 
-test('sign-in: sign out, a wrong password, sign in again; the library and the session survive a restart', async () => {
+test('sign-in: Google in the system browser; signing out and in again; a stranger\'s account is refused; offline after the first time', async () => {
   host = await launch();
   const page = host.page;
-  await setUpHost(page);
+  await setUpHost(host);
   // The host window's poke socket is open: its requests carry the host token, the socket's too.
   await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/);
   await createSong(page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
 
   await page.getByRole('button', { name: 'Logga ut' }).click();
-  await signIn(page, 'anna@kyrkan.se', 'fel lösenord igen');
-  await expect(page.getByRole('alert')).toHaveText('Fel e-post eller lösenord.');
-  await page.getByLabel('Lösenord').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Logga in' }).click();
+  // A Google account no one invited gets the error page in the browser, and the app no token.
+  const refused = await signInWithGoogle(host, { sub: 'google-stranger', email: 'stranger@gmail.com' });
+  expect(refused.link).toBeNull();
+  expect(refused.html).toContain('Inloggningsfel');
+  await page.getByRole('button', { name: 'Avbryt' }).click();
+  // Anna, by her linked Google account.
+  await signInWithGoogle(host, ANNA);
   await expect(page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
 
   // DESK-A7: the local library is still there after signing in again.
   await page.getByRole('link', { name: 'Sånger' }).click();
   await expect(page.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible();
 
-  // A restart opens straight into the app (spec 06: no sign-in flash).
+  // A callback nobody waits for, or for another installation's scheme, is ignored (spec 06).
+  await host.app.evaluate(({ app }) => app.emit('open-url', { preventDefault() {} }, 'gospelpresenter-local://auth#token=gpdt_' + 'x'.repeat(43)));
+  await host.app.evaluate(({ app }) => app.emit('open-url', { preventDefault() {} }, 'gospelpresenter://auth#token=gpdt_' + 'y'.repeat(43)));
+  expect(host.events.filter((e) => e.event === 'sign-in-callback').map((e) => e.accepted)).toEqual([true, true, false]);
+
+  // A restart opens straight into the app (spec 06: no sign-in flash) without asking Google: the internet is needed only to sign in.
   const { dataDir, port } = host;
   await host.app.close();
+  const google = await fakeGoogle();
+  const before = google.tokens.ok;
   host = await launch({ dataDir, port });
   await expect(host.page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
   await expect(host.page.getByRole('heading', { name: 'Logga in' })).toHaveCount(0);
+  await expect(host.page.getByTestId('status')).toHaveText(/^Ansluten$/);
+  expect(google.tokens.ok).toBe(before);
+  expect(host.events.filter((e) => e.event === 'blocked-request')).toEqual([]); // the window itself never left for Google
 });
 
 test('pairing: a second desktop is refused until it pairs, syncs once paired and signed in, and stops when disconnected', async () => {
   host = await launch({ lan: true });
-  await setUpHost(host.page);
+  await setUpHost(host);
 
-  // A stranger gets the app's files but nothing from the API, not even the sign-in.
+  // A stranger gets the app's files but nothing from the API, not even a Google sign-in.
   const stranger = await fetch(`${host.base}/auth/state`);
   expect(stranger.status).toBe(403);
   expect(await stranger.json()).toEqual({ error: 'device-not-paired' });
-  expect((await fetch(`${host.base}/auth/signin`, { method: 'POST', body: '{}' })).status).toBe(403);
+  expect((await fetch(`${host.base}/auth/google/begin`, { method: 'POST', body: '{}' })).status).toBe(403);
   expect((await fetch(`${host.base}/sync/pull`, { method: 'POST', body: '{}' })).status).toBe(403);
   const index = await fetch(`${host.base}/`);
   expect(index.status).toBe(200);
@@ -64,12 +79,10 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
   await device.getByRole('button', { name: 'Anslut' }).click();
   await expect(device.getByRole('alert')).toHaveText('Ogiltig eller utgången kod');
 
-  await pair(host.page, device, 'Andra datorn');
-  await expect(device.getByRole('heading', { name: 'Logga in' })).toBeVisible();
-
-  // An Admin is invited on the host and joins on the paired desktop.
-  const invite = await inviteUser(host.page, 'Cia', 'cia@kyrkan.se', 'Admin');
-  await acceptInvite(device, host.base, invite, 'Cia');
+  // An Admin is made on the host, and the code signs the paired desktop in as her.
+  await createUser(host.page, 'Cia', 'cia@kyrkan.se', 'Admin');
+  await pair(host.page, device, 'Andra datorn', 'Cia');
+  await expect(device.getByTestId('me')).toContainText('Cia');
   await createSong(device, 'Blott en dag', [['Verse 1', 'Blott en dag']]);
   await host.page.getByRole('link', { name: 'Sånger' }).click();
   await expect(host.page.getByRole('link', { name: 'Blott en dag' })).toBeVisible({ timeout: 5_000 });
@@ -89,9 +102,9 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
   await expect(device.getByTestId('status')).toContainText('Enheten är inte längre ansluten till värddatorn', { timeout: 10_000 });
   await expect(device.getByTestId('status')).toContainText('ändringar väntar');
 
-  // Paired again, it is still signed in, and the waiting change lands.
+  // Paired again as Cia, it is signed in again, and the waiting change lands.
   await device.getByRole('button', { name: 'Anslut igen' }).click();
-  await pair(host.page, device, 'Andra datorn igen');
+  await pair(host.page, device, 'Andra datorn igen', 'Cia');
   await expect(device.getByTestId('me')).toContainText('Cia');
   await expect(device.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
   await host.page.getByRole('link', { name: 'Sånger' }).click();
@@ -103,11 +116,10 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
 
 test('membership: a removed user is signed out on their device; a demoted Admin loses Användare', async () => {
   host = await launch();
-  await setUpHost(host.page);
+  await setUpHost(host);
+  await createUser(host.page, 'Dan', 'dan@kyrkan.se', 'Admin');
   second = await launch({ server: host.base });
-  await pair(host.page, second.page, 'Andra datorn');
-  const invite = await inviteUser(host.page, 'Dan', 'dan@kyrkan.se', 'Admin');
-  await acceptInvite(second.page, host.base, invite, 'Dan');
+  await pair(host.page, second.page, 'Andra datorn', 'Dan');
   await expect(second.page.getByRole('link', { name: 'Användare' })).toBeVisible();
 
   // ORG-A8: the role changes at once; Dan's device sees it at its next start (or /auth/me refresh).
@@ -119,13 +131,37 @@ test('membership: a removed user is signed out on their device; a demoted Admin 
   await expect(second.page.getByTestId('me')).toContainText('Dan');
   await expect(second.page.getByRole('link', { name: 'Användare' })).toHaveCount(0);
 
-  // Removed: the device keeps working on its own data, and asks to sign in again (SYNC-A15).
+  // Removed: the device keeps working on its own data, and asks to sign in again (SYNC-A15), which on a host is pairing.
   await host.page.getByRole('button', { name: 'Radera användare' }).click();
   await host.page.getByRole('dialog', { name: 'Radera användare' }).getByRole('button', { name: 'Radera' }).click();
   await expect(host.page.getByRole('list', { name: 'Användare' }).getByText('Dan')).toHaveCount(0);
   await createSong(second.page, 'Efter borttagningen', [['Verse 1', 'Text']]);
   await expect(second.page.getByTestId('status')).toContainText('Logga in igen för att synka', { timeout: 10_000 });
   await second.page.getByRole('button', { name: 'Logga in igen' }).click();
-  await signIn(second.page, 'dan@kyrkan.se');
-  await expect(second.page.getByRole('alert')).toHaveText('Fel e-post eller lösenord.');
+  await expect(second.page.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
+  await expect(second.page.getByText('Be någon vid värddatorn om en ny kod')).toBeVisible();
+  // Dan cannot be chosen any more.
+  await host.page.getByRole('link', { name: 'Enheter' }).click();
+  await host.page.getByRole('button', { name: 'Anslut enhet' }).click();
+  await expect(host.page.getByLabel('Logga in som').locator('option')).toHaveText(['Anna']);
+});
+
+test('invites on the host: the invited person signs in with Google here, and the account is theirs from then on', async () => {
+  host = await launch();
+  await setUpHost(host);
+  await host.page.getByRole('link', { name: 'Användare' }).click();
+  await host.page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  const dialog = host.page.getByRole('dialog', { name: 'Skapa användare' });
+  await dialog.getByLabel('Namn').fill('Eva');
+  await dialog.getByLabel('E-post').fill('eva@kyrkan.se');
+  await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await host.page.getByRole('dialog', { name: 'Inbjudningslänk' }).getByRole('button', { name: 'Logga in som Eva här' }).click();
+  await expect(host.page.getByRole('heading', { name: 'Välkommen Eva!' })).toBeVisible();
+  await host.page.getByRole('button', { name: 'Logga in med Google' }).click();
+  const eva = { sub: 'google-eva', email: 'eva.private@gmail.com' };
+  await browserSignIn(host, eva);
+  await expect(host.page.getByTestId('me')).toHaveText('Eva · Lilla Kyrkan');
+  await host.page.getByRole('button', { name: 'Logga ut' }).click();
+  await signInWithGoogle(host, eva);
+  await expect(host.page.getByTestId('me')).toHaveText('Eva · Lilla Kyrkan');
 });

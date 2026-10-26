@@ -4,7 +4,7 @@
 // server, and a second client that syncs through it.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { acceptInvite, addSongs, createPresentation, createSong, inviteUser, pair, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, createUser, pair, setUpHost } from './flows.ts';
 
 let host: Desktop;
 let second: Desktop | undefined;
@@ -15,16 +15,17 @@ test.afterEach(async () => {
   second = undefined;
 });
 
-/** The host set up, and a second desktop paired with it and signed in as an invited user. */
+/** The host set up, and a second desktop paired with it, which signs it in as Bo. */
 async function hostAndSecond(port?: number): Promise<[Desktop, Desktop]> {
   const h = await launch({ port });
   host = h;
-  await setUpHost(h.page);
+  await setUpHost(h);
+  await createUser(h.page, 'Bo', 'bo@kyrkan.se');
   const s = await launch({ server: h.base });
   second = s;
-  await pair(h.page, s.page, 'Andra datorn');
-  const invite = await inviteUser(h.page, 'Bo', 'bo@kyrkan.se');
-  await acceptInvite(s.page, h.base, invite, 'Bo');
+  await pair(h.page, s.page, 'Andra datorn', 'Bo');
+  await expect(s.page.getByTestId('me')).toContainText('Bo');
+  await s.page.getByTestId('status').waitFor();
   return [h, s];
 }
 

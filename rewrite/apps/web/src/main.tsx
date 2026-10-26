@@ -28,7 +28,7 @@ if (route.page === 'output') {
       </StrictMode>,
     );
   } else root.render(<div className="output" data-testid="output" />);
-} else if (stored && route.page !== 'invite' && !sessionStorage.getItem(REPAIR_KEY)) {
+} else if (stored && route.page !== 'invite' && route.page !== 'signedIn' && !sessionStorage.getItem(REPAIR_KEY)) {
   // Signed in: straight into the local database, with or without a network.
   const session = workerSession(stored);
   const db = new Db();
@@ -45,7 +45,7 @@ if (route.page === 'output') {
 } else {
   root.render(
     <StrictMode>
-      <Boot invite={route.page === 'invite' ? route.token : null} />
+      <Boot boot={route.page === 'invite' ? { invite: route.token } : route.page === 'signedIn' ? { signedIn: true } : { error: route.page === 'signIn' ? route.error : null }} />
     </StrictMode>,
   );
 }

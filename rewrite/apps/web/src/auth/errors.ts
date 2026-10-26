@@ -2,7 +2,12 @@ import { t, type TextKey } from '../i18n.ts';
 import type { ApiResult } from './api.ts';
 
 const known = new Set<string>([
-  'wrong-credentials',
+  'google-disabled',
+  'google-failed',
+  'not-linked',
+  'login-taken',
+  'callback-scheme',
+  'not-a-member',
   'invalid-request',
   'setup-token',
   'setup-done',

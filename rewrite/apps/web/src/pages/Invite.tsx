@@ -1,20 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { InviteState, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
-import { errorText } from '../auth/errors.ts';
-import { deviceName } from '../auth/session.ts';
 import { t } from '../i18n.ts';
-import { Button } from '../ui/Button.tsx';
-import { AuthCard, FormError } from './AuthCard.tsx';
-import { newPasswordProblem, NewPassword } from './SignIn.tsx';
+import { AuthCard } from './AuthCard.tsx';
+import { GoogleSignIn } from './SignIn.tsx';
 
-/** `#/invite/{token}` (spec 01): the invited person chooses a password and is signed in. */
+/** `#/invite/{token}` (spec 01): the invited person signs in with Google, and that account becomes theirs. */
 export function Invite({ token, onSignedIn }: { token: string; onSignedIn: (r: SignInResponse) => void }) {
   const [state, setState] = useState<InviteState | 'offline' | null>(null);
-  const [password, setPassword] = useState('');
-  const [repeat, setRepeat] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api<InviteState>('POST', '/auth/invites/lookup', { token }).then(
@@ -34,40 +27,9 @@ export function Invite({ token, onSignedIn }: { token: string; onSignedIn: (r: S
     );
   }
   return (
-    <AuthCard title={t('invite.welcome', { name: state.name })}>
+    <GoogleSignIn title={t('invite.welcome', { name: state.name })} invite={token} onSignedIn={onSignedIn}>
       <p>{t('invite.org', { org: state.orgName })}</p>
-      <p className="muted">{t('invite.choosePassword')}</p>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const problem = newPasswordProblem(password, repeat);
-          setError(problem);
-          if (problem || busy) return;
-          setBusy(true);
-          try {
-            const r = await api<SignInResponse>('POST', '/auth/invites/accept', { token, password, deviceName: deviceName() });
-            if (!r.error) return onSignedIn(r.body);
-            setError(errorText(r));
-          } catch {
-            setError(t('auth.offline'));
-          }
-          setBusy(false);
-        }}
-      >
-        {state.email && (
-          <label className="field">
-            {t('auth.email')}
-            <input type="email" autoComplete="username" readOnly value={state.email} />
-          </label>
-        )}
-        <NewPassword password={password} repeat={repeat} onPassword={setPassword} onRepeat={setRepeat} />
-        <FormError text={error} />
-        <div className="row end">
-          <Button variant="primary" type="submit" disabled={busy}>
-            {t('invite.submit')}
-          </Button>
-        </div>
-      </form>
-    </AuthCard>
+      <p className="muted">{t('invite.choose')}</p>
+    </GoogleSignIn>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { PairedDevice } from '@gp/core';
+import { inviteRefusal, type Me, type PairedDevice, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
@@ -9,8 +9,59 @@ import { useToast } from '../ui/Toast.tsx';
 
 const when = (ms: number) => new Date(ms).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
 
+/** Who the new device will be signed in as: the caller, or a member they may make an invite for (D20, D21). */
+function PairAsDialog({ me, onCode, onClose }: { me: Me; onCode: (c: { code: string; expiresAt: number; name: string }) => void; onClose: () => void }) {
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [userId, setUserId] = useState(me.userId);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api<UserRow[]>('GET', '/users').then(
+      (r) => !r.error && setUsers(r.body.filter((u) => u.id === me.userId || !inviteRefusal({ id: me.userId, role: me.role }, u))),
+      () => undefined,
+    );
+  }, [me]);
+  return (
+    <Dialog title={t('devices.codeTitle')} onClose={onClose}>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          try {
+            const r = await api<{ code: string; expiresAt: number }>('POST', '/pair/code', { userId });
+            if (r.error) return setError(errorText(r));
+            onCode({ ...r.body, name: users.find((u) => u.id === userId)?.name ?? me.name });
+          } catch {
+            setError(t('auth.offline'));
+          }
+        }}
+      >
+        <label className="field">
+          {t('devices.as')}
+          <select value={userId} onChange={(e) => setUserId(e.target.value)}>
+            {(users.length ? users : [{ id: me.userId, name: me.name }]).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {error && (
+          <p className="danger" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="row end">
+          <Button onClick={onClose}>{t('auth.cancel')}</Button>
+          <Button variant="primary" type="submit">
+            {t('devices.showCode')}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
 /** The code to type on the new device, with where the device should go. */
-function PairCodeDialog({ code, expiresAt, onClose }: { code: string; expiresAt: number; onClose: () => void }) {
+function PairCodeDialog({ code, expiresAt, name, onClose }: { code: string; expiresAt: number; name: string; onClose: () => void }) {
   const [urls, setUrls] = useState<string[] | null>(null);
   useEffect(() => void window.gpDesktop?.lanUrls().then(setUrls), []);
   const [now, setNow] = useState(() => Date.now());
@@ -21,7 +72,7 @@ function PairCodeDialog({ code, expiresAt, onClose }: { code: string; expiresAt:
   const expired = now >= expiresAt;
   return (
     <Dialog title={t('devices.codeTitle')} onClose={onClose}>
-      <p>{t('devices.codeText')}</p>
+      <p>{t('devices.codeText', { name })}</p>
       <p className={expired ? 'pair-code-show muted' : 'pair-code-show'} data-testid="pair-code">
         {code}
       </p>
@@ -50,9 +101,10 @@ async function fetchDevices(): Promise<PairedDevice[] | string> {
  * own window, signed in as an Admin, can pair or disconnect; the server
  * checks both.
  */
-export function Devices() {
+export function Devices({ me }: { me: Me }) {
   const [devices, setDevices] = useState<PairedDevice[] | string | null>(null);
-  const [code, setCode] = useState<{ code: string; expiresAt: number } | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  const [code, setCode] = useState<{ code: string; expiresAt: number; name: string } | null>(null);
   const toast = useToast();
   const { dialog, ask } = useConfirm();
 
@@ -65,18 +117,7 @@ export function Devices() {
     <section>
       <div className="row">
         <h1 className="grow">{t('devices.title')}</h1>
-        <Button
-          variant="primary"
-          onClick={async () => {
-            try {
-              const r = await api<{ code: string; expiresAt: number }>('POST', '/pair/code');
-              if (r.error) toast(errorText(r));
-              else setCode(r.body);
-            } catch {
-              toast(t('auth.offline'));
-            }
-          }}
-        >
+        <Button variant="primary" onClick={() => setChoosing(true)}>
           {t('devices.pair')}
         </Button>
       </div>
@@ -113,10 +154,21 @@ export function Devices() {
             </li>
           ))}
       </ul>
+      {choosing && (
+        <PairAsDialog
+          me={me}
+          onClose={() => setChoosing(false)}
+          onCode={(c) => {
+            setChoosing(false);
+            setCode(c);
+          }}
+        />
+      )}
       {code && (
         <PairCodeDialog
           code={code.code}
           expiresAt={code.expiresAt}
+          name={code.name}
           onClose={() => {
             setCode(null);
             void load();

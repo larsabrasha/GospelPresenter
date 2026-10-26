@@ -2,11 +2,16 @@
 // embedded server and is the host. With GP_SERVER it is a second client of
 // another machine's server instead (the "Other server" of D8, as an env var
 // for now), and pairs with it like any other device.
+//
+// Signing in (spec 01 device sign-in): Google is never shown in the app's
+// own windows. The system browser opens the server's `/app-login`, and the
+// server hands the token back to this app's callback scheme.
 import { randomBytes } from 'node:crypto';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { app, BrowserWindow, ipcMain, screen, session } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, session, shell } from 'electron';
+import type { GoogleConfig } from '@gp/server';
 import { lanUrls, pageUrl, startHost } from './host.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -20,6 +25,37 @@ const log = (event: object) => process.stdout.write(JSON.stringify(event) + '\n'
 
 if (process.env.GP_DATA_DIR) app.setPath('userData', process.env.GP_DATA_DIR);
 
+/**
+ * This installation's callback scheme (ADR 0005 (5)): `gospelpresenter` once
+ * packaged, `gospelpresenter-local` for a development build. A Test build
+ * would be `gospelpresenter-test`; there is no packaging yet.
+ */
+const CALLBACK_SCHEME = app.isPackaged ? 'gospelpresenter' : 'gospelpresenter-local';
+/** How long a sign-in in the system browser may take (spec 06). */
+const SIGN_IN_WAIT_MS = 5 * 60_000;
+
+/**
+ * The host's Google client, from the environment. A fake issuer
+ * (`GP_GOOGLE_TEST_ISSUER`, the e2e tests) is never read by a packaged app,
+ * and the server refuses one unless the build allows it (build.mjs).
+ */
+function googleConfig(): GoogleConfig | undefined {
+  const clientId = process.env.GP_GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GP_GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return undefined;
+  const testIssuer = app.isPackaged ? undefined : process.env.GP_GOOGLE_TEST_ISSUER || undefined;
+  return { clientId, clientSecret, testIssuer };
+}
+
+// One running instance per data folder: on Windows and Linux the callback
+// arrives as a second launch, whose arguments are forwarded here (DESK-R10).
+if (!app.requestSingleInstanceLock()) app.quit();
+// A development build would register the Electron binary for the scheme; only when asked (GP_REGISTER_SCHEME=1).
+if (app.isPackaged || process.env.GP_REGISTER_SCHEME === '1') {
+  if (app.isPackaged) app.setAsDefaultProtocolClient(CALLBACK_SCHEME);
+  else app.setAsDefaultProtocolClient(CALLBACK_SCHEME, process.execPath, [fileURLToPath(new URL('main.mjs', import.meta.url))]);
+}
+
 const webPreferences = {
   contextIsolation: true,
   nodeIntegration: false,
@@ -29,6 +65,42 @@ const webPreferences = {
 
 let base = '';
 let output: BrowserWindow | null = null;
+let mainWindow: BrowserWindow | null = null;
+/** The one sign-in that may be waiting for its callback (spec 06): until when. */
+let signInUntil = 0;
+
+/**
+ * A callback URL from the operating system: `{scheme}://auth#token=…`. Taken
+ * only while a sign-in waits, only on this installation's scheme, and only
+ * with a token of the right shape; anything else is ignored (spec 06).
+ */
+function signInCallback(url: string) {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return;
+  }
+  if (u.protocol !== `${CALLBACK_SCHEME}:` || u.host !== 'auth') return;
+  const waiting = Date.now() < signInUntil;
+  const token = new URLSearchParams(u.hash.slice(1)).get('token') ?? '';
+  log({ event: 'sign-in-callback', accepted: waiting && /^gpdt_[\w-]{43}$/.test(token) });
+  if (!waiting || !/^gpdt_[\w-]{43}$/.test(token)) return;
+  signInUntil = 0;
+  mainWindow?.webContents.send('sign-in-callback', token);
+  if (mainWindow?.isMinimized()) mainWindow.restore();
+  mainWindow?.focus();
+}
+
+app.on('open-url', (e, url) => {
+  e.preventDefault();
+  signInCallback(url);
+});
+app.on('second-instance', (_e, argv) => {
+  const url = argv.find((a) => a.startsWith(`${CALLBACK_SCHEME}://`));
+  if (url) signInCallback(url);
+  else mainWindow?.focus();
+});
 
 /** The output goes fullscreen on the first non-primary display, or into a window when there is one display. */
 function openOutput() {
@@ -85,6 +157,7 @@ app.whenReady().then(async () => {
       webRoot: process.env.GP_WEB_ROOT ?? join(here, '..', '..', 'web', 'dist'),
       port: Number(process.env.GP_PORT || HOST_PORT),
       hostToken,
+      google: googleConfig(),
     });
     base = server.url;
     port = server.port;
@@ -97,8 +170,17 @@ app.whenReady().then(async () => {
   // Only on the host, and only if no user existed at start: the window that sets the host up gets the token.
   ipcMain.handle('setup-token', () => setupToken);
   ipcMain.handle('lan-urls', () => (port ? lanUrls(port) : []));
+  ipcMain.on('callback-scheme', (e) => (e.returnValue = CALLBACK_SCHEME));
+  // Opens a sign-in of this app's own server in the system browser: only its two entry paths, never another URL.
+  ipcMain.handle('open-sign-in', async (_e, path: unknown) => {
+    if (typeof path !== 'string' || !/^\/(app-login|auth\/google\/start)\?/.test(path)) return false;
+    signInUntil = Date.now() + SIGN_IN_WAIT_MS;
+    await shell.openExternal(new URL(path, base).toString());
+    return true;
+  });
 
   const main = new BrowserWindow({ width: 1280, height: 800, title: 'Gospel Presenter', webPreferences });
+  mainWindow = main;
   await main.loadURL(pageUrl(base));
   main.on('closed', () => app.quit());
   log({ event: 'ready', base, host: !process.env.GP_SERVER, electron: process.versions.electron });

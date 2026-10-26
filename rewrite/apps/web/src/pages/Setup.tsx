@@ -1,36 +1,43 @@
 import { useEffect, useState } from 'react';
-import type { SignInResponse } from '@gp/core';
+import type { SetupResponse, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
-import { deviceName } from '../auth/session.ts';
 import { t } from '../i18n.ts';
 import { Button } from '../ui/Button.tsx';
 import { AuthCard, FormError } from './AuthCard.tsx';
-import { newPasswordProblem, NewPassword } from './SignIn.tsx';
+import { GoogleSignIn } from './SignIn.tsx';
 
 /**
- * First run (spec 01 `/setup`, D19): the organisation and its SuperAdmin.
- * Needs the setup token, which the desktop host hands its own window and a
- * self-hosted server prints in its log.
+ * First run (spec 01 `/setup`, D19): the organisation and its SuperAdmin,
+ * who then signs in with Google through the invite setup answers with
+ * (spec 01: setup goes on to `/invite/{token}`). Needs the setup token,
+ * which the desktop host hands its own window and a self-hosted server
+ * prints in its log.
  */
 export function Setup({ onSignedIn }: { onSignedIn: (r: SignInResponse) => void }) {
   const [hostToken, setHostToken] = useState<string | null>(null);
   const [setupToken, setSetupToken] = useState('');
   const [name, setName] = useState('');
   const [orgName, setOrgName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [repeat, setRepeat] = useState('');
   const [errors, setErrors] = useState<{ name?: string; org?: string; form?: string | null }>({});
   const [busy, setBusy] = useState(false);
+  const [invite, setInvite] = useState<string | null>(null);
 
   useEffect(() => {
     void window.gpDesktop?.setupToken().then(setHostToken);
   }, []);
 
+  if (invite) {
+    return (
+      <GoogleSignIn title={t('setup.title')} invite={invite} autoStart onSignedIn={onSignedIn}>
+        <p>{t('setup.google')}</p>
+      </GoogleSignIn>
+    );
+  }
   return (
     <AuthCard title={t('setup.title')}>
       <p>{t('setup.text')}</p>
+      <p>{t('setup.google')}</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -39,21 +46,13 @@ export function Setup({ onSignedIn }: { onSignedIn: (r: SignInResponse) => void 
           const next = {
             name: name.trim() ? undefined : t('setup.nameRequired'),
             org: orgName.trim() ? undefined : t('setup.orgRequired'),
-            form: newPasswordProblem(password, repeat),
           };
           setErrors(next);
-          if (next.name || next.org || next.form) return;
+          if (next.name || next.org) return;
           setBusy(true);
           try {
-            const r = await api<SignInResponse>('POST', '/auth/setup', {
-              setupToken: hostToken ?? setupToken.trim(),
-              name,
-              orgName,
-              email,
-              password,
-              deviceName: deviceName(),
-            });
-            if (!r.error) return onSignedIn(r.body);
+            const r = await api<SetupResponse>('POST', '/auth/setup', { setupToken: hostToken ?? setupToken.trim(), name, orgName });
+            if (!r.error) return setInvite(r.body.inviteToken);
             setErrors({ form: errorText(r) });
           } catch {
             setErrors({ form: t('auth.offline') });
@@ -71,11 +70,6 @@ export function Setup({ onSignedIn }: { onSignedIn: (r: SignInResponse) => void 
           <input maxLength={200} value={orgName} onChange={(e) => setOrgName(e.target.value)} />
         </label>
         {errors.org && <p className="danger hint">{errors.org}</p>}
-        <label className="field">
-          {t('auth.email')}
-          <input type="email" autoComplete="username" required maxLength={320} value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <NewPassword password={password} repeat={repeat} onPassword={setPassword} onRepeat={setRepeat} />
         {!hostToken && (
           <>
             <label className="field">

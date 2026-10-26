@@ -30,30 +30,59 @@ export const emailSchema = z
   .toLowerCase()
   .max(320)
   .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, 'invalid-email');
-/** At least 10 characters; the upper bound keeps hashing cheap to refuse. */
-export const passwordSchema = z.string().min(10).max(256);
 const deviceName = z.string().trim().max(200).default('');
 
+/**
+ * Where a desktop app may be handed its token after a sign-in in the system
+ * browser (spec 01 device sign-in, ADR 0005 (5)–(7)). Compared exactly and
+ * case-sensitively; anything else is refused before a token is minted (AUTH-R10).
+ */
+export const CALLBACK_SCHEMES = ['gospelpresenter', 'gospelpresenter-test', 'gospelpresenter-local'] as const;
+export type CallbackScheme = (typeof CALLBACK_SCHEMES)[number];
+
+export function isCallbackScheme(s: unknown): s is CallbackScheme {
+  return typeof s === 'string' && (CALLBACK_SCHEMES as readonly string[]).includes(s);
+}
+
+/**
+ * How a user signs in: a linked external identity (spec 01 `UserLogin`).
+ * Google only for now; `passkey` is the planned second provider and has a
+ * place in the same table (README, "Sign-in").
+ */
+export const LOGIN_PROVIDERS = ['google'] as const;
+export type LoginProvider = (typeof LOGIN_PROVIDERS)[number] | 'passkey';
+
+/** First run: the organisation and its SuperAdmin, who then links a Google account through the invite it answers with. */
 export const setupRequest = z.object({
   setupToken: z.string().min(1).max(200),
   name: personName,
   orgName: z.string().trim().min(1).max(200),
-  email: emailSchema,
-  password: passwordSchema,
-  deviceName,
 });
 
-export const signInRequest = z.object({
-  email: emailSchema,
-  password: z.string().min(1).max(256),
-  deviceName,
+export interface SetupResponse {
+  /** The SuperAdmin's invite: accepting it with Google finishes setup. */
+  inviteToken: string;
+}
+
+/**
+ * Starts a sign-in with Google. With `invite`, the Google account that
+ * signs in is linked to the invited user. With `app`, the token goes to a
+ * desktop app through its callback scheme instead of to this page.
+ */
+export const googleBeginRequest = z.object({
+  invite: z.string().min(1).max(200).optional(),
+  app: z.object({ deviceName, callbackScheme: z.string().max(100) }).optional(),
 });
 
-export const acceptInviteRequest = z.object({ password: passwordSchema, deviceName });
+/** After a web sign-in, the page trades its one-time handoff cookie for a session. */
+export const googleFinishRequest = z.object({ deviceName });
 
 export const createUserRequest = z.object({ name: personName, email: emailSchema, role: roleSchema });
 
 export const changeRoleRequest = z.object({ role: roleSchema });
+
+/** A pairing code signs the device in as `userId` (the caller when absent), a member of the caller's organisation. */
+export const pairCodeRequest = z.object({ userId: z.string().min(1).max(200).optional() });
 
 export const pairClaimRequest = z.object({ code: z.string().regex(/^\d{6}$/), name: z.string().trim().min(1).max(200) });
 
@@ -73,6 +102,20 @@ export interface SignInResponse {
   me: Me;
 }
 
+/** A claimed pairing code: the device's token, and a session for the user the host chose. */
+export interface PairClaimResponse {
+  device: string;
+  session: SignInResponse;
+}
+
+/** `GET /auth/state`. */
+export interface AuthState {
+  /** No user has linked a sign-in yet: the first run is not finished. */
+  setupRequired: boolean;
+  /** The server has a Google client configured. */
+  google: boolean;
+}
+
 export type InviteState =
   | { state: 'valid'; name: string; orgName: string; email: string | null }
   | { state: 'expired' }
@@ -83,7 +126,7 @@ export interface UserRow {
   name: string;
   email: string | null;
   role: Role;
-  /** Whether the user has set a password (accepted an invite). */
+  /** Whether the user has linked a Google account (accepted an invite). */
   active: boolean;
   /** The newest unused invite, if any. */
   invite: { expiresAt: number; expired: boolean } | null;
@@ -111,7 +154,11 @@ export type AuthError =
   | 'not-a-member'
   | 'forbidden'
   | 'invalid-request'
-  | 'wrong-credentials'
+  | 'google-disabled'
+  | 'google-failed'
+  | 'not-linked'
+  | 'login-taken'
+  | 'callback-scheme'
   | 'too-many-attempts'
   | 'setup-done'
   | 'setup-token'
@@ -159,8 +206,9 @@ export function removeUserRefusal(actor: Actor, target: Actor): AuthError | null
 
 /**
  * Why `actor` may not make a new invite for `target`, or null (D21). An
- * invite sets a new password, so it is a reset: an Admin may not reset a
- * SuperAdmin's (D20).
+ * invite links the Google account that accepts it in place of the user's
+ * own, so it is a reset: an Admin may not reset a SuperAdmin's (D20). The
+ * same holds for pairing a device as `target`, which signs it in as them.
  */
 export function inviteRefusal(actor: Actor, target: Actor): AuthError | null {
   if (!can(actor.role, 'ManageUsers')) return 'forbidden';
