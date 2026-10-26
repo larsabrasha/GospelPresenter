@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+.turbo/
+.wrangler/
+*.sqlite
+*.sqlite-*
+test-results/
+playwright-report/

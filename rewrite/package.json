@@ -1,0 +1,20 @@
+{
+  "name": "gospel-presenter",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "oxlint --deny-warnings",
+    "e2e": "turbo run e2e"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "turbo": "2.11.10",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5",
+    "oxlint": "1.89.0"
+  }
+}
