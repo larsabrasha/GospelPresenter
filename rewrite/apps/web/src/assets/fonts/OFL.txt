@@ -1,6 +1,13 @@
-Inter: Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter).
-Montserrat: Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat).
-Lato: Copyright 2010-2014 Lukasz Dziedzic (https://www.latofonts.com), with Reserved Font Name "Lato".
+Copyright notices, as each bundled font file states them (name table, ID 0):
+
+Inter (Inter-variable.woff2, version 4.001):
+Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+
+Montserrat (Montserrat-variable.woff2, version 9.000):
+Copyright 2011 The Montserrat Project Authors (https://github.com/JulietaUla/Montserrat)
+
+Lato (Lato-400.woff2, version 1.104):
+Copyright (c) 2010-2011 by tyPoland Lukasz Dziedzic with Reserved Font Name "Lato". Licensed under the SIL Open Font License, Version 1.1.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

@@ -222,7 +222,12 @@ else Klassisk. An unknown id is Klassisk. Slides are drawn on a 1920×1080 stage
 background, type and credits, in the editor, the live view and the output alike. Inter, Montserrat
 and Lato (OFL, `apps/web/src/assets/fonts/OFL.txt`) and Norrsken's picture ship with the app, so
 nothing is fetched from the internet; Klassisk uses Tahoma where the system has it, else Geneva or
-Verdana. To try them: Teman shows each with a sample slide; pick a default there, or a theme per
+Verdana. The three files are Latin subsets (215–232 characters each): `apps/web/test/fonts.test.ts`
+reads them and checks that each has every character of a Swedish Bible (ASCII and
+`«»ÄÅÖäåéö—’…`) and of common Nordic and European song texts (`ÆØæøÜüÉé–“”‘’•`), and that
+`OFL.txt` carries each file's own copyright notice. They lack Latin Extended-A (Polish, Czech,
+Hungarian, Finnish `š ž` and the like) and `† ‡`: for those, the browser takes the glyph from the
+system's sans-serif, so such a word shows in a mixed typeface. To try them: Teman shows each with a sample slide; pick a default there, or a theme per
 presentation in "Redigera detaljer", and start the presentation.
 
 ## Not done yet
