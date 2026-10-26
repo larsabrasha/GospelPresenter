@@ -314,6 +314,14 @@ for the new app; the mechanisms are retired with the stack.
     Apple's review.
   - **Android:** the Capacitor app, as a signed APK to download or through Google Play. Which, or
     both, is still open.
+  - **The Capacitor app updates its web part over the air.** Almost the whole app is web, and the
+    store rules allow downloaded code that runs in the WebView as long as it does not change what the
+    app is for. Only changes to the native shell (new plugins, a new Capacitor, permissions) go
+    through the stores and their review. Each web bundle states the shell version it needs; a bundle
+    that fails at start rolls back to the previous one; the current bundle is kept on the device so
+    the app starts offline. A 426 from the server is a cue to fetch a new bundle. The tool is still
+    open (`@capgo/capacitor-updater` against our own server, Capawesome or another); its licence and
+    terms are checked before it is chosen.
   - **Web on Cloudflare:** Vite's static files deployed with the Worker as static assets by
     `wrangler deploy`.
   - **Self-hosted web: a Docker image**, the "one container" of (1): Node, the server and the web
