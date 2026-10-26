@@ -6,7 +6,7 @@ import wasmUrl from '@journeyapps/wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as SQLite from '@journeyapps/wa-sqlite';
 import { OPFSCoopSyncVFS } from '@journeyapps/wa-sqlite/src/examples/OPFSCoopSyncVFS.js';
 import type { MutatorName } from '@gp/core';
-import { httpTransport, SyncClient, type ClientSqlite } from '@gp/sync/client';
+import { httpTransport, socketProtocols, SyncClient, type ClientSqlite } from '@gp/sync/client';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
 import type { DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName } from './share.ts';
@@ -44,6 +44,7 @@ async function status(): Promise<DbStatus> {
     connected,
     pending: client ? (await client.pending()).length : 0,
     updateRequired: client?.updateRequired ?? false,
+    authError: client?.authError ?? null,
     rejected: client ? [...client.rejected] : [],
   };
 }
@@ -52,18 +53,17 @@ async function reportStatus() {
   post({ type: 'status', status: await status() });
 }
 
-function pokeUrl(s: Session) {
-  const u = new URL('/sync/poke', location.origin.replace(/^http/, 'ws'));
-  u.searchParams.set('token', s.userId);
-  u.searchParams.set('org', s.orgId);
-  return u.toString();
-}
-
-/** Keeps the poke socket open and syncs on every poke, on reconnect and on the backstop poll. */
+/**
+ * Keeps the poke socket open and syncs on every poke, on reconnect and on the
+ * backstop poll; stops for good once the server refuses the credentials.
+ */
 function startSync(c: SyncClient, s: Session) {
+  const url = new URL('/sync/poke', location.origin.replace(/^http/, 'ws')).toString();
   const connect = async () => {
+    if (c.authError) return void reportStatus();
     try {
-      await c.listen(pokeUrl(s), {
+      await c.listen(url, {
+        protocols: socketProtocols({ token: s.token, device: s.device }),
         onClose: () => {
           connected = false;
           void reportStatus();
@@ -73,8 +73,10 @@ function startSync(c: SyncClient, s: Session) {
       connected = true;
       await c.requestSync(); // catch up on what happened while disconnected
     } catch {
+      // A refused socket says nothing of why: a sync attempt tells offline from refused credentials.
       connected = false;
-      setTimeout(() => void connect(), RECONNECT_MS);
+      await c.requestSync();
+      if (!c.authError) setTimeout(() => void connect(), RECONNECT_MS);
     }
     void reportStatus();
   };
@@ -89,7 +91,7 @@ async function handle(call: DbCall): Promise<unknown> {
       const s = call.session;
       const sqlite = await openDb(dbFileName(s), s.storage === 'memory');
       const c = await SyncClient.open(sqlite, {
-        transport: httpTransport({ baseUrl: location.origin, token: s.userId, org: s.orgId }),
+        transport: httpTransport({ baseUrl: location.origin, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
       });
       client = c;

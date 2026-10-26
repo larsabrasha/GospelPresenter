@@ -1,40 +1,45 @@
+import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
+import { networkInterfaces } from 'node:os';
 import { join } from 'node:path';
-import type { Role } from '@gp/core';
 import { startNodeServer } from '@gp/server/node';
 
-/** The organisation and operator of milestone 1, until sign-in exists. */
-export const ORG = 'church';
-export const OPERATOR = { userId: 'operator', role: 'admin' as Role };
+/** Whether the host listens on the LAN (`GP_LAN=1`) rather than on this machine only. */
+export const onLan = () => process.env.GP_LAN === '1';
 
 /**
- * The embedded server: the sync server plus the built web app, on one port.
- * It listens on localhost only. The LAN comes with pairing (ADR 0007,
- * decision 6); `GP_LAN=1` opens it anyway, for testing.
+ * The embedded server: the sync and auth server plus the built web app, on
+ * one port. It refuses every API request from a device it has not paired
+ * (ADR 0007, decision 6), on localhost too; the host's own window carries
+ * `hostToken`, which the main process adds to its requests. It listens on
+ * localhost unless `GP_LAN=1`. Without a host token (the development server)
+ * there is no pairing, unless it listens on the LAN.
  */
-export async function startHost(opts: { dataDir: string; webRoot: string; port?: number }) {
+export async function startHost(opts: { dataDir: string; webRoot: string; hostToken: string | null; port?: number }) {
   mkdirSync(opts.dataDir, { recursive: true });
   return startNodeServer({
     dataDir: join(opts.dataDir, 'server'),
     driver: 'node:sqlite',
-    hostname: process.env.GP_LAN === '1' ? '0.0.0.0' : '127.0.0.1',
+    hostname: onLan() ? '0.0.0.0' : '127.0.0.1',
     port: opts.port ?? 0,
     webRoot: opts.webRoot,
-    members: [
-      { userId: OPERATOR.userId, orgId: ORG, role: OPERATOR.role },
-      // A second user for a second client in development and tests.
-      { userId: 'second', orgId: ORG, role: 'user' },
-    ],
+    // Off only for the localhost development server (serve.ts); never on the LAN.
+    pairing: opts.hostToken || onLan() ? { hostToken: opts.hostToken ?? `gphost_${randomBytes(32).toString('base64url')}` } : undefined,
+    setupToken: process.env.GP_SETUP_TOKEN || undefined,
   });
 }
 
-/**
- * The page for a user, with the placeholder session in the query (see
- * apps/web/src/session.ts). `GP_STORAGE=memory` keeps the page's database in
- * memory, as on a machine without OPFS.
- */
-export function pageUrl(base: string, user: { userId: string; role: Role }, route = 'songs') {
-  const q = new URLSearchParams({ user: user.userId, role: user.role, org: ORG });
-  if (process.env.GP_STORAGE === 'memory') q.set('storage', 'memory');
-  return `${base}/?${q}#/${route}`;
+/** Addresses other devices can open the host at: its IPv4 LAN addresses, when it listens there. */
+export function lanUrls(port: number): string[] {
+  if (!onLan()) return [];
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((i) => i && i.family === 'IPv4' && !i.internal)
+    .map((i) => `http://${i!.address}:${port}`);
+}
+
+/** The page. `GP_STORAGE=memory` keeps its database in memory, as on a machine without OPFS. */
+export function pageUrl(base: string, route = 'songs') {
+  const q = process.env.GP_STORAGE === 'memory' ? '?storage=memory' : '';
+  return `${base}/${q}#/${route}`;
 }

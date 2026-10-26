@@ -1,10 +1,15 @@
 import type { Role } from '@gp/core';
 
-/** Who is signed in. Placeholder until milestone 2 brings real sign-in. */
+/** Who is signed in, as the database worker needs it (see auth/session.ts). */
 export interface Session {
   userId: string;
   orgId: string;
+  /** The role the server last gave; drives optimistic checks only. The server checks again. */
   role: Role;
+  /** The session's bearer token. */
+  token: string;
+  /** The paired-device token, on a desktop host's LAN. */
+  device: string | null;
   /** 'memory' keeps the database in memory even where OPFS exists (development and tests). */
   storage?: 'memory';
 }
@@ -16,6 +21,8 @@ export interface DbStatus {
   connected: boolean;
   pending: number;
   updateRequired: boolean;
+  /** The server refused this device's credentials: sync has stopped and local edits wait (SYNC-A15). */
+  authError: 'unauthenticated' | 'not-a-member' | 'device-not-paired' | null;
   /** Mutations the server refused, newest last. */
   rejected: { id: number; error: string }[];
 }

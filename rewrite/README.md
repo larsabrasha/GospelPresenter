@@ -8,7 +8,8 @@ Milestone 1 was one song, one presentation, output on a second screen, and sync 
 in Electron with no internet. Milestone 2 makes songs and presentations behave as spec 02 and 03 say:
 arrangements, ranked search, the trash, item arrangements, renaming and moving items, and the event
 date after create. The output window reads through the operator window's database, so it also works
-where OPFS is missing.
+where OPFS is missing. Milestone 3 brings real sign-in, membership and pairing (spec 01, ADR 0007
+decision 6), so the desktop host can serve other devices on the LAN.
 
 | Package | What it is |
 |---|---|
@@ -22,26 +23,61 @@ where OPFS is missing.
 pnpm install
 pnpm build
 pnpm lint && pnpm typecheck && pnpm test   # unit and sync tests, on Node, node:sqlite and local workerd
-pnpm e2e                                   # milestones 1 and 2 in Electron, with real windows
+pnpm e2e                                   # milestones 1–3 in Electron, with real windows
 
-pnpm --filter @gp/desktop start            # the desktop app
-GP_SERVER=http://127.0.0.1:<port> GP_DATA_DIR=/tmp/gp-second pnpm --filter @gp/desktop start
-                                           # a second client of the first
+pnpm --filter @gp/desktop start            # the desktop app: the host, on 127.0.0.1:47800
+GP_LAN=1 pnpm --filter @gp/desktop start   # the host, reachable on the LAN
+GP_SERVER=http://127.0.0.1:47800 GP_DATA_DIR=/tmp/gp-second pnpm --filter @gp/desktop start
+                                           # a second client of the first; it pairs, then signs in
 pnpm --filter @gp/desktop serve            # the server alone on :8787, then `pnpm --filter @gp/web dev`
 ```
 
 Needs Node 22 or later and pnpm 12. The e2e opens real windows. `?storage=memory` in the page URL
 (`GP_STORAGE=memory` for the desktop app) keeps the database in memory, as where OPFS is missing.
 
+### Sign-in, membership and pairing
+
+The first start of the host shows "Välkommen!": the person sets up the church and becomes its
+SuperAdmin. The host window gets the setup token from the main process; a server without one prints
+it (`Setup token: …`) and the setup form asks for it (D19). After that every account comes from an
+admin: Användare → Skapa makes the user and an invite link, shown once, valid for 7 days and once
+(AUTH-R1). The invited person opens it, chooses a password and is signed in. The same page changes
+roles and removes users, with spec 01's rules (PERM-R4–R6, D20, D21) in `packages/core/src/accounts.ts`,
+which the server and the UI share.
+
+A sign-in gives the device a session token (`gpdt_…`, only its SHA-256 stored). Every request reads
+the session and the user's role from the global tables (D22): a demoted user's next pull starts over
+with the new role, and a removed user's next request gets 401. A signed-in device opens straight into
+its own database with no network; when the server refuses it, sync stops, local edits wait, and the
+status bar asks it to sign in again (SYNC-A15).
+
+The desktop host refuses every API request from a device it has not paired, on localhost too: only
+the static app and `/pair/status`, `/pair/claim` answer. Its own window's requests carry a host token
+that the Electron main process adds and no page sees. On the host, Enheter → Anslut enhet shows a
+six-digit code (10 minutes, one use, dead after five wrong guesses); the other device types it and
+gets a device token (`gppd_…`). Enheter also disconnects a device, which stops it at once.
+`pnpm --filter @gp/desktop serve` has no pairing unless `GP_LAN=1`.
+
 A database records its schema version in `_schema`. One made by an older version (milestone 1 has no
 row: version 1) is migrated when it is opened, on the server and on clients; a client then pulls
-everything again, because the schema is part of the pull cookie.
+everything again, because the schema is part of the pull cookie. The server's global database has
+its own version (`GLOBAL_SCHEMA_VERSION`, now 2): the placeholder memberships of milestones 1 and 2
+are dropped when it migrates, so data made by the old desktop host belongs to no account afterwards.
 
 ## Not done yet
 
-Sign-in (the user comes from the URL, and the server only checks the membership), pairing and the
-LAN, Bible, images, themes, templates, English text, mobile, and deploying to Cloudflare. The Workers
+Bible, images, themes, templates, English text, mobile, and deploying to Cloudflare. The Workers
 adapter is tested in local workerd only.
+
+From spec 01 and milestone 3: Google and OIDC sign-in (ADR 0007 (12)); password reset by email and
+any mail at all (an admin's new invite link is the reset); the device sign-in through the system
+browser with callback schemes (AUTH-R10, ADR 0005); profiles and profile images, `/settings` and the
+language switch; organisations other than the one setup makes, the SuperAdmin switcher and super admin
+pages; a user in several organisations (D1 leaves it for later); listing and revoking your own
+devices' sessions (D23; removing the user or pairing again are the ways today); `/admin/devices`;
+MCP keys and calendar feeds; the welcome modal; a QR code for pairing (the code is typed); closing
+an open poke socket when its session is revoked (it receives only sequence numbers until it closes,
+and its next sync is refused); `X-Forwarded-For` behind a reverse proxy (see Assumptions).
 
 From spec 02 and 03 in particular: song history (SONG-R20–R24, D9), the labels page, CCLI, ProPresenter
 import, the dashboard's Idag/Kommande sections and "last changed" order, event time, place,
@@ -78,3 +114,46 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 - **The arrangement name field shows only with two or more arrangements** (SONG-A9, as the current
   app does).
 - **A purged song's items stay** in their presentations and say the song is gone.
+
+Milestone 3 (sign-in, membership, pairing):
+
+- **Email and password instead of Google and OIDC.** Spec 01 signs in only through providers, which
+  need the internet; a desktop host on a church LAN has none, and OAuth is out of scope here. An
+  invite sets a password instead of linking a provider; a new invite is also the password reset, and
+  it revokes the user's other sessions. Email is required for new users, lower-cased and unique (01 Q2
+  limits uniqueness to real addresses). Passwords need at least 10 characters.
+- **The KDF is PBKDF2-HMAC-SHA256 with 600 000 iterations** (OWASP's 2023 figure), a 16-byte random
+  salt, and the parameters stored with the hash so they can be raised. Web Crypto is the one API that
+  runs unchanged in Node, Workers and Electron with no native module; it has no scrypt or argon2, and
+  `node:crypto`'s scrypt is not on Workers without compatibility flags. Measured: about 70 ms in Node
+  and 50 ms in local workerd. Not verified on hosted Workers, which has had a 100 000-iteration cap
+  on PBKDF2: if it still does, that deploy needs a lower figure, and hashes do not move between them.
+- **Sign-in throttling** (the spec has none, because providers do it): five wrong passwords lock an
+  account for a minute, doubling per further failure up to 15 minutes; twenty failures from one
+  address (sign-in, setup token, pairing code) lock that address for 15 minutes. The lock is checked
+  before the password, and an unknown email costs a hash too, so neither timing nor answers tell
+  which emails exist. A lock signs no one out. On Node the address is the socket's: behind a reverse
+  proxy every client shares the proxy's, and twenty failures lock sign-in for everyone for 15 minutes.
+- **Sessions live 90 days from their last use** (spec 01 has device tokens without expiry and web
+  sessions of 240 minutes; a local-first browser is a device). At most 10 per user; an eleventh
+  sign-in revokes the least recently used. Signing out revokes the session on the server when it can
+  be reached (spec 01 only forgets it locally), and keeps the local database (D3).
+- **Roles are read on every request, uncached** (D22, AUTH-R7 without the 30 s cache). The client
+  refreshes its stored identity in the background and shows a new role at once; its optimistic
+  checks use the role from its last start.
+- **An Admin may not make an invite for a SuperAdmin**, since an invite sets the password (D20, D21).
+  Removing a user deletes them (ORG-R12), with their sessions, invites and membership.
+- **Pairing is required for every device on the desktop host, localhost included**, so `GP_LAN=1`
+  only changes the address it listens on. Codes come only from the host's own window, signed in with
+  ManageUsers: whoever pairs a device is at the host. Six digits rather than spec 04's four, 10
+  minutes, one at a time, single use, and dead after five wrong guesses. A paired device still signs
+  in. A device token never expires; disconnecting it on the host is how it ends.
+- **The host listens on a fixed port, 47800** (`GP_PORT` overrides): devices on the LAN reconnect to
+  the same address, and the host window's session and OPFS database belong to its origin.
+- **Secrets travel in headers and bodies, never URLs**: invite tokens go in a request body (the link
+  keeps them in the fragment), and the poke socket carries its tokens as WebSocket subprotocols.
+- **The static app has a strict CSP** (`default-src 'self'`, plus `'wasm-unsafe-eval'` for wa-sqlite
+  and inline styles for React) on the Node server. The Worker serves no static files yet.
+- **`SPIKE_DEBUG` left `wrangler.toml`**: the debug routes (which mint sessions) and `SETUP_TOKEN`
+  belong in `.dev.vars` or secrets, never in a file that ships with a deploy. Without `SETUP_TOKEN`
+  the Worker refuses setup.

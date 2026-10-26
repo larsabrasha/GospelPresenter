@@ -14,6 +14,10 @@ export type Route =
   | { page: 'presentation'; id: string }
   | { page: 'live'; id: string }
   | { page: 'trash'; kind: TrashKind | null }
+  | { page: 'users' }
+  | { page: 'devices' }
+  /** An invite link (spec 01 `/invite/{token}`): the token stays in the fragment, which is never sent to a server. */
+  | { page: 'invite'; token: string }
   | { page: 'output' };
 
 export function parseRoute(hash: string): Route {
@@ -27,7 +31,10 @@ export function parseRoute(hash: string): Route {
   if (page === 'songs' && id) return { page: 'song', id };
   if (page === 'presentations' && id) return { page: 'presentation', id };
   if (page === 'live' && id) return { page: 'live', id };
+  if (page === 'invite' && id) return { page: 'invite', token: id };
   if (page === 'output') return { page: 'output' };
+  if (page === 'users') return { page: 'users' };
+  if (page === 'devices') return { page: 'devices' };
   if (page === 'presentations') return { page: 'presentations' };
   return { page: 'songs' };
 }
@@ -42,6 +49,8 @@ export function href(r: Route): string {
       return `#/live/${encodeURIComponent(r.id)}`;
     case 'trash':
       return r.kind ? `#/trash?kind=${r.kind}` : '#/trash';
+    case 'invite':
+      return `#/invite/${encodeURIComponent(r.token)}`;
     default:
       return `#/${r.page}`;
   }

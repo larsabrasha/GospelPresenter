@@ -121,3 +121,13 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 
 /* Output window */
 .output { position: fixed; inset: 0; background: black; cursor: none; }
+
+/* Sign-in, setup, invite and pairing */
+.auth { display: flex; justify-content: center; padding: 10vh 16px; }
+.auth-card { width: min(420px, 100%); }
+.auth-brand { color: var(--muted); font-weight: 600; letter-spacing: 0.04em; margin: 0 0 4px; }
+.auth .field input { width: 100%; }
+.pair-code { font-family: ui-monospace, monospace; font-size: 1.6rem; letter-spacing: 0.3em; }
+.pair-code-show { font-family: ui-monospace, monospace; font-size: 3rem; letter-spacing: 0.3em; text-align: center; margin: 16px 0; }
+.user-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.hint { margin: -4px 0 8px; }

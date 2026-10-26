@@ -13,6 +13,9 @@ describe('routes', () => {
       { page: 'trash', kind: null },
       { page: 'trash', kind: 'Song' },
       { page: 'output' },
+      { page: 'users' },
+      { page: 'devices' },
+      { page: 'invite', token: 'gpin_abc-_123' },
     ];
     for (const r of routes) expect(parseRoute(href(r))).toEqual(r);
   });
@@ -33,5 +36,15 @@ describe('text', () => {
   it('fills placeholders and leaves unknown ones visible', () => {
     expect(t('status.pending', { n: 3 })).toBe('3 ändringar väntar');
     expect(t('status.pending')).toBe('{n} ändringar väntar');
+  });
+});
+
+describe('auth error texts', () => {
+  it('every refusal has a Swedish text; a lock says how long; anything else is the generic one', async () => {
+    const { errorText } = await import('../src/auth/errors.ts');
+    expect(errorText({ error: 'wrong-credentials', body: null })).toBe('Fel e-post eller lösenord.');
+    expect(errorText({ error: 'too-many-attempts', body: { retryAfter: 61 } })).toBe('För många misslyckade försök. Vänta 2 min och försök igen.');
+    expect(errorText({ error: 'pair-code-invalid', body: null })).toBe('Ogiltig eller utgången kod');
+    expect(errorText({ error: 'something-new', body: null })).toBe('Något gick fel. Försök igen.');
   });
 });

@@ -2,7 +2,7 @@
 // the output window when the operator's database has no shared file.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong } from './flows.ts';
+import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -14,6 +14,7 @@ test.afterEach(async () => {
 test('without OPFS the output still shows the slide, read through the operator window', async () => {
   host = await launch({ memory: true });
   const page = host.page;
+  await setUpHost(page);
   await expect(page.getByTestId('status')).toContainText('Data sparas bara i minnet');
   await createSong(page, 'Blott en dag', [
     ['Verse 1', 'Blott en dag'],
@@ -38,6 +39,7 @@ test('without OPFS the output still shows the slide, read through the operator w
 test('arrangements: made in the song, chosen per item, and shown live in their order', async () => {
   host = await launch();
   const page = host.page;
+  await setUpHost(page);
   await createSong(page, 'Pilgrimsfärd', [
     ['Verse 1', 'Härlig är jorden'],
     ['Chorus', 'Pilgrimsfärd'],
@@ -122,6 +124,7 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
 test('trash: a song in use is flagged and restored from the presentation; presentations and songs restore and purge', async () => {
   host = await launch();
   const page = host.page;
+  await setUpHost(page);
   await createSong(page, 'Amazing Grace', [['Verse 1', 'Amazing grace, how sweet the sound']]);
   await createPresentation(page, 'Kväll');
   await addSongs(page, ['Amazing Grace']);

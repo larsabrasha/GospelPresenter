@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
+import { can, type Me, type PairStatus } from '@gp/core';
+import { api } from './auth/api.ts';
+import { forgetSession, saveDeviceToken, updateMe } from './auth/session.ts';
+import { REPAIR_KEY } from './Boot.tsx';
 import { useDbStatus } from './db/react.tsx';
-import type { Session } from './db/protocol.ts';
 import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
+import { Devices } from './pages/Devices.tsx';
 import { Live } from './pages/Live.tsx';
 import { Output } from './pages/Output.tsx';
 import { PresentationEditor } from './pages/PresentationEditor.tsx';
@@ -10,8 +14,31 @@ import { Presentations } from './pages/Presentations.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
 import { Songs } from './pages/Songs.tsx';
 import { Trash } from './pages/Trash.tsx';
+import { Users } from './pages/Users.tsx';
+import { Button } from './ui/Button.tsx';
 import { href, useRoute } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
+
+/** Back to the sign-in screen. The local database stays (D3, DESK-A7). */
+function toSignIn() {
+  forgetSession();
+  location.reload();
+}
+
+/**
+ * Signs out: the server revokes the session (if it can be reached; offline,
+ * the session is only forgotten here), and this device forgets it.
+ */
+async function signOut() {
+  await Promise.race([api('POST', '/auth/signout').catch(() => undefined), new Promise((r) => setTimeout(r, 3000))]);
+  toSignIn();
+}
+
+function pairAgain() {
+  saveDeviceToken(null);
+  sessionStorage.setItem(REPAIR_KEY, '1');
+  location.reload();
+}
 
 function StatusBar() {
   const s = useDbStatus();
@@ -29,6 +56,16 @@ function StatusBar() {
       {s.pending > 0 && <span>{t('status.pending', { n: s.pending })}</span>}
       {s.storage !== 'opfs' && <span className="warning">{t('status.memory', { reason: s.storage })}</span>}
       {s.updateRequired && <span className="warning">{t('status.updateRequired')}</span>}
+      {s.authError === 'device-not-paired' && (
+        <span className="warning">
+          {t('status.notPaired')} <Button onClick={pairAgain}>{t('status.pairAgain')}</Button>
+        </span>
+      )}
+      {(s.authError === 'unauthenticated' || s.authError === 'not-a-member') && (
+        <span className="warning">
+          {t('status.authRequired')} <Button onClick={toSignIn}>{t('status.signInAgain')}</Button>
+        </span>
+      )}
       {last && <span className="warning">{t('status.rejected', { error: last.error })}</span>}
       {error && (
         <span className="warning" role="alert">
@@ -39,9 +76,30 @@ function StatusBar() {
   );
 }
 
-export function App({ session, live }: { session: Session; live: LiveChannel }) {
+/**
+ * The signed-in app. `me` is what the server said at sign-in, refreshed in
+ * the background (spec 01 `GET /api/me`), so a name or role change shows
+ * without signing in again. Offline, the stored one is used.
+ */
+export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
   const route = useRoute();
+  const [me, setMe] = useState(initial);
+  const [host, setHost] = useState(false);
 
+  useEffect(() => {
+    api<Me>('GET', '/auth/me')
+      .then((r) => {
+        if (r.error) return;
+        updateMe(r.body);
+        setMe(r.body);
+      })
+      .catch(() => undefined); // offline: keep the stored identity
+    api<PairStatus>('GET', '/pair/status')
+      .then((r) => setHost(!r.error && r.body.host))
+      .catch(() => undefined);
+  }, []);
+
+  const viewUsers = can(me.role, 'ViewUsers');
   return (
     <ToastProvider>
       <div className="app">
@@ -54,8 +112,21 @@ export function App({ session, live }: { session: Session; live: LiveChannel }) 
             <a href={href({ page: 'presentations' })} aria-current={route.page.startsWith('presentation') ? 'page' : undefined}>
               {t('nav.presentations')}
             </a>
+            {viewUsers && (
+              <a href={href({ page: 'users' })} aria-current={route.page === 'users' ? 'page' : undefined}>
+                {t('nav.users')}
+              </a>
+            )}
+            {host && can(me.role, 'ManageUsers') && (
+              <a href={href({ page: 'devices' })} aria-current={route.page === 'devices' ? 'page' : undefined}>
+                {t('nav.devices')}
+              </a>
+            )}
           </nav>
-          <span className="muted">{session.userId}</span>
+          <span className="muted" data-testid="me">
+            {me.name} · {me.orgName}
+          </span>
+          <Button onClick={() => void signOut()}>{t('auth.signOut')}</Button>
         </header>
         <main>
           {route.page === 'songs' && <Songs />}
@@ -63,7 +134,9 @@ export function App({ session, live }: { session: Session; live: LiveChannel }) 
           {route.page === 'presentations' && <Presentations />}
           {route.page === 'presentation' && <PresentationEditor id={route.id} />}
           {route.page === 'live' && <Live id={route.id} live={live} />}
-          {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={session.role} />}
+          {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
+          {route.page === 'users' && (viewUsers ? <Users me={me} /> : <p>{t('users.forbidden')}</p>)}
+          {route.page === 'devices' && (host ? <Devices /> : <p>{t('devices.onlyHost')}</p>)}
         </main>
         <StatusBar />
       </div>
