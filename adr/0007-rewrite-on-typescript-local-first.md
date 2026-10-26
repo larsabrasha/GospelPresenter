@@ -326,6 +326,16 @@ for the new app; the mechanisms are retired with the stack.
     self-hosted server or a desktop host on the LAN. The plugin on the device may be an open-source
     one used against our own server, if its licence allows; otherwise we write the small native part
     ourselves.
+  - **Every web bundle is signed, and the app runs only bundles we built.** CI signs each bundle with
+    an Ed25519 key; the signature covers a hash of every file, the version and the shell version it
+    needs. The public key is built into the native shell, which checks the signature before it
+    activates a bundle and refuses to go back to an older version, except to the bundle that came
+    with the shell. So it does not matter where a bundle comes from: the cloud, a self-hosted server,
+    or a desktop host over plain http on the LAN. Without this, anyone on the LAN could swap a bundle,
+    a compromised server could plant code that stays on the device and later runs against another
+    server (D8), and an old bundle with a known flaw could be sent again. The private key lives only
+    in GitHub Actions' secrets. A modified build of the app needs its own shell with its own key,
+    which GPLv3 allows.
   - **Web on Cloudflare:** Vite's static files deployed with the Worker as static assets by
     `wrangler deploy`.
   - **Self-hosted web: a Docker image**, the "one container" of (1): Node, the server and the web
