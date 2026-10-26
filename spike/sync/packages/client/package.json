@@ -1,0 +1,19 @@
+{
+  "name": "@spike/client",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wa-sqlite": "./src/wa-sqlite-db.ts",
+    "./better-sqlite3": "./src/better-sqlite3-db.ts"
+  },
+  "dependencies": {
+    "@spike/core": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "@journeyapps/wa-sqlite": "2.0.9"
+  },
+  "devDependencies": {
+    "better-sqlite3": "13.0.3",
+    "@types/better-sqlite3": "9.6.0"
+  }
+}
