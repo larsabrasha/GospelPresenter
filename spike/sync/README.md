@@ -31,6 +31,7 @@ pnpm test:node                  # one adapter: also test:node-sqlite, test:worke
 pnpm typecheck
 pnpm exec playwright install chromium webkit firefox
 pnpm test:browser               # apps/web on OPFS in three browsers; SYNC_BROWSERS=webkit to pick one
+pnpm --filter @spike/web serve  # manual LAN test: prints the URLs for this Mac and a tablet
 SYNC_REMOTE_URL=https://… pnpm test:remote   # the same tests against a deployed Worker
 
 pnpm --filter @spike/server dev:worker      # wrangler dev, local only

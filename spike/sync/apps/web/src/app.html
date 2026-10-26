@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Synktest</title>
+    <style>
+      body { font: 18px/1.4 -apple-system, system-ui, sans-serif; margin: 16px; max-width: 40rem; }
+      #status { padding: 8px; background: #eef; border-radius: 6px; }
+      form { display: flex; gap: 8px; margin: 16px 0; }
+      input { flex: 1; font: inherit; padding: 8px; }
+      button { font: inherit; padding: 8px 16px; }
+    </style>
+    <script type="module" src="/main.js"></script>
+  </head>
+  <body>
+    <h1>Synktest: <span id="user"></span></h1>
+    <p id="status">Startar…</p>
+    <form id="add">
+      <input id="title" placeholder="Sångtitel (tomt ger en automatisk)" />
+      <button>Lägg till</button>
+    </form>
+    <ol id="songs"></ol>
+  </body>
+</html>

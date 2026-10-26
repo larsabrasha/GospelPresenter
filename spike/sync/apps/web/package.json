@@ -3,14 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "serve": "node build.mjs && node dist-node/serve.mjs"
   },
   "dependencies": {
     "@spike/client": "workspace:*",
     "@spike/core": "workspace:*",
-    "@journeyapps/wa-sqlite": "2.0.8"
+    "@journeyapps/wa-sqlite": "2.0.8",
+    "@spike/server": "workspace:*"
   },
   "devDependencies": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "better-sqlite3": "13.0.3"
   }
 }

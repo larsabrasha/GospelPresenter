@@ -12,5 +12,5 @@
     "types": ["node", "@cloudflare/workers-types"],
     "lib": ["ES2023", "DOM"]
   },
-  "include": ["packages/*/src", "apps/server/src", "apps/desktop/src", "apps/web/src", "test"]
+  "include": ["packages/*/src", "apps/server/src", "apps/desktop/src", "apps/web/src", "apps/web/serve.ts", "test"]
 }

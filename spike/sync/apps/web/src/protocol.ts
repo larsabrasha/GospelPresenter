@@ -9,6 +9,8 @@ export type WorkerCall =
   | { op: 'online'; online: boolean }
   | { op: 'integrity' }
   | { op: 'clientId' }
+  | { op: 'status' }
+  | { op: 'keepAlive' }
   | { op: 'close' };
 
 export type WorkerReply = { id: number; ok: true; value: unknown } | { id: number; ok: false; error: string };

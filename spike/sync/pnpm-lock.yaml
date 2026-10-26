@@ -124,7 +124,13 @@ importers:
       '@spike/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@spike/server':
+        specifier: workspace:*
+        version: link:../server
     devDependencies:
+      better-sqlite3:
+        specifier: 13.0.3
+        version: 13.0.3
       esbuild:
         specifier: 0.28.2
         version: 0.28.2

@@ -19,4 +19,17 @@ await build({
 });
 const wasDist = join(dirname(createRequire(import.meta.url).resolve('@journeyapps/wa-sqlite')), '..', 'dist');
 copyFileSync(join(wasDist, 'wa-sqlite.wasm'), join(out, 'wa-sqlite.wasm'));
-copyFileSync(join(here, 'src', 'index.html'), join(out, 'index.html'));
+for (const page of ['index.html', 'app.html']) copyFileSync(join(here, 'src', page), join(out, page));
+
+// The LAN test server (serve.ts) for plain Node. better-sqlite3 stays external: it is native.
+await build({
+  entryPoints: [join(here, 'serve.ts')],
+  bundle: true,
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  outfile: join(here, 'dist-node', 'serve.mjs'),
+  external: ['better-sqlite3', 'bufferutil', 'utf-8-validate'],
+  banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
+  logLevel: 'warning',
+});

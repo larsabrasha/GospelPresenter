@@ -3,3 +3,5 @@ dist/
 .wrangler/
 *.sqlite
 *.sqlite-*
+.data/
+dist-node/

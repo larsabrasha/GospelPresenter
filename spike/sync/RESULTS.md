@@ -147,6 +147,25 @@ runs, 15 of 15 passed both times.
 | Poke latency, browser → Node | 502–513 ms | 500–513 ms | 500–513 ms |
 | First pull of 1,200 rows into OPFS | 66–75 ms | 77–85 ms | 94–99 ms |
 
+## A real iPad on the LAN (2026-10-26)
+
+`pnpm --filter @spike/web serve` runs the Node server on every interface and serves a manual test
+page, `app.html`. A Mac opened it on `localhost` and an iPad opened it in Safari over Wi-Fi at
+`http://192.168.1.59:8787`. Both added songs, and the iPad added two in flight mode, then went
+back online. The server ended with all four songs once each. Its log shows the iPad's client with
+`last_mutation_id` 3 and the Mac's with 1, and no rejected mutations. What the iPad's screen showed
+was reported by the person who ran it, not captured.
+
+**Plain http on the LAN is not a secure context.** A page loaded from `http://<LAN address>` gets no
+OPFS and no `crypto.randomUUID`. This holds in every browser, and in WebKit it was checked by
+loading the page over the Mac's LAN address. The worker therefore falls back to an in-memory
+database and a `getRandomValues` UUID. Sync works, but a reload on the tablet loses what has not
+reached the server. A tablet that should keep data offline needs https with a certificate it
+trusts, or the Capacitor app.
+
+The spike client has no reconnect and no poll (SYNC-R43), so the test page reopens the poke socket
+and syncs every 3 seconds.
+
 ## Not proven, and why
 
 - **Hosted Cloudflare is only partly proven.** The tests above passed on a real account. Still
@@ -156,10 +175,9 @@ runs, 15 of 15 passed both times.
 - **Browsers are only partly proven.** See "In real browsers" below. Still unproven: Safari on a
   real iPad (Playwright's WebKit on macOS is close, not the same), the async or JSPI builds, OPFS
   quota and eviction, and a pull rebasing in one tab while the other tab writes.
-- **The LAN was one machine.** The tablet used the host's eth0 address, so packets never left the
-  host. Wi-Fi, a second device, firewalls and pairing were not tested. The sync path has no
-  internet dependency in code, but "network unplugged" was not physically demonstrated. The sandbox
-  has outbound internet through a proxy, which this traffic does not use.
+- **The LAN is partly proven.** A real iPad synced with the Mac over Wi-Fi, including edits made in
+  flight mode. Not tested: unplugging the router's internet, firewalls, pairing, and https on the
+  LAN.
 - **Capacitor** was not touched.
 - **Auth is fake.** The bearer token is the user id. The membership lookup in D1 or `global.sqlite`
   is real.
