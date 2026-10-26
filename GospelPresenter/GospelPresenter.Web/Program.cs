@@ -8,6 +8,7 @@ using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using GospelPresenter.Shared.Sync;
+using GospelPresenter.Shared.Utils;
 using GospelPresenter.Web;
 using GospelPresenter.Web.Configuration;
 using GospelPresenter.Web.Mcp;
@@ -294,7 +295,7 @@ try
 
     builder.Services.UseHttpClientMetrics();
 
-    string[] supportedCultures = ["en", "sv"];
+    var supportedCultures = GospelPresenter.Shared.Localization.AppCultures.Supported;
     builder.Services.Configure<RequestLocalizationOptions>(options =>
     {
         options.SetDefaultCulture(supportedCultures[0])
@@ -626,13 +627,16 @@ builder.Services.AddMetricServer(options =>
         }).AllowAnonymous();
     }
 
-    app.MapGet("/signin", (string? returnUrl, string? provider, IAuthProviderService authProviders) =>
+    app.MapGet("/signin", (string? returnUrl, string? provider, IAuthProviderService authProviders, HttpContext context) =>
     {
         var scheme = ResolveScheme(provider, authProviders);
         if (scheme == null)
             return Results.Redirect("/authentication-error");
 
-        return Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }, [scheme]);
+        // The provider's callback redirects here after a genuine sign-in, so anything but a path on
+        // this site would make every sign-in link an open redirect.
+        var redirectUri = LocalUrl.OrFallback(returnUrl, context.Request.Host.Value);
+        return Results.Challenge(new AuthenticationProperties { RedirectUri = redirectUri }, [scheme]);
     }).AllowAnonymous();
 
     app.MapGet("/invite/{token}/signin", async (string token, string provider, IUserService userService, IAuthProviderService authProviders) =>
@@ -668,6 +672,13 @@ builder.Services.AddMetricServer(options =>
 
     app.MapPost("/culture", async (HttpContext context, [FromForm] string culture, [FromForm] string returnUrl, IUserService userService) =>
     {
+        // Stored as the user's language and restored into the culture cookie on every new browser,
+        // so only a language the app actually has is accepted.
+        var supportedCulture = GospelPresenter.Shared.Localization.AppCultures.Normalize(culture);
+        if (supportedCulture is null)
+            return Results.BadRequest();
+        culture = supportedCulture;
+
         context.Response.Cookies.Append(
             CookieRequestCultureProvider.DefaultCookieName,
             CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
@@ -682,7 +693,8 @@ builder.Services.AddMetricServer(options =>
             await userService.SetUserSettingAsync(userId, UserSetting.PreferredLanguage, culture, caller);
         }
 
-        return Results.LocalRedirect(returnUrl ?? "/");
+        // LocalRedirect would throw on anything else and answer with a 500.
+        return Results.LocalRedirect(LocalUrl.OrFallback(returnUrl));
     }).RequireAuthorization();
 
     // Auth check runs on every request (DB lookup) even though the response is cached

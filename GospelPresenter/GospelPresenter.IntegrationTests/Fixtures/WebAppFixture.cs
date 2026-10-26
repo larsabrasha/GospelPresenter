@@ -133,6 +133,10 @@ public class WebAppFixture : WebApplicationFactory<Program>
         return client;
     }
 
+    /// <summary>Adds a cookie to the jar of the client from <see cref="CreateAuthenticatedClientAsync"/>.</summary>
+    public void AddCookie(string name, string value) =>
+        cookies!.Container.Add(BaseAddress, new Cookie(name, value));
+
     public async Task SetPreferredLanguageAsync(string language)
     {
         await using var context = Services.GetRequiredService<IDbContextFactory<PresentationContext>>()
