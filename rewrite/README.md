@@ -213,6 +213,21 @@ USFM zip (`…_usfm.zip`), works. Many translations are under copyright: import 
 may use. The repository has none; the tests use a few public-domain verses of the World English
 Bible (`packages/core/test/bible-fixtures.ts`) and generated text.
 
+To check a real translation, point `GP_REAL_BIBLE_ZIP` at its zip (anywhere outside the repository;
+never commit one):
+
+```sh
+GP_REAL_BIBLE_ZIP=/path/to/bible.zip pnpm --filter @gp/core test real-bible
+```
+
+`packages/core/test/node/real-bible.test.ts` imports it as the app does and checks its shape only: the 66
+books of the Protestant canon, 29 000 to 60 000 verses, no empty verse, no markup or control
+characters left, no space before punctuation, within the server's limits, five known references
+(`1 Mos 1:1-5`, `Ps 23`, `Joh 3:16`, `Rom 8:28-30`, `Upp 22:21`) found and split into slides, and every
+chapter split into slides with no word lost. It asserts no verse text. Without the variable it is
+skipped. Bibel 2000 (`b2000-sv-1.rvbible.zip`, a DBL zip) gave 66 books, 31 127 verses, 3.82 MB of
+JSON, 1 189 chapters and 15 034 slides, imported in about 180 ms on a laptop.
+
 ### Themes
 
 The four built-in themes of spec 05 (Klassisk, Midnatt, Dagsljus, Norrsken) are code

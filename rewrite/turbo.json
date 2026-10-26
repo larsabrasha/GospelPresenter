@@ -17,6 +17,9 @@
     "test": {
       "dependsOn": [
         "^typecheck"
+      ],
+      "env": [
+        "GP_REAL_BIBLE_ZIP"
       ]
     },
     "e2e": {
