@@ -104,7 +104,7 @@ export function Live({ id, live }: { id: string; live: LiveChannel }) {
         <ol className="live-items">{data.items.map(itemRow)}</ol>
         <aside className="live-preview">
           <h2>{t('live.preview')}</h2>
-          <SlideView slide={pointer.black ? null : current} />
+          <SlideView slide={pointer.black ? null : current} label={false} />
         </aside>
       </div>
     </section>

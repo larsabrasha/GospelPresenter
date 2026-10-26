@@ -157,3 +157,5 @@ Milestone 3 (sign-in, membership, pairing):
 - **`SPIKE_DEBUG` left `wrangler.toml`**: the debug routes (which mint sessions) and `SETUP_TOKEN`
   belong in `.dev.vars` or secrets, never in a file that ships with a deploy. Without `SETUP_TOKEN`
   the Worker refuses setup.
+- **LIVE-R20: the "Visas nu" preview hides the part label too**, as the output does: it shows what
+  the screen shows. Thumbnails keep it.

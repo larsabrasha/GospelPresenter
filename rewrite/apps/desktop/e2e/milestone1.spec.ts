@@ -53,7 +53,8 @@ test('a song made on one client is presented on the other client\'s second scree
   await expect(output.getByTestId('slide-text')).toHaveCount(0); // nothing selected yet
   await one.page.getByRole('button', { name: 'Härlig är jorden 2' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('Pilgrimsfärd');
-  await expect(output.getByText('Chorus')).toBeVisible();
+  await expect(output.getByText('Chorus')).toHaveCount(0); // LIVE-R20: the part label is the operator's, never the output's
+  await expect(one.page.getByRole('button', { name: 'Härlig är jorden 2' }).getByText('Chorus')).toBeVisible();
 
   // Arrow keys step through the slides.
   await one.page.keyboard.press('ArrowLeft');

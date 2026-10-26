@@ -7,9 +7,10 @@ export const STAGE_HEIGHT = 1080;
 /**
  * One slide on a fixed 1920×1080 stage, scaled to fit its container (ADR 0007,
  * decision 8). The same component draws previews, thumbnails and the output,
- * so they always agree. `slide` null draws an empty (black) stage.
+ * so they always agree. `slide` null draws an empty (black) stage. The part
+ * label is for the operator: tiles show it, outputs never do (LIVE-R20).
  */
-export function SlideView({ slide }: { slide: Slide | null }) {
+export function SlideView({ slide, label = true }: { slide: Slide | null; label?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   useLayoutEffect(() => {
@@ -25,7 +26,7 @@ export function SlideView({ slide }: { slide: Slide | null }) {
       <div className="slide-stage" style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT, transform: `scale(${scale})` }} data-testid="slide-stage">
         {slide && (
           <>
-            {slide.label && (
+            {label && slide.label && (
               <span className="slide-label" style={{ background: slide.label.color }}>
                 {slide.label.text}
               </span>

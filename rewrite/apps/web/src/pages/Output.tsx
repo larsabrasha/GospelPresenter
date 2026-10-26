@@ -22,7 +22,7 @@ export function Output({ live }: { live: LiveChannel }) {
   );
   return (
     <div className="output" data-testid="output">
-      <SlideView slide={pointer.black ? null : (slide ?? null)} />
+      <SlideView slide={pointer.black ? null : (slide ?? null)} label={false} />
     </div>
   );
 }
