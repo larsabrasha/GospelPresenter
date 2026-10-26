@@ -18,6 +18,11 @@ const server = await startHost({
     process.env.GP_GOOGLE_CLIENT_ID && process.env.GP_GOOGLE_CLIENT_SECRET
       ? { clientId: process.env.GP_GOOGLE_CLIENT_ID, clientSecret: process.env.GP_GOOGLE_CLIENT_SECRET, redirectBaseUrl: process.env.GP_GOOGLE_REDIRECT_BASE_URL || undefined }
       : undefined,
+  // Passkeys need an RP ID and the exact origins, e.g. GP_PASSKEY_RP_ID=localhost GP_PASSKEY_ORIGINS=http://localhost:8787.
+  passkeys:
+    process.env.GP_PASSKEY_RP_ID && process.env.GP_PASSKEY_ORIGINS
+      ? { rpId: process.env.GP_PASSKEY_RP_ID, origins: process.env.GP_PASSKEY_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean) }
+      : undefined,
 });
 console.log(`Gospel Presenter: ${pageUrl(server.url)}`);
 if (hostToken) console.log(`Host device token (send as x-gp-device to make pairing codes): ${hostToken}`);

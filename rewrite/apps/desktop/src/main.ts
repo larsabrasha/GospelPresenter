@@ -3,9 +3,13 @@
 // another machine's server instead (the "Other server" of D8, as an env var
 // for now), and pairs with it like any other device.
 //
-// Signing in (spec 01 device sign-in): Google is never shown in the app's
-// own windows. The system browser opens the server's `/app-login`, and the
-// server hands the token back to this app's callback scheme.
+// Signing in (spec 01 device sign-in): neither Google nor a passkey ceremony
+// runs in the app's own windows. The system browser opens the server's
+// `/app-login` (or a flow the window began), and the server hands the token
+// back to this app's callback scheme. Passkeys run there rather than in
+// Electron, whose support for platform authenticators (Touch ID, iCloud
+// Keychain) is unreliable; and at http://localhost rather than 127.0.0.1,
+// because an IP address cannot be a passkey's RP ID.
 import { randomBytes } from 'node:crypto';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
@@ -102,6 +106,18 @@ app.on('second-instance', (_e, argv) => {
   else mainWindow?.focus();
 });
 
+/**
+ * Where the system browser runs a passkey ceremony: the same server, named
+ * `localhost` when it is 127.0.0.1, since an IP address cannot be an RP ID.
+ * Each sign-in stays on one host name from start to end, so its cookie holds:
+ * Google's stays on 127.0.0.1, where its redirect URI is registered.
+ */
+function passkeyBase(serverBase: string): string {
+  const u = new URL(serverBase);
+  if (u.hostname === '127.0.0.1') u.hostname = 'localhost';
+  return u.origin;
+}
+
 /** The output goes fullscreen on the first non-primary display, or into a window when there is one display. */
 function openOutput() {
   if (output && !output.isDestroyed()) return output.focus();
@@ -152,12 +168,15 @@ app.whenReady().then(async () => {
     base = process.env.GP_SERVER.replace(/\/$/, '');
   } else {
     const hostToken = `gphost_${randomBytes(32).toString('base64url')}`;
+    const hostPort = Number(process.env.GP_PORT || HOST_PORT);
     const server = await startHost({
       dataDir: app.getPath('userData'),
       webRoot: process.env.GP_WEB_ROOT ?? join(here, '..', '..', 'web', 'dist'),
-      port: Number(process.env.GP_PORT || HOST_PORT),
+      port: hostPort,
       hostToken,
       google: googleConfig(),
+      // The system browser on this machine runs the ceremonies, at localhost: passkeys made here work only here.
+      passkeys: { rpId: 'localhost', origins: [passkeyBase(`http://127.0.0.1:${hostPort}`)] },
     });
     base = server.url;
     port = server.port;
@@ -171,11 +190,12 @@ app.whenReady().then(async () => {
   ipcMain.handle('setup-token', () => setupToken);
   ipcMain.handle('lan-urls', () => (port ? lanUrls(port) : []));
   ipcMain.on('callback-scheme', (e) => (e.returnValue = CALLBACK_SCHEME));
-  // Opens a sign-in of this app's own server in the system browser: only its two entry paths, never another URL.
+  // Opens a sign-in of this app's own server in the system browser: only its entry paths, never another URL.
   ipcMain.handle('open-sign-in', async (_e, path: unknown) => {
-    if (typeof path !== 'string' || !/^\/(app-login|auth\/google\/start)\?/.test(path)) return false;
+    if (typeof path !== 'string' || !/^\/(app-login|auth\/google\/start|auth\/passkey\/start)\?/.test(path)) return false;
     signInUntil = Date.now() + SIGN_IN_WAIT_MS;
-    await shell.openExternal(new URL(path, base).toString());
+    const passkey = path.startsWith('/auth/passkey/') || new URLSearchParams(path.split('?')[1]).get('method') === 'passkey';
+    await shell.openExternal(new URL(path, passkey ? passkeyBase(base) : base).toString());
     return true;
   });
 

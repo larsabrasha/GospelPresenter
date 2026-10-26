@@ -3,6 +3,7 @@ import type { Me, SignInResponse } from '@gp/core';
 import { t } from '../i18n.ts';
 import { api } from './api.ts';
 import { errorText } from './errors.ts';
+import { startPasskey } from './passkey.ts';
 import { deviceName } from './session.ts';
 
 // Sign-in with Google (spec 01). In a browser the page goes to Google and
@@ -39,9 +40,9 @@ export async function startGoogle(invite?: string): Promise<string | null> {
 }
 
 /**
- * The desktop app's side of a sign-in in the system browser: whether it is
- * waiting, and the callback that ends it. A token from the callback is
- * checked with `GET /auth/me` before it is kept.
+ * A sign-in with Google or a passkey, and in the desktop app its side of the
+ * system browser: whether it is waiting, and the callback that ends it. A
+ * token from the callback is checked with `GET /auth/me` before it is kept.
  */
 export function useDesktopSignIn(onSignedIn: (r: SignInResponse) => void) {
   const [waiting, setWaiting] = useState(false);
@@ -67,11 +68,19 @@ export function useDesktopSignIn(onSignedIn: (r: SignInResponse) => void) {
     return () => clearTimeout(timer);
   }, [waiting]);
 
-  const start = async (invite?: string) => {
+  const run = async (starter: () => Promise<string | SignInResponse | null>) => {
     setError(null);
-    const problem = await startGoogle(invite);
-    if (problem) setError(problem);
+    const r = await starter();
+    if (typeof r === 'string') setError(r);
+    else if (r) onSignedIn(r);
     else if (window.gpDesktop) setWaiting(true);
   };
-  return { waiting, error, start, cancel: () => setWaiting(false), setError };
+  return {
+    waiting,
+    error,
+    start: (invite?: string) => run(() => startGoogle(invite)),
+    passkey: (invite?: string) => run(() => startPasskey(invite)),
+    cancel: () => setWaiting(false),
+    setError,
+  };
 }

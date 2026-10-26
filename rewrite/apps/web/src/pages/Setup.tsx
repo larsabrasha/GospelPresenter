@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
-import type { SetupResponse, SignInResponse } from '@gp/core';
+import type { AuthState, SetupResponse, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
 import { Button } from '../ui/Button.tsx';
 import { AuthCard, FormError } from './AuthCard.tsx';
-import { GoogleSignIn } from './SignIn.tsx';
+import { methodsText, SignInChoices } from './SignIn.tsx';
 
 /**
  * First run (spec 01 `/setup`, D19): the organisation and its SuperAdmin,
- * who then signs in with Google through the invite setup answers with
- * (spec 01: setup goes on to `/invite/{token}`). Needs the setup token,
+ * who then makes a passkey or signs in with Google through the invite setup
+ * answers with (spec 01: setup goes on to `/invite/{token}`). Needs the setup token,
  * which the desktop host hands its own window and a self-hosted server
  * prints in its log.
  */
-export function Setup({ onSignedIn }: { onSignedIn: (r: SignInResponse) => void }) {
+export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSignedIn: (r: SignInResponse) => void }) {
   const [hostToken, setHostToken] = useState<string | null>(null);
   const [setupToken, setSetupToken] = useState('');
   const [name, setName] = useState('');
@@ -29,15 +29,15 @@ export function Setup({ onSignedIn }: { onSignedIn: (r: SignInResponse) => void 
 
   if (invite) {
     return (
-      <GoogleSignIn title={t('setup.title')} invite={invite} autoStart onSignedIn={onSignedIn}>
-        <p>{t('setup.google')}</p>
-      </GoogleSignIn>
+      <SignInChoices title={t('setup.title')} invite={invite} methods={methods} autoStart onSignedIn={onSignedIn}>
+        <p>{methodsText(methods, 'setup')}</p>
+      </SignInChoices>
     );
   }
   return (
     <AuthCard title={t('setup.title')}>
       <p>{t('setup.text')}</p>
-      <p>{t('setup.google')}</p>
+      <p>{methodsText(methods, 'setup')}</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();

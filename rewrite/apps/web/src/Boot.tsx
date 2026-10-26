@@ -31,28 +31,28 @@ export type BootFor = { invite: string } | { signedIn: true } | { error: string 
 
 type Screen = 'loading' | 'offline' | 'pair' | 'repair' | 'setup' | 'signin' | 'invite' | 'handoff';
 
-/** Which screen comes first: pairing, then an invite, a web sign-in coming back, setup or sign-in. */
-async function firstScreen(boot: BootFor): Promise<Screen> {
+/** Which screen comes first: pairing, then an invite, a web sign-in coming back, setup or sign-in; and how one signs in here. */
+async function firstScreen(boot: BootFor): Promise<{ screen: Screen; state?: AuthState }> {
   try {
     const pair = await api<PairStatus>('GET', '/pair/status');
     const host = !pair.error && pair.body.required;
     if (host && !pair.body.paired) {
       saveDeviceToken(null); // a token the host no longer knows
-      return 'pair';
+      return { screen: 'pair' };
     }
-    if ('invite' in boot) return 'invite';
-    if ('signedIn' in boot) return 'handoff';
+    if ('signedIn' in boot) return { screen: 'handoff' };
+    const state = (await api<AuthState>('GET', '/auth/state')).body ?? undefined;
+    if ('invite' in boot) return { screen: 'invite', state };
     // Signed in and only here to pair again: back to the app.
     if (storedSession()) {
       enterApp();
-      return 'loading';
+      return { screen: 'loading' };
     }
-    // A device paired with a desktop host signs in by pairing again; only the host's own window uses Google.
-    if (host && !pair.body.host) return 'repair';
-    const state = await api<AuthState>('GET', '/auth/state');
-    return state.body?.setupRequired ? 'setup' : 'signin';
+    // A device paired with a desktop host signs in by pairing again; only the host's own window signs in itself.
+    if (host && !pair.body.host) return { screen: 'repair' };
+    return { screen: state?.setupRequired ? 'setup' : 'signin', state };
   } catch {
-    return 'offline';
+    return { screen: 'offline' };
   }
 }
 
@@ -82,14 +82,16 @@ function Handoff() {
  * answers an unpaired device), then an invite, first-run setup or sign-in.
  */
 export function Boot({ boot }: { boot: BootFor }) {
-  const [screen, setScreen] = useState<Screen>('loading');
+  const [view, setView] = useState<{ screen: Screen; state?: AuthState }>({ screen: 'loading' });
   useEffect(() => {
-    void firstScreen(boot).then(setScreen);
+    void firstScreen(boot).then(setView);
   }, [boot]);
   const decide = () => {
-    setScreen('loading');
-    void firstScreen(boot).then(setScreen);
+    setView({ screen: 'loading' });
+    void firstScreen(boot).then(setView);
   };
+  const { screen } = view;
+  const methods = view.state ?? null;
 
   switch (screen) {
     case 'loading':
@@ -105,14 +107,14 @@ export function Boot({ boot }: { boot: BootFor }) {
     case 'repair':
       return <Pair paired={screen === 'repair'} onSignedIn={signedIn} />;
     case 'invite':
-      return <Invite token={(boot as { invite: string }).invite} onSignedIn={signedIn} />;
+      return <Invite token={(boot as { invite: string }).invite} methods={methods} onSignedIn={signedIn} />;
     case 'handoff':
       return <Handoff />;
     case 'setup':
-      return <Setup onSignedIn={signedIn} />;
+      return <Setup methods={methods} onSignedIn={signedIn} />;
     case 'signin': {
       const code = 'error' in boot ? boot.error : null;
-      return <SignIn error={code ? errorText({ error: code, body: null }) : null} onSignedIn={signedIn} />;
+      return <SignIn error={code ? errorText({ error: code, body: null }) : null} methods={methods} onSignedIn={signedIn} />;
     }
   }
 }

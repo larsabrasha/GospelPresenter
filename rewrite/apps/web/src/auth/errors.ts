@@ -4,6 +4,10 @@ import type { ApiResult } from './api.ts';
 const known = new Set<string>([
   'google-disabled',
   'google-failed',
+  'passkey-disabled',
+  'passkey-failed',
+  'last-login',
+  'reauth-required',
   'not-linked',
   'login-taken',
   'callback-scheme',

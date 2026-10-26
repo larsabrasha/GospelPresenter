@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
-import type { InviteState, SignInResponse } from '@gp/core';
+import type { AuthState, InviteState, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { t } from '../i18n.ts';
 import { AuthCard } from './AuthCard.tsx';
-import { GoogleSignIn } from './SignIn.tsx';
+import { methodsText, SignInChoices } from './SignIn.tsx';
 
-/** `#/invite/{token}` (spec 01): the invited person signs in with Google, and that account becomes theirs. */
-export function Invite({ token, onSignedIn }: { token: string; onSignedIn: (r: SignInResponse) => void }) {
+/**
+ * `#/invite/{token}` (spec 01): the invited person makes a passkey or signs
+ * in with Google, and that becomes their way in. More can be added later
+ * under Inloggningsmetoder.
+ */
+export function Invite({ token, methods, onSignedIn }: { token: string; methods: AuthState | null; onSignedIn: (r: SignInResponse) => void }) {
   const [state, setState] = useState<InviteState | 'offline' | null>(null);
 
   useEffect(() => {
@@ -27,9 +31,9 @@ export function Invite({ token, onSignedIn }: { token: string; onSignedIn: (r: S
     );
   }
   return (
-    <GoogleSignIn title={t('invite.welcome', { name: state.name })} invite={token} onSignedIn={onSignedIn}>
+    <SignInChoices title={t('invite.welcome', { name: state.name })} invite={token} methods={methods} onSignedIn={onSignedIn}>
       <p>{t('invite.org', { org: state.orgName })}</p>
-      <p className="muted">{t('invite.choose')}</p>
-    </GoogleSignIn>
+      <p className="muted">{methodsText(methods, 'invite')}</p>
+    </SignInChoices>
   );
 }

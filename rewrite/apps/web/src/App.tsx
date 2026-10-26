@@ -8,6 +8,7 @@ import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
 import { Devices } from './pages/Devices.tsx';
 import { Live } from './pages/Live.tsx';
+import { Logins } from './pages/Logins.tsx';
 import { Output } from './pages/Output.tsx';
 import { PresentationEditor } from './pages/PresentationEditor.tsx';
 import { Presentations } from './pages/Presentations.tsx';
@@ -123,9 +124,9 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
               </a>
             )}
           </nav>
-          <span className="muted" data-testid="me">
+          <a href={href({ page: 'logins', error: null })} className="muted" data-testid="me" title={t('logins.title')} aria-current={route.page === 'logins' ? 'page' : undefined}>
             {me.name} · {me.orgName}
-          </span>
+          </a>
           <Button onClick={() => void signOut()}>{t('auth.signOut')}</Button>
         </header>
         <main>
@@ -137,6 +138,7 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
           {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
           {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
           {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}
+          {route.page === 'logins' && <Logins error={route.error} />}
         </main>
         <StatusBar />
       </div>

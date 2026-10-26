@@ -33,6 +33,12 @@ describe('routes', () => {
     expect(parseRoute('#/nowhere')).toEqual({ page: 'songs' });
     expect(parseRoute('')).toEqual({ page: 'songs' });
   });
+
+  it('Inloggningsmetoder, with the error a refused Google link comes back with', () => {
+    expect(parseRoute('#/logins')).toEqual({ page: 'logins', error: null });
+    expect(parseRoute('#/logins?error=login-taken')).toEqual({ page: 'logins', error: 'login-taken' });
+    expect(href({ page: 'logins', error: 'login-taken' })).toBe('#/logins?error=login-taken');
+  });
 });
 
 describe('text', () => {
@@ -48,6 +54,8 @@ describe('auth error texts', () => {
     expect(errorText({ error: 'not-linked', body: null })).toBe('Det här Google-kontot är inte kopplat till någon användare. Be din administratör om en inbjudan.');
     expect(errorText({ error: 'too-many-attempts', body: { retryAfter: 61 } })).toBe('För många misslyckade försök. Vänta 2 min och försök igen.');
     expect(errorText({ error: 'pair-code-invalid', body: null })).toBe('Ogiltig eller utgången kod');
+    expect(errorText({ error: 'last-login', body: null })).toBe('Du kan inte ta bort ditt sista sätt att logga in.');
+    expect(errorText({ error: 'passkey-failed', body: null })).toBe('Passkeyn kunde inte användas. Försök igen.');
     expect(errorText({ error: 'something-new', body: null })).toBe('Något gick fel. Försök igen.');
   });
 });

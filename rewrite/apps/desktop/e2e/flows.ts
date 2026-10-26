@@ -49,7 +49,7 @@ export const ANNA: FakeAccount = { sub: 'google-anna', email: 'anna@kyrkan.se', 
 /**
  * First run on the host (D19): the host's own window gets the setup token,
  * so the person only fills in who they are, then signs in with Google in
- * the system browser (once, with internet).
+ * the system browser (once, with internet). passkeys.spec.ts sets up with a passkey.
  */
 export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Kyrkan', google: ANNA }) {
   const page = d.page;
@@ -58,6 +58,8 @@ export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Ky
   await page.getByLabel('Ditt namn').fill(who.name);
   await page.getByLabel('Församlingens eller organisationens namn').fill(who.org);
   await page.getByRole('button', { name: 'Kom igång' }).click();
+  // The host offers a passkey and Google; this is the Google way.
+  await page.getByRole('button', { name: 'Logga in med Google' }).click();
   await expect(page.getByRole('heading', { name: 'Fortsätt i webbläsaren' })).toBeVisible();
   const { link } = await browserSignIn(d, who.google);
   expect(link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
