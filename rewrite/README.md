@@ -263,8 +263,8 @@ is tested in local workerd only.
 From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
 the Teman page lists the built-ins and sets the default), the stage view and the public output, and
 the theme's Media style (there are no media slides). BIBLE-R16's device-local Bibles (a translation
-that never leaves the device) are not built: an import made offline is queued and goes to the server
-(see "Bibles"). The Biblar page has no per-row "Gör tillgänglig offline": every
+that never leaves the device) are not built, by decision D30: an import made offline is queued and goes
+to the server (see "Bibles"). The Biblar page has no per-row "Gör tillgänglig offline": every
 device keeps every translation, which shows as "Tillgänglig offline" or "Hämtas...".
 
 From spec 01 and milestone 3: OIDC providers other than Google, which are not planned (ADR 0007
@@ -334,7 +334,7 @@ Milestone 4 (Bibles and themes):
   10 per organisation; a translation is known by its abbreviation (case-insensitive), so importing one
   with the same abbreviation replaces it (BIBLE-R5). Uploaded texts that no import then names are not
   removed from the server.
-- **A translation imported offline is queued and goes to the server** (Lars, 2026-10-26), rather than
+- **A translation imported offline is queued and goes to the server** (D30, ADR 0007), rather than
   staying on the device as BIBLE-R16 describes the current app. Which texts a device has uploaded,
   and which refused imports it has queued again, live only while the app runs: after a restart a
   queued text is uploaded again (the server takes it twice), and an import refused before the restart

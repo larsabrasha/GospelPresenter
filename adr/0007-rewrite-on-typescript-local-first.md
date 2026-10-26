@@ -282,3 +282,10 @@ for the new app; the mechanisms are retired with the stack.
 - **D1, decided after this ADR was written:** one organisation per user for now, with super admins
   switching, but memberships are a table (user, organisation, role) from the start so several
   organisations per user can be enabled without a migration.
+- **D30, decided after this ADR was written:** an imported Bible always lives on the server the device
+  belongs to: the hosted server, a self-hosted one, or the desktop app's embedded server when someone
+  runs alone. Every device of the organisation then gets it. An import made offline is stored on the
+  device and uploaded when it is connected again. Device-only Bibles, which the current app has
+  (BIBLE-R16), are not built: running alone is already covered by the desktop app, and two kinds of
+  Bible would double the cases in the UI, sync and tests. If a translation's licence forbids sharing
+  it within a church, this is reopened.

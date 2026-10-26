@@ -363,6 +363,8 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
 - **BIBLE-R16** Bibles are never pushed from devices: a Bible imported on a device stays local
   (`ImportedLocally`) (push request has no Bible collection,
   `GospelPresenter/GospelPresenter.Shared/Sync/SyncService.cs:360-380`).
+  *The rewrite does not keep this* (D30): an import always goes to the server the device belongs to,
+  and an offline import is uploaded when the device is connected again.
 
 ### Themes
 - **THEME-R1** Resolution for a presentation: its `ThemeId` if set → else org `DefaultThemeId` → else
