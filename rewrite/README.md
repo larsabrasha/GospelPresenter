@@ -254,6 +254,27 @@ Hungarian, Finnish `š ž` and the like) and `† ‡`: for those, the browser t
 system's sans-serif, so such a word shows in a mixed typeface. To try them: Teman shows each with a sample slide; pick a default there, or a theme per
 presentation in "Redigera detaljer", and start the presentation.
 
+## Next steps
+
+Where to pick up. Milestones 1–4 are on branch `claude/milestone-1`, which also carries the latest ADR
+0007 and spec (decisions up to D31); `claude/rewrite-behavior-spec` is behind it.
+
+1. **Media library and images** (spec 05 Media, ADR 0007 (9), D28, D31). Storage behind a put/get/delete
+   interface: R2 through its binding on Cloudflare, a folder on disk on the desktop host and by default
+   self-hosted, S3 as an option. Clients keep their own copies (OPFS, or disk) so images show offline.
+   Then images in themes and image slides.
+2. **A trial deploy to Cloudflare**, before or beside (1), and only with Lars's go-ahead: a temporary
+   Worker and D1, measured and then deleted, as the sync spike did. Still unproven there: migrating an
+   existing Durable Object (schema and triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys,
+   and Google sign-in against a real Google client.
+3. **The rest of live** (spec 04, ADRs 0004 and 0006): stage view, public output, remote control and
+   mirrored live sessions.
+4. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
+5. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
+   for the desktop app (ADR 0002), and the Capacitor app for tablets (ADR 0007 (7)).
+
+The smaller gaps below can be taken along the way.
+
 ## Not done yet
 
 Images, audio and the media library (so themes have no pictures of the organisation's own), profile
