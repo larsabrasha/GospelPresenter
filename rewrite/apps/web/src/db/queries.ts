@@ -1,4 +1,18 @@
-import type { Label, Presentation, PresentationItem, SearchableSong, Song, SongArrangement, SongPart } from '@gp/core';
+import {
+  DEFAULT_THEME_SETTING,
+  LOAD_BIBLE_TEXT_SQL,
+  resolveTheme,
+  type Bible,
+  type BibleBookText,
+  type Label,
+  type Presentation,
+  type PresentationItem,
+  type SearchableSong,
+  type Song,
+  type SongArrangement,
+  type SongPart,
+  type Theme,
+} from '@gp/core';
 import type { ReadDb } from './share.ts';
 
 // Reads from the local database, mapped to the core row types. The column
@@ -83,7 +97,7 @@ export async function arrangementsOf(db: ReadDb, songIds: string[]): Promise<Son
 export async function presentationsUsing(db: ReadDb, songId: string): Promise<Presentation[]> {
   const rows = await db.query(
     `SELECT DISTINCT p.* FROM presentations p JOIN presentation_items i ON i.presentation_id = p.id
-     WHERE i.source_id = ? AND p.deleted_at IS NULL ORDER BY p.name`,
+     WHERE i.type = 'song' AND i.source_id = ? AND p.deleted_at IS NULL ORDER BY p.name`,
     [songId],
   );
   return rows.map(presentation);
@@ -145,4 +159,57 @@ export async function listTrash(db: ReadDb): Promise<TrashEntry[]> {
 
 export async function itemsOf(db: ReadDb, presentationId: string): Promise<PresentationItem[]> {
   return (await db.query('SELECT * FROM presentation_items WHERE presentation_id = ? ORDER BY sort, id', [presentationId])).map(item);
+}
+
+// ------------------------------------------------------------------ Bibles and themes
+
+const bible = (r: Row): Bible => ({
+  id: String(r.id),
+  name: String(r.name),
+  abbreviation: String(r.abbreviation),
+  language: (r.language as string | null) ?? null,
+  verseCount: Number(r.verse_count),
+  contentHash: String(r.content_hash),
+});
+
+export interface InstalledBible extends Bible {
+  /** Its text is on this device, so it can be searched offline. */
+  stored: boolean;
+}
+
+/** The organisation's translations, by name (BIBLE-R8). */
+export async function listBibles(db: ReadDb): Promise<InstalledBible[]> {
+  const rows = await db.query('SELECT b.*, EXISTS (SELECT 1 FROM bible_blobs t WHERE t.hash = b.content_hash) AS stored FROM bibles b');
+  return rows
+    .map((r) => ({ ...bible(r), stored: Boolean(r.stored) }))
+    .toSorted((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id));
+}
+
+/** Parsed texts, by hash: a text never changes, so it is read and parsed once per window. */
+const texts = new Map<string, Promise<BibleBookText[] | null>>();
+
+/** A translation's books, or null while this device does not have the text yet. */
+export function bibleBooks(db: ReadDb, hash: string): Promise<BibleBookText[] | null> {
+  let p = texts.get(hash);
+  if (!p) {
+    p = (async () => {
+      const rows = await db.query<{ code: string; chunk: string }>(LOAD_BIBLE_TEXT_SQL, [hash]);
+      if (!rows.length) return null;
+      return rows.map((r) => ({ code: r.code, verses: JSON.parse(r.chunk) as BibleBookText['verses'] }));
+    })();
+    texts.set(hash, p);
+    // Not there yet: ask again next time rather than remember the absence.
+    void p.then((books) => books ?? texts.delete(hash), () => texts.delete(hash));
+  }
+  return p;
+}
+
+export async function orgDefaultThemeId(db: ReadDb): Promise<string | null> {
+  const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [DEFAULT_THEME_SETTING]);
+  return r?.value ?? null;
+}
+
+/** The theme a presentation shows: its own, else the organisation's default, else Classic (THEME-R1). */
+export async function themeOf(db: ReadDb, p: Pick<Presentation, 'themeId'> | null): Promise<Theme> {
+  return resolveTheme(p?.themeId, await orgDefaultThemeId(db));
 }

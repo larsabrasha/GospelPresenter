@@ -1,4 +1,4 @@
-import { IDLE, newer, songSlides, type LivePointer, type PresentationItem, type Slide } from '@gp/core';
+import { bibleItemSlides, IDLE, newer, parseBibleContent, songSlides, type LivePointer, type PresentationItem, type Slide } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
 import { arrangementsOf, getSong, listLabels, songPartsOf } from '../db/queries.ts';
 
@@ -62,8 +62,17 @@ export interface ItemSlides {
   problem: 'song-missing' | 'song-trashed' | 'no-parts' | null;
 }
 
-/** The slides of one item, from the current song in the item's arrangement (spec 03: a song item is a reference). */
+/**
+ * The slides of one item. A song item is a reference: its slides come from
+ * the current song in the item's arrangement (spec 03). A Bible item carries
+ * its own slides, frozen when it was added (BIBLE-R12).
+ */
 export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
+  if (item.type === 'bible') {
+    const content = parseBibleContent(item.content);
+    const slides = content ? bibleItemSlides(item.title, content) : [];
+    return { slides, problem: slides.length ? null : 'no-parts' };
+  }
   const song = await getSong(db, item.sourceId);
   if (!song) return { slides: [], problem: 'song-missing' };
   if (song.deletedAt !== null) return { slides: [], problem: 'song-trashed' }; // D17: skipped live

@@ -1,7 +1,7 @@
-import { searchSongs, songSlides, sortedArrangements, type PresentationItem, type SongArrangement } from '@gp/core';
+import { listThemes, searchSongs, songSlides, sortedArrangements, type PresentationItem, type SongArrangement, type Theme } from '@gp/core';
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useData, useDb } from '../db/react.tsx';
-import { arrangementsOf, getPresentation, getSong, itemsOf, listLabels, searchableSongs, songPartsOf, songsById } from '../db/queries.ts';
+import { arrangementsOf, getPresentation, getSong, itemsOf, listLabels, searchableSongs, songPartsOf, songsById, themeOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { slidesOf, type ItemSlides } from '../live/live.ts';
@@ -11,6 +11,7 @@ import { Highlight } from '../ui/Highlight.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
+import { BibleTab } from './BibleTab.tsx';
 import { CreateSongDialog } from './Songs.tsx';
 
 /** "lör 1 nov. 2026" in the viewer's (Swedish) calendar; the date is a plain day, not an instant. */
@@ -33,34 +34,61 @@ function ArrangementPills({ arrangements, chosen, onChoose }: { arrangements: So
   );
 }
 
-function SlideGrid({ slides, label }: { slides: ItemSlides['slides']; label: string }) {
+function SlideGrid({ slides, label, theme }: { slides: ItemSlides['slides']; label: string; theme: Theme }) {
   return (
     <ol className="thumbs grid" aria-label={label}>
       {slides.map((s, i) => (
         <li key={s.key} className="thumb" aria-label={`${label} ${i + 1}`}>
-          <SlideView slide={s} />
+          <SlideView slide={s} theme={theme} />
         </li>
       ))}
     </ol>
   );
 }
 
-/**
- * The song picker (spec 03 2d, Sånger). It never closes after an add (D15):
- * Ctrl/Cmd+Enter and Shift+Enter add, and the search starts over for the next
- * song. The new item goes after the selected one and becomes selected.
- */
-function AddSongDialog({
-  presentationId,
-  afterItemId,
-  onAdded,
-  onClose,
-}: {
+interface TabProps {
   presentationId: string;
   afterItemId: string | null;
+  theme: Theme;
   onAdded: (itemId: string) => void;
   onClose: () => void;
-}) {
+}
+
+/**
+ * The add-item modal (spec 03 2d): Sånger and Bibeltexter, Ctrl/⌘+1 and +2
+ * switch. It never closes after an add (D15). The new item goes after the
+ * selected one and becomes selected.
+ */
+function AddItemDialog(props: TabProps) {
+  const [tab, setTab] = useState<'songs' | 'bible'>('songs');
+  const onKeyDown = (e: ReactKeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === '1' || e.key === '2')) {
+      e.preventDefault();
+      setTab(e.key === '1' ? 'songs' : 'bible');
+    }
+  };
+  return (
+    <Dialog title={t('presentation.addTitle')} onClose={props.onClose} wide>
+      <div onKeyDown={onKeyDown}>
+        <div className="row tabs" role="tablist">
+          <Button role="tab" aria-selected={tab === 'songs'} aria-pressed={tab === 'songs'} onClick={() => setTab('songs')}>
+            {t('nav.songs')}
+          </Button>
+          <Button role="tab" aria-selected={tab === 'bible'} aria-pressed={tab === 'bible'} onClick={() => setTab('bible')}>
+            {t('bible.tab')}
+          </Button>
+        </div>
+        {tab === 'songs' ? <SongTab key="songs" {...props} /> : <BibleTab key="bible" {...props} />}
+      </div>
+    </Dialog>
+  );
+}
+
+/**
+ * The song tab: Ctrl/Cmd+Enter and Shift+Enter add, and the search starts
+ * over for the next song.
+ */
+function SongTab({ presentationId, afterItemId, theme, onAdded, onClose }: TabProps) {
   const db = useDb();
   const toast = useToast();
   const songs = useData(searchableSongs, []);
@@ -117,7 +145,7 @@ function AddSongDialog({
   };
 
   return (
-    <Dialog title={t('presentation.addTitle')} onClose={onClose} wide>
+    <>
       <div className="picker" onKeyDown={onKeyDown}>
         <div className="picker-list">
           <div className="row">
@@ -173,6 +201,7 @@ function AddSongDialog({
               {shownPreview.song.author && <p className="muted">{shownPreview.song.author}</p>}
               <ArrangementPills arrangements={shownPreview.arrangements} chosen={chosen} onChoose={setArrangementId} />
               <SlideGrid
+                theme={theme}
                 label={shownPreview.song.name}
                 slides={songSlides(shownPreview.song, shownPreview.parts, shownPreview.labels, shownPreview.arrangements, chosen)}
               />
@@ -200,22 +229,35 @@ function AddSongDialog({
           }}
         />
       )}
-    </Dialog>
+    </>
   );
 }
 
-/** "Redigera detaljer": the name and the event date (spec 03 2a). */
-function DetailsDialog({ id, name: initialName, eventDate, onClose }: { id: string; name: string; eventDate: string | null; onClose: () => void }) {
+/** "Redigera detaljer": the name, the event date and the theme (spec 03 2a, spec 05). */
+function DetailsDialog({
+  id,
+  name: initialName,
+  eventDate,
+  themeId,
+  onClose,
+}: {
+  id: string;
+  name: string;
+  eventDate: string | null;
+  themeId: string | null;
+  onClose: () => void;
+}) {
   const db = useDb();
   const [name, setName] = useState(initialName);
   const [date, setDate] = useState(eventDate ?? '');
+  const [theme, setTheme] = useState(themeId ?? '');
   return (
     <Dialog title={t('presentation.editDetails')} onClose={onClose}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          void db.mutate('updatePresentation', { id, name, eventDate: date || null });
+          void db.mutate('updatePresentation', { id, name, eventDate: date || null, themeId: theme || null });
           onClose();
         }}
       >
@@ -226,6 +268,17 @@ function DetailsDialog({ id, name: initialName, eventDate, onClose }: { id: stri
         <label className="field">
           {t('presentation.date')}
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </label>
+        <label className="field">
+          {t('presentation.theme')}
+          <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+            <option value="">{t('presentation.themeDefault')}</option>
+            {listThemes().map((th) => (
+              <option key={th.id} value={th.id}>
+                {th.name}
+              </option>
+            ))}
+          </select>
         </label>
         <div className="row end">
           <Button onClick={onClose}>{t('common.cancel')}</Button>
@@ -276,11 +329,13 @@ export function PresentationEditor({ id }: { id: string }) {
   const data = useData(
     async (d) => {
       const items = await itemsOf(d, id);
-      const songIds = [...new Set(items.map((i) => i.sourceId))];
+      const songIds = [...new Set(items.filter((i) => i.type === 'song').map((i) => i.sourceId))];
       const slides = new Map<string, ItemSlides>();
       for (const item of items) slides.set(item.id, await slidesOf(d, item));
+      const presentation = await getPresentation(d, id);
       return {
-        presentation: await getPresentation(d, id),
+        presentation,
+        theme: await themeOf(d, presentation),
         items,
         slides,
         songs: await songsById(d, songIds),
@@ -324,7 +379,7 @@ export function PresentationEditor({ id }: { id: string }) {
   }, []);
 
   if (!data) return null;
-  const { presentation, slides, songs } = data;
+  const { presentation, slides, songs, theme } = data;
   if (!presentation || presentation.deletedAt !== null) return <p>{t('presentation.notFound')}</p>;
 
   const trash = async () => {
@@ -334,7 +389,7 @@ export function PresentationEditor({ id }: { id: string }) {
     navigate({ page: 'presentations' });
   };
 
-  const selectedSong = selected ? songs.get(selected.sourceId) : undefined;
+  const selectedSong = selected?.type === 'song' ? songs.get(selected.sourceId) : undefined;
   const selectedArrangements = selectedSong ? sortedArrangements(data.arrangements, selectedSong.id) : [];
   const selectedSlides = selected ? slides.get(selected.id) : undefined;
 
@@ -426,10 +481,12 @@ export function PresentationEditor({ id }: { id: string }) {
             onChoose={(arrangementId) => void db.mutate('setItemArrangement', { itemId: selected.id, arrangementId })}
           />
         )}
-        {selected && selectedSlides && <SlideGrid label={selected.title} slides={selectedSlides.slides} />}
+        {selected && selectedSlides && <SlideGrid theme={theme} label={selected.title} slides={selectedSlides.slides} />}
       </div>
-      {adding && <AddSongDialog presentationId={id} afterItemId={selectedId} onAdded={setSelectedId} onClose={() => setAdding(false)} />}
-      {details && <DetailsDialog id={id} name={presentation.name} eventDate={presentation.eventDate} onClose={() => setDetails(false)} />}
+      {adding && <AddItemDialog presentationId={id} afterItemId={selectedId} theme={theme} onAdded={setSelectedId} onClose={() => setAdding(false)} />}
+      {details && (
+        <DetailsDialog id={id} name={presentation.name} eventDate={presentation.eventDate} themeId={presentation.themeId} onClose={() => setDetails(false)} />
+      )}
     </section>
   );
 }

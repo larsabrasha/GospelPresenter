@@ -16,6 +16,8 @@ export type Route =
   | { page: 'trash'; kind: TrashKind | null }
   | { page: 'users' }
   | { page: 'devices' }
+  | { page: 'bibles' }
+  | { page: 'themes' }
   /** The signed-in user's own ways to sign in; `error` when linking Google was refused. */
   | { page: 'logins'; error: string | null }
   /** An invite link (spec 01 `/invite/{token}`): the token stays in the fragment, which is never sent to a server. */
@@ -43,6 +45,8 @@ export function parseRoute(hash: string): Route {
   if (page === 'output') return { page: 'output' };
   if (page === 'users') return { page: 'users' };
   if (page === 'devices') return { page: 'devices' };
+  if (page === 'bibles') return { page: 'bibles' };
+  if (page === 'themes') return { page: 'themes' };
   if (page === 'logins') return { page: 'logins', error: new URLSearchParams(query).get('error') };
   if (page === 'presentations') return { page: 'presentations' };
   return { page: 'songs' };

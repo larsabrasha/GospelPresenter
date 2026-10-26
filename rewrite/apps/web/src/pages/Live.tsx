@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import type { PresentationItem } from '@gp/core';
 import { useData } from '../db/react.tsx';
-import { getPresentation, itemsOf } from '../db/queries.ts';
+import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { slidesOf, type ItemSlides, type LiveChannel } from '../live/live.ts';
 import { openOutput, useLivePointer } from '../live/useLive.ts';
@@ -19,7 +19,8 @@ export function Live({ id, live }: { id: string; live: LiveChannel }) {
       const items = await itemsOf(db, id);
       const slides = new Map<string, ItemSlides>();
       for (const item of items) slides.set(item.id, await slidesOf(db, item));
-      return { presentation: await getPresentation(db, id), items, slides };
+      const presentation = await getPresentation(db, id);
+      return { presentation, theme: await themeOf(db, presentation), items, slides };
     },
     [id],
   );
@@ -75,7 +76,7 @@ export function Live({ id, live }: { id: string; live: LiveChannel }) {
               className={selected && i === pointer.partIndex ? 'thumb current' : 'thumb'}
               onClick={() => live.set({ itemId: item.id, partIndex: i, black: false })}
             >
-              <SlideView slide={slide} />
+              <SlideView slide={slide} theme={data.theme} />
             </Button>
           ))}
         </div>
@@ -104,7 +105,7 @@ export function Live({ id, live }: { id: string; live: LiveChannel }) {
         <ol className="live-items">{data.items.map(itemRow)}</ol>
         <aside className="live-preview">
           <h2>{t('live.preview')}</h2>
-          <SlideView slide={pointer.black ? null : current} label={false} />
+          <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} />
         </aside>
       </div>
     </section>

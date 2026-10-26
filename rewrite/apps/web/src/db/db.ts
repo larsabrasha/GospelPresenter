@@ -1,5 +1,5 @@
 import type { MutatorArgs, MutatorName } from '@gp/core';
-import type { DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
+import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import type { ReadDb } from './share.ts';
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
@@ -43,6 +43,11 @@ export class Db implements ReadDb {
 
   query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
     return this.call({ op: 'query', sql, params });
+  }
+
+  /** Imports a Bible zip; rejects with a message to show (in Swedish) if it cannot. */
+  importBible(data: Uint8Array): Promise<BibleImportResult> {
+    return this.call({ op: 'importBible', data });
   }
 
   status(): Promise<DbStatus> {

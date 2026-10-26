@@ -1,0 +1,10 @@
+/*
+ * The typefaces of the built-in themes (spec 05), shipped with the app so a
+ * slide looks the same offline and in the desktop's locked-down window.
+ * Inter, Montserrat and Lato are under the SIL Open Font License 1.1
+ * (assets/fonts/OFL.txt). Classic uses Tahoma, which is not shipped: where it
+ * is missing, its stack falls back to Geneva or Verdana.
+ */
+@font-face { font-family: 'Inter'; font-style: normal; font-weight: 100 900; font-display: block; src: url('./assets/fonts/Inter-variable.woff2') format('woff2'); }
+@font-face { font-family: 'Montserrat'; font-style: normal; font-weight: 100 900; font-display: block; src: url('./assets/fonts/Montserrat-variable.woff2') format('woff2'); }
+@font-face { font-family: 'Lato'; font-style: normal; font-weight: 400; font-display: block; src: url('./assets/fonts/Lato-400.woff2') format('woff2'); }

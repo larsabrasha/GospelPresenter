@@ -9,6 +9,6 @@ export default defineConfig({
   build: { target: 'es2022' },
   server: {
     // `pnpm dev` talks to a server started with `pnpm --filter @gp/desktop serve` (port 8787).
-    proxy: Object.fromEntries(['/sync', '/auth', '/users', '/pair'].map((p) => [p, { target: 'http://127.0.0.1:8787', ws: p === '/sync' }])),
+    proxy: Object.fromEntries(['/sync', '/bibles', '/auth', '/users', '/pair'].map((p) => [p, { target: 'http://127.0.0.1:8787', ws: p === '/sync' }])),
   },
 });

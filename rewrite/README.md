@@ -10,7 +10,8 @@ arrangements, ranked search, the trash, item arrangements, renaming and moving i
 date after create. The output window reads through the operator window's database, so it also works
 where OPFS is missing. Milestone 3 brings real sign-in, membership and pairing (spec 01, ADR 0007
 decisions 6 and 12), so the desktop host can serve other devices on the LAN. Sign-in is with Google or
-a passkey: there are no passwords.
+a passkey: there are no passwords. Milestone 4 adds Bibles and themes (spec 05), so a Sunday service
+with Bible readings and a chosen look runs offline.
 
 | Package | What it is |
 |---|---|
@@ -24,7 +25,7 @@ a passkey: there are no passwords.
 pnpm install
 pnpm build
 pnpm lint && pnpm typecheck && pnpm test   # unit and sync tests, on Node, node:sqlite and local workerd
-pnpm e2e                                   # milestones 1–3 in Electron, with real windows
+pnpm e2e                                   # milestones 1–4 in Electron, with real windows
 
 export GP_GOOGLE_CLIENT_ID=… GP_GOOGLE_CLIENT_SECRET=…   # the host's Google client (see "Sign-in")
 pnpm --filter @gp/desktop start            # the desktop app: the host, on 127.0.0.1:47800
@@ -177,11 +178,65 @@ Version 3 drops milestone 3's passwords and its per-account lockout, and adds `u
 again and finishes the existing SuperAdmin and church; other users need a new invite, or on a host a
 new pairing. Version 4 adds passkeys: columns for the key, counter, transports and name in
 `user_logins`, the link columns in `login_flows`, and `passkey_flows`. Every login and session stays.
+Organisation schema version 3 (milestone 4) adds `presentations.theme_id`, `presentation_items.content`,
+the synced tables `bibles` and `org_settings`, and the local tables `bible_texts` and `bible_blobs`.
+
+### Bibles
+
+A translation is two things: a row in `bibles` (name, abbreviation, language, verse count and the
+hash of its text), which syncs like any other row, and its text, which does not. The text is one
+immutable document, `{"v":1,"books":[{"code":"GEN","verses":[[1,1,"…"],…]},…]}`, named by the
+SHA-256 of exactly that JSON. It is kept one row per book in `bible_texts`, plus a row in
+`bible_blobs` that says the text is complete, on the server (in the organisation's database or
+Durable Object) and on every device. Import reads the zip on the device (USX from a DBL zip, or
+USFM; `packages/core/src/bible-import.ts`), stores the text there, uploads it once
+(`PUT /bibles/{hash}`, Admin), and then runs the `importBible` mutation, which the server refuses
+unless it has that text. Every other device sees the row arrive in a pull and downloads the text
+once (`GET /bibles/{hash}`, any member, only from its own organisation), checks the hash, and keeps
+it; a text that no translation names any more is dropped on the next sync. Searching and adding
+verses then needs no network. An added reading is split into slides when it is added and kept on the
+item (`content`), so re-importing or deleting the translation leaves it as it was.
+
+Why not rows in the change log: 31 000 verses would be 31 000 changes for every device's first pull,
+in every organisation, and an import or a re-import would replay through every client's rebase. A
+whole translation is about 5 MB and never changes in place (a re-import is a new text), so it is
+fetched like a file. Measured in `apps/server/test/bibles.test.ts` with a generated full-size
+translation (66 books, 31 102 verses, 5.09 MB of JSON), on a laptop: upload 125–135 ms; a new
+device's first sync is a 3–5 ms pull (one row) plus 80–270 ms to download, verify and store the text
+(Node 80 ms, workerd 265 ms); reading every book back 20–25 ms; the device database grows by 5.25 MB.
+The server's database grows by about the same. Books are stored separately so no row comes near
+a Durable Object's 2 MB limit; a book is refused above 1.8 MB.
+
+To use a real translation: as an admin, open Biblar and choose a zip (or drop it on the page). A
+Digital Bible Library or bible.com export (`metadata.xml` with `USX_1/` or `USX_2/`), or an eBible.org
+USFM zip (`…_usfm.zip`), works. Many translations are under copyright: import only one the church
+may use. The repository has none; the tests use a few public-domain verses of the World English
+Bible (`packages/core/test/bible-fixtures.ts`) and generated text.
+
+### Themes
+
+The four built-in themes of spec 05 (Klassisk, Midnatt, Dagsljus, Norrsken) are code
+(`packages/core/src/themes.ts`), not rows. A presentation may name one (`theme_id`, in "Redigera
+detaljer"); otherwise it follows the organisation's default (`org_settings`, set on the Teman page),
+else Klassisk. An unknown id is Klassisk. Slides are drawn on a 1920×1080 stage with the theme's
+background, type and credits, in the editor, the live view and the output alike. Inter, Montserrat
+and Lato (OFL, `apps/web/src/assets/fonts/OFL.txt`) and Norrsken's picture ship with the app, so
+nothing is fetched from the internet; Klassisk uses Tahoma where the system has it, else Geneva or
+Verdana. To try them: Teman shows each with a sample slide; pick a default there, or a theme per
+presentation in "Redigera detaljer", and start the presentation.
 
 ## Not done yet
 
-Bible, images, themes, templates, English text, mobile, and deploying to Cloudflare. The Workers
-adapter is tested in local workerd only.
+Images, audio and the media library (so themes have no pictures of the organisation's own), profile
+pictures and logos, templates, English text, mobile, and deploying to Cloudflare. The Workers adapter
+is tested in local workerd only.
+
+From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
+the Teman page lists the built-ins and sets the default), the stage view and the public output, and
+the theme's Media style (there are no media slides). A translation imported while the server cannot be
+reached is not queued: the import says so, and is done again once connected (BIBLE-R16's
+device-local Bibles are not built). The Biblar page has no per-row "Gör tillgänglig offline": every
+device keeps every translation, which shows as "Tillgänglig offline" or "Hämtas...".
 
 From spec 01 and milestone 3: OIDC providers other than Google, which are not planned (ADR 0007
 (12)); passkey autofill (conditional mediation: the sign-in page has a button, no username field);
@@ -233,6 +288,27 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 - **The arrangement name field shows only with two or more arrangements** (SONG-A9, as the current
   app does).
 - **A purged song's items stay** in their presentations and say the song is gone.
+
+Milestone 4 (Bibles and themes):
+
+- **Bibles are imported and deleted by admins only** (D24); everyone can search and add verses. At most
+  10 per organisation; a translation is known by its abbreviation (case-insensitive), so importing one
+  with the same abbreviation replaces it (BIBLE-R5). Uploaded texts that no import then names are not
+  removed from the server.
+- **An item's title is the reference with full Swedish book names** ("Johannes 3:16-17", spec 05
+  BIBLE-R13) rather than spec 03's abbreviated one, and its credits are "{title} · {abbreviation}"
+  (D12). Verse text is stored as data, never HTML (D25).
+- **Verse text is cleaned at import**: headings, notes, cross references and introductions are left
+  out, and a word followed by punctuation keeps no space before it (the current app writes
+  "word ."). The `.usx` files of a zip are used when there is no `USX_1`/`USX_2` folder.
+- **A search that finds more than 500 verses asks before adding the first 500** (D13).
+- **Themes are not editable** (spec 05, ADR 0001): the task asked for create/edit, the spec and ADR
+  say the built-ins only for now, and the spec won.
+- **A new default theme reaches a running output at once**, like a presentation's own theme
+  (THEME-R6); spec 05's THEME-R11 keeps a running presentation on its theme until restarted. The black
+  screen stays black whatever the theme.
+- **The slide layout follows spec 05** (80 px padding, 144 px at the bottom, credits 32 px from the
+  bottom), for songs too, so song slides look a little different from milestones 1–3.
 
 Milestone 3 (sign-in, membership, pairing):
 

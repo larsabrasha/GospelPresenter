@@ -6,6 +6,7 @@ import { REPAIR_KEY } from './Boot.tsx';
 import { useDbStatus } from './db/react.tsx';
 import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
+import { Bibles } from './pages/Bibles.tsx';
 import { Devices } from './pages/Devices.tsx';
 import { Live } from './pages/Live.tsx';
 import { Logins } from './pages/Logins.tsx';
@@ -13,6 +14,7 @@ import { Output } from './pages/Output.tsx';
 import { PresentationEditor } from './pages/PresentationEditor.tsx';
 import { Presentations } from './pages/Presentations.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
+import { Themes } from './pages/Themes.tsx';
 import { Songs } from './pages/Songs.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { Users } from './pages/Users.tsx';
@@ -113,6 +115,14 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
             <a href={href({ page: 'presentations' })} aria-current={route.page.startsWith('presentation') ? 'page' : undefined}>
               {t('nav.presentations')}
             </a>
+            {can(me.role, 'ManageBibles') && (
+              <a href={href({ page: 'bibles' })} aria-current={route.page === 'bibles' ? 'page' : undefined}>
+                {t('nav.bibles')}
+              </a>
+            )}
+            <a href={href({ page: 'themes' })} aria-current={route.page === 'themes' ? 'page' : undefined}>
+              {t('nav.themes')}
+            </a>
             {viewUsers && (
               <a href={href({ page: 'users' })} aria-current={route.page === 'users' ? 'page' : undefined}>
                 {t('nav.users')}
@@ -139,6 +149,8 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
           {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
           {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}
           {route.page === 'logins' && <Logins error={route.error} />}
+          {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
+          {route.page === 'themes' && <Themes role={me.role} />}
         </main>
         <StatusBar />
       </div>

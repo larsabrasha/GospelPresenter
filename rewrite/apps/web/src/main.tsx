@@ -8,6 +8,7 @@ import { DbProvider, ReaderProvider } from './db/react.tsx';
 import { SharedReader, shareChannelName } from './db/share.ts';
 import { LiveChannel } from './live/live.ts';
 import { parseRoute } from './ui/router.ts';
+import './fonts.css';
 import './styles.css';
 
 const root = createRoot(document.getElementById('root')!);
