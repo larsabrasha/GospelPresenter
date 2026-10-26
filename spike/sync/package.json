@@ -1,0 +1,25 @@
+{
+  "name": "sync-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:node": "SYNC_ADAPTERS=node vitest run",
+    "test:workers": "SYNC_ADAPTERS=workers vitest run",
+    "build:worker": "pnpm --filter @spike/server build:worker"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261026.1",
+    "@spike/client": "workspace:*",
+    "@spike/core": "workspace:*",
+    "@spike/server": "workspace:*",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "^22.10.0",
+    "better-sqlite3": "13.0.3",
+    "esbuild": "0.28.2",
+    "miniflare": "4.20260730.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

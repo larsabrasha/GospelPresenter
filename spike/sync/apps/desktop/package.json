@@ -1,0 +1,7 @@
+{
+  "name": "@spike/desktop",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@spike/server": "workspace:*" },
+  "devDependencies": { "electron": "45.0.0" }
+}
