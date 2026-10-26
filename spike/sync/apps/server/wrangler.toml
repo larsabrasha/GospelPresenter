@@ -1,0 +1,20 @@
+# Local only: the spike has no Cloudflare account and deploys nothing.
+name = "gp-sync-spike"
+main = "src/worker.ts"
+compatibility_date = "2026-08-01"
+
+[vars]
+SPIKE_DEBUG = "1"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gp-sync-spike-global"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[[durable_objects.bindings]]
+name = "ORG"
+class_name = "OrgDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OrgDurableObject"]

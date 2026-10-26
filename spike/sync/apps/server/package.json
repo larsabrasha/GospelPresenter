@@ -1,0 +1,29 @@
+{
+  "name": "@spike/server",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
+  "scripts": {
+    "build:worker": "esbuild src/worker.ts --bundle --format=esm --platform=neutral --main-fields=module,main --external:cloudflare:workers --outfile=dist/worker.js",
+    "dev:worker": "wrangler dev"
+  },
+  "dependencies": {
+    "@spike/core": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.14",
+    "@hono/node-server": "2.1.5",
+    "better-sqlite3": "13.0.3",
+    "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261026.1",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/ws": "^8.5.13",
+    "esbuild": "0.28.2",
+    "miniflare": "4.20260730.0",
+    "wrangler": "4.152.0"
+  }
+}
