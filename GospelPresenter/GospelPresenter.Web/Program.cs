@@ -8,6 +8,7 @@ using GospelPresenter.Web.Components;
 using GospelPresenter.Shared.Services;
 using GospelPresenter.Shared.State;
 using GospelPresenter.Shared.Sync;
+using GospelPresenter.Shared.Utils;
 using GospelPresenter.Web;
 using GospelPresenter.Web.Configuration;
 using GospelPresenter.Web.Mcp;
@@ -275,6 +276,9 @@ try
 
     builder.Services.AddSingleton<IStatusBarService, StatusBarService>();
     builder.Services.AddSingleton<SetupStatusService>();
+    builder.Services.AddSingleton(sp => new SetupTokenService(
+        SetupTokenService.ReadConfiguredToken(builder.Configuration),
+        sp.GetRequiredService<ILogger<SetupTokenService>>()));
 
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddTransient<McpCallerContextAccessor>();
@@ -291,7 +295,7 @@ try
 
     builder.Services.UseHttpClientMetrics();
 
-    string[] supportedCultures = ["en", "sv"];
+    var supportedCultures = GospelPresenter.Shared.Localization.AppCultures.Supported;
     builder.Services.Configure<RequestLocalizationOptions>(options =>
     {
         options.SetDefaultCulture(supportedCultures[0])
@@ -391,6 +395,25 @@ builder.Services.AddMetricServer(options =>
         await songService.LoadSongsAsync();
     }
 
+    // Print the setup token as soon as the server is up when setup is still pending, rather than
+    // only once someone requests a page. The database may still be migrating at this point, so a
+    // failure is only logged: the setup middleware below announces on the first request instead.
+    app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
+    {
+        try
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var userService = scope.ServiceProvider.GetRequiredService<IUserService>();
+            if (!await app.Services.GetRequiredService<SetupStatusService>().IsSetupCompleteAsync(userService))
+                app.Services.GetRequiredService<SetupTokenService>().AnnounceSetupPending();
+        }
+        catch (Exception ex)
+        {
+            app.Services.GetRequiredService<ILogger<SetupTokenService>>()
+                .LogDebug(ex, "Could not check setup status at startup");
+        }
+    }));
+
     app.MapDefaultEndpoints();
 
     app.UseSerilogRequestLogging();
@@ -489,6 +512,8 @@ builder.Services.AddMetricServer(options =>
 
             if (!await setupStatus.IsSetupCompleteAsync(userService))
             {
+                context.RequestServices.GetRequiredService<SetupTokenService>().AnnounceSetupPending();
+
                 // Clear any stale auth cookie from a previous session to prevent
                 // MainLayout's auth logic from causing a redirect loop
                 if (context.User.Identity?.IsAuthenticated == true)
@@ -602,13 +627,16 @@ builder.Services.AddMetricServer(options =>
         }).AllowAnonymous();
     }
 
-    app.MapGet("/signin", (string? returnUrl, string? provider, IAuthProviderService authProviders) =>
+    app.MapGet("/signin", (string? returnUrl, string? provider, IAuthProviderService authProviders, HttpContext context) =>
     {
         var scheme = ResolveScheme(provider, authProviders);
         if (scheme == null)
             return Results.Redirect("/authentication-error");
 
-        return Results.Challenge(new AuthenticationProperties { RedirectUri = returnUrl ?? "/" }, [scheme]);
+        // The provider's callback redirects here after a genuine sign-in, so anything but a path on
+        // this site would make every sign-in link an open redirect.
+        var redirectUri = LocalUrl.OrFallback(returnUrl, context.Request.Host.Value);
+        return Results.Challenge(new AuthenticationProperties { RedirectUri = redirectUri }, [scheme]);
     }).AllowAnonymous();
 
     app.MapGet("/invite/{token}/signin", async (string token, string provider, IUserService userService, IAuthProviderService authProviders) =>
@@ -644,6 +672,13 @@ builder.Services.AddMetricServer(options =>
 
     app.MapPost("/culture", async (HttpContext context, [FromForm] string culture, [FromForm] string returnUrl, IUserService userService) =>
     {
+        // Stored as the user's language and restored into the culture cookie on every new browser,
+        // so only a language the app actually has is accepted.
+        var supportedCulture = GospelPresenter.Shared.Localization.AppCultures.Normalize(culture);
+        if (supportedCulture is null)
+            return Results.BadRequest();
+        culture = supportedCulture;
+
         context.Response.Cookies.Append(
             CookieRequestCultureProvider.DefaultCookieName,
             CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
@@ -658,7 +693,8 @@ builder.Services.AddMetricServer(options =>
             await userService.SetUserSettingAsync(userId, UserSetting.PreferredLanguage, culture, caller);
         }
 
-        return Results.LocalRedirect(returnUrl ?? "/");
+        // LocalRedirect would throw on anything else and answer with a 500.
+        return Results.LocalRedirect(LocalUrl.OrFallback(returnUrl));
     }).RequireAuthorization();
 
     // Auth check runs on every request (DB lookup) even though the response is cached

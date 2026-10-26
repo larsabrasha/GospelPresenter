@@ -10,6 +10,10 @@
         if (Services.GetService(typeof(IDeviceSignIn)) is not null)
             Navigation.NavigateTo("/login");
         else
-            Navigation.NavigateTo($"/signin?returnUrl={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+        {
+            // A path, not the absolute URI: /signin only returns to local URLs.
+            var returnUrl = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+            Navigation.NavigateTo($"/signin?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+        }
     }
 }

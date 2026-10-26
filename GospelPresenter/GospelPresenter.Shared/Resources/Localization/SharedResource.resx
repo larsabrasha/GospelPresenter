@@ -422,6 +422,15 @@
   <data name="Users.CannotChangeOwnRole" xml:space="preserve">
     <value>You cannot change your own role</value>
   </data>
+  <data name="UserProtection.SuperAdminOnly" xml:space="preserve">
+    <value>Only a super admin can change or delete a super admin.</value>
+  </data>
+  <data name="UserProtection.LastSuperAdmin" xml:space="preserve">
+    <value>The last super admin cannot be demoted or deleted.</value>
+  </data>
+  <data name="UserProtection.OwnHomeOrganization" xml:space="preserve">
+    <value>You cannot delete your own organization, since that would delete your account too.</value>
+  </data>
   <data name="Users.InvalidEmail" xml:space="preserve">
     <value>Invalid email address</value>
   </data>
@@ -655,6 +664,18 @@
   </data>
   <data name="Setup.OrganizationRequired" xml:space="preserve">
     <value>Organization name is required.</value>
+  </data>
+  <data name="Setup.Token" xml:space="preserve">
+    <value>Setup token</value>
+  </data>
+  <data name="Setup.TokenHint" xml:space="preserve">
+    <value>The SETUP_TOKEN you configured, or the one-time token printed in the server log when none is configured.</value>
+  </data>
+  <data name="Setup.TokenRequired" xml:space="preserve">
+    <value>Setup token is required.</value>
+  </data>
+  <data name="Setup.TokenInvalid" xml:space="preserve">
+    <value>The setup token is not correct.</value>
   </data>
   <data name="AppLogin.Title" xml:space="preserve">
     <value>You are signed in</value>
