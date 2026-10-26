@@ -42,9 +42,10 @@ self-hosted container, and run it beside the current app until it has proved its
 
 1. **React + TypeScript + Vite clients; a Hono server; Drizzle on SQLite everywhere.** The server runs
    on Cloudflare Workers and on Node — Node for self-hosting and embedded in the desktop app. Every
-   database is SQLite: D1 on Cloudflare, libsql or better-sqlite3 on Node, wa-sqlite on OPFS in the
-   browser, better-sqlite3 in Electron, capacitor-sqlite on mobile. One schema and one dialect,
-   shared by server and clients.
+   database is SQLite: on Cloudflare, each organisation's data in its Durable Object's own SQLite and
+   global tables (users, logins, organisations, device tokens) in D1; libsql or better-sqlite3 on
+   Node, wa-sqlite on OPFS in the browser, better-sqlite3 in Electron, capacitor-sqlite on mobile. One
+   schema and one dialect, shared by server and clients.
 
    Three reasons. It is the stack of the author's other apps. The development loop is fast — Vite
    HMR, Vitest, and no containers needed to develop. And operation is cheap and simple: on Cloudflare
@@ -72,7 +73,18 @@ self-hosted container, and run it beside the current app until it has proved its
    - **Pulls are cursored by server-assigned monotonic sequence numbers, not timestamps.** SQLite and
      D1 serialise writers, so a sequence number assigned inside the write transaction is in commit
      order, and the long-transaction hazard of ADR 0006 cannot occur.
-   - **Zero, PowerSync and Replicache are evaluated before we build our own.** See Open questions.
+   - **We build our own engine.** Zero, PowerSync and Electric need Postgres and a separate sync
+     service, Replicache is archived, and the rest fail D4 or are not mature
+     (`research/sync-engine-evaluation.md`). The protocol follows the one Replicache documents:
+     a last mutation id per client, a pull cookie, a reset when the cookie cannot be served, and a
+     client-side rebase. A two-day spike proves it before anything else is built on it.
+   - **On Cloudflare, an organisation's data lives in its Durable Object** — the same object that
+     holds its live state (D2, decision 4). D1 has no interactive transactions, only atomic
+     `batch()`, so it cannot run a mutator that reads, checks permission and writes atomically; a
+     Durable Object's SQLite can, and it holds up to 10 GB per object on the paid plan. D1 keeps the
+     global tables that are not synced per organisation. On Node and in the desktop the same split
+     is one SQLite file per organisation beside a global one, so the organisation is one unit for
+     data, sync and live on every runtime.
 
 3. **One local database per account and organisation (D3).** Signing in as another account opens
    another database; switching back resumes its unsynced work. Nothing is wiped and nothing is pushed
@@ -221,9 +233,10 @@ for the new app; the mechanisms are retired with the stack.
 - **Zero, PowerSync or Replicache, or our own.** Each must be checked against: SQLite on both ends
   and on Workers, a self-hosted server with no external service, GPLv3-compatible licensing, server
   re-execution with our own authorization, and one database per account and organisation. Building
-  our own is the fallback, not the default. The evaluation in `research/sync-engine-evaluation.md`
-  recommends building our own Replicache-style mutation log, because Zero, PowerSync and Electric
-  need Postgres and a separate sync service and Replicache is archived, to be proven by a two-day spike.
+  our own was the fallback, not the default. **Settled after this ADR was written:** the evaluation
+  in `research/sync-engine-evaluation.md` found no engine that meets all of these, so we build our own
+  (decision 2), with organisation data in the organisation's Durable Object on Cloudflare. A two-day
+  spike proves it; if it fails, decision 2 is reopened.
 - **The PPTX cost figures in (10)** are estimates until measured against real church decks.
 - **D8, decided after this ADR was written:** the embedded LAN server does not replace the server
   field. The desktop and mobile sign-in screen gets a discreet "Other server" link, prefilled with the
