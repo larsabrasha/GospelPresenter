@@ -162,9 +162,28 @@ self-hosted container, and run it beside the current app until it has proved its
     One policy module used by both the mutation layer and the UI is how "a visible link always means
     an allowed action" holds, which the spec found false in several places today.
 
-12. **Auth: Google and OIDC, plus the existing device flow with per-scheme callbacks.** better-auth is
-    a candidate. First-run setup requires a setup token (D19); the current app now has one too, on
-    branch `claude/security-fixes`.
+12. **Auth: Google only now, passkeys later; no passwords and no generic OIDC.** The device flow
+    with per-scheme callbacks stays (spec 01, ADR 0005). First-run setup requires a setup token (D19);
+    the current app now has one too, on branch `claude/security-fixes`.
+
+    *Amended after this ADR was written*, by the owner's decision; it replaces "Google and OIDC". Two
+    reasons. The churches that use the app sign in with Google already, and one provider is one
+    thing to configure and test. And passwords on Workers mean a key-derivation function inside a
+    request's CPU budget: Web Crypto offers only PBKDF2, which hosted Workers have capped at 100 000
+    iterations, below OWASP's 600 000, while scrypt and argon2 need a native module or compatibility
+    flags. Milestone 3 built email and password with PBKDF2 for the offline desktop host, and that is
+    removed.
+    - **Google with the authorization code flow, PKCE, `state` and `nonce`,** and the ID token
+      verified by the server against Google's published keys with Web Crypto, so the same code runs on
+      Node, Workers and Electron with no library. better-auth is not used.
+    - **Logins are linked by Google's `sub`** in a table of (provider, subject, user) — spec 01's
+      `UserLogin` — never matched by email. Passkeys will be a second provider in the same table.
+    - **The desktop host signs in once, with internet,** through the system browser and the device
+      flow; then it works offline with its session. Other devices on the LAN never sign in with
+      Google against the host — they pair, and the pairing code signs them in as the member the host
+      chose.
+    - **No generic OIDC provider and no mock login.** Tests use a fake Google that only a test build
+      can be pointed at.
 
 ### Getting there
 
