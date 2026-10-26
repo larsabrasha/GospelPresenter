@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./wa-sqlite": "./src/wa-sqlite-db.ts",
-    "./better-sqlite3": "./src/better-sqlite3-db.ts"
+    "./better-sqlite3": "./src/better-sqlite3-db.ts",
+    "./node-sqlite": "./src/node-sqlite-db.ts"
   },
   "dependencies": {
     "@spike/core": "workspace:*",

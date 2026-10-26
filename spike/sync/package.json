@@ -6,6 +6,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:node": "SYNC_ADAPTERS=node vitest run",
+    "test:node-sqlite": "SYNC_ADAPTERS=node-sqlite vitest run",
     "test:workers": "SYNC_ADAPTERS=workers vitest run",
     "build:worker": "pnpm --filter @spike/server build:worker"
   },

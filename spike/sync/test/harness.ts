@@ -9,7 +9,7 @@ import { openWaSqlite } from '@spike/client/wa-sqlite';
 import type { Dump, MutatorCtx, Role } from '@spike/core';
 import { startNodeServer } from '@spike/server/node';
 
-export type AdapterName = 'node' | 'workers';
+export type AdapterName = 'node' | 'node-sqlite' | 'workers';
 
 /** A running server, whichever runtime is behind it. */
 export interface Harness {
@@ -22,9 +22,11 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 export const POKE_WINDOW_MS = 500;
 
 export async function startAdapter(name: AdapterName): Promise<Harness> {
-  if (name === 'node') {
+  if (name === 'node' || name === 'node-sqlite') {
+    // 'node-sqlite' is the driver the Electron build uses (see apps/desktop).
     const dataDir = mkdtempSync(join(tmpdir(), 'gp-sync-'));
-    const s = await startNodeServer({ dataDir, debug: true, pokeWindowMs: POKE_WINDOW_MS });
+    const driver = name === 'node' ? 'better-sqlite3' : 'node:sqlite';
+    const s = await startNodeServer({ dataDir, driver, debug: true, pokeWindowMs: POKE_WINDOW_MS });
     return {
       name,
       url: s.url,

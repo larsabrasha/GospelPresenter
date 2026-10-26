@@ -17,7 +17,7 @@ import {
   type Harness,
 } from './harness.ts';
 
-const adapters = (process.env.SYNC_ADAPTERS ?? 'node,workers').split(',') as AdapterName[];
+const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
 
 /** Measured numbers, printed at the end for RESULTS.md. */
 export const measured: Record<string, number[]> = {};
@@ -153,7 +153,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
 
   it('random interleavings on three clients converge (seeded)', async () => {
     await seed();
-    let seed_ = adapterName === 'node' ? 7 : 11;
+    let seed_ = { node: 7, 'node-sqlite': 9, workers: 11 }[adapterName];
     const rnd = (n: number) => ((seed_ = (seed_ * 1103515245 + 12345) % 2 ** 31), seed_ % n);
     const ds = [alice, bob, carol];
     let n = 0;
