@@ -51,7 +51,7 @@ export interface PullResponse {
   results: MutationResult[];
 }
 
-/** Body of a 409 answer to a client the server can no longer serve. */
+/** Body of a 426 answer to a client the server can no longer serve (SYNC-R35). Clients key on `error`, not the status. */
 export interface UpdateRequired {
   error: 'update-required';
   minimumProtocol: number;

@@ -39,11 +39,11 @@ export interface OrgStore {
   transaction<T>(fn: () => Promise<T>): Promise<T>;
 }
 
-export type SyncResult<T> = { status: 200; body: T } | { status: 400 | 403 | 409; body: object };
+export type SyncResult<T> = { status: 200; body: T } | { status: 400 | 403 | 426; body: object };
 
 function updateRequired(detail: string): SyncResult<never> {
   const body: UpdateRequired = { error: 'update-required', minimumProtocol: MIN_PROTOCOL, detail };
-  return { status: 409, body };
+  return { status: 426, body };
 }
 
 function checkVersion(protocol: unknown, schemaVersion: unknown): SyncResult<never> | null {

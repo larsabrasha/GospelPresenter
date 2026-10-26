@@ -158,7 +158,7 @@ export class SyncClient {
   }
 
   private isUpdateRequired(res: { status: number; body: unknown }) {
-    if (res.status === 409 && (res.body as { error?: string }).error === 'update-required') {
+    if (res.status === 426 && (res.body as { error?: string }).error === 'update-required') {
       this.updateRequired = true;
       return true;
     }

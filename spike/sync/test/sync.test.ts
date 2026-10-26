@@ -350,7 +350,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
       org,
       body: { protocol: 0, schemaVersion: SCHEMA_VERSION, clientId: 'x', cookie: null, lastMutationId: 0 },
     });
-    expect(raw).toEqual({ status: 409, body: { error: 'update-required', minimumProtocol: 1, detail: 'protocol 0' } });
+    expect(raw).toEqual({ status: 426, body: { error: 'update-required', minimumProtocol: 1, detail: 'protocol 0' } });
   });
 
   it('SYNC-R42: a server edit reaches another client in under 3 s through a poke', async () => {

@@ -24,7 +24,7 @@ The evaluation's criteria first, then the ones the spike brief added.
 | SYNC-A12: label created offline that the server already has | **Pass** | Deterministic label ids (`label:` + normalised text). One `Bridge` row on both ends (the server's spelling survives), and both songs' links point at it, with no remapping. |
 | Retried push after a lost response is idempotent | **Pass** | The response to a push is dropped and the client pushes again. The server dump, including the change log, is identical before and after the retry. |
 | Delete versus concurrent edit | **Pass** | Delete during a reorder that names the item, and a reorder during a delete: the deletion is exact and the reorder lands on the remaining items, in both orders. |
-| Old client refused with "update required" | **Pass** | `protocol: 0` → `409 {error:"update-required", minimumProtocol:1}` on push and pull; the client stops syncing and keeps its queue. 409 follows the evaluation; SYNC-R35 today uses 426, so pick one. |
+| Old client refused with "update required" | **Pass** | `protocol: 0` → `426 {error:"update-required", minimumProtocol:1}` on push and pull; the client stops syncing and keeps its queue. 426 as in SYNC-R35 today (decided after the spike; it first used 409); clients key on `error`, not the status. |
 | SQLite triggers in DO SQLite and in local D1 | **Pass (local only)** | The whole change log is trigger-written on every adapter, and a separate probe creates a trigger in D1 and in DO SQLite and sees it fire. Only workerd's local D1 and DO were tested, not Cloudflare's hosted ones. |
 | Pokes over WebSocket | **Pass** | Hibernatable API (`ctx.acceptWebSocket` with the client id as tag) on the DO, `ws` on Node. The writer is not poked by its own change (SYNC-R39). |
 | Electron with an embedded server, second client over the LAN | **Pass (one host)** | Electron 45.0.0 (Node 24.22.0) under `xvfb-run`, with a hardened window. A wa-sqlite "tablet" syncs over `http://192.0.2.2:<port>` (eth0, not loopback). Both directions take ~520–560 ms, and the tablet, the desktop's own client and the server converge. All four combinations passed: better-sqlite3 or node:sqlite, in Electron or in plain Node. Electron with node:sqlite also passed three runs in a row. |
@@ -164,4 +164,4 @@ Versions: Node 22.22.0, pnpm 10.28.0, TypeScript 7.0.2, Vitest 5.0.5, drizzle-or
    hosted DO, D1-trigger and hibernation gaps.
 3. Run the client in a real browser on wa-sqlite + OPFS in a worker (Playwright) with the same
    scenarios. Those are the riskiest parts left.
-4. Choose 409 or 426 for "update required", and fix the root `.gitignore`.
+4. ~~Choose 409 or 426 for "update required", and fix the root `.gitignore`.~~ Done: 426, and the NuGet `packages` rule is scoped to the .NET solution.

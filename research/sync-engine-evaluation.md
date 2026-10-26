@@ -216,7 +216,7 @@ pruned, and a cookie older than that window gets a reset.
 Body: `{ protocol, schemaVersion, clientId, mutations: [{ id, name, v, args }] }`.
 
 1. Authenticate (SYNC-R1). Unknown `protocol` or a mutator version below the floor →
-   `409 { error: "update-required" }`; the client stops pushing and keeps its queue (SYNC-R35).
+   `426 { error: "update-required" }`; the client stops pushing and keeps its queue (SYNC-R35).
 2. Route to the organisation's serialization point (below). For each mutation in order:
    `id <= last_mutation_id` → skip (retry after a lost response); `id > last + 1` → error, client
    resets; otherwise run the mutator inside a savepoint. If it throws or `can()` refuses, roll back
