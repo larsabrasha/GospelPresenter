@@ -8,6 +8,9 @@ The spec describes **behaviour, not implementation**. The C# code is the evidenc
 blueprint. Each section separates what users depend on from what exists only because of Blazor, EF,
 SignalR or MAUI ("Implementation artefacts").
 
+The decision to rewrite, and the stack it is rewritten on, is recorded in
+[ADR 0007](../adr/0007-rewrite-on-typescript-local-first.md).
+
 ## Sections
 
 | # | Section | Rule prefix | What it covers |
@@ -71,6 +74,7 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 | D6 | Drop MAUI for Capacitor/PWA? | Yes | 06 Q13 |
 | D7 | Should edits during live update what is on screen? | Yes — outputs render from local data plus the live pointer, so this falls out of the design | 04 Q4, 05 Q8 |
 | D8 | Does the embedded LAN server replace the planned server field and server-provided update feed? | Keep the server field (self-hosters need it); the update feed waits for code signing | 06 Q11 |
+| D29 | How are PDF and PowerPoint files turned into slides without a server-side renderer? | **Decided:** see ADR 0007 | 05, 03 (PdfRenderService) |
 
 ### Product behaviour
 
