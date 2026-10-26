@@ -246,6 +246,52 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     expect((await serverDump(h, org, 'alice')).tables.presentations[0]!.theme_id).toBeNull();
   });
 
+  it('an upsert in a mutator (setDefaultTheme) is undone, rebased onto the server and replayed, or dropped if refused', async () => {
+    await setRole(h, 'dave', org, 'admin');
+    const dave = await device(h, org, 'dave', 'admin');
+    devices.push(dave);
+    const setting = async (d: Device) => (await d.client.dump()).org_settings.map((r) => r.value);
+
+    // Inserting, refused: alice is no longer an admin on the server, so her row goes.
+    alice.net.online = false;
+    await alice.client.mutate('setDefaultTheme', { themeId: 'midnight' });
+    expect(await setting(alice)).toEqual(['midnight']);
+    await setRole(h, 'alice', org, 'user');
+    alice.net.online = true;
+    await alice.client.sync();
+    expect(alice.client.rejected.map((r) => r.error)).toEqual(['forbidden']);
+    expect(await setting(alice)).toEqual([]);
+    await setRole(h, 'alice', org, 'admin');
+
+    // Updating, concurrently: the server's value comes in under alice's pending one, which then wins.
+    await alice.client.mutate('setDefaultTheme', { themeId: 'midnight' });
+    await alice.client.sync();
+    alice.net.online = false;
+    await alice.client.mutate('setDefaultTheme', { themeId: 'aurora' });
+    await alice.client.mutate('setDefaultTheme', { themeId: 'aurora' });
+    await dave.client.pull();
+    await dave.client.mutate('setDefaultTheme', { themeId: 'daylight' });
+    await dave.client.sync();
+    alice.net.online = true;
+    await alice.client.pull();
+    expect(await setting(alice)).toEqual(['aurora']);
+    expect(await alice.client.pending()).toHaveLength(2);
+    await alice.client.sync();
+    await dave.client.pull();
+    expect((await serverDump(h, org, 'alice')).tables.org_settings).toEqual([{ id: 'defaultThemeId', value: 'aurora' }]);
+    expect(await setting(dave)).toEqual(['aurora']);
+
+    // Updating, refused: alice's row goes back to the server's.
+    alice.net.online = false;
+    await alice.client.mutate('setDefaultTheme', { themeId: 'classic' });
+    await setRole(h, 'alice', org, 'user');
+    alice.net.online = true;
+    await alice.client.sync();
+    expect(alice.client.rejected.map((r) => r.error)).toEqual(['forbidden', 'forbidden']);
+    expect(await setting(alice)).toEqual(['aurora']);
+    expect(JSON.stringify(await alice.client.dump())).toBe(JSON.stringify((await serverDump(h, org, 'dave')).tables));
+  });
+
   it('measures a full-size translation: upload, first sync of a new device, and its database size', async () => {
     const books = fullSizeText();
     const json = serializeBibleText(books);

@@ -44,7 +44,10 @@ function requirePermission(ctx: MutatorCtx, permission: Permission) {
 
 // Mutators must be deterministic: ids and timestamps arrive as arguments, and
 // they read only through `tx`. Each one sets only the fields it names, so two
-// edits to different fields both land (ADR 0007, decision 2).
+// edits to different fields both land (ADR 0007, decision 2). Upserts
+// (onConflictDoUpdate, onConflictDoNothing) are fine; replacing a row is not,
+// as the client's undo triggers never see the row it deletes (sync-sql.ts).
+// `pnpm lint` refuses one here (scripts/check-mutator-sql.mjs).
 
 /** Limits of spec 02 and 03 (SONG-R7–R9, PRES-R10). Trashed rows do not count. */
 export const LIMITS = { songs: 5000, partsPerSong: 50, arrangementsPerSong: 10, itemsPerPresentation: 100 } as const;
@@ -628,8 +631,6 @@ async function importBible(tx: Tx, a: z.output<typeof importBibleArgs>, ctx: Mut
     limit((n?.n ?? 0) >= BIBLE_LIMITS.bibles, 'Bibles');
   }
   const row = { name: a.name, abbreviation: a.abbreviation, language: a.language, verseCount: text.verseCount, contentHash: a.contentHash };
-  // Insert or update, never an upsert: an upsert's ON CONFLICT overrides the
-  // OR IGNORE in the client's undo triggers (sync-sql.ts) and fails there.
   if (existing) await tx.update(bibles).set(row).where(eq(bibles.id, bid));
   else await tx.insert(bibles).values({ id: bid, ...row });
   if (existing && existing.contentHash !== a.contentHash) await dropUnusedText(tx, existing.contentHash);
@@ -654,10 +655,10 @@ const setDefaultThemeArgs = z.object({ themeId: id });
 async function setDefaultTheme(tx: Tx, a: z.output<typeof setDefaultThemeArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageThemes');
   requireTheme(a.themeId);
-  const [current] = await tx.select({ id: orgSettings.id }).from(orgSettings).where(eq(orgSettings.id, DEFAULT_THEME_SETTING));
-  // Not an upsert: see importBible.
-  if (current) await tx.update(orgSettings).set({ value: a.themeId }).where(eq(orgSettings.id, DEFAULT_THEME_SETTING));
-  else await tx.insert(orgSettings).values({ id: DEFAULT_THEME_SETTING, value: a.themeId });
+  await tx
+    .insert(orgSettings)
+    .values({ id: DEFAULT_THEME_SETTING, value: a.themeId })
+    .onConflictDoUpdate({ target: orgSettings.id, set: { value: a.themeId } });
 }
 
 // ------------------------------------------------------------------ trash

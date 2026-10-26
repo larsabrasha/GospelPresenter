@@ -25,6 +25,7 @@ with Bible readings and a chosen look runs offline.
 pnpm install
 pnpm build
 pnpm lint && pnpm typecheck && pnpm test   # unit and sync tests, on Node, node:sqlite and local workerd
+                                           # (lint also refuses a REPLACE in a mutator: see Assumptions)
 pnpm e2e                                   # milestones 1–4 in Electron, with real windows
 
 export GP_GOOGLE_CLIENT_ID=… GP_GOOGLE_CLIENT_SECRET=…   # the host's Google client (see "Sign-in")
@@ -311,6 +312,16 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 
 Milestone 4 (Bibles and themes):
 
+- **Mutators may upsert, never replace.** SQLite lets the statement that fires a trigger override
+  the trigger's own conflict clause, so an upsert (`onConflictDoUpdate`) used to turn the `OR IGNORE`
+  of the client's undo triggers, and the `OR REPLACE` of the server's change triggers, into a UNIQUE
+  failure. Neither trigger has a conflict clause now (`packages/core/src/sync-sql.ts`): the undo
+  trigger inserts only where no pre-image exists, and the change trigger deletes the entity's row and
+  inserts it again. A server database gets the new triggers when it opens. `INSERT OR REPLACE` and
+  `REPLACE INTO` stay out of mutators, because a replace deletes the old row without firing the delete
+  trigger, so a rebase cannot bring it back: `pnpm lint` runs `scripts/check-mutator-sql.mjs`, which
+  refuses one in `packages/core/src/mutators.ts`. `apps/server/test/triggers.test.ts` shows both, and
+  `setDefaultTheme`, an upsert, is rebased and refused in `apps/server/test/bibles.test.ts`.
 - **Bibles are imported and deleted by admins only** (D24); everyone can search and add verses. At most
   10 per organisation; a translation is known by its abbreviation (case-insensitive), so importing one
   with the same abbreviation replaces it (BIBLE-R5). Uploaded texts that no import then names are not
