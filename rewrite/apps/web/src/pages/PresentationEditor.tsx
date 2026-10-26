@@ -306,6 +306,7 @@ export function PresentationEditor({ id }: { id: string }) {
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
     if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (document.querySelector('[aria-modal="true"]')) return; // a dialog is open, even if focus slipped behind it (PRES-R37)
     if (e.key === 'a') setAdding(true);
     else if (e.key === 'F2' && selected) setRenaming(true);
     else if (e.key === 'Delete' && selected) void removeItem(selected);
