@@ -111,9 +111,16 @@ self-hosted container, and run it beside the current app until it has proved its
    open without it. Electron is hardened: `contextIsolation` on, `nodeIntegration` off, a narrow
    preload, and a strict CSP.
 
-7. **Mobile: drop MAUI (D6).** Start as a PWA; wrap it with Capacitor when app-store presence or
-   native plugins are needed. Driving an external display from a phone or tablet would need a small
-   native plugin, and is out of scope unless someone asks for it.
+7. **Mobile: drop MAUI (D6). Tablets that must work offline run the Capacitor app.** A page that a
+   tablet loads from the desktop over plain `http` on the LAN is not a secure context, so the
+   browser gives it no OPFS and no `crypto.randomUUID`; the sync spike confirmed this on a real iPad.
+   Such a tablet can only work online against the desktop, with its data in memory. The Capacitor
+   app has real SQLite and no secure-context rule, so it keeps its data through reloads and outages.
+   https on the LAN was rejected: every tablet would have to trust a certificate the desktop makes.
+   - **The browser stays a client** for the cloud and for https self-hosting, on OPFS. Where OPFS is
+     missing (Safari private browsing, or plain http) it falls back to memory and says so.
+   - Driving an external display from a phone or tablet would need a small native plugin, and is out
+     of scope unless someone asks for it.
 
 ### Rendering, media and import
 
@@ -235,8 +242,10 @@ for the new app; the mechanisms are retired with the stack.
   re-execution with our own authorization, and one database per account and organisation. Building
   our own was the fallback, not the default. **Settled after this ADR was written:** the evaluation
   in `research/sync-engine-evaluation.md` found no engine that meets all of these, so we build our own
-  (decision 2), with organisation data in the organisation's Durable Object on Cloudflare. A two-day
-  spike proves it; if it fails, decision 2 is reopened.
+  (decision 2), with organisation data in the organisation's Durable Object on Cloudflare. **The
+  spike passed** (`spike/sync/RESULTS.md` on branch `claude/sync-spike`): on Node, on hosted
+  Cloudflare, in Chromium, WebKit and Firefox on OPFS, and between a Mac and a real iPad on the LAN.
+  Still unproven: Durable Object hibernation, load, Safari on iPad with OPFS, and Capacitor.
 - **The PPTX cost figures in (10)** are estimates until measured against real church decks.
 - **D8, decided after this ADR was written:** the embedded LAN server does not replace the server
   field. The desktop and mobile sign-in screen gets a discreet "Other server" link, prefilled with the
