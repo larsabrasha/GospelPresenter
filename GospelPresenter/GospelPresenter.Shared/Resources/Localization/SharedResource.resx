@@ -422,6 +422,15 @@
   <data name="Users.CannotChangeOwnRole" xml:space="preserve">
     <value>You cannot change your own role</value>
   </data>
+  <data name="UserProtection.SuperAdminOnly" xml:space="preserve">
+    <value>Only a super admin can change or delete a super admin.</value>
+  </data>
+  <data name="UserProtection.LastSuperAdmin" xml:space="preserve">
+    <value>The last super admin cannot be demoted or deleted.</value>
+  </data>
+  <data name="UserProtection.OwnHomeOrganization" xml:space="preserve">
+    <value>You cannot delete your own organization, since that would delete your account too.</value>
+  </data>
   <data name="Users.InvalidEmail" xml:space="preserve">
     <value>Invalid email address</value>
   </data>

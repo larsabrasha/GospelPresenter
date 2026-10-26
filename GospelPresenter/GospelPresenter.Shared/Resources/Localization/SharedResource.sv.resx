@@ -422,6 +422,15 @@
   <data name="Users.CannotChangeOwnRole" xml:space="preserve">
     <value>Du kan inte ändra din egen roll</value>
   </data>
+  <data name="UserProtection.SuperAdminOnly" xml:space="preserve">
+    <value>Bara en superadmin kan ändra eller ta bort en superadmin.</value>
+  </data>
+  <data name="UserProtection.LastSuperAdmin" xml:space="preserve">
+    <value>Den sista superadminen kan inte nedgraderas eller tas bort.</value>
+  </data>
+  <data name="UserProtection.OwnHomeOrganization" xml:space="preserve">
+    <value>Du kan inte ta bort din egen organisation, eftersom ditt konto då också skulle tas bort.</value>
+  </data>
   <data name="Users.InvalidEmail" xml:space="preserve">
     <value>Ogiltig e-postadress</value>
   </data>

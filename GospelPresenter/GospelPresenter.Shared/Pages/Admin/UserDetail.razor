@@ -57,11 +57,11 @@
                 </DropZone>
             </div>
             <FloatingInput Id="user-name" Label="@L["Common.Name"]" Value="@editName" OnInput="HandleNameChanged"
-                           MaxLength="AppConstraints.NameMaxLength"/>
+                           MaxLength="AppConstraints.NameMaxLength" Disabled="@(!CanManageTarget)"/>
             <div>
                 <FloatingInput Id="user-email" Label="@L["Common.Email"]" Type="email" HasError="@(emailError is not null)"
                                Value="@editEmail" OnInput="HandleEmailChanged"
-                               MaxLength="AppConstraints.EmailMaxLength"/>
+                               MaxLength="AppConstraints.EmailMaxLength" Disabled="@(!CanManageTarget)"/>
                 @if (emailError is not null)
                 {
                     <div class="text-sm text-red-500 dark:text-red-400 mt-1">@emailError</div>
@@ -69,7 +69,7 @@
             </div>
             <div>
                 <FloatingSelect Id="user-role" Label="@L["Common.Role"]"
-                                Value="@editRole" OnChange="HandleRoleChanged" Disabled="@IsCurrentUser">
+                                Value="@editRole" OnChange="HandleRoleChanged" Disabled="@(IsCurrentUser || !CanManageTarget)">
                     @foreach (var role in AllowedRoles)
                     {
                         <option value="@role">@RoleDisplayName(role)</option>
@@ -78,6 +78,14 @@
                 @if (IsCurrentUser)
                 {
                     <div class="text-sm text-neutral-500 mt-1">@L["Users.CannotChangeOwnRole"]</div>
+                }
+                else if (!CanManageTarget)
+                {
+                    <div class="text-sm text-neutral-500 mt-1">@L["UserProtection.SuperAdminOnly"]</div>
+                }
+                @if (saveError is not null)
+                {
+                    <div class="text-sm text-red-500 dark:text-red-400 mt-1">@saveError</div>
                 }
             </div>
         </div>
@@ -186,12 +194,16 @@
 
             }
         </div>
-        @if (!IsCurrentUser)
+        @if (!IsCurrentUser && CanManageTarget)
         {
-            <div class="flex justify-end">
+            <div class="flex flex-col items-end gap-1">
                 <AppButton Variant="ButtonVariant.Danger" OnClick="ConfirmDeleteUser">
                     @L["UserDetail.DeleteUser"]
                 </AppButton>
+                @if (deleteError is not null)
+                {
+                    <div class="text-sm text-red-500 dark:text-red-400">@deleteError</div>
+                }
             </div>
         }
     }
@@ -252,6 +264,8 @@
     private string editEmail = "";
     private string? emailError;
     private string? imageError;
+    private string? saveError;
+    private string? deleteError;
     private UserRole editRole;
     private Func<Task>? confirmAction;
     private string confirmTitle = "";
@@ -260,9 +274,16 @@
 
     private bool IsCurrentUser => currentUserId is not null && currentUserId == UserId;
 
+    // Only a super admin may change or delete a super admin. The server enforces this; the page only
+    // stops offering what would be refused.
+    private bool CanManageTarget => user?.Role != UserRole.SuperAdmin
+                                    || OrgState.HasPermission(Permission.AssignSuperAdminRole);
+
+    // The target's current role is always listed, so a super admin viewed by an admin is shown as one
+    // rather than as whichever option happens to come first.
     private IEnumerable<UserRole> AllowedRoles => OrgState.HasPermission(Permission.AssignSuperAdminRole)
         ? Enum.GetValues<UserRole>()
-        : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin);
+        : Enum.GetValues<UserRole>().Where(r => r != UserRole.SuperAdmin || r == user?.Role);
 
     protected override async Task OnInitializedAsync()
     {
@@ -336,7 +357,17 @@
             return;
         }
 
-        await UserService.UpdateUserAsync(UserId, editName.Trim(), editEmail.Trim(), editRole, OrgState.ToCallerContext());
+        saveError = null;
+        try
+        {
+            await UserService.UpdateUserAsync(UserId, editName.Trim(), editEmail.Trim(), editRole, OrgState.ToCallerContext());
+        }
+        catch (UserProtectionException ex)
+        {
+            saveError = ProtectionMessage(ex.Reason);
+            editRole = user!.Role;
+            return;
+        }
         user!.Name = editName.Trim();
         user.Email = editEmail.Trim();
         user.Role = editRole;
@@ -364,7 +395,29 @@
     private void ConfirmDeleteUser() => ShowConfirm(
         L["UserDetail.DeleteUser"],
         L["UserDetail.ConfirmDeleteUser", user?.Name ?? ""],
-        async () => { await UserService.DeleteUserAsync(UserId, OrgState.ToCallerContext()); NavigationManager.NavigateTo("/admin/users"); });
+        DeleteUser);
+
+    private async Task DeleteUser()
+    {
+        deleteError = null;
+        try
+        {
+            await UserService.DeleteUserAsync(UserId, OrgState.ToCallerContext());
+        }
+        catch (UserProtectionException ex)
+        {
+            deleteError = ProtectionMessage(ex.Reason);
+            return;
+        }
+        NavigationManager.NavigateTo("/admin/users");
+    }
+
+    private string ProtectionMessage(UserProtectionReason reason) => reason switch
+    {
+        UserProtectionReason.LastSuperAdmin => L["UserProtection.LastSuperAdmin"],
+        UserProtectionReason.OwnHomeOrganization => L["UserProtection.OwnHomeOrganization"],
+        _ => L["UserProtection.SuperAdminOnly"]
+    };
 
     private void ConfirmRemoveProfileImage() => ShowConfirm(
         L["Profile.RemoveProfileImage"],
