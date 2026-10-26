@@ -19,6 +19,13 @@ export const ACCOUNT_LIMITS = {
   pairCodeTtlMs: 10 * 60_000,
   /** Wrong codes before the code on the host stops working. */
   pairCodeAttempts: 5,
+  /** Linked logins per user, Google and passkeys together (ORG-R13). */
+  loginsPerUser: 5,
+  /**
+   * Adding a way to sign in needs a session this young: a stolen session
+   * that has been around for a while cannot plant a passkey of its own.
+   */
+  freshSignInMs: 10 * 60_000,
 } as const;
 
 export const roleSchema = z.enum(ROLES);
@@ -45,12 +52,12 @@ export function isCallbackScheme(s: unknown): s is CallbackScheme {
 }
 
 /**
- * How a user signs in: a linked external identity (spec 01 `UserLogin`).
- * Google only for now; `passkey` is the planned second provider and has a
- * place in the same table (README, "Sign-in").
+ * How a user signs in: a linked login (spec 01 `UserLogin`), a Google
+ * account or a passkey. A user may have both kinds, several passkeys, and
+ * never no login at all once they have accepted their invite.
  */
-export const LOGIN_PROVIDERS = ['google'] as const;
-export type LoginProvider = (typeof LOGIN_PROVIDERS)[number] | 'passkey';
+export const LOGIN_PROVIDERS = ['google', 'passkey'] as const;
+export type LoginProvider = (typeof LOGIN_PROVIDERS)[number];
 
 /** First run: the organisation and its SuperAdmin, who then links a Google account through the invite it answers with. */
 export const setupRequest = z.object({
@@ -71,8 +78,91 @@ export interface SetupResponse {
  */
 export const googleBeginRequest = z.object({
   invite: z.string().min(1).max(200).optional(),
+  /** Link the Google account to the caller's session instead of signing in. */
+  link: z.literal(true).optional(),
   app: z.object({ deviceName, callbackScheme: z.string().max(100) }).optional(),
 });
+
+export const passkeyName = z.string().trim().min(1).max(100);
+
+/**
+ * Starts a passkey ceremony. `signin`: any passkey of this server's RP ID,
+ * which says who it is (discoverable). `register`: a new passkey, for the
+ * invited user with `invite`, else for the caller's own session. With
+ * `app`, the ceremony runs in the system browser (`url` in the answer) and
+ * the token goes to the app through its callback scheme.
+ */
+export const passkeyBeginRequest = z.object({
+  mode: z.enum(['signin', 'register']),
+  invite: z.string().min(1).max(200).optional(),
+  name: passkeyName.optional(),
+  app: z.object({ deviceName, callbackScheme: z.string().max(100) }).optional(),
+});
+
+const b64urlField = (max: number) => z.string().max(max).regex(/^[A-Za-z0-9_-]*$/);
+
+/** A credential as the browser gave it, its binary fields base64url (WebAuthn's `toJSON()` shape). */
+export const passkeyCredential = z.object({
+  id: b64urlField(1400).min(1),
+  type: z.literal('public-key'),
+  response: z.object({
+    clientDataJSON: b64urlField(4000),
+    attestationObject: b64urlField(20_000).optional(),
+    transports: z.array(z.string().max(32)).max(10).optional(),
+    authenticatorData: b64urlField(4000).optional(),
+    signature: b64urlField(2000).optional(),
+    userHandle: b64urlField(200).nullable().optional(),
+  }),
+});
+export type PasskeyCredentialJson = z.infer<typeof passkeyCredential>;
+
+export const passkeyFinishRequest = z.object({ credential: passkeyCredential, deviceName });
+
+export const renameLoginRequest = z.object({ name: passkeyName });
+
+/** `PublicKeyCredentialCreationOptions` with its binary fields base64url. */
+export interface PasskeyCreationOptions {
+  challenge: string;
+  rp: { id: string; name: string };
+  user: { id: string; name: string; displayName: string };
+  pubKeyCredParams: { type: 'public-key'; alg: number }[];
+  timeout: number;
+  attestation: 'none';
+  authenticatorSelection: { residentKey: 'required'; requireResidentKey: true; userVerification: 'required' };
+  excludeCredentials: { type: 'public-key'; id: string; transports?: string[] }[];
+}
+
+/** `PublicKeyCredentialRequestOptions` with its binary fields base64url. */
+export interface PasskeyRequestOptions {
+  challenge: string;
+  rpId: string;
+  timeout: number;
+  userVerification: 'required';
+  allowCredentials: [];
+}
+
+export type PasskeyOptions = { create: PasskeyCreationOptions } | { get: PasskeyRequestOptions };
+
+/** `POST /auth/passkey/begin`: the options for this page, or where the system browser goes. */
+export type PasskeyBeginResponse = { options: PasskeyOptions } | { url: string };
+
+/**
+ * `POST /auth/passkey/finish`: a session (a sign-in, or an invite accepted),
+ * the added passkey (from a session), or for an app the link to hand back
+ * (`callback`) or `done` when there is nothing to hand back.
+ */
+export type PasskeyFinishResponse = SignInResponse | { added: LoginMethod } | { callback: string } | { done: true };
+
+/** One of the user's own ways to sign in, as `GET /auth/logins` lists them. */
+export interface LoginMethod {
+  provider: LoginProvider;
+  /** The passkey's credential id, or the Google account's `sub`. */
+  id: string;
+  /** The passkey's name, or the Google account's email when it was linked. */
+  name: string | null;
+  createdAt: number;
+  lastUsedAt: number;
+}
 
 /** After a web sign-in, the page trades its one-time handoff cookie for a session. */
 export const googleFinishRequest = z.object({ deviceName });
@@ -114,6 +204,8 @@ export interface AuthState {
   setupRequired: boolean;
   /** The server has a Google client configured. */
   google: boolean;
+  /** The server has an RP ID and origins for passkeys. */
+  passkeys: boolean;
 }
 
 export type InviteState =
@@ -126,7 +218,7 @@ export interface UserRow {
   name: string;
   email: string | null;
   role: Role;
-  /** Whether the user has linked a Google account (accepted an invite). */
+  /** Whether the user has a linked login (accepted an invite). */
   active: boolean;
   /** The newest unused invite, if any. */
   invite: { expiresAt: number; expired: boolean } | null;
@@ -156,6 +248,10 @@ export type AuthError =
   | 'invalid-request'
   | 'google-disabled'
   | 'google-failed'
+  | 'passkey-disabled'
+  | 'passkey-failed'
+  | 'last-login'
+  | 'reauth-required'
   | 'not-linked'
   | 'login-taken'
   | 'callback-scheme'
@@ -206,8 +302,8 @@ export function removeUserRefusal(actor: Actor, target: Actor): AuthError | null
 
 /**
  * Why `actor` may not make a new invite for `target`, or null (D21). An
- * invite links the Google account that accepts it in place of the user's
- * own, so it is a reset: an Admin may not reset a SuperAdmin's (D20). The
+ * invite links the login that accepts it (a Google account or a new
+ * passkey) in place of all the user's own, so it is a reset: an Admin may not reset a SuperAdmin's (D20). The
  * same holds for pairing a device as `target`, which signs it in as them.
  */
 export function inviteRefusal(actor: Actor, target: Actor): AuthError | null {

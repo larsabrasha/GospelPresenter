@@ -27,6 +27,10 @@ export interface AdapterOptions {
   setupToken?: string;
   /** Sign-in through this fake Google (test/fake-google.ts). Without it, Google is not configured. */
   google?: { url: string; clientId: string; clientSecret: string };
+  /** Passkeys: the RP ID and the origins the test authenticator claims. Without it, passkeys are off. */
+  passkeys?: { rpId: string; origins: string[] };
+  /** How young a session must be to add a login (the staleness tests shorten it). */
+  freshSignInMs?: number;
   /** Workers only: bundle as `pnpm build:worker` does for a deploy, where a test issuer is not allowed. */
   deployBuild?: boolean;
 }
@@ -88,6 +92,8 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
       POKE_WINDOW_MS: String(POKE_WINDOW_MS),
       ...(opts.setupToken ? { SETUP_TOKEN: opts.setupToken } : {}),
       ...(opts.sessionIdleMs ? { SESSION_IDLE_MS: String(opts.sessionIdleMs) } : {}),
+      ...(opts.freshSignInMs ? { FRESH_SIGN_IN_MS: String(opts.freshSignInMs) } : {}),
+      ...(opts.passkeys ? { PASSKEY_RP_ID: opts.passkeys.rpId, PASSKEY_ORIGINS: opts.passkeys.origins.join(',') } : {}),
       ...(opts.google
         ? { GOOGLE_CLIENT_ID: opts.google.clientId, GOOGLE_CLIENT_SECRET: opts.google.clientSecret, GOOGLE_TEST_ISSUER: opts.google.url }
         : {}),

@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { api, pokeUrl, setRole, startAdapter, type AdapterName, type Harness, type ServerDump } from './harness.ts';
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle, type Tamper } from './fake-google.ts';
+import { SoftAuthenticator } from './soft-authenticator.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',').filter((a) => a !== 'remote') as AdapterName[];
 const SETUP_TOKEN = 'gpst_the-setup-token-for-tests';
@@ -103,7 +104,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
   // ------------------------------------------------------------ first run (runs first: no user may exist yet)
 
   it('AUTH-A1/D19: setup needs the setup token, answers with an invite, and is done once the SuperAdmin linked Google', async () => {
-    expect(await api(h, 'GET', '/auth/state')).toEqual({ status: 200, body: { setupRequired: true, google: true } satisfies AuthState });
+    expect(await api(h, 'GET', '/auth/state')).toEqual({ status: 200, body: { setupRequired: true, google: true, passkeys: false } satisfies AuthState });
     const body = { name: 'Anna', orgName: 'Lilla Kyrkan' };
     expect((await api(h, 'POST', '/auth/setup', { body: { ...body, setupToken: 'gpst_guess' } })).body).toEqual({ error: 'setup-token' });
     expect((await api(h, 'POST', '/auth/setup', { body: { ...body, setupToken: SETUP_TOKEN, name: '  ' } })).body).toEqual({ error: 'invalid-request' });
@@ -392,7 +393,7 @@ describe.each(adapters)('%s adapter, Google not configured', (adapterName) => {
   });
 
   it('nobody can set up or sign in, and the server says why', async () => {
-    expect((await api(h, 'GET', '/auth/state')).body).toEqual({ setupRequired: true, google: false });
+    expect((await api(h, 'GET', '/auth/state')).body).toEqual({ setupRequired: true, google: false, passkeys: false });
     expect(await api(h, 'POST', '/auth/setup', { body: { setupToken: SETUP_TOKEN, name: 'A', orgName: 'K' } })).toEqual({ status: 503, body: { error: 'google-disabled' } });
     expect((await api(h, 'POST', '/auth/google/begin', { body: {} })).body).toEqual({ error: 'google-disabled' });
     const page = await fetch(`${h.url}/app-login?callback_scheme=gospelpresenter`, { redirect: 'manual' });
@@ -404,8 +405,8 @@ describe.each(adapters)('%s adapter, Google not configured', (adapterName) => {
 
 // ---------------------------------------------------------------- pairing (desktop host, Node only)
 
-describe('desktop host: Google sign-in only from this machine', () => {
-  it('/app-login and the Google callback answer an unpaired browser on loopback, and nothing else', async () => {
+describe('desktop host: sign-in only from this machine', () => {
+  it('/app-login, the Google callback and the passkey page answer an unpaired browser on loopback, and nothing else', async () => {
     const sql = nodeGlobalSql(openSqlite(':memory:', 'better-sqlite3'));
     await migrateGlobal(sql);
     const accounts = new Accounts(sql);
@@ -420,17 +421,20 @@ describe('desktop host: Google sign-in only from this machine', () => {
       const app = new Hono();
       app.use('*', pairingGuard(accounts, { hostToken: 'gphost_x' }, () => address));
       app.all('*', (c) => c.text('reached'));
-      for (const path of ['/app-login', '/auth/google/start', '/auth/google/callback', '/auth/app-callback.js']) {
+      for (const path of ['/app-login', '/auth/google/start', '/auth/google/callback', '/auth/app-callback.js', '/auth/passkey/start', '/auth/passkey/finish', '/auth/passkey.js']) {
         expect([address, path, (await app.request(path)).status]).toEqual([address, path, open ? 200 : 403]);
       }
       // The rest of the API needs pairing from anywhere.
-      for (const path of ['/auth/google/begin', '/auth/google/finish', '/auth/state', '/sync/pull']) expect((await app.request(path)).status).toBe(403);
+      for (const path of ['/auth/google/begin', '/auth/google/finish', '/auth/passkey/begin', '/auth/logins', '/auth/state', '/sync/pull']) {
+        expect((await app.request(path)).status).toBe(403);
+      }
     }
   });
 });
 
 describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing, %s', (driver) => {
   const HOST = 'gphost_' + 'h'.repeat(43);
+  const HOST_PASSKEY_ORIGIN = 'http://localhost:47800';
   let server: RunningServer;
   let dataDir: string;
   let admin: SignInResponse;
@@ -462,6 +466,7 @@ describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing,
       pairing: { hostToken: HOST },
       setupToken: SETUP_TOKEN,
       google: { clientId: fake.clientId, clientSecret: fake.clientSecret, testIssuer: fake.url },
+      passkeys: { rpId: 'localhost', origins: [HOST_PASSKEY_ORIGIN] },
       log: () => undefined,
     });
     host.url = server.url;
@@ -501,6 +506,41 @@ describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing,
     // The host signs in again with its linked Google account (no invite), in the system browser.
     const again = await hostSignIn(anna);
     expect((await req<Me>('GET', '/auth/me', { device: HOST, token: again })).body.userId).toBe(admin.me.userId);
+  });
+
+  it('passkeys on the host: only its window begins, through the system browser; a paired device neither begins nor manages logins', async () => {
+    const auth = new SoftAuthenticator(HOST_PASSKEY_ORIGIN);
+    const app = { deviceName: 'Värddatorn', callbackScheme: 'gospelpresenter-local' };
+    // In the system browser: the page, then the credential, with this browser's cookie.
+    async function inBrowser(url: string, create: boolean) {
+      const browser = new TestBrowser();
+      const page = await browser.open(host.url + url);
+      const options = JSON.parse(/data-options="([^"]*)"/.exec(page.html)![1]!.replace(/&#(\d+);/g, (_, n: string) => String.fromCharCode(Number(n))));
+      const credential = create ? await auth.create(options.create) : await auth.get(options.get);
+      const res = await browser.fetch(`${host.url}/auth/passkey/finish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ credential }) });
+      return { status: res.status, body: (await res.json()) as { callback?: string; done?: true; error?: string } };
+    }
+    // The host window, signed in as Anna, adds a passkey for herself.
+    const add = await req<{ url: string }>('POST', '/auth/passkey/begin', { device: HOST, token: admin.token, body: { mode: 'register', app } });
+    expect(add.body.url).toMatch(/^\/auth\/passkey\/start\?flow=/);
+    expect(await inBrowser(add.body.url, true)).toEqual({ status: 200, body: { done: true } });
+    // Then signs in with it: the app gets its token on its callback scheme.
+    const signin = await req<{ url: string }>('POST', '/auth/passkey/begin', { device: HOST, body: { mode: 'signin', app } });
+    const done = await inBrowser(signin.body.url, false);
+    expect(done.body.callback).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
+    // A web ceremony (no app) is refused on a host, as for Google.
+    expect((await req('POST', '/auth/passkey/begin', { device: HOST, body: { mode: 'signin' } })).body).toEqual({ error: 'forbidden' });
+
+    // A paired device: refused before anything, and its session cannot add or remove Anna's logins.
+    const { body: code } = await req<{ code: string }>('POST', '/pair/code', { device: HOST, token: admin.token, body: {} });
+    const paired = await req<PairClaimResponse>('POST', '/pair/claim', { body: { code: code.code, name: 'iPad' } });
+    const { device, session } = paired.body;
+    expect((await req('POST', '/auth/passkey/begin', { device, token: session.token, body: { mode: 'register', app } })).body).toEqual({ error: 'forbidden' });
+    expect((await req('POST', '/auth/passkey/begin', { device: HOST, token: session.token, body: { mode: 'register', app } })).body).toEqual({ error: 'forbidden' });
+    const mine = await req<{ provider: string; id: string }[]>('GET', '/auth/logins', { device, token: session.token });
+    expect(mine.body.map((l) => l.provider)).toEqual(['google', 'passkey']);
+    expect((await req('DELETE', `/auth/logins/passkey/${mine.body[1]!.id}`, { device, token: session.token })).body).toEqual({ error: 'forbidden' });
+    expect((await req('DELETE', `/auth/logins/passkey/${mine.body[1]!.id}`, { device: HOST, token: admin.token })).status).toBe(200);
   });
 
   it('a code pairs one device once, signed in as the member the host chose; disconnecting it ends its session', async () => {

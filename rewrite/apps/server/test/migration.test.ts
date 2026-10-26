@@ -108,7 +108,8 @@ describe('client (wa-sqlite)', () => {
 
 // The global database: milestones 1 and 2 had only `memberships`, for
 // placeholder user ids. Version 2 (milestone 3) added accounts with
-// passwords; version 3 replaces the passwords with linked Google logins.
+// passwords; version 3 replaces the passwords with linked Google logins;
+// version 4 adds passkeys beside them.
 const milestone2Global = [
   `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`,
@@ -147,13 +148,51 @@ const milestone3Global = [
   `INSERT INTO pair_codes VALUES (1, 'codehash', 9999999999999, 0)`,
 ];
 
+/** The global DDL version 3 shipped (Google sign-in, before passkeys), as it was, with a church that signs in with Google. */
+const version3Global = [
+  `CREATE TABLE IF NOT EXISTS _schema (one INTEGER PRIMARY KEY CHECK (one = 1), version INTEGER NOT NULL)`,
+  `INSERT INTO _schema (one, version) VALUES (1, 3)`,
+  `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
+     PRIMARY KEY (user_id, org_id))`,
+  `CREATE TABLE IF NOT EXISTS orgs (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, email TEXT, created_at INTEGER NOT NULL)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email) WHERE email IS NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS user_logins (provider TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL,
+     created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL, PRIMARY KEY (provider, subject))`,
+  `CREATE INDEX IF NOT EXISTS user_logins_user ON user_logins (user_id)`,
+  `CREATE TABLE IF NOT EXISTS login_flows (state_hash TEXT PRIMARY KEY NOT NULL, address TEXT NOT NULL,
+     nonce TEXT NOT NULL, verifier TEXT NOT NULL, invite_hash TEXT, device_name TEXT NOT NULL, callback_scheme TEXT,
+     created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, browser_hash TEXT, used_at INTEGER,
+     user_id TEXT, org_id TEXT, handoff_hash TEXT)`,
+  `CREATE INDEX IF NOT EXISTS login_flows_address ON login_flows (address, expires_at)`,
+  `CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+     user_id TEXT NOT NULL, org_id TEXT NOT NULL, device_name TEXT NOT NULL, created_at INTEGER NOT NULL,
+     last_used_at INTEGER NOT NULL, revoked_at INTEGER, paired_device_id TEXT)`,
+  `CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id)`,
+  `CREATE TABLE IF NOT EXISTS invites (token_hash TEXT PRIMARY KEY NOT NULL, user_id TEXT NOT NULL, org_id TEXT NOT NULL,
+     created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER, use_nonce TEXT)`,
+  `CREATE INDEX IF NOT EXISTS invites_user ON invites (user_id)`,
+  `CREATE TABLE IF NOT EXISTS auth_throttle (key TEXT PRIMARY KEY NOT NULL, failures INTEGER NOT NULL,
+     first_at INTEGER NOT NULL, locked_until INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS paired_devices (id TEXT PRIMARY KEY NOT NULL, token_hash TEXT NOT NULL UNIQUE,
+     name TEXT NOT NULL, created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL, revoked_at INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS pair_codes (one INTEGER PRIMARY KEY CHECK (one = 1), code_hash TEXT NOT NULL,
+     expires_at INTEGER NOT NULL, failures INTEGER NOT NULL, user_id TEXT NOT NULL, org_id TEXT NOT NULL)`,
+  `INSERT INTO orgs VALUES ('church', 'Lilla Kyrkan', 1)`,
+  `INSERT INTO users VALUES ('anna', 'Anna', 'anna@gmail.com', 1)`,
+  `INSERT INTO memberships VALUES ('anna', 'church', 'superAdmin')`,
+  `INSERT INTO user_logins VALUES ('google', 'google-anna', 'anna', 1, 5)`,
+  `INSERT INTO sessions VALUES ('s1', 'tokenhash', 'anna', 'church', 'Mac', 1, 1, NULL, NULL)`,
+  `INSERT INTO login_flows (state_hash, address, nonce, verifier, device_name, created_at, expires_at) VALUES ('st', '1.2.3.4', 'n', 'v', 'Mac', 1, 9999999999999)`,
+];
+
 describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %s', (driver) => {
   const tables = (f: ReturnType<typeof openSqlite>) =>
     f.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").map((r) => r.name);
   /** Every table's columns, sorted (a migrated table has its added columns last). */
   const shape = (f: ReturnType<typeof openSqlite>) =>
     Object.fromEntries(tables(f).map((t) => [t, f.query(`SELECT name FROM pragma_table_info('${String(t)}')`).map((r) => String(r.name)).toSorted()]));
-  const ALL = ['_schema', 'auth_throttle', 'invites', 'login_flows', 'memberships', 'orgs', 'pair_codes', 'paired_devices', 'sessions', 'user_logins', 'users'];
+  const ALL = ['_schema', 'auth_throttle', 'invites', 'login_flows', 'memberships', 'orgs', 'pair_codes', 'paired_devices', 'passkey_flows', 'sessions', 'user_logins', 'users'];
 
   async function freshShape(dir: string) {
     const f = openSqlite(join(dir, `fresh-${crypto.randomUUID()}.sqlite`), driver);
@@ -197,7 +236,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
     const f = openSqlite(file, driver);
     const sql = nodeGlobalSql(f);
     await migrateGlobal(sql);
-    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: 3 }]);
+    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: GLOBAL_SCHEMA_VERSION }]);
     expect(shape(f)).toEqual(await freshShape(dir));
     expect(shape(f).users).not.toContain('password_hash');
     expect(f.query('SELECT id, name, email FROM users')).toEqual([{ id: 'anna', name: 'Anna', email: 'anna@x.se' }]);
@@ -220,6 +259,41 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
     const again = openSqlite(file, driver);
     await migrateGlobal(nodeGlobalSql(again));
     expect(again.query('SELECT count(*) AS n FROM user_logins')).toEqual([{ n: 1 }]);
+    again.close();
+  });
+
+  it('migrates a version 3 file: Google logins, sessions and flows stay; passkeys can be added beside them', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+    dirs.push(dir);
+    const file = join(dir, 'global.sqlite');
+    const old = openSqlite(file, driver);
+    for (const sql of version3Global) old.exec(sql);
+    old.close();
+
+    const f = openSqlite(file, driver);
+    const sql = nodeGlobalSql(f);
+    await migrateGlobal(sql);
+    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: 4 }]);
+    expect(shape(f)).toEqual(await freshShape(dir));
+    expect(f.query('SELECT provider, subject, user_id, name, public_key, sign_count FROM user_logins')).toEqual([
+      { provider: 'google', subject: 'google-anna', user_id: 'anna', name: null, public_key: null, sign_count: null },
+    ]);
+    expect(f.query('SELECT id, revoked_at FROM sessions')).toEqual([{ id: 's1', revoked_at: null }]);
+    expect(f.query('SELECT state_hash, link_user_id FROM login_flows')).toEqual([{ state_hash: 'st', link_user_id: null }]);
+
+    // Still set up; Anna signs in with Google, and her session can add a passkey beside it.
+    const accounts = new Accounts(sql);
+    expect(await accounts.setupDone()).toBe(true);
+    expect(await accounts.signInWithGoogle({ sub: 'google-anna', email: 'anna@gmail.com', name: 'Anna' }, null)).toEqual({ userId: 'anna', orgId: 'church' });
+    const { sessionId } = await accounts.createSession('anna', 'church', 'Mac');
+    const added = await accounts.addLogin('anna', sessionId, { provider: 'passkey', passkey: { id: 'cred-1', publicKey: 'cose', signCount: 0, transports: ['internal'] }, name: 'Mac' });
+    expect(added).toMatchObject({ provider: 'passkey', id: 'cred-1', name: 'Mac' });
+    expect((await accounts.logins('anna')).map((l) => l.provider)).toEqual(['google', 'passkey']);
+    f.close();
+
+    const again = openSqlite(file, driver);
+    await migrateGlobal(nodeGlobalSql(again));
+    expect(again.query('SELECT count(*) AS n FROM user_logins')).toEqual([{ n: 2 }]);
     again.close();
   });
 

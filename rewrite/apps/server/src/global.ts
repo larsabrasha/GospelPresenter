@@ -1,16 +1,38 @@
 // The global tables (D1 on Workers, global.sqlite on Node): users, their
-// linked logins, organisations, memberships, sessions, invites, sign-ins in
-// progress, throttling and the desktop host's paired devices. Written once,
+// linked logins (Google accounts and passkeys), organisations, memberships,
+// sessions, invites, sign-ins in progress, throttling and the desktop host's
+// paired devices. Written once,
 // in SQL, against `GlobalSql`.
 //
 // D1 has no interactive transactions, so nothing here reads, decides and then
 // writes across awaits where a race would matter: each such step is one
 // conditional statement, or a `batch` of them, which both runtimes run atomically.
-import { ACCOUNT_LIMITS, schemaMetaDdl, type AuthError, type InviteState, type Me, type PairedDevice, type Role, type UserRow } from '@gp/core';
+import {
+  ACCOUNT_LIMITS,
+  schemaMetaDdl,
+  type AuthError,
+  type InviteState,
+  type LoginMethod,
+  type LoginProvider,
+  type Me,
+  type PairedDevice,
+  type Role,
+  type UserRow,
+} from '@gp/core';
 import { constantTimeEqual, newRowId, newSecret, sha256 } from './crypto.ts';
 import type { GoogleIdentity } from './google.ts';
+import type { NewPasskey, StoredPasskey } from './webauthn.ts';
 
 export type Row = Record<string, unknown>;
+
+function parseTransports(v: unknown): string[] {
+  try {
+    const t = JSON.parse(String(v ?? '[]')) as unknown;
+    return Array.isArray(t) ? t.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 /** One global database, whichever runtime holds it. */
 export interface GlobalSql {
@@ -22,7 +44,7 @@ export interface GlobalSql {
 }
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 3;
+export const GLOBAL_SCHEMA_VERSION = 4;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -48,12 +70,8 @@ const accountDdlV2 = [
      expires_at INTEGER NOT NULL, failures INTEGER NOT NULL)`,
 ];
 
-/**
- * Version 3: Google sign-in (README, "Sign-in"). A user signs in through a
- * linked login, never a password. `provider` is 'google' today; a passkey
- * will be a row with provider 'passkey' and its credential id as `subject`.
- */
-const loginDdl = [
+/** Version 3 (Google sign-in) as it shipped. Frozen: the version 3 migration must make exactly this. */
+const loginDdlV3 = [
   `CREATE TABLE IF NOT EXISTS user_logins (provider TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL,
      created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL, PRIMARY KEY (provider, subject))`,
   `CREATE INDEX IF NOT EXISTS user_logins_user ON user_logins (user_id)`,
@@ -63,6 +81,41 @@ const loginDdl = [
      created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, browser_hash TEXT, used_at INTEGER,
      user_id TEXT, org_id TEXT, handoff_hash TEXT)`,
   `CREATE INDEX IF NOT EXISTS login_flows_address ON login_flows (address, expires_at)`,
+];
+
+/**
+ * A passkey ceremony between its options and the credential coming back
+ * (version 4): single use, 5 minutes, bound to one browser by a cookie, and
+ * found by its challenge, which only that browser was given.
+ */
+const passkeyFlowDdl = [
+  `CREATE TABLE IF NOT EXISTS passkey_flows (state_hash TEXT PRIMARY KEY NOT NULL, kind TEXT NOT NULL, address TEXT NOT NULL,
+     challenge_hash TEXT, browser_hash TEXT, user_id TEXT, session_id TEXT, invite_hash TEXT, name TEXT,
+     device_name TEXT NOT NULL, callback_scheme TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_at INTEGER)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS passkey_flows_challenge ON passkey_flows (challenge_hash) WHERE challenge_hash IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS passkey_flows_address ON passkey_flows (address, expires_at)`,
+];
+
+/**
+ * A user signs in through a linked login, never a password (README,
+ * "Sign-in"): a Google account (`provider` 'google', its `sub` as `subject`)
+ * or a passkey ('passkey', its credential id, with its COSE public key,
+ * signature counter and transports beside it). `name` is the passkey's name,
+ * or the Google account's email when it was linked.
+ */
+const loginDdl = [
+  `CREATE TABLE IF NOT EXISTS user_logins (provider TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL,
+     created_at INTEGER NOT NULL, last_used_at INTEGER NOT NULL, name TEXT, public_key TEXT, sign_count INTEGER, transports TEXT,
+     PRIMARY KEY (provider, subject))`,
+  `CREATE INDEX IF NOT EXISTS user_logins_user ON user_logins (user_id)`,
+  // A Google sign-in between leaving for Google and coming back: single use, 10 minutes, bound to one browser.
+  // With `link_user_id`, it links the account to that user's session instead of signing in.
+  `CREATE TABLE IF NOT EXISTS login_flows (state_hash TEXT PRIMARY KEY NOT NULL, address TEXT NOT NULL,
+     nonce TEXT NOT NULL, verifier TEXT NOT NULL, invite_hash TEXT, device_name TEXT NOT NULL, callback_scheme TEXT,
+     created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, browser_hash TEXT, used_at INTEGER,
+     user_id TEXT, org_id TEXT, handoff_hash TEXT, link_user_id TEXT, link_session_id TEXT)`,
+  `CREATE INDEX IF NOT EXISTS login_flows_address ON login_flows (address, expires_at)`,
+  ...passkeyFlowDdl,
 ];
 
 /** The current tables, as a new database gets them. */
@@ -102,13 +155,24 @@ export const globalMigrations: Record<number, string[]> = {
   // guarded them; users, memberships and sessions stay. A user signs in
   // again through a new invite, or on a desktop host through setup or pairing.
   3: [
-    ...loginDdl,
+    ...loginDdlV3,
     `ALTER TABLE users DROP COLUMN password_hash`,
     `DELETE FROM auth_throttle WHERE key LIKE 'account:%'`,
     `ALTER TABLE sessions ADD COLUMN paired_device_id TEXT`,
     // A code waiting to be typed is ten minutes old at most; it names no user, so it goes.
     `DROP TABLE pair_codes`,
     pairCodesDdl(),
+  ],
+  // Passkeys beside Google: a passkey is a login with its key in the same row.
+  // Every login stays; nothing is signed out.
+  4: [
+    `ALTER TABLE user_logins ADD COLUMN name TEXT`,
+    `ALTER TABLE user_logins ADD COLUMN public_key TEXT`,
+    `ALTER TABLE user_logins ADD COLUMN sign_count INTEGER`,
+    `ALTER TABLE user_logins ADD COLUMN transports TEXT`,
+    `ALTER TABLE login_flows ADD COLUMN link_user_id TEXT`,
+    `ALTER TABLE login_flows ADD COLUMN link_session_id TEXT`,
+    ...passkeyFlowDdl,
   ],
 };
 
@@ -154,10 +218,38 @@ export interface LoginFlow {
   deviceName: string;
   /** Set when a desktop app gets the token through its callback scheme; null for this browser. */
   callbackScheme: string | null;
+  /** Set when the flow links the Google account to this user's session rather than signing in. */
+  link: { userId: string; sessionId: string } | null;
 }
 
 /** How long a sign-in may take from start to callback, and the most one address may have open. */
 export const LOGIN_FLOW = { ttlMs: 10 * 60_000, perAddress: 20 } as const;
+
+/** How long a passkey ceremony may take from its begin to its credential, and the most one address may have open. */
+export const PASSKEY_FLOW = { ttlMs: 5 * 60_000, perAddress: 20 } as const;
+
+/** A passkey ceremony, as its start and its finish find it. */
+export interface PasskeyFlow {
+  kind: 'register' | 'authenticate';
+  /** Registration from a signed-in session: whose, and that session (which must still be valid at the end). */
+  userId: string | null;
+  sessionId: string | null;
+  /** Registration that accepts an invite. */
+  inviteHash: string | null;
+  /** The new passkey's name. */
+  name: string | null;
+  deviceName: string;
+  callbackScheme: string | null;
+}
+
+/** A login to link: a Google account, or a passkey that registration verified. */
+export type NewLogin = { provider: 'google'; subject: string; name: string | null } | { provider: 'passkey'; passkey: NewPasskey; name: string };
+
+function loginValues(l: NewLogin): [provider: string, subject: string, name: string | null, publicKey: string | null, signCount: number | null, transports: string | null] {
+  return l.provider === 'google'
+    ? ['google', l.subject, l.name, null, null, null]
+    : ['passkey', l.passkey.id, l.name, l.passkey.publicKey, l.passkey.signCount, JSON.stringify(l.passkey.transports)];
+}
 
 export interface SessionInfo {
   sessionId: string;
@@ -165,6 +257,10 @@ export interface SessionInfo {
   orgId: string;
   /** Null when the user is no longer a member of the session's organisation. */
   role: Role | null;
+  /** When the sign-in that made the session happened. */
+  createdAt: number;
+  /** Made by pairing a device at a desktop host, not by the user signing in themselves. */
+  paired: boolean;
 }
 
 export interface AccountOptions {
@@ -266,7 +362,7 @@ export class Accounts {
   async session(token: string): Promise<SessionInfo | null> {
     if (!token.startsWith('gpdt_')) return null;
     const [r] = await this.sql.all(
-      `SELECT s.id, s.user_id, s.org_id, s.last_used_at, s.revoked_at, m.role
+      `SELECT s.id, s.user_id, s.org_id, s.created_at, s.last_used_at, s.revoked_at, s.paired_device_id, m.role
        FROM sessions s JOIN users u ON u.id = s.user_id
        LEFT JOIN memberships m ON m.user_id = s.user_id AND m.org_id = s.org_id
        WHERE s.token_hash = ?`,
@@ -280,14 +376,21 @@ export class Accounts {
     if (now - lastUsed > Math.min(5 * 60_000, this.idleMs / 4)) {
       await this.sql.run('UPDATE sessions SET last_used_at = ? WHERE id = ?', [now, r.id]);
     }
-    return { sessionId: String(r.id), userId: String(r.user_id), orgId: String(r.org_id), role: (r.role as Role | null) ?? null };
+    return {
+      sessionId: String(r.id),
+      userId: String(r.user_id),
+      orgId: String(r.org_id),
+      role: (r.role as Role | null) ?? null,
+      createdAt: Number(r.created_at),
+      paired: r.paired_device_id !== null,
+    };
   }
 
   async revokeSession(sessionId: string): Promise<void> {
     await this.sql.run('UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL', [this.now(), sessionId]);
   }
 
-  async me(s: SessionInfo & { role: Role }): Promise<Me | null> {
+  async me(s: Pick<SessionInfo, 'sessionId' | 'userId' | 'orgId'> & { role: Role }): Promise<Me | null> {
     const [r] = await this.sql.all(
       `SELECT u.name, u.email, o.name AS org_name FROM users u JOIN orgs o ON o.id = ? WHERE u.id = ?`,
       [s.orgId, s.userId],
@@ -392,14 +495,21 @@ export class Accounts {
    * only its hash is kept. At most LOGIN_FLOW.perAddress unfinished per address,
    * so a stranger cannot fill the table; old ones are swept here.
    */
-  async createFlow(a: { address: string; inviteToken: string | null; deviceName: string; callbackScheme: string | null }): Promise<string | 'limit'> {
+  async createFlow(a: {
+    address: string;
+    inviteToken: string | null;
+    deviceName: string;
+    callbackScheme: string | null;
+    link?: { userId: string; sessionId: string };
+  }): Promise<string | 'limit'> {
     const state = newSecret('');
     const now = this.now();
     const [, inserted] = await this.sql.batch([
       ['DELETE FROM login_flows WHERE expires_at < ?', [now - 24 * 60 * 60_000]],
       [
-        `INSERT INTO login_flows (state_hash, address, nonce, verifier, invite_hash, device_name, callback_scheme, created_at, expires_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+        `INSERT INTO login_flows (state_hash, address, nonce, verifier, invite_hash, device_name, callback_scheme, created_at, expires_at,
+           link_user_id, link_session_id)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
          WHERE (SELECT count(*) FROM login_flows WHERE address = ? AND used_at IS NULL AND expires_at > ?) < ?`,
         [
           await sha256(state),
@@ -411,6 +521,8 @@ export class Accounts {
           a.callbackScheme,
           now,
           now + LOGIN_FLOW.ttlMs,
+          a.link?.userId ?? null,
+          a.link?.sessionId ?? null,
           a.address,
           now,
           LOGIN_FLOW.perAddress,
@@ -452,7 +564,9 @@ export class Accounts {
       now,
     ]);
     if (n !== 1) return null;
-    const [r] = await this.sql.all('SELECT nonce, verifier, invite_hash, device_name, callback_scheme FROM login_flows WHERE state_hash = ?', [hash]);
+    const [r] = await this.sql.all('SELECT nonce, verifier, invite_hash, device_name, callback_scheme, link_user_id, link_session_id FROM login_flows WHERE state_hash = ?', [
+      hash,
+    ]);
     if (!r) return null;
     return {
       nonce: String(r.nonce),
@@ -460,6 +574,7 @@ export class Accounts {
       inviteHash: (r.invite_hash as string | null) ?? null,
       deviceName: String(r.device_name),
       callbackScheme: (r.callback_scheme as string | null) ?? null,
+      link: r.link_user_id === null ? null : { userId: String(r.link_user_id), sessionId: String(r.link_session_id) },
     };
   }
 
@@ -482,61 +597,287 @@ export class Accounts {
    * Who a verified Google identity signs in as (spec 01 callback rules).
    * Without an invite: the user its `sub` is linked to, or no one (AUTH-R4:
    * no self-registration, and never a match by email). With an invite: the
-   * invited user, whose Google login becomes this one. That replaces the
-   * Google account they had and revokes their sessions, since a new invite
-   * is also how an admin resets a lost account. The invite is used in the
-   * same batch, so it is spent only by a sign-in that succeeds.
+   * invited user, whose logins this one replaces (`acceptInvite`).
    */
   async signInWithGoogle(id: GoogleIdentity, inviteHash: string | null): Promise<{ userId: string; orgId: string } | AuthError> {
-    const now = this.now();
+    if (inviteHash) return this.acceptInvite(inviteHash, { provider: 'google', subject: id.sub, name: id.email }, id.email);
     const [linked] = await this.sql.all("SELECT user_id FROM user_logins WHERE provider = 'google' AND subject = ?", [id.sub]);
-    let userId: string;
-    if (!inviteHash) {
-      if (!linked) return 'not-linked';
-      userId = String(linked.user_id);
-      await this.sql.run("UPDATE user_logins SET last_used_at = ? WHERE provider = 'google' AND subject = ?", [now, id.sub]);
-    } else {
-      const [inv] = await this.sql.all(
-        `SELECT i.user_id, i.expires_at, i.used_at FROM invites i JOIN memberships m ON m.user_id = i.user_id AND m.org_id = i.org_id
-         WHERE i.token_hash = ?`,
-        [inviteHash],
-      );
-      if (!inv || inv.used_at !== null) return 'invite-invalid';
-      if (Number(inv.expires_at) <= now) return 'invite-expired';
-      userId = String(inv.user_id);
-      // E4 in spec 01 signs in as the invited user while the login stays with another; here it is refused.
-      if (linked && String(linked.user_id) !== userId) return 'login-taken';
-      const nonce = newRowId();
-      const used = `(SELECT user_id FROM invites WHERE token_hash = ? AND use_nonce = ?)`;
-      let claimed: number | undefined;
-      try {
-        [claimed] = await this.sql.batch([
-          [`UPDATE invites SET used_at = ?, use_nonce = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?`, [now, nonce, inviteHash, now]],
-          [`DELETE FROM user_logins WHERE provider = 'google' AND user_id = ${used}`, [inviteHash, nonce]],
-          [
-            `INSERT INTO user_logins (provider, subject, user_id, created_at, last_used_at) SELECT 'google', ?, user_id, ?, ?
-             FROM invites WHERE token_hash = ? AND use_nonce = ?`,
-            [id.sub, now, now, inviteHash, nonce],
-          ],
-          // Spec 01: an empty email is filled from Google's, unless another user has that address.
-          [
-            `UPDATE users SET email = ? WHERE id = ${used} AND email IS NULL AND ? IS NOT NULL
-               AND NOT EXISTS (SELECT 1 FROM users WHERE email = ?)`,
-            [id.email, inviteHash, nonce, id.email, id.email],
-          ],
-          [`UPDATE sessions SET revoked_at = ? WHERE user_id = ${used} AND revoked_at IS NULL`, [now, inviteHash, nonce]],
-        ]);
-      } catch (e) {
-        if (/UNIQUE/i.test(String(e))) return 'login-taken'; // linked to someone else meanwhile; the batch rolled back
-        throw e;
-      }
-      if (claimed !== 1) return 'invite-invalid';
-    }
+    if (!linked) return 'not-linked';
+    await this.sql.run("UPDATE user_logins SET last_used_at = ? WHERE provider = 'google' AND subject = ?", [this.now(), id.sub]);
+    return this.signedInAs(String(linked.user_id));
+  }
+
+  /** The organisation a user signs in to: their only one, for now (D1). */
+  async signedInAs(userId: string): Promise<{ userId: string; orgId: string } | 'not-a-member'> {
     const [m] = await this.sql.all('SELECT org_id FROM memberships WHERE user_id = ? ORDER BY org_id LIMIT 1', [userId]);
     return m ? { userId, orgId: String(m.org_id) } : 'not-a-member';
   }
 
-  async setRole(userId: string, orgId: string, role: Role): Promise<void> {
+  /**
+   * Accepts an invite with `login`, a Google account or a new passkey. It
+   * replaces every login the user had and revokes their sessions, since a new
+   * invite is also how an admin resets a lost account: whoever held the old
+   * passkey or Google account is out. A login already linked to another user
+   * is refused (spec 01 E4 says otherwise; README "Assumptions"). The invite is
+   * used in the same batch, so it is spent only by a link that succeeds.
+   */
+  async acceptInvite(inviteHash: string, login: NewLogin, email: string | null = null): Promise<{ userId: string; orgId: string } | AuthError> {
+    const now = this.now();
+    const [inv] = await this.sql.all(
+      `SELECT i.user_id, i.expires_at, i.used_at FROM invites i JOIN memberships m ON m.user_id = i.user_id AND m.org_id = i.org_id
+       WHERE i.token_hash = ?`,
+      [inviteHash],
+    );
+    if (!inv || inv.used_at !== null) return 'invite-invalid';
+    if (Number(inv.expires_at) <= now) return 'invite-expired';
+    const userId = String(inv.user_id);
+    const [provider, subject, name, publicKey, signCount, transports] = loginValues(login);
+    const [linked] = await this.sql.all('SELECT user_id FROM user_logins WHERE provider = ? AND subject = ?', [provider, subject]);
+    if (linked && String(linked.user_id) !== userId) return 'login-taken';
+    const nonce = newRowId();
+    const used = `(SELECT user_id FROM invites WHERE token_hash = ? AND use_nonce = ?)`;
+    let claimed: number | undefined;
+    try {
+      [claimed] = await this.sql.batch([
+        [`UPDATE invites SET used_at = ?, use_nonce = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?`, [now, nonce, inviteHash, now]],
+        [`DELETE FROM user_logins WHERE user_id = ${used}`, [inviteHash, nonce]],
+        [
+          `INSERT INTO user_logins (provider, subject, user_id, created_at, last_used_at, name, public_key, sign_count, transports)
+           SELECT ?, ?, user_id, ?, ?, ?, ?, ?, ? FROM invites WHERE token_hash = ? AND use_nonce = ?`,
+          [provider, subject, now, now, name, publicKey, signCount, transports, inviteHash, nonce],
+        ],
+        // Spec 01: an empty email is filled from Google's, unless another user has that address.
+        [
+          `UPDATE users SET email = ? WHERE id = ${used} AND email IS NULL AND ? IS NOT NULL
+             AND NOT EXISTS (SELECT 1 FROM users WHERE email = ?)`,
+          [email, inviteHash, nonce, email, email],
+        ],
+        [`UPDATE sessions SET revoked_at = ? WHERE user_id = ${used} AND revoked_at IS NULL`, [now, inviteHash, nonce]],
+      ]);
+    } catch (e) {
+      if (/UNIQUE/i.test(String(e))) return 'login-taken'; // linked to someone else meanwhile; the batch rolled back
+      throw e;
+    }
+    if (claimed !== 1) return 'invite-invalid';
+    return this.signedInAs(userId);
+  }
+
+  // ------------------------------------------------------------ a signed-in user's own logins
+
+  /**
+   * Adds a login to a signed-in user: a passkey, or a Google account linked
+   * from their session. Only while that session is valid, within the cap
+   * (ORG-R13), and at most one Google account per user. A login that is
+   * already this user's is fine; another user's is `login-taken`.
+   */
+  async addLogin(userId: string, sessionId: string, login: NewLogin, email: string | null = null): Promise<LoginMethod | AuthError> {
+    const now = this.now();
+    const [provider, subject, name, publicKey, signCount, transports] = loginValues(login);
+    const [linked] = await this.sql.all('SELECT user_id FROM user_logins WHERE provider = ? AND subject = ?', [provider, subject]);
+    if (linked) return String(linked.user_id) === userId ? ((await this.logins(userId)).find((l) => l.provider === provider && l.id === subject) ?? 'login-taken') : 'login-taken';
+    const session = `EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL)`;
+    let inserted: number | undefined;
+    try {
+      [inserted] = await this.sql.batch([
+        [
+          `INSERT INTO user_logins (provider, subject, user_id, created_at, last_used_at, name, public_key, sign_count, transports)
+           SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+           WHERE ${session}
+             AND (SELECT count(*) FROM user_logins WHERE user_id = ?) < ?
+             AND (? <> 'google' OR NOT EXISTS (SELECT 1 FROM user_logins WHERE user_id = ? AND provider = 'google'))`,
+          [provider, subject, userId, now, now, name, publicKey, signCount, transports, sessionId, userId, userId, ACCOUNT_LIMITS.loginsPerUser, provider, userId],
+        ],
+        [
+          `UPDATE users SET email = ? WHERE id = ? AND email IS NULL AND ? IS NOT NULL AND ${session}
+             AND EXISTS (SELECT 1 FROM user_logins WHERE provider = ? AND subject = ? AND user_id = ?)
+             AND NOT EXISTS (SELECT 1 FROM users WHERE email = ?)`,
+          [email, userId, email, sessionId, userId, provider, subject, userId, email],
+        ],
+      ]);
+    } catch (e) {
+      if (/UNIQUE/i.test(String(e))) return 'login-taken';
+      throw e;
+    }
+    if (inserted !== 1) {
+      const [s] = await this.sql.all('SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL', [sessionId, userId]);
+      return s ? 'limit' : 'unauthenticated';
+    }
+    return { provider: login.provider, id: subject, name, createdAt: now, lastUsedAt: now };
+  }
+
+  /** The user's logins, oldest first. */
+  async logins(userId: string): Promise<LoginMethod[]> {
+    const rows = await this.sql.all('SELECT provider, subject, name, created_at, last_used_at FROM user_logins WHERE user_id = ? ORDER BY created_at, provider, subject', [userId]);
+    return rows.map((r) => ({
+      provider: r.provider as LoginProvider,
+      id: String(r.subject),
+      name: (r.name as string | null) ?? null,
+      createdAt: Number(r.created_at),
+      lastUsedAt: Number(r.last_used_at),
+    }));
+  }
+
+  /** Renames one of the user's own passkeys. */
+  async renamePasskey(userId: string, id: string, name: string): Promise<boolean> {
+    return (await this.sql.run("UPDATE user_logins SET name = ? WHERE provider = 'passkey' AND subject = ? AND user_id = ?", [name, id, userId])) === 1;
+  }
+
+  /**
+   * Removes one of the user's own logins, never the last: in one statement,
+   * so two removals at once cannot leave none. A user who loses every way in
+   * gets a new invite from an admin.
+   */
+  async removeLogin(userId: string, provider: string, id: string): Promise<'ok' | 'last-login' | 'not-found'> {
+    const n = await this.sql.run(
+      `DELETE FROM user_logins WHERE provider = ? AND subject = ? AND user_id = ? AND (SELECT count(*) FROM user_logins WHERE user_id = ?) > 1`,
+      [provider, id, userId, userId],
+    );
+    if (n === 1) return 'ok';
+    const [r] = await this.sql.all('SELECT 1 FROM user_logins WHERE provider = ? AND subject = ? AND user_id = ?', [provider, id, userId]);
+    return r ? 'last-login' : 'not-found';
+  }
+
+  // ------------------------------------------------------------ passkeys
+
+  /**
+   * A passkey ceremony about to start. Its `state` is the returned secret;
+   * only its hash is kept. At most PASSKEY_FLOW.perAddress unfinished per
+   * address; old ones are swept here.
+   */
+  async createPasskeyFlow(a: {
+    kind: PasskeyFlow['kind'];
+    address: string;
+    userId?: string;
+    sessionId?: string;
+    inviteToken?: string;
+    name?: string;
+    deviceName: string;
+    callbackScheme: string | null;
+  }): Promise<string | 'limit'> {
+    const state = newSecret('');
+    const now = this.now();
+    const [, inserted] = await this.sql.batch([
+      ['DELETE FROM passkey_flows WHERE expires_at < ?', [now - 24 * 60 * 60_000]],
+      [
+        `INSERT INTO passkey_flows (state_hash, kind, address, user_id, session_id, invite_hash, name, device_name, callback_scheme, created_at, expires_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE (SELECT count(*) FROM passkey_flows WHERE address = ? AND used_at IS NULL AND expires_at > ?) < ?`,
+        [
+          await sha256(state),
+          a.kind,
+          a.address,
+          a.userId ?? null,
+          a.sessionId ?? null,
+          a.inviteToken ? await sha256(a.inviteToken) : null,
+          a.name ?? null,
+          a.deviceName.slice(0, 200) || 'App',
+          a.callbackScheme,
+          now,
+          now + PASSKEY_FLOW.ttlMs,
+          a.address,
+          now,
+          PASSKEY_FLOW.perAddress,
+        ],
+      ],
+    ]);
+    return inserted === 1 ? state : 'limit';
+  }
+
+  /** Binds a flow to the browser that opens it first and gives it its `challenge`. A flow starts once. */
+  async startPasskeyFlow(state: string, browser: string, challenge: string): Promise<PasskeyFlow | null> {
+    const hash = await sha256(state);
+    const n = await this.sql.run(
+      'UPDATE passkey_flows SET browser_hash = ?, challenge_hash = ? WHERE state_hash = ? AND browser_hash IS NULL AND used_at IS NULL AND expires_at > ?',
+      [await sha256(browser), await sha256(challenge), hash, this.now()],
+    );
+    return n === 1 ? this.passkeyFlowRow('state_hash', hash) : null;
+  }
+
+  /**
+   * The flow a credential answers: the one its challenge names, of this
+   * kind, in the browser that started it, not expired and not used before.
+   * Taking it uses it, so a replayed credential finds nothing.
+   */
+  async takePasskeyFlow(challenge: string, browser: string, kind: PasskeyFlow['kind']): Promise<PasskeyFlow | null> {
+    const hash = await sha256(challenge);
+    const now = this.now();
+    const n = await this.sql.run(
+      'UPDATE passkey_flows SET used_at = ? WHERE challenge_hash = ? AND browser_hash = ? AND kind = ? AND used_at IS NULL AND expires_at > ?',
+      [now, hash, await sha256(browser), kind, now],
+    );
+    return n === 1 ? this.passkeyFlowRow('challenge_hash', hash) : null;
+  }
+
+  private async passkeyFlowRow(column: 'state_hash' | 'challenge_hash', hash: string): Promise<PasskeyFlow | null> {
+    const [r] = await this.sql.all(
+      `SELECT kind, user_id, session_id, invite_hash, name, device_name, callback_scheme FROM passkey_flows WHERE ${column} = ?`,
+      [hash],
+    );
+    if (!r) return null;
+    return {
+      kind: r.kind as PasskeyFlow['kind'],
+      userId: (r.user_id as string | null) ?? null,
+      sessionId: (r.session_id as string | null) ?? null,
+      inviteHash: (r.invite_hash as string | null) ?? null,
+      name: (r.name as string | null) ?? null,
+      deviceName: String(r.device_name),
+      callbackScheme: (r.callback_scheme as string | null) ?? null,
+    };
+  }
+
+  /**
+   * Who a registration flow makes a passkey for: the invited user, or the
+   * owner of the session that began it while it is still valid. With the
+   * user's passkeys to exclude (none for an invite, which replaces them).
+   */
+  async registrant(flow: PasskeyFlow): Promise<{ userId: string; name: string; email: string | null; exclude: { id: string; transports: string[] }[] } | AuthError> {
+    if (flow.inviteHash) {
+      const [r] = await this.sql.all(
+        `SELECT i.user_id, i.expires_at, i.used_at, u.name, u.email FROM invites i JOIN users u ON u.id = i.user_id
+         JOIN memberships m ON m.user_id = i.user_id AND m.org_id = i.org_id WHERE i.token_hash = ?`,
+        [flow.inviteHash],
+      );
+      if (!r || r.used_at !== null) return 'invite-invalid';
+      if (Number(r.expires_at) <= this.now()) return 'invite-expired';
+      return { userId: String(r.user_id), name: String(r.name), email: (r.email as string | null) ?? null, exclude: [] };
+    }
+    const [r] = await this.sql.all(
+      `SELECT u.name, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.user_id = ? AND s.revoked_at IS NULL`,
+      [flow.sessionId, flow.userId],
+    );
+    if (!r || !flow.userId) return 'unauthenticated';
+    const mine = await this.sql.all("SELECT subject, transports FROM user_logins WHERE user_id = ? AND provider = 'passkey'", [flow.userId]);
+    return {
+      userId: flow.userId,
+      name: String(r.name),
+      email: (r.email as string | null) ?? null,
+      exclude: mine.map((p) => ({ id: String(p.subject), transports: parseTransports(p.transports) })),
+    };
+  }
+
+  /** A stored passkey by its credential id. */
+  async passkey(id: string): Promise<StoredPasskey | null> {
+    const [r] = await this.sql.all("SELECT user_id, public_key, sign_count FROM user_logins WHERE provider = 'passkey' AND subject = ?", [id]);
+    return r && r.public_key !== null ? { userId: String(r.user_id), publicKey: String(r.public_key), signCount: Number(r.sign_count ?? 0) } : null;
+  }
+
+  /**
+   * Records a sign-in with a passkey: its new counter, only if the counter is
+   * still the one that was checked, so of two sign-ins racing with the same
+   * counter at most one passes where the counter matters.
+   */
+  async usePasskey(id: string, checked: number, signCount: number): Promise<boolean> {
+    return (
+      (await this.sql.run("UPDATE user_logins SET sign_count = ?, last_used_at = ? WHERE provider = 'passkey' AND subject = ? AND sign_count = ?", [
+        signCount,
+        this.now(),
+        id,
+        checked,
+      ])) === 1
+    );
+  }
+
+    async setRole(userId: string, orgId: string, role: Role): Promise<void> {
     await this.sql.run('UPDATE memberships SET role = ? WHERE user_id = ? AND org_id = ?', [role, userId, orgId]);
   }
 
@@ -664,7 +1005,7 @@ export class Accounts {
   /** Debug servers only: how many rows the tables that hold credentials have. */
   async debugCounts(): Promise<Record<string, number>> {
     const out: Record<string, number> = {};
-    for (const t of ['sessions', 'login_flows', 'user_logins', 'invites']) out[t] = Number((await this.sql.all(`SELECT count(*) AS n FROM ${t}`))[0]?.n ?? 0);
+    for (const t of ['sessions', 'login_flows', 'passkey_flows', 'user_logins', 'invites']) out[t] = Number((await this.sql.all(`SELECT count(*) AS n FROM ${t}`))[0]?.n ?? 0);
     return out;
   }
 

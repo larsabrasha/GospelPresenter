@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ACCOUNT_LIMITS } from '@gp/core';
 import { newDigits, pkceChallenge, sha256 } from '../src/crypto.ts';
-import { Accounts, LOGIN_FLOW, migrateGlobal, THROTTLE } from '../src/global.ts';
+import { Accounts, LOGIN_FLOW, migrateGlobal, PASSKEY_FLOW, THROTTLE, type NewLogin } from '../src/global.ts';
+import { decodeCbor, derToRaw, Passkeys } from '../src/webauthn.ts';
 import { nodeGlobalSql, openSqlite, type NodeDriver } from '@gp/server/node';
 
 const MIN = 60_000;
@@ -244,5 +245,90 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     expect(await accounts.pairedDevice(token)).toBe(false);
     expect(await accounts.session(session.token)).toBeNull(); // the pairing's session ends with it
     expect(await accounts.pairedDevice('gppd_forged')).toBe(false);
+  });
+
+  it('passkey flows: start once, then single use, bound to the browser and the kind, and dead after 5 minutes', async () => {
+    const { accounts, clock } = await fresh(driver);
+    const begin = () => accounts.createPasskeyFlow({ kind: 'authenticate', address: 'a', deviceName: 'Mac', callbackScheme: null });
+    const s1 = (await begin()) as string;
+    expect(await accounts.startPasskeyFlow(s1, 'browser-1', 'challenge-1')).toMatchObject({ kind: 'authenticate', deviceName: 'Mac' });
+    expect(await accounts.startPasskeyFlow(s1, 'browser-2', 'challenge-2')).toBeNull(); // started once
+    expect(await accounts.takePasskeyFlow('challenge-1', 'browser-2', 'authenticate')).toBeNull(); // another browser
+    expect(await accounts.takePasskeyFlow('challenge-1', 'browser-1', 'register')).toBeNull(); // another kind
+    expect(await accounts.takePasskeyFlow('challenge-1', 'browser-1', 'authenticate')).not.toBeNull();
+    expect(await accounts.takePasskeyFlow('challenge-1', 'browser-1', 'authenticate')).toBeNull(); // replayed
+
+    const s2 = (await begin()) as string;
+    await accounts.startPasskeyFlow(s2, 'browser-1', 'challenge-3');
+    clock.now += PASSKEY_FLOW.ttlMs;
+    expect(await accounts.takePasskeyFlow('challenge-3', 'browser-1', 'authenticate')).toBeNull(); // expired
+    expect(await accounts.startPasskeyFlow((await begin()) as string, 'b', 'c')).not.toBeNull();
+    const s3 = (await begin()) as string;
+    clock.now += PASSKEY_FLOW.ttlMs;
+    expect(await accounts.startPasskeyFlow(s3, 'b', 'c2')).toBeNull(); // expired before it was opened
+
+    for (let i = 0; i < PASSKEY_FLOW.perAddress; i++) expect(await begin()).not.toBe('limit');
+    expect(await begin()).toBe('limit');
+    clock.now += PASSKEY_FLOW.ttlMs;
+    expect(await begin()).not.toBe('limit');
+  });
+
+  it('logins: at most 5 per user (ORG-R13), one Google account, only from a valid session; the last is never removed; counters compare-and-set', async () => {
+    const { accounts, userId, orgId } = await fresh(driver);
+    const { sessionId } = await accounts.createSession(userId, orgId, 'Mac');
+    const pk = (id: string): NewLogin => ({ provider: 'passkey', passkey: { id, publicKey: 'k', signCount: 3, transports: [] }, name: id });
+    for (const id of ['p1', 'p2', 'p3', 'p4']) expect(await accounts.addLogin(userId, sessionId, pk(id))).toMatchObject({ id });
+    expect(await accounts.addLogin(userId, sessionId, pk('p5'))).toBe('limit'); // Google + 4 passkeys
+    expect(await accounts.addLogin(userId, sessionId, { provider: 'google', subject: 'other', name: null })).toBe('limit');
+    expect(await accounts.addLogin(userId, sessionId, pk('p1'))).toMatchObject({ id: 'p1' }); // already hers
+
+    expect(await accounts.usePasskey('p1', 2, 4)).toBe(false); // the counter moved meanwhile
+    expect(await accounts.usePasskey('p1', 3, 4)).toBe(true);
+    expect(await accounts.passkey('p1')).toEqual({ userId, publicKey: 'k', signCount: 4 });
+
+    for (const id of ['p1', 'p2', 'p3', 'p4']) expect(await accounts.removeLogin(userId, 'passkey', id)).toBe('ok');
+    expect(await accounts.removeLogin(userId, 'google', 'sub-anna')).toBe('last-login');
+    expect(await accounts.removeLogin(userId, 'passkey', 'p1')).toBe('not-found');
+
+    await accounts.revokeSession(sessionId);
+    expect(await accounts.addLogin(userId, sessionId, pk('late'))).toBe('unauthenticated');
+    const bo = await accounts.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
+    if (typeof bo === 'string') throw new Error(bo);
+    const boSession = await accounts.createSession(bo.id, orgId, 'Mac');
+    expect(await accounts.addLogin(bo.id, boSession.sessionId, { provider: 'google', subject: 'sub-anna', name: null })).toBe('login-taken');
+    expect(await accounts.addLogin(userId, boSession.sessionId, pk('x'))).toBe('unauthenticated'); // someone else's session
+  });
+});
+
+describe('webauthn', () => {
+  it('CBOR: definite lengths only, no duplicate keys, nothing left over', () => {
+    expect(decodeCbor(new Uint8Array([0xa1, 0x01, 0x02])).value).toEqual(new Map([[1, 2]]));
+    expect(decodeCbor(new Uint8Array([0x39, 0x01, 0x00])).value).toBe(-257);
+    for (const bad of [[0x9f, 0xff], [0xa2, 0x01, 0x02, 0x01, 0x03], [0x5a, 0, 0, 0, 9, 1], [0xc0, 0x01], [0xf9, 0, 0]]) {
+      expect(() => decodeCbor(new Uint8Array(bad)), JSON.stringify(bad)).toThrow();
+    }
+  });
+
+  it('ECDSA signatures: strict DER to r||s, padded to 32 bytes', () => {
+    const r = [0x00, 0x80, ...Array(31).fill(1)]; // 32 bytes with the high bit set: needs a leading zero
+    const s = [0x05];
+    const der = new Uint8Array([0x30, 2 + r.length + 2 + s.length, 0x02, r.length, ...r, 0x02, s.length, ...s]);
+    const raw = derToRaw(der)!;
+    expect(raw.length).toBe(64);
+    expect([...raw.subarray(0, 32)]).toEqual(r.slice(1));
+    expect(raw[63]).toBe(5);
+    expect(derToRaw(new Uint8Array([0x30, 6, 0x02, 1, 0x80, 0x02, 1, 1]))).toBeNull(); // negative
+    expect(derToRaw(new Uint8Array([0x30, 7, 0x02, 2, 0x00, 0x01, 0x02, 1, 1]))).toBeNull(); // not minimal
+    expect(derToRaw(new Uint8Array([0x30, 7, 0x02, 1, 0x01, 0x02, 1, 1, 0]))).toBeNull(); // trailing byte
+  });
+
+  it('the RP ID and origins are checked at start: no IP address, no origin off the RP ID, no plain http but localhost', () => {
+    expect(() => new Passkeys({ rpId: '127.0.0.1', origins: ['http://127.0.0.1:47800'] })).toThrow(/IP address/);
+    expect(() => new Passkeys({ rpId: 'example.org', origins: ['https://evil.org'] })).toThrow(/not on the RP ID/);
+    expect(() => new Passkeys({ rpId: 'example.org', origins: ['http://app.example.org'] })).toThrow(/secure context/);
+    expect(() => new Passkeys({ rpId: 'example.org', origins: ['https://app.example.org/'] })).toThrow(/not an origin/);
+    expect(() => new Passkeys({ rpId: 'example.org', origins: [] })).toThrow();
+    expect(new Passkeys({ rpId: 'Example.org', origins: ['https://app.example.org', 'https://example.org'] }).rpId).toBe('example.org');
+    expect(new Passkeys({ rpId: 'localhost', origins: ['http://localhost:47800'] }).origins.has('http://localhost:47800')).toBe(true);
   });
 });

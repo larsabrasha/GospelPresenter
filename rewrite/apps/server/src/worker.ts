@@ -6,6 +6,7 @@ import { syncRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
+import { Passkeys } from './webauthn.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 interface Env {
@@ -23,6 +24,16 @@ interface Env {
   GOOGLE_REDIRECT_BASE_URL?: string;
   /** Test builds only (GP_TEST_ISSUER): a fake issuer instead of Google. A deploy build refuses to start with it set. */
   GOOGLE_TEST_ISSUER?: string;
+  /** Passkeys: the RP ID (the domain, e.g. app.example.org) and the allowed origins, comma-separated. Both, or passkeys are off. */
+  PASSKEY_RP_ID?: string;
+  PASSKEY_ORIGINS?: string;
+  /** Tests only: how young a session must be to add a login. */
+  FRESH_SIGN_IN_MS?: string;
+}
+
+function passkeysOf(env: Env): Passkeys | null {
+  if (!env.PASSKEY_RP_ID || !env.PASSKEY_ORIGINS) return null;
+  return new Passkeys({ rpId: env.PASSKEY_RP_ID, origins: env.PASSKEY_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean) });
 }
 
 function googleOf(env: Env): GoogleOidc | null {
@@ -67,7 +78,8 @@ export class OrgDurableObject extends DurableObject<Env> {
     this.app = syncRoutes(async (c) => {
       const userId = c.req.header('x-user')!;
       const role = c.req.header('x-role') as Role;
-      return { caller: { orgId: c.req.header('x-org')!, sessionId: '', ctx: { userId, role } }, org: this.org };
+      // Sync needs neither when the session signed in nor how: those matter only to the auth routes.
+      return { caller: { orgId: c.req.header('x-org')!, sessionId: '', ctx: { userId, role }, signedInAt: 0, paired: true }, org: this.org };
     }, env.SPIKE_DEBUG === '1');
     this.app.get('/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
     this.app.get('/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
@@ -163,6 +175,8 @@ function globals(env: Env) {
       setupToken: env.SETUP_TOKEN || null,
       clientAddress: (c) => c.req.header('cf-connecting-ip') ?? 'unknown',
       google: googleOf(env),
+      passkeys: passkeysOf(env),
+      freshSignInMs: env.FRESH_SIGN_IN_MS ? Number(env.FRESH_SIGN_IN_MS) : undefined,
       debug: env.SPIKE_DEBUG === '1',
       log: (e) => console.warn(JSON.stringify(e)),
     });

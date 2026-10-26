@@ -6,6 +6,7 @@ import type { Caller } from './auth.ts';
 export { authenticate, authRoutes, credentials, isApiPath, isLoopback, pairingGuard, WS_PROTOCOL, type AuthDeps, type Caller, type Pairing } from './auth.ts';
 export { GoogleOidc, TEST_ISSUER_BUILD, type GoogleConfig, type GoogleIdentity, type TokenProblem } from './google.ts';
 export { Accounts, globalDdl, migrateGlobal, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, type GlobalSql } from './global.ts';
+export { Passkeys, type PasskeyConfig } from './webauthn.ts';
 
 /** An organisation's runtime: its database, its write queue and its poke hub. */
 export interface Org {

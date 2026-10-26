@@ -15,6 +15,7 @@ import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCO
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql } from './global.ts';
+import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 const require = createRequire(import.meta.url);
@@ -169,8 +170,16 @@ export interface NodeServerOptions {
   /** Refuse every API request from a device that is not paired (the desktop host). */
   pairing?: Pairing;
   sessionIdleMs?: number;
-  /** Sign-in with Google. Without it nobody can sign in or set up; paired devices and existing sessions still work. */
+  /** Sign-in with Google. */
   google?: GoogleConfig;
+  /**
+   * Passkeys: the RP ID and the origins ceremonies may come from. Without it
+   * and without Google nobody can sign in or set up; paired devices and
+   * existing sessions still work.
+   */
+  passkeys?: PasskeyConfig;
+  /** How young a session must be to add a login (tests shorten it). */
+  freshSignInMs?: number;
   /** Where refused sign-ins are reported (JSON on stderr by default). */
   log?: (event: Record<string, unknown>) => void;
 }
@@ -211,6 +220,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   }
 
   const google = opts.google ? new GoogleOidc(opts.google) : null;
+  const passkeys = opts.passkeys ? new Passkeys(opts.passkeys) : null;
   const clientAddress = (c: Context) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown';
   const app = new Hono<{ Bindings: HttpBindings }>();
   if (opts.pairing) app.use('*', pairingGuard(accounts, opts.pairing, clientAddress));
@@ -221,6 +231,8 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       setupToken,
       clientAddress,
       google,
+      passkeys,
+      freshSignInMs: opts.freshSignInMs,
       pairing: opts.pairing,
       debug: opts.debug,
       log: opts.log ?? ((e) => process.stderr.write(JSON.stringify(e) + '\n')),
