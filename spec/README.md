@@ -71,8 +71,8 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 | D3 | Signing in as another account on a device: wipe local data or partition per account? | **Decided:** one local database per account and organisation; switching back resumes unsynced work | 06 Q1 |
 | D4 | Sync conflict semantics: keep "additions win" and whole-presentation merges? | **Decided:** client mutations replay against the server's latest state; deletions are exact, fields merge individually | 06 Q4–Q6, Q10 |
 | D5 | Are `/live` and `/display` and remote control open to anyone with a session id / any org member? | **Decided:** live windows and paired screens carry a capability token; starting and controlling need `ManagePresentations`; public `/watch` stays open and read-only | 04 Q1–Q2 |
-| D6 | Drop MAUI for Capacitor/PWA? | Yes | 06 Q13 |
-| D7 | Should edits during live update what is on screen? | Yes — outputs render from local data plus the live pointer, so this falls out of the design | 04 Q4, 05 Q8 |
+| D6 | Drop MAUI for Capacitor/PWA? | **Decided:** drop MAUI; PWA first, Capacitor when app stores or native plugins are needed (ADR 0007) | 06 Q13 |
+| D7 | Should edits during live update what is on screen? | **Decided:** yes — outputs render from local data plus the live pointer (ADR 0007) | 04 Q4, 05 Q8 |
 | D8 | Does the embedded LAN server replace the planned server field and server-provided update feed? | Keep the server field (self-hosters need it); the update feed waits for code signing | 06 Q11 |
 | D29 | How are PDF and PowerPoint files turned into slides without a server-side renderer? | **Decided:** see ADR 0007 | 05, 03 (PdfRenderService) |
 
@@ -80,16 +80,16 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 
 | # | Question | Recommendation | Sources |
 |---|---|---|---|
-| D9 | Should song history cover the whole song (metadata, arrangements)? | Yes, and restore must keep arrangements intact | 02 Q2–Q3 |
-| D10 | Should templates keep song arrangements and own their slide decks? | Yes to both | 03 Q1–Q2 |
-| D11 | Logo screen in addition to black? | Yes — cheap once output is a pure function of state | 04 Q6–Q7 |
-| D12 | Record the Bible translation on items and show it as credits; English book names? | Yes to both; book aliases per translation language | 05 Q1, Q3 |
-| D13 | 500-verse cap: keep, raise, or warn? | Keep a cap, but say so in the UI instead of truncating silently | 05 Q2 |
-| D14 | Offline "delete permanently": final, or recoverable from other devices? | Final once synced; the server trash is the only trash | 06 Q3 |
-| D15 | Ctrl+Enter: add and close (CLAUDE.md) or follow the "add more" checkbox? | Follow CLAUDE.md: Ctrl+Enter closes, Shift+Enter keeps it open | 03 Q8 |
-| D16 | Preview before upload for every image upload? | Only where the user crops or positions; the media library uploads directly | 05 Q13 |
-| D17 | Trashed songs still used in presentations: warn? | Yes, flag the item in the editor and skip it live | 02 Q18 |
-| D18 | Real-time co-editing of a song, or conflict warnings? | Conflict warning first; co-editing only if asked for | 02 Q16 |
+| D9 | Should song history cover the whole song (metadata, arrangements)? | **Decided:** history covers the whole song (metadata, parts, arrangements); restore keeps arrangements intact; replacing a song on import saves a version first | 02 Q2–Q3 |
+| D10 | Should templates keep song arrangements and own their slide decks? | **Decided:** templates keep the chosen arrangement and own their slide decks (content-addressed files are shared, never deleted while referenced) | 03 Q1–Q2 |
+| D11 | Logo screen in addition to black? | **Decided:** yes — a logo screen (organisation logo or a chosen image) with a button and a shortcut, like black | 04 Q6–Q7 |
+| D12 | Record the Bible translation on items and show it as credits; English book names? | **Decided:** yes to both — items record their translation and show it as credits; book names resolve in the translation's language and in English | 05 Q1, Q3 |
+| D13 | 500-verse cap: keep, raise, or warn? | **Decided:** keep a cap, show "showing N of M verses" and never add a truncated passage without asking | 05 Q2 |
+| D14 | Offline "delete permanently": final, or recoverable from other devices? | **Decided:** final once synced; the server trash is the only trash | 06 Q3 |
+| D15 | Ctrl+Enter: add and close (CLAUDE.md) or follow the "add more" checkbox? | **Decided:** remove "Lägg till fler"; add modals never close after adding — the user closes them (Esc or close). Ctrl+Enter and Shift+Enter just add. New app only; the current app and its CLAUDE.md rule stay as they are | 03 Q8 |
+| D16 | Preview before upload for every image upload? | **Decided:** preview only where the user crops or positions; the media library uploads directly | 05 Q13 |
+| D17 | Trashed songs still used in presentations: warn? | **Decided:** flag the item in the editor with a restore action and skip it live; deleting a song that is in use shows where it is used | 02 Q18 |
+| D18 | Real-time co-editing of a song, or conflict warnings? | **Decided:** the editor updates live from sync; edits to different parts merge; a clash in the same part shows a clear warning. No CRDT co-editing | 02 Q16 |
 
 ### Security and permissions
 
@@ -97,14 +97,14 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 |---|---|---|---|
 | D19 | `/setup` claimable by the first visitor | **Decided:** setup token from configuration, generated and logged once if unset — already fixed in the current app (PR #59) | 01 Q16 |
 | D20 | Admin can demote or delete a SuperAdmin; deleting your home org deletes you | **Decided:** forbid both; keep at least one SuperAdmin — already fixed in the current app (PR #59) | 01 Q4 |
-| D21 | Invite, login-link and profile-image actions only check the organisation | Require `ManageUsers` for anyone but yourself | 01 Q3 |
-| D22 | Role changes take up to 240 minutes on the web | Apply immediately (check role per request) | 01 Q6 |
-| D23 | Devices cannot be revoked | Users revoke their own; admins revoke any in the organisation | 01 Q7 |
-| D24 | `User` role can import and delete Bibles; template items editable by URL | Move both to Admin-level permissions | 05 Q4, 03 Q3 |
+| D21 | Invite, login-link and profile-image actions only check the organisation | **Decided:** require `ManageUsers` for anyone but yourself | 01 Q3 |
+| D22 | Role changes take up to 240 minutes on the web | **Decided:** apply immediately (role read per request) | 01 Q6 |
+| D23 | Devices cannot be revoked | **Decided:** users see and revoke their own devices on the profile page; admins revoke any in the organisation; a revoked device signs out on next contact and keeps its local data unsynced | 01 Q7 |
+| D24 | `User` role can import and delete Bibles; template items editable by URL | **Decided:** importing/deleting Bibles and editing templates require Admin; everyone can still use Bibles and create from templates | 05 Q4, 03 Q3 |
 | D25 | Bible HTML rendered raw on the public `/watch` page | **Decided:** store Bible text as structured data, never HTML (the current app sanitises against an allow-list, PR #59) | 04 Q5 |
 | D26 | `returnUrl` and `/culture` not validated | **Decided:** local URLs and known cultures only — already fixed in the current app (PR #59) | 01 Q11–Q12 |
-| D27 | MCP keys never expire and are SuperAdmin-only | Add expiry and revocation; open to Admins, scoped to their organisation | 01 Q8 |
-| D28 | Authenticated media served `Cache-Control: public` | `private, immutable` with content-addressed keys | 05 Q11 |
+| D27 | MCP keys never expire and are SuperAdmin-only | **Decided:** Admins manage keys for their organisation, with optional expiry and revocation; a key acts with its creator's current role, never more | 01 Q8 |
+| D28 | Authenticated media served `Cache-Control: public` | **Decided:** `private, immutable` with content-addressed keys | 05 Q11 |
 
 Everything else under each section's Open questions is an apparent bug or a leftover: fix it in the new
 app and note the rule it falls under, without a separate decision.
