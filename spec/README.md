@@ -95,14 +95,14 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 
 | # | Question | Recommendation | Sources |
 |---|---|---|---|
-| D19 | `/setup` claimable by the first visitor | Require a setup token from configuration | 01 Q16 |
-| D20 | Admin can demote or delete a SuperAdmin; deleting your home org deletes you | Forbid both; keep at least one SuperAdmin | 01 Q4 |
+| D19 | `/setup` claimable by the first visitor | **Decided:** setup token from configuration, generated and logged once if unset — already fixed in the current app (PR #59) | 01 Q16 |
+| D20 | Admin can demote or delete a SuperAdmin; deleting your home org deletes you | **Decided:** forbid both; keep at least one SuperAdmin — already fixed in the current app (PR #59) | 01 Q4 |
 | D21 | Invite, login-link and profile-image actions only check the organisation | Require `ManageUsers` for anyone but yourself | 01 Q3 |
 | D22 | Role changes take up to 240 minutes on the web | Apply immediately (check role per request) | 01 Q6 |
 | D23 | Devices cannot be revoked | Users revoke their own; admins revoke any in the organisation | 01 Q7 |
 | D24 | `User` role can import and delete Bibles; template items editable by URL | Move both to Admin-level permissions | 05 Q4, 03 Q3 |
-| D25 | Bible HTML rendered raw on the public `/watch` page | Store Bible text as structured data, never HTML | 04 Q5 |
-| D26 | `returnUrl` and `/culture` not validated | Local URLs and known cultures only | 01 Q11–Q12 |
+| D25 | Bible HTML rendered raw on the public `/watch` page | **Decided:** store Bible text as structured data, never HTML (the current app sanitises against an allow-list, PR #59) | 04 Q5 |
+| D26 | `returnUrl` and `/culture` not validated | **Decided:** local URLs and known cultures only — already fixed in the current app (PR #59) | 01 Q11–Q12 |
 | D27 | MCP keys never expire and are SuperAdmin-only | Add expiry and revocation; open to Admins, scoped to their organisation | 01 Q8 |
 | D28 | Authenticated media served `Cache-Control: public` | `private, immutable` with content-addressed keys | 05 Q11 |
 
