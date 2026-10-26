@@ -31,6 +31,17 @@
           "**/*.css"
         ]
       }
+    ],
+    "react/forbid-elements": [
+      "error",
+      {
+        "forbid": [
+          {
+            "element": "button",
+            "message": "use <Button> from ui/Button.tsx (ADR 0007, decision 11)"
+          }
+        ]
+      }
     ]
   },
   "ignorePatterns": [
@@ -47,6 +58,14 @@
       ],
       "rules": {
         "typescript/no-extraneous-class": "off"
+      }
+    },
+    {
+      "files": [
+        "apps/web/src/ui/Button.tsx"
+      ],
+      "rules": {
+        "react/forbid-elements": "off"
       }
     }
   ]
