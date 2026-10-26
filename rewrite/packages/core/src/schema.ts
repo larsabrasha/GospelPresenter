@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // An organisation's synced tables (spec 02 and 03, milestone 1 subset). Every
 // synced table has a single text primary key `id`, so the change log and the
@@ -58,30 +58,80 @@ export const presentations = sqliteTable('presentations', {
   eventDate: text('event_date'),
   /** Set while the presentation is in the trash (D14). */
   deletedAt: integer('deleted_at'),
+  /** The presentation's own theme; null follows the organisation's default (THEME-R1). */
+  themeId: text('theme_id'),
 });
 
 /**
- * An item of a presentation's running order. Song items only, so far. A song
- * item is a reference: `sourceId` names the song, and its slides are resolved
- * from the current song when shown (spec 03), in the item's arrangement.
+ * An item of a presentation's running order (spec 03). A song item is a
+ * reference: `sourceId` names the song, and its slides are resolved from the
+ * current song when shown, in the item's arrangement. A Bible item is a
+ * snapshot: `sourceId` names the translation it came from, and `content`
+ * holds its slides, split once when it was added (BIBLE-R12, D25).
  */
 export const presentationItems = sqliteTable('presentation_items', {
   id: text('id').primaryKey(),
   presentationId: text('presentation_id')
     .notNull()
     .references(() => presentations.id),
-  type: text('type', { enum: ['song'] }).notNull(),
+  type: text('type', { enum: ['song', 'bible'] }).notNull(),
   title: text('title').notNull(),
   sourceId: text('source_id').notNull(),
   sort: integer('sort').notNull(),
   /** The song arrangement to show; null means the song's first one (SONG-R19). */
   arrangementId: text('arrangement_id'),
+  /** A Bible item's translation and slides (`BibleItemContent` as JSON); null for a song. */
+  content: text('content'),
 });
 
-export const schema = { labels, songs, songParts, songArrangements, presentations, presentationItems };
+/**
+ * A translation the organisation has imported (spec 05 "Bible translation").
+ * The id comes from the abbreviation, which is unique per organisation
+ * (BIBLE-R5). Only the metadata syncs: the verses are an immutable text named
+ * by `contentHash`, downloaded once by each device (README, "Bibles").
+ */
+export const bibles = sqliteTable('bibles', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  abbreviation: text('abbreviation').notNull(),
+  language: text('language'),
+  verseCount: integer('verse_count').notNull(),
+  contentHash: text('content_hash').notNull(),
+});
+
+/** The organisation's settings, one row each: `defaultThemeId` so far (THEME-R4). */
+export const orgSettings = sqliteTable('org_settings', {
+  id: text('id').primaryKey(),
+  value: text('value').notNull(),
+});
+
+/**
+ * Not synced. A translation's text, one row per book, named by the hash of
+ * the whole text (`bibleTextHash`). The server keeps what devices upload; a
+ * device keeps what it downloaded or imported, through resets.
+ */
+export const bibleTexts = sqliteTable(
+  'bible_texts',
+  {
+    hash: text('hash').notNull(),
+    book: text('book').notNull(),
+    sort: integer('sort').notNull(),
+    /** The book's verses as JSON: `[[chapter, verse, text], …]`. */
+    chunk: text('chunk').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.hash, t.book] })],
+);
+
+/** Not synced. One row per complete text in `bible_texts`, written last, so a text is there only when all of it is. */
+export const bibleBlobs = sqliteTable('bible_blobs', {
+  hash: text('hash').primaryKey(),
+  verseCount: integer('verse_count').notNull(),
+});
+
+export const schema = { labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, bibleTexts, bibleBlobs };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems];
+export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -89,9 +139,20 @@ export type SongPart = typeof songParts.$inferSelect;
 export type SongArrangement = typeof songArrangements.$inferSelect;
 export type Presentation = typeof presentations.$inferSelect;
 export type PresentationItem = typeof presentationItems.$inferSelect;
+export type Bible = typeof bibles.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
+
+/** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
+const bibleDdl = [
+  `CREATE TABLE IF NOT EXISTS bibles (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, abbreviation TEXT NOT NULL,
+     language TEXT, verse_count INTEGER NOT NULL, content_hash TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS org_settings (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS bible_texts (hash TEXT NOT NULL, book TEXT NOT NULL, sort INTEGER NOT NULL, chunk TEXT NOT NULL,
+     PRIMARY KEY (hash, book))`,
+  `CREATE TABLE IF NOT EXISTS bible_blobs (hash TEXT PRIMARY KEY NOT NULL, verse_count INTEGER NOT NULL)`,
+];
 
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
@@ -107,10 +168,11 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS song_arrangements (id TEXT PRIMARY KEY NOT NULL,
      song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS presentations (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, event_date TEXT,
-     deleted_at INTEGER)`,
+     deleted_at INTEGER, theme_id TEXT)`,
   `CREATE TABLE IF NOT EXISTS presentation_items (id TEXT PRIMARY KEY NOT NULL,
      presentation_id TEXT NOT NULL REFERENCES presentations(id), type TEXT NOT NULL, title TEXT NOT NULL,
-     source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT)`,
+     source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT)`,
+  ...bibleDdl,
 ];
 
 /** The statements that take a database from version `n - 1` to `n`. */
@@ -120,6 +182,7 @@ export const orgMigrations: Record<number, string[]> = {
        song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
     `ALTER TABLE presentation_items ADD COLUMN arrangement_id TEXT`,
   ],
+  3: [`ALTER TABLE presentations ADD COLUMN theme_id TEXT`, `ALTER TABLE presentation_items ADD COLUMN content TEXT`, ...bibleDdl],
 };
 
 /** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */

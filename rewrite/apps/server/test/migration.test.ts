@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SCHEMA_VERSION, orgDdl, tableInfo } from '@gp/core';
+import { SCHEMA_VERSION, orgDdl, orgMigrations, schemaMetaDdl, tableInfo } from '@gp/core';
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';
@@ -31,6 +31,15 @@ const milestone1Rows = [
   `INSERT INTO songs (id, name) VALUES ('S1', 'Härlig är jorden')`,
   `INSERT INTO presentations (id, name) VALUES ('P', 'Söndag')`,
   `INSERT INTO presentation_items (id, presentation_id, type, title, source_id, sort) VALUES ('I1', 'P', 'song', 'Härlig är jorden', 'S1', 0)`,
+];
+
+/** A milestone 2 and 3 file (schema 2): arrangements, no themes or Bibles. */
+const milestone2 = [
+  ...milestone1Ddl,
+  ...orgMigrations[2]!,
+  schemaMetaDdl,
+  `INSERT INTO _schema (one, version) VALUES (1, 2)`,
+  ...milestone1Rows,
 ];
 
 const dirs: string[] = [];
@@ -65,6 +74,29 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     again.close();
   });
 
+  it('migrates a schema 2 file: themes and Bibles appear, rows stay', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+    dirs.push(dir);
+    const file = join(dir, 'org.sqlite');
+    const old = openSqlite(file, driver);
+    for (const s of milestone2) old.exec(s);
+    old.close();
+
+    const f = openSqlite(file, driver);
+    nodeOrgStore(f);
+    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
+    expect(columnsOf(f.query)).toEqual(Object.fromEntries(tableInfo.map((t) => [t.name, t.columns])));
+    expect(f.query('SELECT id, theme_id FROM presentations')).toEqual([{ id: 'P', theme_id: null }]);
+    expect(f.query('SELECT id, type, content FROM presentation_items')).toEqual([{ id: 'I1', type: 'song', content: null }]);
+    // The stored texts, which do not sync.
+    expect(f.query(`SELECT count(*) AS n FROM bible_texts`)).toEqual([{ n: 0 }]);
+    expect(f.query(`SELECT count(*) AS n FROM bible_blobs`)).toEqual([{ n: 0 }]);
+    f.close();
+    const again = openSqlite(file, driver);
+    nodeOrgStore(again);
+    again.close();
+  });
+
   it('a new file gets the current DDL and its version', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
     dirs.push(dir);
@@ -93,7 +125,7 @@ describe('client (wa-sqlite)', () => {
     });
     const dump = await client.dump();
     expect(dump.presentation_items).toEqual([
-      { id: 'I1', presentation_id: 'P', type: 'song', title: 'Härlig är jorden', source_id: 'S1', sort: 0, arrangement_id: null },
+      { id: 'I1', presentation_id: 'P', type: 'song', title: 'Härlig är jorden', source_id: 'S1', sort: 0, arrangement_id: null, content: null },
     ]);
     expect(dump.song_arrangements).toEqual([]);
 
@@ -101,7 +133,8 @@ describe('client (wa-sqlite)', () => {
     await client.mutate('setItemArrangement', { itemId: 'I1', arrangementId: 'A' });
     const [undo] = await client.query("SELECT before FROM _undo WHERE tbl = 'presentation_items'");
     expect(JSON.parse(String(undo!.before))).toMatchObject({ id: 'I1', arrangement_id: null, sort: 0 });
-    expect(orgDdl.length).toBe(tableInfo.length);
+    // Every table is made by the DDL: the synced ones, and the two that keep Bible texts.
+    expect(orgDdl.length).toBe(tableInfo.length + 2);
     await client.close();
   });
 });

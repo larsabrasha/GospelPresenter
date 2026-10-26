@@ -116,7 +116,7 @@ const LOOPBACK_PATHS = new Set([
   '/auth/passkey/finish',
   '/auth/passkey.js',
 ]);
-const API_PREFIXES = ['/auth/', '/sync/', '/users', '/pair/', '/debug/', '/app-login'];
+const API_PREFIXES = ['/auth/', '/sync/', '/bibles/', '/users', '/pair/', '/debug/', '/app-login'];
 
 export function isApiPath(path: string): boolean {
   return API_PREFIXES.some((p) => path === p.replace(/\/$/, '') || path.startsWith(p));

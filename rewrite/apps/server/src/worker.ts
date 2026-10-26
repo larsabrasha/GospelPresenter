@@ -189,7 +189,7 @@ function globals(env: Env) {
 }
 
 /** Paths an organisation's Durable Object answers; everything else is the global auth API. */
-const orgPaths = ['/sync/', '/debug/dump', '/debug/triggers', '/debug/tx-probe'];
+const orgPaths = ['/sync/', '/bibles/', '/debug/dump', '/debug/triggers', '/debug/tx-probe'];
 
 const worker = new Hono<{ Bindings: Env }>();
 

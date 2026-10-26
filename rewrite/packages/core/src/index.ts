@@ -10,3 +10,8 @@ export * from './live.ts';
 export * from './trash.ts';
 export * from './search.ts';
 export * from './accounts.ts';
+export * from './platform.ts';
+export * from './bible-books.ts';
+export * from './bible.ts';
+export * from './bible-import.ts';
+export * from './themes.ts';

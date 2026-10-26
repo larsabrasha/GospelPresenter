@@ -1,9 +1,11 @@
 import { and, asc, count, eq, gt, inArray, isNotNull, isNull, lte, max, ne, sql } from 'drizzle-orm';
 import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import { z } from 'zod';
+import { BIBLE_LIMITS, bibleId, bibleTitle, splitBibleSlides, type BibleItemContent } from './bible.ts';
 import { labelDefaults, labelId } from './labels.ts';
 import { can, type Permission, type Role } from './permissions.ts';
-import { labels, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
+import { bibleBlobs, bibles, bibleTexts, labels, orgSettings, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
+import { isKnownTheme } from './themes.ts';
 import { parsePartIds } from './slides.ts';
 import { TRASH_RETENTION_MS } from './trash.ts';
 
@@ -351,10 +353,25 @@ async function renamePresentation(tx: Tx, a: z.output<typeof renamePresentationA
   await tx.update(presentations).set({ name: a.name }).where(eq(presentations.id, a.id));
 }
 
-const updatePresentationArgs = z.object({ id, name: name.optional(), eventDate: z.iso.date().nullable().optional() });
+/** A theme the organisation can use; anything else is "Theme not found." (PRES-R6, THEME-R4). */
+function requireTheme(themeId: string) {
+  if (!isKnownTheme(themeId)) throw new MutationError('theme-not-found', 'Theme not found.');
+}
+
+const updatePresentationArgs = z.object({
+  id,
+  name: name.optional(),
+  eventDate: z.iso.date().nullable().optional(),
+  /** The presentation's own theme; null follows the organisation's default (THEME-A5). */
+  themeId: id.nullable().optional(),
+});
 /** The details dialog (spec 03, "Redigera detaljer"): sets the fields it names; a null date clears it. */
 async function updatePresentation(tx: Tx, a: z.output<typeof updatePresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
+  if (a.themeId !== undefined) {
+    requirePermission(ctx, 'ViewThemes'); // PRES-R6
+    if (a.themeId !== null) requireTheme(a.themeId);
+  }
   const { id: presentationId, ...fields } = a;
   const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
   if (Object.keys(set).length) await tx.update(presentations).set(set).where(eq(presentations.id, presentationId));
@@ -368,6 +385,46 @@ async function ownArrangement(tx: Tx, songId: string, arrangementId: string | nu
     .from(songArrangements)
     .where(and(eq(songArrangements.id, arrangementId), eq(songArrangements.songId, songId)));
   return arr ? arr.id : null;
+}
+
+/**
+ * Inserts an item right after `afterItemId` (spec 03 2d), or last when that
+ * is absent or gone, moving the items after it down by one. False if the
+ * item already exists: a replay of an add that already landed.
+ */
+async function insertItem(
+  tx: Tx,
+  afterItemId: string | null | undefined,
+  item: Omit<typeof presentationItems.$inferInsert, 'sort'>,
+): Promise<boolean> {
+  const [existing] = await tx.select({ id: presentationItems.id }).from(presentationItems).where(eq(presentationItems.id, item.id));
+  if (existing) return false;
+  const [n] = await tx
+    .select({ n: count(), last: max(presentationItems.sort) })
+    .from(presentationItems)
+    .where(eq(presentationItems.presentationId, item.presentationId));
+  limit((n?.n ?? 0) >= LIMITS.itemsPerPresentation, 'items');
+  let sort = (n?.last ?? -1) + 1;
+  if (afterItemId) {
+    const [after] = await tx
+      .select({ sort: presentationItems.sort })
+      .from(presentationItems)
+      .where(and(eq(presentationItems.id, afterItemId), eq(presentationItems.presentationId, item.presentationId)));
+    if (after) {
+      sort = after.sort + 1;
+      await tx
+        .update(presentationItems)
+        .set({ sort: sql`${presentationItems.sort} + 1` })
+        .where(and(eq(presentationItems.presentationId, item.presentationId), gt(presentationItems.sort, after.sort)));
+    }
+  }
+  await tx.insert(presentationItems).values({ ...item, sort });
+  return true;
+}
+
+async function requirePresentation(tx: Tx, presentationId: string) {
+  const [p] = await tx.select({ id: presentations.id }).from(presentations).where(eq(presentations.id, presentationId));
+  if (!p) throw new MutationError('not-found', 'presentation not found');
 }
 
 const addSongToPresentationArgs = z.object({
@@ -385,39 +442,58 @@ const addSongToPresentationArgs = z.object({
  */
 async function addSongToPresentation(tx: Tx, a: z.output<typeof addSongToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  const [p] = await tx.select({ id: presentations.id }).from(presentations).where(eq(presentations.id, a.presentationId));
-  if (!p) throw new MutationError('not-found', 'presentation not found');
+  await requirePresentation(tx, a.presentationId);
   const [s] = await tx.select({ name: songs.name }).from(songs).where(eq(songs.id, a.songId));
   if (!s) throw new MutationError('not-found', 'song not found');
-  const [existing] = await tx.select({ id: presentationItems.id }).from(presentationItems).where(eq(presentationItems.id, a.itemId));
-  if (existing) return; // a replay of an add that already landed
-  const [n] = await tx
-    .select({ n: count(), last: max(presentationItems.sort) })
-    .from(presentationItems)
-    .where(eq(presentationItems.presentationId, a.presentationId));
-  limit((n?.n ?? 0) >= LIMITS.itemsPerPresentation, 'items');
-  let sort = (n?.last ?? -1) + 1;
-  if (a.afterItemId) {
-    const [after] = await tx
-      .select({ sort: presentationItems.sort })
-      .from(presentationItems)
-      .where(and(eq(presentationItems.id, a.afterItemId), eq(presentationItems.presentationId, a.presentationId)));
-    if (after) {
-      sort = after.sort + 1;
-      await tx
-        .update(presentationItems)
-        .set({ sort: sql`${presentationItems.sort} + 1` })
-        .where(and(eq(presentationItems.presentationId, a.presentationId), gt(presentationItems.sort, after.sort)));
-    }
-  }
-  await tx.insert(presentationItems).values({
+  await insertItem(tx, a.afterItemId, {
     id: a.itemId,
     presentationId: a.presentationId,
     type: 'song',
     title: s.name,
     sourceId: a.songId,
-    sort,
     arrangementId: await ownArrangement(tx, a.songId, a.arrangementId),
+    content: null,
+  });
+}
+
+/** The add-item tab adds at most this many verses (BIBLE-R14, D13). */
+export const MAX_VERSES_PER_ITEM = 500;
+
+const verseArg = z.object({
+  b: z.string().regex(/^[0-9A-Z]{3}$/),
+  c: z.number().int().min(0).max(999),
+  v: z.number().int().min(0).max(999),
+  t: z.string().max(BIBLE_LIMITS.verseLength),
+});
+
+const addBibleToPresentationArgs = z.object({
+  itemId: id,
+  presentationId: id,
+  /** The translation the verses came from, and its abbreviation as it was: the item keeps it (D12). */
+  bibleId: id,
+  translation: z.string().trim().min(1).max(50),
+  verses: z.array(verseArg).min(1).max(MAX_VERSES_PER_ITEM),
+  afterItemId: id.nullable().optional(),
+});
+/**
+ * Adds a Bible passage. It is split into slides here, once, and frozen
+ * (BIBLE-R12): re-importing or deleting the translation leaves it as it is
+ * (BIBLE-A3, A7). Stored as data, never HTML (D25). The title is the
+ * reference with Swedish book names (BIBLE-R13).
+ */
+async function addBibleToPresentation(tx: Tx, a: z.output<typeof addBibleToPresentationArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  requirePermission(ctx, 'ViewBibles');
+  await requirePresentation(tx, a.presentationId);
+  const content: BibleItemContent = { translation: a.translation, slides: splitBibleSlides(a.verses) };
+  await insertItem(tx, a.afterItemId, {
+    id: a.itemId,
+    presentationId: a.presentationId,
+    type: 'bible',
+    title: bibleTitle(a.verses).slice(0, 200),
+    sourceId: a.bibleId,
+    arrangementId: null,
+    content: JSON.stringify(content),
   });
 }
 
@@ -432,8 +508,12 @@ const setItemArrangementArgs = z.object({ itemId: id, arrangementId: id.nullable
 /** Chooses the arrangement a song item shows (03 Q13); null is the song's default. */
 async function setItemArrangement(tx: Tx, a: z.output<typeof setItemArrangementArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  const [item] = await tx.select({ songId: presentationItems.sourceId }).from(presentationItems).where(eq(presentationItems.id, a.itemId));
+  const [item] = await tx
+    .select({ songId: presentationItems.sourceId, type: presentationItems.type })
+    .from(presentationItems)
+    .where(eq(presentationItems.id, a.itemId));
   if (!item) return; // removed meanwhile
+  if (item.type !== 'song') throw new MutationError('not-a-song', 'only a song item has an arrangement');
   const arrangementId = await ownArrangement(tx, item.songId, a.arrangementId);
   if (a.arrangementId !== null && arrangementId === null) throw new MutationError('not-found', 'arrangement not found');
   await tx.update(presentationItems).set({ arrangementId }).where(eq(presentationItems.id, a.itemId));
@@ -511,6 +591,73 @@ async function purgePresentation(tx: Tx, a: z.output<typeof purgePresentationArg
   if (p.deletedAt === null) throw new MutationError('not-in-trash', 'presentation is not in the trash');
   await tx.delete(presentationItems).where(eq(presentationItems.presentationId, a.id));
   await tx.delete(presentations).where(eq(presentations.id, a.id));
+}
+
+// ------------------------------------------------------------------ bibles
+
+/** Drops a stored text that no translation names any more. */
+async function dropUnusedText(tx: Tx, hash: string) {
+  const [used] = await tx.select({ id: bibles.id }).from(bibles).where(eq(bibles.contentHash, hash));
+  if (used) return;
+  await tx.delete(bibleBlobs).where(eq(bibleBlobs.hash, hash));
+  await tx.delete(bibleTexts).where(eq(bibleTexts.hash, hash));
+}
+
+const importBibleArgs = z.object({
+  name: z.string().trim().min(1).max(200),
+  abbreviation: z.string().trim().min(1).max(50),
+  language: z.string().trim().max(20).nullable(),
+  /** The text, uploaded first (`PUT /bibles/{hash}`) and stored where this runs. */
+  contentHash: z.string().regex(/^[0-9a-f]{64}$/),
+});
+/**
+ * Imports a translation, or replaces the one with the same abbreviation
+ * (BIBLE-R5): its id comes from the abbreviation, so the row is kept and its
+ * name, text and count change. At most 10, counted only for a new one. The
+ * text must be stored here already: on the server the upload put it there, on
+ * the importing device the import did. The verse count is the text's own.
+ */
+async function importBible(tx: Tx, a: z.output<typeof importBibleArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageBibles'); // D24
+  const [text] = await tx.select({ verseCount: bibleBlobs.verseCount }).from(bibleBlobs).where(eq(bibleBlobs.hash, a.contentHash));
+  if (!text) throw new MutationError('bible-text-missing', 'the text of this translation has not been uploaded');
+  const bid = bibleId(a.abbreviation);
+  const [existing] = await tx.select({ contentHash: bibles.contentHash }).from(bibles).where(eq(bibles.id, bid));
+  if (!existing) {
+    const [n] = await tx.select({ n: count() }).from(bibles);
+    limit((n?.n ?? 0) >= BIBLE_LIMITS.bibles, 'Bibles');
+  }
+  const row = { name: a.name, abbreviation: a.abbreviation, language: a.language, verseCount: text.verseCount, contentHash: a.contentHash };
+  // Insert or update, never an upsert: an upsert's ON CONFLICT overrides the
+  // OR IGNORE in the client's undo triggers (sync-sql.ts) and fails there.
+  if (existing) await tx.update(bibles).set(row).where(eq(bibles.id, bid));
+  else await tx.insert(bibles).values({ id: bid, ...row });
+  if (existing && existing.contentHash !== a.contentHash) await dropUnusedText(tx, existing.contentHash);
+}
+
+const deleteBibleArgs = z.object({ id });
+/** Deletes a translation (BIBLE-R7): no trash, and items made from it keep their text. A no-op if it is gone. */
+async function deleteBible(tx: Tx, a: z.output<typeof deleteBibleArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageBibles'); // D24
+  const [b] = await tx.select({ contentHash: bibles.contentHash }).from(bibles).where(eq(bibles.id, a.id));
+  if (!b) return;
+  await tx.delete(bibles).where(eq(bibles.id, a.id));
+  await dropUnusedText(tx, b.contentHash);
+}
+
+// ------------------------------------------------------------------ themes
+
+export const DEFAULT_THEME_SETTING = 'defaultThemeId';
+
+const setDefaultThemeArgs = z.object({ themeId: id });
+/** The organisation's default theme (THEME-R4): presentations without their own follow it at once (THEME-R6). */
+async function setDefaultTheme(tx: Tx, a: z.output<typeof setDefaultThemeArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageThemes');
+  requireTheme(a.themeId);
+  const [current] = await tx.select({ id: orgSettings.id }).from(orgSettings).where(eq(orgSettings.id, DEFAULT_THEME_SETTING));
+  // Not an upsert: see importBible.
+  if (current) await tx.update(orgSettings).set({ value: a.themeId }).where(eq(orgSettings.id, DEFAULT_THEME_SETTING));
+  else await tx.insert(orgSettings).values({ id: DEFAULT_THEME_SETTING, value: a.themeId });
 }
 
 // ------------------------------------------------------------------ trash
@@ -591,6 +738,7 @@ export const mutators = {
   renamePresentation: m(renamePresentationArgs, renamePresentation),
   updatePresentation: m(updatePresentationArgs, updatePresentation),
   addSongToPresentation: m(addSongToPresentationArgs, addSongToPresentation),
+  addBibleToPresentation: m(addBibleToPresentationArgs, addBibleToPresentation),
   renameItem: m(renameItemArgs, renameItem),
   setItemArrangement: m(setItemArrangementArgs, setItemArrangement),
   reorderItems: m(reorderItemsArgs, reorderItems),
@@ -600,6 +748,9 @@ export const mutators = {
   restorePresentation: m(restorePresentationArgs, restorePresentation),
   purgePresentation: m(purgePresentationArgs, purgePresentation),
   purgeExpiredTrash: m(purgeExpiredTrashArgs, purgeExpiredTrash),
+  importBible: m(importBibleArgs, importBible),
+  deleteBible: m(deleteBibleArgs, deleteBible),
+  setDefaultTheme: m(setDefaultThemeArgs, setDefaultTheme),
   probeWriteThenThrow: m(probeArgs, probeWriteThenThrow),
 };
 

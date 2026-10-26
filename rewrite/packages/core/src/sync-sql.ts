@@ -14,7 +14,7 @@ export const tableInfo: TableInfo[] = syncedTables.map((t: SQLiteTable) => {
   return { name: c.name, columns: c.columns.map((col) => col.name) };
 });
 
-export type SyncedTableName = 'labels' | 'songs' | 'song_parts' | 'song_arrangements' | 'presentations' | 'presentation_items';
+export type SyncedTableName = 'labels' | 'songs' | 'song_parts' | 'song_arrangements' | 'presentations' | 'presentation_items' | 'bibles' | 'org_settings';
 
 /** Every synced table's rows, sorted by id: what "byte for byte" compares. */
 export type Dump = Record<SyncedTableName, Record<string, unknown>[]>;

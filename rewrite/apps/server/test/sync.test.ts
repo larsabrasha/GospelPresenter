@@ -255,7 +255,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     alice.net.online = true;
     await syncAll(alice, carol);
     expect(alice.client.rejected.map((r) => r.error)).toEqual(['not-in-trash']);
-    for (const d of [alice, carol]) expect(await presentation(d)).toEqual({ id: 'P', name: 'Rescued', event_date: null, deleted_at: null });
+    for (const d of [alice, carol]) expect(await presentation(d)).toEqual({ id: 'P', name: 'Rescued', event_date: null, deleted_at: null, theme_id: null });
     await alice.client.mutate('renamePresentation', { id: 'P', name: 'Alice can push again' });
     await syncAll(alice, carol);
     expect((await presentation(carol))!.name).toBe('Alice can push again');

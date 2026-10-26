@@ -116,6 +116,21 @@ export class SyncClient {
     return m as { cookie: string | null; last_mutation_id: number; next_mutation_id: number };
   }
 
+  /**
+   * Writes tables that do not sync (such as stored Bible texts) in one
+   * transaction, serialised with every other write. Never a synced table:
+   * those change only through `mutate` and pulls.
+   */
+  async localWrite(statements: { sql: string; params?: unknown[] }[]): Promise<void> {
+    for (const { sql } of statements) {
+      const table = /^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|DELETE\s+FROM|UPDATE)\s+([a-z_]+)/i.exec(sql)?.[1];
+      if (!table || tableByName.has(table) || table.startsWith('_')) throw new Error(`localWrite: not a local table: ${sql.slice(0, 60)}`);
+    }
+    await this.transaction(async () => {
+      for (const s of statements) await this.exec(s.sql, s.params ?? []);
+    });
+  }
+
   /** Runs `fn` in one SQLite transaction on the client connection, serialised with every other write. */
   private transaction<T>(fn: () => Promise<T>): Promise<T> {
     return this.lock.run(async () => {

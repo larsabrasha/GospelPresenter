@@ -29,16 +29,18 @@ const presentation = (r: Row): Presentation => ({
   name: String(r.name),
   eventDate: (r.event_date as string | null) ?? null,
   deletedAt: (r.deleted_at as number | null) ?? null,
+  themeId: (r.theme_id as string | null) ?? null,
 });
 
 const item = (r: Row): PresentationItem => ({
   id: String(r.id),
   presentationId: String(r.presentation_id),
-  type: 'song',
+  type: r.type === 'bible' ? 'bible' : 'song',
   title: String(r.title),
   sourceId: String(r.source_id),
   sort: Number(r.sort),
   arrangementId: (r.arrangement_id as string | null) ?? null,
+  content: (r.content as string | null) ?? null,
 });
 
 const arrangement = (r: Row): SongArrangement => ({

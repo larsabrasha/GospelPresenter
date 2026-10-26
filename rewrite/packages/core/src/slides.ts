@@ -1,10 +1,16 @@
+import { bibleCredits, bibleSlideText, type BibleItemContent, type BibleSlide } from './bible.ts';
 import type { Label, Song, SongArrangement, SongPart } from './schema.ts';
 
-/** What an output renders for one song part (spec 04 `LiveSlide`, milestone 1 subset). */
+/** What an output renders for one slide (spec 04 `LiveSlide`): a song part or a piece of a Bible passage. */
 export interface Slide {
   /** The part id, plus the occurrence when an arrangement repeats the part: stable while the song is edited. */
   key: string;
+  /** Which of the theme's styles it takes. */
+  kind: 'song' | 'bible';
+  /** The text as plain text: a song part as written; a Bible slide with its verse numbers. */
   text: string;
+  /** A Bible slide's runs of words, each starting with its verse number if it starts a verse. */
+  verses: BibleSlide | null;
   label: { text: string; color: string } | null;
   credits: string | null;
 }
@@ -60,6 +66,12 @@ export function songSlides(
     const n = seen.get(p.id) ?? 0;
     seen.set(p.id, n + 1);
     const l = p.labelId ? labels.get(p.labelId) : undefined;
-    return { key: n ? `${p.id}#${n}` : p.id, text: p.content, label: l ? { text: l.text, color: l.color } : null, credits };
+    return { key: n ? `${p.id}#${n}` : p.id, kind: 'song', text: p.content, verses: null, label: l ? { text: l.text, color: l.color } : null, credits };
   });
+}
+
+/** A Bible item's slides, as frozen when it was added; the credits name the passage and its translation (D12). */
+export function bibleItemSlides(title: string, content: BibleItemContent): Slide[] {
+  const credits = bibleCredits(title, content.translation);
+  return content.slides.map((verses, i) => ({ key: `b${i}`, kind: 'bible', text: bibleSlideText(verses), verses, label: null, credits }));
 }
