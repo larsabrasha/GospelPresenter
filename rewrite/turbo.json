@@ -9,8 +9,16 @@
         "dist/**"
       ]
     },
-    "typecheck": {},
-    "test": {},
+    "typecheck": {
+      "dependsOn": [
+        "^typecheck"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "^typecheck"
+      ]
+    },
     "e2e": {
       "dependsOn": [
         "build",
