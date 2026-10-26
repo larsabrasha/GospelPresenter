@@ -153,8 +153,9 @@ runs, 15 of 15 passed both times.
 page, `app.html`. A Mac opened it on `localhost` and an iPad opened it in Safari over Wi-Fi at
 `http://192.168.1.59:8787`. Both added songs, and the iPad added two in flight mode, then went
 back online. The server ended with all four songs once each. Its log shows the iPad's client with
-`last_mutation_id` 3 and the Mac's with 1, and no rejected mutations. Only the server's state was
-checked; the iPad's screen and its latency were not captured.
+`last_mutation_id` 3 and the Mac's with 1, and no rejected mutations. The person who ran it
+reported that the iPad's status line read "memory (not a secure context)", and that a new song
+showed on the other device within about a second. That is observed by eye, not measured.
 
 **Plain http on the LAN is not a secure context.** A page loaded from `http://<LAN address>` gets no
 OPFS and no `crypto.randomUUID`. This holds in every browser, and in WebKit it was checked by
