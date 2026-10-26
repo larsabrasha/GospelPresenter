@@ -265,6 +265,68 @@ async function updateArrangement(tx: Tx, a: z.output<typeof updateArrangementArg
   if (Object.keys(set).length) await tx.update(songArrangements).set(set).where(eq(songArrangements.id, a.id));
 }
 
+/** The arrangement's song and part ids where this runs, or null if it is gone. */
+async function arrangementParts(tx: Tx, arrangementId: string): Promise<{ songId: string; ids: string[] } | null> {
+  const [arr] = await tx
+    .select({ songId: songArrangements.songId, partIds: songArrangements.partIds })
+    .from(songArrangements)
+    .where(eq(songArrangements.id, arrangementId));
+  return arr ? { songId: arr.songId, ids: parsePartIds(arr.partIds) } : null;
+}
+
+/**
+ * The index of the chip the user meant: `index` if it still holds `partId`,
+ * else the nearest occurrence of `partId`, else -1. Chip edits name both, so
+ * an edit made on an older view of the list still hits the right part.
+ */
+function chipAt(ids: string[], index: number, partId: string): number {
+  if (ids[index] === partId) return index;
+  let best = -1;
+  for (const [i, x] of ids.entries()) if (x === partId && (best === -1 || Math.abs(i - index) < Math.abs(best - index))) best = i;
+  return best;
+}
+
+async function setArrangementParts(tx: Tx, arrangementId: string, ids: string[]) {
+  await tx.update(songArrangements).set({ partIds: JSON.stringify(ids) }).where(eq(songArrangements.id, arrangementId));
+}
+
+// The chip edits below change the list as it is where they run, so quick
+// edits in a row, and edits from two devices, compose instead of replacing
+// each other's list.
+
+const appendArrangementPartArgs = z.object({ id, partId: id });
+/** Appends a part to an arrangement ("Lägg till del"). */
+async function appendArrangementPart(tx: Tx, a: z.output<typeof appendArrangementPartArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const arr = await arrangementParts(tx, a.id);
+  if (!arr) return;
+  if (!(await ownPartIds(tx, arr.songId, [a.partId])).length) return; // not (or no longer) a part of the song
+  if (arr.ids.length >= 500) throw new MutationError('limit', 'the maximum number of parts in an arrangement has been reached');
+  await setArrangementParts(tx, a.id, [...arr.ids, a.partId]);
+}
+
+const removeArrangementPartArgs = z.object({ id, index: z.number().int().min(0), partId: id });
+/** Takes one chip out of an arrangement (×). */
+async function removeArrangementPart(tx: Tx, a: z.output<typeof removeArrangementPartArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const arr = await arrangementParts(tx, a.id);
+  if (!arr) return;
+  const at = chipAt(arr.ids, a.index, a.partId);
+  if (at !== -1) await setArrangementParts(tx, a.id, arr.ids.toSpliced(at, 1));
+}
+
+const moveArrangementPartArgs = z.object({ id, index: z.number().int().min(0), partId: id, by: z.number().int().min(-500).max(500) });
+/** Moves one chip `by` places (↑ is -1, ↓ is 1), stopping at the ends. */
+async function moveArrangementPart(tx: Tx, a: z.output<typeof moveArrangementPartArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const arr = await arrangementParts(tx, a.id);
+  if (!arr) return;
+  const at = chipAt(arr.ids, a.index, a.partId);
+  if (at === -1) return;
+  const to = Math.max(0, Math.min(arr.ids.length - 1, at + a.by));
+  if (to !== at) await setArrangementParts(tx, a.id, arr.ids.toSpliced(at, 1).toSpliced(to, 0, a.partId));
+}
+
 const removeArrangementArgs = z.object({ id });
 /** Deletes exactly the named arrangement. Items that chose it fall back to all parts (SONG-R18). */
 async function removeArrangement(tx: Tx, a: z.output<typeof removeArrangementArgs>, ctx: MutatorCtx) {
@@ -397,6 +459,30 @@ async function reorderItems(tx: Tx, a: z.output<typeof reorderItemsArgs>, ctx: M
   }
 }
 
+const moveItemArgs = z.object({ itemId: id, by: z.number().int().min(-1000).max(1000) });
+/** Moves an item `by` places in the order as it is where this runs (↑ is -1), stopping at the ends. */
+async function moveItem(tx: Tx, a: z.output<typeof moveItemArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  const [item] = await tx.select({ presentationId: presentationItems.presentationId }).from(presentationItems).where(eq(presentationItems.id, a.itemId));
+  if (!item) return;
+  const order = (
+    await tx
+      .select({ id: presentationItems.id })
+      .from(presentationItems)
+      .where(eq(presentationItems.presentationId, item.presentationId))
+      .orderBy(asc(presentationItems.sort), asc(presentationItems.id))
+  ).map((r) => r.id);
+  const at = order.indexOf(a.itemId);
+  const to = Math.max(0, Math.min(order.length - 1, at + a.by));
+  const next = order.toSpliced(at, 1).toSpliced(to, 0, a.itemId);
+  for (const [i, itemId] of next.entries()) {
+    await tx
+      .update(presentationItems)
+      .set({ sort: i })
+      .where(and(eq(presentationItems.id, itemId), ne(presentationItems.sort, i)));
+  }
+}
+
 const removeItemArgs = z.object({ itemId: id });
 /** Deletes exactly the named item; a no-op if it is already gone. */
 async function removeItem(tx: Tx, a: z.output<typeof removeItemArgs>, ctx: MutatorCtx) {
@@ -498,6 +584,9 @@ export const mutators = {
   createArrangement: m(createArrangementArgs, createArrangement),
   updateArrangement: m(updateArrangementArgs, updateArrangement),
   removeArrangement: m(removeArrangementArgs, removeArrangement),
+  appendArrangementPart: m(appendArrangementPartArgs, appendArrangementPart),
+  removeArrangementPart: m(removeArrangementPartArgs, removeArrangementPart),
+  moveArrangementPart: m(moveArrangementPartArgs, moveArrangementPart),
   createPresentation: m(createPresentationArgs, createPresentation),
   renamePresentation: m(renamePresentationArgs, renamePresentation),
   updatePresentation: m(updatePresentationArgs, updatePresentation),
@@ -505,6 +594,7 @@ export const mutators = {
   renameItem: m(renameItemArgs, renameItem),
   setItemArrangement: m(setItemArrangementArgs, setItemArrangement),
   reorderItems: m(reorderItemsArgs, reorderItems),
+  moveItem: m(moveItemArgs, moveItem),
   removeItem: m(removeItemArgs, removeItem),
   trashPresentation: m(trashPresentationArgs, trashPresentation),
   restorePresentation: m(restorePresentationArgs, restorePresentation),

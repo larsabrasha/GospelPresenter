@@ -388,6 +388,48 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     await expectConverged(alice, bob, carol);
   });
 
+  it('chip edits apply to the list as it is: quick edits in a row compose, and two devices both land', async () => {
+    await seed();
+    await seedParts('S1');
+    await alice.client.mutate('createArrangement', { id: 'A1', songId: 'S1', partIds: ['S1-P0', 'S1-P1', 'S1-P2'] });
+    // Three edits made from one rendered list [P0, P1, P2], without waiting for a re-render.
+    await alice.client.mutate('removeArrangementPart', { id: 'A1', index: 2, partId: 'S1-P2' });
+    await alice.client.mutate('appendArrangementPart', { id: 'A1', partId: 'S1-P1' });
+    await alice.client.mutate('moveArrangementPart', { id: 'A1', index: 1, partId: 'S1-P1', by: -1 });
+    expect((await arrangements(alice))[0]!.parts).toEqual(['S1-P1', 'S1-P0', 'S1-P1']);
+    await syncAll(alice, bob, carol);
+    // Offline on two devices: Bob appends, Carol removes the first chip and moves past the end.
+    bob.net.online = false;
+    await bob.client.mutate('appendArrangementPart', { id: 'A1', partId: 'S1-P2' });
+    await bob.client.mutate('appendArrangementPart', { id: 'A1', partId: 'S2-NOT-OURS' });
+    await carol.client.mutate('removeArrangementPart', { id: 'A1', index: 0, partId: 'S1-P1' });
+    await carol.client.mutate('moveArrangementPart', { id: 'A1', index: 0, partId: 'S1-P0', by: 9 });
+    await carol.client.sync();
+    bob.net.online = true;
+    await syncAll(alice, bob, carol);
+    expect((await arrangements(bob))[0]!.parts).toEqual(['S1-P1', 'S1-P0', 'S1-P2']);
+    // A stale index still finds its part: the nearest occurrence.
+    await alice.client.mutate('removeArrangementPart', { id: 'A1', index: 0, partId: 'S1-P2' });
+    expect((await arrangements(alice))[0]!.parts).toEqual(['S1-P1', 'S1-P0']);
+    await syncAll(alice, bob, carol);
+    await expectConverged(alice, bob, carol);
+  });
+
+  it('moveItem moves by places in the order where it runs; two quick moves up are two places', async () => {
+    await seed();
+    await alice.client.mutate('addSongToPresentation', { itemId: 'I3', presentationId: 'P', songId: 'S3' });
+    await alice.client.mutate('moveItem', { itemId: 'I3', by: -1 });
+    await alice.client.mutate('moveItem', { itemId: 'I3', by: -1 });
+    await alice.client.mutate('moveItem', { itemId: 'I1', by: 5 });
+    await syncAll(alice, bob);
+    expect((await items(bob)).map((r) => [r.id, r.sort])).toEqual([
+      ['I3', 0],
+      ['I2', 1],
+      ['I1', 2],
+    ]);
+    await expectConverged(alice, bob);
+  });
+
   it('items: insert after the selected item, rename, and choose an arrangement (spec 03 2d, 03 Q13)', async () => {
     await seed();
     await alice.client.mutate('createArrangement', { id: 'A1', songId: 'S3', partIds: [] });
