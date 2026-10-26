@@ -298,3 +298,24 @@ for the new app; the mechanisms are retired with the stack.
   backed up by copying. What a folder cannot do: be shared by several server instances (a SQLite file
   already rules those out) or take uploads straight from clients through presigned URLs, so uploads
   go through the server, which is fine at a church's sizes.
+- **D32, decided after this ADR was written:** how each platform is packaged and reaches its users.
+  - **macOS:** electron-builder makes a `.dmg` to install and a `.zip` for electron-updater, for Apple
+    Silicon and Intel, signed with Developer ID and notarized. Updates from GitHub Releases.
+  - **Windows:** an NSIS installer per user, without admin rights, updated by electron-updater.
+    **Not code-signed**: the SmartScreen warning is accepted, as ADR 0002 (3) already did.
+  - **Linux:** an AppImage, the format electron-updater can update. `.deb` and `.rpm` can be added,
+    without automatic updates.
+  - **iOS, later:** the Capacitor app through TestFlight and the App Store, the only practical way
+    onto iOS. This is an exception to ADR 0002 (2)'s direct download, and each update goes through
+    Apple's review.
+  - **Android:** the Capacitor app, as a signed APK to download or through Google Play. Which, or
+    both, is still open.
+  - **Web on Cloudflare:** Vite's static files deployed with the Worker as static assets by
+    `wrangler deploy`.
+  - **Self-hosted web: a Docker image**, the "one container" of (1): Node, the server and the web
+    files, with one volume at `/data` for the SQLite files and the media folder (D31). Built for amd64
+    and arm64 in GitHub Actions and published to GHCR; run with `docker run` or a small
+    `compose.yaml`. The server in the image should use `node:sqlite`, as the desktop app does, so the
+    image needs no native module built per architecture.
+  - **All of it is built in GitHub Actions:** a macOS runner for macOS and iOS, Linux for Linux,
+    Android and Docker, and Windows on Linux or its own runner.

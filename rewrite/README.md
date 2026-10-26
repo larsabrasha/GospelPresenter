@@ -271,7 +271,8 @@ Where to pick up. Milestones 1–4 are on branch `claude/milestone-1`, which als
    mirrored live sessions.
 4. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
 5. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
-   for the desktop app (ADR 0002), and the Capacitor app for tablets (ADR 0007 (7)).
+   per D32 (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app
+   for tablets (ADR 0007 (7)), Android first and iOS later.
 
 The smaller gaps below can be taken along the way.
 
