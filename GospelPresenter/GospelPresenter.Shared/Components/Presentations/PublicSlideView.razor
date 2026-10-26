@@ -34,9 +34,12 @@
         }
         else if (LiveSlide.ItemType == ProjectItemType.BibleText && LiveSlide.Text is not null)
         {
+            @* Bible parts are stored as HTML, but anyone who can write a part (a device's sync push
+               among them) can store any string, and this view is served to anonymous visitors. Only
+               the Bible formatter's own tags are let through. *@
             <div class="w-full px-[5vw] py-[4vh] break-words"
                  style="@ResponsiveTextCss(theme.BibleText.MainText)">
-                @((MarkupString)LiveSlide.Text)
+                @((MarkupString)BibleSlideHtml.Sanitize(LiveSlide.Text))
             </div>
         }
         else if (IsImageItem && LiveSlide.ImageUrl is not null)
