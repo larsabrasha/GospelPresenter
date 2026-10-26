@@ -57,7 +57,7 @@ repository root. Line numbers drift as the current app changes, so look them up 
 ## Decisions needed
 
 Grouped by how much they shape the architecture. Each has a recommendation; nothing is decided until
-it is recorded here or in an ADR.
+it is recorded here or in an ADR. A **Decided** entry in the recommendation column is final.
 
 ### Shape the architecture
 
@@ -65,9 +65,9 @@ it is recorded here or in an ADR.
 |---|---|---|---|
 | D1 | One organisation per user (super admins switch), or membership in several? | Keep one per user; model membership as a table anyway so it can grow | 01 Q5 |
 | D2 | Where does live state live on Workers? | One Durable Object per organisation; in-process on Node and in the desktop's embedded server | 04 Q16, 06 Q9 |
-| D3 | Signing in as another account on a device: wipe local data or partition per account? | Partition the local database per account and organisation | 06 Q1 |
-| D4 | Sync conflict semantics: keep "additions win" and whole-presentation merges? | No — mutations replay against the latest state, deletions are exact, fields merge individually | 06 Q4–Q6, Q10 |
-| D5 | Are `/live` and `/display` and remote control open to anyone with a session id / any org member? | Live windows and paired screens carry a capability token; controlling needs `ManagePresentations` | 04 Q1–Q2 |
+| D3 | Signing in as another account on a device: wipe local data or partition per account? | **Decided:** one local database per account and organisation; switching back resumes unsynced work | 06 Q1 |
+| D4 | Sync conflict semantics: keep "additions win" and whole-presentation merges? | **Decided:** client mutations replay against the server's latest state; deletions are exact, fields merge individually | 06 Q4–Q6, Q10 |
+| D5 | Are `/live` and `/display` and remote control open to anyone with a session id / any org member? | **Decided:** live windows and paired screens carry a capability token; starting and controlling need `ManagePresentations`; public `/watch` stays open and read-only | 04 Q1–Q2 |
 | D6 | Drop MAUI for Capacitor/PWA? | Yes | 06 Q13 |
 | D7 | Should edits during live update what is on screen? | Yes — outputs render from local data plus the live pointer, so this falls out of the design | 04 Q4, 05 Q8 |
 | D8 | Does the embedded LAN server replace the planned server field and server-provided update feed? | Keep the server field (self-hosters need it); the update feed waits for code signing | 06 Q11 |
