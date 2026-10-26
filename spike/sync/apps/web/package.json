@@ -1,0 +1,16 @@
+{
+  "name": "@spike/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@spike/client": "workspace:*",
+    "@spike/core": "workspace:*",
+    "@journeyapps/wa-sqlite": "2.0.8"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

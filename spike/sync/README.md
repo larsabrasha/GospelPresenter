@@ -22,13 +22,16 @@ This is throwaway spike code. Its core (`packages/core` sync SQL, `apps/server/s
 
 ## Commands
 
-Requires Node 22 and pnpm 10. Nothing talks to Cloudflare; no account is needed.
+Requires Node 22 and pnpm 10 or later. Only `test:remote` talks to Cloudflare, against a Worker you deploy yourself.
 
 ```sh
 pnpm install
 pnpm test                       # all adapters: node, node-sqlite, workers
 pnpm test:node                  # one adapter: also test:node-sqlite, test:workers
 pnpm typecheck
+pnpm exec playwright install chromium webkit firefox
+pnpm test:browser               # apps/web on OPFS in three browsers; SYNC_BROWSERS=webkit to pick one
+SYNC_REMOTE_URL=https://… pnpm test:remote   # the same tests against a deployed Worker
 
 pnpm --filter @spike/server dev:worker      # wrangler dev, local only
 

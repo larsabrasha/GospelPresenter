@@ -124,16 +124,38 @@ update-required and paging, plus the two Workers probes on hosted infrastructure
 Poke latency is the 500 ms window plus about 90–180 ms of round trips. The Worker and the database
 were deleted after the runs.
 
+## In real browsers (2026-10-26)
+
+`pnpm test:browser` serves `apps/web` from the Node server's origin, as the desktop serves tablets,
+and drives it with Playwright 1.64.1 in Chromium, WebKit and Firefox. The page runs the unchanged
+`SyncClient` in a dedicated worker, on the synchronous wa-sqlite build with `OPFSCoopSyncVFS`. Two
+runs, 15 of 15 passed both times.
+
+- An edit made offline survives a page reload on OPFS, with the same client id and its queued
+  mutation, and reaches a Node client once online. `PRAGMA integrity_check` is `ok`.
+- Two tabs on the same database file, 40 concurrent writes: none failed, 40 distinct mutation ids,
+  both tabs pushed, and the server ended with each write once. The tabs share one client id, since
+  it lives in the file. So no leader tab is needed for correctness at this scale, but one would
+  still avoid two WebSockets and duplicate pulls.
+- **WebKit has no OPFS in an ephemeral context.** `navigator.storage.getDirectory()` fails with
+  `UnknownError`, as in Safari's private browsing. Chromium and Firefox allow it. The product needs a
+  fallback there: in-memory with a warning, or IndexedDB.
+
+| Measure (2 runs) | Chromium | WebKit | Firefox |
+|---|---|---|---|
+| Poke latency, Node → browser | 510–519 ms | 505–531 ms | 513–526 ms |
+| Poke latency, browser → Node | 502–513 ms | 500–513 ms | 500–513 ms |
+| First pull of 1,200 rows into OPFS | 66–75 ms | 77–85 ms | 94–99 ms |
+
 ## Not proven, and why
 
 - **Hosted Cloudflare is only partly proven.** The tests above passed on a real account. Still
   unproven: real hibernation (no eviction-and-wake cycle was exercised; the poke coalescer's
   `setTimeout` keeps an object awake for 500 ms after a write), behaviour under load, and where the
   DO was placed.
-- **No browser.** The client ran wa-sqlite in Node, in memory, with the synchronous wasm build. OPFS,
-  the async or JSPI builds, a worker thread and multi-tab single-writer were not run. The client
-  code only needs an async `query()`, so the risk is in the VFS and worker plumbing, not the
-  protocol.
+- **Browsers are only partly proven.** See "In real browsers" below. Still unproven: Safari on a
+  real iPad (Playwright's WebKit on macOS is close, not the same), the async or JSPI builds, OPFS
+  quota and eviction, and a pull rebasing in one tab while the other tab writes.
 - **The LAN was one machine.** The tablet used the host's eth0 address, so packets never left the
   host. Wi-Fi, a second device, firewalls and pairing were not tested. The sync path has no
   internet dependency in code, but "network unplugged" was not physically demonstrated. The sandbox

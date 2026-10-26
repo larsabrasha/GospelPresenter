@@ -7,6 +7,7 @@ import { serve } from '@hono/node-server';
 import type BetterSqlite3 from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { orgDdl, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@spike/core';
@@ -124,6 +125,8 @@ export interface NodeServerOptions {
   hostname?: string;
   pokeWindowMs?: number;
   debug?: boolean;
+  /** A built web app to serve from the same origin, as the desktop does for tablets on the LAN. */
+  webRoot?: string;
 }
 
 export interface RunningServer {
@@ -166,6 +169,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       return { caller, org: openOrg(caller.orgId) };
     }, !!opts.debug),
   );
+  if (opts.webRoot) app.use('/*', serveStatic({ root: opts.webRoot }));
 
   const server = serve({ fetch: app.fetch, port: opts.port ?? 0, hostname: opts.hostname ?? '127.0.0.1' });
   await new Promise<void>((resolve) => (server.listening ? resolve() : server.once('listening', () => resolve())));
