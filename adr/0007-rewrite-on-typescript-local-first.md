@@ -223,5 +223,10 @@ for the new app; the mechanisms are retired with the stack.
   re-execution with our own authorization, and one database per account and organisation. Building
   our own is the fallback, not the default.
 - **The PPTX cost figures in (10)** are estimates until measured against real church decks.
-- **D8 is still open:** whether the desktop's embedded LAN server changes the plan for a server field
-  on the sign-in screen and a server-provided update feed.
+- **D8, decided after this ADR was written:** the embedded LAN server does not replace the server
+  field. The desktop and mobile sign-in screen gets a discreet "Other server" link, prefilled with the
+  hosted server, so one installed app works against the cloud and any self-hosted server (ADR 0002
+  (29)). Updates keep coming from GitHub Releases; a server-provided feed waits for code signing.
+- **D1, decided after this ADR was written:** one organisation per user for now, with super admins
+  switching, but memberships are a table (user, organisation, role) from the start so several
+  organisations per user can be enabled without a migration.
