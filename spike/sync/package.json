@@ -8,10 +8,11 @@
     "test:node": "SYNC_ADAPTERS=node vitest run",
     "test:node-sqlite": "SYNC_ADAPTERS=node-sqlite vitest run",
     "test:workers": "SYNC_ADAPTERS=workers vitest run",
+    "test:remote": "SYNC_ADAPTERS=remote vitest run",
     "build:worker": "pnpm --filter @spike/server build:worker"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261026.1",
+    "@cloudflare/workers-types": "5.20261025.1",
     "@spike/client": "workspace:*",
     "@spike/core": "workspace:*",
     "@spike/server": "workspace:*",

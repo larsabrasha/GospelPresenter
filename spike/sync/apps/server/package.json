@@ -19,7 +19,7 @@
     "ws": "8.22.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20261026.1",
+    "@cloudflare/workers-types": "5.20261025.1",
     "@types/better-sqlite3": "9.6.0",
     "@types/ws": "^8.5.13",
     "esbuild": "0.28.2",

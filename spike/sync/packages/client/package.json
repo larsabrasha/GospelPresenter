@@ -11,7 +11,7 @@
   "dependencies": {
     "@spike/core": "workspace:*",
     "drizzle-orm": "0.45.4",
-    "@journeyapps/wa-sqlite": "2.0.9"
+    "@journeyapps/wa-sqlite": "2.0.8"
   },
   "devDependencies": {
     "better-sqlite3": "13.0.3",

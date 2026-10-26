@@ -99,17 +99,37 @@ Lines per package (TypeScript, non-blank, comments included):
 This is consistent with the evaluation's estimate of about 2,000 lines. The spike leaves out the
 scheduler, the polling backstop, multi-tab leadership, read scoping, notices and auth.
 
-Versions: Node 22.22.0, pnpm 10.28.0, TypeScript 7.0.2, Vitest 5.0.5, drizzle-orm 0.45.4, Hono
+Versions: Node 22.22.0, pnpm 10.28.0 (pnpm 12.8.1 on the Mac), TypeScript 7.0.2, Vitest 5.0.5, drizzle-orm 0.45.4, Hono
 4.13.14, better-sqlite3 13.0.3, `@journeyapps/wa-sqlite` 2.0.9 (SQLite 3.53.0), Miniflare
 4.20260730.0, wrangler 4.152.0, Electron 45.0.0.
 
+## On real Cloudflare (2026-10-26)
+
+The Worker was deployed to a real account (`workers.dev`, D1 in region EEUR), and the same test
+file ran against it from a Mac in Sweden with `SYNC_ADAPTERS=remote SYNC_REMOTE_URL=<url> pnpm
+test:remote`. Two runs: 18 passed, 1 skipped (the better-sqlite3-only test). That includes
+convergence, offline edits, idempotent retry, rejected-mutation rollback, delete vs edit,
+update-required and paging, plus the two Workers probes on hosted infrastructure:
+
+- In a hosted SQLite DO, raw `BEGIN` is refused, `transactionSync()` keeps the rows written before
+  the first await (not atomic), and `storage.transaction()` rolls back. Same as local workerd.
+- SQLite triggers fire in a hosted DO and in hosted D1.
+
+| Measure (2 runs) | Hosted Workers |
+|---|---|
+| Poke latency, push → row in the other client's DB | 588–677 ms |
+| Push of 1,200 mutations in one request | 824–955 ms |
+| First pull of 1,200 rows (3 pages) | 194–248 ms |
+
+Poke latency is the 500 ms window plus about 90–180 ms of round trips. The Worker and the database
+were deleted after the runs.
+
 ## Not proven, and why
 
-- **Nothing ran on Cloudflare.** There is no account, so everything ran in local workerd (Miniflare
-  and `wrangler dev`). Unproven: `storage.transaction()` semantics, triggers, AUTOINCREMENT and
-  latency on hosted DOs; triggers on hosted D1; and real hibernation. The hibernatable API is used,
-  but no eviction-and-wake cycle was exercised. The poke coalescer's `setTimeout` keeps an object
-  awake for 500 ms after a write.
+- **Hosted Cloudflare is only partly proven.** The tests above passed on a real account. Still
+  unproven: real hibernation (no eviction-and-wake cycle was exercised; the poke coalescer's
+  `setTimeout` keeps an object awake for 500 ms after a write), behaviour under load, and where the
+  DO was placed.
 - **No browser.** The client ran wa-sqlite in Node, in memory, with the synchronous wasm build. OPFS,
   the async or JSPI builds, a worker thread and multi-tab single-writer were not run. The client
   code only needs an async `query()`, so the risk is in the VFS and worker plumbing, not the

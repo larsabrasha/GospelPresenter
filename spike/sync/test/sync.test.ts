@@ -153,7 +153,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
 
   it('random interleavings on three clients converge (seeded)', async () => {
     await seed();
-    let seed_ = { node: 7, 'node-sqlite': 9, workers: 11 }[adapterName];
+    let seed_ = { node: 7, 'node-sqlite': 9, workers: 11, remote: 13 }[adapterName];
     const rnd = (n: number) => ((seed_ = (seed_ * 1103515245 + 12345) % 2 ** 31), seed_ % n);
     const ds = [alice, bob, carol];
     let n = 0;
@@ -380,7 +380,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect(bobPokes).toBe(0); // the writer is not woken by its own change (SYNC-R39)
   });
 
-  it.runIf(adapterName === 'workers')('DO SQLite: only storage.transaction() makes an async mutator atomic', async () => {
+  it.runIf(adapterName === 'workers' || adapterName === 'remote')('DO SQLite: only storage.transaction() makes an async mutator atomic', async () => {
     const { body } = await api<Record<string, { error: string; rowsLeft: string[] }>>(h, 'GET', '/debug/tx-probe', {
       user: 'alice',
       org,
@@ -414,7 +414,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     db.close();
   });
 
-  it.runIf(adapterName === 'workers')('SQLite triggers fire in DO SQLite and in local D1', async () => {
+  it.runIf(adapterName === 'workers' || adapterName === 'remote')('SQLite triggers fire in DO SQLite and in local D1', async () => {
     expect(await api(h, 'GET', '/debug/d1-triggers')).toEqual({ status: 200, body: { fired: true } });
     expect(await api(h, 'GET', '/debug/triggers', { user: 'alice', org })).toEqual({ status: 200, body: { fired: true } });
   });

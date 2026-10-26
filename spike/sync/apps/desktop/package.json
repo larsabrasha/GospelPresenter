@@ -17,6 +17,6 @@
   "devDependencies": {
     "electron": "45.0.0",
     "esbuild": "0.28.2",
-    "@journeyapps/wa-sqlite": "2.0.9"
+    "@journeyapps/wa-sqlite": "2.0.8"
   }
 }

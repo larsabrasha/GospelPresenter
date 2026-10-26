@@ -9,7 +9,7 @@ import { openWaSqlite } from '@spike/client/wa-sqlite';
 import type { Dump, MutatorCtx, Role } from '@spike/core';
 import { startNodeServer } from '@spike/server/node';
 
-export type AdapterName = 'node' | 'node-sqlite' | 'workers';
+export type AdapterName = 'node' | 'node-sqlite' | 'workers' | 'remote';
 
 /** A running server, whichever runtime is behind it. */
 export interface Harness {
@@ -22,6 +22,12 @@ const here = fileURLToPath(new URL('.', import.meta.url));
 export const POKE_WINDOW_MS = 500;
 
 export async function startAdapter(name: AdapterName): Promise<Harness> {
+  if (name === 'remote') {
+    // A deployed Worker on a real Cloudflare account, e.g. https://gp-sync-spike-xxxx.workers.dev.
+    const url = process.env.SYNC_REMOTE_URL;
+    if (!url) throw new Error('SYNC_REMOTE_URL is not set');
+    return { name, url: url.replace(/\/$/, ''), close: async () => {} };
+  }
   if (name === 'node' || name === 'node-sqlite') {
     // 'node-sqlite' is the driver the Electron build uses (see apps/desktop).
     const dataDir = mkdtempSync(join(tmpdir(), 'gp-sync-'));
