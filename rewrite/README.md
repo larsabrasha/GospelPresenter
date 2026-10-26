@@ -9,8 +9,8 @@ in Electron with no internet. Milestone 2 makes songs and presentations behave a
 arrangements, ranked search, the trash, item arrangements, renaming and moving items, and the event
 date after create. The output window reads through the operator window's database, so it also works
 where OPFS is missing. Milestone 3 brings real sign-in, membership and pairing (spec 01, ADR 0007
-decisions 6 and 12), so the desktop host can serve other devices on the LAN. Sign-in is with Google
-only: there are no passwords.
+decisions 6 and 12), so the desktop host can serve other devices on the LAN. Sign-in is with Google or
+a passkey: there are no passwords.
 
 | Package | What it is |
 |---|---|
@@ -32,28 +32,40 @@ GP_LAN=1 pnpm --filter @gp/desktop start   # the host, reachable on the LAN
 GP_SERVER=http://127.0.0.1:47800 GP_DATA_DIR=/tmp/gp-second pnpm --filter @gp/desktop start
                                            # a second client of the first; pairing signs it in
 pnpm --filter @gp/desktop serve            # the server alone on :8787, then `pnpm --filter @gp/web dev`
+GP_PASSKEY_RP_ID=localhost GP_PASSKEY_ORIGINS=http://localhost:8787 pnpm --filter @gp/desktop serve
+                                           # the same with passkeys; open http://localhost:8787 (not 127.0.0.1)
 ```
 
 Needs Node 22 or later and pnpm 12. The e2e opens real windows, and plays the system browser and
-Google itself (`apps/server/test/fake-google.ts`), so it needs no internet and no Google client. `?storage=memory` in the page URL
+Google itself (`apps/server/test/fake-google.ts`), so it needs no internet and no Google client. Its
+passkey tests play the system browser with Playwright's Chromium and its virtual authenticator, so
+that browser must be installed once (`pnpm --filter @gp/desktop exec playwright install chromium`). `?storage=memory` in the page URL
 (`GP_STORAGE=memory` for the desktop app) keeps the database in memory, as where OPFS is missing.
 
 ### Sign-in, membership and pairing
 
-Sign-in is with Google, and nothing else: no passwords and no generic OIDC provider (ADR 0007
-decision 12). A user is linked to a Google account by its `sub`, in `user_logins`; the email is only
-filled in, and never used to find a user (spec 01, AUTH-R4). There is no self-registration: a Google
-account that is not linked, signing in without an invite, is refused.
+Sign-in is with Google or a passkey, and nothing else: no passwords and no generic OIDC provider
+(ADR 0007 decision 12). A user has one or more logins in `user_logins`: a Google account, linked by
+its `sub`, and passkeys, by their credential id. One user may have both kinds, and signing in either
+way lands on the same user. The email is only filled in, and never used to find a user (spec 01,
+AUTH-R4). There is no self-registration: a Google account or passkey that is not linked is refused.
 
 The first start of the host shows "Välkommen!": the person names themselves and the church, and setup
-answers with an invite for the new SuperAdmin, which they accept by signing in with Google. Setup is
-done when that link exists; until then it can be done again, and finishes the same SuperAdmin rather
-than making a second church. The host window gets the setup token from the main process; a server
+answers with an invite for the new SuperAdmin, which they accept by making a passkey or signing in
+with Google. Setup is done when that link exists; until then it can be done again, and finishes the
+same SuperAdmin rather than making a second church. The host window gets the setup token from the main process; a server
 without one prints it (`Setup token: …`) and the setup form asks for it (D19). After that every
 account comes from an admin: Användare → Skapa makes the user and an invite link, shown once, valid
-for 7 days and once (AUTH-R1). The invited person opens it and signs in with Google, and that account
-becomes theirs. A new invite for a user is the reset: the Google account that accepts it replaces the
-old one, and the user's sessions end. The same page changes roles and removes users, with spec 01's
+for 7 days and once (AUTH-R1). The invited person opens it and makes a passkey or signs in with
+Google, and that becomes their way in. A new invite for a user is the reset: the login that accepts it
+replaces every login the user had, passkeys and Google alike, and the user's sessions end.
+
+Under Inloggningsmetoder (click your name in the header) a signed-in user sees their own logins, adds
+a passkey, links a Google account, renames a passkey and removes any login but the last. Adding needs
+a sign-in from the last 10 minutes, made by the user themselves (not by a pairing); otherwise the page
+asks them to sign out and in again. Linking a Google account that is already another user's is
+refused (`login-taken`). Nothing takes a user id: no one, an admin included, adds or removes another
+user's logins. An admin's new invite is the only way back for someone who lost every login. The same page changes roles and removes users, with spec 01's
 rules (PERM-R4–R6, D20, D21) in `packages/core/src/accounts.ts`, which the server and the UI share.
 
 How the sign-in runs (`apps/server/src/google.ts`, `auth.ts`): the authorization code flow with PKCE
@@ -95,14 +107,22 @@ a device signs in to a host, also after its session ends. Enheter also disconnec
 stops it and ends the session its pairing made. `pnpm --filter @gp/desktop serve` has no pairing
 unless `GP_LAN=1`.
 
-**Configuration.** Node (`startNodeServer({ google })`, and `GP_GOOGLE_CLIENT_ID`,
+**Configuration of passkeys.** An explicit RP ID and the exact origins ceremonies may come from;
+without both, passkeys are off and `/auth/state` says so. Node: `startNodeServer({ passkeys: { rpId,
+origins } })`, and `GP_PASSKEY_RP_ID`, `GP_PASSKEY_ORIGINS` (comma-separated) for `serve`. The Worker:
+`PASSKEY_RP_ID`, `PASSKEY_ORIGINS` (vars, not secrets; e.g. `app.example.org` and
+`https://app.example.org`). The desktop host always has RP ID `localhost` and origin
+`http://localhost:{port}`. A wrong configuration stops the server at start: an IP address as RP ID, an
+origin that is not on the RP ID, or plain http anywhere but localhost.
+
+**Configuration of Google.** Node (`startNodeServer({ google })`, and `GP_GOOGLE_CLIENT_ID`,
 `GP_GOOGLE_CLIENT_SECRET`, `GP_GOOGLE_REDIRECT_BASE_URL` for `serve`): the client id and secret, and
 the public origin the redirect URI is built from (`{origin}/auth/google/callback`; without it, the
 origin of the request). The desktop host reads `GP_GOOGLE_CLIENT_ID` and `GP_GOOGLE_CLIENT_SECRET`;
 its redirect is `http://127.0.0.1:47800/auth/google/callback`. The Worker reads `GOOGLE_CLIENT_ID`,
 `GOOGLE_CLIENT_SECRET` (a secret) and `GOOGLE_REDIRECT_BASE_URL`. Without a client id and secret,
-Google is off: `/auth/state` says so, and setup and sign-in are refused (503 `google-disabled`).
-Paired devices and sessions already made keep working.
+Google is off: `/auth/state` says so, and its sign-in is refused (503 `google-disabled`). With neither
+Google nor passkeys, setup is refused too. Paired devices and sessions already made keep working.
 
 **The fake Google** (`apps/server/test/fake-google.ts`) is an OIDC issuer with its own key, JWKS,
 authorization and token endpoints, for the server tests and the e2e. A server uses it only through
@@ -113,28 +133,60 @@ desktop build. `pnpm --filter @gp/server build:worker`, `wrangler.toml` and a de
 the Worker deploy bundle and for `google.ts` bundled with and without the definition). A packaged
 desktop app (`app.isPackaged`) also never reads `GP_GOOGLE_TEST_ISSUER`.
 
-**Passkeys later.** `user_logins (provider, subject, user_id)` is the seam: a passkey will be a row with
-provider `passkey` and its credential id as `subject` (its public key in a column or table beside it),
-linked the same way, through an invite or from a signed-in session. `LOGIN_PROVIDERS` in
-`packages/core/src/accounts.ts` names the providers that exist; nothing for passkeys is built.
+### Passkeys
+
+How a ceremony runs (`apps/server/src/webauthn.ts`, `auth.ts`): `POST /auth/passkey/begin` with
+`mode` `signin` or `register` (with an invite, or for the caller's own session) makes a row in
+`passkey_flows` with a fresh 32-byte challenge: single use, 5 minutes, bound to the browser by a
+cookie, and to its kind, so a registration's challenge never signs anyone in. `POST
+/auth/passkey/finish` finds the flow by the challenge in the client data, uses it up, and verifies with
+Web Crypto, no library: the client data's type, origin (exactly one of the configured origins) and
+`crossOrigin`, the RP ID hash, the user-present and user-verified flags (verification is required), the
+signature over the authenticator data and the client data hash, and the user handle (the owner's
+random user id). Keys: ES256, EdDSA (Ed25519) and RS256 of 2048 bits or more. Attestation "none" is
+asked for and nothing is trusted from a statement; a packed self-attestation is checked. Passkeys are
+discoverable, so sign-in names no user. The signature counter: 0 that stays 0 is fine (synced passkeys
+keep none); otherwise it must grow, or the sign-in is refused as a possibly cloned passkey. A passkey
+row keeps its COSE public key, counter, transports, a name the user chose, and when it was made and
+last used. At most 20 unfinished ceremonies per address, as for Google; at most 5 logins per user
+(ORG-R13).
+
+**A passkey is bound to its RP ID.** One made for the cloud's domain does not work on a desktop host,
+whose RP ID is `localhost`, and one made on a host works only on that host's machine. LAN devices still
+join a host by pairing; a page from the host over `http://192.168.…` is not a secure context and could
+not use a passkey anyway.
+
+**The desktop app** runs every ceremony in the system browser, through the same `/app-login` device
+flow (`?method=passkey`) or a flow its window began (`/auth/passkey/start?flow=…`), and the server
+hands the token back on the callback scheme, as for Google. Not in Electron: its support for platform
+authenticators (Touch ID, iCloud Keychain) is unreliable, and in the e2e a sign-in with a discoverable
+passkey failed in an Electron window while it works in Chromium. The window's origin, `127.0.0.1`,
+could not be an RP ID either: browsers refuse IP addresses. So the system browser opens the host at
+`http://localhost:47800` for passkeys, while Google's sign-in stays on `127.0.0.1`, where its redirect
+URI is registered; each sign-in stays on one host name from start to end, so its cookie holds. Adding
+a passkey from the desktop opens the system browser too; the page then watches its list for the new
+one. A passkey on the host needs no internet.
 
 A database records its schema version in `_schema`. One made by an older version (milestone 1 has no
 row: version 1) is migrated when it is opened, on the server and on clients; a client then pulls
 everything again, because the schema is part of the pull cookie. The server's global database has
-its own version (`GLOBAL_SCHEMA_VERSION`, now 3): the placeholder memberships of milestones 1 and 2
+its own version (`GLOBAL_SCHEMA_VERSION`, now 4): the placeholder memberships of milestones 1 and 2
 are dropped when it migrates, so data made by the old desktop host belongs to no account afterwards.
 Version 3 drops milestone 3's passwords and its per-account lockout, and adds `user_logins` and
 `login_flows`; users, memberships and sessions stay. Nobody has a linked login after it, so setup opens
 again and finishes the existing SuperAdmin and church; other users need a new invite, or on a host a
-new pairing.
+new pairing. Version 4 adds passkeys: columns for the key, counter, transports and name in
+`user_logins`, the link columns in `login_flows`, and `passkey_flows`. Every login and session stays.
 
 ## Not done yet
 
 Bible, images, themes, templates, English text, mobile, and deploying to Cloudflare. The Workers
 adapter is tested in local workerd only.
 
-From spec 01 and milestone 3: passkeys (the seam is above); OIDC providers other than Google, which
-are not planned (ADR 0007 (12)); any mail at all (an admin's new invite link is the reset); packaging
+From spec 01 and milestone 3: OIDC providers other than Google, which are not planned (ADR 0007
+(12)); passkey autofill (conditional mediation: the sign-in page has a button, no username field);
+ending the sessions a removed passkey made (removing a login ends no session; a new invite ends them
+all); trusting attestation (which authenticator made a passkey is never checked); any mail at all (an admin's new invite link is the reset); packaging
 the desktop app, so its callback scheme is registered by an installer (a development build registers
 `gospelpresenter-local` only with `GP_REGISTER_SCHEME=1`) and its Google client is built in; a login
 hint or profile picture from Google; more than one Google account per user (ORG-R13 allows 5);
@@ -184,21 +236,32 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 
 Milestone 3 (sign-in, membership, pairing):
 
-- **Google only.** Spec 01 also has generic OIDC and a mock login; the owner decided on Google now and
-  passkeys later, with no passwords and no generic OIDC (ADR 0007 (12)). The tests use the fake Google
-  in its place, and there is no mock login in the app.
+- **Google and passkeys.** Spec 01 also has generic OIDC and a mock login; the owner decided on Google
+  and passkeys, with no passwords and no generic OIDC (ADR 0007 (12)). Spec 01 has no passkeys; their
+  rules here are this README's. The tests use the fake Google and a software authenticator, and there
+  is no mock login in the app.
+- **Adding a login needs a fresh sign-in**: a session made in the last 10 minutes, by the user signing
+  in themselves, not by a pairing. A stolen session that has been around for a while cannot plant a
+  passkey of its own and keep access after it is revoked. Removing, renaming and listing need only a
+  session (removing not from a paired device).
+- **At most 5 logins per user** (ORG-R13), and at most one Google account; passkeys fill the rest.
+- **The passkey's default name** is the device's name (the app's, or the browser's guess); the user
+  can rename it.
 - **Spec 01 E4 is refused**: an invite accepted with a Google account already linked to another user
   fails (`login-taken`) and leaves the invite unused, rather than signing in as the invited user while
   the login stays with the other.
-- **An invite replaces the user's Google account** and ends their sessions: it is how an admin resets
-  a lost account, which is why an Admin may not make one for a SuperAdmin (D20, D21). Email is
+- **An invite replaces all the user's logins**, passkeys and Google alike, and ends their sessions: it
+  is how an admin resets a lost account, so whoever held an old passkey is out. That is why an Admin may
+  not make one for a SuperAdmin (D20, D21). Email is
   required for users an admin makes, lower-cased and unique (01 Q2 limits uniqueness to real
   addresses); the setup SuperAdmin has none until Google fills it in. An email Google gives is filled
   in only when the user has none and no other user has it.
 - **Setup is done when a user has a linked login**, not when a user exists, so a setup left before
-  Google, or a church migrated from milestone 3, can be finished with the setup token.
+  its passkey or Google sign-in, or a church migrated from milestone 3, can be finished with the setup
+  token.
 - **Throttling** (the spec has none): twenty failures from one address (setup token, pairing code)
-  lock that address for 15 minutes. At most 20 unfinished Google sign-ins per address at a time. On
+  lock that address for 15 minutes. At most 20 unfinished Google sign-ins, and 20 unfinished passkey
+  ceremonies, per address at a time. On
   Node the address is the socket's: behind a reverse proxy every client shares the proxy's.
 - **The redirect URI comes from configuration, or from the request.** Without
   `GOOGLE_REDIRECT_BASE_URL` (or `redirectBaseUrl`), the origin of the request that starts the sign-in

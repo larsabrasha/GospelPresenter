@@ -207,7 +207,7 @@ const sv = {
   'users.lessThanDay': 'mindre än en dag',
   'users.newInvite': 'Ny inbjudningslänk',
   'users.inviteTitle': 'Inbjudningslänk',
-  'users.inviteHost': 'På den här datorn tar {name} emot inbjudan här, med Google. Andra enheter ansluts under Enheter i stället.',
+  'users.inviteHost': 'På den här datorn tar {name} emot inbjudan här, med en passkey eller Google. Andra enheter ansluts under Enheter i stället.',
   'users.acceptHere': 'Logga in som {name} här',
   'users.inviteText': 'Skicka länken till {name}. Den gäller i 7 dagar och kan användas en gång. Den visas inte igen.',
   'users.inviteLink': 'Länk',

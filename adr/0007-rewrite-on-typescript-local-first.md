@@ -162,28 +162,37 @@ self-hosted container, and run it beside the current app until it has proved its
     One policy module used by both the mutation layer and the UI is how "a visible link always means
     an allowed action" holds, which the spec found false in several places today.
 
-12. **Auth: Google only now, passkeys later; no passwords and no generic OIDC.** The device flow
-    with per-scheme callbacks stays (spec 01, ADR 0005). First-run setup requires a setup token (D19);
+12. **Auth: Google and passkeys; no passwords and no generic OIDC.** The device flow with
+    per-scheme callbacks stays (spec 01, ADR 0005). First-run setup requires a setup token (D19);
     the current app now has one too, on branch `claude/security-fixes`.
 
-    *Amended after this ADR was written*, by the owner's decision; it replaces "Google and OIDC". Two
-    reasons. The churches that use the app sign in with Google already, and one provider is one
-    thing to configure and test. And passwords on Workers mean a key-derivation function inside a
-    request's CPU budget: Web Crypto offers only PBKDF2, which hosted Workers have capped at 100 000
+    *Amended after this ADR was written*, by the owner's decision; it replaces "Google and OIDC". It
+    was first amended to "Google only, passkeys later", and then again to add passkeys at once, so
+    that a church and its users need not depend on Google. A user may have a Google account,
+    passkeys, or both. Passwords stay out: on Workers they need a key-derivation function inside a
+    request's CPU budget, and Web Crypto offers only PBKDF2, which hosted Workers cap at 100 000
     iterations, below OWASP's 600 000, while scrypt and argon2 need a native module or compatibility
     flags. Milestone 3 built email and password with PBKDF2 for the offline desktop host, and that is
-    removed.
+    removed. No generic OIDC: each provider is one more thing to configure and test.
     - **Google with the authorization code flow, PKCE, `state` and `nonce`,** and the ID token
       verified by the server against Google's published keys with Web Crypto, so the same code runs on
       Node, Workers and Electron with no library. better-auth is not used.
-    - **Logins are linked by Google's `sub`** in a table of (provider, subject, user) — spec 01's
-      `UserLogin` — never matched by email. Passkeys will be a second provider in the same table.
-    - **The desktop host signs in once, with internet,** through the system browser and the device
-      flow; then it works offline with its session. Other devices on the LAN never sign in with
-      Google against the host — they pair, and the pairing code signs them in as the member the host
-      chose.
+    - **Passkeys (WebAuthn) verified by the server with Web Crypto too,** with no library: ES256,
+      EdDSA and RS256 keys, user verification required, attestation "none", discoverable credentials so
+      sign-in needs no username, and a single-use challenge bound to the browser that began the
+      ceremony. A passkey is bound to its RP ID: one made for the cloud's domain does not work on a
+      desktop host, whose RP ID is `localhost`, and the reverse.
+    - **Logins are linked** in a table of (provider, subject, user) — spec 01's `UserLogin` — by
+      Google's `sub` or the passkey's credential id, never matched by email. A signed-in user adds
+      and removes their own, but never the last one; an admin's new invite is the way back in, and it
+      replaces every login the user had.
+    - **The desktop app signs in through the system browser and the device flow,** for passkeys as
+      for Google: Electron's support for platform authenticators is unreliable, and its window's
+      `127.0.0.1` origin cannot be an RP ID. Google needs the internet once; a passkey on the host
+      does not. Other devices on the LAN never sign in against the host — they pair, and the pairing
+      code signs them in as the member the host chose.
     - **No generic OIDC provider and no mock login.** Tests use a fake Google that only a test build
-      can be pointed at.
+      can be pointed at, and a software authenticator.
 
 ### Getting there
 
