@@ -319,9 +319,13 @@ for the new app; the mechanisms are retired with the stack.
     app is for. Only changes to the native shell (new plugins, a new Capacitor, permissions) go
     through the stores and their review. Each web bundle states the shell version it needs; a bundle
     that fails at start rolls back to the previous one; the current bundle is kept on the device so
-    the app starts offline. A 426 from the server is a cue to fetch a new bundle. The tool is still
-    open (`@capgo/capacitor-updater` against our own server, Capawesome or another); its licence and
-    terms are checked before it is chosen.
+    the app starts offline. A 426 from the server is a cue to fetch a new bundle. **We host the
+    updates ourselves; no third-party update service.** The bundle comes from the server the app is
+    connected to, which already serves the same web files (the Worker's static assets, the Docker
+    image, the desktop host), so the app's web part always matches its server's version, also on a
+    self-hosted server or a desktop host on the LAN. The plugin on the device may be an open-source
+    one used against our own server, if its licence allows; otherwise we write the small native part
+    ourselves.
   - **Web on Cloudflare:** Vite's static files deployed with the Worker as static assets by
     `wrangler deploy`.
   - **Self-hosted web: a Docker image**, the "one container" of (1): Node, the server and the web
