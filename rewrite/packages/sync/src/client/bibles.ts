@@ -5,16 +5,18 @@
 import {
   bibleTextHash,
   bibleTextSchema,
+  joinBibleText,
   LOAD_BIBLE_TEXT_SQL,
   serializeBibleText,
   storeBibleTextSql,
   type BibleBookText,
 } from '@gp/core';
-import type { SyncClient } from './client.ts';
+import type { PendingMutation, SyncClient } from './client.ts';
 
 /**
- * Stores a text locally and returns its hash and canonical JSON, ready to
- * upload (`PUT /bibles/{hash}`) before `importBible` names it.
+ * Stores a text locally and returns its hash and canonical JSON. The
+ * `importBible` that names it can then be queued at once, online or not:
+ * `BibleTextUploads` uploads the text before that mutation is pushed.
  */
 export async function storeBibleText(client: SyncClient, books: BibleBookText[]): Promise<{ hash: string; json: string }> {
   const json = serializeBibleText(books);
@@ -94,4 +96,85 @@ async function verified(json: string, hash: string): Promise<BibleBookText[] | n
   const text = bibleTextSchema.safeParse(parsed);
   if (!text.success) return null;
   return (await bibleTextHash(serializeBibleText(text.data.books))) === hash ? text.data.books : null;
+}
+
+/**
+ * Sends a text to the server (`PUT /bibles/{hash}`) and returns the HTTP
+ * status. Throws when the server cannot be reached.
+ */
+export type BibleTextUpload = (hash: string, json: string) => Promise<number>;
+
+/**
+ * Uploads the text of every queued `importBible` before the mutation is
+ * pushed, so a translation imported offline reaches the server with its text
+ * (README, "Bibles"). Give `beforePush` to the SyncClient.
+ *
+ * An upload that cannot reach the server, or that fails on the server's side
+ * (5xx), holds that import and every mutation after it back until the next
+ * push; the ones before it go. One the server refuses (4xx) lets the import
+ * go, to be refused with a reason the user sees. If the server still lacks
+ * the text when the import arrives (`bible-text-missing`), `retryRefused`
+ * queues the import once more, so its text is uploaded again.
+ */
+export class BibleTextUploads {
+  /** Texts this session has uploaded. A restart uploads a queued one again; the server takes it twice. */
+  private uploaded = new Set<string>();
+  /** Queued imports this session has seen, by mutation id. */
+  private imports = new Map<number, unknown>();
+  /** Texts whose refused import has been queued again: once each. */
+  private retried = new Set<string>();
+
+  constructor(private upload: BibleTextUpload) {}
+
+  beforePush = async (pending: PendingMutation[], client: SyncClient): Promise<number | undefined> => {
+    for (const [i, m] of pending.entries()) {
+      if (m.name !== 'importBible') continue;
+      const args = JSON.parse(m.args) as { contentHash?: unknown };
+      this.imports.set(m.id, args);
+      const hash = String(args.contentHash);
+      if (this.uploaded.has(hash)) continue;
+      const json = await storedTextJson(client, hash);
+      if (json === null) continue; // nothing to send: the server refuses the import
+      let status: number;
+      try {
+        status = await this.upload(hash, json);
+      } catch {
+        return i; // unreachable: this import and what follows wait
+      }
+      if (status >= 500) return i;
+      if (status < 300) this.uploaded.add(hash);
+    }
+    return undefined;
+  };
+
+  /**
+   * Queues again, once, each import the server refused for lack of its text,
+   * while this device still has it. Run before `syncBibleTexts`, which drops
+   * texts no queued import names. Returns how many were queued.
+   */
+  async retryRefused(client: SyncClient): Promise<number> {
+    let n = 0;
+    for (const r of client.rejected) {
+      const args = this.imports.get(r.id);
+      if (r.error !== 'bible-text-missing' || args === undefined) continue;
+      this.imports.delete(r.id);
+      const hash = String((args as { contentHash?: unknown }).contentHash);
+      if (this.retried.has(hash) || !(await hasBibleText(client, hash))) continue;
+      this.retried.add(hash);
+      this.uploaded.delete(hash);
+      try {
+        await client.mutate('importBible', args as never);
+        n++;
+      } catch {
+        // No longer applies here (the limit, or no longer an admin): the refusal stands.
+      }
+    }
+    return n;
+  }
+}
+
+/** A stored text's canonical JSON, exactly as hashed, or null if this device lacks it. */
+async function storedTextJson(client: SyncClient, hash: string): Promise<string | null> {
+  if (!(await hasBibleText(client, hash))) return null;
+  return joinBibleText((await client.query(LOAD_BIBLE_TEXT_SQL, [hash])) as { code: string; chunk: string }[]);
 }

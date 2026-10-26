@@ -291,6 +291,7 @@ const sv = {
   'bibles.processing': 'Bearbetar bibelfil...',
   'bibles.imported': 'Importerade {name} med {n} verser.',
   'bibles.updated': 'Uppdaterade {name} med {n} verser.',
+  'bibles.queued': 'Servern går inte att nå just nu. Bibeln finns på den här enheten och skickas till servern när du är ansluten igen.',
   'bibles.failed': 'Importen misslyckades: {error}',
   'bibles.onlyZip': 'Bara .zip-filer kan importeras',
   'bibles.tooLarge': 'Filen är större än 50 MB.',

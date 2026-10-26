@@ -190,9 +190,17 @@ immutable document, `{"v":1,"books":[{"code":"GEN","verses":[[1,1,"…"],…]},�
 SHA-256 of exactly that JSON. It is kept one row per book in `bible_texts`, plus a row in
 `bible_blobs` that says the text is complete, on the server (in the organisation's database or
 Durable Object) and on every device. Import reads the zip on the device (USX from a DBL zip, or
-USFM; `packages/core/src/bible-import.ts`), stores the text there, uploads it once
-(`PUT /bibles/{hash}`, Admin), and then runs the `importBible` mutation, which the server refuses
-unless it has that text. Every other device sees the row arrive in a pull and downloads the text
+USFM; `packages/core/src/bible-import.ts`), stores the text there and runs the `importBible`
+mutation, online or not. Before that mutation is pushed, the device uploads the text once
+(`PUT /bibles/{hash}`, Admin; `BibleTextUploads` in `packages/sync/src/client/bibles.ts`, as the
+sync client's `beforePush`), and the server refuses the import unless it has the text. So a
+translation imported while the server cannot be reached is there at once on that device, and reaches
+the server when it can be: an upload that cannot reach the server or fails on its side holds back
+that import and the mutations after it (the ones before go); the server refusing an upload (4xx)
+lets the import through to be refused with a reason. A queued import's text is never dropped. If the
+server still lacks the text when the import arrives (`bible-text-missing`), the device queues the
+import once more while it still has the text, which uploads it again; refused a second time, it
+stays refused. Every other device sees the row arrive in a pull and downloads the text
 once (`GET /bibles/{hash}`, any member, only from its own organisation), checks the hash, and keeps
 it; a text that no translation names any more is dropped on the next sync. Searching and adding
 verses then needs no network. An added reading is split into slides when it is added and kept on the
@@ -254,9 +262,9 @@ is tested in local workerd only.
 
 From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
 the Teman page lists the built-ins and sets the default), the stage view and the public output, and
-the theme's Media style (there are no media slides). A translation imported while the server cannot be
-reached is not queued: the import says so, and is done again once connected (BIBLE-R16's
-device-local Bibles are not built). The Biblar page has no per-row "Gör tillgänglig offline": every
+the theme's Media style (there are no media slides). BIBLE-R16's device-local Bibles (a translation
+that never leaves the device) are not built: an import made offline is queued and goes to the server
+(see "Bibles"). The Biblar page has no per-row "Gör tillgänglig offline": every
 device keeps every translation, which shows as "Tillgänglig offline" or "Hämtas...".
 
 From spec 01 and milestone 3: OIDC providers other than Google, which are not planned (ADR 0007
@@ -326,6 +334,11 @@ Milestone 4 (Bibles and themes):
   10 per organisation; a translation is known by its abbreviation (case-insensitive), so importing one
   with the same abbreviation replaces it (BIBLE-R5). Uploaded texts that no import then names are not
   removed from the server.
+- **A translation imported offline is queued and goes to the server** (Lars, 2026-10-26), rather than
+  staying on the device as BIBLE-R16 describes the current app. Which texts a device has uploaded,
+  and which refused imports it has queued again, live only while the app runs: after a restart a
+  queued text is uploaded again (the server takes it twice), and an import refused before the restart
+  is not queued again.
 - **An item's title is the reference with full Swedish book names** ("Johannes 3:16-17", spec 05
   BIBLE-R13) rather than spec 03's abbreviated one, and its credits are "{title} · {abbreviation}"
   (D12). Verse text is stored as data, never HTML (D25).

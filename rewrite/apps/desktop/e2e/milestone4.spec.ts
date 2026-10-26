@@ -5,13 +5,16 @@
 import { expect, test, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, type Desktop } from './apps.ts';
-import { createPresentation, setUpHost } from './flows.ts';
+import { createPresentation, createUser, pair, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
+let second: Desktop | undefined;
 
 test.afterEach(async () => {
+  await second?.app.close();
   await host?.app.close();
   host = undefined;
+  second = undefined;
 });
 
 /** Opens "Redigera detaljer" and picks a theme by its label. */
@@ -106,4 +109,38 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');
 
   expect(host.events.filter((e) => e.event === 'blocked-request')).toEqual([]);
+});
+
+test('a Bible imported while the host is down is kept, and reaches the host when it is back', async () => {
+  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  host = await launch({ port });
+  await setUpHost(host);
+  await createUser(host.page, 'Bo', 'bo@kyrkan.se', 'Admin');
+  second = await launch({ server: host.base });
+  await pair(host.page, second.page, 'Andra datorn', 'Bo');
+  const page = second.page;
+  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+
+  // The host goes away; Bo imports a translation on the second computer all the same.
+  const hostData = host.dataDir;
+  await host.app.close();
+  host = undefined;
+  await expect(page.getByTestId('status')).toContainText('Offline', { timeout: 5_000 });
+  await page.getByRole('link', { name: 'Biblar' }).click();
+  await page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
+  await expect(page.getByTestId('bible-import-message')).toHaveText(
+    'Importerade World English Bible (exempel) med 15 verser. Servern går inte att nå just nu. Bibeln finns på den här enheten och skickas till servern när du är ansluten igen.',
+  );
+  await expect(page.getByText('WEB · 15 verser')).toBeVisible();
+  await expect(page.getByText('Tillgänglig offline')).toBeVisible();
+  await expect(page.getByTestId('status')).toContainText('1 ändringar väntar');
+
+  // The host comes back on the same port: the text is uploaded, then the import pushed.
+  host = await launch({ port, dataDir: hostData });
+  await host.page.getByTestId('status').waitFor();
+  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await host.page.getByRole('link', { name: 'Biblar' }).click();
+  await expect(host.page.getByText('WEB · 15 verser')).toBeVisible({ timeout: 10_000 });
+  await expect(host.page.getByText('Tillgänglig offline')).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('Servern tog inte emot en ändring', { exact: false })).toHaveCount(0);
 });

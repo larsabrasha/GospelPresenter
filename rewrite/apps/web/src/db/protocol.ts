@@ -32,7 +32,7 @@ export type DbCall =
   | { op: 'mutate'; name: string; args: unknown }
   | { op: 'query'; sql: string; params: unknown[] }
   | { op: 'status' }
-  /** Imports a Bible zip (spec 05): parse here, store, upload, then `importBible`. */
+  /** Imports a Bible zip (spec 05): parse and store here, then `importBible`, uploaded before it is pushed. */
   | { op: 'importBible'; data: Uint8Array }
   | { op: 'syncNow' };
 
@@ -48,4 +48,6 @@ export interface BibleImportResult {
   verses: number;
   /** A translation with this abbreviation was there already and has been replaced (BIBLE-R5). */
   replaced: boolean;
+  /** The server could not be reached: the translation is here, and goes to the server once it can be. */
+  queued: boolean;
 }

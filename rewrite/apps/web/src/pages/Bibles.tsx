@@ -31,7 +31,8 @@ export function Bibles() {
     setMessage(null);
     try {
       const r = await db.importBible(new Uint8Array(await file.arrayBuffer()));
-      setMessage({ ok: true, text: t(r.replaced ? 'bibles.updated' : 'bibles.imported', { name: r.name, n: r.verses.toLocaleString('sv-SE') }) });
+      const done = t(r.replaced ? 'bibles.updated' : 'bibles.imported', { name: r.name, n: r.verses.toLocaleString('sv-SE') });
+      setMessage({ ok: true, text: r.queued ? `${done} ${t('bibles.queued')}` : done });
     } catch (e) {
       setMessage({ ok: false, text: t('bibles.failed', { error: e instanceof Error ? e.message : String(e) }) });
     } finally {

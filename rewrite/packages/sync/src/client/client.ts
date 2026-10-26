@@ -32,6 +32,21 @@ export interface SyncClientOptions {
   clientId?: string;
   /** Overridable so tests can play an old client. */
   protocol?: number;
+  /**
+   * Runs before each push with the pending queue, to send what a mutation
+   * needs on the server first (a Bible text: `BibleTextUploads`). Returns how
+   * many mutations, from the front, may go now; undefined is all of them.
+   * The rest wait for the next push.
+   */
+  beforePush?: (pending: PendingMutation[], client: SyncClient) => Promise<number | undefined>;
+}
+
+/** A queued mutation as stored: its arguments are JSON. */
+export interface PendingMutation {
+  id: number;
+  name: string;
+  v: number;
+  args: string;
 }
 
 /**
@@ -161,14 +176,18 @@ export class SyncClient {
     this.changed();
   }
 
-  async pending(): Promise<{ id: number; name: string; v: number; args: string }[]> {
+  async pending(): Promise<PendingMutation[]> {
     return (await queryObjects(this.sqlite, 'SELECT id, name, v, args FROM _mutation ORDER BY id')) as never;
   }
 
-  /** Sends the pending queue. A network failure leaves it untouched; the server confirms through the next pull. */
+  /**
+   * Sends the pending queue, or the front of it that `beforePush` allows. A
+   * network failure leaves it untouched; the server confirms through the next pull.
+   */
   async push(): Promise<void> {
     if (this.stopped) return;
-    const pending = await this.pending();
+    let pending = await this.pending();
+    if (pending.length && this.opts.beforePush) pending = pending.slice(0, (await this.opts.beforePush(pending, this)) ?? pending.length);
     if (!pending.length) return;
     const req: PushRequest = {
       protocol: this.opts.protocol ?? PROTOCOL_VERSION,

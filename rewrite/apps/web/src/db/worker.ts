@@ -5,8 +5,17 @@ import SQLiteESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite.mjs';
 import wasmUrl from '@journeyapps/wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as SQLite from '@journeyapps/wa-sqlite';
 import { OPFSCoopSyncVFS } from '@journeyapps/wa-sqlite/src/examples/OPFSCoopSyncVFS.js';
-import { bibleId, BibleImportError, importBibleZip, verseCount, type MutatorName } from '@gp/core';
-import { authHeaders, httpTransport, socketProtocols, storeBibleText, syncBibleTexts, SyncClient, type ClientSqlite } from '@gp/sync/client';
+import { bibleId, importBibleZip, verseCount, type MutatorName } from '@gp/core';
+import {
+  authHeaders,
+  BibleTextUploads,
+  httpTransport,
+  socketProtocols,
+  storeBibleText,
+  syncBibleTexts,
+  SyncClient,
+  type ClientSqlite,
+} from '@gp/sync/client';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
 import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName } from './share.ts';
@@ -102,13 +111,23 @@ function serialBible<T>(fn: () => Promise<T>): Promise<T> {
 
 const credentials = () => authHeaders({ token: session!.token, device: session!.device });
 
+/** Uploads the text of each queued import before the import is pushed, so imports work offline. */
+const uploads = new BibleTextUploads(async (hash, json) => {
+  const res = await fetch(`/bibles/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/json', ...credentials() }, body: json });
+  return res.status;
+});
+
 let bibleSyncQueued = false;
-/** Fetches the texts of translations this device lacks and drops unused ones; coalesced. */
+/**
+ * Queues again an import the server refused for lack of its text, fetches
+ * the texts of translations this device lacks and drops unused ones; coalesced.
+ */
 function syncBibles() {
   if (bibleSyncQueued) return;
   bibleSyncQueued = true;
   void serialBible(async () => {
     bibleSyncQueued = false;
+    if (await uploads.retryRefused(client!)) void client!.requestSync().then(reportStatus);
     const r = await syncBibleTexts(client!, async (hash) => {
       const res = await fetch(`/bibles/${hash}`, { headers: credentials() });
       return res.ok ? res.text() : null;
@@ -117,24 +136,21 @@ function syncBibles() {
   }).catch(() => undefined); // offline: the next change or poll tries again
 }
 
-/** Reads the zip, keeps its text here, uploads it, then records the translation. */
+/**
+ * Reads the zip, keeps its text here and records the translation, online or
+ * not. The text is uploaded before the import is pushed (`uploads`).
+ */
 function importBible(data: Uint8Array): Promise<BibleImportResult> {
   return serialBible(async () => {
     const bible = await importBibleZip(data, () => new Promise((r) => setTimeout(r, 0)));
-    const { hash, json } = await storeBibleText(client!, bible.books);
-    let res: Response;
-    try {
-      res = await fetch(`/bibles/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/json', ...credentials() }, body: json });
-    } catch {
-      throw new BibleImportError('Servern gick inte att nå. Bibeln importeras när datorn är ansluten.');
-    }
-    if (res.status === 403) throw new BibleImportError('Bara administratörer kan importera biblar.');
-    if (!res.ok) throw new BibleImportError(`Servern tog inte emot bibeltexten (${res.status}).`);
+    const { hash } = await storeBibleText(client!, bible.books);
     const id = bibleId(bible.abbreviation);
     const replaced = (await client!.query('SELECT 1 FROM bibles WHERE id = ?', [id])).length > 0;
     await client!.mutate('importBible', { name: bible.name, abbreviation: bible.abbreviation, language: bible.language, contentHash: hash });
-    void client!.requestSync().then(reportStatus);
-    return { name: bible.name, abbreviation: bible.abbreviation, verses: verseCount(bible.books), replaced };
+    await client!.requestSync();
+    void reportStatus();
+    const queued = (await client!.pending()).some((m) => m.name === 'importBible' && JSON.parse(m.args).contentHash === hash);
+    return { name: bible.name, abbreviation: bible.abbreviation, verses: verseCount(bible.books), replaced, queued };
   });
 }
 
@@ -147,6 +163,7 @@ async function handle(call: DbCall): Promise<unknown> {
       const c = await SyncClient.open(sqlite, {
         transport: httpTransport({ baseUrl: location.origin, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
+        beforePush: uploads.beforePush,
       });
       client = c;
       session = s;

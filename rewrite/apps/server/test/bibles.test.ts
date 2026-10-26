@@ -4,7 +4,7 @@
 // (generated) translation for the README.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { bibleId, bibleTextHash, BIBLE_LIMITS, parseBibleContent, serializeBibleText, type BibleBookText } from '@gp/core';
-import { loadBibleText, storeBibleText, syncBibleTexts, type SyncClient } from '@gp/sync/client';
+import { BibleTextUploads, loadBibleText, storeBibleText, syncBibleTexts, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
@@ -177,6 +177,114 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     expect(await loadBibleText(bob.client, old)).toBeNull();
     expect(await loadBibleText(bob.client, hash)).toEqual(fixed);
     expect(await loadBibleText(alice.client, old)).toBeNull();
+  });
+
+  /**
+   * An admin's device whose pushes upload queued texts first (as the app's),
+   * over its own simulated network. `answer` stands in for the server’s
+   * answer; by default the text is really uploaded.
+   */
+  async function uploading(user: string, answer?: (hash: string, json: string) => Promise<number>) {
+    let d: Device | undefined;
+    const uploads = new BibleTextUploads(async (hash, json) => {
+      if (!d!.net.online) throw new Error('offline');
+      d!.net.requests.push(`PUT /bibles/${hash}`);
+      return answer ? answer(hash, json) : (await put(h, org, user, hash, json)).status;
+    });
+    d = await device(h, org, user, 'admin', { beforePush: uploads.beforePush });
+    devices.push(d);
+    return { d, uploads };
+  }
+  const offline = async (): Promise<string | null> => {
+    throw new Error('offline');
+  };
+
+  it('a translation imported offline is kept, uploaded before its import is pushed, and reaches other devices', async () => {
+    const { d: a } = await uploading('alice');
+    a.net.online = false;
+    const { hash } = await storeBibleText(a.client, SAMPLE);
+    await a.client.mutate('importBible', importArgs(hash));
+    await expect(a.client.sync()).rejects.toThrow('offline');
+    expect(await a.client.pending()).toMatchObject([{ name: 'importBible' }]);
+    expect((await a.client.dump()).bibles).toMatchObject([{ id: 'bible:web', content_hash: hash, verse_count: 4 }]);
+    // While the import waits, its text stays, whatever else is cleaned up.
+    expect(await syncBibleTexts(a.client, offline)).toEqual({ downloaded: [], missing: [], removed: 0 });
+    expect(await loadBibleText(a.client, hash)).toEqual(SAMPLE);
+
+    a.net.online = true;
+    await a.client.sync();
+    expect(a.net.requests).toEqual([`PUT /bibles/${hash}`, '/sync/push', '/sync/pull']);
+    expect(a.client.rejected).toEqual([]);
+    expect(await a.client.pending()).toEqual([]);
+    expect((await serverDump(h, org, 'alice')).tables.bibles).toMatchObject([{ id: 'bible:web', content_hash: hash }]);
+
+    await bob.client.sync();
+    expect(await syncBibleTexts(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [hash], missing: [], removed: 0 });
+    expect(await loadBibleText(bob.client, hash)).toEqual(SAMPLE);
+
+    // Uploaded once: later pushes do not send it again.
+    await a.client.mutate('createPresentation', { id: 'P', name: 'Sunday' });
+    await a.client.sync();
+    expect(a.net.requests.filter((r) => r.startsWith('PUT'))).toHaveLength(1);
+  });
+
+  it('an upload the server fails holds back its import and what follows; what came before goes', async () => {
+    let failing = true;
+    const { d: a } = await uploading('alice', async (hash, json) => (failing ? 503 : (await put(h, org, 'alice', hash, json)).status));
+    await a.client.mutate('createPresentation', { id: 'P', name: 'Sunday' });
+    const { hash } = await storeBibleText(a.client, SAMPLE);
+    await a.client.mutate('importBible', importArgs(hash));
+    await a.client.mutate('createSong', { id: 'S1', name: 'Härlig är jorden' });
+    await a.client.sync();
+    let s = await serverDump(h, org, 'alice');
+    expect(s.tables.presentations.map((p) => p.id)).toEqual(['P']);
+    expect(s.tables.bibles).toEqual([]);
+    expect(s.tables.songs).toEqual([]);
+    expect((await a.client.pending()).map((m) => m.name)).toEqual(['importBible', 'createSong']);
+    expect((await a.client.dump()).bibles).toHaveLength(1); // still there, optimistically
+
+    failing = false;
+    await a.client.sync();
+    s = await serverDump(h, org, 'alice');
+    expect(s.tables.bibles).toMatchObject([{ content_hash: hash }]);
+    expect(s.tables.songs.map((r) => r.id)).toEqual(['S1']);
+    expect(a.client.rejected).toEqual([]);
+  });
+
+  it('an import the server refuses for lack of its text keeps the text, is queued once more, and lands', async () => {
+    // The upload is answered 204, but the server never stores the text: as if
+    // it were dropped between the upload and the push.
+    let lost = true;
+    const { d: a, uploads } = await uploading('alice', async (hash, json) => (lost ? 204 : (await put(h, org, 'alice', hash, json)).status));
+    const { hash } = await storeBibleText(a.client, SAMPLE);
+    await a.client.mutate('importBible', importArgs(hash));
+    await a.client.sync();
+    expect(a.client.rejected.map((r) => r.error)).toEqual(['bible-text-missing']);
+    expect((await a.client.dump()).bibles).toEqual([]);
+
+    lost = false;
+    expect(await uploads.retryRefused(a.client)).toBe(1);
+    expect(await syncBibleTexts(a.client, offline)).toEqual({ downloaded: [], missing: [], removed: 0 });
+    await a.client.sync();
+    expect(a.client.rejected).toHaveLength(1);
+    expect((await serverDump(h, org, 'alice')).tables.bibles).toMatchObject([{ id: 'bible:web', content_hash: hash }]);
+    await bob.client.sync();
+    expect((await syncBibleTexts(bob.client, downloader(h, org, 'bob'))).downloaded).toEqual([hash]);
+    expect(await uploads.retryRefused(a.client)).toBe(0);
+  });
+
+  it('a refused import is queued once more only: refused again, it stays refused and its text goes', async () => {
+    const { d: a, uploads } = await uploading('alice', async () => 204); // the server never gets the text
+    const { hash } = await storeBibleText(a.client, SAMPLE);
+    await a.client.mutate('importBible', importArgs(hash));
+    await a.client.sync();
+    expect(await uploads.retryRefused(a.client)).toBe(1);
+    await a.client.sync();
+    expect(a.client.rejected.map((r) => r.error)).toEqual(['bible-text-missing', 'bible-text-missing']);
+    expect(await uploads.retryRefused(a.client)).toBe(0);
+    expect(await syncBibleTexts(a.client, offline)).toEqual({ downloaded: [], missing: [], removed: 1 });
+    expect(await loadBibleText(a.client, hash)).toBeNull();
+    expect((await serverDump(h, org, 'alice')).tables.bibles).toEqual([]);
   });
 
   it('the text must be uploaded first, and its hash must match (BIBLE-R4)', async () => {

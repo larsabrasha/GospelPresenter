@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { Miniflare } from 'miniflare';
-import { SyncClient, httpTransport, socketProtocols, type Transport } from '@gp/sync/client';
+import { SyncClient, httpTransport, socketProtocols, type SyncClientOptions, type Transport } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import type { Dump, MutatorCtx, Role } from '@gp/core';
 import { startNodeServer } from '@gp/server/node';
@@ -181,7 +181,7 @@ export async function device(
   org: string,
   user: string,
   role: Role,
-  extra: { protocol?: number } = {},
+  extra: { protocol?: number; beforePush?: SyncClientOptions['beforePush'] } = {},
 ): Promise<Device> {
   const net = new Net();
   const http = httpTransport({ baseUrl: h.url, token: tokenOf(h, org, user) });
@@ -198,7 +198,7 @@ export async function device(
     },
   };
   const ctx: MutatorCtx = { userId: user, role };
-  const client = await SyncClient.open(await openWaSqlite(), { transport, ctx, protocol: extra.protocol });
+  const client = await SyncClient.open(await openWaSqlite(), { transport, ctx, protocol: extra.protocol, beforePush: extra.beforePush });
   return { client, net, user };
 }
 
