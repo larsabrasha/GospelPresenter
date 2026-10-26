@@ -239,13 +239,17 @@ export class SyncClient {
   private syncing: Promise<void> | undefined;
   private again = false;
 
-  /** Pulls whenever the server pokes. Sync runs are coalesced: at most one running and one queued. */
-  listen(pokeUrl: string): Promise<void> {
+  /**
+   * Pulls whenever the server pokes. Sync runs are coalesced: at most one
+   * running and one queued. `onClose` runs once if an open socket closes.
+   */
+  listen(pokeUrl: string, opts: { onClose?: () => void } = {}): Promise<void> {
     const url = new URL(pokeUrl);
     url.searchParams.set('clientId', this.clientId);
     const ws = new WebSocket(url);
     this.socket = ws;
     ws.addEventListener('message', () => void this.requestSync());
+    ws.addEventListener('open', () => ws.addEventListener('close', () => opts.onClose?.(), { once: true }), { once: true });
     return new Promise((resolve, reject) => {
       ws.addEventListener('open', () => resolve(), { once: true });
       ws.addEventListener('error', (e) => reject(e), { once: true });

@@ -1,0 +1,23 @@
+{
+  "name": "@gp/desktop",
+  "private": true,
+  "type": "module",
+  "main": "dist/main.mjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node build.mjs && electron .",
+    "serve": "node build.mjs && node dist/serve.mjs",
+    "typecheck": "tsc --noEmit -p .",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@gp/core": "workspace:*",
+    "@gp/server": "workspace:*"
+  },
+  "devDependencies": {
+    "@gp/web": "workspace:*",
+    "@playwright/test": "1.64.1",
+    "electron": "45.0.0",
+    "esbuild": "0.28.2"
+  }
+}

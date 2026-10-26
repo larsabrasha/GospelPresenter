@@ -5,7 +5,6 @@ import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { serve } from '@hono/node-server';
 import type BetterSqlite3 from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
@@ -28,9 +27,11 @@ interface SqliteFile {
 }
 
 function openBetterSqlite3(file: string): SqliteFile {
-  // Loaded lazily, so a node:sqlite build never needs the native module.
+  // Loaded lazily (with Drizzle's driver, which imports it), so a node:sqlite
+  // build never needs the native module.
   // better-sqlite3 13 is a Node-API addon: the same binary loads in Node 22 and Electron 45.
   const Database = require('better-sqlite3') as typeof BetterSqlite3;
+  const { drizzle } = require('drizzle-orm/better-sqlite3') as typeof import('drizzle-orm/better-sqlite3');
   const db = new Database(file);
   return {
     query(sql, params = []) {
@@ -125,6 +126,8 @@ export interface NodeServerOptions {
   hostname?: string;
   pokeWindowMs?: number;
   debug?: boolean;
+  /** Memberships to make sure of at start (placeholder until milestone 2 brings sign-in). */
+  members?: { userId: string; orgId: string; role: Role }[];
   /** A built web app to serve from the same origin, as the desktop does for tablets on the LAN. */
   webRoot?: string;
 }
@@ -141,6 +144,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   mkdirSync(opts.dataDir, { recursive: true });
   const globalFile = openSqlite(join(opts.dataDir, 'global.sqlite'), driver);
   const global = nodeGlobalStore(globalFile);
+  for (const m of opts.members ?? []) await global.setRole(m.userId, m.orgId, m.role);
   const orgs = new Map<string, Org & { file: SqliteFile; sockets: Map<WebSocket, string> }>();
 
   // Synchronous, so two requests can never open the same organisation twice.

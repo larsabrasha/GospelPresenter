@@ -7,3 +7,4 @@ dist-electron/
 *.sqlite-*
 test-results/
 playwright-report/
+.data/
