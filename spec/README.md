@@ -92,7 +92,7 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 | D18 | Real-time co-editing of a song, or conflict warnings? | **Decided:** the editor updates live from sync; edits to different parts merge; a clash in the same part shows a clear warning. No CRDT co-editing | 02 Q16 |
 | D30 | Where does an imported Bible live: on the device (BIBLE-R16) or on the server? | **Decided:** always on the server the device belongs to — the hosted server, a self-hosted one, or the desktop app's own embedded server when running alone. An offline import is stored locally and uploaded when connected. No device-only Bibles (ADR 0007) | 05 BIBLE-R16 |
 | D31 | Where is media stored when self-hosted without Garage? | **Decided:** a folder on disk by default (and in the desktop app); S3 as an option; R2 through its binding on Cloudflare (ADR 0007) | 05 MEDIA-R14, 06 PLAT-R1 |
-| D32 | How is each platform packaged and distributed? | **Decided:** electron-builder for macOS (signed, notarized), Windows (NSIS, not signed) and Linux (AppImage); Capacitor for Android and later iOS (TestFlight and App Store); static assets with the Worker on Cloudflare; a Docker image with a `/data` volume when self-hosted (ADR 0007) | 06 PLAT-R1 |
+| D32 | How is each platform packaged and distributed? | **Decided:** electron-builder for macOS (unsigned and not notarized at first; both later), Windows (NSIS, not signed) and Linux (AppImage); Capacitor for Android and later iOS (TestFlight and App Store); static assets with the Worker on Cloudflare; a Docker image with a `/data` volume when self-hosted (ADR 0007) | 06 PLAT-R1 |
 
 ### Security and permissions
 

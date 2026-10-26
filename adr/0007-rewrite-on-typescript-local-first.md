@@ -300,7 +300,11 @@ for the new app; the mechanisms are retired with the stack.
   go through the server, which is fine at a church's sizes.
 - **D32, decided after this ADR was written:** how each platform is packaged and reaches its users.
   - **macOS:** electron-builder makes a `.dmg` to install and a `.zip` for electron-updater, for Apple
-    Silicon and Intel, signed with Developer ID and notarized. Updates from GitHub Releases.
+    Silicon and Intel. **At first without a Developer ID and without notarization**; both come later.
+    Until then the app is only ad-hoc signed: macOS blocks the first start, and the user allows it
+    under System Settings → Privacy & Security → "Open Anyway". This sets aside ADR 0002 (7) for
+    now. Automatic updates need a real signature on macOS (Squirrel.Mac checks it), so until then
+    the app tells the user a new version exists and links to the download.
   - **Windows:** an NSIS installer per user, without admin rights, updated by electron-updater.
     **Not code-signed**: the SmartScreen warning is accepted, as ADR 0002 (3) already did.
   - **Linux:** an AppImage, the format electron-updater can update. `.deb` and `.rpm` can be added,
