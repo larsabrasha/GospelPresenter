@@ -64,7 +64,7 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 | # | Question | Recommendation | Sources |
 |---|---|---|---|
 | D1 | One organisation per user (super admins switch), or membership in several? | Keep one per user; model membership as a table anyway so it can grow | 01 Q5 |
-| D2 | Where does live state live on Workers? | One Durable Object per organisation; in-process on Node and in the desktop's embedded server | 04 Q16, 06 Q9 |
+| D2 | Where does live state live on Workers? | **Decided:** one Durable Object per organisation, holding any number of concurrent sessions, outputs and controllers; in-process on Node and in the desktop's embedded server. Public `/watch` fan-out may move to a Durable Object per output if it grows | 04 Q16, 06 Q9 |
 | D3 | Signing in as another account on a device: wipe local data or partition per account? | **Decided:** one local database per account and organisation; switching back resumes unsynced work | 06 Q1 |
 | D4 | Sync conflict semantics: keep "additions win" and whole-presentation merges? | **Decided:** client mutations replay against the server's latest state; deletions are exact, fields merge individually | 06 Q4–Q6, Q10 |
 | D5 | Are `/live` and `/display` and remote control open to anyone with a session id / any org member? | **Decided:** live windows and paired screens carry a capability token; starting and controlling need `ManagePresentations`; public `/watch` stays open and read-only | 04 Q1–Q2 |
