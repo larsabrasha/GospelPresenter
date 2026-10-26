@@ -1,5 +1,5 @@
 import { IDLE, newer, songSlides, type LivePointer, type PresentationItem, type Slide } from '@gp/core';
-import type { Db } from '../db/db.ts';
+import type { ReadDb } from '../db/share.ts';
 import { getSong, listLabels, songPartsOf } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'hello' };
@@ -63,7 +63,7 @@ export interface ItemSlides {
 }
 
 /** The slides of one item, from the current song (spec 03: a song item is a reference). */
-export async function slidesOf(db: Db, item: PresentationItem): Promise<ItemSlides> {
+export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
   const song = await getSong(db, item.sourceId);
   if (!song) return { slides: [], problem: 'song-missing' };
   if (song.deletedAt !== null) return { slides: [], problem: 'song-trashed' }; // D17: skipped live

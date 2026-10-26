@@ -5,6 +5,8 @@ export interface Session {
   userId: string;
   orgId: string;
   role: Role;
+  /** 'memory' keeps the database in memory even where OPFS exists (development and tests). */
+  storage?: 'memory';
 }
 
 export interface DbStatus {
@@ -19,7 +21,7 @@ export interface DbStatus {
 }
 
 export type DbCall =
-  | { op: 'open'; session: Session; sync: boolean }
+  | { op: 'open'; session: Session }
   | { op: 'mutate'; name: string; args: unknown }
   | { op: 'query'; sql: string; params: unknown[] }
   | { op: 'status' }

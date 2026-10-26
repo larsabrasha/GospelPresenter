@@ -28,8 +28,13 @@ export async function startHost(opts: { dataDir: string; webRoot: string; port?:
   });
 }
 
-/** The page for a user, with the placeholder session in the query (see apps/web/src/session.ts). */
+/**
+ * The page for a user, with the placeholder session in the query (see
+ * apps/web/src/session.ts). `GP_STORAGE=memory` keeps the page's database in
+ * memory, as on a machine without OPFS.
+ */
 export function pageUrl(base: string, user: { userId: string; role: Role }, route = 'songs') {
   const q = new URLSearchParams({ user: user.userId, role: user.role, org: ORG });
+  if (process.env.GP_STORAGE === 'memory') q.set('storage', 'memory');
   return `${base}/?${q}#/${route}`;
 }

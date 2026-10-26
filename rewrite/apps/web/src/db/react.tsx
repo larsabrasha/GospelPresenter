@@ -1,11 +1,23 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Db } from './db.ts';
 import type { DbStatus } from './protocol.ts';
+import type { ReadDb } from './share.ts';
 
 const DbContext = createContext<Db | null>(null);
+const ReadContext = createContext<ReadDb | null>(null);
 
+/** A window that owns the database: it reads, writes and syncs. */
 export function DbProvider({ db, children }: { db: Db; children: ReactNode }) {
-  return <DbContext value={db}>{children}</DbContext>;
+  return (
+    <DbContext value={db}>
+      <ReadContext value={db}>{children}</ReadContext>
+    </DbContext>
+  );
+}
+
+/** A window that only reads, through another window's database (the output). */
+export function ReaderProvider({ reader, children }: { reader: ReadDb; children: ReactNode }) {
+  return <ReadContext value={reader}>{children}</ReadContext>;
 }
 
 export function useDb(): Db {
@@ -14,13 +26,19 @@ export function useDb(): Db {
   return db;
 }
 
+function useReader(): ReadDb {
+  const db = useContext(ReadContext);
+  if (!db) throw new Error('useData outside DbProvider or ReaderProvider');
+  return db;
+}
+
 /**
  * Loads data from the local database and loads it again whenever the database
  * changes: a local mutation, a pull, or another window's write. `undefined`
  * until the first load. `deps` are the inputs of `load`.
  */
-export function useData<T>(load: (db: Db) => Promise<T>, deps: readonly unknown[]): T | undefined {
-  const db = useDb();
+export function useData<T>(load: (db: ReadDb) => Promise<T>, deps: readonly unknown[]): T | undefined {
+  const db = useReader();
   const [value, setValue] = useState<T>();
   useEffect(() => {
     let current = true;

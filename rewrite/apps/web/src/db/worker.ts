@@ -9,6 +9,7 @@ import type { MutatorName } from '@gp/core';
 import { httpTransport, SyncClient, type ClientSqlite } from '@gp/sync/client';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
 import type { DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
+import { dbFileName, serveReads, shareChannelName } from './share.ts';
 
 /** The backstop poll (SYNC-R43): pokes are never load-bearing. */
 const POLL_MS = 5 * 60_000;
@@ -17,14 +18,14 @@ const RECONNECT_MS = 3_000;
 let client: SyncClient | undefined;
 let storage = '';
 let connected = false;
-let channel: BroadcastChannel | undefined;
 
 const post = (m: DbMessage) => self.postMessage(m);
 
-async function openDb(file: string): Promise<ClientSqlite> {
+async function openDb(file: string, forceMemory: boolean): Promise<ClientSqlite> {
   const module = await SQLiteESMFactory({ locateFile: () => wasmUrl });
   const sqlite3 = SQLite.Factory(module);
   try {
+    if (forceMemory) throw new Error('?storage=memory');
     // OPFS needs a secure context (https or localhost) and is missing in Safari's private browsing.
     if (!self.isSecureContext) throw new Error('not a secure context');
     await navigator.storage.getDirectory();
@@ -86,22 +87,26 @@ async function handle(call: DbCall): Promise<unknown> {
     case 'open': {
       if (client) return client.id;
       const s = call.session;
-      const file = `gp-${encodeURIComponent(s.userId)}-${encodeURIComponent(s.orgId)}.db`;
-      const sqlite = await openDb(file);
-      client = await SyncClient.open(sqlite, {
+      const sqlite = await openDb(dbFileName(s), s.storage === 'memory');
+      const c = await SyncClient.open(sqlite, {
         transport: httpTransport({ baseUrl: location.origin, token: s.userId, org: s.orgId }),
         ctx: { userId: s.userId, role: s.role },
       });
-      // Windows on one machine share the file; tell the others when it changes.
-      channel = new BroadcastChannel(`gp-db:${file}`);
-      channel.addEventListener('message', () => post({ type: 'changed' }));
-      client.onChange(() => {
+      client = c;
+      // Other windows of this machine read through this worker (the output), or
+      // share the OPFS file (a second operator window): tell them about changes.
+      const share = serveReads(
+        new BroadcastChannel(shareChannelName(s)),
+        (sql, params) => c.query(sql, params),
+        () => post({ type: 'changed' }),
+      );
+      c.onChange(() => {
         post({ type: 'changed' });
-        channel?.postMessage('changed');
+        share.changed();
         void reportStatus();
       });
-      if (call.sync) startSync(client, s);
-      return client.id;
+      startSync(c, s);
+      return c.id;
     }
     case 'mutate':
       await client!.mutate(call.name as MutatorName, call.args as never);

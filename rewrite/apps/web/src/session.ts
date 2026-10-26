@@ -13,5 +13,6 @@ export function currentSession(): Session {
     userId: q.get('user') ?? 'operator',
     orgId: q.get('org') ?? 'church',
     role: role === 'user' || role === 'superAdmin' ? (role as Role) : 'admin',
+    ...(q.get('storage') === 'memory' ? { storage: 'memory' as const } : {}),
   };
 }

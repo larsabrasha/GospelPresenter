@@ -14,13 +14,15 @@ export interface Desktop {
 
 /**
  * Starts the desktop app: as the host (embedded server) by default, or as a
- * client of `server`. A fresh data directory unless one is given.
+ * client of `server`. A fresh data directory unless one is given. `memory`
+ * keeps the pages' databases in memory, as where OPFS is missing.
  */
-export async function launch(opts: { server?: string; dataDir?: string; port?: number } = {}): Promise<Desktop> {
+export async function launch(opts: { server?: string; dataDir?: string; port?: number; memory?: boolean } = {}): Promise<Desktop> {
   const dataDir = opts.dataDir ?? mkdtempSync(join(tmpdir(), 'gp-desktop-'));
   const env: Record<string, string> = { ...(process.env as Record<string, string>), GP_DATA_DIR: dataDir };
   if (opts.server) env.GP_SERVER = opts.server;
   if (opts.port) env.GP_PORT = String(opts.port);
+  if (opts.memory) env.GP_STORAGE = 'memory';
   const app = await electron.launch({ args: ['dist/main.mjs'], env });
   const events: Record<string, unknown>[] = [];
   const ready = new Promise<string>((resolve) => {

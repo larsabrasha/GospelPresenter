@@ -1,8 +1,9 @@
 import type { MutatorArgs, MutatorName } from '@gp/core';
 import type { DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
+import type { ReadDb } from './share.ts';
 
-/** The page's handle on its database worker. */
-export class Db {
+/** The page's handle on its database worker, which owns the database and syncs it. */
+export class Db implements ReadDb {
   private worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   private waiting = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private next = 1;
@@ -31,9 +32,9 @@ export class Db {
     });
   }
 
-  /** Opens the session's database. `sync: false` for windows that only read, like an output. */
-  open(session: Session, opts: { sync: boolean }): Promise<string> {
-    return this.call({ op: 'open', session, sync: opts.sync });
+  /** Opens the session's database and starts syncing it. */
+  open(session: Session): Promise<string> {
+    return this.call({ op: 'open', session });
   }
 
   mutate<N extends MutatorName>(name: N, args: MutatorArgs<N>): Promise<void> {

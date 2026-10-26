@@ -2,8 +2,9 @@
 // second screen, and sync between two clients, working in Electron with no
 // internet. Two desktop apps run on this machine: the host with the embedded
 // server, and a second client that syncs through it.
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
+import { createSong } from './flows.ts';
 
 let host: Desktop;
 let second: Desktop | undefined;
@@ -13,20 +14,6 @@ test.afterEach(async () => {
   await host?.app.close();
   second = undefined;
 });
-
-async function createSong(page: Page, name: string, parts: [string, string][]) {
-  await page.getByRole('link', { name: 'Sånger' }).click();
-  await page.getByPlaceholder('Sångens namn').fill(name);
-  await page.getByRole('button', { name: 'Ny sång' }).click();
-  await expect(page.getByRole('heading', { name })).toBeVisible();
-  for (const [i, [label, text]] of parts.entries()) {
-    await page.getByRole('button', { name: 'Lägg till del' }).click();
-    const part = page.getByLabel(`Delar ${i + 1}`, { exact: true });
-    await part.fill(text);
-    await part.blur();
-    await page.getByRole('combobox', { name: 'Delar' }).nth(i).selectOption({ label });
-  }
-}
 
 test('a song made on one client is presented on the other client\'s second screen, and edits reach it live', async () => {
   host = await launch();
