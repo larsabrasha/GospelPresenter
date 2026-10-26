@@ -10,9 +10,17 @@ describe('routes', () => {
       { page: 'presentations' },
       { page: 'presentation', id: 'P1' },
       { page: 'live', id: 'P1' },
+      { page: 'trash', kind: null },
+      { page: 'trash', kind: 'Song' },
       { page: 'output' },
     ];
     for (const r of routes) expect(parseRoute(href(r))).toEqual(r);
+  });
+
+  it('the trash kind is case-insensitive, and an unknown kind is everything', () => {
+    expect(parseRoute('#/trash?kind=presentation')).toEqual({ page: 'trash', kind: 'Presentation' });
+    expect(parseRoute('#/trash?kind=Image')).toEqual({ page: 'trash', kind: null });
+    expect(parseRoute('#/trash?kind=')).toEqual({ page: 'trash', kind: null });
   });
 
   it('an unknown hash goes to the song list', () => {

@@ -4,7 +4,7 @@
 // server, and a second client that syncs through it.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { createSong } from './flows.ts';
+import { addSongs, createPresentation, createSong } from './flows.ts';
 
 let host: Desktop;
 let second: Desktop | undefined;
@@ -30,18 +30,12 @@ test('a song made on one client is presented on the other client\'s second scree
   await expect(host.page.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible({ timeout: 5_000 });
 
   // The host builds a presentation. The picker stays open after an add (D15).
-  await host.page.getByRole('link', { name: 'Presentationer' }).click();
-  await host.page.getByPlaceholder('Presentationens namn').fill('Söndag');
-  await host.page.getByRole('button', { name: 'Ny presentation' }).click();
-  await host.page.getByRole('button', { name: 'Lägg till sång' }).click();
-  const picker = host.page.getByRole('dialog', { name: 'Lägg till sång' });
-  await picker.getByRole('button', { name: 'Lägg till' }).click();
-  await expect(picker.getByText('Tillagd')).toBeVisible();
-  await picker.getByRole('button', { name: 'Stäng' }).click();
-  await expect(host.page.getByRole('listitem').filter({ hasText: 'Härlig är jorden' })).toBeVisible();
+  await createPresentation(host.page, 'Söndag');
+  await addSongs(host.page, ['Härlig är jorden']);
+  await expect(host.page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveText([/Härlig är jorden/]);
 
   // Start, open the output, and show the chorus.
-  await host.page.getByRole('link', { name: 'Starta' }).click();
+  await host.page.getByRole('link', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), host.page.getByRole('button', { name: 'Extern skärm' }).click()]);
   await output.getByTestId('output').waitFor();
   await expect(output.getByTestId('slide-text')).toHaveCount(0); // nothing selected yet

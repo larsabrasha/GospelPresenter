@@ -9,7 +9,9 @@ import { PresentationEditor } from './pages/PresentationEditor.tsx';
 import { Presentations } from './pages/Presentations.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
 import { Songs } from './pages/Songs.tsx';
+import { Trash } from './pages/Trash.tsx';
 import { href, useRoute } from './ui/router.ts';
+import { ToastProvider } from './ui/Toast.tsx';
 
 function StatusBar() {
   const s = useDbStatus();
@@ -41,28 +43,31 @@ export function App({ session, live }: { session: Session; live: LiveChannel }) 
   const route = useRoute();
 
   return (
-    <div className="app">
-      <header className="top">
-        <strong>{t('app.name')}</strong>
-        <nav>
-          <a href={href({ page: 'songs' })} aria-current={route.page.startsWith('song') ? 'page' : undefined}>
-            {t('nav.songs')}
-          </a>
-          <a href={href({ page: 'presentations' })} aria-current={route.page.startsWith('presentation') ? 'page' : undefined}>
-            {t('nav.presentations')}
-          </a>
-        </nav>
-        <span className="muted">{session.userId}</span>
-      </header>
-      <main>
-        {route.page === 'songs' && <Songs />}
-        {route.page === 'song' && <SongEditor id={route.id} />}
-        {route.page === 'presentations' && <Presentations />}
-        {route.page === 'presentation' && <PresentationEditor id={route.id} />}
-        {route.page === 'live' && <Live id={route.id} live={live} />}
-      </main>
-      <StatusBar />
-    </div>
+    <ToastProvider>
+      <div className="app">
+        <header className="top">
+          <strong>{t('app.name')}</strong>
+          <nav>
+            <a href={href({ page: 'songs' })} aria-current={route.page.startsWith('song') ? 'page' : undefined}>
+              {t('nav.songs')}
+            </a>
+            <a href={href({ page: 'presentations' })} aria-current={route.page.startsWith('presentation') ? 'page' : undefined}>
+              {t('nav.presentations')}
+            </a>
+          </nav>
+          <span className="muted">{session.userId}</span>
+        </header>
+        <main>
+          {route.page === 'songs' && <Songs />}
+          {route.page === 'song' && <SongEditor id={route.id} />}
+          {route.page === 'presentations' && <Presentations />}
+          {route.page === 'presentation' && <PresentationEditor id={route.id} />}
+          {route.page === 'live' && <Live id={route.id} live={live} />}
+          {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={session.role} />}
+        </main>
+        <StatusBar />
+      </div>
+    </ToastProvider>
   );
 }
 
