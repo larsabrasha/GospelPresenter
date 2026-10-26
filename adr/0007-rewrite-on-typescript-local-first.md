@@ -333,5 +333,11 @@ for the new app; the mechanisms are retired with the stack.
     and arm64 in GitHub Actions and published to GHCR; run with `docker run` or a small
     `compose.yaml`. The server in the image should use `node:sqlite`, as the desktop app does, so the
     image needs no native module built per architecture.
+  - **The rule behind the update paths: native code comes from one trusted source, web code from the
+    server.** A native shell can do anything on the device, so the desktop app updates only from
+    GitHub Releases (D8, ADR 0003) and the Capacitor shell only through its store or download; no
+    server, self-hosted or not, can push native code. The Capacitor app's web part runs in the
+    WebView's sandbox, like the same app in a browser, so its server may serve it. The desktop app's
+    web part ships inside the app, because the embedded server must match it.
   - **All of it is built in GitHub Actions:** a macOS runner for macOS and iOS, Linux for Linux,
     Android and Docker, and Windows on Linux or its own runner.
