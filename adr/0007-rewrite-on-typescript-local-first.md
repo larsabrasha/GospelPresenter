@@ -221,7 +221,9 @@ for the new app; the mechanisms are retired with the stack.
 - **Zero, PowerSync or Replicache, or our own.** Each must be checked against: SQLite on both ends
   and on Workers, a self-hosted server with no external service, GPLv3-compatible licensing, server
   re-execution with our own authorization, and one database per account and organisation. Building
-  our own is the fallback, not the default.
+  our own is the fallback, not the default. The evaluation in `research/sync-engine-evaluation.md`
+  recommends building our own Replicache-style mutation log, because Zero, PowerSync and Electric
+  need Postgres and a separate sync service and Replicache is archived, to be proven by a two-day spike.
 - **The PPTX cost figures in (10)** are estimates until measured against real church decks.
 - **D8, decided after this ADR was written:** the embedded LAN server does not replace the server
   field. The desktop and mobile sign-in screen gets a discreet "Other server" link, prefilled with the
