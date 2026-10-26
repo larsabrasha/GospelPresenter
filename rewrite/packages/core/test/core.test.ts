@@ -1,18 +1,27 @@
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { describe, expect, it } from 'vitest';
 import {
+  arrangedParts,
   can,
+  daysRemaining,
   DEFAULT_LABELS,
+  highlight,
   labelDefaults,
   labelId,
   mutators,
   newer,
   orgDdl,
+  orgMigrations,
+  orgSchemaPlan,
+  parsePartIds,
+  SCHEMA_VERSION,
+  searchSongs,
   songCredits,
   songSlides,
   syncedTables,
   type Label,
   type Song,
+  type SongArrangement,
   type SongPart,
 } from '../src/index.ts';
 
@@ -25,6 +34,14 @@ describe('schema', () => {
       const columns = [...ddl!.matchAll(/(?:\(|,)\s*([a-z_]+) (?:TEXT|INTEGER)/g)].map((m) => m[1]);
       expect(columns).toEqual(c.columns.map((col) => col.name));
     }
+  });
+
+  it('a new database gets the current DDL; a milestone 1 database (no version row) gets the migrations', () => {
+    expect(orgSchemaPlan(null, false)).toEqual([...orgDdl, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+    expect(orgSchemaPlan(null, true)).toEqual([...orgMigrations[2]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+    expect(orgSchemaPlan(SCHEMA_VERSION, true)).toEqual([]);
+    expect(() => orgSchemaPlan(SCHEMA_VERSION + 1, true)).toThrow(/newer than this app/);
+    for (let v = 2; v <= SCHEMA_VERSION; v++) expect(orgMigrations[v], `migration to ${v}`).toBeDefined();
   });
 });
 
@@ -73,6 +90,94 @@ describe('slides', () => {
   });
 });
 
+describe('arrangements (SONG-R18, R19)', () => {
+  const song: Song = { id: 'S', name: 'Song', author: null, publisher: null, year: null, ccli: null, deletedAt: null };
+  const parts: SongPart[] = ['V1', 'C', 'V2'].map((id, sort) => ({ id, songId: 'S', sort, labelId: null, content: id }));
+  const arr = (id: string, sort: number, ids: string[], songId = 'S'): SongArrangement => ({ id, songId, name: null, partIds: JSON.stringify(ids), sort });
+  const order = (a: SongArrangement[], item: string | null = null) => arrangedParts(song, parts, a, item).map((p) => p.id);
+
+  it('no arrangement: all parts in part order', () => {
+    expect(order([])).toEqual(['V1', 'C', 'V2']);
+  });
+
+  it("the item's arrangement wins, else the song's first (by sort), with repeats kept and deleted parts skipped", () => {
+    const arrangements = [arr('B', 1, ['V2']), arr('A', 0, ['V1', 'C', 'V2', 'C', 'GONE']), arr('X', 0, ['V1'], 'other')];
+    expect(order(arrangements)).toEqual(['V1', 'C', 'V2', 'C']);
+    expect(order(arrangements, 'B')).toEqual(['V2']);
+  });
+
+  it("an arrangement id that is not one of the song's shows all parts", () => {
+    expect(order([arr('A', 0, ['C'])], 'DELETED')).toEqual(['V1', 'C', 'V2']);
+    expect(order([arr('X', 0, ['V1'], 'other')], 'X')).toEqual(['V1', 'C', 'V2']);
+  });
+
+  it('a repeated part gets a slide key of its own', () => {
+    const slides = songSlides(song, parts, new Map(), [arr('A', 0, ['C', 'V1', 'C'])]);
+    expect(slides.map((s) => s.key)).toEqual(['C', 'V1', 'C#1']);
+  });
+
+  it('part ids that are not a JSON list of strings read as empty', () => {
+    expect(parsePartIds('nonsense')).toEqual([]);
+    expect(parsePartIds('{"a":1}')).toEqual([]);
+    expect(parsePartIds('["a",2,"b"]')).toEqual(['a', 'b']);
+  });
+});
+
+describe('search (SONG-R30–R33)', () => {
+  const lib = [
+    { name: 'Det är saligt', author: 'Lina Sandell', firstPart: 'Det är saligt att vandra', lyrics: 'Det är saligt att vandra\ni evighet' },
+    { name: 'Högst av allt', author: null, firstPart: 'Du är högst', lyrics: 'Du är högst' },
+    { name: 'Majestät', author: null, firstPart: 'Majestät', lyrics: 'Majestät\nvi böjer knä' },
+    { name: 'Vi vill se Gud', author: null, firstPart: 'Vi vill se', lyrics: 'Vi vill se' },
+  ];
+  const names = (q: string) => searchSongs(lib, q).map((s) => s.name);
+
+  it('SONG-A19', () => {
+    expect(names('hogst av allt')[0]).toBe('Högst av allt');
+    expect(names('vighet')).toEqual([]);
+    expect(names('evig')).toEqual(['Det är saligt']);
+    expect(names('kna')).toEqual(['Majestät']);
+    expect(names('vi vill se')[0]).toBe('Vi vill se Gud');
+    expect(names('gud xyz')).toEqual([]);
+  });
+
+  it('a blank query is the whole library in its order; the author is searched', () => {
+    expect(names('  ')).toEqual(lib.map((s) => s.name));
+    expect(names('sandell')).toEqual(['Det är saligt']);
+  });
+
+  it('a title hit outranks a lyrics hit, and ties keep library order', () => {
+    expect(names('majestät')).toEqual(['Majestät']);
+    expect(names('du')).toEqual(['Högst av allt']);
+    expect(names('vi')).toEqual(['Vi vill se Gud', 'Majestät']);
+  });
+
+  it('decomposed (macOS) text matches composed queries', () => {
+    expect(searchSongs([{ ...lib[1]!, name: 'Högst av allt'.normalize('NFD') }], 'högst')).toHaveLength(1);
+  });
+
+  it('highlights the word prefixes that matched, accents or not', () => {
+    expect(highlight('Högst av allt', 'hog al')).toEqual([
+      { text: 'Hög', hit: true },
+      { text: 'st av ', hit: false },
+      { text: 'al', hit: true },
+      { text: 'lt', hit: false },
+    ]);
+    expect(highlight('evighet', 'vig')).toEqual([{ text: 'evighet', hit: false }]);
+  });
+});
+
+describe('trash', () => {
+  it('days remaining are 30 minus whole days, never below 0 (SONG-R26)', () => {
+    const day = 86_400_000;
+    expect(daysRemaining(0, 0)).toBe(30);
+    expect(daysRemaining(0, day - 1)).toBe(30);
+    expect(daysRemaining(0, day)).toBe(29);
+    expect(daysRemaining(0, 30 * day)).toBe(0);
+    expect(daysRemaining(0, 45 * day)).toBe(0);
+  });
+});
+
 describe('mutator arguments', () => {
   it('names are trimmed and must not be blank; blank optional text becomes null', () => {
     expect(mutators.createSong.args.parse({ id: 'S', name: '  Hi  ', author: '  ' })).toEqual({ id: 'S', name: 'Hi', author: null });
@@ -80,6 +185,20 @@ describe('mutator arguments', () => {
     expect(mutators.updateSong.args.safeParse({ id: 'S', year: 10000 }).success).toBe(false);
     expect(mutators.updateSong.args.safeParse({ id: 'S', ccli: 'x'.repeat(21) }).success).toBe(false);
     expect(mutators.addSongPart.args.safeParse({ id: 'P', songId: 'S', labelText: null, content: 'x'.repeat(5001) }).success).toBe(false);
+  });
+
+  it('arrangement names are trimmed, blank is no name, at most 100 (SONG-R16, R9)', () => {
+    expect(mutators.createArrangement.args.parse({ id: 'A', songId: 'S', name: '  Kort ', partIds: [] }).name).toBe('Kort');
+    expect(mutators.updateArrangement.args.parse({ id: 'A', name: '   ' }).name).toBeNull();
+    expect(mutators.updateArrangement.args.safeParse({ id: 'A', name: 'x'.repeat(101) }).success).toBe(false);
+  });
+
+  it('item titles are trimmed and never blank; dates are ISO dates or null', () => {
+    expect(mutators.renameItem.args.parse({ itemId: 'I', title: ' Psalm ' }).title).toBe('Psalm');
+    expect(mutators.renameItem.args.safeParse({ itemId: 'I', title: '  ' }).success).toBe(false);
+    expect(mutators.updatePresentation.args.safeParse({ id: 'P', eventDate: '2026-11-01' }).success).toBe(true);
+    expect(mutators.updatePresentation.args.safeParse({ id: 'P', eventDate: null }).success).toBe(true);
+    expect(mutators.updatePresentation.args.safeParse({ id: 'P', eventDate: '1 nov' }).success).toBe(false);
   });
 });
 

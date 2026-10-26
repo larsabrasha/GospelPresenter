@@ -38,6 +38,7 @@ const item = (r: Row): PresentationItem => ({
   title: String(r.title),
   sourceId: String(r.source_id),
   sort: Number(r.sort),
+  arrangementId: (r.arrangement_id as string | null) ?? null,
 });
 
 const label = (r: Row): Label => ({ id: String(r.id), text: String(r.text), color: String(r.color), sort: Number(r.sort) });

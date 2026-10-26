@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono } from 'hono';
-import { orgDdl, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
+import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { adminRoutes, authenticate, globalDdl, syncRoutes, type GlobalStore, type Org } from './app.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
@@ -14,7 +14,9 @@ interface Env {
 
 /** An organisation's data in its Durable Object's own SQLite (evaluation option (a)). */
 export function durableSqliteStore(storage: DurableObjectStorage): OrgStore {
-  for (const s of [...orgDdl, ...serverSyncDdl, ...serverChangeTriggers()]) storage.sql.exec(s);
+  const run = (sql: string) => storage.sql.exec(sql).toArray() as Record<string, unknown>[];
+  migrateOrgSchemaSync(run, (fn) => storage.transactionSync(fn));
+  for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) run(s);
   return {
     db: drizzle(storage, { schema }) as unknown as Tx,
     query: (sql, params = []) => storage.sql.exec(sql, ...params).toArray() as Record<string, unknown>[],

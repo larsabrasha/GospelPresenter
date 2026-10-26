@@ -7,3 +7,5 @@ export * from './sync-sql.ts';
 export * from './serial-queue.ts';
 export * from './slides.ts';
 export * from './live.ts';
+export * from './trash.ts';
+export * from './search.ts';

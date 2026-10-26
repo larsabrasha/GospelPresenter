@@ -9,7 +9,7 @@ import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { orgDdl, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
+import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { adminRoutes, authenticate, globalDdl, syncRoutes, type GlobalStore, type Org } from './app.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
@@ -83,7 +83,17 @@ export function openSqlite(file: string, driver: NodeDriver): SqliteFile {
 
 /** An organisation's SQLite file as an OrgStore. */
 export function nodeOrgStore(f: SqliteFile): OrgStore {
-  for (const s of [...orgDdl, ...serverSyncDdl, ...serverChangeTriggers()]) f.exec(s);
+  migrateOrgSchemaSync(f.query, (fn) => {
+    f.exec('BEGIN IMMEDIATE');
+    try {
+      fn();
+      f.exec('COMMIT');
+    } catch (e) {
+      if (f.inTransaction()) f.exec('ROLLBACK');
+      throw e;
+    }
+  });
+  for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) f.exec(s);
   return {
     db: f.drizzle(),
     query: f.query,

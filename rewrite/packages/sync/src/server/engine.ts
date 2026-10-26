@@ -100,7 +100,7 @@ export async function handlePush(store: OrgStore, ctx: MutatorCtx, req: PushRequ
       if (!mut) throw new MutationError('unknown-mutator', m.name);
       if (m.v > mut.v) throw new MutationError('unknown-version', `${m.name} v${m.v}`);
       await store.transaction(async () => {
-        await runMutator(mut, store.db, m.args, ctx);
+        await runMutator(mut, store.db, m.args, { ...ctx, now: Date.now() }); // the server's clock (see MutatorCtx)
         setLast(m.id);
       });
     } catch (e) {

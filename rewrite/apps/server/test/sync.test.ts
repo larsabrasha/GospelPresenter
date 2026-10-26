@@ -298,6 +298,190 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     await expectConverged(alice, carol);
   });
 
+  // ------------------------------------------------------------ milestone 2: arrangements, items, trash
+
+  const arrangements = async (d: Device, song = 'S1') =>
+    (await d.client.dump()).song_arrangements
+      .filter((r) => r.song_id === song)
+      .toSorted((a, b) => Number(a.sort) - Number(b.sort))
+      .map((r) => ({ id: r.id, name: r.name, parts: JSON.parse(String(r.part_ids)) as string[] }));
+
+  async function seedParts(song = 'S1', n = 3) {
+    for (let i = 0; i < n; i++) await alice.client.mutate('addSongPart', { id: `${song}-P${i}`, songId: song, labelText: 'Verse', content: `v${i}` });
+  }
+
+  it('arrangements: created after the others, foreign part ids dropped (SONG-R15), names trimmed (SONG-R16)', async () => {
+    await seed();
+    await seedParts('S1');
+    await seedParts('S2', 1);
+    await alice.client.mutate('createArrangement', { id: 'A1', songId: 'S1', partIds: ['S1-P0', 'S1-P1', 'S1-P2'] });
+    await alice.client.mutate('createArrangement', { id: 'A2', songId: 'S1', name: '  Kort ', partIds: ['S1-P2', 'S2-P0', 'NOPE', 'S1-P2'] });
+    await syncAll(alice, bob);
+    expect(await arrangements(bob)).toEqual([
+      { id: 'A1', name: null, parts: ['S1-P0', 'S1-P1', 'S1-P2'] },
+      { id: 'A2', name: 'Kort', parts: ['S1-P2', 'S1-P2'] },
+    ]);
+    await bob.client.mutate('updateArrangement', { id: 'A2', name: '   ' });
+    await bob.client.mutate('updateArrangement', { id: 'A1', partIds: ['S1-P1', 'S1-P1', 'S2-P0'] });
+    await syncAll(alice, bob);
+    expect(await arrangements(alice)).toEqual([
+      { id: 'A1', name: null, parts: ['S1-P1', 'S1-P1'] },
+      { id: 'A2', name: null, parts: ['S1-P2', 'S1-P2'] },
+    ]);
+    await expectConverged(alice, bob);
+  });
+
+  it('SONG-R9: the eleventh arrangement is refused; SONG-R8: so is the 51st part', async () => {
+    await seed();
+    for (let i = 0; i < 10; i++) await alice.client.mutate('createArrangement', { id: `A${i}`, songId: 'S1', partIds: [] });
+    await expect(alice.client.mutate('createArrangement', { id: 'A10', songId: 'S1', partIds: [] })).rejects.toThrow(/maximum number of arrangements/);
+    await seedParts('S2', 50);
+    await expect(alice.client.mutate('addSongPart', { id: 'S2-P50', songId: 'S2', labelText: null, content: '' })).rejects.toThrow(/maximum number of parts/);
+    // The server says the same to a client that did not know (here: Bob, offline, before Alice's parts arrive).
+    bob.net.online = false;
+    await bob.client.mutate('addSongPart', { id: 'B51', songId: 'S2', labelText: null, content: 'one too many' });
+    await alice.client.sync();
+    bob.net.online = true;
+    await syncAll(alice, bob);
+    expect(bob.client.rejected.map((r) => r.error)).toEqual(['limit']);
+    expect((await server()).tables.song_parts.filter((r) => r.song_id === 'S2')).toHaveLength(50);
+    await expectConverged(alice, bob);
+  });
+
+  it('SONG-R14: removing a part takes every occurrence out of every arrangement, also one edited concurrently', async () => {
+    await seed();
+    await seedParts('S1');
+    await alice.client.mutate('createArrangement', { id: 'A1', songId: 'S1', partIds: ['S1-P0', 'S1-P1', 'S1-P0'] });
+    await syncAll(alice, bob, carol);
+    bob.net.online = false;
+    await bob.client.mutate('removeSongPart', { id: 'S1-P0' });
+    expect(await arrangements(bob)).toEqual([{ id: 'A1', name: null, parts: ['S1-P1'] }]);
+    // Carol, online, puts P0 in again first; Bob's removal lands after it.
+    await carol.client.mutate('updateArrangement', { id: 'A1', partIds: ['S1-P0', 'S1-P2', 'S1-P0'] });
+    await carol.client.sync();
+    bob.net.online = true;
+    await syncAll(alice, bob, carol);
+    expect(await arrangements(alice)).toEqual([{ id: 'A1', name: null, parts: ['S1-P2'] }]);
+    // And the other order: an arrangement edit made offline names a part the server already removed.
+    bob.net.online = false;
+    await bob.client.mutate('updateArrangement', { id: 'A1', partIds: ['S1-P1', 'S1-P2'] });
+    await carol.client.mutate('removeSongPart', { id: 'S1-P1' });
+    await carol.client.sync();
+    bob.net.online = true;
+    await syncAll(alice, bob, carol);
+    expect(await arrangements(bob)).toEqual([{ id: 'A1', name: null, parts: ['S1-P2'] }]);
+    await expectConverged(alice, bob, carol);
+  });
+
+  it('an arrangement edited offline after another client removed it stays removed, without an error', async () => {
+    await seed();
+    await alice.client.mutate('createArrangement', { id: 'A1', songId: 'S1', partIds: [] });
+    await syncAll(alice, bob, carol);
+    bob.net.online = false;
+    await bob.client.mutate('updateArrangement', { id: 'A1', name: 'Bob' });
+    await carol.client.mutate('removeArrangement', { id: 'A1' });
+    await carol.client.sync();
+    bob.net.online = true;
+    await syncAll(alice, bob, carol);
+    expect(bob.client.rejected).toEqual([]);
+    expect(await arrangements(bob)).toEqual([]);
+    await expectConverged(alice, bob, carol);
+  });
+
+  it('items: insert after the selected item, rename, and choose an arrangement (spec 03 2d, 03 Q13)', async () => {
+    await seed();
+    await alice.client.mutate('createArrangement', { id: 'A1', songId: 'S3', partIds: [] });
+    await alice.client.mutate('createArrangement', { id: 'B1', songId: 'S4', partIds: [] });
+    await alice.client.mutate('addSongToPresentation', { itemId: 'N', presentationId: 'P', songId: 'S3', arrangementId: 'A1', afterItemId: 'I1' });
+    await alice.client.mutate('addSongToPresentation', { itemId: 'W', presentationId: 'P', songId: 'S3', arrangementId: 'B1', afterItemId: 'GONE' });
+    await alice.client.mutate('renameItem', { itemId: 'N', title: '  Inledning ' });
+    await syncAll(alice, bob);
+    expect((await items(bob)).map((r) => [r.id, r.sort, r.title, r.arrangement_id])).toEqual([
+      ['I1', 0, 'Song 1', null],
+      ['N', 1, 'Inledning', 'A1'],
+      ['I2', 2, 'Song 2', null],
+      ['W', 3, 'Song 3', null], // after an item that is gone: appended; an arrangement of another song: dropped
+    ]);
+    await bob.client.mutate('setItemArrangement', { itemId: 'N', arrangementId: null });
+    await expect(bob.client.mutate('setItemArrangement', { itemId: 'N', arrangementId: 'B1' })).rejects.toThrow('arrangement not found');
+    await syncAll(alice, bob);
+    expect((await items(alice)).find((r) => r.id === 'N')!.arrangement_id).toBeNull();
+    await expectConverged(alice, bob);
+  });
+
+  it('two offline inserts after the same item both land, in push order, with contiguous sorts', async () => {
+    await seed();
+    alice.net.online = false;
+    bob.net.online = false;
+    await alice.client.mutate('addSongToPresentation', { itemId: 'XA', presentationId: 'P', songId: 'S3', afterItemId: 'I1' });
+    await bob.client.mutate('addSongToPresentation', { itemId: 'XB', presentationId: 'P', songId: 'S4', afterItemId: 'I1' });
+    alice.net.online = true;
+    bob.net.online = true;
+    await syncAll(alice, bob, carol);
+    expect((await items(carol)).map((r) => [r.id, r.sort])).toEqual([
+      ['I1', 0],
+      ['XB', 1],
+      ['XA', 2],
+      ['I2', 3],
+    ]);
+    await expectConverged(alice, bob, carol);
+  });
+
+  it('the event date is set, changed and cleared on its own; a concurrent rename keeps both', async () => {
+    await seed();
+    alice.net.online = false;
+    await alice.client.mutate('updatePresentation', { id: 'P', eventDate: '2026-11-01' });
+    await carol.client.mutate('updatePresentation', { id: 'P', name: 'Allhelgona' });
+    await carol.client.sync();
+    alice.net.online = true;
+    await syncAll(alice, carol);
+    expect(await presentation(alice)).toMatchObject({ name: 'Allhelgona', event_date: '2026-11-01' });
+    await carol.client.mutate('updatePresentation', { id: 'P', eventDate: null });
+    await syncAll(alice, carol);
+    expect(await presentation(alice)).toMatchObject({ name: 'Allhelgona', event_date: null });
+    await expectConverged(alice, carol);
+  });
+
+  it('SONG-R27: a song is purged only from the trash, with its parts and arrangements; items that used it stay', async () => {
+    await seed();
+    await seedParts('S1');
+    await alice.client.mutate('createArrangement', { id: 'A1', songId: 'S1', partIds: ['S1-P0'] });
+    await expect(alice.client.mutate('purgeSong', { id: 'S1' })).rejects.toThrow('not in the trash');
+    await alice.client.mutate('trashSong', { id: 'S1', at: Date.now() });
+    await syncAll(alice, bob);
+    await bob.client.mutate('restoreSong', { id: 'S1' });
+    await syncAll(alice, bob);
+    await alice.client.mutate('trashSong', { id: 'S1', at: Date.now() });
+    await alice.client.mutate('purgeSong', { id: 'S1' });
+    await syncAll(alice, bob);
+    const d = await bob.client.dump();
+    expect(d.songs.map((r) => r.id)).toEqual(['S2', 'S3', 'S4']);
+    expect(d.song_parts).toEqual([]);
+    expect(d.song_arrangements).toEqual([]);
+    expect((await items(bob)).map((r) => r.id)).toEqual(['I1', 'I2']);
+    await expectConverged(alice, bob);
+  });
+
+  it('PRES-R26: expired trash is purged by the server clock; a client clock that runs ahead purges nothing early', async () => {
+    await seed();
+    const day = 86_400_000;
+    const now = Date.now();
+    await alice.client.mutate('trashSong', { id: 'S1', at: now - 31 * day });
+    await alice.client.mutate('trashSong', { id: 'S2', at: now - 10 * day });
+    await alice.client.mutate('trashPresentation', { id: 'P', at: now - 40 * day });
+    await syncAll(alice, bob);
+    bob.net.online = false;
+    await bob.client.mutate('purgeExpiredTrash', { now: now + 60 * day }); // a clock two months ahead
+    expect((await bob.client.dump()).songs.map((r) => r.id)).toEqual(['S3', 'S4']); // optimistic: both gone
+    bob.net.online = true;
+    await syncAll(alice, bob);
+    const d = await bob.client.dump();
+    expect(d.songs.map((r) => r.id)).toEqual(['S2', 'S3', 'S4']); // the server kept the 10-day-old one
+    expect(d.presentations).toEqual([]);
+    expect(d.presentation_items).toEqual([]);
+    await expectConverged(alice, bob);
+  });
+
   // ------------------------------------------------------------ protocol
 
   it('a push retried after a lost response is applied once', async () => {

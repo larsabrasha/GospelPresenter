@@ -4,7 +4,7 @@ import {
   clientUndoTriggers,
   getMutator,
   runMutator,
-  orgDdl,
+  migrateOrgSchema,
   PROTOCOL_VERSION,
   SCHEMA_VERSION,
   SerialQueue,
@@ -66,7 +66,20 @@ export class SyncClient {
 
   private async init() {
     await this.exec('PRAGMA foreign_keys = ON');
-    for (const s of [...orgDdl, ...clientSyncDdl, ...clientUndoTriggers()]) await this.exec(s);
+    await migrateOrgSchema(
+      (sql) => queryObjects(this.sqlite, sql),
+      async (fn) => {
+        await this.exec('BEGIN');
+        try {
+          await fn();
+          await this.exec('COMMIT');
+        } catch (e) {
+          await this.exec('ROLLBACK');
+          throw e;
+        }
+      },
+    );
+    for (const s of [...clientSyncDdl, ...clientUndoTriggers()]) await this.exec(s);
     const id = this.opts.clientId ?? crypto.randomUUID();
     await this.exec('INSERT OR IGNORE INTO _sync_meta (one, client_id) VALUES (1, ?)', [id]);
     this.clientId = String((await this.exec('SELECT client_id FROM _sync_meta')).rows[0]![0]);

@@ -14,7 +14,7 @@ export const tableInfo: TableInfo[] = syncedTables.map((t: SQLiteTable) => {
   return { name: c.name, columns: c.columns.map((col) => col.name) };
 });
 
-export type SyncedTableName = 'labels' | 'songs' | 'song_parts' | 'presentations' | 'presentation_items';
+export type SyncedTableName = 'labels' | 'songs' | 'song_parts' | 'song_arrangements' | 'presentations' | 'presentation_items';
 
 /** Every synced table's rows, sorted by id: what "byte for byte" compares. */
 export type Dump = Record<SyncedTableName, Record<string, unknown>[]>;
@@ -69,17 +69,20 @@ export const clientSyncDdl: string[] = [
 /**
  * Triggers that keep the first pre-image of every row touched while capture is on.
  * `before` is NULL for a row that did not exist. Pulls switch capture off.
+ * They name every column, so they are dropped and made again on every open:
+ * a schema migration may have added columns.
  */
 export function clientUndoTriggers(): string[] {
   const on = `WHEN (SELECT capture FROM _sync_meta) = 1`;
   return tableInfo.flatMap(({ name, columns }) => {
     const image = `json_object(${columns.map((c) => `'${c}', OLD.${c}`).join(', ')})`;
     return [
-      `CREATE TRIGGER IF NOT EXISTS undo_${name}_ins AFTER INSERT ON ${name} ${on} BEGIN
+      ...['ins', 'upd', 'del'].map((op) => `DROP TRIGGER IF EXISTS undo_${name}_${op}`),
+      `CREATE TRIGGER undo_${name}_ins AFTER INSERT ON ${name} ${on} BEGIN
          INSERT OR IGNORE INTO _undo (tbl, pk, before) VALUES ('${name}', NEW.id, NULL); END`,
-      `CREATE TRIGGER IF NOT EXISTS undo_${name}_upd BEFORE UPDATE ON ${name} ${on} BEGIN
+      `CREATE TRIGGER undo_${name}_upd BEFORE UPDATE ON ${name} ${on} BEGIN
          INSERT OR IGNORE INTO _undo (tbl, pk, before) VALUES ('${name}', OLD.id, ${image}); END`,
-      `CREATE TRIGGER IF NOT EXISTS undo_${name}_del BEFORE DELETE ON ${name} ${on} BEGIN
+      `CREATE TRIGGER undo_${name}_del BEFORE DELETE ON ${name} ${on} BEGIN
          INSERT OR IGNORE INTO _undo (tbl, pk, before) VALUES ('${name}', OLD.id, ${image}); END`,
     ];
   });

@@ -35,6 +35,22 @@ export const songParts = sqliteTable('song_parts', {
   content: text('content').notNull(),
 });
 
+/**
+ * A named order of a song's parts (spec 02 "Arrangement"). `partIds` is a JSON
+ * array of part ids; a part may appear several times. `sort` orders a song's
+ * arrangements, so "the first arrangement" (the default) is the same on every
+ * device (02 Q8).
+ */
+export const songArrangements = sqliteTable('song_arrangements', {
+  id: text('id').primaryKey(),
+  songId: text('song_id')
+    .notNull()
+    .references(() => songs.id),
+  name: text('name'),
+  partIds: text('part_ids').notNull(),
+  sort: integer('sort').notNull(),
+});
+
 export const presentations = sqliteTable('presentations', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -45,9 +61,9 @@ export const presentations = sqliteTable('presentations', {
 });
 
 /**
- * An item of a presentation's running order. Milestone 1 has song items only.
- * A song item is a reference: `sourceId` names the song, and its slides are
- * resolved from the current song when shown (spec 03).
+ * An item of a presentation's running order. Song items only, so far. A song
+ * item is a reference: `sourceId` names the song, and its slides are resolved
+ * from the current song when shown (spec 03), in the item's arrangement.
  */
 export const presentationItems = sqliteTable('presentation_items', {
   id: text('id').primaryKey(),
@@ -58,25 +74,28 @@ export const presentationItems = sqliteTable('presentation_items', {
   title: text('title').notNull(),
   sourceId: text('source_id').notNull(),
   sort: integer('sort').notNull(),
+  /** The song arrangement to show; null means the song's first one (SONG-R19). */
+  arrangementId: text('arrangement_id'),
 });
 
-export const schema = { labels, songs, songParts, presentations, presentationItems };
+export const schema = { labels, songs, songParts, songArrangements, presentations, presentationItems };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, presentations, presentationItems];
+export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
 export type SongPart = typeof songParts.$inferSelect;
+export type SongArrangement = typeof songArrangements.$inferSelect;
 export type Presentation = typeof presentations.$inferSelect;
 export type PresentationItem = typeof presentationItems.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
-// Hand-written DDL: the columns must match the Drizzle tables above, which a
-// test checks. Generated migrations (drizzle-kit) come with the first change
-// to a shipped schema.
+// Hand-written DDL of the current version: the columns must match the Drizzle
+// tables above, which a test checks. A database made by an older version is
+// brought up to date by `orgMigrations` instead (see `orgSchemaPlan`).
 export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS labels (id TEXT PRIMARY KEY NOT NULL, text TEXT NOT NULL, color TEXT NOT NULL,
      sort INTEGER NOT NULL)`,
@@ -85,9 +104,73 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS song_parts (id TEXT PRIMARY KEY NOT NULL,
      song_id TEXT NOT NULL REFERENCES songs(id), sort INTEGER NOT NULL,
      label_id TEXT REFERENCES labels(id), content TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS song_arrangements (id TEXT PRIMARY KEY NOT NULL,
+     song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS presentations (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, event_date TEXT,
      deleted_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS presentation_items (id TEXT PRIMARY KEY NOT NULL,
      presentation_id TEXT NOT NULL REFERENCES presentations(id), type TEXT NOT NULL, title TEXT NOT NULL,
-     source_id TEXT NOT NULL, sort INTEGER NOT NULL)`,
+     source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT)`,
 ];
+
+/** The statements that take a database from version `n - 1` to `n`. */
+export const orgMigrations: Record<number, string[]> = {
+  2: [
+    `CREATE TABLE IF NOT EXISTS song_arrangements (id TEXT PRIMARY KEY NOT NULL,
+       song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
+    `ALTER TABLE presentation_items ADD COLUMN arrangement_id TEXT`,
+  ],
+};
+
+/** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */
+export const schemaMetaDdl = `CREATE TABLE IF NOT EXISTS _schema (one INTEGER PRIMARY KEY CHECK (one = 1), version INTEGER NOT NULL)`;
+
+/**
+ * What to run, in one transaction, to bring an organisation database to
+ * SCHEMA_VERSION. `version` is the row in `_schema` (null when there is none)
+ * and `hasTables` whether the synced tables exist yet.
+ */
+export function orgSchemaPlan(version: number | null, hasTables: boolean): string[] {
+  const from = version ?? (hasTables ? 1 : 0);
+  if (from > SCHEMA_VERSION) throw new Error(`the database has schema ${from}, newer than this app's ${SCHEMA_VERSION}`);
+  const steps: string[] = [];
+  if (from === 0) steps.push(...orgDdl);
+  else for (let v = from + 1; v <= SCHEMA_VERSION; v++) steps.push(...orgMigrations[v]!);
+  if (from !== SCHEMA_VERSION) steps.push(`INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`);
+  return steps;
+}
+
+/** The two reads `orgSchemaPlan` needs, as SQL: run after `schemaMetaDdl`. */
+export const schemaStateSql = {
+  version: 'SELECT version FROM _schema WHERE one = 1',
+  hasTables: "SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'songs'",
+};
+
+type Rows = Record<string, unknown>[];
+
+function planFor(versionRows: Rows, tableRows: Rows): string[] {
+  const version = versionRows[0] ? Number(versionRows[0].version) : null;
+  return orgSchemaPlan(version, Number(tableRows[0]?.n ?? 0) > 0);
+}
+
+/**
+ * Brings an organisation database to SCHEMA_VERSION, for the synchronous
+ * server drivers. `run` executes one statement and returns its rows;
+ * `atomically` runs its callback as one transaction.
+ */
+export function migrateOrgSchemaSync(run: (sql: string) => Rows, atomically: (fn: () => void) => void): void {
+  run(schemaMetaDdl);
+  const plan = planFor(run(schemaStateSql.version), run(schemaStateSql.hasTables));
+  if (plan.length) atomically(() => plan.forEach((s) => run(s)));
+}
+
+/** The same for an asynchronous connection (the clients). */
+export async function migrateOrgSchema(run: (sql: string) => Promise<Rows>, atomically: (fn: () => Promise<void>) => Promise<void>): Promise<void> {
+  await run(schemaMetaDdl);
+  const plan = planFor(await run(schemaStateSql.version), await run(schemaStateSql.hasTables));
+  if (plan.length) {
+    await atomically(async () => {
+      for (const s of plan) await run(s);
+    });
+  }
+}
