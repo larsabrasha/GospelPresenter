@@ -3,7 +3,10 @@ import { createRequire } from 'node:module';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { serve, type HttpBindings } from '@hono/node-server';
+import { serve, type HttpBindings, type ServerType } from '@hono/node-server';
+import { createServer as createHttpsServer } from 'node:https';
+import type { IncomingMessage } from 'node:http';
+import type { Duplex } from 'node:stream';
 import type BetterSqlite3 from 'better-sqlite3';
 import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 import { serveStatic } from '@hono/node-server/serve-static';
@@ -192,6 +195,14 @@ export interface NodeServerOptions {
   passkeys?: PasskeyConfig;
   /** How young a session must be to add a login (tests shorten it). */
   freshSignInMs?: number;
+  /**
+   * Also serve over https, with a certificate the operator provides (PEM),
+   * on its own port and address: on a desktop host, the LAN gets https while
+   * the host's own window keeps http on 127.0.0.1. A device that trusts the
+   * certificate is then a secure context (OPFS, Web Crypto). See README,
+   * "https on the LAN".
+   */
+  tls?: { key: string | Buffer; cert: string | Buffer; port?: number; hostname?: string };
   /** Where refused sign-ins are reported (JSON on stderr by default). */
   log?: (event: Record<string, unknown>) => void;
 }
@@ -199,6 +210,8 @@ export interface NodeServerOptions {
 export interface RunningServer {
   url: string;
   port: number;
+  /** The https listener, when `tls` was given. */
+  tls: { url: string; port: number } | null;
   /** While setup is not finished: the token it needs. Null once someone has signed in. */
   setupToken: string | null;
   close(): Promise<void>;
@@ -287,12 +300,24 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     app.get('*', (c, next) => (/\.[a-z0-9]+$/i.test(c.req.path) ? next() : serveStatic({ root: opts.webRoot, path: 'index.html' })(c, next)));
   }
 
+  const listening = (srv: ServerType) => new Promise<void>((resolve) => (srv.listening ? resolve() : srv.once('listening', () => resolve())));
   const server = serve({ fetch: app.fetch, port: opts.port ?? 0, hostname: opts.hostname ?? '127.0.0.1' });
-  await new Promise<void>((resolve) => (server.listening ? resolve() : server.once('listening', () => resolve())));
+  await listening(server);
+  // The same app over https, for the LAN (README, "https on the LAN").
+  const secure = opts.tls
+    ? serve({
+        fetch: app.fetch,
+        port: opts.tls.port ?? 0,
+        hostname: opts.tls.hostname ?? '127.0.0.1',
+        createServer: createHttpsServer,
+        serverOptions: { key: opts.tls.key, cert: opts.tls.cert },
+      })
+    : null;
+  if (secure) await listening(secure);
 
   // Credentials arrive as subprotocols (see `credentials`); the answer names only WS_PROTOCOL.
   const wss = new WebSocketServer({ noServer: true, handleProtocols: (offered) => (offered.has(WS_PROTOCOL) ? WS_PROTOCOL : false) });
-  server.on('upgrade', async (req, socket, head) => {
+  const onUpgrade = async (req: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(req.url ?? '/', 'http://local');
     const headers = new Headers();
     for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v);
@@ -322,18 +347,25 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       org.sockets.set(ws, clientId);
       ws.on('close', () => org.sockets.delete(ws));
     });
-  });
+  };
+  server.on('upgrade', onUpgrade);
+  secure?.on('upgrade', onUpgrade);
 
   const port = (server.address() as AddressInfo).port;
+  const local = (h: string | undefined) => (h && h !== '0.0.0.0' ? h : '127.0.0.1');
+  const tlsPort = secure ? (secure.address() as AddressInfo).port : null;
   return {
     port,
-    url: `http://${opts.hostname && opts.hostname !== '0.0.0.0' ? opts.hostname : '127.0.0.1'}:${port}`,
+    url: `http://${local(opts.hostname)}:${port}`,
+    tls: secure && tlsPort ? { port: tlsPort, url: `https://${local(opts.tls?.hostname)}:${tlsPort}` } : null,
     setupToken: (await accounts.setupDone()) ? null : setupToken,
     async close() {
       for (const c of wss.clients) c.terminate();
       wss.close();
-      (server as { closeAllConnections?: () => void }).closeAllConnections?.();
-      await new Promise<void>((r) => server.close(() => r()));
+      for (const srv of secure ? [server, secure] : [server]) {
+        (srv as { closeAllConnections?: () => void }).closeAllConnections?.();
+        await new Promise<void>((r) => srv.close(() => r()));
+      }
       for (const o of orgs.values()) {
         o.live.dispose();
         o.file.close();

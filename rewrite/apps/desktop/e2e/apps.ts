@@ -27,7 +27,9 @@ export interface Desktop {
  * keeps the pages' databases in memory, as where OPFS is missing. The page
  * starts wherever the app does: setup, sign-in, pairing or the app itself.
  */
-export async function launch(opts: { server?: string; dataDir?: string; port?: number; memory?: boolean; lan?: boolean } = {}): Promise<Desktop> {
+export async function launch(
+  opts: { server?: string; dataDir?: string; port?: number; memory?: boolean; lan?: boolean; env?: Record<string, string> } = {},
+): Promise<Desktop> {
   const dataDir = opts.dataDir ?? mkdtempSync(join(tmpdir(), 'gp-desktop-'));
   const env: Record<string, string> = { ...(process.env as Record<string, string>), GP_DATA_DIR: dataDir };
   if (opts.server) env.GP_SERVER = opts.server;
@@ -35,6 +37,7 @@ export async function launch(opts: { server?: string; dataDir?: string; port?: n
   const port = opts.server ? undefined : (opts.port ?? 20_000 + Math.floor(Math.random() * 20_000));
   if (port) env.GP_PORT = String(port);
   if (opts.memory) env.GP_STORAGE = 'memory';
+  Object.assign(env, opts.env);
   // No visible window: the tests never take focus or a screen from whoever is at the computer. GP_E2E_VISIBLE=1 shows them.
   if (process.env.GP_E2E_VISIBLE !== '1') env.GP_HIDDEN_WINDOWS = '1';
   if (opts.lan) env.GP_LAN = '1';

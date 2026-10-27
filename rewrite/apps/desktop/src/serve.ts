@@ -25,5 +25,6 @@ const server = await startHost({
       : undefined,
 });
 console.log(`Gospel Presenter: ${pageUrl(server.url)}`);
+if (server.tls) console.log(`Over https: ${pageUrl(server.tls.url)}`);
 if (hostToken) console.log(`Host device token (send as x-gp-device to make pairing codes): ${hostToken}`);
 if (server.setupToken) console.log(`Setup token: ${server.setupToken}`);

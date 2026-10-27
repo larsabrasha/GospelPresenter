@@ -177,6 +177,7 @@ function actAsHostDevice(origin: string, hostToken: string) {
 app.whenReady().then(async () => {
   let setupToken: string | null = null;
   let port = 0;
+  let tlsPort: number | null = null;
   if (process.env.GP_SERVER) {
     base = process.env.GP_SERVER.replace(/\/$/, '');
   } else {
@@ -193,6 +194,7 @@ app.whenReady().then(async () => {
     });
     base = server.url;
     port = server.port;
+    tlsPort = server.tls?.port ?? null;
     setupToken = server.setupToken;
     actAsHostDevice(new URL(base).origin, hostToken);
   }
@@ -201,7 +203,7 @@ app.whenReady().then(async () => {
   ipcMain.on('device-name', (e) => (e.returnValue = hostname()));
   // Only on the host, and only if no user existed at start: the window that sets the host up gets the token.
   ipcMain.handle('setup-token', () => setupToken);
-  ipcMain.handle('lan-urls', () => (port ? lanUrls(port) : []));
+  ipcMain.handle('lan-urls', () => (port ? lanUrls(port, tlsPort) : []));
   ipcMain.on('callback-scheme', (e) => (e.returnValue = CALLBACK_SCHEME));
   // Opens a sign-in of this app's own server in the system browser: only its entry paths, never another URL.
   ipcMain.handle('open-sign-in', async (_e, path: unknown) => {
@@ -217,5 +219,5 @@ app.whenReady().then(async () => {
   mainWindow = main;
   await main.loadURL(pageUrl(base));
   main.on('closed', () => app.quit());
-  log({ event: 'ready', base, host: !process.env.GP_SERVER, electron: process.versions.electron });
+  log({ event: 'ready', base, host: !process.env.GP_SERVER, lan: port ? lanUrls(port, tlsPort) : [], electron: process.versions.electron });
 });

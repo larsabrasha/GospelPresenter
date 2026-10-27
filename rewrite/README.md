@@ -429,6 +429,34 @@ the thread back every 256 KiB: hashed in one go, a 19 MB audio file being fetche
 (`apps/desktop/e2e/performance.spec.ts` keeps it under 500 ms). `apps/desktop/e2e/remote.spec.ts` opens the
 host from Chromium at the machine's LAN address and checks it is not a secure context.
 
+### https on the LAN
+
+The desktop host can serve the LAN over https with a certificate the operator provides, so a tablet that trusts
+it is a secure context: its database is a file in OPFS that survives a reload, and it has Web Crypto. ADR 0007
+decision 7 rejected https on the LAN as the way for every church, since every device must trust the
+certificate; this is an option for whoever is willing to set that up, beside plain http (see "A tablet over
+plain http") and the tablet app to come.
+
+```sh
+GP_LAN=1 GP_TLS_CERT=cert.pem GP_TLS_KEY=key.pem pnpm --filter @gp/desktop start   # https on :47843 (GP_TLS_PORT)
+```
+
+With a certificate, the LAN gets https only: plain http stays on 127.0.0.1 for the host's own window, so
+Electron, passkeys at `localhost` and Google's redirect URI are as before. Links the host shows for other devices
+(remote control, invites) use https on that port, at the LAN address, or at `GP_TLS_HOSTNAME` if set (when the
+certificate names the Mac's `name.local` rather than its address). The same app, API and sockets answer on both
+(`startNodeServer({ tls })`); `apps/server/test/tls.test.ts` checks pages, the API and both sockets over https,
+and that a client that does not trust the certificate cannot connect; `apps/desktop/e2e/https.spec.ts` has a
+browser that trusts it pair, keep its database in OPFS through a reload, and keep working when the host goes.
+
+Making a certificate an iPad trusts, with mkcert (`brew install mkcert`): `mkcert -install`, then
+`mkcert 192.168.1.59 $(scutil --get LocalHostName).local` (the Mac's LAN address and name) for the two PEM
+files. On the iPad: send it `$(mkcert -CAROOT)/rootCA.pem` (AirDrop), install the profile under Settings, and
+switch on full trust under Settings → General → About → Certificate Trust Settings. Then open
+`https://192.168.1.59:47843`. The page itself still comes from the host: with the host gone the open page keeps
+working from its database, but a reload needs the host (there is no service worker). Not tested on a real
+iPad: whether Safari there gives the database worker OPFS's synchronous access handles, which wa-sqlite uses.
+
 ### Addresses
 
 The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/songs`,
