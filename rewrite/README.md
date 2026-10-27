@@ -342,6 +342,35 @@ several candidates it asks which; otherwise it says "Ingen aktiv presentation ju
 aktiverad av presentatören" or that the presenting computer lost contact. Tested in `apps/server/test/live.test.ts`
 (three adapters) and `apps/desktop/e2e/remote.spec.ts` (two desktops).
 
+### Public outputs
+
+An admin makes a public output under Skärmar (`/admin/displays`): a synced row in `displays` with a name and
+a 7-character code from `abcdefghjkmnpqrstuvwxyz23456789` (LIVE-R30; at most 50 per organisation). Anyone
+opens `/watch/{code}`, signed in or not, on a phone or a tablet. Since a viewer has nothing but the code, the
+server keeps a global index of codes (`watch_codes`, global schema version 5), which it brings up to date after
+a push that made, renewed or deleted an output (`apps/server/src/watch.ts`). A code another organisation
+already holds is not taken over; with 31^7 codes that is unlikely, and "Ny kod" is the way out.
+
+The presenting window chooses its outputs under Utgångar on the live page (kept for the window, as the
+current app keeps its output configuration) and sends, with its live report, the slide as data: kind, text,
+verses, picture hash, credits and theme id, never HTML (D25). It builds it from its own copy, so viewers see
+what its projector shows; black and nothing selected are the waiting screen (LIVE-R14). One session per
+output (LIVE-R23): taking an output from another presentation asks first ("Ta över"). The live hub keeps the
+binding (`live_bindings`) and the viewers. `GET /api/watch/{code}/stream?v={viewer}` is server-sent events:
+the output's name and the organisation's first, then the newest state and every change, a ping every 15 s
+(LIVE-R35). At most 500 viewers per output; a reconnect under the same viewer id (kept in the tab) replaces its
+old stream and is never refused (LIVE-R36). Viewer counts reach the operators at most every 2 s.
+`GET /api/watch/{code}/image/{hash}` serves a picture only while it is on that output (LIVE-R32), with
+`public, max-age=3600`. A frozen session keeps its last slide on the outputs; an ended one shows the waiting
+screen. A new code or a deleted output disconnects its viewers at once, and their page says the code no
+longer exists. On a desktop host, `/api/watch/` answers unpaired devices too (it is the one anonymous API).
+
+The page (`apps/web/src/pages/Watch.tsx`) opens no database. It uses the theme's colours, fonts and
+background, and sizes the text from the viewport, never larger than the theme's size (LIVE-R31):
+`clamp(18px, min(size/1920·160 vw, size/1080·100 vh), size px)`, credits at least 11 px. It is `noindex`, and its
+title is the organisation's name. Tested in `apps/server/test/watch.test.ts` (three adapters) and
+`apps/desktop/e2e/watch.spec.ts` (a phone played by Playwright's Chromium).
+
 ### Addresses
 
 The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/songs`,
@@ -368,8 +397,8 @@ Where to pick up. Milestones 1–5 are on branch `claude/milestone-1`, which als
    Worker and D1, measured and then deleted, as the sync spike did. Still unproven there: migrating an
    existing Durable Object (schema and triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys,
    Google sign-in against a real Google client, and R2 as the media storage (tested against Miniflare's R2 only).
-2. **The rest of live** (spec 04): public output (`/watch/{code}` over SSE) and paired screens. Stage
-   view and remote control are done (see "Not done yet" for what they lack).
+2. **The rest of live** (spec 04): paired screens (`/display`), overlays and audio. Stage view, remote
+   control and public outputs are done (see "Not done yet" for what they lack).
 3. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
 4. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
    per D32 (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app
@@ -393,6 +422,13 @@ full library of 1 000 pictures is a few hundred MB on each device, not measured)
 file input is used, also in Electron); dropping files onto the add dialog. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.
+
+From spec 04's public outputs: the QR code and "Ladda ner som bild" (the link is shown to copy); paired
+screens, so Skärmar has only public outputs; the Worker serves no static files yet, so on Cloudflare
+`/watch/{code}` has no page, though its API works; a viewer whose network is slow gets every event in turn
+rather than only the newest (the stream is not a one-slot queue); the 500-viewer cap is not tested; texts are
+Swedish only, not per Accept-Language. A Durable Object with open streams does not hibernate; spec 04 and
+ADR 0007 leave a Durable Object per output for when that matters.
 
 From spec 04's remote control: the QR code (the link is shown to copy); `?stage=true` in the link; the
 4-hour idle eviction of LIVE-R42 (only an abandoned session, 2 hours without its owner, is ended); the

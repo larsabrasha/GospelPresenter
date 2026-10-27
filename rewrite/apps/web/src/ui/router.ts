@@ -23,6 +23,9 @@ export type Route =
   | { page: 'devices' }
   | { page: 'bibles' }
   | { page: 'images' }
+  | { page: 'displays' }
+  /** A public output (spec 04 §6): anonymous, no database. */
+  | { page: 'watch'; code: string }
   | { page: 'themes' }
   /** The signed-in user's own ways to sign in; `error` when linking Google was refused. */
   | { page: 'logins'; error: string | null }
@@ -49,6 +52,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'bibles') return { page: 'bibles' };
     if (second === 'images') return { page: 'images' };
     if (second === 'themes') return { page: 'themes' };
+    if (second === 'displays') return { page: 'displays' };
     return { page: 'songs' };
   }
   const id = second;
@@ -68,12 +72,13 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   if (first === 'signed-in') return { page: 'signedIn' };
   if (first === 'signin') return { page: 'signIn', error: query.get('error') };
   if (first === 'output') return { page: 'output' };
+  if (first === 'watch' && id) return { page: 'watch', code: id };
   if (first === 'logins') return { page: 'logins', error: query.get('error') };
   if (first === 'presentations') return { page: 'presentations' };
   return { page: 'songs' };
 }
 
-const ADMIN_PAGES = new Set(['users', 'devices', 'bibles', 'images', 'themes']);
+const ADMIN_PAGES = new Set(['users', 'devices', 'bibles', 'images', 'themes', 'displays']);
 
 export function href(r: Route): string {
   switch (r.page) {
@@ -88,6 +93,8 @@ export function href(r: Route): string {
     }
     case 'trash':
       return r.kind ? `/trash?kind=${r.kind}` : '/trash';
+    case 'watch':
+      return `/watch/${encodeURIComponent(r.code)}`;
     case 'invite':
       return `/invite#${encodeURIComponent(r.token)}`;
     case 'signedIn':

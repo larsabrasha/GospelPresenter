@@ -10,6 +10,7 @@ import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
 import { Bibles } from './pages/Bibles.tsx';
 import { Devices } from './pages/Devices.tsx';
+import { Displays } from './pages/Displays.tsx';
 import { Images } from './pages/Images.tsx';
 import { Live } from './pages/Live.tsx';
 import { Logins } from './pages/Logins.tsx';
@@ -138,6 +139,11 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
                 {t('nav.users')}
               </a>
             )}
+            {can(me.role, 'ManageRemoteDisplays') && (
+              <a href={href({ page: 'displays' })} aria-current={route.page === 'displays' ? 'page' : undefined}>
+                {t('nav.displays')}
+              </a>
+            )}
             {host && can(me.role, 'ManageUsers') && (
               <a href={href({ page: 'devices' })} aria-current={route.page === 'devices' ? 'page' : undefined}>
                 {t('nav.devices')}
@@ -162,6 +168,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
           {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <p>{t('images.forbidden')}</p>)}
           {route.page === 'themes' && <Themes role={me.role} />}
+          {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <p>{t('displays.forbidden')}</p>)}
         </main>
         <StatusBar />
       </div>

@@ -9,6 +9,7 @@ import { SharedReader, shareChannelName } from './db/share.ts';
 import { socketProtocols } from '@gp/sync/client';
 import { LiveChannel } from './live/live.ts';
 import { LiveLink, windowSessionId } from './live/remote.ts';
+import { Watch } from './pages/Watch.tsx';
 import { currentRoute, installLinkHandler } from './ui/router.ts';
 import './fonts.css';
 import './styles.css';
@@ -18,7 +19,14 @@ installLinkHandler();
 const route = currentRoute();
 const stored = storedSession();
 
-if (route.page === 'output') {
+if (route.page === 'watch') {
+  // A public output (spec 04 §6): anyone with the code, signed in or not; no database.
+  root.render(
+    <StrictMode>
+      <Watch code={route.code} />
+    </StrictMode>,
+  );
+} else if (route.page === 'output') {
   // The output opens no database: it reads the operator window's, which works
   // whether that one is on OPFS or only in memory. Signed out, it stays black.
   if (stored) {

@@ -240,6 +240,13 @@ const PING_MS = 15_000;
 export function watchRoutes(resolve: (c: Context, code: string) => Promise<WatchTargetRuntime | null>, media: MediaStorage | null) {
   const app = new Hono();
 
+  // Whether a code exists, for a page whose stream did not open; it registers no viewer.
+  app.get('/api/watch/:code/exists', async (c) => {
+    const code = c.req.param('code');
+    const t = DISPLAY_CODE.test(code) ? await resolve(c, code) : null;
+    return t ? c.json({ ok: true }) : c.json({ error: 'not-found' }, 404);
+  });
+
   app.get('/api/watch/:code/stream', async (c) => {
     const code = c.req.param('code');
     const viewerId = c.req.query('v') ?? '';

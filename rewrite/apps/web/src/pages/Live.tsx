@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { LiveSessionInfo, PresentationItem } from '@gp/core';
 import { useData } from '../db/react.tsx';
+import { listDisplays } from '../db/queries.ts';
+import { useConfirm } from '../ui/Dialog.tsx';
+import { viewersText } from './Displays.tsx';
 import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { slidesOf, type ItemSlides } from '../live/live.ts';
-import { setRemoteAllowed } from '../live/owner.ts';
+import { chosenOutputs, REMOTE_CHANGED, setOutput, setRemoteAllowed } from '../live/owner.ts';
 import { remoteAllowed, RemoteControl, useLiveSessions, type LiveControl, type LiveLink } from '../live/remote.ts';
 import { openOutput, useLivePointer } from '../live/useLive.ts';
 import { Button } from '../ui/Button.tsx';
@@ -35,7 +38,7 @@ export function Live({
   session?: string | null;
 }) {
   if (remote) return <RemoteLive id={id} link={link} ownSessionId={sessionId} wanted={session ?? null} />;
-  return <LiveView id={id} live={live} owner={{ sessionId }} />;
+  return <LiveView id={id} live={live} owner={{ sessionId }} link={link} />;
 }
 
 /** "Tillåt fjärrstyrning" and the link a phone opens (spec 04 §1, §9). The QR code is not built. */
@@ -66,6 +69,59 @@ function RemotePanel({ id, sessionId }: { id: string; sessionId: string }) {
           <input className="grow" readOnly value={url} aria-label={t('remote.link')} onFocus={(e) => e.currentTarget.select()} />
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Utgångar (spec 04 §1): the public outputs this window sends to, each with
+ * how many watch, or which presentation sends to it now. Taking one from
+ * another presentation asks first (LIVE-R23).
+ */
+function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }) {
+  const displays = useData(listDisplays, []);
+  const { sessions } = useLiveSessions(link);
+  const { dialog, ask } = useConfirm();
+  const [chosen, setChosen] = useState(chosenOutputs);
+  useEffect(() => {
+    const on = () => setChosen(chosenOutputs());
+    addEventListener(REMOTE_CHANGED, on);
+    return () => removeEventListener(REMOTE_CHANGED, on);
+  }, []);
+  if (!displays?.length) return null;
+  const mine = sessions.find((s) => s.id === sessionId);
+  return (
+    <div className="card live-outputs">
+      {dialog}
+      <h2>{t('live.outputs')}</h2>
+      <ul className="list" aria-label={t('live.outputs')}>
+        {displays.map((d) => {
+          const elsewhere = sessions.find((s) => s.id !== sessionId && s.outputs.some((o) => o.id === d.id));
+          const viewers = mine?.outputs.find((o) => o.id === d.id)?.viewers;
+          const toggle = async (on: boolean) => {
+            if (on && elsewhere) {
+              const ok = await ask({
+                title: t('live.takeOverTitle'),
+                text: t('live.takeOverText', { output: d.name, presentation: elsewhere.presentationName }),
+                confirm: t('live.takeOver'),
+              });
+              if (!ok) return;
+              return setOutput(d.id, true, true);
+            }
+            setOutput(d.id, on);
+          };
+          return (
+            <li key={d.id} className="row">
+              <label className="row grow">
+                <input type="checkbox" checked={chosen.includes(d.id) && !elsewhere} onChange={(e) => void toggle(e.target.checked)} />
+                {d.name}
+              </label>
+              {viewers !== undefined && <span className={viewers > 0 ? 'ok small' : 'muted small'}>{viewersText(viewers)}</span>}
+              {elsewhere && <span className="muted small">{t('displays.sending', { name: elsewhere.presentationName })}</span>}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -116,11 +172,11 @@ function ControlledLive({ id, link, sessionId }: { id: string; link: LiveLink; s
   const toast = useToast();
   const control = useMemo(() => new RemoteControl(link, sessionId, () => toast(t('remote.unconfirmed'))), [link, sessionId, toast]);
   useEffect(() => () => control.dispose(), [control]);
-  return <LiveView id={id} live={control} owner={null} />;
+  return <LiveView id={id} live={control} owner={null} link={link} />;
 }
 
 /** The operator's view of a running presentation (spec 04): the owner's own, or a controller's. */
-function LiveView({ id, live, owner }: { id: string; live: LiveControl; owner: { sessionId: string } | null }) {
+function LiveView({ id, live, owner, link }: { id: string; live: LiveControl; owner: { sessionId: string } | null; link: LiveLink }) {
   const pointer = useLivePointer(live);
   const [stage, setStage] = useState(false);
   const data = useData(
@@ -219,6 +275,7 @@ function LiveView({ id, live, owner }: { id: string; live: LiveControl; owner: {
           <span className="muted small">{t('remote.onlyOwnerStops')}</span>
         )}
       </div>
+      {owner && <OutputsPanel link={link} sessionId={owner.sessionId} />}
       {owner && <RemotePanel id={id} sessionId={owner.sessionId} />}
       <div className="live-layout">
         <ol className="live-items">{data.items.map(itemRow)}</ol>
