@@ -92,17 +92,26 @@ export type MediaBlobUpload = (hash: string, bytes: Uint8Array) => Promise<numbe
  * sees (`media-missing`).
  */
 export class MediaUploads {
-  /** Blobs this session has uploaded. A restart uploads a queued one again; the server takes it twice. */
-  private uploaded = new Set<string>();
+  /**
+   * Blobs this session has uploaded, and when. One whose add has waited half
+   * the server's grace period is uploaded again, which starts that period
+   * over, so the server never removes it before its add arrives. A restart
+   * uploads a queued one again; the server takes it twice.
+   */
+  private uploaded = new Map<string, number>();
 
-  constructor(private upload: MediaBlobUpload) {}
+  constructor(
+    private upload: MediaBlobUpload,
+    private now: () => number = Date.now,
+  ) {}
 
   beforePush = async (pending: PendingMutation[], client: SyncClient): Promise<number | undefined> => {
     for (const [i, m] of pending.entries()) {
       if (m.name !== 'addImage') continue;
       const args = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown };
       for (const hash of new Set([String(args.fullHash), String(args.thumbHash)])) {
-        if (!MEDIA_HASH.test(hash) || this.uploaded.has(hash)) continue;
+        const at = this.uploaded.get(hash);
+        if (!MEDIA_HASH.test(hash) || (at !== undefined && this.now() - at < ORPHAN_GRACE_MS / 2)) continue;
         const blob = await loadMediaBlob(client, hash);
         if (!blob) continue; // nothing to send: the server refuses the add
         let status: number;
@@ -112,7 +121,7 @@ export class MediaUploads {
           return i; // unreachable: this add and what follows wait
         }
         if (status >= 500) return i;
-        if (status < 300) this.uploaded.add(hash);
+        if (status < 300) this.uploaded.set(hash, this.now());
       }
     }
     return undefined;

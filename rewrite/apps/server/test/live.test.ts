@@ -97,6 +97,15 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
     expect(await phone.sessions((s) => s.length === 0)).toEqual([]);
   });
 
+  it('takes a report with the largest slide a song part can have', async () => {
+    const owner = await win('anna');
+    const text = 'Härlig är jorden\n'.repeat(300).slice(0, 5000);
+    owner.send({ type: 'own', state: state('S1', { slide: { kind: 'song', text, verses: null, image: null, credits: 'x'.repeat(500), themeId: 'classic' } }) });
+    const [s] = await owner.sessions((x) => x.length === 1);
+    expect(s!.id).toBe('S1');
+    expect(owner.messages.some((m) => m.type === 'error')).toBe(false);
+  });
+
   it('the owner ends its own session', async () => {
     const owner = await win('anna');
     owner.send({ type: 'own', state: state('S1') });

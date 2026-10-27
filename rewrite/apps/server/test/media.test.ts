@@ -2,8 +2,8 @@
 // picture is two blobs named by their SHA-256, uploaded once and downloaded
 // once per device, outside the change log; only its `images` row syncs.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { MEDIA_LIMITS, mediaKey, sha256HexBytes } from '@gp/core';
-import { hasMediaBlob, MediaUploads, storeMediaBlob, syncMedia } from '@gp/sync/client';
+import { MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, sha256HexBytes } from '@gp/core';
+import { hasMediaBlob, MediaUploads, storeMediaBlob, syncMedia, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
@@ -271,3 +271,88 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
   });
 });
 
+
+describe.each(adapters)('%s adapter: when unused blobs are removed', (adapterName) => {
+  let h: Harness;
+  let org: string;
+  let alice: Device;
+  const GRACE = 1500;
+
+  beforeAll(async () => {
+    h = await startAdapter(adapterName, { mediaGraceMs: GRACE });
+  }, 60_000);
+  afterAll(async () => {
+    await alice?.client.close();
+    await h?.close();
+  });
+  beforeEach(async () => {
+    await alice?.client.close();
+    org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'alice', org, 'admin');
+    alice = await device(h, org, 'alice', 'admin');
+  });
+
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  /** A push of an add, which is one of the pushes after which the server cleans up. */
+  async function addSomething(seed: string) {
+    const p = await uploaded(h, org, alice, seed);
+    await alice.client.mutate('addImage', imageArgs(`I-${seed}`, p.fullHash, p.thumbHash));
+    await alice.client.sync();
+  }
+
+  it('only after a push that can leave blobs behind, not after every edit', async () => {
+    const orphan = jpeg('never-added');
+    const hash = await sha256HexBytes(orphan);
+    expect((await put(h, org, 'alice', hash, orphan)).status).toBe(204);
+    await wait(GRACE + 100);
+    await alice.client.mutate('createSong', { id: 'S1', name: 'En sång' });
+    await alice.client.sync();
+    expect((await get(h, org, 'alice', hash)).status).toBe(200); // an edit does not scan
+    await addSomething('trigger');
+    expect((await get(h, org, 'alice', hash)).status).toBe(404);
+  });
+
+  it('uploading a blob again starts its grace period over, so a late add still finds it', async () => {
+    const bytes = jpeg('late');
+    const hash = await sha256HexBytes(bytes);
+    expect((await put(h, org, 'alice', hash, bytes)).status).toBe(204);
+    await wait(GRACE - 500);
+    expect((await put(h, org, 'alice', hash, bytes)).status).toBe(204); // the add is about to go
+    await wait(700); // older than the grace period since the first upload, not since the second
+    await addSomething('first-clean-up');
+    expect((await get(h, org, 'alice', hash)).status).toBe(200);
+    await wait(GRACE);
+    await addSomething('second-clean-up');
+    expect((await get(h, org, 'alice', hash)).status).toBe(404);
+  });
+});
+
+describe('uploads before a push', () => {
+  it('uploads a waiting add\'s blobs again once half the grace period has passed', async () => {
+    let now = 1_000_000;
+    const sent: string[] = [];
+    const uploads = new MediaUploads(async (hash) => {
+      sent.push(hash);
+      return 204;
+    }, () => now);
+    const fullHash = 'a'.repeat(64);
+    const thumbHash = 'b'.repeat(64);
+    const pending = [{ id: 1, name: 'addImage', v: 1, args: JSON.stringify({ fullHash, thumbHash }) }];
+    const blobs = new Map([
+      [fullHash, new Uint8Array([1])],
+      [thumbHash, new Uint8Array([2])],
+    ]);
+    const client = {
+      query: async (_sql: string, params: unknown[]) => {
+        const bytes = blobs.get(String(params[0]));
+        return bytes ? [{ content_type: 'image/jpeg', bytes }] : [];
+      },
+    } as unknown as SyncClient;
+    await uploads.beforePush(pending, client);
+    await uploads.beforePush(pending, client);
+    expect(sent).toEqual([fullHash, thumbHash]); // once
+    now += ORPHAN_GRACE_MS / 2;
+    await uploads.beforePush(pending, client);
+    expect(sent).toEqual([fullHash, thumbHash, fullHash, thumbHash]);
+  });
+});

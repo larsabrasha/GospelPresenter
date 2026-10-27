@@ -46,6 +46,12 @@ export interface Org {
 }
 
 /**
+ * The pushes after which blobs may be unused: a purge, the expired trash, and
+ * an add (whose upload may have left a refused add's blobs behind).
+ */
+const MEDIA_GC_MUTATORS: readonly string[] = ['purgeImage', 'purgeExpiredTrash', 'addImage'];
+
+/**
  * Removes the stored blobs no image names, once they are older than the grace
  * period: what a purged image leaves behind, and what an upload whose
  * `addImage` never came leaves. Run inside the organisation's queue.
@@ -86,8 +92,13 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
       const res = await handlePush(org.store, caller.ctx, body);
       const after = currentSeq(org.store);
       if (after > before) org.poke.changed(body.clientId, after);
-      if (after > before && media) await collectMedia(org, caller.orgId, media, mediaGraceMs).catch(() => undefined); // a failed clean-up waits for the next push
-      if (after > before && watch && body.mutations.some((m) => DISPLAY_MUTATORS.includes(m.name))) {
+      // Only after a push that can leave blobs behind: not every edit pays for a scan.
+      if (after > before && media && body.mutations.some((m) => MEDIA_GC_MUTATORS.includes(m.name))) {
+        await collectMedia(org, caller.orgId, media, mediaGraceMs).catch(() => undefined); // a failed clean-up waits for the next one
+      }
+      // Not only when this push changed something: if registering failed after the mutations were saved,
+      // the client sends the same push again, which changes nothing but must register the codes.
+      if (watch && body.mutations.some((m) => DISPLAY_MUTATORS.includes(m.name))) {
         await watch.sync(caller.orgId, org.store.query('SELECT id, code FROM displays') as { id: string; code: string }[]);
         org.live?.displaysChanged(); // a deleted output, or a new code, disconnects its viewers at once
       }
@@ -183,7 +194,8 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     if (!type) return c.json({ error: 'invalid-image' }, 400);
     const orgId = r.caller.orgId;
     await r.org.queue.run(async () => {
-      if (r.org.store.query('SELECT 1 FROM media_blobs WHERE hash = ?', [hash]).length) return;
+      // Known already: the upload says it is about to be used, so its grace period starts over.
+      if (r.org.store.query('UPDATE media_blobs SET received_at = ? WHERE hash = ? RETURNING hash', [Date.now(), hash]).length) return;
       await media.put(mediaKey(orgId, hash), bytes); // bytes first, then the row (MEDIA-R6)
       const s = recordMediaBlobSql(hash, type, bytes.length, null, Date.now());
       r.org.store.query(s.sql, s.params);
@@ -294,7 +306,8 @@ export function watchRoutes(resolve: (c: Context, code: string) => Promise<Watch
     const bytes = shown ? await media.get(mediaKey(t.orgId, hash)) : null;
     if (!bytes) return c.json({ error: 'not-found' }, 404);
     c.header('content-type', shown!.content_type);
-    c.header('cache-control', 'public, max-age=3600'); // LIVE-R34
+    // Not `public` (LIVE-R34): a shared cache would go on serving the picture after it left the screen.
+    c.header('cache-control', 'private, max-age=3600');
     c.header('x-content-type-options', 'nosniff');
     return c.body(bytes as Uint8Array<ArrayBuffer>);
   });

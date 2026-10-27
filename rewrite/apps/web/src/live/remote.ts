@@ -84,7 +84,11 @@ export class LiveLink {
         this.sessions = m.sessions;
         this.notify();
       } else if (m.type === 'command') for (const fn of this.commandListeners) fn(m.sessionId, m.change);
-      else for (const fn of this.errorListeners) fn(m.error);
+      else {
+        // A refused report is not what the server holds: send the next one even if it is the same.
+        this.lastSent = '';
+        for (const fn of this.errorListeners) fn(m.error);
+      }
     });
     ws.addEventListener('close', () => {
       if (this.ws !== ws) return;

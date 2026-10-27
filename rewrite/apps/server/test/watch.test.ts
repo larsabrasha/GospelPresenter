@@ -181,6 +181,7 @@ describe.each(adapters)('%s adapter: public outputs', (adapterName) => {
     const shown = await image();
     expect(shown.status).toBe(200);
     expect(shown.headers.get('content-type')).toBe('image/jpeg');
+    expect(shown.headers.get('cache-control')).toBe('private, max-age=3600'); // never in a shared cache
     expect(new Uint8Array(await shown.arrayBuffer())).toEqual(bytes);
     // Another picture of the organisation is not reachable through the output.
     const other = new Uint8Array(bytes);
@@ -228,6 +229,39 @@ describe.each(adapters)('%s adapter: public outputs', (adapterName) => {
       await expect(bo.client.mutate('createDisplay', { id: 'D9', name: 'X', code: 'hjkmnpq', kind: 'public' })).rejects.toThrow(/may not ManageRemoteDisplays/);
     } finally {
       await bo.client.close();
+    }
+  });
+});
+
+describe('the global index of codes', () => {
+  it('a push that saved an output but failed to register its code registers it when the client sends it again', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { startNodeServer, openSqlite } = await import('@gp/server/node');
+    const dataDir = mkdtempSync(join(tmpdir(), 'gp-watch-'));
+    const s = await startNodeServer({ dataDir, debug: true, log: () => undefined });
+    const h: Harness = { name: 'node', url: s.url, mediaKeys: async () => [], close: () => s.close() };
+    const org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'anna', org, 'admin');
+    const d = await device(h, org, 'anna', 'admin');
+    try {
+      // The global index fails while the push runs (as a D1 error would).
+      const global = openSqlite(join(dataDir, 'global.sqlite'), 'better-sqlite3');
+      global.exec('ALTER TABLE watch_codes RENAME TO watch_codes_away');
+      await d.client.mutate('createDisplay', { id: 'D1', name: 'Kyrkkaffet', code: 'jkmnpqr', kind: 'public' });
+      await expect(d.client.sync()).rejects.toThrow();
+      global.exec('ALTER TABLE watch_codes_away RENAME TO watch_codes');
+      global.close();
+      expect((await fetch(`${h.url}/api/watch/jkmnpqr/exists`)).status).toBe(404);
+      // The output itself was saved; the same push again registers its code.
+      await d.client.sync();
+      expect(d.client.rejected).toEqual([]);
+      expect((await fetch(`${h.url}/api/watch/jkmnpqr/exists`)).status).toBe(200);
+    } finally {
+      await d.client.close();
+      await h.close();
+      rmSync(dataDir, { recursive: true, force: true });
     }
   });
 });

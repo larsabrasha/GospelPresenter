@@ -20,6 +20,8 @@ import {
 
 /** One window's live socket, whichever runtime holds it. */
 export interface LiveSocket {
+  /** Stable for the connection, whichever object stands for it. */
+  readonly id: string;
   readonly userId: string;
   readonly role: Role;
   /** The sessions this socket reported as their owner. */
@@ -70,10 +72,16 @@ export class LiveHub {
   private viewers = new Map<string, Map<string, { viewer: Viewer; code: string }>>();
   private countTimer: ReturnType<typeof setTimeout> | null = null;
   private countDue = false;
+  /**
+   * Sockets that have closed. A runtime may go on listing one for a while (a
+   * Durable Object during and after webSocketClose), so it is left out until
+   * the runtime stops listing it.
+   */
+  private gone = new Set<string>();
 
   constructor(
     private store: LiveStore,
-    private sockets: () => LiveSocket[],
+    private allSockets: () => LiveSocket[],
     private now: () => number = Date.now,
   ) {
     for (const d of DDL) store.query(d);
@@ -86,6 +94,13 @@ export class LiveHub {
     this.countDue = false;
   }
 
+  private sockets(): LiveSocket[] {
+    const all = this.allSockets();
+    const listed = new Set(all.map((o) => o.id));
+    for (const id of this.gone) if (!listed.has(id)) this.gone.delete(id);
+    return all.filter((o) => !this.gone.has(o.id));
+  }
+
   /** A new socket gets the sessions at once. */
   opened(s: LiveSocket) {
     s.send(this.snapshot());
@@ -93,8 +108,13 @@ export class LiveHub {
 
   /** A socket went away: what it owned freezes (LIVE-R50) until its owner reports again. */
   closed(s: LiveSocket) {
+    this.gone.add(s.id);
     const owned = s.owns;
-    s.owns = [];
+    try {
+      s.owns = [];
+    } catch {
+      // A closing socket may not take a new attachment; it is left out all the same (`gone`).
+    }
     for (const id of owned) if (!this.ownerOnline(id)) this.store.query('UPDATE live_sessions SET owner_seen_at = ? WHERE id = ?', [this.now(), id]);
     if (owned.length) this.broadcast();
   }
@@ -125,7 +145,13 @@ export class LiveHub {
     const owners = this.sockets().filter((o) => o.owns.includes(row.id));
     if (!owners.length) return reply(s, { type: 'error', error: 'owner-offline' });
     const command = JSON.stringify({ type: 'command', sessionId: row.id, change: msg.change } satisfies LiveServerMessage);
-    for (const o of owners) o.send(command);
+    for (const o of owners) {
+      try {
+        o.send(command);
+      } catch {
+        // closing: the command is dropped, never queued (LIVE-R48)
+      }
+    }
   }
 
   private own(s: LiveSocket, state: LiveOwnState) {
@@ -328,7 +354,13 @@ export class LiveHub {
 
   private broadcast() {
     const msg = this.snapshot();
-    for (const s of this.sockets()) s.send(msg);
+    for (const s of this.sockets()) {
+      try {
+        s.send(msg);
+      } catch {
+        // A socket that is closing: its close is on its way.
+      }
+    }
   }
 }
 

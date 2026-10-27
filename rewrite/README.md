@@ -294,10 +294,15 @@ back that add and what follows; one refused with 4xx lets the add go, to be refu
 device sees the row in a pull and downloads the blobs it lacks (`syncMedia`: thumbnails first, hash checked,
 signature checked).
 
-**Clean-up.** Mutators never touch the blobs. After a push that changed anything, the server removes the
-blobs no `images` row names, and a device does the same in `syncMedia`, but only for blobs older than an hour
-(`ORPHAN_GRACE_MS`), so a blob uploaded just before its `addImage` arrives is never taken away; a device also
-keeps what a queued `addImage` names. A blob shared by two images stays until both are gone.
+**Clean-up.** Mutators never touch the blobs. After a push that can leave blobs unused (`addImage`,
+`purgeImage`, `purgeExpiredTrash`), not after every edit, the server removes the blobs no `images` row names,
+and a device does the same in `syncMedia`, but only for blobs older than an hour (`ORPHAN_GRACE_MS`), so a
+blob uploaded just before its `addImage` arrives is never taken away. Uploading a blob the server has already
+starts its hour over, and a device uploads a waiting add's blobs again once half an hour has passed, so an add
+that waits longer than the hour (a laptop asleep) still finds them. A device also keeps what a queued
+`addImage` names. A blob shared by two images stays until both are gone. The server's clean-up runs in the
+organisation's queue, as every write does; it is rare enough that this is not worth the race of running it
+outside.
 
 **In the app.** Bilder (everyone may see and import: User, Admin and SuperAdmin, as spec 05): a grid of
 thumbnails, newest first, import by button or by dropping files on the page, "Importerar i av n...", failures
@@ -361,7 +366,8 @@ the output's name and the organisation's first, then the newest state and every 
 (LIVE-R35). At most 500 viewers per output; a reconnect under the same viewer id (kept in the tab) replaces its
 old stream and is never refused (LIVE-R36). Viewer counts reach the operators at most every 2 s.
 `GET /api/watch/{code}/image/{hash}` serves a picture only while it is on that output (LIVE-R32), with
-`public, max-age=3600`. A frozen session keeps its last slide on the outputs; an ended one shows the waiting
+`private, max-age=3600` rather than spec 04's `public` (LIVE-R34), so no shared cache serves it after it left
+the screen. A frozen session keeps its last slide on the outputs; an ended one shows the waiting
 screen. A new code or a deleted output disconnects its viewers at once, and their page says the code no
 longer exists. On a desktop host, `/api/watch/` answers unpaired devices too (it is the one anonymous API).
 

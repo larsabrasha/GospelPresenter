@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { resolveTheme, type PublicSlide, type WatchEvent } from '@gp/core';
+import { resolveTheme, type PublicSlide } from '@gp/core';
+import { followStream } from '../live/watch-stream.ts';
 import { t } from '../i18n.ts';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 
@@ -59,10 +60,10 @@ function PublicSlideView({ code, slide }: { code: string; slide: PublicSlide }) 
 }
 
 /**
- * A public output (spec 04 §6): anonymous, no database. It follows the
- * stream and never shows a blank page: before the first slide, while
- * black, and when the connection drops it shows the waiting screen, and
- * the browser reconnects by itself.
+ * A public output (spec 04 §6): anonymous, no database. It never shows a
+ * blank page: before the first slide and while black it shows the waiting
+ * screen. When the connection drops, the last slide stays (spec 04: public
+ * outputs freeze, never blank) while it reconnects (`followStream`).
  */
 export function Watch({ code }: { code: string }) {
   const [state, setState] = useState<State>({ kind: 'waiting' });
@@ -73,38 +74,27 @@ export function Watch({ code }: { code: string }) {
     robots.name = 'robots';
     robots.content = 'noindex';
     document.head.append(robots);
-    const url = `/api/watch/${encodeURIComponent(code)}/stream?v=${viewerId()}`;
-    let source: EventSource | null = new EventSource(url);
-    const on = (e: MessageEvent<string>) => {
-      const m = JSON.parse(e.data) as WatchEvent;
-      if (m.type === 'meta') {
-        setNames({ orgName: m.orgName, outputName: m.outputName });
-        document.title = m.orgName || 'Gospel Presenter';
-      } else if (m.type === 'slide') setState({ kind: 'slide', slide: m.slide });
-      else if (m.type === 'idle') setState({ kind: 'waiting' });
-      else {
-        setState({ kind: 'full' });
-        source?.close();
-        source = null;
-      }
-    };
-    for (const type of ['meta', 'slide', 'idle', 'full']) source.addEventListener(type, on as EventListener);
-    source.addEventListener('error', () => {
-      // The browser reconnects by itself. A code that does not exist, or no longer does (a new code,
-      // a deleted output), would retry forever: ask the server, and stop if it says so.
-      if (!source) return;
-      void fetch(`/api/watch/${encodeURIComponent(code)}/exists`).then(
-        (r) => {
-          if (r.status !== 404) return;
-          setState({ kind: 'not-found' });
-          source?.close();
-          source = null;
+    const stop = followStream(
+      `/api/watch/${encodeURIComponent(code)}/stream?v=${viewerId()}`,
+      {
+        event: (m) => {
+          if (m.type === 'meta') {
+            setNames({ orgName: m.orgName, outputName: m.outputName });
+            document.title = m.orgName || 'Gospel Presenter';
+          } else if (m.type === 'slide') setState({ kind: 'slide', slide: m.slide });
+          else if (m.type === 'idle') setState({ kind: 'waiting' });
+          else setState({ kind: 'full' });
         },
-        () => undefined, // offline: keep waiting, the browser keeps trying
-      );
-    });
+        notFound: () => setState({ kind: 'not-found' }),
+      },
+      {
+        open: (url) => new EventSource(url),
+        exists: () => fetch(`/api/watch/${encodeURIComponent(code)}/exists`).then((r) => r.status, () => null),
+        later: (fn, ms) => setTimeout(fn, ms),
+      },
+    );
     return () => {
-      source?.close();
+      stop();
       robots.remove();
     };
   }, [code]);

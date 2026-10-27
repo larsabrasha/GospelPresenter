@@ -304,7 +304,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     if (url.pathname === '/api/live/socket') {
       // Live sessions (spec 04): every call runs in the organisation's queue, never inside a mutation.
       return void wss.handleUpgrade(req, socket, head, (ws) => {
-        const s: LiveSocket = { userId: caller.ctx.userId, role: caller.ctx.role, owns: [], send: (m) => ws.send(m) };
+        const s: LiveSocket = { id: crypto.randomUUID(), userId: caller.ctx.userId, role: caller.ctx.role, owns: [], send: (m) => ws.send(m) };
         org.liveSockets.set(ws, s);
         // A failure here is a closing server: the socket is going with it.
         const run = (fn: () => void) => void org.queue.run(fn).catch(() => undefined);

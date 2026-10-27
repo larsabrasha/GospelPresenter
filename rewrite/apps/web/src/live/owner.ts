@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { LivePointer, PublicSlide } from '@gp/core';
+import { toPublicSlide, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
 import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
@@ -27,8 +27,22 @@ let chosen: string[] = (() => {
     return [];
   }
 })();
-/** Outputs to take over from another session on the next report ("Ta över", LIVE-R23). */
+/**
+ * Outputs to take over from another session ("Ta över", LIVE-R23). Asked for
+ * in every report until the server's list shows them as this session's, so
+ * a report lost to a reconnect does not lose the choice.
+ */
 let takeOver: string[] = [];
+
+export function pendingTakeOver(): string[] {
+  return takeOver;
+}
+
+/** Forgets the takeovers the server has done: those outputs are this session's now. */
+export function settleTakeOver(sessions: LiveSessionInfo[], sessionId: string) {
+  const bound = new Set(sessions.find((s) => s.id === sessionId)?.outputs.map((o) => o.id) ?? []);
+  takeOver = takeOver.filter((id) => !bound.has(id));
+}
 
 export function chosenOutputs(): string[] {
   return chosen;
@@ -38,12 +52,19 @@ export function chosenOutputs(): string[] {
 export function setOutput(id: string, on: boolean, take = false) {
   chosen = on ? [...new Set([...chosen, id])] : chosen.filter((x) => x !== id);
   if (on && take) takeOver = [...new Set([...takeOver, id])];
+  if (!on) takeOver = takeOver.filter((x) => x !== id);
   try {
     sessionStorage.setItem('gp.outputs', JSON.stringify(chosen));
   } catch {
     // no storage: the choice lasts for this page only
   }
   dispatchEvent(new Event(REMOTE_CHANGED));
+}
+
+/** The chosen outputs another session sends to, which this one did not ask to take over. */
+export function refusedOutputs(sessions: LiveSessionInfo[], sessionId: string): string[] {
+  const elsewhere = new Set(sessions.filter((s) => s.id !== sessionId).flatMap((s) => s.outputs.map((o) => o.id)));
+  return chosen.filter((id) => elsewhere.has(id) && !takeOver.includes(id));
 }
 
 /**
@@ -57,7 +78,7 @@ async function publicSlide(db: ReadDb, p: LivePointer): Promise<PublicSlide | nu
   const slide = item ? (await slidesOf(db, item)).slides[p.partIndex] : undefined;
   if (!slide) return null;
   const theme = await themeOf(db, await getPresentation(db, p.presentationId));
-  return { kind: slide.kind, text: slide.text, verses: slide.verses, image: slide.image, credits: slide.credits, themeId: theme.id };
+  return toPublicSlide(slide, theme.id);
 }
 
 /**
@@ -88,7 +109,6 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
         takeOver,
         slide,
       });
-      takeOver = []; // once is enough: the output is ours now
     };
     const off = live.subscribe((p) => void report(p));
     const again = () => void report(live.pointer);
@@ -102,18 +122,18 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       if (p.itemId === change.itemId && p.partIndex === change.partIndex && p.black === change.black) return;
       live.set(change);
     });
-    // An output another session sends to was not taken: it is not ours, so stop asking for it.
+    const offSessions = link.subscribe(() => settleTakeOver(link.sessions, sessionId));
+    // An output another session sends to was not taken: unless we asked to take it over, stop asking for it.
     const offError = link.onError((e) => {
       if (e !== 'output-taken') return;
-      const elsewhere = new Set(link.sessions.filter((s) => s.id !== sessionId).flatMap((s) => s.outputs.map((o) => o.id)));
-      const kept = chosen.filter((id) => !elsewhere.has(id));
-      if (kept.length !== chosen.length) for (const id of chosen.filter((x) => elsewhere.has(x))) setOutput(id, false);
+      for (const id of refusedOutputs(link.sessions, sessionId)) setOutput(id, false);
     });
     return () => {
       off();
       offDb();
       offCommand();
       offError();
+      offSessions();
       removeEventListener(REMOTE_CHANGED, again);
     };
   }, [live, link, db, sessionId]);

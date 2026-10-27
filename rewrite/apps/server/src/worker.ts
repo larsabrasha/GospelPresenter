@@ -124,7 +124,7 @@ export class OrgDurableObject extends DurableObject<Env> {
       const pair = new WebSocketPair();
       if (url.pathname === '/api/live/socket') {
         this.ctx.acceptWebSocket(pair[1], ['live']);
-        pair[1].serializeAttachment({ userId: request.headers.get('x-user')!, role: request.headers.get('x-role') as Role, owns: [] } satisfies LiveAttachment);
+        pair[1].serializeAttachment({ id: crypto.randomUUID(), userId: request.headers.get('x-user')!, role: request.headers.get('x-role') as Role, owns: [] } satisfies LiveAttachment);
         const s = liveSocket(pair[1]);
         void this.org.queue.run(() => this.live.opened(s));
       } else this.ctx.acceptWebSocket(pair[1], ['poke', url.searchParams.get('clientId') ?? '']);
@@ -142,10 +142,15 @@ export class OrgDurableObject extends DurableObject<Env> {
     if (this.ctx.getTags(ws)[0] === 'live') await this.org.queue.run(() => this.live.closed(liveSocket(ws)));
     ws.close(code, 'closing');
   }
+  /** A socket that failed is gone as surely as one that closed: what it owned freezes. */
+  override async webSocketError(ws: WebSocket) {
+    if (this.ctx.getTags(ws)[0] === 'live') await this.org.queue.run(() => this.live.closed(liveSocket(ws)));
+  }
 }
 
 /** What a live socket carries through hibernation: who it is, and the sessions it owns. */
 interface LiveAttachment {
+  id: string;
   userId: string;
   role: Role;
   owns: string[];
@@ -155,6 +160,7 @@ interface LiveAttachment {
 function liveSocket(ws: WebSocket): LiveSocket {
   const get = () => ws.deserializeAttachment() as LiveAttachment;
   return {
+    id: get().id,
     userId: get().userId,
     role: get().role,
     get owns() {

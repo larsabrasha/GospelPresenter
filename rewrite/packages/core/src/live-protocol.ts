@@ -23,16 +23,48 @@ export type LiveChange = z.infer<typeof liveChangeSchema>;
  * viewers see exactly what its projector shows. Null: the waiting screen
  * (LIVE-R14: black, or nothing selected).
  */
+/** What one public slide may hold; `toPublicSlide` keeps a slide within it, so a report is never refused for its size. */
+export const PUBLIC_SLIDE_LIMITS = { text: 5000, segments: 100, credits: 500 } as const;
+
 export const publicSlideSchema = z.object({
   kind: z.enum(['song', 'bible', 'media']),
-  text: z.string().max(5000),
-  verses: z.array(z.object({ n: z.number().int().nullable(), t: z.string().max(2000) })).max(500).nullable(),
+  text: z.string().max(PUBLIC_SLIDE_LIMITS.text),
+  verses: z
+    .array(z.object({ n: z.number().int().nullable(), t: z.string().max(PUBLIC_SLIDE_LIMITS.text) }))
+    .max(PUBLIC_SLIDE_LIMITS.segments)
+    .refine((v) => v.reduce((n, seg) => n + seg.t.length, 0) <= PUBLIC_SLIDE_LIMITS.text, 'verses longer than a slide may be')
+    .nullable(),
   /** A media slide's picture: the hash of its `full` blob, served at `/api/watch/{code}/image/{hash}` while it is live. */
   image: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
-  credits: z.string().max(500).nullable(),
+  credits: z.string().max(PUBLIC_SLIDE_LIMITS.credits).nullable(),
   themeId: z.string().max(100),
 });
 export type PublicSlide = z.infer<typeof publicSlideSchema>;
+
+/**
+ * A slide as a public output gets it, cut to PUBLIC_SLIDE_LIMITS. A song part
+ * is at most 5 000 characters already; a Bible slide of unusually long verses
+ * is the case this guards against.
+ */
+export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'>, themeId: string): PublicSlide {
+  let budget: number = PUBLIC_SLIDE_LIMITS.text;
+  const verses = slide.verses
+    ? slide.verses.slice(0, PUBLIC_SLIDE_LIMITS.segments).flatMap((seg) => {
+        if (budget <= 0) return [];
+        const t = seg.t.slice(0, budget);
+        budget -= t.length;
+        return [{ n: seg.n, t }];
+      })
+    : null;
+  return {
+    kind: slide.kind,
+    text: slide.text.slice(0, PUBLIC_SLIDE_LIMITS.text),
+    verses,
+    image: slide.image,
+    credits: slide.credits?.slice(0, PUBLIC_SLIDE_LIMITS.credits) ?? null,
+    themeId,
+  };
+}
 
 /** What the owner reports, whole, on connect, on every reconnect and on every change (LIVE-R47). */
 export const liveOwnStateSchema = z.object({
@@ -84,8 +116,12 @@ export type LiveServerMessage =
 
 /** A session whose owner has been gone this long is ended (LIVE-R50's reaper). */
 export const ABANDONED_SESSION_MS = 2 * 60 * 60 * 1000;
-/** The largest message the server reads. */
-export const LIVE_MESSAGE_MAX = 4096;
+/**
+ * The largest message the server reads: room for the largest valid report,
+ * even if every character of its slide needs a six-character JSON escape (a
+ * test builds that report and checks it fits).
+ */
+export const LIVE_MESSAGE_MAX = 96 * 1024;
 
 /** Reconnect delays (LIVE-R51): 0, 2, 5, 10 s, then every 30 s, forever. */
 export function liveReconnectDelay(attempt: number): number {
