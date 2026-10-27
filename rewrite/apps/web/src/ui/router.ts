@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 // server answers every address that is not a file or an API path with the
 // app's index.html, so a reload or a pasted link lands on the right page.
 // The server's own paths are all under `/api/`, so no page can collide with
-// one. Admin pages live under `/admin/`, as in the current app. Secrets stay in the fragment, which
-// no server sees: an invite is `/invite#{token}`.
+// one. The presentations are the start page, `/`. Admin pages, the songs among them, live under
+// `/admin/`, as in the current app; `/songs` from before still opens them. Secrets stay in the
+// fragment, which no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
 export const TRASH_KINDS = ['Presentation', 'Song', 'Image', 'Audio'] as const;
@@ -36,6 +37,8 @@ export type Route =
    */
   | { page: 'display'; id: string | null; name: string | null; token: string | null }
   | { page: 'themes' }
+  /** The user's own settings on this device: the colour theme. */
+  | { page: 'settings' }
   /** The signed-in user's own ways to sign in; `error` when linking Google was refused. */
   | { page: 'logins'; error: string | null }
   /** An invite link (spec 01 `/invite/{token}`): the token stays in the fragment, which is never sent to a server. */
@@ -69,6 +72,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   const [first = '', second, third] = path.replace(/^\/+|\/+$/g, '').split('/').map(decode);
   const query = new URLSearchParams(search);
   if (first === 'admin') {
+    if (second === 'songs') return third ? { page: 'song', id: third } : { page: 'songs' };
     if (second === 'users') return { page: 'users' };
     if (second === 'devices') return { page: 'devices' };
     if (second === 'bibles') return { page: 'bibles' };
@@ -98,16 +102,19 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   if (first === 'watch' && id) return { page: 'watch', code: id };
   if (first === 'display') return { page: 'display', id: query.get('id'), name: query.get('name'), token: query.get('token') };
   if (first === 'logins') return { page: 'logins', error: query.get('error') };
-  if (first === 'presentations') return { page: 'presentations' };
-  return { page: 'songs' };
+  if (first === 'settings') return { page: 'settings' };
+  if (first === 'songs') return { page: 'songs' };
+  return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set(['users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays']);
+const ADMIN_PAGES = new Set(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays']);
 
 export function href(r: Route): string {
   switch (r.page) {
+    case 'presentations':
+      return '/';
     case 'song':
-      return `/songs/${encodeURIComponent(r.id)}`;
+      return `/admin/songs/${encodeURIComponent(r.id)}`;
     case 'presentation':
       return `/presentations/${encodeURIComponent(r.id)}`;
     case 'overlay':

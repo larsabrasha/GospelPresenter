@@ -2,7 +2,7 @@
 // Overlays, carried by an item, toggled during live, switched off by Rensa.
 import { expect, test, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -11,7 +11,7 @@ test.afterEach(async () => {
 });
 
 async function createOverlay(page: Page, title: string, text: string) {
-  await page.getByRole('link', { name: 'Overlays', exact: true }).click();
+  await openAdmin(page, 'Overlays');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa overlay' });
   await dialog.getByLabel('Titel').fill(title);
@@ -28,7 +28,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await setUpHost(host);
   await createOverlay(page, 'Kollekt', 'Swish 123 45');
   await createOverlay(page, 'Välkommen', 'Välkommen hit');
-  await page.getByRole('link', { name: 'Overlays', exact: true }).click();
+  await openAdmin(page, 'Overlays');
   await expect(page.getByRole('list', { name: 'Overlays' }).getByRole('listitem')).toHaveCount(2);
 
   await createSong(page, 'Sång A', [

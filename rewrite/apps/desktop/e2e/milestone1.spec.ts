@@ -4,7 +4,7 @@
 // server, and a second client that syncs through it.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, createUser, pair, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, createUser, openAdmin, pair, setUpHost } from './flows.ts';
 
 let host: Desktop;
 let second: Desktop | undefined;
@@ -24,7 +24,7 @@ async function hostAndSecond(port?: number): Promise<[Desktop, Desktop]> {
   const s = await launch({ server: h.base });
   second = s;
   await pair(h.page, s.page, 'Andra datorn', 'Bo');
-  await expect(s.page.getByTestId('me')).toContainText('Bo');
+  await expect(s.page.getByTestId('me')).toHaveAccessibleName(/Bo/);
   await s.page.getByTestId('status').waitFor();
   return [h, s];
 }
@@ -39,7 +39,7 @@ test('a song made on one client is presented on the other client\'s second scree
   ]);
 
   // It reaches the host through the embedded server.
-  await one.page.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(one.page, 'Sånger');
   await expect(one.page.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible({ timeout: 5_000 });
 
   // The host builds a presentation. The picker stays open after an add (D15).

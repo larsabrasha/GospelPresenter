@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { TestBrowser } from '../../server/test/fake-google.ts';
 import { browserPasskey, fakeGoogle, launch, opened, passkeyBrowser, type Desktop, type PasskeyBrowser } from './apps.ts';
-import { ANNA, setUpHost, signInWithGoogle } from './flows.ts';
+import { ANNA, setUpHost, signInWithGoogle, signOut } from './flows.ts';
 
 let host: Desktop | undefined;
 let server: ChildProcess | undefined;
@@ -23,9 +23,10 @@ test.afterEach(async () => {
   host = server = browser = undefined;
 });
 
-/** Inloggningsmetoder, from the name in the header. */
+/** Inloggningsmetoder, in the menu behind the user's picture in the bar. */
 async function openLogins(page: Page) {
   await page.getByTestId('me').click();
+  await page.getByRole('menuitem', { name: 'Inloggningsmetoder' }).click();
   await expect(page.getByRole('heading', { name: 'Inloggningsmetoder' })).toBeVisible();
   return page.getByRole('list', { name: 'Inloggningsmetoder' }).getByRole('listitem');
 }
@@ -45,7 +46,7 @@ test('desktop host: set up with a passkey, link Google from the session; either 
   expect(made.url).toMatch(new RegExp(`^http://localhost:${host.port}/api/auth/passkey/start\\?flow=`));
   expect(made.result).toBe('ok');
   expect(made.link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
-  await expect(page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
+  await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
 
   // Only a passkey: it cannot be removed.
   let rows = await openLogins(page);
@@ -65,15 +66,15 @@ test('desktop host: set up with a passkey, link Google from the session; either 
   await expect(rows.nth(1)).toContainText(ANNA.email);
 
   // Either way in lands on Anna.
-  await page.getByRole('button', { name: 'Logga ut' }).click();
+  await signOut(page);
   await signInWithGoogle(host, ANNA);
-  await expect(page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
-  await page.getByRole('button', { name: 'Logga ut' }).click();
+  await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
+  await signOut(page);
   await page.getByRole('button', { name: 'Logga in med passkey' }).click();
   const signedIn = await browserPasskey(host, browser!);
   expect(signedIn.url).toMatch(new RegExp(`^http://localhost:${host.port}/api/app-login\\?`));
   expect(signedIn.link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
-  await expect(page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
+  await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
 
   // Rename the passkey; remove Google; the passkey is the last and stays.
   rows = await openLogins(page);
@@ -85,7 +86,7 @@ test('desktop host: set up with a passkey, link Google from the session; either 
   await page.getByRole('dialog', { name: 'Ta bort inloggningsmetod' }).getByRole('button', { name: 'Ta bort' }).click();
   await expect(rows).toHaveCount(1);
   await expect(rows.first().getByRole('button', { name: 'Ta bort' })).toBeDisabled();
-  await page.getByRole('button', { name: 'Logga ut' }).click();
+  await signOut(page);
   // Google no longer gets in.
   const refused = await signInWithGoogle(host, ANNA);
   expect(refused.link).toBeNull();
@@ -110,10 +111,10 @@ test('desktop host: a Google user adds a passkey in the system browser, then sig
   await expect(rows.nth(1)).toContainText('Annas Mac');
   await expect(page.getByRole('status').getByText('Passkeyn är tillagd')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Logga ut' }).click();
+  await signOut(page);
   await page.getByRole('button', { name: 'Logga in med passkey' }).click();
   await browserPasskey(host, browser!);
-  await expect(page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
+  await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
   expect(host.events.filter((e) => e.event === 'blocked-request')).toEqual([]);
 });
 
@@ -155,7 +156,7 @@ test('in a browser: setup with a passkey in the page, a second passkey from anot
   await page.getByRole('button', { name: 'Kom igång' }).click();
   await expect(page.getByRole('button', { name: 'Logga in med Google' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Skapa passkey' }).click();
-  await expect(page.getByTestId('me')).toHaveText('Bo · Stora Kyrkan');
+  await expect(page.getByTestId('me')).toHaveAccessibleName('Bo · Stora Kyrkan');
 
   // Another device (the first one gone): its passkey is added from this session, in the page.
   let rows = await openLogins(page);
@@ -171,9 +172,9 @@ test('in a browser: setup with a passkey in the page, a second passkey from anot
   await expect(rows).toHaveCount(1);
   await expect(rows.first().getByRole('button', { name: 'Ta bort' })).toBeDisabled();
 
-  await page.getByRole('button', { name: 'Logga ut' }).click();
+  await signOut(page);
   await page.getByRole('button', { name: 'Logga in med passkey' }).click();
-  await expect(page.getByTestId('me')).toHaveText('Bo · Stora Kyrkan');
+  await expect(page.getByTestId('me')).toHaveAccessibleName('Bo · Stora Kyrkan');
   rows = await openLogins(page);
   await expect(rows.first()).toContainText('Telefonen');
 });

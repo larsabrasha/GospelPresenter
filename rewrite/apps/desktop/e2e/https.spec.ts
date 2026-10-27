@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { createSong, pair, setUpHost } from './flows.ts';
+import { createSong, openAdmin, pair, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 let browser: Browser | undefined;
@@ -58,7 +58,7 @@ test('a device that trusts the host\'s certificate keeps its data through a relo
   await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 }); // no "only in memory"
 
   await createSong(host.page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
-  await tablet.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(tablet, 'Sånger');
   await expect(tablet.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible({ timeout: 5_000 });
 
   // Its database is a file in OPFS, not in memory, and it is still there after a reload.
@@ -72,7 +72,7 @@ test('a device that trusts the host\'s certificate keeps its data through a relo
   await tablet.reload();
   await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
   expect(await opfs()).toEqual(expect.arrayContaining([expect.stringMatching(/^gp-.*\.db$/)]));
-  await tablet.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(tablet, 'Sånger');
   await expect(tablet.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible();
 
   // The host goes away: the open page keeps working from its own copy.
@@ -124,7 +124,7 @@ test('a device over https on the LAN starts the app with the host gone, and take
   await pair(host.page, tablet, 'Surfplattan');
   await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
   await createSong(host.page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
-  await tablet.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(tablet, 'Sånger');
   await expect(tablet.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible({ timeout: 5_000 });
   const first = await keptByWorker(tablet);
   expect(first).toHaveLength(1);
@@ -138,7 +138,7 @@ test('a device over https on the LAN starts the app with the host gone, and take
   await tablet.getByRole('link', { name: 'Härlig är jorden' }).click();
   await expect(tablet.getByRole('heading', { name: 'Härlig är jorden' })).toBeVisible();
   await tablet.goto(`${app}/presentations`);
-  await expect(tablet.getByRole('heading', { name: 'Presentationer' })).toBeVisible();
+  await expect(tablet.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
   // The API is never answered from the kept copy.
   expect(await tablet.evaluate(() => fetch('/api/auth/state').then((r) => r.status, () => 'failed'))).toBe('failed');
 

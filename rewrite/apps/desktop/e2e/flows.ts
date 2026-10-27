@@ -3,9 +3,33 @@ import { expect, type Page } from '@playwright/test';
 import type { FakeAccount } from '../../server/test/fake-google.ts';
 import { browserSignIn, type Desktop } from './apps.ts';
 
+/** The admin menu at the side, opened with the cog in the bar unless an admin page is open already. */
+export async function adminMenu(page: Page) {
+  const menu = page.getByRole('navigation', { name: 'Administration' });
+  if (!(await menu.isVisible())) await page.getByRole('link', { name: 'Inställningar', exact: true }).click();
+  return menu;
+}
+
+/** Opens a page of the admin menu: Sånger, Bilder, Användare and the rest. */
+export async function openAdmin(page: Page, name: string) {
+  await (await adminMenu(page)).getByRole('link', { name, exact: true }).click();
+}
+
+/** The start page, the presentations: the logo in the bar. */
+export async function openPresentations(page: Page) {
+  await page.getByRole('link', { name: 'Gospel Presenter' }).click();
+  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
+}
+
+/** Logga ut, in the menu behind the user's picture in the bar. */
+export async function signOut(page: Page) {
+  await page.getByTestId('me').click();
+  await page.getByRole('menuitem', { name: 'Logga ut' }).click();
+}
+
 /** Creates a song with labelled parts and stays in its editor. */
 export async function createSong(page: Page, name: string, parts: [string, string][]) {
-  await page.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(page, 'Sånger');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa sång' });
   await dialog.getByLabel('Namn').fill(name);
@@ -22,7 +46,7 @@ export async function createSong(page: Page, name: string, parts: [string, strin
 
 /** Creates a presentation and stays in its editor. */
 export async function createPresentation(page: Page, name: string, date?: string) {
-  await page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(page);
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   await dialog.getByLabel('Namn').fill(name);
@@ -63,7 +87,7 @@ export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Ky
   await expect(page.getByRole('heading', { name: 'Fortsätt i webbläsaren' })).toBeVisible();
   const { link } = await browserSignIn(d, who.google);
   expect(link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
-  await expect(page.getByTestId('me')).toHaveText(`${who.name} · ${who.org}`);
+  await expect(page.getByTestId('me')).toHaveAccessibleName(`${who.name} · ${who.org}`);
   await page.getByTestId('status').waitFor();
 }
 
@@ -76,7 +100,7 @@ export async function signInWithGoogle(d: Desktop, who: FakeAccount) {
 
 /** On the host: a new user. The invite it makes is for accepting at the host; devices are paired instead. */
 export async function createUser(page: Page, name: string, email: string, role: 'Användare' | 'Admin' = 'Användare') {
-  await page.getByRole('link', { name: 'Användare' }).click();
+  await openAdmin(page, 'Användare');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa användare' });
   await dialog.getByLabel('Namn').fill(name);
@@ -92,7 +116,7 @@ export async function createUser(page: Page, name: string, email: string, role: 
  */
 export async function pair(host: Page, device: Page, name: string, as?: string) {
   await expect(device.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
-  await host.getByRole('link', { name: 'Enheter' }).click();
+  await openAdmin(host, 'Enheter');
   await host.getByRole('button', { name: 'Anslut enhet' }).click();
   const choose = host.getByRole('dialog', { name: 'Anslut enhet' });
   if (as) await choose.getByLabel('Logga in som').selectOption({ label: as });

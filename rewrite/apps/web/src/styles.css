@@ -1,39 +1,34 @@
+/*
+ * What the pages not yet moved to Tailwind still use (app.css puts it in the
+ * `legacy` layer). Each rule goes when the last page using it moves.
+ */
 :root {
-  --bg: #f7f7f8;
-  --fg: #18181b;
-  --muted: #6b7280;
-  --line: #d4d4d8;
-  --accent: #2563eb;
-  --danger: #b91c1c;
+  --bg: #f5f5f5;
+  --fg: #171717;
+  --muted: #737373;
+  --line: #d4d4d4;
+  --accent: #0ea5e9;
+  --danger: #dc2626;
   --warn: #b45309;
   --ok: #15803d;
-  font: 15px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif;
-  color: var(--fg);
-  background: var(--bg);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #18181b;
-    --fg: #f4f4f5;
-    --muted: #a1a1aa;
-    --line: #3f3f46;
-    --accent: #60a5fa;
-    --danger: #f87171;
-    --warn: #fbbf24;
-    --ok: #4ade80;
-  }
+.dark {
+  --bg: #171717;
+  --fg: #f5f5f5;
+  --muted: #a3a3a3;
+  --line: #404040;
+  --accent: #38bdf8;
+  --danger: #f87171;
+  --warn: #fbbf24;
+  --ok: #4ade80;
 }
-* { box-sizing: border-box; }
-body { margin: 0; }
 a { color: var(--accent); }
-.app { display: flex; flex-direction: column; min-height: 100vh; }
-.top { display: flex; gap: 24px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line); }
-.top nav { display: flex; gap: 16px; flex: 1; }
-.top nav a[aria-current='page'] { font-weight: 600; text-decoration: none; }
-main { flex: 1; padding: 16px; max-width: 1400px; width: 100%; margin: 0 auto; }
-h1 { font-size: 1.5rem; margin: 0 0 12px; }
-h2 { font-size: 1.1rem; margin: 20px 0 8px; }
-h3 { font-size: 1rem; margin: 0 0 6px; }
+/* A page not yet moved to Tailwind, inside the new shell. */
+.legacy-page { padding: 16px; max-width: 1400px; width: 100%; margin: 0 auto; }
+.legacy-page h1 { font-size: 1.5rem; line-height: 1.3; margin: 0 0 12px; }
+.legacy-page h2 { font-size: 1.1rem; line-height: 1.3; margin: 20px 0 8px; }
+.legacy-page h3 { font-size: 1rem; line-height: 1.3; margin: 0 0 6px; }
+.legacy-page p { margin: 0.5em 0; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
 .grow { flex: 1; }
 .muted { color: var(--muted); }
@@ -77,13 +72,6 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .selectable li { padding: 2px 0; }
 .selectable .list-button { width: 100%; }
 
-/* Dialogs and toasts */
-.modal-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 0.4); display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px; z-index: 10; }
-.modal { background: var(--bg); color: var(--fg); border-radius: 10px; padding: 16px 20px; width: min(480px, 100%); max-height: 84vh; overflow: auto; box-shadow: 0 10px 40px rgb(0 0 0 / 0.3); }
-.modal.wide { width: min(1100px, 100%); }
-.modal h2 { margin-top: 0; }
-.toasts { position: fixed; bottom: 48px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 20; }
-.toast { background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; }
 
 /* Presentation editor */
 .editor { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
@@ -99,7 +87,6 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 @media (max-width: 800px) {
   .editor, .picker { grid-template-columns: 1fr; }
 }
-.status { display: flex; gap: 16px; padding: 6px 16px; border-top: 1px solid var(--line); font-size: 0.9rem; }
 
 /* Bibles and themes */
 .tabs { margin-bottom: 12px; }

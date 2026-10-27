@@ -6,7 +6,7 @@
 // stranger until it pairs, and pairing is how it signs in.
 import { expect, test } from '@playwright/test';
 import { browserSignIn, fakeGoogle, launch, type Desktop } from './apps.ts';
-import { ANNA, createSong, createUser, pair, setUpHost, signInWithGoogle } from './flows.ts';
+import { adminMenu, ANNA, createSong, createUser, openAdmin, pair, setUpHost, signInWithGoogle, signOut } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -25,7 +25,7 @@ test('sign-in: Google in the system browser; signing out and in again; a strange
   await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/);
   await createSong(page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
 
-  await page.getByRole('button', { name: 'Logga ut' }).click();
+  await signOut(page);
   // A Google account no one invited gets the error page in the browser, and the app no token.
   const refused = await signInWithGoogle(host, { sub: 'google-stranger', email: 'stranger@gmail.com' });
   expect(refused.link).toBeNull();
@@ -33,10 +33,10 @@ test('sign-in: Google in the system browser; signing out and in again; a strange
   await page.getByRole('button', { name: 'Avbryt' }).click();
   // Anna, by her linked Google account.
   await signInWithGoogle(host, ANNA);
-  await expect(page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
+  await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
 
   // DESK-A7: the local library is still there after signing in again.
-  await page.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(page, 'Sånger');
   await expect(page.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible();
 
   // A callback nobody waits for, or for another installation's scheme, is ignored (spec 06).
@@ -50,7 +50,7 @@ test('sign-in: Google in the system browser; signing out and in again; a strange
   const google = await fakeGoogle();
   const before = google.tokens.ok;
   host = await launch({ dataDir, port });
-  await expect(host.page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
+  await expect(host.page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
   await expect(host.page.getByRole('heading', { name: 'Logga in' })).toHaveCount(0);
   await expect(host.page.getByTestId('status')).toHaveText(/^Ansluten$/);
   expect(google.tokens.ok).toBe(before);
@@ -82,16 +82,17 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
   // An Admin is made on the host, and the code signs the paired desktop in as her.
   await createUser(host.page, 'Cia', 'cia@kyrkan.se', 'Admin');
   await pair(host.page, device, 'Andra datorn', 'Cia');
-  await expect(device.getByTestId('me')).toContainText('Cia');
+  await expect(device.getByTestId('me')).toHaveAccessibleName(/Cia/);
   await createSong(device, 'Blott en dag', [['Verse 1', 'Blott en dag']]);
-  await host.page.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(host.page, 'Sånger');
   await expect(host.page.getByRole('link', { name: 'Blott en dag' })).toBeVisible({ timeout: 5_000 });
   // Only the host pairs devices: the paired desktop has no Enheter.
-  await expect(device.getByRole('link', { name: 'Användare' })).toBeVisible();
-  await expect(device.getByRole('link', { name: 'Enheter' })).toHaveCount(0);
+  const deviceMenu = await adminMenu(device);
+  await expect(deviceMenu.getByRole('link', { name: 'Användare' })).toBeVisible();
+  await expect(deviceMenu.getByRole('link', { name: 'Enheter' })).toHaveCount(0);
 
   // The host disconnects it; its next change is kept but not synced, and it says why.
-  await host.page.getByRole('link', { name: 'Enheter' }).click();
+  await openAdmin(host.page, 'Enheter');
   await expect(host.page.getByRole('list', { name: 'Enheter' }).getByText('Andra datorn')).toBeVisible();
   await host.page.getByRole('button', { name: 'Koppla från' }).click();
   await host.page.getByRole('dialog', { name: 'Koppla från' }).getByRole('button', { name: 'Koppla från' }).click();
@@ -99,15 +100,15 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
   await device.getByRole('button', { name: 'Lägg till del' }).click();
   await device.getByLabel('Delar 2', { exact: true }).fill('Ett ögonblick i sänder');
   await device.getByLabel('Delar 2', { exact: true }).blur();
-  await expect(device.getByTestId('status')).toContainText('Enheten är inte längre ansluten till värddatorn', { timeout: 10_000 });
+  await expect(device.getByTestId('sync-warnings')).toContainText('Enheten är inte längre ansluten till värddatorn', { timeout: 10_000 });
   await expect(device.getByTestId('status')).toContainText('ändringar väntar');
 
   // Paired again as Cia, it is signed in again, and the waiting change lands.
   await device.getByRole('button', { name: 'Anslut igen' }).click();
   await pair(host.page, device, 'Andra datorn igen', 'Cia');
-  await expect(device.getByTestId('me')).toContainText('Cia');
+  await expect(device.getByTestId('me')).toHaveAccessibleName(/Cia/);
   await expect(device.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
-  await host.page.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(host.page, 'Sånger');
   await host.page.getByRole('link', { name: 'Blott en dag' }).click();
   await expect(host.page.getByLabel('Delar 2', { exact: true })).toHaveValue('Ett ögonblick i sänder');
 
@@ -120,28 +121,28 @@ test('membership: a removed user is signed out on their device; a demoted Admin 
   await createUser(host.page, 'Dan', 'dan@kyrkan.se', 'Admin');
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Dan');
-  await expect(second.page.getByRole('link', { name: 'Användare' })).toBeVisible();
+  await expect((await adminMenu(second.page)).getByRole('link', { name: 'Användare' })).toBeVisible();
 
   // ORG-A8: the role changes at once; Dan's device sees it at its next start (or /auth/me refresh).
-  await host.page.getByRole('link', { name: 'Användare' }).click();
+  await openAdmin(host.page, 'Användare');
   await host.page.getByRole('combobox', { name: 'Roll för Dan' }).selectOption({ label: 'Användare' });
   await expect(host.page.getByRole('status').getByText('Rollen sparad')).toBeVisible();
   await expect(host.page.getByRole('combobox', { name: 'Roll för Anna' })).toBeDisabled(); // ORG-A4
   await second.page.reload();
-  await expect(second.page.getByTestId('me')).toContainText('Dan');
-  await expect(second.page.getByRole('link', { name: 'Användare' })).toHaveCount(0);
+  await expect(second.page.getByTestId('me')).toHaveAccessibleName(/Dan/);
+  await expect((await adminMenu(second.page)).getByRole('link', { name: 'Användare' })).toHaveCount(0);
 
   // Removed: the device keeps working on its own data, and asks to sign in again (SYNC-A15), which on a host is pairing.
   await host.page.getByRole('button', { name: 'Radera användare' }).click();
   await host.page.getByRole('dialog', { name: 'Radera användare' }).getByRole('button', { name: 'Radera' }).click();
   await expect(host.page.getByRole('list', { name: 'Användare' }).getByText('Dan')).toHaveCount(0);
   await createSong(second.page, 'Efter borttagningen', [['Verse 1', 'Text']]);
-  await expect(second.page.getByTestId('status')).toContainText('Logga in igen för att synka', { timeout: 10_000 });
+  await expect(second.page.getByTestId('sync-warnings')).toContainText('Logga in igen för att synka', { timeout: 10_000 });
   await second.page.getByRole('button', { name: 'Logga in igen' }).click();
   await expect(second.page.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
   await expect(second.page.getByText('Be någon vid värddatorn om en ny kod')).toBeVisible();
   // Dan cannot be chosen any more.
-  await host.page.getByRole('link', { name: 'Enheter' }).click();
+  await openAdmin(host.page, 'Enheter');
   await host.page.getByRole('button', { name: 'Anslut enhet' }).click();
   await expect(host.page.getByLabel('Logga in som').locator('option')).toHaveText(['Anna']);
 });
@@ -149,7 +150,7 @@ test('membership: a removed user is signed out on their device; a demoted Admin 
 test('invites on the host: the invited person signs in with Google here, and the account is theirs from then on', async () => {
   host = await launch();
   await setUpHost(host);
-  await host.page.getByRole('link', { name: 'Användare' }).click();
+  await openAdmin(host.page, 'Användare');
   await host.page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = host.page.getByRole('dialog', { name: 'Skapa användare' });
   await dialog.getByLabel('Namn').fill('Eva');
@@ -160,8 +161,8 @@ test('invites on the host: the invited person signs in with Google here, and the
   await host.page.getByRole('button', { name: 'Logga in med Google' }).click();
   const eva = { sub: 'google-eva', email: 'eva.private@gmail.com' };
   await browserSignIn(host, eva);
-  await expect(host.page.getByTestId('me')).toHaveText('Eva · Lilla Kyrkan');
-  await host.page.getByRole('button', { name: 'Logga ut' }).click();
+  await expect(host.page.getByTestId('me')).toHaveAccessibleName('Eva · Lilla Kyrkan');
+  await signOut(host.page);
   await signInWithGoogle(host, eva);
-  await expect(host.page.getByTestId('me')).toHaveText('Eva · Lilla Kyrkan');
+  await expect(host.page.getByTestId('me')).toHaveAccessibleName('Eva · Lilla Kyrkan');
 });

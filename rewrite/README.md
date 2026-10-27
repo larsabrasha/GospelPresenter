@@ -65,7 +65,7 @@ for 7 days and once (AUTH-R1). The invited person opens it and makes a passkey o
 Google, and that becomes their way in. A new invite for a user is the reset: the login that accepts it
 replaces every login the user had, passkeys and Google alike, and the user's sessions end.
 
-Under Inloggningsmetoder (click your name in the header) a signed-in user sees their own logins, adds
+Under Inloggningsmetoder (in the menu behind the user's picture in the top bar) a signed-in user sees their own logins, adds
 a passkey, links a Google account, renames a passkey and removes any login but the last. Adding needs
 a sign-in from the last 10 minutes, made by the user themselves (not by a pairing); otherwise the page
 asks them to sign out and in again. Linking a Google account that is already another user's is
@@ -99,8 +99,8 @@ machine itself (loopback): a device on the LAN never signs in with Google agains
 A sign-in gives the device a session token (`gpdt_…`, only its SHA-256 stored). Every request reads
 the session and the user's role from the global tables (D22): a demoted user's next pull starts over
 with the new role, and a removed user's next request gets 401. A signed-in device opens straight into
-its own database with no network; when the server refuses it, sync stops, local edits wait, and the
-status bar asks it to sign in again (SYNC-A15).
+its own database with no network; when the server refuses it, sync stops, local edits wait, and a
+strip under the top bar asks it to sign in again (SYNC-A15).
 
 The desktop host refuses every API request from a device it has not paired, on localhost too: only
 the static app and `/api/pair/status`, `/api/pair/claim` answer (and the sign-in above, from the host machine).
@@ -561,7 +561,7 @@ the database worker, wa-sqlite's wasm, the CSS, fonts and the background) and a 
   install fails and the old worker and its cache stay. So the kept index.html always has its own assets.
 - **Pages come from the network first**, so a host with a newer build is used at once, and the worker's
   index.html only when the network fails or does not answer in 3 s (a host that is off may stay silent rather
-  than refuse). Every page address is a page: `/songs`, `/presentations/{id}`, `/admin/overlays`, `/output`,
+  than refuse). Every page address is a page: `/`, `/presentations/{id}`, `/admin/songs`, `/output`,
   `/watch/{code}`.
 - **The build's files come from the cache first**: their names carry their contents' hash, so a kept copy is
   never stale. A file the cache does not have goes to the network.
@@ -612,12 +612,13 @@ throttle locking out one client behind a proxy and not the next, and, without th
 
 ### Addresses
 
-The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/songs`,
-`/songs/{id}`, `/presentations`, `/presentations/{id}`, `/live/{id}`, `/trash?kind=Image`, `/logins`,
-`/signin`, `/signed-in`, `/output`, and the admin pages under `/admin/`: `users`, `devices`, `bibles`,
-`images`, `themes` (as in the current app). Everything the server answers itself is under `/api/`, so no page
-can collide with it, and an unknown `/api/…` path is a JSON 404, never the app. An unknown page address is the
-song list. The one fragment left is an invite's token, `/invite#{token}`, because a
+The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/` (the
+presentations, the start page), `/presentations/{id}`, `/live/{id}`, `/trash?kind=Image`, `/logins`,
+`/settings`, `/signin`, `/signed-in`, `/output`, and the admin pages under `/admin/` (as in the current app):
+`songs`, `songs/{id}`, `users`, `devices`, `bibles`, `images`, `audios`, `overlays`, `themes`, `displays`;
+`/admin` alone is the songs. `/songs`, `/songs/{id}` and `/presentations` from before still open their pages.
+Everything the server answers itself is under `/api/`, so no page can collide with it, and an unknown `/api/…`
+path is a JSON 404, never the app. An unknown page address is the start page. The one fragment left is an invite's token, `/invite#{token}`, because a
 fragment never reaches a server and so never a log. The Node server (and so the desktop host) answers any
 GET with no file extension outside `/api/` with `index.html`; a missing file (`/assets/x.js`) is a 404. The
 Worker serves no static files yet, so there a reload on a page gives 404, as the web sign-in already did.
@@ -626,6 +627,28 @@ History navigation. For `pnpm dev` the Vite proxy forwards `/api` (and its WebSo
 
 **Moving the API under `/api/` changed the Google redirect URI** to `{origin}/api/auth/google/callback`:
 a real Google client registered with the old one must get the new one.
+
+### Look
+
+The web app is to look as the current Blazor app does (its `main` branch, not the pictures in `docs/public`),
+on every screen size, light and dark. It uses Tailwind v4 (`@tailwindcss/vite`), set up as the current app's
+`tailwind-input.css` (`apps/web/src/app.css`). Dark mode is the current app's: the class `.dark` on `<html>`,
+the choice in localStorage `theme` (`light`, `dark`, `system`; the system's when none), chosen under Mina
+inställningar (`/settings`) and applied before the first render (`apps/web/src/ui/theme.ts`). The shell is
+`MainLayout.razor`'s top bar (logo to the start page, Beta, the sync's cloud, the cog to the admin pages, the
+user's menu) and `AdminLayout.razor`'s side menu (`apps/web/src/Shell.tsx`). The shared components are in
+`apps/web/src/ui/`: `AppButton` with the current app's variants (the only place a `<button>` is made; the lint
+rule says so), `Dialog`, `Modal`, `FloatingInput`/`Select`/`Textarea`, `PillTabs`, the lists, `Dropdown` and
+`PageContainer`. The start page (`pages/Presentations.tsx`) is `Dashboard.razor`: Idag, Kommande and the rest.
+
+The move goes in steps: 1 the frame, the components and the start page (done); 2 the presentation (editor,
+live, stage view, Lägg till); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`, `/watch`
+and the output. A page not yet moved keeps its old styles (`apps/web/src/styles.css`, in a CSS layer below
+Tailwind's utilities) inside the new frame, and the old `Button` (`ui/Button.tsx`), until its step.
+
+`GP_CAPTURE=<dir> pnpm --filter @gp/desktop exec playwright test capture` takes a picture of every page, desktop
+(1440×900) and phone (390×844), light and dark (`apps/desktop/e2e/capture.spec.ts`), to set beside the
+current app's from `node scripts/capture-old-app.mjs <url> <dir>` with that app running in mock mode.
 
 ## Next steps
 

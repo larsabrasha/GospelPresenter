@@ -38,7 +38,7 @@
         "forbid": [
           {
             "element": "button",
-            "message": "use <Button> from ui/Button.tsx (ADR 0007, decision 11)"
+            "message": "use <AppButton> from ui/AppButton.tsx (ADR 0007, decision 11)"
           }
         ]
       }
@@ -62,7 +62,7 @@
     },
     {
       "files": [
-        "apps/web/src/ui/Button.tsx"
+        "apps/web/src/ui/AppButton.tsx"
       ],
       "rules": {
         "react/forbid-elements": "off"

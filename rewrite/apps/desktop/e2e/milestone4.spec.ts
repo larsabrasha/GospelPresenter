@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, type Desktop } from './apps.ts';
-import { createPresentation, createUser, pair, setUpHost } from './flows.ts';
+import { createPresentation, createUser, openAdmin, pair, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -31,7 +31,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await setUpHost(host);
 
   // Import: a tiny public-domain sample (World English Bible), as a DBL zip.
-  await page.getByRole('link', { name: 'Biblar' }).click();
+  await openAdmin(page, 'Biblar');
   await expect(page.getByText('Inga biblar installerade ännu.')).toBeVisible();
   await page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
   await expect(page.getByTestId('bible-import-message')).toHaveText('Importerade World English Bible (exempel) med 15 verser.');
@@ -40,7 +40,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(page.getByText('Tillgänglig offline')).toBeVisible();
 
   // The organisation's default theme: Midnatt.
-  await page.getByRole('link', { name: 'Teman' }).click();
+  await openAdmin(page, 'Teman');
   await expect(page.getByTestId('theme-classic').getByText('Standard', { exact: true })).toBeVisible();
   await page.getByTestId('theme-midnight').getByRole('button', { name: 'Använd som standard' }).click();
   await expect(page.getByRole('status').getByText('Standardtemat sparat')).toBeVisible();
@@ -126,7 +126,7 @@ test('a Bible imported while the host is down is kept, and reaches the host when
   await host.app.close();
   host = undefined;
   await expect(page.getByTestId('status')).toContainText('Offline', { timeout: 5_000 });
-  await page.getByRole('link', { name: 'Biblar' }).click();
+  await openAdmin(page, 'Biblar');
   await page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
   await expect(page.getByTestId('bible-import-message')).toHaveText(
     'Importerade World English Bible (exempel) med 15 verser. Servern går inte att nå just nu. Bibeln finns på den här enheten och skickas till servern när du är ansluten igen.',
@@ -139,7 +139,7 @@ test('a Bible imported while the host is down is kept, and reaches the host when
   host = await launch({ port, dataDir: hostData });
   await host.page.getByTestId('status').waitFor();
   await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
-  await host.page.getByRole('link', { name: 'Biblar' }).click();
+  await openAdmin(host.page, 'Biblar');
   await expect(host.page.getByText('WEB · 15 verser')).toBeVisible({ timeout: 10_000 });
   await expect(host.page.getByText('Tillgänglig offline')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText('Servern tog inte emot en ändring', { exact: false })).toHaveCount(0);

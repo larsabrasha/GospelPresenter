@@ -13,9 +13,11 @@ import { LiveLink, windowSessionId } from './live/remote.ts';
 import { Display } from './pages/Display.tsx';
 import { Watch } from './pages/Watch.tsx';
 import { currentRoute, installLinkHandler } from './ui/router.ts';
+import { installTheme } from './ui/theme.ts';
 import './fonts.css';
-import './styles.css';
+import './app.css';
 
+installTheme();
 const root = createRoot(document.getElementById('root')!);
 installLinkHandler();
 const route = currentRoute();

@@ -3,7 +3,7 @@
 // through the server, and losing the presenter freezes the session.
 import { chromium, expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, createUser, pair, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -41,7 +41,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
 
   // Remote control is off: Bo's computer offers nothing to take.
-  await secondApp.page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(secondApp.page);
   await expect(secondApp.page.getByRole('link', { name: 'Söndag' })).toBeVisible({ timeout: 5_000 });
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0);
 
@@ -50,7 +50,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(page.getByLabel('Länk för fjärrstyrning')).toHaveValue(/\/live\/[\w-]+\?remote=1&session=[\w-]+$/);
   await expect(page.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveAttribute('data-value', await page.getByLabel('Länk för fjärrstyrning').inputValue());
   const card = secondApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
-  await expect(card).toContainText('Visas just nu · Söndag', { timeout: 5_000 });
+  await expect(card).toContainText('Söndag', { timeout: 5_000 });
   await card.getByRole('link', { name: 'Ta kontroll' }).click();
   await expect(secondApp.page.getByText('Fjärrstyrningsläge – du styr en aktiv presentation')).toBeVisible();
   await expect(secondApp.page.getByText('Bara datorn som presenterar kan stoppa presentationen.')).toBeVisible();
@@ -86,13 +86,13 @@ test('when the presenting computer drops out, the session freezes and someone el
   await addSongs(hostApp.page, ['Sång A']);
 
   // Bo's computer presents, with remote control on.
-  await secondApp.page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(secondApp.page);
   await secondApp.page.getByRole('link', { name: 'Söndag' }).click({ timeout: 5_000 });
   await secondApp.page.getByRole('link', { name: 'Starta presentation' }).click();
   await secondApp.page.getByLabel('Tillåt fjärrstyrning').check();
   await secondApp.page.getByRole('button', { name: 'Sång A 1' }).click();
 
-  await hostApp.page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(hostApp.page);
   const card = hostApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
   await card.getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
   await expect(hostApp.page.getByRole('button', { name: 'Sång A 1' })).toHaveAttribute('aria-pressed', 'true');
@@ -123,10 +123,10 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     await expect(phone.getByTestId('status')).toContainText('Ansluten', { timeout: 10_000 });
 
     // A picture imported on the host reaches the phone: fetched and checked without Web Crypto.
-    await host.page.getByRole('link', { name: 'Bilder' }).click();
+    await openAdmin(host.page, 'Bilder');
     await host.page.getByTestId('image-file').setInputFiles({ name: 'Kors.png', mimeType: 'image/png', buffer: solidPng(800, 600, [20, 60, 200]) });
     await expect(host.page.getByRole('heading', { name: 'Alla bilder (1)' })).toBeVisible();
-    await phone.getByRole('link', { name: 'Bilder' }).click();
+    await openAdmin(phone, 'Bilder');
     const thumb = phone.getByTestId('image-card').getByRole('img', { name: 'Kors.png' });
     await expect(thumb).toBeVisible({ timeout: 10_000 });
     await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
@@ -140,7 +140,7 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     await host.page.getByRole('link', { name: 'Starta presentation' }).click();
     await host.page.getByLabel('Tillåt fjärrstyrning').check();
 
-    await phone.getByRole('link', { name: 'Presentationer' }).click();
+    await openPresentations(phone);
     await phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 10_000 });
     await phone.getByRole('button', { name: 'Sång A 2' }).click();
     await expect(host.page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true', { timeout: 5_000 });

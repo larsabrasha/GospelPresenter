@@ -2,7 +2,7 @@
 // the device, and added to a presentation as an item with a player.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, createUser, pair, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -19,7 +19,7 @@ test('an audio file is imported, added to a presentation and plays in the editor
   const page = host.page;
   await setUpHost(host);
 
-  await page.getByRole('link', { name: 'Ljud' }).click();
+  await openAdmin(page, 'Ljud');
   await expect(page.getByText('Inga ljudfiler än')).toBeVisible();
   await page.getByTestId('audio-file').setInputFiles([
     { name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(2) },
@@ -42,7 +42,7 @@ test('an audio file is imported, added to a presentation and plays in the editor
   // The file is this device's own copy, and it is a real, playable sound of two seconds.
   await expect.poll(() => player.evaluate((a: HTMLAudioElement) => (Number.isFinite(a.duration) ? Math.round(a.duration) : 0)), { timeout: 5_000 }).toBe(2);
 
-  await page.getByRole('link', { name: 'Ljud' }).click();
+  await openAdmin(page, 'Ljud');
   await page.getByRole('button', { name: 'Ta bort Preludium.wav' }).click();
   await expect(page.getByText('Inga ljudfiler än')).toBeVisible();
   await page.getByRole('link', { name: 'Papperskorg' }).click();
@@ -58,7 +58,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await pair(page, second.page, 'Andra datorn', 'Bo');
   await expect(second.page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
 
-  await page.getByRole('link', { name: 'Ljud' }).click();
+  await openAdmin(page, 'Ljud');
   await page.getByTestId('audio-file').setInputFiles({ name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(20) });
   await expect(page.getByRole('heading', { name: 'Alla ljudfiler (1)' })).toBeVisible();
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
@@ -79,7 +79,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
 
   // A controller starts the sound first, before anyone played it on the presenting computer (LIVE-A32).
   await page.getByLabel('Tillåt fjärrstyrning').check();
-  await second.page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(second.page);
   await second.page.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
   const mirror = second.page.getByTestId('audio-player');
   const player = page.getByTestId('audio-player');

@@ -1,7 +1,7 @@
 // Milestone 6: the rest of live, in slices. Stage view (spec 04 section 3).
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -61,7 +61,7 @@ test('addresses are plain paths: links navigate without a reload, a reload or a 
   host = await launch();
   const page = host.page;
   await setUpHost(host);
-  await page.getByRole('link', { name: 'Bilder' }).click();
+  await openAdmin(page, 'Bilder');
   await expect(page).toHaveURL(`${host.base}/admin/images`);
   await expect(page.getByRole('heading', { name: 'Bilder', exact: true })).toBeVisible();
 
@@ -75,7 +75,7 @@ test('addresses are plain paths: links navigate without a reload, a reload or a 
   await page.goto(editor);
   await expect(page.getByRole('heading', { name: 'Söndag', exact: true })).toBeVisible();
   await page.goBack(); // the History API keeps the steps between pages
-  await expect(page).toHaveURL(/\/presentations$/);
+  await expect(page).toHaveURL(`${host.base}/`); // the start page, the presentations
 
   // A path with a file extension is a file, so a missing one is a 404 and not the app; an API path stays the API.
   expect((await page.request.get(`${host.base}/assets/nope.js`)).status()).toBe(404);

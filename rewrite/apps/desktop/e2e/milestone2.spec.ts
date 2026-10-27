@@ -2,7 +2,7 @@
 // the output window when the operator's database has no shared file.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, openPresentations, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -15,7 +15,7 @@ test('without OPFS the output still shows the slide, read through the operator w
   host = await launch({ memory: true });
   const page = host.page;
   await setUpHost(host);
-  await expect(page.getByTestId('status')).toContainText('Data sparas bara i minnet');
+  await expect(page.getByTestId('sync-warnings')).toContainText('Data sparas bara i minnet');
   await createSong(page, 'Blott en dag', [
     ['Verse 1', 'Blott en dag'],
     ['Chorus', 'Ett ögonblick i sänder'],
@@ -29,7 +29,7 @@ test('without OPFS the output still shows the slide, read through the operator w
   await expect(output.getByTestId('slide-text')).toHaveText('Ett ögonblick i sänder');
 
   // An edit in the operator's in-memory database reaches the output too (D7).
-  await page.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(page, 'Sånger');
   await page.getByRole('link', { name: 'Blott en dag' }).click();
   await page.getByLabel('Delar 2', { exact: true }).fill('Varje dag och varje stund');
   await page.getByLabel('Delar 2', { exact: true }).blur();
@@ -130,7 +130,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await addSongs(page, ['Amazing Grace']);
 
   // D17: trashing a song in use says where it is used.
-  await page.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(page, 'Sånger');
   await page.getByRole('link', { name: 'Amazing Grace' }).click();
   await page.getByRole('button', { name: 'Ta bort sång' }).click();
   const confirm = page.getByRole('dialog', { name: 'Ta bort sång' });
@@ -140,7 +140,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await expect(page.getByRole('heading', { name: 'Alla sånger (0)' })).toBeVisible();
 
   // The presentation flags the item and restores the song (D17).
-  await page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(page);
   await page.getByRole('link', { name: 'Kväll' }).click();
   await page.getByRole('button', { name: /^Amazing Grace/ }).click();
   await expect(page.getByText('Sången ligger i papperskorgen och visas inte live.')).toBeVisible();
@@ -149,11 +149,11 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await expect(page.getByRole('list', { name: 'Amazing Grace' }).getByTestId('slide-text')).toHaveText(['Amazing grace, how sweet the sound']);
 
   // Trash the song again, and the presentation (no dialog, a toast: PRES-A22).
-  await page.getByRole('link', { name: 'Sånger' }).click();
+  await openAdmin(page, 'Sånger');
   await page.getByRole('link', { name: 'Amazing Grace' }).click();
   await page.getByRole('button', { name: 'Ta bort sång' }).click();
   await page.getByRole('dialog', { name: 'Ta bort sång' }).getByRole('button', { name: 'Ta bort sång' }).click();
-  await page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(page);
   await page.getByRole('link', { name: 'Kväll' }).click();
   await page.getByRole('button', { name: 'Radera presentation' }).click();
   await expect(page.getByRole('status').getByText('Kväll flyttad till papperskorgen')).toBeVisible();
@@ -178,7 +178,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await expect(page.getByText('Papperskorgen är tom.')).toBeVisible();
 
   // The presentation is back, and its item says the song is gone.
-  await page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(page);
   await page.getByRole('link', { name: 'Kväll' }).click();
   await page.getByRole('button', { name: /^Amazing Grace/ }).click();
   await expect(page.getByText('Sången finns inte längre.')).toBeVisible();

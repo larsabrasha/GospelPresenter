@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -36,7 +37,7 @@ function serviceWorker(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), serviceWorker()],
+  plugins: [react(), tailwindcss(), serviceWorker()],
   // wa-sqlite loads its own wasm; pre-bundling would break the URL.
   optimizeDeps: { exclude: ['@journeyapps/wa-sqlite'] },
   worker: { format: 'es' },

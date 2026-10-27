@@ -3,7 +3,7 @@
 // fetches what is added to it later without the presentation being opened.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { createPresentation, createUser, pair, setUpHost } from './flows.ts';
+import { createPresentation, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -25,17 +25,17 @@ test('a presentation kept offline on a computer has its pictures there, fetched 
 
   // A presentation with no date: nothing would fetch its files ahead.
   await createPresentation(host.page, 'Konsert');
-  await second.page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(second.page);
   await second.page.getByRole('link', { name: 'Konsert' }).click({ timeout: 5_000 });
   await second.page.getByLabel('Tillgänglig offline på den här enheten').check();
-  await second.page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(second.page);
   await expect(second.page.getByRole('listitem').filter({ hasText: 'Konsert' })).toContainText('Offline');
 
   // The host adds a picture to it while the second computer is elsewhere in the app.
-  await host.page.getByRole('link', { name: 'Bilder' }).click();
+  await openAdmin(host.page, 'Bilder');
   await host.page.getByTestId('image-file').setInputFiles({ name: 'Affisch.png', mimeType: 'image/png', buffer: solidPng(1200, 800, [180, 40, 40]) });
   await expect(host.page.getByRole('heading', { name: 'Alla bilder (1)' })).toBeVisible();
-  await host.page.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(host.page);
   await host.page.getByRole('link', { name: 'Konsert' }).click();
   await host.page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await host.page.keyboard.press('Control+3');

@@ -3,7 +3,7 @@
 // database answers the page, so the hash must give the thread back.
 import { chromium, expect, test, type Browser } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, pair, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -33,7 +33,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   await expect(phone.getByTestId('status')).toContainText('Ansluten', { timeout: 10_000 });
 
   const page = host.page;
-  await page.getByRole('link', { name: 'Ljud' }).click();
+  await openAdmin(page, 'Ljud');
   await page.getByTestId('audio-file').setInputFiles({ name: 'Lång.wav', mimeType: 'audio/wav', buffer: toneWav(1200) });
   await expect(page.getByRole('heading', { name: 'Alla ljudfiler (1)' })).toBeVisible({ timeout: 20_000 });
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
@@ -46,7 +46,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   await page.getByRole('link', { name: 'Starta presentation' }).click();
   await page.getByLabel('Tillåt fjärrstyrning').check();
 
-  await phone.getByRole('link', { name: 'Presentationer' }).click();
+  await openPresentations(phone);
   const take = phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' });
   await take.waitFor({ timeout: 10_000 });
   // Opening it in the editor has the tablet fetch its audio (a remote control alone would not); then straight to control.

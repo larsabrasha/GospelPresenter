@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { can, type Me, type PairStatus } from '@gp/core';
 import { api } from './auth/api.ts';
-import { forgetSession, saveDeviceToken, updateMe } from './auth/session.ts';
-import { REPAIR_KEY } from './Boot.tsx';
-import { useDb, useDbStatus } from './db/react.tsx';
+import { updateMe } from './auth/session.ts';
+import { useDb } from './db/react.tsx';
 import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
 import { AudioEngine, audioUrlOfItem } from './live/audio.ts';
@@ -20,71 +19,15 @@ import { Logins } from './pages/Logins.tsx';
 import { Output } from './pages/Output.tsx';
 import { PresentationEditor } from './pages/PresentationEditor.tsx';
 import { Presentations } from './pages/Presentations.tsx';
+import { Settings } from './pages/Settings.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
 import { Themes } from './pages/Themes.tsx';
 import { Songs } from './pages/Songs.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { Users } from './pages/Users.tsx';
-import { Button } from './ui/Button.tsx';
-import { href, useRoute } from './ui/router.ts';
+import { AdminLayout, TopBar } from './Shell.tsx';
+import { useRoute, type Route } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
-
-/** Back to the sign-in screen. The local database stays (D3, DESK-A7). */
-function toSignIn() {
-  forgetSession();
-  location.reload();
-}
-
-/**
- * Signs out: the server revokes the session (if it can be reached; offline,
- * the session is only forgotten here), and this device forgets it.
- */
-async function signOut() {
-  await Promise.race([api('POST', '/api/auth/signout').catch(() => undefined), new Promise((r) => setTimeout(r, 3000))]);
-  toSignIn();
-}
-
-function pairAgain() {
-  saveDeviceToken(null);
-  sessionStorage.setItem(REPAIR_KEY, '1');
-  location.reload();
-}
-
-function StatusBar() {
-  const s = useDbStatus();
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const on = (e: PromiseRejectionEvent) => setError(e.reason instanceof Error ? e.reason.message : String(e.reason));
-    addEventListener('unhandledrejection', on);
-    return () => removeEventListener('unhandledrejection', on);
-  }, []);
-  if (!s) return null;
-  const last = s.rejected.at(-1);
-  return (
-    <footer className="status" data-testid="status">
-      <span className={s.connected ? 'ok' : 'warning'}>{s.connected ? t('status.connected') : t('status.offline')}</span>
-      {s.pending > 0 && <span>{t('status.pending', { n: s.pending })}</span>}
-      {s.storage !== 'opfs' && <span className="warning">{t('status.memory', { reason: s.storage })}</span>}
-      {s.updateRequired && <span className="warning">{t('status.updateRequired')}</span>}
-      {s.authError === 'device-not-paired' && (
-        <span className="warning">
-          {t('status.notPaired')} <Button onClick={pairAgain}>{t('status.pairAgain')}</Button>
-        </span>
-      )}
-      {(s.authError === 'unauthenticated' || s.authError === 'not-a-member') && (
-        <span className="warning">
-          {t('status.authRequired')} <Button onClick={toSignIn}>{t('status.signInAgain')}</Button>
-        </span>
-      )}
-      {last && <span className="warning">{t('status.rejected', { error: last.error })}</span>}
-      {error && (
-        <span className="warning" role="alert">
-          {error}
-        </span>
-      )}
-    </footer>
-  );
-}
 
 /**
  * The signed-in app. `me` is what the server said at sign-in, refreshed in
@@ -115,83 +58,53 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   }, []);
 
   const viewUsers = can(me.role, 'ViewUsers');
+  const admin = (
+    <>
+      {route.page === 'songs' && <Songs />}
+      {route.page === 'song' && <SongEditor id={route.id} />}
+      {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
+      {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}
+      {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
+      {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <p>{t('images.forbidden')}</p>)}
+      {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <p>{t('audios.forbidden')}</p>)}
+      {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <p>{t('overlays.forbidden')}</p>)}
+      {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <p>{t('overlays.forbidden')}</p>)}
+      {route.page === 'themes' && <Themes role={me.role} />}
+      {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <p>{t('displays.forbidden')}</p>)}
+    </>
+  );
   return (
     <ToastProvider>
-      <div className="app">
-        <header className="top">
-          <strong>{t('app.name')}</strong>
-          <nav>
-            <a href={href({ page: 'songs' })} aria-current={route.page.startsWith('song') ? 'page' : undefined}>
-              {t('nav.songs')}
-            </a>
-            <a href={href({ page: 'presentations' })} aria-current={route.page.startsWith('presentation') ? 'page' : undefined}>
-              {t('nav.presentations')}
-            </a>
-            {can(me.role, 'ManageBibles') && (
-              <a href={href({ page: 'bibles' })} aria-current={route.page === 'bibles' ? 'page' : undefined}>
-                {t('nav.bibles')}
-              </a>
-            )}
-            {can(me.role, 'ViewImages') && (
-              <a href={href({ page: 'images' })} aria-current={route.page === 'images' ? 'page' : undefined}>
-                {t('nav.images')}
-              </a>
-            )}
-            {can(me.role, 'ViewAudios') && (
-              <a href={href({ page: 'audios' })} aria-current={route.page === 'audios' ? 'page' : undefined}>
-                {t('nav.audios')}
-              </a>
-            )}
-            {can(me.role, 'ManageOverlays') && (
-              <a href={href({ page: 'overlays' })} aria-current={route.page.startsWith('overlay') ? 'page' : undefined}>
-                {t('overlays.title')}
-              </a>
-            )}
-            <a href={href({ page: 'themes' })} aria-current={route.page === 'themes' ? 'page' : undefined}>
-              {t('nav.themes')}
-            </a>
-            {viewUsers && (
-              <a href={href({ page: 'users' })} aria-current={route.page === 'users' ? 'page' : undefined}>
-                {t('nav.users')}
-              </a>
-            )}
-            {can(me.role, 'ManageRemoteDisplays') && (
-              <a href={href({ page: 'displays' })} aria-current={route.page === 'displays' ? 'page' : undefined}>
-                {t('nav.displays')}
-              </a>
-            )}
-            {host && can(me.role, 'ManageUsers') && (
-              <a href={href({ page: 'devices' })} aria-current={route.page === 'devices' ? 'page' : undefined}>
-                {t('nav.devices')}
-              </a>
-            )}
-          </nav>
-          <a href={href({ page: 'logins', error: null })} className="muted" data-testid="me" title={t('logins.title')} aria-current={route.page === 'logins' ? 'page' : undefined}>
-            {me.name} · {me.orgName}
-          </a>
-          <Button onClick={() => void signOut()}>{t('auth.signOut')}</Button>
-        </header>
-        <main>
-          {route.page === 'songs' && <Songs />}
-          {route.page === 'song' && <SongEditor id={route.id} />}
-          {route.page === 'presentations' && <Presentations link={link} ownSessionId={sessionId} />}
+      <TopBar me={me} />
+      {route.page === 'presentations' ? (
+        <Presentations link={link} ownSessionId={sessionId} />
+      ) : route.page === 'settings' ? (
+        <Settings />
+      ) : ADMIN_PAGES.has(route.page) ? (
+        <AdminLayout me={me} host={host} route={route}>
+          <Legacy>{admin}</Legacy>
+        </AdminLayout>
+      ) : (
+        <Legacy>
           {route.page === 'presentation' && <PresentationEditor id={route.id} />}
           {route.page === 'live' && <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} />}
           {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
-          {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
-          {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}
           {route.page === 'logins' && <Logins error={route.error} />}
-          {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
-          {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <p>{t('images.forbidden')}</p>)}
-          {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <p>{t('audios.forbidden')}</p>)}
-          {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <p>{t('overlays.forbidden')}</p>)}
-          {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <p>{t('overlays.forbidden')}</p>)}
-          {route.page === 'themes' && <Themes role={me.role} />}
-          {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <p>{t('displays.forbidden')}</p>)}
-        </main>
-        <StatusBar />
-      </div>
+        </Legacy>
+      )}
     </ToastProvider>
+  );
+}
+
+/** The pages under the admin menu (Layout/AdminLayout.razor). */
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'themes', 'displays']);
+
+/** A page not yet moved to Tailwind: its old styles (styles.css), in a scrolling area. */
+function Legacy({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="legacy-page">{children}</div>
+    </div>
   );
 }
 

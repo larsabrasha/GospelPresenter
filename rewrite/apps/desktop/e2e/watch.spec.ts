@@ -2,7 +2,7 @@
 // in a browser, with no sign-in, and follows what the host presents.
 import { chromium, expect, test, type Browser } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 let browser: Browser | undefined;
@@ -19,7 +19,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await setUpHost(host);
 
   // Skärmar: make a public output and take its link.
-  await page.getByRole('link', { name: 'Skärmar' }).click();
+  await openAdmin(page, 'Skärmar');
   await expect(page.getByText('Inga publika utgångar')).toBeVisible();
   await page.getByRole('button', { name: 'Skapa publik utgång' }).click();
   await page.getByRole('dialog', { name: 'Skapa publik utgång' }).getByLabel('Namn').fill('Kyrkkaffet');
@@ -45,7 +45,7 @@ test('a public output follows the presentation in a browser without signing in; 
     ['Verse 1', 'A ett'],
     ['Chorus', 'A två'],
   ]);
-  await page.getByRole('link', { name: 'Overlays', exact: true }).click();
+  await openAdmin(page, 'Overlays');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Titel').fill('Kollekt');
   await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Titel').press('Enter');
@@ -80,7 +80,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await expect(phone.getByTestId('watch-text')).toHaveText('A två');
 
   // Skärmar says what it sends and to how many.
-  await page.getByRole('link', { name: 'Skärmar' }).click();
+  await openAdmin(page, 'Skärmar');
   await expect(page.getByRole('listitem', { name: 'Kyrkkaffet' })).toContainText('Sänder från Söndag · 1 enhet');
 
   // A new code: the old link stops working, and the phone is told so.

@@ -1,0 +1,40 @@
+/*
+ * The app's styles: Tailwind, set up as in the current app
+ * (GospelPresenter.Shared/tailwind-input.css). styles.css holds what the
+ * pages not yet moved to Tailwind still use; it sits in its own layer, above
+ * Tailwind's base and below its utilities, so a utility always wins.
+ */
+@layer theme, base, legacy, components, utilities;
+
+@import "tailwindcss";
+@import "./styles.css" layer(legacy);
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  h1 { @apply text-3xl/16; }
+  h2 { @apply text-2xl/12; }
+  h3 { @apply text-xl/10; }
+  h4 { @apply text-lg/8; }
+  h5 { @apply text-base/6; }
+  h6 { @apply text-sm/4; }
+
+  /* The shell: the page never scrolls, its content does (Layout/MainLayout.razor). */
+  html { @apply h-dvh overscroll-none overflow-hidden bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100; }
+  html.dark { color-scheme: dark; }
+  body { @apply flex flex-col h-full; }
+  #root { @apply flex flex-col flex-1 min-h-0 overflow-auto; }
+}
+
+/* Dialogs fade in, as the current app's dialog.animated. */
+@keyframes dialog-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.dialog-in { animation: dialog-in 200ms ease-out; }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(0.75rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.toast-item { animation: toast-in 200ms ease-out; }

@@ -31,6 +31,7 @@ describe('routes', () => {
       { page: 'overlay', id: 'O 1/2' },
       { page: 'themes' },
       { page: 'displays' },
+      { page: 'settings' },
       { page: 'watch', code: 'abcdefg' },
       { page: 'display', id: null, name: null, token: null },
       { page: 'display', id: 'abcdefg', name: 'Kyrksal & co', token: null },
@@ -46,27 +47,36 @@ describe('routes', () => {
   });
 
   it('addresses are plain paths, with no # except an invite\'s token', () => {
-    expect(href({ page: 'songs' })).toBe('/songs');
+    expect(href({ page: 'presentations' })).toBe('/');
+    expect(href({ page: 'songs' })).toBe('/admin/songs');
+    expect(href({ page: 'song', id: 'S1' })).toBe('/admin/songs/S1');
     expect(href({ page: 'presentation', id: 'P1' })).toBe('/presentations/P1');
     expect(href({ page: 'images' })).toBe('/admin/images');
     expect(href({ page: 'trash', kind: 'Image' })).toBe('/trash?kind=Image');
     // The token is in the fragment, which no server sees, never in the path (it would reach a log).
     expect(href({ page: 'invite', token: 'gpin_x' })).toBe('/invite#gpin_x');
-    expect(read('/invite')).toEqual({ page: 'songs' }); // an invite page without its token is nothing
-    expect(read('/invite/gpin_x')).toEqual({ page: 'songs' });
+    expect(read('/invite')).toEqual({ page: 'presentations' }); // an invite page without its token is nothing
+    expect(read('/invite/gpin_x')).toEqual({ page: 'presentations' });
     // A saved screen's link, and a temporary screen's (spec 04 §5, §8).
     expect(href({ page: 'display', id: 'abcdefg', name: 'Kyrksal', token: null })).toBe('/display?id=abcdefg&name=Kyrksal');
     expect(href({ page: 'display', id: null, name: null, token: null })).toBe('/display');
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {
-    for (const page of ['users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays'] as const) {
+    for (const page of ['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays'] as const) {
       const path = href({ page });
       expect(path).toBe(`/admin/${page}`);
       expect(path).not.toMatch(/^\/api/);
     }
-    expect(read('/users')).toEqual({ page: 'songs' });
+    expect(read('/users')).toEqual({ page: 'presentations' });
+    // The admin pages start at the songs, as in the current app (Pages/Admin/Admin.razor).
+    expect(read('/admin')).toEqual({ page: 'songs' });
     expect(read('/admin/nowhere')).toEqual({ page: 'songs' });
+  });
+
+  it('the song addresses from before the admin menu still open them', () => {
+    expect(read('/songs')).toEqual({ page: 'songs' });
+    expect(read('/songs/S1')).toEqual({ page: 'song', id: 'S1' });
   });
 
   it('the trash kind is case-insensitive, and an unknown kind is everything', () => {
@@ -80,13 +90,13 @@ describe('routes', () => {
   it('a link cut off in the middle of a percent escape still opens the app (code review)', () => {
     // decodeURIComponent throws on these; the app used to stop at start with a blank page.
     expect(read('/songs/%E0%A4%A')).toEqual({ page: 'song', id: '%E0%A4%A' });
-    expect(read('/%E0%A4%A')).toEqual({ page: 'songs' });
+    expect(read('/%E0%A4%A')).toEqual({ page: 'presentations' });
     expect(read('/invite#gpin_abc%E0%A4%A')).toEqual({ page: 'invite', token: 'gpin_abc%E0%A4%A' });
   });
 
-  it('an unknown address goes to the song list; a trailing slash does not matter', () => {
-    expect(read('/nowhere')).toEqual({ page: 'songs' });
-    expect(read('/')).toEqual({ page: 'songs' });
+  it('an unknown address goes to the start page, the presentations; a trailing slash does not matter', () => {
+    expect(read('/nowhere')).toEqual({ page: 'presentations' });
+    expect(read('/')).toEqual({ page: 'presentations' });
     expect(read('/presentations/')).toEqual({ page: 'presentations' });
   });
 

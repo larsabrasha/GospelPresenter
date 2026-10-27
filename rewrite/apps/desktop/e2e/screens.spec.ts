@@ -3,7 +3,7 @@
 // Played by Playwright's Chromium beside the desktop app.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 let browser: Browser | undefined;
@@ -45,7 +45,7 @@ async function typeCode(page: Page, code: string) {
 test('a saved screen is online while its page is open, shows the slide when switched on, and goes off when the page closes (LIVE-A20, A21)', async () => {
   const page = await presenting();
   const origin = new URL(page.url()).origin;
-  await page.getByRole('link', { name: 'Skärmar' }).click();
+  await openAdmin(page, 'Skärmar');
   await expect(page.getByText('Inga skärmar tillagda')).toBeVisible();
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.getByRole('dialog', { name: 'Lägg till' }).getByLabel('Namn').fill('Kyrksal');
@@ -64,7 +64,8 @@ test('a saved screen is online while its page is open, shows the slide when swit
   await expect(screen.getByTestId('display-pin')).toHaveCount(0);
   await expect(row).toContainText('Online', { timeout: 5_000 });
 
-  // Switched on under Utgångar, it shows what the host shows.
+  // Switched on under Utgångar, it shows what the host shows. Back past Skärmar and the admin menu's first page, Sånger.
+  await page.goBack();
   await page.goBack();
   const outputs = page.getByRole('list', { name: 'Utgångar' });
   await outputs.getByLabel('Kyrksal').check();

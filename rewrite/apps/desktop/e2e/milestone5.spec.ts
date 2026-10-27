@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { createPresentation, createUser, pair, setUpHost } from './flows.ts';
+import { createPresentation, createUser, openAdmin, pair, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -30,7 +30,7 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   const page = host.page;
   await setUpHost(host);
 
-  await page.getByRole('link', { name: 'Bilder' }).click();
+  await openAdmin(page, 'Bilder');
   await expect(page.getByText('Inga bilder än')).toBeVisible();
 
   // A 2400×1350 PNG with transparency, a bitmap (not accepted) and a text file named .jpg (not a picture).
@@ -83,7 +83,7 @@ test('a picture is imported, added to a presentation and shown on the output; tr
 
   // Trashed, the picture is gone from the library but still shows (MEDIA-R8).
   await page.goBack();
-  await page.getByRole('link', { name: 'Bilder' }).click();
+  await openAdmin(page, 'Bilder');
   await page.getByRole('button', { name: 'Ta bort Logotyp.png' }).click();
   await expect(page.getByRole('status').getByText('Logotyp.png flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByText('Inga bilder än')).toBeVisible();
@@ -108,7 +108,7 @@ test('a picture imported while the host is down is kept, and reaches the host an
   await host.app.close();
   host = undefined;
   await expect(page.getByTestId('status')).toContainText('Offline', { timeout: 5_000 });
-  await page.getByRole('link', { name: 'Bilder' }).click();
+  await openAdmin(page, 'Bilder');
   await page.getByTestId('image-file').setInputFiles({ name: 'Kors.png', mimeType: 'image/png', buffer: solidPng(800, 600, [20, 60, 200]) });
   await expect(page.getByTestId('image-card').getByRole('img', { name: 'Kors.png' })).toBeVisible(); // shown at once, from this device
   await expect(page.getByTestId('status')).toContainText('1 ändringar väntar');
@@ -117,7 +117,7 @@ test('a picture imported while the host is down is kept, and reaches the host an
   host = await launch({ port, dataDir: hostData });
   await host.page.getByTestId('status').waitFor();
   await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
-  await host.page.getByRole('link', { name: 'Bilder' }).click();
+  await openAdmin(host.page, 'Bilder');
   const onHost = host.page.getByTestId('image-card').getByRole('img', { name: 'Kors.png' });
   await expect(onHost).toBeVisible({ timeout: 10_000 });
   // The host fetched the picture's bytes from its own media folder, not just the row.
