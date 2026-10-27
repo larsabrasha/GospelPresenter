@@ -61,4 +61,31 @@ describe('live hub', () => {
     expect(phone.got.at(-1)).toEqual({ type: 'error', error: 'owner-offline' });
     expect(owner.got.length).toBe(before);
   });
+
+  it('a saved screen that comes back and drops again gets a whole new grace; only the newest switch-off counts', () => {
+    const db = store();
+    db.query(`INSERT INTO displays (id, name, code, kind) VALUES ('K1', 'Kyrksal', 'kyrksam', 'screen')`);
+    const timers: { fn: () => void; ms: number }[] = [];
+    const owner = socket('a', 'anna');
+    const hub = new LiveHub(db, () => [owner], Date.now, () => undefined, (fn, ms) => timers.push({ fn, ms }));
+    const page = () => ({ send: () => undefined, close: () => undefined });
+    const meta = { orgName: 'Kyrkan', outputName: 'Kyrksal' };
+    const bound = () => lastSessions(owner)[0]!.outputs.map((o) => o.id);
+
+    const first = page();
+    hub.watch('K1', 'kyrksam', 'v1', first, meta);
+    hub.message(owner, JSON.stringify({ type: 'own', state: ownState('S1', { outputs: ['K1'] }) }));
+    expect(bound()).toEqual(['K1']);
+    hub.unwatch('K1', 'v1', first); // a blink: switch-off A pending
+    const second = page();
+    hub.watch('K1', 'kyrksam', 'v1', second, meta); // back
+    hub.unwatch('K1', 'v1', second); // dropped again: switch-off B pending
+    expect(timers.map((t) => t.ms)).toEqual([15_000, 15_000]);
+
+    timers[0]!.fn(); // A, from the first drop: does nothing
+    hub.message(owner, JSON.stringify({ type: 'own', state: ownState('S1', { outputs: ['K1'], pointer: { itemId: 'I1', partIndex: 1, black: false, overlayId: null, rev: 2 } }) }));
+    expect(bound()).toEqual(['K1']);
+    timers[1]!.fn(); // B: the screen is off
+    expect(bound()).toEqual([]);
+  });
 });

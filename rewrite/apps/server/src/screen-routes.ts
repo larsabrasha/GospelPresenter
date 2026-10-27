@@ -112,9 +112,19 @@ export function screenPairRoutes(resolve: (c: Context) => Promise<{ caller: Call
   app.delete('/api/live/screens/token/:token', async (c) => {
     const r = await withOrg(c);
     if (r instanceof Response) return r;
+    // A TV that used the token since the dialog last asked was scanned on purpose: it is taken in for the
+    // session, as the poll would have, and the dialog switches it on. Without a live session it starts again.
     const used = await deps.screens.dropToken(c.req.param('token'), r.caller.orgId);
-    if (used && !(await r.org.queue.run(async () => r.org.live.screen(used)))) await drop(r.org, used);
-    return c.json({ ok: true });
+    if (!used) return c.json({ screen: null });
+    const known = await r.org.queue.run(async () => r.org.live.screen(used));
+    if (known) return c.json({ screen: known });
+    const sessionId = sessionOf(c.req.query('session'));
+    const screen = sessionId ? await add(r, used, sessionId) : null;
+    if (!screen) {
+      await drop(r.org, used);
+      return c.json({ screen: null });
+    }
+    return c.json({ screen } satisfies { screen: LiveScreen });
   });
 
   return app;

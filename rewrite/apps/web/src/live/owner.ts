@@ -91,15 +91,17 @@ export function refusedOutputs(sessions: LiveSessionInfo[], sessionId: string): 
 /**
  * What a public output shows (spec 04 §6): the slide this window shows, as
  * data, with its theme. Null is the waiting screen: black, or nothing
- * selected (LIVE-R14).
+ * selected and no overlay (LIVE-R14).
  */
 async function publicSlide(db: ReadDb, p: LivePointer): Promise<PublicSlide | null> {
-  if (!p.presentationId || !p.itemId || p.black) return null;
-  const item = (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId);
+  if (!p.presentationId || p.black) return null;
+  const item = p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
   const slide = item ? (await slidesOf(db, item)).slides[p.partIndex] : undefined;
-  if (!slide) return null;
+  const overlay = (await shownOverlay(db, p.overlayId))?.content ?? null;
+  // An overlay with nothing selected is shown on its own, as the projector shows it.
+  if (!slide && !overlay) return null;
   const theme = await themeOf(db, await getPresentation(db, p.presentationId));
-  return toPublicSlide(slide, theme.id, (await shownOverlay(db, p.overlayId))?.content ?? null);
+  return toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme.id, overlay);
 }
 
 /**

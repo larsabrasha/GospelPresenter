@@ -57,6 +57,13 @@ test('a public output follows the presentation in a browser without signing in; 
   const outputs = page.getByRole('list', { name: 'Utgångar' });
   await outputs.getByLabel('Kyrkkaffet').check();
   await expect(outputs.getByText('1 enhet')).toBeVisible({ timeout: 5_000 });
+  // An overlay with nothing selected reaches the phone on its own, as the projector shows it.
+  await page.locator('summary', { hasText: 'Overlays' }).click();
+  const overlays = page.getByRole('list', { name: 'Overlays' });
+  await overlays.getByLabel('Kollekt').check();
+  await expect(phone.getByTestId('watch-overlay')).toHaveText('Swish 123 45', { timeout: 5_000 });
+  await overlays.getByLabel('Kollekt').uncheck();
+  await expect(phone.getByTestId('watch-waiting')).toBeVisible({ timeout: 5_000 });
 
   // What the host shows, the phone shows; black is the waiting screen (LIVE-R14).
   await page.getByRole('button', { name: 'Sång A 2' }).click();
@@ -68,8 +75,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await page.getByRole('button', { name: 'Svart skärm' }).click();
   await expect(phone.getByTestId('watch-text')).toHaveText('A två', { timeout: 5_000 });
   // An overlay's text reaches the phone too, above the slide (spec 04 §6).
-  await page.locator('summary', { hasText: 'Overlays' }).click();
-  await page.getByRole('list', { name: 'Overlays' }).getByLabel('Kollekt').check();
+  await overlays.getByLabel('Kollekt').check();
   await expect(phone.getByTestId('watch-overlay')).toHaveText('Swish 123 45', { timeout: 5_000 });
   await expect(phone.getByTestId('watch-text')).toHaveText('A två');
 

@@ -82,8 +82,12 @@ export class LiveHub {
   private viewers = new Map<string, Map<string, { viewer: Viewer; code: string }>>();
   private countTimer: ReturnType<typeof setTimeout> | null = null;
   private countDue = false;
-  /** Saved screens whose last stream dropped, waiting out SCREEN_GRACE_MS. */
-  private dropped = new Map<string, unknown>();
+  /**
+   * Saved screens whose last stream dropped, waiting out SCREEN_GRACE_MS. The
+   * entry is its own mark: a timer whose entry was replaced (the screen came
+   * back and dropped again) does nothing.
+   */
+  private dropped = new Map<string, { timer: unknown }>();
   /**
    * Sockets that have closed. A runtime may go on listing one for a while (a
    * Durable Object during and after webSocketClose), so it is left out until
@@ -110,7 +114,7 @@ export class LiveHub {
 
   /** Stops the viewer-count timer: the database is about to close. */
   dispose() {
-    for (const t of this.dropped.values()) clearTimeout(t as ReturnType<typeof setTimeout>);
+    for (const d of this.dropped.values()) clearTimeout(d.timer as ReturnType<typeof setTimeout>);
     this.dropped.clear();
     if (this.countTimer) clearTimeout(this.countTimer);
     this.countTimer = null;
@@ -329,7 +333,9 @@ export class LiveHub {
       return false;
     }
     set.set(viewerId, { viewer, code });
-    this.dropped.delete(displayId); // back within the grace: its pending switch-off does nothing
+    const pending = this.dropped.get(displayId);
+    if (pending) clearTimeout(pending.timer as ReturnType<typeof setTimeout>); // back within the grace
+    this.dropped.delete(displayId);
     old?.viewer.close();
     viewer.send({ type: 'meta', ...meta });
     const slide = this.current(displayId);
@@ -345,14 +351,15 @@ export class LiveHub {
     set.delete(viewerId);
     // A saved screen whose page closed is switched off (LIVE-R24, LIVE-A20), once it has not come back for SCREEN_GRACE_MS.
     if (!set.size && !this.dropped.has(displayId) && this.store.query(`SELECT 1 FROM displays WHERE id = ? AND kind = 'screen'`, [displayId]).length) {
-      this.dropped.set(
-        displayId,
-        this.later(() => {
-          if (!this.dropped.delete(displayId) || this.viewerCount(displayId) > 0) return;
-          this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [displayId]);
-          this.broadcast();
-        }, SCREEN_GRACE_MS),
-      );
+      const mark: { timer: unknown } = { timer: null };
+      this.dropped.set(displayId, mark);
+      mark.timer = this.later(() => {
+        if (this.dropped.get(displayId) !== mark) return;
+        this.dropped.delete(displayId);
+        if (this.viewerCount(displayId) > 0) return;
+        this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [displayId]);
+        this.broadcast();
+      }, SCREEN_GRACE_MS);
     }
     this.countsChanged();
   }
@@ -386,7 +393,8 @@ export class LiveHub {
     const codes = new Map((this.store.query('SELECT id, code FROM displays') as { id: string; code: string }[]).map((d) => [d.id, d.code]));
     this.store.query(`DELETE FROM live_bindings WHERE display_id NOT IN (SELECT id FROM displays UNION SELECT id FROM live_screens)`);
     for (const [displayId, set] of this.viewers) {
-      if (this.screen(displayId)) continue; // a temporary screen is no row in displays
+      // A temporary screen is no row in displays; one paired by QR may not be in live_screens yet either.
+      if (this.screen(displayId) || [...set.values()].every((v) => v.code === displayId)) continue;
       for (const [viewerId, v] of set) {
         if (codes.get(displayId) === v.code) continue;
         set.delete(viewerId);

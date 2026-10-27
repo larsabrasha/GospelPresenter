@@ -46,7 +46,17 @@ function CodeBoxes({ onComplete }: { onComplete: (code: string) => void }) {
           aria-label={t('pairScreen.digit', { n: i + 1 })}
           autoFocus={i === 0}
           value={d}
-          onChange={(e) => put(i, e.target.value.slice(-1))}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) {
+              // Backspace or Delete in a box with a digit: it is emptied, and the focus stays.
+              const next = [...digits];
+              next[i] = '';
+              return setDigits(next);
+            }
+            // Typed into a full box: the new digit, whichever side of the old one the caret was.
+            put(i, d && v.startsWith(d) ? v.slice(d.length) : v.slice(0, 1));
+          }}
           onPaste={(e) => {
             e.preventDefault();
             put(i, e.clipboardData.getData('text'));
@@ -80,33 +90,42 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
     setPaired(screen);
   }, []);
 
-  // The QR token: made on open, renewed while open, dropped on close or success (LIVE-R28).
+  // The QR token: made on open, renewed while open, dropped on close or success (LIVE-R28). Dropping a token
+  // a TV used meanwhile takes that screen in all the same, so a scan is never lost to a renewal or a close.
   useEffect(() => {
     if (paired) return;
     let current: string | null = null;
     let stopped = false;
+    const took = (screen: LiveScreen | null | undefined) => {
+      if (!screen) return;
+      if (stopped) setOutput(screen.id, true); // the dialog is gone; the screen is on, with its ✕ under Utgångar
+      else done(screen);
+    };
+    const drop = (used: string) =>
+      void api<{ screen: LiveScreen | null }>('DELETE', `/api/live/screens/token/${used}?session=${encodeURIComponent(sessionId)}`).then((r) => took(r.body?.screen));
     const make = async () => {
       const r = await api<{ token: string }>('POST', '/api/live/screens/token');
-      if (stopped || !r.body?.token) return;
-      if (current) void api('DELETE', `/api/live/screens/token/${current}`);
+      if (!r.body?.token) return;
+      if (stopped) return drop(r.body.token);
+      if (current) drop(current);
       current = r.body.token;
       setToken(current);
     };
     void make();
     const renew = setInterval(() => void make(), TOKEN_RENEW_MS);
     const poll = setInterval(async () => {
-      if (!current) return;
-      const r = await api<{ screen: LiveScreen | null }>('GET', `/api/live/screens/token/${current}?session=${encodeURIComponent(sessionId)}`);
-      if (!stopped && r.body?.screen) {
-        current = null; // used: nothing to drop
-        done(r.body.screen);
-      }
+      const asked = current;
+      if (!asked) return;
+      const r = await api<{ screen: LiveScreen | null }>('GET', `/api/live/screens/token/${asked}?session=${encodeURIComponent(sessionId)}`);
+      if (!r.body?.screen) return;
+      if (current === asked) current = null; // used: nothing to drop
+      took(r.body.screen);
     }, POLL_MS);
     return () => {
       stopped = true;
       clearInterval(renew);
       clearInterval(poll);
-      if (current) void api('DELETE', `/api/live/screens/token/${current}`);
+      if (current) drop(current);
     };
   }, [sessionId, paired, done]);
 

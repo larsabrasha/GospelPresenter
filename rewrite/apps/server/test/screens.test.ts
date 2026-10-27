@@ -129,7 +129,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     expect((await api(h, 'POST', '/api/live/screens/token', {})).status).toBe(401);
   });
 
-  it('a dialog that closes after a TV used its token, before it asked, lets that screen go', async () => {
+  it('a dialog that closes or renews after a TV used its token, before it asked, takes that screen in; a display edit meanwhile keeps its stream', async () => {
     const owner = track(await Window.open(h, org, 'anna'));
     owner.send({ type: 'own', state: ownState('S1') });
     await owner.sessions((s) => s.length === 1);
@@ -137,9 +137,22 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     const used = await tv({ token: made.token });
     const screen = track(await Viewer.open(h, used.body.id, undefined, 'screen'));
     await screen.next((e) => e.type === 'idle');
-    await api(h, 'DELETE', `/api/live/screens/token/${made.token}`, { user: 'anna', org });
-    await screen.next((e) => e.type === 'unpaired');
-    expect((await tv({ id: used.body.id })).body.paired).toBeUndefined();
+    // Not in live_screens yet, and no displays row: an edit to the outputs leaves its stream alone.
+    await admin.client.mutate('createDisplay', { id: 'D9', name: 'Kyrkkaffet', code: 'bcdefgh', kind: 'public' });
+    await admin.client.sync();
+    const dropped = await api<{ screen: { id: string; n: number } | null }>(h, 'DELETE', `/api/live/screens/token/${made.token}?session=S1`, { user: 'anna', org });
+    expect(dropped.body).toEqual({ screen: { id: used.body.id, n: 1 } });
+    owner.send({ type: 'own', state: ownState('S1', { outputs: [used.body.id], slide: slide('Härlig är jorden') }) });
+    expect(await screen.next((e) => e.type === 'slide')).toEqual({ type: 'slide', slide: slide('Härlig är jorden') });
+    expect(screen.ended).toBe(false);
+
+    // Without a live session to take it in, the TV starts again.
+    const { body: other } = await api<{ token: string }>(h, 'POST', '/api/live/screens/token', { user: 'anna', org });
+    const lost = await tv({ token: other.token });
+    const lostScreen = track(await Viewer.open(h, lost.body.id, undefined, 'screen'));
+    await lostScreen.next((e) => e.type === 'idle');
+    expect((await api(h, 'DELETE', `/api/live/screens/token/${other.token}?session=S9`, { user: 'anna', org })).body).toEqual({ screen: null });
+    await lostScreen.next((e) => e.type === 'unpaired');
   });
 
   it("pairs only for the caller's own session", async () => {

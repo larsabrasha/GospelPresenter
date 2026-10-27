@@ -324,10 +324,12 @@ worker.get('/api/screen/:id/*', async (c) => {
   if (!target) return c.json({ error: 'not-found' }, 404);
   return toOutput(c, { ...target, displayId: c.req.param('id') }, c.req.param('id'));
 });
+// Made once per isolate, like the auth routes: every TV showing a code asks every 3 s.
+let screenStart: Hono | undefined;
 worker.post('/api/screen', async (c) => {
   const { accounts } = await globals(c.env);
-  const screens = new ScreenRegistry(d1Sql(c.env.DB));
-  return screenStartRoutes({ screens, accounts, clientAddress: (x) => x.req.header('cf-connecting-ip') ?? 'unknown' }).fetch(c.req.raw);
+  screenStart ??= screenStartRoutes({ screens: new ScreenRegistry(d1Sql(c.env.DB)), accounts, clientAddress: (x) => x.req.header('cf-connecting-ip') ?? 'unknown' });
+  return screenStart.fetch(c.req.raw);
 });
 
 worker.all('*', async (c) => {
