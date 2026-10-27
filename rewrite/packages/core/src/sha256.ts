@@ -13,8 +13,38 @@ const K = new Uint32Array([
   0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
 ]);
 
-/** The SHA-256 of bytes. */
+/** The SHA-256 of bytes, in one go. */
 export function sha256(data: Uint8Array): Uint8Array {
+  const run = digest(data);
+  let step = run.next();
+  while (!step.done) step = run.next();
+  return step.value;
+}
+
+/** Waits for the next task: a timer, so queued messages are answered first. (Typed here: the core has no DOM types.) */
+const nextTask = () => new Promise<void>((r) => (globalThis as unknown as { setTimeout(fn: () => void, ms: number): unknown }).setTimeout(r, 0));
+
+/** How much is hashed between two breaks: 256 KiB, a few milliseconds on a tablet. */
+const SLICE_BLOCKS = 4096;
+
+/**
+ * The SHA-256 of bytes, giving the thread back every 256 KiB. On a page
+ * without Web Crypto the hash runs on the thread that also answers the
+ * page's queries (the database worker); a 20 MB audio file hashed in one go
+ * would hold them for seconds.
+ */
+export async function sha256Async(data: Uint8Array, pause: () => Promise<void> = nextTask): Promise<Uint8Array> {
+  const run = digest(data);
+  let step = run.next();
+  while (!step.done) {
+    await pause();
+    step = run.next();
+  }
+  return step.value;
+}
+
+/** The hash, yielding after every SLICE_BLOCKS blocks so a caller may pause between slices. */
+function* digest(data: Uint8Array): Generator<void, Uint8Array> {
   const h = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
   // The message, a 1 bit, zeros, and its length in bits as 64 bits big-endian, to a multiple of 64 bytes.
   const length = data.length;
@@ -28,6 +58,7 @@ export function sha256(data: Uint8Array): Uint8Array {
   const w = new Uint32Array(64);
   const rotr = (x: number, n: number) => (x >>> n) | (x << (32 - n));
   for (let block = 0; block < padded.length; block += 64) {
+    if (block > 0 && (block / 64) % SLICE_BLOCKS === 0) yield;
     for (let i = 0; i < 16; i++) w[i] = view.getUint32(block + i * 4, false);
     for (let i = 16; i < 64; i++) {
       const s0 = rotr(w[i - 15]!, 7) ^ rotr(w[i - 15]!, 18) ^ (w[i - 15]! >>> 3);

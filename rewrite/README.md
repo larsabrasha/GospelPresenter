@@ -401,6 +401,18 @@ background, and sizes the text from the viewport, never larger than the theme's 
 title is the organisation's name. Tested in `apps/server/test/watch.test.ts` (three adapters) and
 `apps/desktop/e2e/watch.spec.ts` (a phone played by Playwright's Chromium).
 
+### A tablet over plain http
+
+A phone or tablet that opens the desktop host at its LAN address over http is not a secure context (ADR 0007
+decision 7: https on the LAN was rejected). It has no OPFS, so it keeps its data in memory and says so; no
+`crypto.randomUUID`, so ids come from `randomId` (core), which falls back to `getRandomValues`; and no
+`crypto.subtle`, so SHA-256 (checking every downloaded picture, audio file and Bible text, and naming an import)
+is plain JavaScript (`packages/core/src/sha256.ts`). That runs on the database worker's thread, so it gives
+the thread back every 256 KiB: hashed in one go, a 19 MB audio file being fetched held the page's queries, and
+"Ta kontroll" took about 830 ms with the CPU slowed four times, against about 125 ms now
+(`apps/desktop/e2e/performance.spec.ts` keeps it under 500 ms). `apps/desktop/e2e/remote.spec.ts` opens the
+host from Chromium at the machine's LAN address and checks it is not a secure context.
+
 ### Addresses
 
 The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/songs`,
@@ -420,15 +432,15 @@ a real Google client registered with the old one must get the new one.
 
 ## Next steps
 
-Where to pick up. Milestones 1–5 are on branch `claude/milestone-1`, which also carries the latest ADR
+Where to pick up. Milestones 1–5, and the live work after them, are on branch `claude/milestone-1`, which also carries the latest ADR
 0007 and spec (decisions up to D31); `claude/rewrite-behavior-spec` is behind it.
 
 1. **A trial deploy to Cloudflare**, at any point and only with Lars's go-ahead: a temporary
    Worker and D1, measured and then deleted, as the sync spike did. Still unproven there: migrating an
    existing Durable Object (schema and triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys,
    Google sign-in against a real Google client, and R2 as the media storage (tested against Miniflare's R2 only).
-2. **The rest of live** (spec 04): paired screens (`/display`), overlays and audio. Stage view, remote
-   control and public outputs are done (see "Not done yet" for what they lack).
+2. **The rest of live** (spec 04): overlays (with the changes in TODO.md) and paired screens (`/display`).
+   Stage view, remote control, public outputs and audio are done (see "Not done yet" for what they lack).
 3. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
 4. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
    per D32 (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app
@@ -469,12 +481,11 @@ superadmin's Aktiva sessioner; overlays and audio commands, which do not exist y
 (kept for the tab's life), also in the desktop app, rather than derived from the device token (spec 04): a
 desktop that restarts starts a new session, and the old one stays frozen until someone ends it or 2 hours
 pass. Two operator windows on one machine share their pointer (one BroadcastChannel) and so show as two
-sessions that move together. The 2-second warning is written but not tested. The audio test that uploads 25 MB to Miniflare failed once in a
-full run and passed in five runs after; it may be slow there under load.
+sessions that move together. The 2-second warning is written but not tested.
 
 From spec 04: the stage view (Scenläge, a button on the live page, `pages/StageView.tsx`) is built for the
-operator's own session only: no overlays button (overlays do not exist), no audio items, no `?stage=true` in
-the URL, and no remote controller (there is no remote control yet). Next and previous stay within the selected
+operator's own session and a controller's: no overlays button (overlays do not exist), and no `?stage=true` in
+the URL. Next and previous stay within the selected
 item (LIVE-R41); the page's own step keys, which cross items, are off while it is open. It is tested in
 `e2e/milestone6.spec.ts`. The wake lock is requested but not tested.
 

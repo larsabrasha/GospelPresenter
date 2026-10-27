@@ -1,4 +1,4 @@
-import { sha256 } from './sha256.ts';
+import { sha256Async } from './sha256.ts';
 
 // Web platform APIs that browsers, Node 22+ and Workers all have, but that
 // this package's types (ES2023 only, no DOM) do not describe. Typed here once,
@@ -63,6 +63,6 @@ export async function sha256Hex(text: string): Promise<string> {
  */
 export async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
   const subtle = web.crypto.subtle;
-  const digest = subtle ? new Uint8Array(await subtle.digest('SHA-256', bytes)) : sha256(bytes);
+  const digest = subtle ? new Uint8Array(await subtle.digest('SHA-256', bytes)) : await sha256Async(bytes);
   return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
 }

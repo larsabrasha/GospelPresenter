@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sha256, utf8Encode } from '@gp/core';
+import { sha256, sha256Async, utf8Encode } from '@gp/core';
 
 const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
 const subtle = (globalThis as unknown as { crypto: { subtle: { digest(a: string, d: Uint8Array): Promise<ArrayBuffer> } } }).crypto.subtle;
@@ -12,6 +12,15 @@ describe('sha256 without Web Crypto', () => {
     expect(hex(sha256(utf8Encode('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq')))).toBe(
       '248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1',
     );
+  });
+
+  it('in slices gives the same hash, and gives the thread back every 256 KiB', async () => {
+    const data = Uint8Array.from({ length: 1024 * 1024 + 7 }, (_, i) => (i * 13) & 0xff);
+    let pauses = 0;
+    const sliced = await sha256Async(data, async () => void pauses++);
+    expect(hex(sliced)).toBe(hex(sha256(data)));
+    expect(pauses).toBe(4); // 1 MiB and a little: four breaks
+    expect(hex(await sha256Async(utf8Encode('abc')))).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
   });
 
   it('agrees with Web Crypto at every padding boundary and on a megabyte', async () => {

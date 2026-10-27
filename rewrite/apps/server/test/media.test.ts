@@ -30,6 +30,21 @@ function put(h: Harness, org: string, user: string | null, hash: string, body: U
   });
 }
 
+/**
+ * A too-large upload is refused from its content-length, before the body is
+ * read: the client gets the 413, or, when the server closes the connection
+ * while the body is still being sent (workerd does), a broken pipe. Either is
+ * a refusal; a stored file would be a 204.
+ */
+async function refusedAsTooLarge(response: Promise<Response>): Promise<boolean> {
+  try {
+    return (await response).status === 413;
+  } catch (e) {
+    const code = (e as { cause?: { code?: string } }).cause?.code;
+    return code === 'EPIPE' || code === 'ECONNRESET';
+  }
+}
+
 function get(h: Harness, org: string, user: string | null, hash: string) {
   return fetch(`${h.url}/api/media/${hash}`, { headers: user ? { authorization: `Bearer ${tokenOf(h, org, user)}` } : {} });
 }
@@ -113,7 +128,7 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
     expect([textRes.status, ((await textRes.json()) as { error: string }).error]).toEqual([400, 'invalid-image']);
     expect((await put(h, org, 'alice', await sha256HexBytes(new Uint8Array()), new Uint8Array())).status).toBe(400);
     const big = jpeg('big', MEDIA_LIMITS.blobBytes + 1);
-    expect((await put(h, org, 'alice', await sha256HexBytes(big), big)).status).toBe(413);
+    expect(await refusedAsTooLarge(put(h, org, 'alice', await sha256HexBytes(big), big))).toBe(true);
     expect((await get(h, org, 'alice', hash)).status).toBe(404); // none of it was kept
   });
 
@@ -396,10 +411,10 @@ describe.each(adapters)('%s adapter: audio files', (adapterName) => {
     expect(res.headers.get('content-type')).toBe('audio/ogg');
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
     const big = ogg('big', 25 * 1024 * 1024);
-    expect((await put(h, org, 'bob', await sha256HexBytes(big), big)).status).toBe(413);
+    expect(await refusedAsTooLarge(put(h, org, 'bob', await sha256HexBytes(big), big))).toBe(true);
     // A picture is held to its own 10 MiB, sound or not.
     const bigPicture = jpeg('big-picture', MEDIA_LIMITS.blobBytes + 1);
-    expect((await put(h, org, 'bob', await sha256HexBytes(bigPicture), bigPicture)).status).toBe(413);
+    expect(await refusedAsTooLarge(put(h, org, 'bob', await sha256HexBytes(bigPicture), bigPicture))).toBe(true);
   });
 
   it('syncs one row; a device fetches the file only once a presentation uses it; purged, it goes', async () => {
