@@ -12,7 +12,7 @@ const session = (id: string, outputs: string[]): LiveSessionInfo => ({
   deviceName: '',
   remote: false,
   ownerOnline: true,
-  pointer: { itemId: null, partIndex: 0, black: false, rev: 0 },
+  pointer: { itemId: null, partIndex: 0, black: false, overlayId: null, rev: 0 },
   outputs: outputs.map((o) => ({ id: o, viewers: 0 })),
   audio: null,
 });

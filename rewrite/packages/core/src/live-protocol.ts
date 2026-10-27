@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OVERLAY_LIMITS } from './live.ts';
 
 // Remote control (spec 04 §2, ADR 0004 as carried over by ADR 0007 decision 4).
 // The window that presents owns its session and drives its own outputs from
@@ -9,11 +10,16 @@ import { z } from 'zod';
 
 const id = z.string().min(1).max(100);
 
-/** The selection a controller asks for: absolute, never "next". */
+/**
+ * The selection a controller asks for: absolute, never "next". `overlayId`
+ * is there only when the controller toggles an overlay; without it, the
+ * owner applies the item's own overlay (`applyLiveChange`).
+ */
 export const liveChangeSchema = z.object({
   itemId: id.nullable(),
   partIndex: z.number().int().min(0).max(10_000),
   black: z.boolean(),
+  overlayId: id.nullable().optional(),
 });
 export type LiveChange = z.infer<typeof liveChangeSchema>;
 
@@ -38,6 +44,8 @@ export const publicSlideSchema = z.object({
   image: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
   credits: z.string().max(PUBLIC_SLIDE_LIMITS.credits).nullable(),
   themeId: z.string().max(100),
+  /** The overlay's text, if one is shown (spec 04 §6). Its picture is not sent: a public output shows text only. */
+  overlay: z.string().max(OVERLAY_LIMITS.content).nullable().default(null),
 });
 export type PublicSlide = z.infer<typeof publicSlideSchema>;
 
@@ -46,7 +54,7 @@ export type PublicSlide = z.infer<typeof publicSlideSchema>;
  * is at most 5 000 characters already; a Bible slide of unusually long verses
  * is the case this guards against.
  */
-export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'>, themeId: string): PublicSlide {
+export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'>, themeId: string, overlay: string | null = null): PublicSlide {
   let budget: number = PUBLIC_SLIDE_LIMITS.text;
   const verses = slide.verses
     ? slide.verses.slice(0, PUBLIC_SLIDE_LIMITS.segments).flatMap((seg) => {
@@ -63,6 +71,7 @@ export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses
     image: slide.image,
     credits: slide.credits?.slice(0, PUBLIC_SLIDE_LIMITS.credits) ?? null,
     themeId,
+    overlay: overlay?.slice(0, OVERLAY_LIMITS.content) ?? null,
   };
 }
 
@@ -99,7 +108,7 @@ export const liveOwnStateSchema = z.object({
   deviceName: z.string().max(100),
   /** "Tillåt fjärrstyrning" (LIVE-R38, R39). */
   remote: z.boolean(),
-  pointer: liveChangeSchema.extend({ rev: z.number().int().min(0) }),
+  pointer: liveChangeSchema.extend({ overlayId: id.nullable().default(null), rev: z.number().int().min(0) }),
   /** The public outputs this session sends to (LIVE-R23: one session per output). */
   outputs: z.array(id).max(50).default([]),
   /** Outputs another session sends to, which this one takes over ("Ta över"). */

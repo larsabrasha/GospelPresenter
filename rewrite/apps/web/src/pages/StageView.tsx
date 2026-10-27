@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PresentationItem, Theme } from '@gp/core';
+import type { Overlay, PresentationItem, Theme } from '@gp/core';
+import { useShownOverlay } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { useAudio, type AudioControl } from '../live/audio.ts';
 import type { ItemSlides } from '../live/live.ts';
@@ -7,17 +8,19 @@ import type { LiveControl } from '../live/remote.ts';
 import { useLivePointer } from '../live/useLive.ts';
 import { Button } from '../ui/Button.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
+import { OverlayToggles } from './OverlayToggles.tsx';
 
 /**
  * Scenläge (spec 04 §3): a full-screen dark view for a worship leader or a
  * foot pedal. Next and previous stay within the selected item and stop at its
- * ends (LIVE-R41); picking an item puts its first part live. Overlays and
- * audio are not built, so the bar has neither.
+ * ends (LIVE-R41); picking an item puts its first part live. The bar's
+ * Overlays button has a dot while one is on, and opens their toggles.
  */
 export function StageView({
   items,
   slides,
   theme,
+  overlays,
   live,
   audio,
   onLeave,
@@ -25,6 +28,7 @@ export function StageView({
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
   theme: Theme;
+  overlays: Overlay[];
   live: LiveControl;
   audio: AudioControl;
   onLeave: () => void;
@@ -34,6 +38,8 @@ export function StageView({
   const item = items.find((i) => i.id === pointer.itemId) ?? null;
   const parts = item ? (slides.get(item.id)?.slides ?? []) : [];
   const [picking, setPicking] = useState(!item && items.length > 0); // opens by itself with nothing selected
+  const [overlaySheet, setOverlaySheet] = useState(false);
+  const overlay = useShownOverlay(pointer.overlayId);
   const liveRef = useRef<HTMLLIElement>(null);
 
   // The screen stays awake while the view is open.
@@ -67,7 +73,7 @@ export function StageView({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (picking) return;
+      if (picking || overlaySheet) return;
       if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) go(1);
       else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) go(-1);
       else if (e.key === 'Escape') onLeave();
@@ -89,7 +95,19 @@ export function StageView({
         <Button className="grow" aria-haspopup="dialog" onClick={() => setPicking(true)}>
           {item?.title ?? t('stage.choose')}
         </Button>
+        {!!overlays.length && (
+          <Button aria-haspopup="dialog" onClick={() => setOverlaySheet(true)}>
+            {t('overlays.title')}
+            {pointer.overlayId && <span className="overlay-dot" data-testid="overlay-on" />}
+          </Button>
+        )}
       </div>
+      {overlaySheet && (
+        <div className="stage-sheet" role="dialog" aria-label={t('overlays.title')}>
+          <OverlayToggles overlays={overlays} pointer={pointer} live={live} />
+          <Button onClick={() => setOverlaySheet(false)}>{t('common.close')}</Button>
+        </div>
+      )}
       {picking && (
         <div className="stage-sheet" role="dialog" aria-label={t('stage.itemPicker')}>
           {!items.length && <p className="muted">{t('stage.empty')}</p>}
@@ -109,7 +127,7 @@ export function StageView({
         <section>
           <h2>{t('stage.nowShowing')}</h2>
           <div className="stage-now">
-            <SlideView slide={current} theme={theme} label={false} credits={false} />
+            <SlideView slide={current} theme={theme} label={false} credits={false} overlay={pointer.black ? null : overlay} />
             {pointer.black && sound?.playing && <p className="stage-audio">{t('stage.audioPlaying')}</p>}
             {current?.label && (
               <span className="stage-label" style={{ background: current.label.color }}>

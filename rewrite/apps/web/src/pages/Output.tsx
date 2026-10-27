@@ -1,4 +1,4 @@
-import { useData } from '../db/react.tsx';
+import { useData, useShownOverlay } from '../db/react.tsx';
 import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import { slidesOf, type LiveChannel } from '../live/live.ts';
 import { useLivePointer } from '../live/useLive.ts';
@@ -23,9 +23,10 @@ export function Output({ live }: { live: LiveChannel }) {
     },
     [pointer.presentationId, pointer.itemId, pointer.partIndex],
   );
+  const overlay = useShownOverlay(pointer.overlayId);
   return (
     <div className="output" data-testid="output">
-      <SlideView slide={pointer.black ? null : (shown?.slide ?? null)} theme={shown?.theme} label={false} />
+      <SlideView slide={pointer.black ? null : (shown?.slide ?? null)} theme={shown?.theme} label={false} overlay={pointer.black ? null : overlay} />
     </div>
   );
 }

@@ -122,6 +122,8 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .live-items { list-style: none; padding: 0; margin: 0; }
 .live-item { padding: 8px; border-radius: 8px; margin-bottom: 8px; border: 1px solid transparent; }
 .live-item.selected { border-color: var(--accent); }
+.overlay-pill { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--accent); font-size: 0.8rem; font-weight: normal; vertical-align: middle; }
+.overlay-dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--accent); }
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
 .btn.thumb { padding: 0; border: 2px solid transparent; aspect-ratio: 16 / 9; display: block; }
 .btn.thumb.current { border-color: var(--accent); outline: none; }
@@ -137,6 +139,10 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .verse-number { font-size: 0.5em; opacity: 0.4; vertical-align: super; line-height: 0; }
 .slide-label { position: absolute; top: 24px; right: 24px; padding: 8px 20px; border-radius: 12px; font: 600 32px/1.2 system-ui, sans-serif; color: white; z-index: 1; }
 .slide-credits { position: absolute; left: 80px; right: 80px; bottom: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* An overlay (LIVE-R15): above the slide and outside the theme; its text at the top left, 40 px, 60 % white. */
+.slide-overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.slide-overlay-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.slide-overlay-text { position: absolute; top: 48px; left: 80px; right: 80px; font: 400 40px/1.3 system-ui, sans-serif; color: rgba(255, 255, 255, 0.6); text-shadow: 0 0.06em 0.18em rgba(0, 0, 0, 0.65); white-space: pre-line; overflow-wrap: break-word; }
 
 /* Output window */
 .output { position: fixed; inset: 0; background: black; cursor: none; }
@@ -160,6 +166,11 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .image-card .remove { position: absolute; top: 4px; right: 4px; }
 .image-pick { display: block; width: 100%; padding: 0; text-align: left; }
 .image-pick[aria-pressed='true'] .frame { outline: 3px solid var(--accent); }
+.image-card .slide-stage img { max-width: none; max-height: none; }
+.overlay-card { display: block; color: inherit; text-decoration: none; }
+.overlay-thumb { width: 160px; }
+.overlay-preview { max-width: 640px; aspect-ratio: 16 / 9; }
+.field textarea { color: var(--fg); }
 
 /* Stage view (spec 04 section 3) */
 .stage { position: fixed; inset: 0; z-index: 50; background: #111; color: #eee; display: flex; flex-direction: column; gap: 12px; padding: 12px; overflow: auto; }
@@ -188,6 +199,7 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .watch-text { padding: 5vh 5vw; white-space: pre-wrap; overflow-wrap: break-word; }
 .watch-credits { position: absolute; left: 5vw; right: 5vw; bottom: 3vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .watch-image { width: 100%; height: 100%; object-fit: contain; }
+.watch-overlay { position: absolute; top: 3vh; left: 5vw; right: 5vw; text-align: center; color: rgba(255, 255, 255, 0.6); text-shadow: 0 0.06em 0.18em rgba(0, 0, 0, 0.65); white-space: pre-line; font-family: system-ui, sans-serif; }
 .watch-waiting { align-items: center; text-align: center; color: #bbb; font-family: system-ui, sans-serif; gap: 4px; }
 .watch-name { color: white; font-weight: 600; }
 .watch-dots { display: flex; gap: 8px; margin-bottom: 12px; }

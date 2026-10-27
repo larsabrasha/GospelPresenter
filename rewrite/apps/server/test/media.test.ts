@@ -547,6 +547,22 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     expect(await hasMediaBlob(bob.client, p.thumb)).toBe(true);
   });
 
+  it("fetches every overlay's picture once a presentation is open, and counts it as needed for live", async () => {
+    const p = await presentation('P', null, 'with-overlay');
+    const o = await uploaded(h, org, alice, 'overlay');
+    await alice.client.mutate('addImage', imageArgs('OVL-IMG', o.fullHash, o.thumbHash));
+    await alice.client.mutate('createOverlay', { id: 'O', title: 'Kollekt', imageId: 'OVL-IMG' });
+    await alice.client.sync();
+    expect(alice.client.rejected).toEqual([]);
+    await bob.client.sync();
+    const nothingOpen = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false }));
+    expect(nothingOpen.downloaded.toSorted()).toEqual([p.thumb, o.thumbHash].toSorted());
+    expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 3, present: 0 });
+    const open = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false, open: [{ presentationId: 'P', audio: true }] }));
+    expect(open.downloaded).toEqual([o.fullHash, p.full, p.sound]);
+    expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 3, present: 3 });
+  });
+
   it('keeps what is not needed now only within the budget, oldest out first; never what is coming or open', async () => {
     const a = await presentation('A', null, 'budget-a');
     const b = await presentation('B', null, 'budget-b');
@@ -562,5 +578,57 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     expect(await hasMediaBlob(bob.client, a.thumb)).toBe(true);
     expect(await hasMediaBlob(bob.client, b.full)).toBe(true);
     expect(await hasMediaBlob(bob.client, b.sound)).toBe(true);
+  });
+});
+
+describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapterName) => {
+  let h: Harness;
+  let org: string;
+  let bob: Device; // a user: overlays are every role's
+
+  beforeAll(async () => {
+    h = await startAdapter(adapterName, { mediaGraceMs: 0 });
+  }, 60_000);
+  afterAll(async () => {
+    await bob?.client.close();
+    await h?.close();
+  });
+  beforeEach(async () => {
+    await bob?.client.close();
+    org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'bob', org, 'user');
+    bob = await device(h, org, 'bob', 'user');
+  });
+
+  it('a user makes and edits one with a library picture; an item carries it until it is deleted', async () => {
+    const p = await uploaded(h, org, bob, 'swish');
+    await bob.client.mutate('addImage', imageArgs('IMG', p.fullHash, p.thumbHash));
+    await bob.client.mutate('createOverlay', { id: 'O1', title: ' Kollekt ', content: 'Swish 123 456\n ' });
+    await bob.client.mutate('createOverlay', { id: 'O2', title: 'Välkommen' });
+    await bob.client.mutate('updateOverlay', { id: 'O1', imageId: 'IMG' });
+    await bob.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    await bob.client.mutate('addImageToPresentation', { itemId: 'I1', presentationId: 'P', imageId: 'IMG' });
+    await bob.client.mutate('setItemOverlay', { itemId: 'I1', overlayId: 'O1' });
+    await bob.client.sync();
+    expect(bob.client.rejected).toEqual([]);
+    let s = await serverDump(h, org, 'bob');
+    expect(s.tables.overlays).toEqual([
+      { id: 'O1', title: 'Kollekt', content: 'Swish 123 456', image_id: 'IMG', sort: 0 },
+      { id: 'O2', title: 'Välkommen', content: null, image_id: null, sort: 1 },
+    ]);
+    expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', overlay_id: 'O1' }]);
+
+    // An overlay that does not exist, or a picture that does not, is refused; a blank title never saves (PRES-E18).
+    await expect(bob.client.mutate('setItemOverlay', { itemId: 'I1', overlayId: 'NOPE' })).rejects.toThrow('overlay not found');
+    await expect(bob.client.mutate('updateOverlay', { id: 'O1', imageId: 'NOPE' })).rejects.toThrow('image not found');
+    await expect(bob.client.mutate('updateOverlay', { id: 'O1', title: '  ' })).rejects.toThrow();
+
+    // Deleting is permanent, and the item no longer carries it.
+    await bob.client.mutate('deleteOverlay', { id: 'O1' });
+    await bob.client.sync();
+    expect(bob.client.rejected).toEqual([]);
+    s = await serverDump(h, org, 'bob');
+    expect(s.tables.overlays.map((o) => o.id)).toEqual(['O2']);
+    expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', overlay_id: null }]);
   });
 });

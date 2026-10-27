@@ -5,6 +5,7 @@ import {
   type LiveChange,
   type LiveOwnState,
   type LivePointer,
+  type LivePointerChange,
   type LiveServerMessage,
   type LiveSessionInfo,
 } from '@gp/core';
@@ -19,7 +20,7 @@ import { newId } from '../ids.ts';
 /** What the live page and the stage view drive: the window's own LiveChannel, or a session elsewhere. */
 export interface LiveControl {
   readonly pointer: LivePointer;
-  set(change: Partial<Omit<LivePointer, 'rev'>>): void;
+  set(change: LivePointerChange): void;
   subscribe(fn: (p: LivePointer) => void): () => void;
 }
 
@@ -206,15 +207,27 @@ export class RemoteControl implements LiveControl {
 
   get pointer(): LivePointer {
     const s = this.session();
-    const reported = s?.pointer ?? { itemId: null, partIndex: 0, black: false, rev: 0 };
+    const reported = s?.pointer ?? { itemId: null, partIndex: 0, black: false, overlayId: null, rev: 0 };
     const shown = this.pending && !matches(reported, this.pending.change) ? { ...reported, ...this.pending.change } : reported;
-    return { presentationId: s?.presentationId ?? null, itemId: shown.itemId, partIndex: shown.partIndex, black: shown.black, rev: reported.rev };
+    return {
+      presentationId: s?.presentationId ?? null,
+      itemId: shown.itemId,
+      partIndex: shown.partIndex,
+      black: shown.black,
+      overlayId: shown.overlayId ?? null,
+      rev: reported.rev,
+    };
   }
 
-  set(change: Partial<Omit<LivePointer, 'rev'>>) {
+  set(change: LivePointerChange) {
     const now = this.pointer;
     const next: LiveChange = { itemId: change.itemId ?? now.itemId, partIndex: change.partIndex ?? now.partIndex, black: change.black ?? now.black };
     if (change.itemId === null) next.itemId = null;
+    // Only a toggle names the overlay; the owner applies an item's own (`applyLiveChange`).
+    if (change.overlayId !== undefined) {
+      next.overlayId = change.overlayId;
+      if (change.overlayId) next.black = false; // as the owner does: showing an overlay ends the black screen
+    }
     this.pending = { change: next, at: Date.now() };
     this.link.command(this.sessionId, next);
     clearTimeout(this.timer);
@@ -254,6 +267,7 @@ export class RemoteControl implements LiveControl {
   }
 }
 
+/** Whether a report shows what a command asked for; the overlay counts only when the command named one. */
 function matches(p: LiveChange, c: LiveChange): boolean {
-  return p.itemId === c.itemId && p.partIndex === c.partIndex && p.black === c.black;
+  return p.itemId === c.itemId && p.partIndex === c.partIndex && p.black === c.black && (c.overlayId === undefined || p.overlayId === c.overlayId);
 }

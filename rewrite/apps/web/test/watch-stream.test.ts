@@ -85,7 +85,7 @@ describe('following a public output', () => {
 
   it('passes events on, and stops when the output is full', () => {
     const t = setup(() => 200);
-    t.sources[0]!.fire('slide', { type: 'slide', slide: { kind: 'song', text: 'A', verses: null, image: null, credits: null, themeId: 'classic' } });
+    t.sources[0]!.fire('slide', { type: 'slide', slide: { kind: 'song', text: 'A', verses: null, image: null, credits: null, themeId: 'classic', overlay: null } });
     t.sources[0]!.fire('full', { type: 'full' });
     expect(t.events.map((e) => e.type)).toEqual(['slide', 'full']);
     expect(t.sources[0]!.closed).toBe(true);

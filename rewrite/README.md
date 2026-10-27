@@ -337,6 +337,40 @@ something on the page, and Safari only on an element that has played after such 
 a moment of silence at the operator's first click or key. The e2e shows a controller starting the sound first in
 the desktop app; the browser case, Safari above all, is not tested.
 
+### Overlays
+
+Text, a picture, or both, shown above the live slide (spec 03 §4, spec 04 LIVE-R15). An overlay is a synced row in
+`overlays` (title, text up to 2 000 characters, the id of a library picture, `sort` in the order of creation), and an
+item names the one it carries in `presentation_items.overlay_id` (organisation schema version 8). Everyone may make,
+change and delete them (ManageOverlays is every role's, as in spec 01), at most 200. Overlays (`/admin/overlays`)
+lists them with a preview; one overlay's page has Titel, Textinnehåll and a picture chosen from Bilder, each saved
+when the field loses focus, a preview, and Radera, which asks first and is permanent (no trash). Deleting one
+leaves no item carrying it.
+
+**During live.** The live pointer carries `overlayId`, so the overlay travels with the slide in the same message
+and every output draws it above the slide (text top left, 40 px, 60 % white; the picture over the whole stage,
+contained). The live page has Overlays (collapsed, a dot while one is on) with a toggle each, at most one on; the
+stage view has the same behind its Overlays button. The rules are one pure function, `applyLiveChange` in
+`packages/core/src/live.ts`, which the presenting window runs for its own clicks and for a controller's commands:
+
+- An item that carries an overlay switches it on when it goes live and off when it leaves, if it is still the one
+  shown. The overlay shows on every slide of the item (per item, not per slide; decided 2026-10-27).
+- A manual toggle lasts until the item changes: switched off, it stays off on the item's other slides; going back
+  to the item switches it on again. An overlay chosen by hand that is not the left item's own stays when the item
+  is left (Lars's choice, 2026-10-27).
+- "Svart skärm" and stopping switch the overlay off (a change from LIVE-R16, TODO.md 2026-10-27). Back from
+  black on the same item, it stays off, as after a manual off.
+- Switching an overlay on while black ends the black screen, as selecting a slide does (LIVE-R11).
+
+A controller sends `overlayId` only when it toggles; its slide commands leave the overlay to the presenting
+window. A public output gets the overlay's text with the slide, centred near the top (spec 04 §6), but not its
+picture. The editor has an Overlay choice for the selected item, draws the overlay on the item's tiles, and the
+running order and the live page name the overlay an item carries.
+
+**Files.** Every overlay's picture is fetched with the presentation's files: ahead on a device that keeps its
+data, else once a presentation is open, since any overlay can be switched on during live. "Alla bilder och ljud
+finns på den här enheten" counts them.
+
 ### Which files a device keeps
 
 Every device has every row, but not every file (`syncMedia` and `MediaPolicy` in
@@ -493,26 +527,23 @@ a real Google client registered with the old one must get the new one.
 
 Where to pick up. Milestones 1–5, and the live work after them (stage view, remote control, public outputs,
 audio, files by need, https on the LAN), are on branch `claude/milestone-1`, which also carries the latest ADR
-0007 and spec (decisions up to D32); `claude/rewrite-behavior-spec` is behind it. In this order, as agreed
-with Lars on 2026-10-27:
+0007 and spec (decisions up to D32); `claude/rewrite-behavior-spec` is behind it. Overlays, the first step agreed
+on 2026-10-27, are built (see "Overlays"). The rest, in this order:
 
-1. **Overlays** (spec 04 LIVE-R15, R16), with the two changes and the decision in TODO.md: "Rensa" switches the
-   overlay off, and an item can carry one (per item, not per slide). Still to decide when it is built: what a
-   manual toggle during live does to an item's overlay. Overlay images use the media library.
-2. **Starting the app on a tablet without the host**: a service worker that keeps the built web app, so a
+1. **Starting the app on a tablet without the host**: a service worker that keeps the built web app, so a
    tablet over https on the LAN (see "https on the LAN") can reload and start with the host gone. Its data is
    already in OPFS; only the page itself comes from the host today.
-3. **The client's address behind a reverse proxy** (`X-Forwarded-For` from a trusted proxy only, a setting),
+2. **The client's address behind a reverse proxy** (`X-Forwarded-For` from a trusted proxy only, a setting),
    before anyone self-hosts behind nginx or Caddy: without it every client shares the proxy's address, and the
    throttles (setup token, pairing code, public output codes) lock out a whole church at once.
-4. **Paired screens** (`/display`, spec 04 §5) and QR codes for public outputs, remote control and pairing.
-5. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
-6. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
+3. **Paired screens** (`/display`, spec 04 §5) and QR codes for public outputs, remote control and pairing.
+4. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
+5. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
    deleted, as the sync spike did. Still unproven there: migrating an existing Durable Object (schema and
    triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys, Google sign-in against a real Google client,
    R2 as the media storage (tested against Miniflare's R2 only), live sockets in a hibernating Durable Object,
    and the Worker serving the web app (it serves no static files yet).
-7. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
+6. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
    (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app for tablets
    (ADR 0007 (7)), Android first and iOS later. Lars has said the Capacitor app need not come early: https on
    the LAN covers tablets for now.
@@ -528,8 +559,7 @@ The smaller gaps below can be taken along the way.
 
 ## Not done yet
 
-Overlay images,
-slide-deck pages, profile pictures and logos, templates, English text, mobile, and deploying to
+Slide-deck pages, profile pictures and logos, templates, English text, mobile, and deploying to
 Cloudflare. The Workers adapter is tested in local workerd only.
 
 From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,
@@ -541,6 +571,12 @@ by when a file was last used (it is by when it arrived); live and public URLs
 file input is used, also in Electron); dropping files onto the add dialog. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.
+
+From overlays: the picture on a public output (only the text is sent); reordering (spec 03 Q11, as there);
+saving 500 ms after typing (a field saves when it loses focus, as song fields do); dropping a file onto the
+overlay page (the picture comes from Bilder); the 500 ms fade of the black screen, which would cover the overlay.
+An overlay deleted while it is shown disappears from the outputs at once (spec 04 keeps it until toggled). The
+picture in an overlay is tested in the unit tests (which files are fetched), not drawn in an e2e test.
 
 From audio: HTTP Range on `/api/media`
 (MEDIA-R9: clients play their own copies, so nothing asks for it yet); an item with several files.
@@ -554,14 +590,14 @@ ADR 0007 leave a Durable Object per output for when that matters.
 
 From spec 04's remote control: the QR code (the link is shown to copy); `?stage=true` in the link; the
 4-hour idle eviction of LIVE-R42 (only an abandoned session, 2 hours without its owner, is ended); the
-superadmin's Aktiva sessioner; overlays and audio commands, which do not exist yet. A session id is per window
+superadmin's Aktiva sessioner. A session id is per window
 (kept for the tab's life), also in the desktop app, rather than derived from the device token (spec 04): a
 desktop that restarts starts a new session, and the old one stays frozen until someone ends it or 2 hours
 pass. Two operator windows on one machine share their pointer (one BroadcastChannel) and so show as two
 sessions that move together. The 2-second warning is written but not tested.
 
 From spec 04: the stage view (Scenläge, a button on the live page, `pages/StageView.tsx`) is built for the
-operator's own session and a controller's: no overlays button (overlays do not exist), and no `?stage=true` in
+operator's own session and a controller's, with the Overlays button; no `?stage=true` in
 the URL. Next and previous stay within the selected
 item (LIVE-R41); the page's own step keys, which cross items, are off while it is open. It is tested in
 `e2e/milestone6.spec.ts`. The wake lock is requested but not tested.

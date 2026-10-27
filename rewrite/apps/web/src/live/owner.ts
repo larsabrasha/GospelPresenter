@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { toPublicSlide, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
-import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
+import { getOverlay, getPresentation, itemsOf, shownOverlay, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import { slidesOf, type LiveChannel } from './live.ts';
 import type { AudioEngine } from './audio.ts';
@@ -79,7 +79,7 @@ async function publicSlide(db: ReadDb, p: LivePointer): Promise<PublicSlide | nu
   const slide = item ? (await slidesOf(db, item)).slides[p.partIndex] : undefined;
   if (!slide) return null;
   const theme = await themeOf(db, await getPresentation(db, p.presentationId));
-  return toPublicSlide(slide, theme.id);
+  return toPublicSlide(slide, theme.id, (await shownOverlay(db, p.overlayId))?.content ?? null);
 }
 
 /**
@@ -108,23 +108,39 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
         presentationName: presentation?.name ?? '',
         deviceName: deviceName(),
         remote: remoteAllowed(),
-        pointer: { itemId: p.itemId, partIndex: p.partIndex, black: p.black, rev: p.rev },
+        pointer: { itemId: p.itemId, partIndex: p.partIndex, black: p.black, overlayId: p.overlayId, rev: p.rev },
         outputs: chosen,
         takeOver,
         slide,
         audio: audio.state(),
       });
     };
-    const off = live.subscribe((p) => void report(p));
+    // The overlays the presenting presentation's items carry, for `live.set` (TODO.md "Overlays").
+    let loading = 0;
+    const loadOverlays = async (presentationId: string | null) => {
+      const mine = ++loading;
+      const items = presentationId ? await itemsOf(db, presentationId) : [];
+      if (mine === loading) live.itemOverlays = new Map(items.map((i) => [i.id, i.overlayId]));
+    };
+    let presenting: string | null = null;
+    const off = live.subscribe((p) => {
+      if (p.presentationId !== presenting) void loadOverlays((presenting = p.presentationId));
+      void report(p);
+    });
     const again = () => void report(live.pointer);
     addEventListener(REMOTE_CHANGED, again);
     // An edit to what is showing, or a new theme, reaches the public outputs too.
-    const offDb = db.onChange(() => chosen.length && again());
+    const offDb = db.onChange(() => {
+      void loadOverlays(presenting);
+      if (chosen.length) again();
+    });
     const offCommand = link.onCommand(async (target, change) => {
       const p = live.pointer;
       if (target !== sessionId || !p.presentationId) return;
       if (change.itemId && !(await itemsOf(db, p.presentationId)).some((i) => i.id === change.itemId)) return;
-      if (p.itemId === change.itemId && p.partIndex === change.partIndex && p.black === change.black) return;
+      if (change.overlayId && !(await getOverlay(db, change.overlayId))) return; // deleted meanwhile (LIVE-R49)
+      const sameOverlay = change.overlayId === undefined || change.overlayId === p.overlayId;
+      if (p.itemId === change.itemId && p.partIndex === change.partIndex && p.black === change.black && sameOverlay) return;
       live.set(change);
     });
     const offSessions = link.subscribe(() => settleTakeOver(link.sessions, sessionId));

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useId, useState, type ReactNode }
 import { presentationMediaState } from '@gp/sync/client';
 import type { Db } from './db.ts';
 import type { DbStatus } from './protocol.ts';
-import { blobUrl } from './queries.ts';
+import { blobUrl, shownOverlay, type ShownOverlay } from './queries.ts';
 import type { ReadDb } from './share.ts';
 
 const DbContext = createContext<Db | null>(null);
@@ -75,6 +75,11 @@ export function useDbStatus(): DbStatus | undefined {
 /** The object URL of a stored picture blob, or null while there is none (not synced to this device yet, or no hash). */
 export function useBlobUrl(hash: string | null): string | null {
   return useData(async (db) => (hash ? blobUrl(db, hash) : null), [hash]) ?? null;
+}
+
+/** What the overlay `id` shows, or null for none (or one deleted meanwhile). */
+export function useShownOverlay(id: string | null): ShownOverlay | null {
+  return useData((db) => shownOverlay(db, id), [id]) ?? null;
 }
 
 /**

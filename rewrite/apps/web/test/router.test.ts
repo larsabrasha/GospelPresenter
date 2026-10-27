@@ -27,6 +27,8 @@ describe('routes', () => {
       { page: 'bibles' },
       { page: 'images' },
       { page: 'audios' },
+      { page: 'overlays' },
+      { page: 'overlay', id: 'O 1/2' },
       { page: 'themes' },
       { page: 'displays' },
       { page: 'watch', code: 'abcdefg' },
@@ -52,7 +54,7 @@ describe('routes', () => {
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {
-    for (const page of ['users', 'devices', 'bibles', 'images', 'audios', 'themes', 'displays'] as const) {
+    for (const page of ['users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays'] as const) {
       const path = href({ page });
       expect(path).toBe(`/admin/${page}`);
       expect(path).not.toMatch(/^\/api/);

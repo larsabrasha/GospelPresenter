@@ -24,6 +24,8 @@ export type Route =
   | { page: 'bibles' }
   | { page: 'images' }
   | { page: 'audios' }
+  | { page: 'overlays' }
+  | { page: 'overlay'; id: string }
   | { page: 'displays' }
   /** A public output (spec 04 §6): anonymous, no database. */
   | { page: 'watch'; code: string }
@@ -66,12 +68,12 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'bibles') return { page: 'bibles' };
     if (second === 'images') return { page: 'images' };
     if (second === 'audios') return { page: 'audios' };
+    if (second === 'overlays') return third ? { page: 'overlay', id: third } : { page: 'overlays' };
     if (second === 'themes') return { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
     return { page: 'songs' };
   }
   const id = second;
-  void third;
   if (first === 'trash') {
     // `?kind=` is case-insensitive; an unknown kind means everything.
     const kind = query.get('kind')?.toLowerCase();
@@ -93,7 +95,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'songs' };
 }
 
-const ADMIN_PAGES = new Set(['users', 'devices', 'bibles', 'images', 'audios', 'themes', 'displays']);
+const ADMIN_PAGES = new Set(['users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays']);
 
 export function href(r: Route): string {
   switch (r.page) {
@@ -101,6 +103,8 @@ export function href(r: Route): string {
       return `/songs/${encodeURIComponent(r.id)}`;
     case 'presentation':
       return `/presentations/${encodeURIComponent(r.id)}`;
+    case 'overlay':
+      return `/admin/overlays/${encodeURIComponent(r.id)}`;
     case 'live': {
       const path = `/live/${encodeURIComponent(r.id)}`;
       if (!r.remote) return path;

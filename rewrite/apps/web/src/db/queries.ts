@@ -8,6 +8,7 @@ import {
   type LibraryAudio,
   type Label,
   type LibraryImage,
+  type Overlay,
   type Presentation,
   type PresentationItem,
   type SearchableSong,
@@ -58,6 +59,7 @@ const item = (r: Row): PresentationItem => ({
   sort: Number(r.sort),
   arrangementId: (r.arrangement_id as string | null) ?? null,
   content: (r.content as string | null) ?? null,
+  overlayId: (r.overlay_id as string | null) ?? null,
 });
 
 const arrangement = (r: Row): SongArrangement => ({
@@ -305,4 +307,39 @@ export async function isPinned(db: ReadDb, presentationId: string): Promise<bool
 /** The presentations kept offline on this device. */
 export async function pinnedIds(db: ReadDb): Promise<Set<string>> {
   return new Set((await db.query<{ id: string }>('SELECT id FROM pinned_presentations')).map((r) => r.id));
+}
+
+// ------------------------------------------------------------------ overlays
+
+const overlay = (r: Row): Overlay => ({
+  id: String(r.id),
+  title: String(r.title),
+  content: (r.content as string | null) ?? null,
+  imageId: (r.image_id as string | null) ?? null,
+  sort: Number(r.sort),
+});
+
+/** The organisation's overlays, in the order they were made (PRES-R18). */
+export async function listOverlays(db: ReadDb): Promise<Overlay[]> {
+  return (await db.query('SELECT * FROM overlays ORDER BY sort, id')).map(overlay);
+}
+
+export async function getOverlay(db: ReadDb, id: string): Promise<Overlay | null> {
+  const [r] = await db.query('SELECT * FROM overlays WHERE id = ?', [id]);
+  return r ? overlay(r) : null;
+}
+
+/** What an overlay shows: its text, and its picture's `full` blob. A purged picture is left out. */
+export interface ShownOverlay {
+  content: string | null;
+  imageHash: string | null;
+}
+
+export async function shownOverlay(db: ReadDb, id: string | null): Promise<ShownOverlay | null> {
+  if (!id) return null;
+  const [r] = await db.query<{ content: string | null; full_hash: string | null }>(
+    'SELECT o.content, i.full_hash FROM overlays o LEFT JOIN images i ON i.id = o.image_id WHERE o.id = ?',
+    [id],
+  );
+  return r ? { content: r.content, imageHash: r.full_hash } : null;
 }

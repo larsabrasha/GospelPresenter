@@ -77,7 +77,7 @@ class Viewer {
 
 const randomViewer = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('');
 
-const slide = (text: string, over: Partial<PublicSlide> = {}): PublicSlide => ({ kind: 'song', text, verses: null, image: null, credits: 'Anna', themeId: 'midnight', ...over });
+const slide = (text: string, over: Partial<PublicSlide> = {}): PublicSlide => ({ kind: 'song', text, verses: null, image: null, credits: 'Anna', themeId: 'midnight', overlay: null, ...over });
 
 describe.each(adapters)('%s adapter: public outputs', (adapterName) => {
   let h: Harness;

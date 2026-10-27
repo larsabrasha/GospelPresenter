@@ -25,12 +25,22 @@ function fluid(size: number, min: number): string {
   return `clamp(${min}px, min(${((size / 1920) * 100 * 1.6).toFixed(3)}vw, ${((size / 1080) * 100).toFixed(3)}vh), ${size}px)`;
 }
 
+/** An overlay's text (spec 04 §6): centred near the top, 60 % white, sized like the credits. */
+function PublicOverlay({ text }: { text: string | null }) {
+  return text ? (
+    <div className="watch-overlay" data-testid="watch-overlay" style={{ fontSize: fluid(40, 11) }}>
+      {text}
+    </div>
+  ) : null;
+}
+
 function PublicSlideView({ code, slide }: { code: string; slide: PublicSlide }) {
   const theme = resolveTheme(slide.themeId, null);
   if (slide.kind === 'media') {
     return (
       <div className="watch-slide" style={stageCss(theme, 'media')}>
         {slide.image && <img className="watch-image" src={`/api/watch/${encodeURIComponent(code)}/image/${slide.image}`} alt="" data-testid="watch-image" />}
+        <PublicOverlay text={slide.overlay} />
       </div>
     );
   }
@@ -55,6 +65,7 @@ function PublicSlideView({ code, slide }: { code: string; slide: PublicSlide }) 
           {slide.credits}
         </div>
       )}
+      <PublicOverlay text={slide.overlay} />
     </div>
   );
 }

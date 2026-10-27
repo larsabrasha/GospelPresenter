@@ -11,6 +11,7 @@ import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
 import { Bibles } from './pages/Bibles.tsx';
 import { Audios } from './pages/Audios.tsx';
+import { OverlayEditor, Overlays } from './pages/Overlays.tsx';
 import { Devices } from './pages/Devices.tsx';
 import { Displays } from './pages/Displays.tsx';
 import { Images } from './pages/Images.tsx';
@@ -141,6 +142,11 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
                 {t('nav.audios')}
               </a>
             )}
+            {can(me.role, 'ManageOverlays') && (
+              <a href={href({ page: 'overlays' })} aria-current={route.page.startsWith('overlay') ? 'page' : undefined}>
+                {t('overlays.title')}
+              </a>
+            )}
             <a href={href({ page: 'themes' })} aria-current={route.page === 'themes' ? 'page' : undefined}>
               {t('nav.themes')}
             </a>
@@ -178,6 +184,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
           {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <p>{t('images.forbidden')}</p>)}
           {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <p>{t('audios.forbidden')}</p>)}
+          {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <p>{t('overlays.forbidden')}</p>)}
+          {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <p>{t('overlays.forbidden')}</p>)}
           {route.page === 'themes' && <Themes role={me.role} />}
           {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <p>{t('displays.forbidden')}</p>)}
         </main>

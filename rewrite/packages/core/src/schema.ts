@@ -83,6 +83,8 @@ export const presentationItems = sqliteTable('presentation_items', {
   arrangementId: text('arrangement_id'),
   /** A Bible item's translation and slides (`BibleItemContent` as JSON); null for a song. */
   content: text('content'),
+  /** The overlay that switches on when the item goes live and off when it leaves (TODO.md "Overlays"); null for none. */
+  overlayId: text('overlay_id'),
 });
 
 /**
@@ -136,6 +138,20 @@ export const audios = sqliteTable('audios', {
   createdAt: integer('created_at').notNull(),
   /** Set while the file is in the trash (MEDIA-R8). */
   deletedAt: integer('deleted_at'),
+});
+
+/**
+ * An overlay (spec 03 "OverlaySlide"): text, a picture, or both, shown above
+ * the live slide (LIVE-R15). The picture is one of the media library's, by
+ * id: a trashed picture still shows, a purged one is left out. `sort` is the
+ * order of creation (spec 03 has no reordering).
+ */
+export const overlays = sqliteTable('overlays', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  content: text('content'),
+  imageId: text('image_id'),
+  sort: integer('sort').notNull(),
 });
 
 /**
@@ -218,6 +234,7 @@ export const schema = {
   images,
   displays,
   audios,
+  overlays,
   bibleTexts,
   bibleBlobs,
   mediaBlobs,
@@ -225,7 +242,7 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images, displays, audios];
+export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -237,9 +254,10 @@ export type Bible = typeof bibles.$inferSelect;
 export type LibraryImage = typeof images.$inferSelect;
 export type Display = typeof displays.$inferSelect;
 export type LibraryAudio = typeof audios.$inferSelect;
+export type Overlay = typeof overlays.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
 const bibleDdl = [
@@ -272,6 +290,12 @@ const audioDdl = [
 /** The table version 7 added: presentations this device keeps offline (not synced). */
 const pinDdl = [`CREATE TABLE IF NOT EXISTS pinned_presentations (id TEXT PRIMARY KEY NOT NULL, pinned_at INTEGER NOT NULL)`];
 
+/** The table version 8 added: overlays. Items name theirs in a new column. */
+const overlayDdl = [
+  `CREATE TABLE IF NOT EXISTS overlays (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT, image_id TEXT,
+     sort INTEGER NOT NULL)`,
+];
+
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
 // brought up to date by `orgMigrations` instead (see `orgSchemaPlan`).
@@ -289,12 +313,13 @@ export const orgDdl: string[] = [
      deleted_at INTEGER, theme_id TEXT)`,
   `CREATE TABLE IF NOT EXISTS presentation_items (id TEXT PRIMARY KEY NOT NULL,
      presentation_id TEXT NOT NULL REFERENCES presentations(id), type TEXT NOT NULL, title TEXT NOT NULL,
-     source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT)`,
+     source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT, overlay_id TEXT)`,
   ...bibleDdl,
   ...mediaDdl,
   ...displayDdl,
   ...audioDdl,
   ...pinDdl,
+  ...overlayDdl,
 ];
 
 /** The statements that take a database from version `n - 1` to `n`. */
@@ -309,6 +334,7 @@ export const orgMigrations: Record<number, string[]> = {
   5: displayDdl,
   6: audioDdl,
   7: pinDdl,
+  8: [...overlayDdl, `ALTER TABLE presentation_items ADD COLUMN overlay_id TEXT`],
 };
 
 /** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */

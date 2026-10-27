@@ -6,7 +6,8 @@ import { labelDefaults, labelId } from './labels.ts';
 import { can, type Permission, type Role } from './permissions.ts';
 import { DISPLAY_CODE, MAX_DISPLAYS } from './displays.ts';
 import { MEDIA_LIMITS } from './media.ts';
-import { audios, bibleBlobs, bibles, bibleTexts, displays, images, labels, mediaBlobs, orgSettings, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
+import { OVERLAY_LIMITS } from './live.ts';
+import { audios, bibleBlobs, bibles, bibleTexts, displays, images, labels, mediaBlobs, orgSettings, overlays, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
 import { isKnownTheme } from './themes.ts';
 import { parsePartIds } from './slides.ts';
 import { TRASH_RETENTION_MS } from './trash.ts';
@@ -524,6 +525,21 @@ async function setItemArrangement(tx: Tx, a: z.output<typeof setItemArrangementA
   await tx.update(presentationItems).set({ arrangementId }).where(eq(presentationItems.id, a.itemId));
 }
 
+const setItemOverlayArgs = z.object({ itemId: id, overlayId: id.nullable() });
+/**
+ * Chooses the overlay an item carries (TODO.md "Overlays"): it switches on
+ * when the item goes live and off when it leaves. Null for none.
+ */
+async function setItemOverlay(tx: Tx, a: z.output<typeof setItemOverlayArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  requirePermission(ctx, 'ViewOverlays');
+  if (a.overlayId !== null) {
+    const [o] = await tx.select({ id: overlays.id }).from(overlays).where(eq(overlays.id, a.overlayId));
+    if (!o) throw new MutationError('not-found', 'overlay not found');
+  }
+  await tx.update(presentationItems).set({ overlayId: a.overlayId }).where(eq(presentationItems.id, a.itemId));
+}
+
 const reorderItemsArgs = z.object({ presentationId: id, itemIds: z.array(id).max(1000) });
 /** Puts the named items first, in the given order; other items keep their order after them. */
 async function reorderItems(tx: Tx, a: z.output<typeof reorderItemsArgs>, ctx: MutatorCtx) {
@@ -762,6 +778,47 @@ async function addAudioToPresentation(tx: Tx, a: z.output<typeof addAudioToPrese
   });
 }
 
+// ------------------------------------------------------------------ overlays (spec 03 §4, spec 04 LIVE-R15)
+
+/** A library picture, or not-found. A trashed one may be chosen: it still shows (MEDIA-R8). */
+async function requireImage(tx: Tx, imageId: string | null | undefined) {
+  if (!imageId) return;
+  const [i] = await tx.select({ id: images.id }).from(images).where(eq(images.id, imageId));
+  if (!i) throw new MutationError('not-found', 'image not found');
+}
+
+const overlayContent = optionalText(OVERLAY_LIMITS.content);
+
+const createOverlayArgs = z.object({ id, title: name, content: overlayContent.optional(), imageId: id.nullable().optional() });
+/** Creates an overlay last in the list (PRES-R10: at most 200). */
+async function createOverlay(tx: Tx, a: z.output<typeof createOverlayArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageOverlays');
+  const [existing] = await tx.select({ id: overlays.id }).from(overlays).where(eq(overlays.id, a.id));
+  if (existing) return;
+  const [n] = await tx.select({ n: count(), last: max(overlays.sort) }).from(overlays);
+  limit((n?.n ?? 0) >= OVERLAY_LIMITS.overlays, 'overlays');
+  await requireImage(tx, a.imageId);
+  await tx.insert(overlays).values({ id: a.id, title: a.title, content: a.content ?? null, imageId: a.imageId ?? null, sort: (n?.last ?? -1) + 1 });
+}
+
+const updateOverlayArgs = z.object({ id, title: name.optional(), content: overlayContent.optional(), imageId: id.nullable().optional() });
+/** Sets only the fields it names, so a title and a text edited on two devices both land. */
+async function updateOverlay(tx: Tx, a: z.output<typeof updateOverlayArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageOverlays');
+  await requireImage(tx, a.imageId);
+  const { id: overlayId, ...fields } = a;
+  const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
+  if (Object.keys(set).length) await tx.update(overlays).set(set).where(eq(overlays.id, overlayId));
+}
+
+const deleteOverlayArgs = z.object({ id });
+/** Permanent, no trash (PRES-R29). Items that carried it carry none. */
+async function deleteOverlay(tx: Tx, a: z.output<typeof deleteOverlayArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageOverlays');
+  await tx.update(presentationItems).set({ overlayId: null }).where(eq(presentationItems.overlayId, a.id));
+  await tx.delete(overlays).where(eq(overlays.id, a.id));
+}
+
 // ------------------------------------------------------------------ bibles
 
 /** Drops a stored text that no translation names any more. */
@@ -955,6 +1012,7 @@ export const mutators = {
   addAudioToPresentation: m(addAudioToPresentationArgs, addAudioToPresentation),
   renameItem: m(renameItemArgs, renameItem),
   setItemArrangement: m(setItemArrangementArgs, setItemArrangement),
+  setItemOverlay: m(setItemOverlayArgs, setItemOverlay),
   reorderItems: m(reorderItemsArgs, reorderItems),
   moveItem: m(moveItemArgs, moveItem),
   removeItem: m(removeItemArgs, removeItem),
@@ -973,6 +1031,9 @@ export const mutators = {
   trashAudio: m(trashAudioArgs, trashAudio),
   restoreAudio: m(restoreAudioArgs, restoreAudio),
   purgeAudio: m(purgeAudioArgs, purgeAudio),
+  createOverlay: m(createOverlayArgs, createOverlay),
+  updateOverlay: m(updateOverlayArgs, updateOverlay),
+  deleteOverlay: m(deleteOverlayArgs, deleteOverlay),
   createDisplay: m(createDisplayArgs, createDisplay),
   newDisplayCode: m(newDisplayCodeArgs, newDisplayCode),
   deleteDisplay: m(deleteDisplayArgs, deleteDisplay),

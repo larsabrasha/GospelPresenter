@@ -22,17 +22,3 @@ To settle when it is built:
 - The server must apply it, not only the UI: the live hub reads the setting and refuses commands under
   "Aldrig", and treats every session as allowing them under "Alltid", whatever a window reports.
 - What happens to a running session when the setting changes: it should take effect at once.
-
-## Overlays (when they are built)
-
-Overlays do not exist in the rewrite yet (spec 04 LIVE-R15, R16). When they are built, two changes from the
-current app:
-
-- **"Rensa" clears the overlay too.** LIVE-R16 keeps an overlay when the screen is blacked; instead the black
-  screen should switch the overlay off. An overlay such as the collection information belongs to what is on now,
-  not to the next song sung later in the service.
-- **An item can carry an overlay.** In the presentation editor, an item can name an
-  overlay that switches on when it goes live and off when it leaves, so nobody has to remember it during the
-  service. **Decided (2026-10-27): per item**, not per slide: the overlay shows while any slide of the item is
-  live. Still to settle: what a manual toggle during live does to it, and how it shows in the editor and on the
-  slide tiles.

@@ -15,6 +15,7 @@ import {
   highlight,
   labelDefaults,
   labelId,
+  applyLiveChange,
   mutators,
   newer,
   orgDdl,
@@ -27,6 +28,8 @@ import {
   songSlides,
   syncedTables,
   type Label,
+  type LivePointer,
+  type LivePointerChange,
   type Song,
   type SongArrangement,
   type SongPart,
@@ -45,9 +48,9 @@ describe('schema', () => {
 
   it('a new database gets the current DDL; a milestone 1 database (no version row) gets the migrations', () => {
     expect(orgSchemaPlan(null, false)).toEqual([...orgDdl, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(null, true)).toEqual([...orgMigrations[2]!, ...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(2, true)).toEqual([...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(3, true)).toEqual([...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+    expect(orgSchemaPlan(null, true)).toEqual([...orgMigrations[2]!, ...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+    expect(orgSchemaPlan(2, true)).toEqual([...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+    expect(orgSchemaPlan(3, true)).toEqual([...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
     expect(orgSchemaPlan(SCHEMA_VERSION, true)).toEqual([]);
     expect(() => orgSchemaPlan(SCHEMA_VERSION + 1, true)).toThrow(/newer than this app/);
     for (let v = 2; v <= SCHEMA_VERSION; v++) expect(orgMigrations[v], `migration to ${v}`).toBeDefined();
@@ -263,8 +266,43 @@ describe('mutator arguments', () => {
 });
 
 describe('live pointer', () => {
+  // TODO.md "Overlays": A carries overlay O, B carries none, C carries O too. P is another overlay.
+  const carried: Record<string, string | null> = { A: 'O', B: null, C: 'O' };
+  const overlayOf = (itemId: string) => carried[itemId] ?? null;
+  const at = (change: Partial<LivePointer>): LivePointer => ({ presentationId: 'P1', itemId: null, partIndex: 0, black: false, overlayId: null, rev: 1, ...change });
+  const apply = (p: LivePointer, change: LivePointerChange) => applyLiveChange(p, change, overlayOf).overlayId;
+
+  it("an item's overlay switches on when it goes live and off when it leaves", () => {
+    expect(apply(at({}), { itemId: 'A', partIndex: 0 })).toBe('O');
+    expect(apply(at({ itemId: 'A', overlayId: 'O' }), { partIndex: 1 })).toBe('O');
+    expect(apply(at({ itemId: 'A', overlayId: 'O' }), { itemId: 'B', partIndex: 0 })).toBeNull();
+    // Two items with the same overlay: it stays on.
+    expect(apply(at({ itemId: 'A', overlayId: 'O' }), { itemId: 'C', partIndex: 0 })).toBe('O');
+  });
+
+  it('a manual off lasts until the item changes; back on the item, its overlay comes on again', () => {
+    const off = applyLiveChange(at({ itemId: 'A', overlayId: 'O' }), { overlayId: null }, overlayOf);
+    expect(off.overlayId).toBeNull();
+    expect(apply({ ...off, rev: 2 }, { partIndex: 1 })).toBeNull();
+    expect(apply(at({ itemId: 'B' }), { itemId: 'A', partIndex: 0 })).toBe('O');
+  });
+
+  it('a manual overlay stays when the item that carried another one is left, and the new item overrides it', () => {
+    expect(apply(at({ itemId: 'A', overlayId: 'P' }), { itemId: 'B', partIndex: 0 })).toBe('P');
+    expect(apply(at({ itemId: 'B', overlayId: 'P' }), { itemId: 'C', partIndex: 0 })).toBe('O');
+  });
+
+  it('Rensa and stopping switch the overlay off; showing one ends the black screen', () => {
+    expect(applyLiveChange(at({ itemId: 'A', overlayId: 'O' }), { black: true }, overlayOf)).toMatchObject({ black: true, overlayId: null });
+    // Back from black on the same item: the overlay stays off, as after a manual off.
+    expect(apply(at({ itemId: 'A', black: true }), { partIndex: 1, black: false })).toBeNull();
+    expect(apply(at({ itemId: 'A', overlayId: 'O' }), { presentationId: null, itemId: null })).toBeNull();
+    expect(applyLiveChange(at({ itemId: 'B', black: true }), { overlayId: 'P' }, overlayOf)).toMatchObject({ black: false, overlayId: 'P' });
+  });
+
+
   it('the higher revision wins, whatever order the messages arrive in', () => {
-    const a = { presentationId: 'P', itemId: 'I1', partIndex: 0, black: false, rev: 1 };
+    const a = { presentationId: 'P', itemId: 'I1', partIndex: 0, black: false, overlayId: null, rev: 1 };
     const b = { ...a, partIndex: 1, rev: 2 };
     expect(newer(a, b)).toBe(b);
     expect(newer(b, a)).toBe(b);

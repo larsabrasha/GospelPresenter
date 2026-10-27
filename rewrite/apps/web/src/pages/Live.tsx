@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { LiveSessionInfo, PresentationItem } from '@gp/core';
-import { useData } from '../db/react.tsx';
+import type { LivePointer, LiveSessionInfo, Overlay, PresentationItem } from '@gp/core';
+import { useData, useShownOverlay } from '../db/react.tsx';
 import { listDisplays } from '../db/queries.ts';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { viewersText } from './Displays.tsx';
-import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
+import { getPresentation, itemsOf, listOverlays, themeOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { RemoteAudio, useAudio, type AudioControl } from '../live/audio.ts';
 import { slidesOf, type ItemSlides } from '../live/live.ts';
@@ -17,6 +17,7 @@ import { MediaReadiness } from '../ui/MediaReadiness.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { StageView } from './StageView.tsx';
+import { OverlayToggles } from './OverlayToggles.tsx';
 
 const problemText = { 'song-missing': t('live.songMissing'), 'song-trashed': t('live.songTrashed'), 'no-parts': t('live.noParts'), 'image-missing': t('live.imageMissing'), 'audio-missing': t('live.audioMissing') };
 
@@ -167,6 +168,20 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
   );
 }
 
+/** Overlays on the live page (spec 04 §1): collapsed by default, with a dot while one is on; absent without overlays. */
+function OverlaysPanel({ overlays, pointer, live }: { overlays: Overlay[]; pointer: LivePointer; live: LiveControl }) {
+  if (!overlays.length) return null;
+  return (
+    <details className="card live-overlays">
+      <summary>
+        {t('overlays.title')}
+        {pointer.overlayId && <span className="overlay-dot" data-testid="overlay-on" />}
+      </summary>
+      <OverlayToggles overlays={overlays} pointer={pointer} live={live} />
+    </details>
+  );
+}
+
 /**
  * A controller (spec 04 §2): which session to drive, from the URL, the only
  * candidate, or a picker; then the same page, writing to that session. Its
@@ -227,10 +242,11 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
       const slides = new Map<string, ItemSlides>();
       for (const item of items) slides.set(item.id, await slidesOf(db, item));
       const presentation = await getPresentation(db, id);
-      return { presentation, theme: await themeOf(db, presentation), items, slides };
+      return { presentation, theme: await themeOf(db, presentation), items, slides, overlays: await listOverlays(db) };
     },
     [id],
   );
+  const overlay = useShownOverlay(pointer.overlayId);
 
   useEffect(() => {
     // Opening the page as the owner starts presenting; a controller drives what is already live.
@@ -272,9 +288,13 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
   const itemRow = (item: PresentationItem) => {
     const s = data.slides.get(item.id)!;
     const selected = item.id === pointer.itemId;
+    const carried = item.overlayId ? data.overlays.find((o) => o.id === item.overlayId) : undefined;
     return (
       <li key={item.id} className={selected ? 'live-item selected' : 'live-item'}>
-        <h3>{item.title}</h3>
+        <h3>
+          {item.title}
+          {carried && <span className="overlay-pill" title={t('overlays.carried')}>{carried.title}</span>}
+        </h3>
         {s.problem && <p className="warning">{problemText[s.problem]}</p>}
         {s.audio && <AudioPlayer control={audio} itemId={item.id} name={s.audio.fileName} />}
         <div className="thumbs">
@@ -296,7 +316,7 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
 
   return (
     <section className="live">
-      {stage && <StageView items={data.items} slides={data.slides} theme={data.theme} live={live} audio={audio} onLeave={() => setStage(false)} />}
+      {stage && <StageView items={data.items} slides={data.slides} theme={data.theme} overlays={data.overlays} live={live} audio={audio} onLeave={() => setStage(false)} />}
       {!owner && <p className="remote-banner">{t('remote.banner')}</p>}
       <div className="row">
         <h1 className="grow">{data.presentation?.name}</h1>
@@ -322,11 +342,12 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
       <MediaReadiness presentationId={id} audio={!!owner} />
       {owner && <OutputsPanel link={link} sessionId={owner.sessionId} />}
       {owner && <RemotePanel id={id} sessionId={owner.sessionId} />}
+      <OverlaysPanel overlays={data.overlays} pointer={pointer} live={live} />
       <div className="live-layout">
         <ol className="live-items">{data.items.map(itemRow)}</ol>
         <aside className="live-preview">
           <h2>{t('live.preview')}</h2>
-          <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} />
+          <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} overlay={pointer.black ? null : overlay} />
         </aside>
       </div>
     </section>

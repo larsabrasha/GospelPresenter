@@ -45,15 +45,18 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
       deviceName: 'Datorn i kyrksalen',
       remote: true,
       ownerOnline: true,
-      pointer: { itemId: 'I1', partIndex: 0, black: false, rev: 1 },
+      pointer: { itemId: 'I1', partIndex: 0, black: false, overlayId: null, rev: 1 },
       outputs: [],
       audio: null,
     });
 
     phone.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 2, black: false } });
     expect(await owner.next((m) => m.type === 'command')).toEqual({ type: 'command', sessionId: 'S1', change: { itemId: 'I1', partIndex: 2, black: false } });
+    // An overlay toggle names the overlay; the owner decides what it does (LIVE-R15).
+    phone.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 0, black: false, overlayId: 'O1' } });
+    expect(await owner.next((m) => m.type === 'command')).toMatchObject({ change: { overlayId: 'O1' } });
     // The phone gets no command, only the owner's echo.
-    owner.send({ type: 'own', state: state('S1', { pointer: { itemId: 'I1', partIndex: 2, black: false, rev: 2 } }) });
+    owner.send({ type: 'own', state: state('S1', { pointer: { itemId: 'I1', partIndex: 2, black: false, overlayId: null, rev: 2 } }) });
     const [echoed] = await phone.sessions((s) => s[0]?.pointer.partIndex === 2);
     expect(echoed!.pointer.rev).toBe(2);
     expect(phone.messages.some((m) => m.type === 'command')).toBe(false);
@@ -101,7 +104,7 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
   it('takes a report with the largest slide a song part can have', async () => {
     const owner = await win('anna');
     const text = 'Härlig är jorden\n'.repeat(300).slice(0, 5000);
-    owner.send({ type: 'own', state: state('S1', { slide: { kind: 'song', text, verses: null, image: null, credits: 'x'.repeat(500), themeId: 'classic' } }) });
+    owner.send({ type: 'own', state: state('S1', { slide: { kind: 'song', text, verses: null, image: null, credits: 'x'.repeat(500), themeId: 'classic', overlay: null } }) });
     const [s] = await owner.sessions((x) => x.length === 1);
     expect(s!.id).toBe('S1');
     expect(owner.messages.some((m) => m.type === 'error')).toBe(false);

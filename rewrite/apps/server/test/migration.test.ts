@@ -143,7 +143,7 @@ describe('client (wa-sqlite)', () => {
     });
     const dump = await client.dump();
     expect(dump.presentation_items).toEqual([
-      { id: 'I1', presentation_id: 'P', type: 'song', title: 'Härlig är jorden', source_id: 'S1', sort: 0, arrangement_id: null, content: null },
+      { id: 'I1', presentation_id: 'P', type: 'song', title: 'Härlig är jorden', source_id: 'S1', sort: 0, arrangement_id: null, content: null, overlay_id: null },
     ]);
     expect(dump.song_arrangements).toEqual([]);
 

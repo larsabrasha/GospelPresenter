@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { CANVAS, CLASSIC, type Slide, type Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
+import type { ShownOverlay } from '../db/queries.ts';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 
 export const STAGE_WIDTH = CANVAS.width;
@@ -33,13 +34,40 @@ function SlideImage({ hash }: { hash: string }) {
 }
 
 /**
+ * An overlay above the slide (LIVE-R15): its picture over the whole stage,
+ * contained, and its text at the top left. Outside the theme.
+ */
+function OverlayLayer({ overlay }: { overlay: ShownOverlay }) {
+  const url = useBlobUrl(overlay.imageHash);
+  return (
+    <div className="slide-overlay" data-testid="slide-overlay">
+      {url && <img className="slide-overlay-image" src={url} alt="" draggable={false} />}
+      {overlay.content && <div className="slide-overlay-text">{overlay.content}</div>}
+    </div>
+  );
+}
+
+/**
  * One slide on a fixed 1920×1080 stage, scaled to fit its container (ADR 0007,
  * decision 8), styled by `theme` (spec 05, THEME-R9). The same component draws
  * previews, thumbnails and the output, so they always agree. `slide` null
  * draws an empty stage: black, whatever the theme, as the black screen must
  * be. The part label is for the operator: tiles show it, outputs never do (LIVE-R20). The stage view draws its preview without credits (spec 04 §3).
+ * `overlay` is drawn above the slide, also when no slide is selected.
  */
-export function SlideView({ slide, theme = CLASSIC, label = true, credits = true }: { slide: Slide | null; theme?: Theme; label?: boolean; credits?: boolean }) {
+export function SlideView({
+  slide,
+  theme = CLASSIC,
+  label = true,
+  credits = true,
+  overlay = null,
+}: {
+  slide: Slide | null;
+  theme?: Theme;
+  label?: boolean;
+  credits?: boolean;
+  overlay?: ShownOverlay | null;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   useLayoutEffect(() => {
@@ -79,6 +107,7 @@ export function SlideView({ slide, theme = CLASSIC, label = true, credits = true
             )}
           </>
         )}
+        {overlay && <OverlayLayer overlay={overlay} />}
       </div>
     </div>
   );

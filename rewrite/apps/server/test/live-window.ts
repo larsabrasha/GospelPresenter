@@ -66,7 +66,7 @@ export const ownState = (sessionId: string, over: Partial<LiveOwnState> = {}): L
   presentationName: 'Söndag',
   deviceName: 'Datorn i kyrksalen',
   remote: true,
-  pointer: { itemId: 'I1', partIndex: 0, black: false, rev: 1 },
+  pointer: { itemId: 'I1', partIndex: 0, black: false, overlayId: null, rev: 1 },
   outputs: [],
   takeOver: [],
   slide: null,

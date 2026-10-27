@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LIVE_MESSAGE_MAX, liveClientMessageSchema, PUBLIC_SLIDE_LIMITS, toPublicSlide, type LiveOwnState } from '@gp/core';
+import { LIVE_MESSAGE_MAX, OVERLAY_LIMITS, liveClientMessageSchema, PUBLIC_SLIDE_LIMITS, toPublicSlide, type LiveOwnState } from '@gp/core';
 
 describe('live reports', () => {
   it('the largest valid report fits the server limit, even when every character needs escaping', () => {
@@ -11,7 +11,7 @@ describe('live reports', () => {
       presentationName: worst.repeat(200),
       deviceName: worst.repeat(100),
       remote: true,
-      pointer: { itemId: id, partIndex: 10_000, black: false, rev: Number.MAX_SAFE_INTEGER },
+      pointer: { itemId: id, partIndex: 10_000, black: false, overlayId: id, rev: Number.MAX_SAFE_INTEGER },
       outputs: Array.from({ length: 50 }, () => id),
       takeOver: Array.from({ length: 50 }, () => id),
       slide: {
@@ -21,6 +21,7 @@ describe('live reports', () => {
         image: 'a'.repeat(64),
         credits: worst.repeat(PUBLIC_SLIDE_LIMITS.credits),
         themeId: id,
+        overlay: worst.repeat(OVERLAY_LIMITS.content),
       },
       audio: { itemId: id, playing: true, position: 86_399.123456789, duration: 86_399.123456789, fading: true },
     };

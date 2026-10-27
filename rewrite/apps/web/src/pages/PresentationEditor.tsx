@@ -1,7 +1,7 @@
 import { listThemes, searchSongs, songSlides, sortedArrangements, type PresentationItem, type SongArrangement, type Theme } from '@gp/core';
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useBlobUrl, useData, useDb } from '../db/react.tsx';
-import { arrangementsOf, getPresentation, getSong, itemsOf, listLabels, searchableSongs, songPartsOf, songsById, themeOf } from '../db/queries.ts';
+import { useBlobUrl, useData, useDb, useShownOverlay } from '../db/react.tsx';
+import { arrangementsOf, getPresentation, getSong, itemsOf, listLabels, listOverlays, searchableSongs, songPartsOf, songsById, themeOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { slidesOf, type ItemSlides } from '../live/live.ts';
@@ -43,12 +43,14 @@ function AudioPreview({ hash, name }: { hash: string; name: string }) {
   return url ? <audio controls src={url} aria-label={name} data-testid="audio-preview" /> : <p className="muted">{t('presentation.audioFetching')}</p>;
 }
 
-function SlideGrid({ slides, label, theme }: { slides: ItemSlides['slides']; label: string; theme: Theme }) {
+/** The slides of an item, or a song in the add dialog; with the overlay the item carries drawn above each. */
+function SlideGrid({ slides, label, theme, overlayId = null }: { slides: ItemSlides['slides']; label: string; theme: Theme; overlayId?: string | null }) {
+  const overlay = useShownOverlay(overlayId);
   return (
     <ol className="thumbs grid" aria-label={label}>
       {slides.map((s, i) => (
         <li key={s.key} className="thumb" aria-label={`${label} ${i + 1}`}>
-          <SlideView slide={s} theme={theme} />
+          <SlideView slide={s} theme={theme} overlay={overlay} />
         </li>
       ))}
     </ol>
@@ -358,6 +360,7 @@ export function PresentationEditor({ id }: { id: string }) {
         slides,
         songs: await songsById(d, songIds),
         arrangements: await arrangementsOf(d, songIds),
+        overlays: await listOverlays(d),
       };
     },
     [id],
@@ -397,7 +400,7 @@ export function PresentationEditor({ id }: { id: string }) {
   }, []);
 
   if (!data) return null;
-  const { presentation, slides, songs, theme } = data;
+  const { presentation, slides, songs, theme, overlays } = data;
   if (!presentation || presentation.deletedAt !== null) return <p>{t('presentation.notFound')}</p>;
 
   const trash = async () => {
@@ -442,6 +445,7 @@ export function PresentationEditor({ id }: { id: string }) {
         <ol className="list items" aria-label={t('presentation.items')}>
           {items.map((item, i) => {
             const problem = slides.get(item.id)?.problem;
+            const carried = item.overlayId ? overlays.find((o) => o.id === item.overlayId) : undefined;
             return (
               <li key={item.id} className={item.id === selectedId ? 'item selected' : 'item'}>
                 <Button
@@ -453,6 +457,11 @@ export function PresentationEditor({ id }: { id: string }) {
                   }}
                 >
                   {item.title}
+                  {carried && (
+                    <span className="overlay-pill" title={t('overlays.carried')}>
+                      {carried.title}
+                    </span>
+                  )}
                   {(problem === 'song-trashed' || problem === 'song-missing' || problem === 'image-missing' || problem === 'audio-missing') && <span className="warning"> ⚠</span>}
                 </Button>
                 <Button aria-label={`${t('common.moveUp')} ${item.title}`} disabled={i === 0} onClick={() => void db.mutate('moveItem', { itemId: item.id, by: -1 })}>
@@ -504,7 +513,25 @@ export function PresentationEditor({ id }: { id: string }) {
             onChoose={(arrangementId) => void db.mutate('setItemArrangement', { itemId: selected.id, arrangementId })}
           />
         )}
-        {selected && selectedSlides && <SlideGrid theme={theme} label={selected.title} slides={selectedSlides.slides} />}
+        {selected && !!overlays.length && (
+          <label className="row" title={t('overlays.itemHint')}>
+            {t('overlays.itemOverlay')}
+            <select
+              aria-label={t('overlays.itemOverlay')}
+              value={selected.overlayId ?? ''}
+              onChange={(e) => void db.mutate('setItemOverlay', { itemId: selected.id, overlayId: e.target.value || null })}
+            >
+              <option value="">{t('overlays.itemNone')}</option>
+              {overlays.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.title}
+                </option>
+              ))}
+            </select>
+            <span className="muted small">{t('overlays.itemHint')}</span>
+          </label>
+        )}
+        {selected && selectedSlides && <SlideGrid theme={theme} label={selected.title} slides={selectedSlides.slides} overlayId={selected.overlayId} />}
       </div>
       {adding && <AddItemDialog presentationId={id} afterItemId={selectedId} theme={theme} onAdded={setSelectedId} onClose={() => setAdding(false)} />}
       {details && (

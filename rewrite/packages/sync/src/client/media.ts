@@ -39,7 +39,7 @@ export interface MediaSync {
  * Which files this device fetches (README, "Which files a device keeps").
  * Every picture's thumbnail, always. The full picture and the audio of a
  * presentation that is open here, or, on a device that keeps its data,
- * coming up within `days`. Never audio for a presentation this device only
+ * coming up within `days`. Every overlay's picture when either applies. Never audio for a presentation this device only
  * controls: it plays on the presenting computer.
  */
 export interface MediaPolicy {
@@ -65,8 +65,8 @@ export function addDays(date: string, days: number): string {
 
 /**
  * The blobs this device should hold now, in the order to fetch them:
- * thumbnails, then what the open presentations need, then those kept offline
- * on this device, then the coming ones.
+ * thumbnails, then the overlays' pictures, then what the open presentations
+ * need, then those kept offline on this device, then the coming ones.
  */
 export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Promise<string[]> {
   const thumbs = (await client.query('SELECT thumb_hash AS hash FROM images ORDER BY created_at DESC')) as { hash: string }[];
@@ -84,6 +84,11 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
     : [];
   const order = [...policy.open, ...pinned.map((c) => ({ presentationId: c.id, audio: true })), ...coming.map((c) => ({ presentationId: c.id, audio: true }))];
   const hashes: string[] = thumbs.map((t) => t.hash);
+  // Every overlay's picture: any of them can be switched on during live. Ahead where data is kept, else once a presentation is open.
+  if (policy.prefetch || policy.open.length) {
+    const overlayImages = (await client.query('SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id ORDER BY o.sort')) as { hash: string }[];
+    hashes.push(...overlayImages.map((o) => o.hash));
+  }
   for (const { presentationId, audio } of order) {
     const items = (await client.query(
       `SELECT i.full_hash AS hash FROM presentation_items p JOIN images i ON i.id = p.source_id
@@ -161,6 +166,7 @@ export async function syncMedia(
 /**
  * What a presentation's items need from the media library, and how much of
  * it this device has: for "Allt finns på den här datorn" before going live.
+ * Every overlay's picture counts, since any overlay can be shown.
  */
 export async function presentationMediaState(
   client: { query(sql: string, params?: unknown[]): Promise<Record<string, unknown>[]> },
@@ -170,7 +176,8 @@ export async function presentationMediaState(
   const rows = (await client.query(
     `SELECT h.hash, EXISTS (SELECT 1 FROM media_blobs b WHERE b.hash = h.hash AND b.bytes IS NOT NULL) AS present FROM (
        SELECT i.full_hash AS hash FROM presentation_items p JOIN images i ON i.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'image'
-       UNION SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'audio' AND ?) h`,
+       UNION SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
+       UNION SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id) h`,
     [presentationId, presentationId, audio ? 1 : 0],
   )) as { hash: string; present: number }[];
   return { needed: rows.length, present: rows.filter((r) => Number(r.present)).length };

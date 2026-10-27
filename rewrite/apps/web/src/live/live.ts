@@ -1,4 +1,4 @@
-import { bibleItemSlides, IDLE, imageSlide, newer, parseBibleContent, songSlides, type LivePointer, type PresentationItem, type Slide } from '@gp/core';
+import { applyLiveChange, bibleItemSlides, IDLE, imageSlide, newer, parseBibleContent, songSlides, type LivePointer, type LivePointerChange, type PresentationItem, type Slide } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
 import { arrangementsOf, getAudio, getImage, getSong, listLabels, songPartsOf } from '../db/queries.ts';
 
@@ -13,6 +13,12 @@ export class LiveChannel {
   private channel: BroadcastChannel;
   private current: LivePointer = IDLE;
   private listeners = new Set<(p: LivePointer) => void>();
+  /**
+   * The overlay each item of the presenting presentation carries, kept
+   * current by the owner (`useLiveOwner`), so `set` can switch it on and off
+   * at once, with the slide, in one message.
+   */
+  itemOverlays = new Map<string, string | null>();
 
   constructor(
     orgId: string,
@@ -38,9 +44,9 @@ export class LiveChannel {
     for (const fn of this.listeners) fn(next);
   }
 
-  /** Operator only: changes what the outputs show. */
-  set(change: Partial<Omit<LivePointer, 'rev'>>) {
-    const pointer = { ...this.current, ...change, rev: this.current.rev + 1 };
+  /** Operator only: changes what the outputs show, with the overlay rules of `applyLiveChange`. */
+  set(change: LivePointerChange) {
+    const pointer = { ...applyLiveChange(this.current, change, (itemId) => this.itemOverlays.get(itemId) ?? null), rev: this.current.rev + 1 };
     this.receive(pointer);
     this.channel.postMessage({ type: 'pointer', pointer } satisfies LiveMessage);
   }
