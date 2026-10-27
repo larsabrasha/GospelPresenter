@@ -7,6 +7,11 @@ interface IconProps {
   className?: string;
 }
 
+/** An outline icon the current app draws in more than one weight. */
+interface StrokeIconProps extends IconProps {
+  strokeWidth?: number;
+}
+
 function Solid({ className, viewBox = '0 0 24 24', children }: IconProps & { viewBox?: string; children: ReactNode }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox={viewBox} fill="currentColor" className={className} aria-hidden="true">
@@ -65,9 +70,9 @@ export function MenuIcon({ className }: IconProps) {
   );
 }
 
-export function TrashIcon({ className }: IconProps) {
+export function TrashIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
   return (
-    <Outline className={className} strokeWidth={2}>
+    <Outline className={className} strokeWidth={strokeWidth}>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -475,9 +480,9 @@ export function PencilIcon({ className }: IconProps) {
 }
 
 /** "Ingen sång vald" (AddItem/Song/SongTab.razor): an outlined note. */
-export function MusicalNoteOutlineIcon({ className }: IconProps) {
+export function MusicalNoteOutlineIcon({ className, strokeWidth = 1 }: StrokeIconProps) {
   return (
-    <Outline className={className} strokeWidth={1}>
+    <Outline className={className} strokeWidth={strokeWidth}>
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -491,4 +496,197 @@ export function MusicalNoteOutlineIcon({ className }: IconProps) {
 export function ItemIcon({ type, className }: { type: PresentationItem['type']; className?: string }) {
   const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon }[type];
   return <Icon className={className} />;
+}
+
+// The admin pages (Pages/Admin/*.razor, Trash.razor, Components/DropZone.razor).
+
+/** Import, and the drop zone's hint: a tray with an arrow into it. */
+export function ArrowDownTrayIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </Outline>
+  );
+}
+
+/** "⋯", a menu of one thing (Images.razor, Audios.razor). */
+export function EllipsisIcon({ className }: IconProps) {
+  return (
+    <Solid className={className} viewBox="0 0 20 20">
+      <path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM8.5 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM15.5 8.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" />
+    </Solid>
+  );
+}
+
+export function LinkIcon({ className }: IconProps) {
+  return (
+    <Solid className={className} viewBox="0 0 20 20">
+      <path d="M12.232 4.232a2.5 2.5 0 0 1 3.536 3.536l-1.225 1.224a.75.75 0 0 0 1.061 1.06l1.224-1.224a4 4 0 0 0-5.656-5.656l-3 3a4 4 0 0 0 .225 5.865.75.75 0 0 0 .977-1.138 2.5 2.5 0 0 1-.142-3.667l3-3Z" />
+      <path d="M11.603 7.963a.75.75 0 0 0-.977 1.138 2.5 2.5 0 0 1 .142 3.667l-3 3a2.5 2.5 0 0 1-3.536-3.536l1.225-1.224a.75.75 0 0 0-1.061-1.06l-1.224 1.224a4 4 0 1 0 5.656 5.656l3-3a4 4 0 0 0-.225-5.865Z" />
+    </Solid>
+  );
+}
+
+export function QrCodeIcon({ className }: IconProps) {
+  return (
+    <Solid className={className} viewBox="0 0 20 20">
+      <path d="M3 3h5v5H3V3Zm1.5 1.5v2h2v-2h-2ZM12 3h5v5h-5V3Zm1.5 1.5v2h2v-2h-2ZM3 12h5v5H3v-5Zm1.5 1.5v2h2v-2h-2ZM12 12h1.5v1.5H12V12Zm3.5 0H17v1.5h-1.5V12ZM12 15.5h1.5V17H12v-1.5Zm3.5 0H17V17h-1.5v-1.5ZM9.5 3H11v1.5H9.5V3Zm0 3H11v1.5H9.5V6Zm0 3H11v1.5H9.5V9ZM3 9.5h1.5V11H3V9.5Zm3.5 0H8V11H6.5V9.5Zm6.5 0h1.5V11H13V9.5Zm3 0H17V11h-1V9.5Z" />
+    </Solid>
+  );
+}
+
+/** Copy to the clipboard: two sheets. */
+export function CopyIcon({ className }: IconProps) {
+  return (
+    <Solid className={className} viewBox="0 0 20 20">
+      <path d="M7 3.5A1.5 1.5 0 0 1 8.5 2h3.879a1.5 1.5 0 0 1 1.06.44l3.122 3.12A1.5 1.5 0 0 1 17 6.622V12.5a1.5 1.5 0 0 1-1.5 1.5h-1v-3.379a3 3 0 0 0-.879-2.121L10.5 5.379A3 3 0 0 0 8.379 4.5H7v-1Z" />
+      <path d="M4.5 6A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-5.879a1.5 1.5 0 0 0-.44-1.06L9.44 6.439A1.5 1.5 0 0 0 8.378 6H4.5Z" />
+    </Solid>
+  );
+}
+
+/** A screen, green while it is online; struck through while it is not (Displays.razor). */
+export function ScreenIcon({ className, offline }: IconProps & { offline?: boolean }) {
+  return (
+    <Solid className={className} viewBox="0 0 20 20">
+      <path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5Z" />
+      <path d="M8 13h4v2H8v-2Z" />
+      <path d="M6 16a1 1 0 0 0 0 2h8a1 1 0 1 0 0-2H6Z" />
+      {offline && (
+        <>
+          <line x1="3" y1="2" x2="17" y2="18" stroke="white" strokeWidth="3.5" strokeLinecap="round" />
+          <line x1="3" y1="2" x2="17" y2="18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </>
+      )}
+    </Solid>
+  );
+}
+
+export function BookOpenOutlineIcon({ className, strokeWidth = 1 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
+      />
+    </Outline>
+  );
+}
+
+/** A picture: the empty image library, and a picture in the trash. */
+export function PhotoOutlineIcon({ className, strokeWidth = 1 }: StrokeIconProps) {
+  return (
+    <Outline className={className} strokeWidth={strokeWidth}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"
+      />
+    </Outline>
+  );
+}
+
+/** A presentation in the trash: a folded map (Trash.razor). */
+export function MapIcon({ className }: IconProps) {
+  return (
+    <Outline className={className}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"
+      />
+    </Outline>
+  );
+}
+
+// The large grey pictures of the admin pages' empty lists.
+
+const PICTURE_FILL = 'fill-neutral-100 dark:fill-neutral-800';
+
+/** A circle with a plus, at the lower right of several pictures. */
+function PlusBadge() {
+  return (
+    <>
+      <circle cx="155" cy="120" r="16" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <line x1="155" y1="112" x2="155" y2="128" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="147" y1="120" x2="163" y2="120" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </>
+  );
+}
+
+function Picture({ className, children }: IconProps & { children: ReactNode }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" className={className} aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+/** No overlays: a slide with a dashed box over it (Overlays.razor). */
+export function OverlaysPicture({ className }: IconProps) {
+  return (
+    <Picture className={className}>
+      <rect x="30" y="20" width="140" height="90" rx="8" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <line x1="50" y1="50" x2="150" y2="50" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
+      <line x1="50" y1="65" x2="130" y2="65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
+      <rect x="55" y="45" width="100" height="60" rx="6" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" fill="none" opacity="0.7" />
+      <line x1="75" y1="70" x2="135" y2="70" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.5" />
+      <line x1="85" y1="82" x2="125" y2="82" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
+    </Picture>
+  );
+}
+
+/** No screens: a monitor and a plus (Displays.razor). */
+export function ScreensPicture({ className }: IconProps) {
+  return (
+    <Picture className={className}>
+      <rect x="30" y="20" width="140" height="90" rx="8" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <rect x="45" y="35" width="110" height="60" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" opacity="0.4" />
+      <rect x="80" y="110" width="40" height="8" rx="2" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <rect x="60" y="118" width="80" height="6" rx="3" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <PlusBadge />
+    </Picture>
+  );
+}
+
+/** No public outputs: a QR code and a phone (Displays.razor). */
+export function PublicOutputsPicture({ className }: IconProps) {
+  return (
+    <Picture className={className}>
+      <rect x="55" y="15" width="90" height="90" rx="8" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <rect x="68" y="28" width="20" height="20" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
+      <rect x="112" y="28" width="20" height="20" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
+      <rect x="68" y="72" width="20" height="20" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
+      <rect x="98" y="58" width="8" height="8" rx="1" fill="currentColor" opacity="0.5" />
+      <rect x="112" y="72" width="8" height="8" rx="1" fill="currentColor" opacity="0.5" />
+      <rect x="124" y="84" width="8" height="8" rx="1" fill="currentColor" opacity="0.5" />
+      <rect x="82" y="115" width="36" height="34" rx="5" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <line x1="94" y1="143" x2="106" y2="143" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </Picture>
+  );
+}
+
+/** No users: a person and a plus (Users.razor). */
+export function UsersPicture({ className }: IconProps) {
+  return (
+    <Picture className={className}>
+      <circle cx="100" cy="50" r="24" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <circle cx="100" cy="50" r="10" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.4" />
+      <path d="M60 130c0-22.091 17.909-40 40-40s40 17.909 40 40" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <PlusBadge />
+    </Picture>
+  );
+}
+
+/** No devices: a laptop (Devices.razor). */
+export function DevicesPicture({ className }: IconProps) {
+  return (
+    <Picture className={className}>
+      <rect x="42" y="34" width="116" height="76" rx="6" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <path d="M42 96h116" stroke="currentColor" strokeWidth="2" />
+      <path d="M76 126h48M88 110l-4 16M112 110l4 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="100" cy="103" r="2.5" fill="currentColor" opacity="0.5" />
+    </Picture>
+  );
 }

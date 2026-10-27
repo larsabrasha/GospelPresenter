@@ -3,8 +3,12 @@ import { inviteRefusal, type Me, type PairedDevice, type UserRow } from '@gp/cor
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
-import { Button } from '../ui/Button.tsx';
-import { Dialog, useConfirm } from '../ui/Dialog.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
+import { FloatingSelect } from '../ui/Floating.tsx';
+import { DevicesPicture } from '../ui/icons.tsx';
+import { CARD } from '../ui/List.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { QrCode } from '../ui/QrCode.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -22,8 +26,9 @@ function PairAsDialog({ me, onCode, onClose }: { me: Me; onCode: (c: { code: str
     );
   }, [me]);
   return (
-    <Dialog title={t('devices.codeTitle')} onClose={onClose}>
+    <Dialog title={t('devices.codeTitle')} onClose={onClose} maxWidthClass="max-w-lg">
       <form
+        className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
           try {
@@ -35,27 +40,24 @@ function PairAsDialog({ me, onCode, onClose }: { me: Me; onCode: (c: { code: str
           }
         }}
       >
-        <label className="field">
-          {t('devices.as')}
-          <select value={userId} onChange={(e) => setUserId(e.target.value)}>
-            {(users.length ? users : [{ id: me.userId, name: me.name }]).map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <FloatingSelect label={t('devices.as')} value={userId} onChange={(e) => setUserId(e.target.value)}>
+          {(users.length ? users : [{ id: me.userId, name: me.name }]).map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name}
+            </option>
+          ))}
+        </FloatingSelect>
         {error && (
-          <p className="danger" role="alert">
+          <p className="text-sm text-red-500 dark:text-red-400" role="alert">
             {error}
           </p>
         )}
-        <div className="row end">
-          <Button onClick={onClose}>{t('auth.cancel')}</Button>
-          <Button variant="primary" type="submit">
-            {t('devices.showCode')}
-          </Button>
-        </div>
+        <DialogButtons>
+          <AppButton variant="cancel" onClick={onClose}>
+            {t('auth.cancel')}
+          </AppButton>
+          <AppButton type="submit">{t('devices.showCode')}</AppButton>
+        </DialogButtons>
       </form>
     </Dialog>
   );
@@ -72,19 +74,31 @@ function PairCodeDialog({ code, expiresAt, name, onClose }: { code: string; expi
   }, []);
   const expired = now >= expiresAt;
   return (
-    <Dialog title={t('devices.codeTitle')} onClose={onClose}>
-      <p>{t('devices.codeText', { name })}</p>
-      <p className={expired ? 'pair-code-show muted' : 'pair-code-show'} data-testid="pair-code">
+    <Dialog title={t('devices.codeTitle')} onClose={onClose} maxWidthClass="max-w-lg">
+      <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('devices.codeText', { name })}</p>
+      <p className={`font-mono text-5xl tracking-[0.3em] text-center my-4 ${expired ? 'text-neutral-400 dark:text-neutral-500' : ''}`} data-testid="pair-code">
         {code}
       </p>
       {/* The code goes in the fragment, which no server sees; the tablet's pairing page reads it from there. */}
-      {!!urls?.length && !expired && <QrCode value={`${urls[0]}/#pair=${code}`} label={t('devices.qr')} size={180} />}
-      {urls?.length ? urls.map((url) => <p key={url}>{t('devices.openOn', { url })}</p>) : urls && <p className="muted small">{t('devices.lanOff')}</p>}
-      <div className="row end">
-        <Button variant="primary" onClick={onClose}>
-          {t('common.close')}
-        </Button>
-      </div>
+      {!!urls?.length && !expired && (
+        <div className="flex justify-center">
+          <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&_.qr]:m-0">
+            <QrCode value={`${urls[0]}/#pair=${code}`} label={t('devices.qr')} size={180} />
+          </div>
+        </div>
+      )}
+      {urls?.length ? (
+        urls.map((url) => (
+          <p key={url} className="text-sm text-neutral-600 dark:text-neutral-300 break-all">
+            {t('devices.openOn', { url })}
+          </p>
+        ))
+      ) : (
+        urls && <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('devices.lanOff')}</p>
+      )}
+      <DialogButtons>
+        <AppButton onClick={onClose}>{t('common.close')}</AppButton>
+      </DialogButtons>
     </Dialog>
   );
 }
@@ -117,46 +131,51 @@ export function Devices({ me }: { me: Me }) {
   }, []);
 
   return (
-    <section>
-      <div className="row">
-        <h1 className="grow">{t('devices.title')}</h1>
-        <Button variant="primary" onClick={() => setChoosing(true)}>
-          {t('devices.pair')}
-        </Button>
-      </div>
-      <p className="muted">{t('devices.text')}</p>
-      {typeof devices === 'string' && <p className="danger">{devices}</p>}
-      {Array.isArray(devices) && !devices.length && <p className="empty">{t('devices.empty')}</p>}
-      <ul className="list" aria-label={t('devices.title')}>
-        {Array.isArray(devices) &&
-          devices.map((d) => (
-            <li key={d.id} className={d.revokedAt ? 'user-row muted' : 'user-row'}>
-              <div className="grow">
-                <strong>{d.name}</strong>
-                <div className="small">
-                  {t('devices.paired', { date: when(d.createdAt) })} · {d.revokedAt ? t('devices.disconnected') : t('devices.lastSeen', { date: when(d.lastUsedAt) })}
+    <PageContainer>
+      <PageHeader title={t('devices.title')}>
+        <AppButton onClick={() => setChoosing(true)}>{t('devices.pair')}</AppButton>
+      </PageHeader>
+      <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400">{t('devices.text')}</p>
+      {typeof devices === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{devices}</p>}
+      <div className={CARD}>
+        {Array.isArray(devices) && !devices.length && (
+          <div className="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+            <DevicesPicture className="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600" />
+            <p className="text-neutral-500 dark:text-neutral-400">{t('devices.empty')}</p>
+          </div>
+        )}
+        <ul aria-label={t('devices.title')}>
+          {Array.isArray(devices) &&
+            devices.map((d) => (
+              <li key={d.id} className={`flex items-center gap-3 px-5 py-3 text-sm border-b border-neutral-100 dark:border-neutral-700/60 last:border-0 ${d.revokedAt ? 'opacity-50' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate">{d.name}</div>
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {t('devices.paired', { date: when(d.createdAt) })} · {d.revokedAt ? t('devices.disconnected') : t('devices.lastSeen', { date: when(d.lastUsedAt) })}
+                  </div>
                 </div>
-              </div>
-              {!d.revokedAt && (
-                <Button
-                  variant="danger"
-                  onClick={async () => {
-                    if (!(await ask({ title: t('devices.disconnect'), text: t('devices.disconnectConfirm', { name: d.name }), confirm: t('devices.disconnect') }))) return;
-                    try {
-                      const r = await api('DELETE', `/api/pair/devices/${encodeURIComponent(d.id)}`);
-                      if (r.error) toast(errorText(r));
-                    } catch {
-                      toast(t('auth.offline'));
-                    }
-                    await load();
-                  }}
-                >
-                  {t('devices.disconnect')}
-                </Button>
-              )}
-            </li>
-          ))}
-      </ul>
+                {!d.revokedAt && (
+                  <AppButton
+                    variant="danger"
+                    className="text-xs"
+                    onClick={async () => {
+                      if (!(await ask({ title: t('devices.disconnect'), text: t('devices.disconnectConfirm', { name: d.name }), confirm: t('devices.disconnect') }))) return;
+                      try {
+                        const r = await api('DELETE', `/api/pair/devices/${encodeURIComponent(d.id)}`);
+                        if (r.error) toast(errorText(r));
+                      } catch {
+                        toast(t('auth.offline'));
+                      }
+                      await load();
+                    }}
+                  >
+                    {t('devices.disconnect')}
+                  </AppButton>
+                )}
+              </li>
+            ))}
+        </ul>
+      </div>
       {choosing && (
         <PairAsDialog
           me={me}
@@ -179,6 +198,6 @@ export function Devices({ me }: { me: Me }) {
         />
       )}
       {dialog}
-    </section>
+    </PageContainer>
   );
 }

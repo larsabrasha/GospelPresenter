@@ -14,8 +14,14 @@ import {
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
-import { Button } from '../ui/Button.tsx';
-import { Dialog, useConfirm } from '../ui/Dialog.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { CopyField } from '../ui/CopyField.tsx';
+import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
+import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
+import { FloatingInput, FloatingSelect } from '../ui/Floating.tsx';
+import { ChevronDownIcon, PlusIcon, UserIcon, UsersPicture } from '../ui/icons.tsx';
+import { CARD } from '../ui/List.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
 /** Where an invite link points: the address other devices reach this server at (DESK-R8). */
@@ -48,30 +54,24 @@ function InviteLinkDialog({ name, url, host, onClose }: { name: string; url: str
   const [input, setInput] = useState<HTMLInputElement | null>(null);
   if (host) {
     return (
-      <Dialog title={t('users.inviteTitle')} onClose={onClose}>
-        <p>{t('users.inviteHost', { name })}</p>
-        <div className="row end">
-          <Button onClick={() => acceptHere(url.slice(url.indexOf('#') + 1))}>{t('users.acceptHere', { name })}</Button>
-          <Button variant="primary" onClick={onClose}>
-            {t('common.close')}
-          </Button>
-        </div>
+      <Dialog title={t('users.inviteTitle')} onClose={onClose} maxWidthClass="max-w-lg">
+        <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('users.inviteHost', { name })}</p>
+        <DialogButtons>
+          <AppButton variant="secondary" onClick={() => acceptHere(url.slice(url.indexOf('#') + 1))}>
+            {t('users.acceptHere', { name })}
+          </AppButton>
+          <AppButton onClick={onClose}>{t('common.close')}</AppButton>
+        </DialogButtons>
       </Dialog>
     );
   }
   return (
-    <Dialog title={t('users.inviteTitle')} onClose={onClose}>
-      <p>{t('users.inviteText', { name })}</p>
-      <label className="field">
-        {t('users.inviteLink')}
-        <input ref={setInput} readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
-      </label>
-      <div className="row end">
-        <Button onClick={() => void copy(input, url).then(() => toast(t('users.copied')))}>{t('users.copy')}</Button>
-        <Button variant="primary" onClick={onClose}>
-          {t('common.close')}
-        </Button>
-      </div>
+    <Dialog title={t('users.inviteTitle')} onClose={onClose} maxWidthClass="max-w-lg">
+      <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('users.inviteText', { name })}</p>
+      <CopyField inputRef={setInput} value={url} label={t('users.inviteLink')} copyLabel={t('users.copy')} onCopy={() => void copy(input, url).then(() => toast(t('users.copied')))} />
+      <DialogButtons>
+        <AppButton onClick={onClose}>{t('common.close')}</AppButton>
+      </DialogButtons>
     </Dialog>
   );
 }
@@ -83,8 +83,9 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (name
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   return (
-    <Dialog title={t('users.createTitle')} onClose={onClose}>
+    <Dialog title={t('users.createTitle')} onClose={onClose} maxWidthClass="max-w-lg">
       <form
+        className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
           if (!name.trim() || saving) return;
@@ -100,41 +101,43 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (name
           setSaving(false);
         }}
       >
-        <label className="field">
-          {t('users.name')}
-          <input autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label className="field">
-          {t('users.email')}
-          <input type="email" maxLength={320} value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <label className="field">
-          {t('users.role')}
+        <FloatingInput label={t('users.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+        <FloatingInput label={t('users.email')} type="email" maxLength={320} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div>
           {/* ORG-A3: SuperAdmin is offered only to a SuperAdmin. */}
-          <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
+          <FloatingSelect label={t('users.role')} value={role} onChange={(e) => setRole(e.target.value as Role)}>
             {assignableRoles(me.role).map((r) => (
               <option key={r} value={r}>
                 {t(`role.${r}`)}
               </option>
             ))}
-          </select>
-        </label>
-        <p className="small muted hint">{t(`role.${role}.description`)}</p>
+          </FloatingSelect>
+          <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">{t(`role.${role}.description`)}</p>
+        </div>
         {error && (
-          <p className="danger" role="alert">
+          <p className="text-sm text-red-500 dark:text-red-400" role="alert">
             {error}
           </p>
         )}
-        <div className="row end">
-          <Button onClick={onClose}>{t('common.cancel')}</Button>
-          <Button variant="primary" type="submit" disabled={!name.trim() || saving}>
+        <DialogButtons>
+          <AppButton variant="cancel" onClick={onClose}>
+            {t('common.cancel')}
+          </AppButton>
+          <AppButton type="submit" disabled={!name.trim() || saving}>
             {saving ? t('users.creating') : t('common.create')}
-          </Button>
-        </div>
+          </AppButton>
+        </DialogButtons>
       </form>
     </Dialog>
   );
 }
+
+/** A role's badge colours (Users.razor). */
+const ROLE_BADGE: Record<Role, string> = {
+  superAdmin: 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300',
+  admin: 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300',
+  user: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+};
 
 function inviteStatus(u: UserRow): string {
   if (u.active) return t('users.active');
@@ -185,75 +188,95 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
 
   const showLink = async (name: string, token: string) => setLink({ name, url: await inviteUrl(token) });
 
+  const empty = Array.isArray(users) && !users.length;
+  const create = (
+    <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
+      <PlusIcon className="size-4" />
+      {t('users.create')}
+    </AppButton>
+  );
   return (
-    <section>
-      <div className="row">
-        <h1 className="grow">{t('users.title')}</h1>
-        {manage && (
-          <Button variant="primary" onClick={() => setCreating(true)}>
-            {t('users.create')}
-          </Button>
+    <PageContainer>
+      <PageHeader title={t('users.title')}>{manage && !empty && create}</PageHeader>
+      {typeof users === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{users}</p>}
+      <div className={CARD}>
+        {empty && (
+          <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')}>
+            {manage && create}
+          </EmptyPicture>
         )}
+        <ul aria-label={t('users.title')}>
+          {Array.isArray(users) &&
+            users.map((u) => {
+              const self = u.id === me.userId;
+              const roleRefusal = roleChangeRefusal({ id: me.userId, role: me.role }, u, u.role);
+              const roles = ROLES.filter((r) => r === u.role || !roleChangeRefusal({ id: me.userId, role: me.role }, u, r));
+              const locked = !manage || !!roleRefusal;
+              return (
+                <li key={u.id} className="flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                  <span className="size-8 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0 flex items-center justify-center text-neutral-500 dark:text-neutral-400">
+                    <UserIcon className="size-4" />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate">
+                      <span className="font-medium">{u.name}</span> {u.email && <span className="text-sm text-neutral-400 dark:text-neutral-500">{u.email}</span>}
+                    </div>
+                    <div className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{inviteStatus(u)}</div>
+                    {self && <div className="text-xs text-neutral-400 dark:text-neutral-500">{t('users.ownRole')}</div>}
+                  </div>
+                  {/* The role as the current app's badge; a menu when it may be changed. */}
+                  <span className="relative inline-flex">
+                    <select
+                      aria-label={t('users.roleOf', { name: u.name })}
+                      value={u.role}
+                      disabled={locked}
+                      title={self ? t('users.ownRole') : undefined}
+                      onChange={(e) => void act(() => api('PATCH', `/api/users/${encodeURIComponent(u.id)}`, { role: e.target.value }), t('users.roleSaved'))}
+                      className={`appearance-none text-xs py-0.5 rounded-full border-0 ${locked ? 'pl-2 pr-2 opacity-100' : 'pl-2 pr-6 cursor-pointer'} ${ROLE_BADGE[u.role]} focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500`}
+                    >
+                      {roles.map((r) => (
+                        <option key={r} value={r}>
+                          {t(`role.${r}`)}
+                        </option>
+                      ))}
+                    </select>
+                    {!locked && <ChevronDownIcon className="size-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />}
+                  </span>
+                  {manage && !inviteRefusal({ id: me.userId, role: me.role }, u) && !self && (
+                    <AppButton
+                      variant="neutral"
+                      className="text-xs"
+                      onClick={async () => {
+                        try {
+                          const r = await api<{ inviteToken: string }>('POST', `/api/users/${encodeURIComponent(u.id)}/invites`);
+                          if (r.error) toast(errorText(r));
+                          else await showLink(u.name, r.body.inviteToken);
+                        } catch {
+                          toast(t('auth.offline'));
+                        }
+                        await load();
+                      }}
+                    >
+                      {t('users.newInvite')}
+                    </AppButton>
+                  )}
+                  {manage && !removeUserRefusal({ id: me.userId, role: me.role }, u) && (
+                    <AppButton
+                      variant="danger"
+                      className="text-xs"
+                      onClick={async () => {
+                        const ok = await ask({ title: t('users.remove'), text: t('users.removeConfirm', { name: u.name }), confirm: t('common.delete') });
+                        if (ok) await act(() => api('DELETE', `/api/users/${encodeURIComponent(u.id)}`), t('users.removed', { name: u.name }));
+                      }}
+                    >
+                      {t('users.remove')}
+                    </AppButton>
+                  )}
+                </li>
+              );
+            })}
+        </ul>
       </div>
-      {typeof users === 'string' && <p className="danger">{users}</p>}
-      {Array.isArray(users) && !users.length && <p className="empty">{t('users.empty')}</p>}
-      <ul className="list users" aria-label={t('users.title')}>
-        {Array.isArray(users) &&
-          users.map((u) => {
-            const self = u.id === me.userId;
-            const roleRefusal = roleChangeRefusal({ id: me.userId, role: me.role }, u, u.role);
-            const roles = ROLES.filter((r) => r === u.role || !roleChangeRefusal({ id: me.userId, role: me.role }, u, r));
-            return (
-              <li key={u.id} className="user-row">
-                <div className="grow">
-                  <strong>{u.name}</strong> {u.email && <span className="muted">{u.email}</span>}
-                  <div className="small muted">{inviteStatus(u)}</div>
-                </div>
-                <select
-                    aria-label={t('users.roleOf', { name: u.name })}
-                    value={u.role}
-                    disabled={!manage || !!roleRefusal}
-                    title={self ? t('users.ownRole') : undefined}
-                    onChange={(e) => void act(() => api('PATCH', `/api/users/${encodeURIComponent(u.id)}`, { role: e.target.value }), t('users.roleSaved'))}
-                  >
-                    {roles.map((r) => (
-                      <option key={r} value={r}>
-                        {t(`role.${r}`)}
-                      </option>
-                    ))}
-                  </select>
-                {self && <span className="small muted">{t('users.ownRole')}</span>}
-                {manage && !inviteRefusal({ id: me.userId, role: me.role }, u) && !self && (
-                  <Button
-                    onClick={async () => {
-                      try {
-                        const r = await api<{ inviteToken: string }>('POST', `/api/users/${encodeURIComponent(u.id)}/invites`);
-                        if (r.error) toast(errorText(r));
-                        else await showLink(u.name, r.body.inviteToken);
-                      } catch {
-                        toast(t('auth.offline'));
-                      }
-                      await load();
-                    }}
-                  >
-                    {t('users.newInvite')}
-                  </Button>
-                )}
-                {manage && !removeUserRefusal({ id: me.userId, role: me.role }, u) && (
-                  <Button
-                    variant="danger"
-                    onClick={async () => {
-                      const ok = await ask({ title: t('users.remove'), text: t('users.removeConfirm', { name: u.name }), confirm: t('common.delete') });
-                      if (ok) await act(() => api('DELETE', `/api/users/${encodeURIComponent(u.id)}`), t('users.removed', { name: u.name }));
-                    }}
-                  >
-                    {t('users.remove')}
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-      </ul>
       {creating && (
         <CreateUserDialog
           me={me}
@@ -267,6 +290,6 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
       )}
       {link && <InviteLinkDialog name={link.name} url={link.url} host={host} onClose={() => setLink(null)} />}
       {dialog}
-    </section>
+    </PageContainer>
   );
 }

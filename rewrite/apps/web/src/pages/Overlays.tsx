@@ -1,22 +1,29 @@
 import { useState } from 'react';
 import { OVERLAY_LIMITS, type LibraryImage, type Overlay } from '@gp/core';
-import { useData, useDb, useShownOverlay } from '../db/react.tsx';
+import { useBlobUrl, useData, useDb, useShownOverlay } from '../db/react.tsx';
 import { getImage, getOverlay, listImages, listOverlays } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
-import { Button } from '../ui/Button.tsx';
-import { Dialog, useConfirm } from '../ui/Dialog.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
+import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
+import { FloatingInput, FloatingTextarea } from '../ui/Floating.tsx';
+import { OverlaysPicture, PhotoOutlineIcon, PlusIcon } from '../ui/icons.tsx';
+import { CARD } from '../ui/List.tsx';
+import { DetailHeader, PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { ImageThumb } from './Images.tsx';
 
+/** "Skapa overlay": a title, then the overlay's page (Components/Presentations/NameDialog.razor). */
 function CreateDialog({ onClose }: { onClose: () => void }) {
   const db = useDb();
   const [title, setTitle] = useState('');
   return (
-    <Dialog title={t('overlays.createTitle')} onClose={onClose}>
+    <Dialog title={t('overlays.createTitle')} onClose={onClose} maxWidthClass="max-w-2xl">
       <form
+        className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
           if (!title.trim()) return;
@@ -25,27 +32,29 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
           navigate({ page: 'overlay', id });
         }}
       >
-        <label className="field">
-          {t('overlays.name')}
-          <input autoFocus maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
-        </label>
-        <div className="row end">
-          <Button onClick={onClose}>{t('common.cancel')}</Button>
-          <Button variant="primary" type="submit" disabled={!title.trim()}>
+        <FloatingInput label={t('overlays.name')} autoFocus maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />
+        <DialogButtons>
+          <AppButton variant="cancel" onClick={onClose}>
+            {t('common.cancel')}
+          </AppButton>
+          <AppButton type="submit" disabled={!title.trim()}>
             {t('common.create')}
-          </Button>
-        </div>
+          </AppButton>
+        </DialogButtons>
       </form>
     </Dialog>
   );
 }
 
-/** An overlay drawn as it shows above a slide, small: for the list and the editor. */
-function OverlayPreview({ overlay }: { overlay: Pick<Overlay, 'id'> }) {
+/** An overlay's picture as a small 16:9 thumbnail in the list, or a grey box with a picture icon when it has none (Overlays.razor). */
+function OverlayThumb({ overlay }: { overlay: Pick<Overlay, 'id'> }) {
   const shown = useShownOverlay(overlay.id);
-  return (
-    <div className="frame">
-      <SlideView slide={null} overlay={shown} />
+  const url = useBlobUrl(shown?.imageHash ?? null);
+  return url ? (
+    <img src={url} alt="" draggable={false} className="w-16 h-9 object-cover rounded border border-neutral-200 dark:border-neutral-600 shrink-0" />
+  ) : (
+    <div className="w-16 h-9 rounded border border-neutral-200 dark:border-neutral-600 bg-neutral-200 dark:bg-neutral-700 shrink-0 flex items-center justify-center">
+      <PhotoOutlineIcon className="size-4 text-neutral-400" strokeWidth={1.5} />
     </div>
   );
 }
@@ -58,59 +67,64 @@ function OverlayPreview({ overlay }: { overlay: Pick<Overlay, 'id'> }) {
 export function Overlays() {
   const overlays = useData(listOverlays, []);
   const [creating, setCreating] = useState(false);
+  const create = (
+    <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
+      <PlusIcon className="size-4" />
+      {t('common.create')}
+    </AppButton>
+  );
   return (
-    <section>
-      <div className="row">
-        <h1 className="grow">{t('overlays.title')}</h1>
-        <Button variant="primary" onClick={() => setCreating(true)}>
-          {t('common.create')}
-        </Button>
+    <PageContainer>
+      {/* Skapa sits in the heading once there is a list; before that, in the empty card. */}
+      <PageHeader title={t('overlays.title')}>{!!overlays?.length && create}</PageHeader>
+      <div className={CARD}>
+        {overlays && !overlays.length && (
+          <EmptyPicture picture={<OverlaysPicture className={PICTURE} />} title={t('overlays.empty')} text={t('overlays.emptyText')}>
+            {create}
+          </EmptyPicture>
+        )}
+        <ul aria-label={t('overlays.title')}>
+          {overlays?.map((o) => (
+            <li key={o.id} className="border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+              <a href={href({ page: 'overlay', id: o.id })} className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+                <OverlayThumb overlay={o} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{o.title}</div>
+                  {o.content && <div className="text-xs text-neutral-400 truncate">{o.content.split('\n')[0]}</div>}
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
       </div>
-      {overlays && !overlays.length && (
-        <div className="empty">
-          <p>
-            <strong>{t('overlays.empty')}</strong>
-          </p>
-          <p className="muted">{t('overlays.emptyText')}</p>
-        </div>
-      )}
-      <ul className="image-grid" aria-label={t('overlays.title')}>
-        {overlays?.map((o) => (
-          <li key={o.id} className="image-card">
-            <a href={href({ page: 'overlay', id: o.id })} className="overlay-card">
-              <OverlayPreview overlay={o} />
-              <div className="name">{o.title}</div>
-              {o.content && <div className="muted small name">{o.content.split('\n')[0]}</div>}
-            </a>
-          </li>
-        ))}
-      </ul>
       {creating && <CreateDialog onClose={() => setCreating(false)} />}
-    </section>
+    </PageContainer>
   );
 }
 
-/** Picks a picture from the media library (spec 05): overlays use the library's pictures. */
+/** Picks a picture from the media library (spec 05): overlays use the library's pictures. Drawn as the add dialog's picture grid (ImageTab.tsx). */
 function ImagePicker({ onPick, onClose }: { onPick: (image: LibraryImage) => void; onClose: () => void }) {
   const images = useData(listImages, []);
   return (
     <Dialog title={t('overlays.pickImage')} onClose={onClose} wide>
-      {images && !images.length && <p className="muted">{t('presentation.noImages')}</p>}
-      <ul className="image-grid" aria-label={t('images.title')}>
+      {images && !images.length && <p className="text-sm text-neutral-400 dark:text-neutral-500">{t('presentation.noImages')}</p>}
+      <ul className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center empty:hidden" aria-label={t('images.title')}>
         {images?.map((image) => (
-          <li key={image.id} className="image-card">
-            <Button className="image-pick" onClick={() => onPick(image)}>
+          <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0">
+            <AppButton variant="plain" onClick={() => onPick(image)} className="flex flex-col items-center w-full min-w-0 cursor-pointer rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 p-1">
               <ImageThumb image={image} />
-              <div className="name" title={image.fileName}>
+              <span className="block text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>
                 {image.fileName}
-              </div>
-            </Button>
+              </span>
+            </AppButton>
           </li>
         ))}
       </ul>
-      <div className="row end">
-        <Button onClick={onClose}>{t('common.cancel')}</Button>
-      </div>
+      <DialogButtons>
+        <AppButton variant="cancel" onClick={onClose}>
+          {t('common.cancel')}
+        </AppButton>
+      </DialogButtons>
     </Dialog>
   );
 }
@@ -134,7 +148,12 @@ export function OverlayEditor({ id }: { id: string }) {
   const [picking, setPicking] = useState(false);
   if (!data) return null;
   const { overlay, image } = data;
-  if (!overlay) return <p>{t('overlays.notFound')}</p>;
+  if (!overlay)
+    return (
+      <PageContainer>
+        <p className="px-7 text-neutral-400">{t('overlays.notFound')}</p>
+      </PageContainer>
+    );
 
   const save = (fields: { title?: string; content?: string | null; imageId?: string | null }) => void db.mutate('updateOverlay', { id, ...fields });
   const remove = async () => {
@@ -146,18 +165,12 @@ export function OverlayEditor({ id }: { id: string }) {
   };
 
   return (
-    <section className="overlay-editor">
+    <PageContainer>
       {dialog}
-      <div className="row">
-        <a href={href({ page: 'overlays' })}>← {t('overlays.title')}</a>
-        <span className="grow" />
-        <Button variant="danger" onClick={() => void remove()}>
-          {t('common.delete')}
-        </Button>
-      </div>
-      <label className="field">
-        {t('overlays.name')}
-        <input
+      <DetailHeader backHref={href({ page: 'overlays' })} title={overlay.title} className="px-5" />
+      <div className={`${CARD} p-5 space-y-4`}>
+        <FloatingInput
+          label={t('overlays.name')}
           maxLength={200}
           defaultValue={overlay.title}
           onBlur={(e) => {
@@ -165,10 +178,8 @@ export function OverlayEditor({ id }: { id: string }) {
             if (v.trim() && v.trim() !== overlay.title) save({ title: v });
           }}
         />
-      </label>
-      <label className="field">
-        {t('overlays.content')}
-        <textarea
+        <FloatingTextarea
+          label={t('overlays.content')}
           rows={4}
           maxLength={OVERLAY_LIMITS.content}
           defaultValue={overlay.content ?? ''}
@@ -177,23 +188,34 @@ export function OverlayEditor({ id }: { id: string }) {
             if ((v.trim() || null) !== overlay.content) save({ content: v });
           }}
         />
-      </label>
-      <div className="field">
-        {t('overlays.image')}
-        <div className="row">
-          {image && (
-            <div className="image-card overlay-thumb">
-              <ImageThumb image={image} />
+        <div>
+          <div className="block text-sm font-medium mb-1">{t('overlays.image')}</div>
+          <div className="flex items-center gap-3">
+            {image && <ImageThumb image={image} className="w-48 h-[108px] object-cover rounded-lg border border-neutral-200 dark:border-neutral-600" />}
+            {overlay.imageId && !image && <span className="text-sm text-amber-600 dark:text-amber-400">{t('live.imageMissing')}</span>}
+            <div className="flex flex-col items-start gap-1">
+              <AppButton variant="secondary" onClick={() => setPicking(true)}>
+                {overlay.imageId ? t('overlays.changeImage') : t('overlays.chooseImage')}
+              </AppButton>
+              {overlay.imageId && (
+                <AppButton variant="danger" className="text-left" onClick={() => save({ imageId: null })}>
+                  {t('overlays.removeImage')}
+                </AppButton>
+              )}
             </div>
-          )}
-          {overlay.imageId && !image && <span className="warning">{t('live.imageMissing')}</span>}
-          <Button onClick={() => setPicking(true)}>{overlay.imageId ? t('overlays.changeImage') : t('overlays.chooseImage')}</Button>
-          {overlay.imageId && <Button onClick={() => save({ imageId: null })}>{t('overlays.removeImage')}</Button>}
+          </div>
+        </div>
+        <div>
+          <h2 className="block text-sm/5 font-medium mb-1">{t('overlays.preview')}</h2>
+          <div className="max-w-[640px] aspect-video rounded-lg overflow-hidden">
+            <SlideView slide={null} overlay={{ content: overlay.content, imageHash: image?.fullHash ?? null }} />
+          </div>
         </div>
       </div>
-      <h2>{t('overlays.preview')}</h2>
-      <div className="overlay-preview">
-        <SlideView slide={null} overlay={{ content: overlay.content, imageHash: image?.fullHash ?? null }} />
+      <div className="flex justify-end">
+        <AppButton variant="danger" onClick={() => void remove()}>
+          {t('common.delete')}
+        </AppButton>
       </div>
       {picking && (
         <ImagePicker
@@ -204,6 +226,6 @@ export function OverlayEditor({ id }: { id: string }) {
           }}
         />
       )}
-    </section>
+    </PageContainer>
   );
 }

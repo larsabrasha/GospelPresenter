@@ -655,10 +655,20 @@ the bin, and the arrangements as stacked chips with the dashed Lägg till del. T
 are still native selects, drawn as the old dropdowns. Song history and the ProPresenter import are not built,
 so their pages and buttons are missing.
 
+The admin pages (step 4) are `Pages/Admin/*.razor`, `Trash.razor` and `Profile.razor`: each a title row and
+light cards (Biblar, Bilder, Ljud, Overlays, Teman, Skärmar, Användare, Enheter, the trash), the current app's
+large grey pictures and small icons when a list is empty (`ui/Empty.tsx`), the dashed sky frame while files hover
+over a page that takes them (`DropZone.razor`, `ui/DropZone.tsx`), the overlay under `DetailHeader` with
+floating fields, the QR dialogs with the grey link field and its copy button (`ui/CopyField.tsx`), and the
+trash under `DetailHeader` with its pill tabs. Inloggningsmetoder (`/logins`) is drawn as Min profil. Where the
+new pages do more or less than the current ones (the user row's actions, a public output's link and Ny kod in
+its row, the overlay's preview), they keep what they do and only take the look. The current app's user page,
+templates, labels, CCLI report, API keys and super-admin pages have no counterpart yet.
+
 The move goes in steps: 1 the frame, the components and the start page (done); 2 the presentation (editor,
-live, stage view, Lägg till) (done); 3 songs (done); 4 the admin pages; 5 sign-in, setup, pairing, `/display`, `/watch`
+live, stage view, Lägg till) (done); 3 songs (done); 4 the admin pages (done); 5 sign-in, setup, pairing, `/display`, `/watch`
 and the output. A page not yet moved keeps its old styles (`apps/web/src/styles.css`, in a CSS layer below
-Tailwind's utilities) inside the new frame, and the old `Button` (`ui/Button.tsx`), until its step.
+Tailwind's utilities), and the old `Button` (`ui/Button.tsx`), until its step.
 
 `GP_CAPTURE=<dir> pnpm --filter @gp/desktop exec playwright test capture` takes a picture of every page, desktop
 (1440×900) and phone (390×844), light and dark (`apps/desktop/e2e/capture.spec.ts`), to set beside the

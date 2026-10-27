@@ -70,6 +70,24 @@ test('capture every page', async () => {
     await page.goto(`${host!.base}/admin/songs`);
     return (await page.getByRole('link', { name: 'Blott en dag' }).getAttribute('href'))!;
   })();
+  // The current app's mock overlays.
+  for (const [title, content] of [
+    ['Välkommen', 'Välkommen till Foo Bar Kyrka!'],
+    ['Kollekt', 'Kollekt · Swish 123-456 78 90'],
+    ['Fika', 'Fika serveras i källaren efter gudstjänsten'],
+  ] as const) {
+    await page.goto(`${host.base}/admin/overlays`);
+    await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Titel').fill(title);
+    await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Titel').press('Enter');
+    await page.getByLabel('Textinnehåll').fill(content);
+    await page.getByLabel('Textinnehåll').blur();
+    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  }
+  const overlay = await (async () => {
+    await page.goto(`${host!.base}/admin/overlays`);
+    return (await page.getByRole('link', { name: /^Välkommen/ }).getAttribute('href'))!;
+  })();
 
   // Steps on a page before its picture, and after it; the names match capture-old-app.mjs.
   const pickItem = (p: Page) => p.getByRole('list', { name: 'Programpunkter' }).getByRole('button').first().click();
@@ -83,6 +101,11 @@ test('capture every page', async () => {
   const closeAdminMenu = async (p: Page) => {
     if (p.viewportSize()!.width < 1024 && (await p.locator('aside:visible').count())) await p.mouse.click(370, 400);
     await p.waitForTimeout(400);
+  };
+  // The admin pages' steps: the menu out of the way, then the first button of that name.
+  const clickFirst = async (p: Page, name: string) => {
+    await closeAdminMenu(p);
+    await p.getByRole('button', { name, exact: true }).first().click();
   };
   // Every scrolling box to its end, for what is below the first screen.
   const scrollDown = (p: Page) =>
@@ -151,14 +174,54 @@ test('capture every page', async () => {
         await scrollDown(p);
       },
     ],
-    ['images', '/admin/images'],
-    ['audios', '/admin/audios'],
-    ['bibles', '/admin/bibles'],
-    ['overlays', '/admin/overlays'],
-    ['themes', '/admin/themes'],
-    ['users', '/admin/users'],
-    ['devices', '/admin/devices'],
-    ['displays', '/admin/displays'],
+    ['images', '/admin/images', closeAdminMenu],
+    ['audios', '/admin/audios', closeAdminMenu],
+    ['bibles', '/admin/bibles', closeAdminMenu],
+    ['overlays', '/admin/overlays', closeAdminMenu],
+    ['overlay-create', '/admin/overlays', (p) => clickFirst(p, 'Skapa')],
+    ['overlay', overlay, closeAdminMenu],
+    ['themes', '/admin/themes', closeAdminMenu],
+    [
+      'themes-end',
+      '/admin/themes',
+      async (p) => {
+        await closeAdminMenu(p);
+        await scrollDown(p);
+      },
+    ],
+    ['users', '/admin/users', closeAdminMenu],
+    ['users-create', '/admin/users', (p) => clickFirst(p, 'Skapa')],
+    ['devices', '/admin/devices', closeAdminMenu],
+    ['displays', '/admin/displays', closeAdminMenu],
+    [
+      'displays-end',
+      '/admin/displays',
+      async (p) => {
+        await closeAdminMenu(p);
+        await scrollDown(p);
+      },
+    ],
+    ['displays-add', '/admin/displays', (p) => clickFirst(p, 'Lägg till')],
+    // One screen and one public output, made once, as capture-old-app.mjs makes them in the current app.
+    [
+      'displays-filled',
+      '/admin/displays',
+      async (p) => {
+        await closeAdminMenu(p);
+        for (const [add, name] of [
+          ['Lägg till', 'Kyrksalen'],
+          ['Skapa publik utgång', 'Mobiler'],
+        ] as const) {
+          if (await p.getByRole('listitem', { name }).count()) continue;
+          await p.getByRole('button', { name: add, exact: true }).first().click();
+          await p.getByRole('dialog').getByLabel('Namn').fill(name);
+          await p.getByRole('dialog').getByRole('button', { name: 'Skapa' }).click();
+          await p.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
+        }
+      },
+    ],
+    ['displays-link', '/admin/displays', (p) => clickFirst(p, 'Visa länk')],
+    ['displays-qr', '/admin/displays', (p) => clickFirst(p, 'Visa QR-kod')],
   ];
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate((t) => localStorage.setItem('theme', t), theme);

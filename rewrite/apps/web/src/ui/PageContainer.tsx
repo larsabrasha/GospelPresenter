@@ -27,20 +27,22 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 
 /**
  * A detail page's heading row (Components/DetailHeader.razor): the round back
- * button at the left, the title in the middle.
+ * button at the left, the title in the middle. Without `backHref`, the title alone (Profile.razor).
  */
-export function DetailHeader({ backHref, title, className }: { backHref: string; title: string; className?: string }) {
+export function DetailHeader({ backHref, title, className }: { backHref?: string; title: string; className?: string }) {
   return (
     <div className={`relative flex items-center justify-center min-h-10 ${className ?? ''}`}>
-      <AppButton
-        variant="plain"
-        href={backHref}
-        aria-label={t('common.back')}
-        title={t('common.back')}
-        className="absolute left-0 cursor-pointer p-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
-      >
-        <ChevronLeftIcon className="size-5" />
-      </AppButton>
+      {backHref && (
+        <AppButton
+          variant="plain"
+          href={backHref}
+          aria-label={t('common.back')}
+          title={t('common.back')}
+          className="absolute left-0 cursor-pointer p-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+        >
+          <ChevronLeftIcon className="size-5" />
+        </AppButton>
+      )}
       <h1 className="text-xl/7 font-bold dark:text-neutral-100 truncate max-w-[60%]">{title}</h1>
     </div>
   );

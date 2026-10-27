@@ -1,10 +1,14 @@
-import { useState, type DragEvent } from 'react';
+import { useState } from 'react';
 import { BIBLE_ZIP_MAX_BYTES } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { listBibles, type InstalledBible } from '../db/queries.ts';
 import { t } from '../i18n.ts';
-import { Button } from '../ui/Button.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
+import { DropHint, DropZone } from '../ui/DropZone.tsx';
+import { ArrowDownTrayIcon, BookOpenOutlineIcon, CheckIcon, TrashIcon } from '../ui/icons.tsx';
+import { CARD } from '../ui/List.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
 type Message = { ok: boolean; text: string } | null;
@@ -21,7 +25,6 @@ export function Bibles() {
   const bibles = useData(listBibles, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<Message>(null);
-  const [dragging, setDragging] = useState(false);
 
   const importFile = async (file: File | undefined) => {
     if (!file || busy) return;
@@ -46,30 +49,16 @@ export function Bibles() {
     toast(t('bibles.deleted'));
   };
 
-  const onDrop = (e: DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    void importFile(e.dataTransfer.files[0]);
-  };
-
   return (
-    <section
-      className={dragging ? 'drop-zone dragging' : 'drop-zone'}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-    >
-      {dialog}
-      <h1>{t('bibles.title')}</h1>
-      {dragging && <p className="drop-hint">{t('bibles.dropHere')}</p>}
-      <div className="card">
-        <h2>{t('bibles.importTitle')}</h2>
-        <p className="muted">{t('bibles.importText')}</p>
-        <div className="row">
-          <label className={busy ? 'btn btn-primary disabled' : 'btn btn-primary'}>
+    <PageContainer>
+      <DropZone className="flex flex-col space-y-5 min-h-[60vh]" label={t('bibles.dropHere')} onFiles={(files) => void importFile(files[0])}>
+        {dialog}
+        <PageHeader title={t('bibles.title')} />
+        <div className={`${CARD} p-5 space-y-4`}>
+          <h2 className="text-base/6 font-semibold">{t('bibles.importTitle')}</h2>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('bibles.importText')}</p>
+          <AppButton asLabel disabled={busy} className="inline-flex items-center gap-2">
+            <ArrowDownTrayIcon className="size-4" />
             {busy ? t('bibles.importing') : t('bibles.chooseFile')}
             <input
               type="file"
@@ -82,39 +71,55 @@ export function Bibles() {
                 e.target.value = '';
               }}
             />
-          </label>
-          <span className="muted small">{t('bibles.orDrop')}</span>
+          </AppButton>
+          <DropHint text={t('bibles.orDrop')} className="hidden sm:inline ml-3" />
+          {busy && (
+            <div className="space-y-2" role="status">
+              <div className="text-sm text-neutral-600 dark:text-neutral-300">{t('bibles.processing')}</div>
+              <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 overflow-hidden">
+                <div className="bg-sky-500 h-2 rounded-full w-1/3 animate-pulse" />
+              </div>
+            </div>
+          )}
+          {message && (
+            <p className={`text-sm ${message.ok ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`} role="status" data-testid="bible-import-message">
+              {message.text}
+            </p>
+          )}
         </div>
-        {busy && (
-          <p className="muted" role="status">
-            {t('bibles.processing')} <progress />
-          </p>
-        )}
-        {message && (
-          <p className={message.ok ? 'ok' : 'danger'} role="status" data-testid="bible-import-message">
-            {message.text}
-          </p>
-        )}
-      </div>
-      <div className="card">
-        <h2>{t('bibles.installed', { count: bibles?.length ?? 0 })}</h2>
-        {bibles && !bibles.length && <p className="muted">{t('bibles.empty')}</p>}
-        <ul className="list" aria-label={t('bibles.title')}>
-          {bibles?.map((b) => (
-            <li key={b.id} className="row">
-              <span className="grow">
-                <strong>{b.name}</strong>
-                <br />
-                <span className="muted">{t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount.toLocaleString('sv-SE') })}</span>
-              </span>
-              <span className={b.stored ? 'ok small' : 'muted small'}>{b.stored ? t('bibles.offline') : t('bibles.fetching')}</span>
-              <Button variant="danger" aria-label={`${t('common.delete')} ${b.name}`} onClick={() => void remove(b)}>
-                ×
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+        <div className={CARD}>
+          <div className="px-5 pt-4 pb-2">
+            <h2 className="text-base/6 font-semibold">{t('bibles.installed', { count: bibles?.length ?? 0 })}</h2>
+          </div>
+          {bibles && !bibles.length && (
+            <div className="flex flex-col items-center justify-center py-12 text-neutral-400">
+              <BookOpenOutlineIcon className="size-16 mb-4" />
+              <p className="text-sm">{t('bibles.empty')}</p>
+            </div>
+          )}
+          <ul aria-label={t('bibles.title')}>
+            {bibles?.map((b) => (
+              <li key={b.id} className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{b.name}</div>
+                  <div className="text-xs text-neutral-400 truncate">{t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount.toLocaleString('sv-SE') })}</div>
+                </div>
+                {b.stored ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                    <CheckIcon className="size-4 text-green-500" />
+                    {t('bibles.offline')}
+                  </span>
+                ) : (
+                  <span className="text-xs text-neutral-400">{t('bibles.fetching')}</span>
+                )}
+                <AppButton variant="dangerIcon" aria-label={`${t('common.delete')} ${b.name}`} onClick={() => void remove(b)}>
+                  <TrashIcon className="size-4" />
+                </AppButton>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </DropZone>
+    </PageContainer>
   );
 }

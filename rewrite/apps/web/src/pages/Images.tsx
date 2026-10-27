@@ -1,11 +1,17 @@
-import { useState, type DragEvent } from 'react';
+import { useState } from 'react';
 import { can, type LibraryImage, type Role } from '@gp/core';
 import { useBlobUrl, useData, useDb } from '../db/react.tsx';
 import { listImages } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { processImage, ImageRefused, type ImageProblem } from '../media/process.ts';
-import { Button } from '../ui/Button.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { DropZone } from '../ui/DropZone.tsx';
+import { CardNote, EmptySmall } from '../ui/Empty.tsx';
+import { ArrowDownTrayIcon, EllipsisIcon, PhotoOutlineIcon, TrashIcon } from '../ui/icons.tsx';
+import { CARD } from '../ui/List.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { SearchField } from '../ui/Picker.tsx';
 import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -17,13 +23,16 @@ const failedText: Record<ImageProblem | 'other', Parameters<typeof t>[0]> = {
   other: 'images.failedOther',
 };
 
-/** A library picture's thumbnail, from this device's own copy; "Hämtas..." until it has arrived. */
-export function ImageThumb({ image }: { image: Pick<LibraryImage, 'thumbHash' | 'fileName'> }) {
+/**
+ * A library picture's thumbnail, from this device's own copy, rounded and at
+ * most 128 px high (Images.razor); a grey box with "Hämtas..." until it has arrived.
+ */
+export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'thumbHash' | 'fileName'>; className?: string }) {
   const url = useBlobUrl(image.thumbHash);
-  return (
-    <div className="frame">
-      {url ? <img src={url} alt={image.fileName} draggable={false} /> : <span className="muted small">{t('images.fetching')}</span>}
-    </div>
+  return url ? (
+    <img src={url} alt={image.fileName} draggable={false} className={className ?? 'block max-w-full max-h-32 rounded-lg'} />
+  ) : (
+    <div className="w-32 max-w-full aspect-video rounded-lg bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-xs text-neutral-400">{t('images.fetching')}</div>
   );
 }
 
@@ -40,7 +49,6 @@ export function Images({ role }: { role: Role }) {
   const [query, setQuery] = useState('');
   const [progress, setProgress] = useState<{ i: number; n: number } | null>(null);
   const [failures, setFailures] = useState<string[]>([]);
-  const [dragging, setDragging] = useState(false);
   const manage = can(role, 'ManageImages');
 
   const importFiles = async (files: File[]) => {
@@ -67,109 +75,87 @@ export function Images({ role }: { role: Role }) {
     toast(t('images.trashed', { name: image.fileName }));
   };
 
-  const onDrop = (e: DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    void importFiles([...e.dataTransfer.files]);
-  };
-
   const q = query.trim().toLocaleLowerCase('sv');
   const shown = images?.filter((i) => !q || i.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
 
   return (
-    <section
-      className={dragging ? 'drop-zone dragging' : 'drop-zone'}
-      onDragOver={(e) => {
-        e.preventDefault();
-        if (manage) setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-    >
-      <div className="row">
-        <h1 className="grow">{t('images.title')}</h1>
-        <a className="btn" href={href({ page: 'trash', kind: 'Image' })}>
-          {t('images.trash')}
-        </a>
-        {manage && (
-          <label className={progress ? 'btn btn-primary disabled' : 'btn btn-primary'}>
-            {t('images.import')}
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              multiple
-              hidden
-              disabled={!!progress}
-              data-testid="image-file"
-              onChange={(e) => {
-                void importFiles([...(e.target.files ?? [])]);
-                e.target.value = '';
-              }}
-            />
-          </label>
+    <PageContainer>
+      <DropZone className="flex flex-col space-y-5 min-h-[60vh]" label={t('images.drop')} enabled={manage} onFiles={(files) => void importFiles(files)}>
+        <PageHeader title={t('images.title')}>
+          <div className="flex items-center gap-3">
+            {/* Always here: someone who has just deleted the wrong picture needs the way back in view. */}
+            <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Image' })} className="inline-flex items-center gap-1.5">
+              <TrashIcon className="size-4" />
+              {t('images.trash')}
+            </AppButton>
+            {manage && (
+              <AppButton asLabel disabled={!!progress} className="inline-flex items-center gap-1.5">
+                <ArrowDownTrayIcon className="size-4 shrink-0" />
+                {t('images.import')}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                  hidden
+                  disabled={!!progress}
+                  data-testid="image-file"
+                  onChange={(e) => {
+                    void importFiles([...(e.target.files ?? [])]);
+                    e.target.value = '';
+                  }}
+                />
+              </AppButton>
+            )}
+          </div>
+        </PageHeader>
+        {progress && (
+          <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400" role="status" data-testid="image-progress">
+            {t('images.importing', progress)}
+          </p>
         )}
-      </div>
-      {dragging && <p className="drop-hint">{t('images.drop')}</p>}
-      {progress && (
-        <p className="muted" role="status" data-testid="image-progress">
-          {t('images.importing', progress)}
-        </p>
-      )}
-      {!!failures.length && (
-        <div className="danger" role="alert" data-testid="image-failures">
-          <p>{t('images.failed', { n: failures.length })}</p>
-          <ul>
-            {failures.map((f) => (
-              <li key={f}>{f}</li>
+        {!!failures.length && (
+          <div className="px-5 text-sm text-red-500 dark:text-red-400" role="alert" data-testid="image-failures">
+            <p>{t('images.failed', { n: failures.length })}</p>
+            <ul className="list-disc pl-5">
+              {failures.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className={CARD}>
+          <div className="px-5 pt-4 pb-2 space-y-3">
+            <h2 className="text-base/6 font-semibold">{t('images.all', { n: images?.length ?? 0 })}</h2>
+            {!!images?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} compact />}
+          </div>
+          {images && !images.length && (
+            <EmptySmall icon={<PhotoOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />} title={t('images.empty')} text={t('images.emptyText')} />
+          )}
+          {!!images?.length && !shown.length && <CardNote>{t('images.noMatch')}</CardNote>}
+          <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1 p-3 empty:hidden" aria-label={t('images.title')} data-testid="image-grid">
+            {shown.map((image) => (
+              <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0" data-testid="image-card">
+                <div className="relative rounded-lg">
+                  <ImageThumb image={image} />
+                  {manage && (
+                    <AppButton
+                      variant="plain"
+                      className="absolute top-1 right-1 size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80"
+                      aria-label={`${t('images.remove')} ${image.fileName}`}
+                      onClick={() => void remove(image)}
+                    >
+                      <EllipsisIcon className="size-4" />
+                    </AppButton>
+                  )}
+                </div>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>
+                  {image.fileName}
+                </p>
+              </li>
             ))}
           </ul>
         </div>
-      )}
-      <div className="card">
-        <h2>{t('images.all', { n: images?.length ?? 0 })}</h2>
-        {!!images?.length && (
-          <div className="row">
-            <input
-              className="search grow"
-              type="search"
-              maxLength={100}
-              aria-label={t('images.search')}
-              placeholder={t('images.search')}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query && (
-              <Button aria-label={t('common.clear')} onClick={() => setQuery('')}>
-                ×
-              </Button>
-            )}
-          </div>
-        )}
-        {images && !images.length && (
-          <div className="empty">
-            <p>
-              <strong>{t('images.empty')}</strong>
-            </p>
-            <p className="muted">{t('images.emptyText')}</p>
-          </div>
-        )}
-        {!!images?.length && !shown.length && <p className="muted">{t('images.noMatch')}</p>}
-        <ul className="image-grid" aria-label={t('images.title')} data-testid="image-grid">
-          {shown.map((image) => (
-            <li key={image.id} className="image-card" data-testid="image-card">
-              <ImageThumb image={image} />
-              <div className="name" title={image.fileName}>
-                {image.fileName}
-              </div>
-              {manage && (
-                <Button className="remove" aria-label={`${t('images.remove')} ${image.fileName}`} onClick={() => void remove(image)}>
-                  ⋯
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+      </DropZone>
+    </PageContainer>
   );
 }

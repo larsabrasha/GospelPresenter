@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { can, type Me, type PairStatus } from '@gp/core';
 import { api } from './auth/api.ts';
 import { updateMe } from './auth/session.ts';
@@ -26,6 +26,7 @@ import { Songs } from './pages/Songs.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { Users } from './pages/Users.tsx';
 import { AdminLayout, TopBar } from './Shell.tsx';
+import { PageContainer } from './ui/PageContainer.tsx';
 import { useRoute, type Route } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
 
@@ -60,15 +61,17 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const viewUsers = can(me.role, 'ViewUsers');
   const admin = (
     <>
-      {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
-      {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}
-      {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
-      {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <p>{t('images.forbidden')}</p>)}
-      {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <p>{t('audios.forbidden')}</p>)}
-      {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <p>{t('overlays.forbidden')}</p>)}
-      {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <p>{t('overlays.forbidden')}</p>)}
+      {route.page === 'songs' && <Songs />}
+      {route.page === 'song' && <SongEditor id={route.id} />}
+      {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <Refused text={t('users.forbidden')} />)}
+      {route.page === 'devices' && (host ? <Devices me={me} /> : <Refused text={t('devices.onlyHost')} />)}
+      {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <Refused text={t('bibles.forbidden')} />)}
+      {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <Refused text={t('images.forbidden')} />)}
+      {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <Refused text={t('audios.forbidden')} />)}
+      {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
+      {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'themes' && <Themes role={me.role} />}
-      {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <p>{t('displays.forbidden')}</p>)}
+      {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
     </>
   );
   return (
@@ -84,13 +87,12 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} />
       ) : ADMIN_PAGES.has(route.page) ? (
         <AdminLayout me={me} host={host} route={route}>
-          {route.page === 'songs' ? <Songs /> : route.page === 'song' ? <SongEditor id={route.id} /> : <Legacy>{admin}</Legacy>}
+          {admin}
         </AdminLayout>
+      ) : route.page === 'trash' ? (
+        <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />
       ) : (
-        <Legacy>
-          {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
-          {route.page === 'logins' && <Logins error={route.error} />}
-        </Legacy>
+        route.page === 'logins' && <Logins error={route.error} />
       )}
     </ToastProvider>
   );
@@ -99,12 +101,12 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
 /** The pages under the admin menu (Layout/AdminLayout.razor). */
 const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'themes', 'displays']);
 
-/** A page not yet moved to Tailwind: its old styles (styles.css), in a scrolling area. */
-function Legacy({ children }: { children: ReactNode }) {
+/** A page the user may not open: why, where the page would be. */
+function Refused({ text }: { text: string }) {
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="legacy-page">{children}</div>
-    </div>
+    <PageContainer>
+      <p className="px-5 text-neutral-500 dark:text-neutral-400">{text}</p>
+    </PageContainer>
   );
 }
 

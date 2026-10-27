@@ -5,11 +5,13 @@ import { errorText } from '../auth/errors.ts';
 import { addPasskey, linkGoogle } from '../auth/passkey.ts';
 import { deviceName } from '../auth/session.ts';
 import { t } from '../i18n.ts';
-import { Button } from '../ui/Button.tsx';
-import { Dialog, useConfirm } from '../ui/Dialog.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
+import { FloatingInput } from '../ui/Floating.tsx';
+import { CARD } from '../ui/List.tsx';
+import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { FormError } from './AuthCard.tsx';
 
 /** How long the desktop app watches for a passkey or Google account added in the system browser (spec 06: 5 minutes). */
 const WAIT_MS = 5 * 60_000;
@@ -32,9 +34,10 @@ function NameDialog({ title, text, initial, submit, onClose }: { title: string; 
   const [name, setName] = useState(initial);
   const [busy, setBusy] = useState(false);
   return (
-    <Dialog title={title} onClose={onClose}>
-      {text && <p>{text}</p>}
+    <Dialog title={title} onClose={onClose} maxWidthClass="max-w-2xl">
+      {text && <p className="text-sm text-neutral-600 dark:text-neutral-300">{text}</p>}
       <form
+        className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
           if (!name.trim() || busy) return;
@@ -43,16 +46,15 @@ function NameDialog({ title, text, initial, submit, onClose }: { title: string; 
           setBusy(false);
         }}
       >
-        <label className="field">
-          {t('logins.name')}
-          <input autoFocus maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <div className="row end">
-          <Button onClick={onClose}>{t('common.cancel')}</Button>
-          <Button variant="primary" type="submit" disabled={!name.trim() || busy}>
+        <FloatingInput label={t('logins.name')} autoFocus maxLength={100} value={name} onChange={(e) => setName(e.target.value)} />
+        <DialogButtons>
+          <AppButton variant="cancel" onClick={onClose}>
+            {t('common.cancel')}
+          </AppButton>
+          <AppButton type="submit" disabled={!name.trim() || busy}>
             {t('common.save')}
-          </Button>
-        </div>
+          </AppButton>
+        </DialogButtons>
       </form>
     </Dialog>
   );
@@ -123,54 +125,66 @@ export function Logins({ error: initialError }: { error: string | null }) {
 
   const only = logins?.length === 1;
   const hasGoogle = !!logins?.some((l) => l.provider === 'google');
+  const failure = error ?? (typeof list === 'string' ? list : null);
   return (
-    <section>
-      <h1>{t('logins.title')}</h1>
-      <p className="muted">{t('logins.text')}</p>
-      <FormError text={error ?? (typeof list === 'string' ? list : null)} />
-      <ul className="list" aria-label={t('logins.title')}>
-        {logins?.map((l) => (
-          <li key={`${l.provider}:${l.id}`} className="user-row">
-            <div className="grow">
-              <strong>{label(l)}</strong> <span className="muted">{l.provider === 'google' ? t('logins.google') : t('logins.passkey')}</span>
-              <div className="small muted">{t('logins.dates', { created: day(l.createdAt), used: day(l.lastUsedAt) })}</div>
-            </div>
-            {l.provider === 'passkey' && <Button onClick={() => setDialog({ kind: 'rename', login: l })}>{t('logins.rename')}</Button>}
-            <Button variant="danger" disabled={only} title={only ? t('logins.last') : undefined} onClick={() => void remove(l)}>
-              {t('logins.remove')}
-            </Button>
-          </li>
-        ))}
-      </ul>
-      {only && <p className="small muted">{t('logins.last')}</p>}
-      {waiting ? (
-        <div className="row">
-          <p className="grow" role="status">
-            {t('logins.waiting')}
+    <PageContainer>
+      <DetailHeader title={t('logins.title')} className="px-5" />
+      <div className={`${CARD} p-5 space-y-4`}>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('logins.text')}</p>
+        {failure && (
+          <p className="text-sm text-red-500 dark:text-red-400" role="alert">
+            {failure}
           </p>
-          <Button onClick={() => setWaiting(null)}>{t('auth.cancel')}</Button>
-        </div>
-      ) : (
-        <div className="row">
-          {methods?.passkeys && (
-            <Button variant="primary" onClick={() => setDialog({ kind: 'add' })}>
-              {t('logins.addPasskey')}
-            </Button>
-          )}
-          {methods?.google && logins && !hasGoogle && (
-            <Button
-              onClick={async () => {
-                setError(null);
-                const problem = await linkGoogle();
-                if (problem) setError(problem);
-                else if (window.gpDesktop) wait();
-              }}
-            >
-              {t('logins.linkGoogle')}
-            </Button>
-          )}
-        </div>
-      )}
+        )}
+        <ul className="space-y-3 empty:hidden" aria-label={t('logins.title')}>
+          {logins?.map((l) => (
+            <li key={`${l.provider}:${l.id}`} className="flex items-center gap-3 p-3 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm truncate">
+                  <span className="font-medium">{label(l)}</span> <span className="text-neutral-500 dark:text-neutral-400">{l.provider === 'google' ? t('logins.google') : t('logins.passkey')}</span>
+                </div>
+                <div className="text-xs text-neutral-500 dark:text-neutral-400">{t('logins.dates', { created: day(l.createdAt), used: day(l.lastUsedAt) })}</div>
+              </div>
+              {l.provider === 'passkey' && (
+                <AppButton variant="neutral" className="px-3! py-1.5!" onClick={() => setDialog({ kind: 'rename', login: l })}>
+                  {t('logins.rename')}
+                </AppButton>
+              )}
+              <AppButton variant="danger" className="px-3! py-1.5!" disabled={only} title={only ? t('logins.last') : undefined} onClick={() => void remove(l)}>
+                {t('logins.remove')}
+              </AppButton>
+            </li>
+          ))}
+        </ul>
+        {only && <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('logins.last')}</p>}
+        {waiting ? (
+          <div className="flex items-center gap-3">
+            <p className="flex-1 text-sm text-neutral-600 dark:text-neutral-300" role="status">
+              {t('logins.waiting')}
+            </p>
+            <AppButton variant="cancel" onClick={() => setWaiting(null)}>
+              {t('auth.cancel')}
+            </AppButton>
+          </div>
+        ) : (
+          <div className="flex flex-wrap justify-center gap-3 empty:hidden">
+            {methods?.passkeys && <AppButton onClick={() => setDialog({ kind: 'add' })}>{t('logins.addPasskey')}</AppButton>}
+            {methods?.google && logins && !hasGoogle && (
+              <AppButton
+                variant="secondary"
+                onClick={async () => {
+                  setError(null);
+                  const problem = await linkGoogle();
+                  if (problem) setError(problem);
+                  else if (window.gpDesktop) wait();
+                }}
+              >
+                {t('logins.linkGoogle')}
+              </AppButton>
+            )}
+          </div>
+        )}
+      </div>
       {dialog?.kind === 'add' && (
         <NameDialog
           title={t('logins.addPasskey')}
@@ -208,6 +222,6 @@ export function Logins({ error: initialError }: { error: string | null }) {
         />
       )}
       {confirm.dialog}
-    </section>
+    </PageContainer>
   );
 }

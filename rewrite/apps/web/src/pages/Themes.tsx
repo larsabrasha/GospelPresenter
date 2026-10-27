@@ -3,7 +3,9 @@ import { can, listThemes, type Role, type Slide } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { orgDefaultThemeId } from '../db/queries.ts';
 import { t } from '../i18n.ts';
-import { Button } from '../ui/Button.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { CARD } from '../ui/List.tsx';
+import { PageContainer } from '../ui/PageContainer.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -28,7 +30,12 @@ export function Themes({ role }: { role: Role }) {
   const toast = useToast();
   const saved = useData(orgDefaultThemeId, []);
   const [saving, setSaving] = useState<string | null>(null);
-  if (saved === undefined) return <p className="muted">{t('auth.loading')}</p>;
+  if (saved === undefined)
+    return (
+      <PageContainer>
+        <p className="px-7 py-4 text-neutral-400">{t('auth.loading')}</p>
+      </PageContainer>
+    );
   const current = saving ?? saved ?? 'classic'; // optimistic while saving; no default saved shows Classic
   const manage = can(role, 'ManageThemes');
 
@@ -45,28 +52,37 @@ export function Themes({ role }: { role: Role }) {
   };
 
   return (
-    <section>
-      <h1>{t('themes.title')}</h1>
-      <p className="muted">{t('themes.text')}</p>
-      <ul className="theme-grid" aria-label={t('themes.title')}>
+    <PageContainer>
+      <div className="px-5">
+        <h1 className="text-xl/7 font-bold dark:text-neutral-100">{t('themes.title')}</h1>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 max-w-2xl leading-relaxed">{t('themes.text')}</p>
+      </div>
+      <ul className="grid gap-4 sm:grid-cols-2" aria-label={t('themes.title')}>
         {listThemes().map((theme) => (
-          <li key={theme.id} className="card theme-card" data-testid={`theme-${theme.id}`}>
-            <div className="theme-preview">
+          <li key={theme.id} className={CARD} data-testid={`theme-${theme.id}`}>
+            <div className="aspect-video">
               <SlideView slide={SAMPLE} theme={theme} label={false} />
             </div>
-            <div className="row">
-              <strong className="grow">{theme.name}</strong>
-              {theme.id === current && <span className="badge">{t('themes.default')}</span>}
+            {/* The name and text get the full width; the button has its own row. */}
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold">{theme.name}</span>
+                {theme.id === current && (
+                  <span className="text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">{t('themes.default')}</span>
+                )}
+              </div>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 leading-relaxed">{theme.description}</p>
+              {manage && theme.id !== current && (
+                <div className="flex justify-end mt-3">
+                  <AppButton disabled={saving !== null} onClick={() => void choose(theme.id)}>
+                    {t('themes.useAsDefault')}
+                  </AppButton>
+                </div>
+              )}
             </div>
-            <p className="muted small">{theme.description}</p>
-            {manage && theme.id !== current && (
-              <Button disabled={saving !== null} onClick={() => void choose(theme.id)}>
-                {t('themes.useAsDefault')}
-              </Button>
-            )}
           </li>
         ))}
       </ul>
-    </section>
+    </PageContainer>
   );
 }

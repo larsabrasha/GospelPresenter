@@ -88,6 +88,23 @@ const closeAdminMenu = async (p) => {
   if (p.viewportSize().width < 1024 && (await p.locator('aside:visible').count())) await p.mouse.click(370, 400);
   await p.waitForTimeout(400);
 };
+// The admin pages' steps: the menu out of the way, then the first button of that name.
+const clickFirst = async (p, name) => {
+  await closeAdminMenu(p);
+  await p.getByRole('button', { name, exact: true }).first().click({ timeout: 5000 });
+};
+const addDisplays = async (p) => {
+  await closeAdminMenu(p);
+  for (const [add, name, confirm] of [['Lägg till', 'Kyrksalen', 'Lägg till'], ['Skapa publik utgång', 'Mobiler', 'Skapa']]) {
+    if (await p.getByText(name, { exact: true }).count()) continue;
+    await p.getByRole('button', { name: add, exact: true }).first().click({ timeout: 5000 });
+    await p.locator('dialog[open] input').fill(name);
+    await p.locator('dialog[open]').getByRole('button', { name: confirm, exact: true }).click();
+    await p.waitForTimeout(800);
+    await p.keyboard.press('Escape');
+    await p.waitForTimeout(400);
+  }
+};
 const openAdd = async (p, tab) => {
   const add = p.getByRole('button', { name: 'Lägg till', exact: true }).first();
   if (!(await add.isVisible())) await p.getByTitle('Meny', { exact: true }).click();
@@ -144,18 +161,36 @@ const pages = [
     await scrollDown(p);
   }],
   ['song-history', abs(song) && abs(song) + '/history', closeAdminMenu],
-  ['images', '/admin/images'],
-  ['audios', '/admin/audios'],
-  ['bibles', '/admin/bibles'],
-  ['overlays', '/admin/overlays'],
-  ['overlay', abs(overlay)],
-  ['themes', '/admin/themes'],
-  ['templates', '/admin/templates'],
-  ['labels', '/admin/labels'],
-  ['users', '/admin/users'],
-  ['user', abs(user)],
-  ['devices', '/admin/devices'],
-  ['displays', '/admin/displays'],
+  ['images', '/admin/images', closeAdminMenu],
+  ['audios', '/admin/audios', closeAdminMenu],
+  ['bibles', '/admin/bibles', closeAdminMenu],
+  ['overlays', '/admin/overlays', closeAdminMenu],
+  ['overlay-create', '/admin/overlays', (p) => clickFirst(p, 'Skapa')],
+  ['overlay', abs(overlay), closeAdminMenu],
+  ['themes', '/admin/themes', closeAdminMenu],
+  ['themes-end', '/admin/themes', async (p) => {
+    await closeAdminMenu(p);
+    await scrollDown(p);
+  }],
+  ['templates', '/admin/templates', closeAdminMenu],
+  ['labels', '/admin/labels', closeAdminMenu],
+  ['users', '/admin/users', closeAdminMenu],
+  ['users-create', '/admin/users', (p) => clickFirst(p, 'Skapa')],
+  ['user', abs(user), closeAdminMenu],
+  ['devices', '/admin/devices', closeAdminMenu],
+  ['displays', '/admin/displays', closeAdminMenu],
+  ['displays-end', '/admin/displays', async (p) => {
+    await closeAdminMenu(p);
+    await scrollDown(p);
+  }],
+  ['displays-add', '/admin/displays', (p) => clickFirst(p, 'Lägg till')],
+  // The mock data has no screens or outputs: one of each, made once, as capture.spec.ts makes them.
+  ['displays-filled', '/admin/displays', async (p) => {
+    await addDisplays(p);
+    await closeAdminMenu(p);
+  }],
+  ['displays-link', '/admin/displays', (p) => clickFirst(p, 'Visa länk')],
+  ['displays-qr', '/admin/displays', (p) => clickFirst(p, 'Visa QR-kod')],
   ['display', '/display'],
   ['login', '/login'],
 ].filter(([name, path]) => path && (!only || only.split(',').includes(name)));

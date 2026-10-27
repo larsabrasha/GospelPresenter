@@ -1,11 +1,17 @@
-import { useState, type DragEvent } from 'react';
+import { useState } from 'react';
 import { AUDIO_TYPES, audioTypeFromName, can, MEDIA_LIMITS, sniffAudio, type LibraryAudio, type Role } from '@gp/core';
 import type { AudioImport } from '../db/protocol.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
-import { Button } from '../ui/Button.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { DropZone } from '../ui/DropZone.tsx';
+import { CardNote, EmptySmall } from '../ui/Empty.tsx';
+import { ArrowDownTrayIcon, EllipsisIcon, SpeakerWaveIcon, TrashIcon } from '../ui/icons.tsx';
+import { CARD } from '../ui/List.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { SearchField } from '../ui/Picker.tsx';
 import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -43,7 +49,6 @@ export function Audios({ role }: { role: Role }) {
   const [query, setQuery] = useState('');
   const [progress, setProgress] = useState<{ i: number; n: number } | null>(null);
   const [failures, setFailures] = useState<string[]>([]);
-  const [dragging, setDragging] = useState(false);
   const manage = can(role, 'ManageAudios');
 
   const importFiles = async (files: File[]) => {
@@ -74,98 +79,87 @@ export function Audios({ role }: { role: Role }) {
     toast(t('audios.trashed', { name: a.fileName }));
   };
 
-  const onDrop = (e: DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    void importFiles([...e.dataTransfer.files]);
-  };
-
   const q = query.trim().toLocaleLowerCase('sv');
   const shown = audios?.filter((a) => !q || a.fileName.toLocaleLowerCase('sv').includes(q)) ?? [];
 
   return (
-    <section
-      className={dragging ? 'drop-zone dragging' : 'drop-zone'}
-      onDragOver={(e) => {
-        e.preventDefault();
-        if (manage) setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={onDrop}
-    >
-      <div className="row">
-        <h1 className="grow">{t('audios.title')}</h1>
-        <a className="btn" href={href({ page: 'trash', kind: 'Audio' })}>
-          {t('images.trash')}
-        </a>
-        {manage && (
-          <label className={progress ? 'btn btn-primary disabled' : 'btn btn-primary'}>
-            {t('images.import')}
-            <input
-              type="file"
-              accept={AUDIO_TYPES.join(',')}
-              multiple
-              hidden
-              disabled={!!progress}
-              data-testid="audio-file"
-              onChange={(e) => {
-                void importFiles([...(e.target.files ?? [])]);
-                e.target.value = '';
-              }}
-            />
-          </label>
+    <PageContainer>
+      {/* No hint text while dragging: this page has none yet (the current app says "Släpp ljudfiler här"). */}
+      <DropZone className="flex flex-col space-y-5 min-h-[60vh]" enabled={manage} onFiles={(files) => void importFiles(files)}>
+        <PageHeader title={t('audios.title')}>
+          <div className="flex items-center gap-3">
+            <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Audio' })} className="inline-flex items-center gap-1.5">
+              <TrashIcon className="size-4" />
+              {t('images.trash')}
+            </AppButton>
+            {manage && (
+              <AppButton asLabel disabled={!!progress} className="inline-flex items-center gap-1.5">
+                <ArrowDownTrayIcon className="size-4 shrink-0" />
+                {t('images.import')}
+                <input
+                  type="file"
+                  accept={AUDIO_TYPES.join(',')}
+                  multiple
+                  hidden
+                  disabled={!!progress}
+                  data-testid="audio-file"
+                  onChange={(e) => {
+                    void importFiles([...(e.target.files ?? [])]);
+                    e.target.value = '';
+                  }}
+                />
+              </AppButton>
+            )}
+          </div>
+        </PageHeader>
+        {progress && (
+          <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400" role="status">
+            {t('images.importing', progress)}
+          </p>
         )}
-      </div>
-      {progress && (
-        <p className="muted" role="status">
-          {t('images.importing', progress)}
-        </p>
-      )}
-      {!!failures.length && (
-        <div className="danger" role="alert" data-testid="audio-failures">
-          <p>{t('audios.failed', { n: failures.length })}</p>
-          <ul>
-            {failures.map((f) => (
-              <li key={f}>{f}</li>
+        {!!failures.length && (
+          <div className="px-5 text-sm text-red-500 dark:text-red-400" role="alert" data-testid="audio-failures">
+            <p>{t('audios.failed', { n: failures.length })}</p>
+            <ul className="list-disc pl-5">
+              {failures.map((f) => (
+                <li key={f}>{f}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className={CARD}>
+          <div className="px-5 pt-4 pb-2 space-y-3">
+            <h2 className="text-base/6 font-semibold">{t('audios.all', { n: audios?.length ?? 0 })}</h2>
+            {!!audios?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} compact />}
+          </div>
+          {audios && !audios.length && (
+            <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />} title={t('audios.empty')} text={t('audios.emptyText')} />
+          )}
+          {!!audios?.length && !shown.length && <CardNote>{t('audios.noMatch')}</CardNote>}
+          <ul aria-label={t('audios.title')}>
+            {shown.map((a) => (
+              <li
+                key={a.id}
+                className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 last:rounded-b-xl hover:bg-neutral-100 dark:hover:bg-neutral-700/50"
+                aria-label={a.fileName}
+              >
+                <SpeakerWaveIcon className="size-5 text-neutral-400 shrink-0" />
+                <span className="text-sm truncate flex-1">{a.fileName}</span>
+                {manage && (
+                  <AppButton
+                    variant="plain"
+                    className="size-7 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
+                    aria-label={`${t('images.remove')} ${a.fileName}`}
+                    onClick={() => void remove(a)}
+                  >
+                    <EllipsisIcon className="size-4" />
+                  </AppButton>
+                )}
+              </li>
             ))}
           </ul>
         </div>
-      )}
-      <div className="card">
-        <h2>{t('audios.all', { n: audios?.length ?? 0 })}</h2>
-        {!!audios?.length && (
-          <div className="row">
-            <input className="search grow" type="search" maxLength={100} aria-label={t('images.search')} placeholder={t('images.search')} value={query} onChange={(e) => setQuery(e.target.value)} />
-            {query && (
-              <Button aria-label={t('common.clear')} onClick={() => setQuery('')}>
-                ×
-              </Button>
-            )}
-          </div>
-        )}
-        {audios && !audios.length && (
-          <div className="empty">
-            <p>
-              <strong>{t('audios.empty')}</strong>
-            </p>
-            <p className="muted">{t('audios.emptyText')}</p>
-          </div>
-        )}
-        {!!audios?.length && !shown.length && <p className="muted">{t('audios.noMatch')}</p>}
-        <ul className="list" aria-label={t('audios.title')}>
-          {shown.map((a) => (
-            <li key={a.id} className="row" aria-label={a.fileName}>
-              <span aria-hidden="true">🔊</span>
-              <span className="grow">{a.fileName}</span>
-              {manage && (
-                <Button aria-label={`${t('images.remove')} ${a.fileName}`} onClick={() => void remove(a)}>
-                  ⋯
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+      </DropZone>
+    </PageContainer>
   );
 }
