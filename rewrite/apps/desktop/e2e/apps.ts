@@ -35,6 +35,8 @@ export async function launch(opts: { server?: string; dataDir?: string; port?: n
   const port = opts.server ? undefined : (opts.port ?? 20_000 + Math.floor(Math.random() * 20_000));
   if (port) env.GP_PORT = String(port);
   if (opts.memory) env.GP_STORAGE = 'memory';
+  // No visible window: the tests never take focus or a screen from whoever is at the computer. GP_E2E_VISIBLE=1 shows them.
+  if (process.env.GP_E2E_VISIBLE !== '1') env.GP_HIDDEN_WINDOWS = '1';
   if (opts.lan) env.GP_LAN = '1';
   else delete env.GP_LAN;
   const fake = await fakeGoogle();

@@ -27,7 +27,7 @@ pnpm install
 pnpm build
 pnpm lint && pnpm typecheck && pnpm test   # unit and sync tests, on Node, node:sqlite and local workerd
                                            # (lint also refuses a REPLACE in a mutator: see Assumptions)
-pnpm e2e                                   # milestones 1–5 in Electron, with real windows
+pnpm e2e                                   # milestones 1–6 in Electron, windows hidden
 
 export GP_GOOGLE_CLIENT_ID=… GP_GOOGLE_CLIENT_SECRET=…   # the host's Google client (see "Sign-in")
 pnpm --filter @gp/desktop start            # the desktop app: the host, on 127.0.0.1:47800
@@ -39,7 +39,9 @@ GP_PASSKEY_RP_ID=localhost GP_PASSKEY_ORIGINS=http://localhost:8787 pnpm --filte
                                            # the same with passkeys; open http://localhost:8787 (not 127.0.0.1)
 ```
 
-Needs Node 22 or later and pnpm 12. The e2e opens real windows, and plays the system browser and
+Needs Node 22 or later and pnpm 12. The e2e runs the real app, with its windows hidden: they are made but never
+shown, there is no Dock icon, and the output never takes a second display, so a run takes no focus from whoever
+is at the computer (`GP_E2E_VISIBLE=1 pnpm e2e` shows them). It plays the system browser and
 Google itself (`apps/server/test/fake-google.ts`), so it needs no internet and no Google client. Its
 passkey tests play the system browser with Playwright's Chromium and its virtual authenticator, so
 that browser must be installed once (`pnpm --filter @gp/desktop exec playwright install chromium`). `?storage=memory` in the page URL

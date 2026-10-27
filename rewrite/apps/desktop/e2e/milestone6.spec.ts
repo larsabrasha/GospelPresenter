@@ -51,6 +51,10 @@ test('stage view: the picker opens by itself, next stays within the item, and th
 
   await stage.getByRole('button', { name: 'Lämna scenläge' }).click();
   await expect(stage).toHaveCount(0);
+
+  // The tests take no focus and no screen: the operator window and the output exist but were never shown.
+  const windows = await host.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => ({ visible: w.isVisible(), fullScreen: w.isFullScreen() })));
+  if (process.env.GP_E2E_VISIBLE !== '1') expect(windows).toEqual([{ visible: false, fullScreen: false }, { visible: false, fullScreen: false }]);
 });
 
 test('addresses are plain paths: links navigate without a reload, a reload or a pasted link lands on the same page', async () => {

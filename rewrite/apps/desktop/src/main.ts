@@ -60,11 +60,21 @@ if (app.isPackaged || process.env.GP_REGISTER_SCHEME === '1') {
   else app.setAsDefaultProtocolClient(CALLBACK_SCHEME, process.execPath, [fileURLToPath(new URL('main.mjs', import.meta.url))]);
 }
 
+/**
+ * The automated tests run the app with no visible window, so it never takes
+ * focus or a screen from whoever is at the computer: windows are made but
+ * never shown, there is no Dock icon, and the output never claims a second
+ * display. Hidden windows still render; throttling is off so timers keep
+ * pace. A packaged app ignores it.
+ */
+const hidden = !app.isPackaged && process.env.GP_HIDDEN_WINDOWS === '1';
+
 const webPreferences = {
   contextIsolation: true,
   nodeIntegration: false,
   sandbox: true,
   preload: join(here, 'preload.cjs'),
+  ...(hidden ? { backgroundThrottling: false } : {}),
 };
 
 let base = '';
@@ -92,6 +102,7 @@ function signInCallback(url: string) {
   if (!waiting || !/^gpdt_[\w-]{43}$/.test(token)) return;
   signInUntil = 0;
   mainWindow?.webContents.send('sign-in-callback', token);
+  if (hidden) return;
   if (mainWindow?.isMinimized()) mainWindow.restore();
   mainWindow?.focus();
 }
@@ -103,7 +114,7 @@ app.on('open-url', (e, url) => {
 app.on('second-instance', (_e, argv) => {
   const url = argv.find((a) => a.startsWith(`${CALLBACK_SCHEME}://`));
   if (url) signInCallback(url);
-  else mainWindow?.focus();
+  else if (!hidden) mainWindow?.focus();
 });
 
 /**
@@ -120,9 +131,9 @@ function passkeyBase(serverBase: string): string {
 
 /** The output goes fullscreen on the first non-primary display, or into a window when there is one display. */
 function openOutput() {
-  if (output && !output.isDestroyed()) return output.focus();
+  if (output && !output.isDestroyed()) return hidden ? undefined : output.focus();
   const primary = screen.getPrimaryDisplay();
-  const external = screen.getAllDisplays().find((d) => d.id !== primary.id);
+  const external = hidden ? undefined : screen.getAllDisplays().find((d) => d.id !== primary.id);
   output = new BrowserWindow({
     title: 'Gospel Presenter – output',
     backgroundColor: '#000000',
@@ -131,7 +142,7 @@ function openOutput() {
     autoHideMenuBar: true,
     webPreferences,
   });
-  output.once('ready-to-show', () => output?.show());
+  if (!hidden) output.once('ready-to-show', () => output?.show());
   void output.loadURL(pageUrl(base, 'output'));
   log({ event: 'output-opened', external: !!external });
 }
@@ -199,7 +210,8 @@ app.whenReady().then(async () => {
     return true;
   });
 
-  const main = new BrowserWindow({ width: 1280, height: 800, title: 'Gospel Presenter', webPreferences });
+  if (hidden) app.dock?.hide();
+  const main = new BrowserWindow({ width: 1280, height: 800, title: 'Gospel Presenter', show: !hidden, webPreferences });
   mainWindow = main;
   await main.loadURL(pageUrl(base));
   main.on('closed', () => app.quit());
