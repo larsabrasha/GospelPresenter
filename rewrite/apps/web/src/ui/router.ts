@@ -43,9 +43,22 @@ export function currentRoute(): Route {
   return parseRoute(location.pathname, location.search, location.hash);
 }
 
+/**
+ * A path segment as text. A link cut off in a message can end in half a
+ * percent escape, which `decodeURIComponent` refuses with an error; such a
+ * segment is kept as it was rather than stopping the app from starting.
+ */
+function decode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 /** An address as the router reads it: the path and query, and the fragment, which only an invite's token uses. */
 export function parseRoute(path: string, search = '', hash = ''): Route {
-  const [first = '', second, third] = path.replace(/^\/+|\/+$/g, '').split('/').map(decodeURIComponent);
+  const [first = '', second, third] = path.replace(/^\/+|\/+$/g, '').split('/').map(decode);
   const query = new URLSearchParams(search);
   if (first === 'admin') {
     if (second === 'users') return { page: 'users' };
@@ -70,7 +83,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (query.get('remote') !== '1') return { page: 'live', id };
     return { page: 'live', id, remote: true, session: query.get('session') };
   }
-  if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decodeURIComponent(hash.slice(1)) };
+  if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decode(hash.slice(1)) };
   if (first === 'signed-in') return { page: 'signedIn' };
   if (first === 'signin') return { page: 'signIn', error: query.get('error') };
   if (first === 'output') return { page: 'output' };

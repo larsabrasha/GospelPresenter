@@ -8,6 +8,7 @@
     "start": "node build.mjs && electron .",
     "serve": "node build.mjs && node dist/serve.mjs",
     "typecheck": "tsc --noEmit -p .",
+    "test": "vitest run",
     "e2e": "playwright test"
   },
   "dependencies": {

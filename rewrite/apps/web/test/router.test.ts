@@ -69,6 +69,13 @@ describe('routes', () => {
     expect(read('/trash?kind=')).toEqual({ page: 'trash', kind: null });
   });
 
+  it('a link cut off in the middle of a percent escape still opens the app (code review)', () => {
+    // decodeURIComponent throws on these; the app used to stop at start with a blank page.
+    expect(read('/songs/%E0%A4%A')).toEqual({ page: 'song', id: '%E0%A4%A' });
+    expect(read('/%E0%A4%A')).toEqual({ page: 'songs' });
+    expect(read('/invite#gpin_abc%E0%A4%A')).toEqual({ page: 'invite', token: 'gpin_abc%E0%A4%A' });
+  });
+
   it('an unknown address goes to the song list; a trailing slash does not matter', () => {
     expect(read('/nowhere')).toEqual({ page: 'songs' });
     expect(read('/')).toEqual({ page: 'songs' });

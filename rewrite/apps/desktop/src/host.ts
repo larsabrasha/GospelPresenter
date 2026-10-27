@@ -35,30 +35,30 @@ export function tlsConfig(dataDir: string): { key: string; cert: string; port: n
 /**
  * A self-signed certificate for this machine: its LAN addresses, its
  * `.local` name and localhost, valid for ten years. Made once with openssl
- * (macOS and Linux have it) and kept; made again only when this machine has
- * an address the certificate does not name, which a device then accepts anew.
+ * (macOS and Linux have it) and kept. It is made again only when this machine
+ * has a name the certificate lacks: not when its networks are listed in
+ * another order, nor when one goes away, for every device would then have to
+ * accept a new one.
  */
 function selfSigned(dir: string): { key: string; cert: string } {
   const key = join(dir, 'key.pem');
   const cert = join(dir, 'cert.pem');
-  const names = join(dir, 'names');
-  const want = [
-    'DNS:localhost',
-    `DNS:${hostname().replace(/\.local$/, '')}.local`,
-    'IP:127.0.0.1',
-    ...lanAddresses().map((a) => `IP:${a}`),
-  ].join(',');
-  if (existsSync(cert) && existsSync(key) && existsSync(names) && readFileSync(names, 'utf8') === want) return { key, cert };
+  const namesFile = join(dir, 'names');
+  const needed = new Set(['DNS:localhost', `DNS:${hostname().replace(/\.local$/, '')}.local`, 'IP:127.0.0.1', ...lanAddresses().map((a) => `IP:${a}`)]);
+  const covered = existsSync(namesFile) ? new Set(readFileSync(namesFile, 'utf8').split(',')) : new Set<string>();
+  if (existsSync(cert) && existsSync(key) && [...needed].every((n) => covered.has(n))) return { key, cert };
+  // A new certificate names what this one did as well, so a network that comes back is still named.
+  const names = [...new Set([...needed, ...covered])].filter(Boolean).toSorted().join(',');
   mkdirSync(dir, { recursive: true });
   try {
     execFileSync('openssl', [
       'req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes', '-keyout', key, '-out', cert,
-      '-days', '3650', '-subj', '/CN=Gospel Presenter', '-addext', `subjectAltName=${want}`,
+      '-days', '3650', '-subj', '/CN=Gospel Presenter', '-addext', `subjectAltName=${names}`,
     ], { stdio: 'ignore' });
   } catch {
     throw new Error('GP_TLS=self-signed needs openssl on this machine; or give GP_TLS_CERT and GP_TLS_KEY');
   }
-  writeFileSync(names, want);
+  writeFileSync(namesFile, names);
   return { key, cert };
 }
 

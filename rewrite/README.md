@@ -25,7 +25,7 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 ```sh
 pnpm install
 pnpm build
-pnpm lint && pnpm typecheck && pnpm test   # unit and sync tests, on Node, node:sqlite and local workerd
+pnpm lint && pnpm typecheck && pnpm test   # unit and sync tests, on Node, node:sqlite and local workerd, and the host's own
                                            # (lint also refuses a REPLACE in a mutator: see Assumptions)
 pnpm e2e                                   # milestones 1–6 in Electron, windows hidden
 
@@ -447,7 +447,8 @@ GP_LAN=1 GP_TLS_CERT=cert.pem GP_TLS_KEY=key.pem pnpm --filter @gp/desktop start
 
 `GP_TLS=self-signed` is the way of the author's other apps (`@vitejs/plugin-basic-ssl`): the host makes a
 certificate with openssl for its LAN addresses, its `.local` name and localhost, keeps it in its data folder
-(`tls/`), and makes it again only when it has an address the certificate does not name. Each device accepts it
+(`tls/`), and makes it again only when it has an address the certificate does not name (not when its networks are
+listed in another order, nor when one goes away; a new one names the old addresses too). Each device accepts it
 once in its browser's warning. Whether Safari then counts the page as a secure context and allows its worker
 and `wss` is not tested here (the e2e accepts it in Chromium).
 
