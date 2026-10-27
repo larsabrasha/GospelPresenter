@@ -208,7 +208,30 @@ const pages = [
   ['add-bible', abs(presentation), (p) => openAdd(p, 'Bibeltexter')],
   ['add-images', abs(presentation), (p) => openAdd(p, 'Bilder')],
   ['add-audio', abs(presentation), (p) => openAdd(p, 'Ljud')],
+  ['presentation-menu', abs(presentation), async (p) => {
+    const options = p.getByTitle('Alternativ', { exact: true }).first();
+    if (!(await options.isVisible())) await p.getByTitle('Meny', { exact: true }).click();
+    await p.waitForTimeout(400);
+    await options.click({ timeout: 5000 });
+  }],
   ['live', abs(presentation), goLive, stopLive],
+  ['live-black', abs(presentation), async (p) => {
+    await goLive(p);
+    await panelOpen(p);
+    await p.locator('button:visible', { hasText: 'Rensa' }).first().click({ timeout: 5000 });
+  }, stopLive],
+  // Every section of the panel open, and every "i" pressed.
+  ['live-hints', abs(presentation), async (p) => {
+    await goLive(p);
+    await panelOpen(p);
+    for (const name of ['Overlays', 'Fjärrstyrning']) {
+      const section = p.locator('button:visible', { hasText: name }).first();
+      if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
+      await p.waitForTimeout(400);
+    }
+    for (const hint of await p.locator('button:visible', { hasText: /^\s*i\s*$/ }).all()) await hint.click();
+    await p.waitForTimeout(400);
+  }, stopLive],
   ['stage', abs(presentation), async (p) => {
     await goLive(p);
     // On a phone the live panel starts folded; its "Nu visas" header opens it.
@@ -235,13 +258,25 @@ const pages = [
     await p.getByRole('button', { name: 'Skapa', exact: true }).click();
   }],
   ['song', abs(song), closeAdminMenu],
+  ['song-label-menu', abs(song), async (p) => {
+    await closeAdminMenu(p);
+    await p.locator('#song-part-0 button').first().click({ timeout: 5000 });
+  }],
   ['song-end', abs(song), async (p) => {
     await closeAdminMenu(p);
     await scrollDown(p);
   }],
   ['song-history', abs(song) && abs(song) + '/history', closeAdminMenu],
   ['images', '/admin/images', closeAdminMenu],
+  ['images-menu', '/admin/images', async (p) => {
+    await closeAdminMenu(p);
+    await p.locator('.absolute.top-1.right-1 button').first().click({ timeout: 5000 });
+  }],
   ['audios', '/admin/audios', closeAdminMenu],
+  ['audios-menu', '/admin/audios', async (p) => {
+    await closeAdminMenu(p);
+    await p.locator('div.relative > div > button.size-7').first().click({ timeout: 5000 });
+  }],
   ['bibles', '/admin/bibles', closeAdminMenu],
   ['overlays', '/admin/overlays', closeAdminMenu],
   ['overlay-create', '/admin/overlays', (p) => clickFirst(p, 'Skapa')],

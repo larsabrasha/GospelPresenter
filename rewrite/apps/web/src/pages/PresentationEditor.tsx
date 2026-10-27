@@ -7,6 +7,7 @@ import { newId } from '../ids.ts';
 import { slidesOf, type ItemSlides } from '../live/live.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons, Modal, useConfirm } from '../ui/Dialog.tsx';
+import { Dropdown, MENU_ITEM } from '../ui/Dropdown.tsx';
 import { FloatingInput, FloatingSelect } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
 import {
@@ -14,6 +15,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   CloseIcon,
+  EllipsisOutlineIcon,
   EmptySlidesPicture,
   ItemIcon,
   MusicalNoteIcon,
@@ -250,6 +252,8 @@ function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProps) {
               </li>
             ))}
           </ul>
+          {/* Under the list whenever it has songs, as the current app's; an empty list has its own. */}
+          {!!shown.length && <div className="shrink-0 pt-3">{create}</div>}
         </div>
         <div className="w-full md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3 pt-3 md:pt-0">
           {!shownPreview && (
@@ -464,7 +468,29 @@ export function PresentationEditor({ id }: { id: string }) {
       {dialog}
       <aside className="w-full lg:w-[300px] shrink-0 lg:h-full flex flex-col bg-white dark:bg-neutral-800 lg:shadow-xl lg:z-10 lg:overflow-y-auto">
         <div className="shrink-0 px-4 pt-4 pb-2 space-y-2">
-          <h1 className="font-semibold text-lg/7 px-1 line-clamp-2">{presentation.name}</h1>
+          <div className="flex items-center justify-between gap-1">
+            <h1 className="font-semibold text-lg/7 px-1 min-w-0 line-clamp-2">{presentation.name}</h1>
+            <Dropdown
+              className="shrink-0"
+              menuClassName="w-56"
+              button={{
+                className: 'p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300',
+                title: t('presentation.options'),
+                'aria-label': t('presentation.options'),
+              }}
+              trigger={<EllipsisOutlineIcon className="size-5" />}
+            >
+              <AppButton variant="plain" role="menuitem" className={MENU_ITEM} onClick={() => setDetails(true)}>
+                <PencilIcon className="size-4" />
+                {t('presentation.editDetails')}
+              </AppButton>
+              <div className="border-t-[0.5px] border-neutral-200 dark:border-neutral-600" />
+              <AppButton variant="plain" role="menuitem" className={`${MENU_ITEM} text-red-500! dark:text-red-400!`} onClick={() => void trash()}>
+                <TrashIcon className="size-4" strokeWidth={1.5} />
+                {t('presentation.trash')}
+              </AppButton>
+            </Dropdown>
+          </div>
           {presentation.eventDate && (
             <p className="px-1 -mt-1 text-xs text-neutral-500 dark:text-neutral-400" data-testid="schedule">
               {formatEventDate(presentation.eventDate)}
@@ -473,16 +499,6 @@ export function PresentationEditor({ id }: { id: string }) {
           <div className="px-1 space-y-1">
             <KeepOffline presentationId={id} />
             <MediaReadiness presentationId={id} audio />
-          </div>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <AppButton variant="neutral" onClick={() => setDetails(true)} className="text-xs! px-3! py-1.5! inline-flex items-center gap-1.5">
-              <PencilIcon className="size-4" />
-              {t('presentation.editDetails')}
-            </AppButton>
-            <AppButton variant="danger" onClick={() => void trash()} className="text-xs! px-3! py-1.5! inline-flex items-center gap-1.5">
-              <TrashIcon className="size-4" />
-              {t('presentation.trash')}
-            </AppButton>
           </div>
         </div>
         <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
@@ -564,7 +580,23 @@ export function PresentationEditor({ id }: { id: string }) {
       </aside>
       <div className="flex-1 min-w-0 flex flex-col bg-neutral-100 dark:bg-neutral-900 lg:overflow-y-auto">
         <div className="flex items-center justify-between gap-3 px-5 py-3 lg:pr-3">
-          {selected ? <ItemTitle key={selected.id} item={selected} editing={renaming} setEditing={setRenaming} /> : <span />}
+          {selected ? (
+            <div className="flex items-center gap-3 min-w-0">
+              <ItemTitle key={selected.id} item={selected} editing={renaming} setEditing={setRenaming} />
+              {selectedSong?.deletedAt === null && !renaming && (
+                <a
+                  href={href({ page: 'song', id: selectedSong.id })}
+                  className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer no-underline text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"
+                  title={t('presentation.editSong')}
+                >
+                  <PencilIcon className="size-4" />
+                  {t('presentation.editSong')}
+                </a>
+              )}
+            </div>
+          ) : (
+            <span />
+          )}
           <AppButton
             variant="plain"
             href={href({ page: 'live', id })}

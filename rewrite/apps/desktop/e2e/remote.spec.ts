@@ -3,7 +3,7 @@
 // through the server, and losing the presenter freezes the session.
 import { chromium, expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, remoteSwitch, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -46,7 +46,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0);
 
   // Anna allows it; the card appears on Bo's computer without a reload.
-  await page.getByLabel('Tillåt fjärrstyrning').check();
+  await (await remoteSwitch(page)).check();
   await expect(page.getByLabel('Länk för fjärrstyrning')).toHaveValue(/\/live\/[\w-]+\?remote=1&session=[\w-]+$/);
   await expect(page.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveAttribute('data-value', await page.getByLabel('Länk för fjärrstyrning').inputValue());
   const card = secondApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
@@ -63,17 +63,17 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true');
   await expect(secondApp.page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true');
   // And the black screen.
-  await secondApp.page.getByRole('button', { name: 'Svart skärm' }).click();
+  await secondApp.page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0, { timeout: 5_000 });
-  await secondApp.page.getByRole('button', { name: 'Svart skärm' }).click();
+  await secondApp.page.getByRole('button', { name: 'Sång A 2' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A två', { timeout: 5_000 });
 
   // Anna switches it off: Bo's page says so, and his clicks go nowhere.
-  await page.getByLabel('Tillåt fjärrstyrning').uncheck();
+  await (await remoteSwitch(page)).uncheck();
   await expect(secondApp.page.getByTestId('remote-state')).toHaveText('Fjärrstyrning är inte aktiverad av presentatören', { timeout: 5_000 });
 
   // Anna ends the presentation: nothing left to control.
-  await page.getByLabel('Tillåt fjärrstyrning').check();
+  await (await remoteSwitch(page)).check();
   await expect(secondApp.page.getByRole('button', { name: 'Sång A 1' })).toBeVisible({ timeout: 5_000 });
   await page.getByRole('button', { name: 'Avsluta' }).click();
   await expect(secondApp.page.getByTestId('remote-state')).toHaveText('Ingen aktiv presentation just nu', { timeout: 5_000 });
@@ -89,7 +89,7 @@ test('when the presenting computer drops out, the session freezes and someone el
   await openPresentations(secondApp.page);
   await secondApp.page.getByRole('link', { name: 'Söndag' }).click({ timeout: 5_000 });
   await secondApp.page.getByRole('link', { name: 'Starta presentation' }).click();
-  await secondApp.page.getByLabel('Tillåt fjärrstyrning').check();
+  await (await remoteSwitch(secondApp.page)).check();
   await secondApp.page.getByRole('button', { name: 'Sång A 1' }).click();
 
   await openPresentations(hostApp.page);
@@ -138,7 +138,7 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     await createPresentation(host.page, 'Söndag');
     await addSongs(host.page, ['Sång A']);
     await host.page.getByRole('link', { name: 'Starta presentation' }).click();
-    await host.page.getByLabel('Tillåt fjärrstyrning').check();
+    await (await remoteSwitch(host.page)).check();
 
     await openPresentations(phone);
     await phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 10_000 });

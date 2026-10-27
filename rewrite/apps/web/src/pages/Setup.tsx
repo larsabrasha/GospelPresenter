@@ -74,6 +74,7 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
             <FloatingInput
               id="setup-token"
               label={t('setup.token')}
+              type="password"
               autoComplete="off"
               maxLength={200}
               aria-describedby="setup-token-hint"

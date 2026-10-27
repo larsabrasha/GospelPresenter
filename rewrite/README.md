@@ -651,8 +651,7 @@ switches in `ui/Toggle.tsx`, Scenläge, the red Avsluta) and the dark stage view
 The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the list in a light card with
 Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button
 (`ui/PageContainer.tsx`), the fields as floating fields, a card per part with its label as a pill, ↑ ↓ and
-the bin, and the arrangements as stacked chips with the dashed Lägg till del. The label and Lägg till del
-are still native selects, drawn as the old dropdowns. Song history and the ProPresenter import are not built,
+the bin, and the arrangements as stacked chips with the dashed Lägg till del. Song history and the ProPresenter import are not built,
 so their pages and buttons are missing.
 
 The admin pages (step 4) are `Pages/Admin/*.razor`, `Trash.razor` and `Profile.razor`: each a title row and
@@ -674,11 +673,17 @@ Anslut till värddatorn has no counterpart and is drawn as setup. Anslut tillfä
 and the four large digit boxes, and the green tick when a screen is paired. `/display` is `Display.razor`'s
 black page (the code huge in mono, the logo and name at the foot); `/watch` is `PublicWatchPage.razor`'s
 three faint dots and `PublicSlideView.razor`'s slide, with the credits below the text rather than over it.
-The output window and the slide are unchanged; where they differ from the current app's (the canvas at the top
-of a window that is not 16:9 rather than in its middle, the overlay's text 48 px down rather than 32, and a
-paired screen showing `/watch`'s reflowing slide rather than the canvas) is left for a decision. Where the new pages do more or less than the current ones (the sign-in page's
-title and texts, Avbryt in the pairing dialog, no copy button by the address), they keep what they do and only
-take the look.
+A paired screen shows `/watch`'s reflowing slide rather than the canvas. Where the new pages do more than the
+current ones (Avbryt and Stäng in the pairing dialog), they keep what they do and only take the look.
+
+Where the look would change what the app does, Lars decided (2026-10-27) to follow the current app: Bilder and
+Ljud trash from a ⋯ menu; the editor's details and delete are in a ⋯ menu by the name; Skapa is always under
+Lägg till's songs; a song item has Redigera, to the song's page; the song's label and Lägg till del are a list of
+coloured pills (`ui/SelectMenu.tsx`, an ARIA select-only combobox, usable by keyboard alone); Rensa and B only
+blank, and Rensa is gone while black; Utgångar, Overlays and Fjärrstyrning fold, each with an "i"; sign-in shows
+the first way in, the rest behind "Fler alternativ", and the version (the commit: there is no release number yet);
+the canvas is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen
+scrolls on `/watch` and a paired screen, not on the output window.
 
 The move went in steps, and is finished: 1 the frame, the components and the start page; 2 the presentation
 (editor, live, stage view, Lägg till); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`,
@@ -722,6 +727,15 @@ Also waiting, in TODO.md: remote control as an organisation setting ("Aldrig", "
 To try it with a tablet: `GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start`, then
 `https://<the Mac's LAN address>:47843` on the tablet, accept the certificate warning once, and pair it under
 Enheter → Anslut enhet.
+
+Look work left for later, each as the current app does it: the running order in a drawer from the left on a
+phone (2.2); the live panel as a floating, collapsible box at the bottom right on a phone (2.9); Lägg till's
+preview full screen on a phone (2.12); dragging items in the running order (2.4) and arrangement chips (3.6),
+with a ⋯ menu per item; the remote control's QR code and link in a dialog (2.7); "✓ Sparad" in the song's
+header, with saving 500 ms after typing (3.5); a public output's Ny kod and link inside its QR dialog, and its
+viewer count always shown (4.5); Extern skärm as a switch, once the window can be closed from there (2.6); a
+paired screen drawing the projector's canvas, which needs the slide as `Slide` rather than `PublicSlide` (5.3);
+and a "Gör tillgänglig offline" button per Bible, which needs each device to choose its Bibles (4.10).
 
 The smaller gaps below can be taken along the way.
 

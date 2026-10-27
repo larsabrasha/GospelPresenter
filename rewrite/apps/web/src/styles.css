@@ -15,7 +15,7 @@
 .slide-text { width: 100%; white-space: pre-wrap; overflow-wrap: break-word; }
 .verse-number { font-size: 0.5em; opacity: 0.4; vertical-align: super; line-height: 0; }
 .slide-credits { position: absolute; left: 80px; right: 80px; bottom: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* An overlay (LIVE-R15): above the slide and outside the theme; its text at the top left, 40 px, 60 % white. */
+/* An overlay (LIVE-R15): above the slide and outside the theme; its text at the top left, 40 px, 60 % white, in the app's sans (OverlayView.razor). */
 .slide-overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .slide-overlay-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.slide-overlay-text { position: absolute; top: 48px; left: 80px; right: 80px; font: 400 40px/1.3 system-ui, sans-serif; color: rgba(255, 255, 255, 0.6); text-shadow: 0 0.06em 0.18em rgba(0, 0, 0, 0.65); white-space: pre-line; overflow-wrap: break-word; }
+.slide-overlay-text { position: absolute; top: 32px; left: 80px; right: 80px; font: 400 40px/1.5 var(--font-sans, ui-sans-serif, system-ui, sans-serif); color: rgba(255, 255, 255, 0.6); text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); white-space: pre-line; overflow-wrap: break-word; }

@@ -6,7 +6,8 @@ import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { DropZone } from '../ui/DropZone.tsx';
+import { DropHint, DropZone } from '../ui/DropZone.tsx';
+import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { ArrowDownTrayIcon, EllipsisIcon, SpeakerWaveIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
@@ -84,10 +85,10 @@ export function Audios({ role }: { role: Role }) {
 
   return (
     <PageContainer>
-      {/* No hint text while dragging: this page has none yet (the current app says "Släpp ljudfiler här"). */}
-      <DropZone className="flex flex-col space-y-5 min-h-[60vh]" enabled={manage} onFiles={(files) => void importFiles(files)}>
+      <DropZone className="flex flex-col space-y-5 min-h-[60vh]" label={t('audios.drop')} enabled={manage} onFiles={(files) => void importFiles(files)}>
         <PageHeader title={t('audios.title')}>
           <div className="flex items-center gap-3">
+            {manage && <DropHint text={t('images.dropAffordance')} />}
             <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Audio' })} className="inline-flex items-center gap-1.5">
               <TrashIcon className="size-4" />
               {t('images.trash')}
@@ -127,7 +128,8 @@ export function Audios({ role }: { role: Role }) {
             </ul>
           </div>
         )}
-        <div className={CARD}>
+        {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
+        <div className={CARD.replace(' overflow-hidden', '')}>
           <div className="px-5 pt-4 pb-2 space-y-3">
             <h2 className="text-base/6 font-semibold">{t('audios.all', { n: audios?.length ?? 0 })}</h2>
             {!!audios?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} compact />}
@@ -146,14 +148,19 @@ export function Audios({ role }: { role: Role }) {
                 <SpeakerWaveIcon className="size-5 text-neutral-400 shrink-0" />
                 <span className="text-sm truncate flex-1">{a.fileName}</span>
                 {manage && (
-                  <AppButton
-                    variant="plain"
-                    className="size-7 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer"
-                    aria-label={`${t('images.remove')} ${a.fileName}`}
-                    onClick={() => void remove(a)}
+                  <Dropdown
+                    menuClassName="min-w-36"
+                    button={{
+                      className: 'size-7 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer',
+                      'aria-label': t('images.more', { name: a.fileName }),
+                    }}
+                    trigger={<EllipsisIcon className="size-4" />}
                   >
-                    <EllipsisIcon className="size-4" />
-                  </AppButton>
+                    <AppButton variant="plain" role="menuitem" className={MENU_ITEM_DANGER} onClick={() => void remove(a)}>
+                      <TrashIcon className="size-4" />
+                      {t('images.remove')}
+                    </AppButton>
+                  </Dropdown>
                 )}
               </li>
             ))}

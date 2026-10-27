@@ -2,7 +2,7 @@
 // the device, and added to a presentation as an item with a player.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, remoteSwitch, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -43,7 +43,9 @@ test('an audio file is imported, added to a presentation and plays in the editor
   await expect.poll(() => player.evaluate((a: HTMLAudioElement) => (Number.isFinite(a.duration) ? Math.round(a.duration) : 0)), { timeout: 5_000 }).toBe(2);
 
   await openAdmin(page, 'Ljud');
-  await page.getByRole('button', { name: 'Ta bort Preludium.wav' }).click();
+  // Ta bort is in the ⋯ menu.
+  await page.getByRole('button', { name: 'Fler val för Preludium.wav' }).click();
+  await page.getByRole('menuitem', { name: 'Ta bort' }).click();
   await expect(page.getByText('Inga ljudfiler än')).toBeVisible();
   await page.getByRole('link', { name: 'Papperskorg' }).click();
   await expect(page.getByRole('list', { name: 'Papperskorg' }).getByRole('listitem')).toHaveText([/Preludium\.wav.*Ljudfil/]);
@@ -78,7 +80,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await expect(page.getByTestId('media-ready')).toHaveText('Alla bilder och ljud finns på den här enheten.');
 
   // A controller starts the sound first, before anyone played it on the presenting computer (LIVE-A32).
-  await page.getByLabel('Tillåt fjärrstyrning').check();
+  await (await remoteSwitch(page)).check();
   await openPresentations(second.page);
   await second.page.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
   const mirror = second.page.getByTestId('audio-player');
@@ -92,7 +94,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
   await expect.poll(async () => (await player.getByTestId('audio-time').textContent())?.startsWith('0:00'), { timeout: 5_000 }).toBe(false);
   // What is shown changes; the sound plays on (LIVE-A31).
-  await page.getByRole('button', { name: 'Svart skärm' }).click();
+  await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');

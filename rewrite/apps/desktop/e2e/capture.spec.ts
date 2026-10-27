@@ -8,6 +8,8 @@ import { chromium, expect, test, type Browser, type Page } from '@playwright/tes
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, openAdmin, setUpHost, signOut } from './flows.ts';
+import { solidPng } from './png.ts';
+import { toneWav } from './wav.ts';
 
 const out = process.env.GP_CAPTURE;
 test.skip(!out, 'only with GP_CAPTURE=<directory>');
@@ -76,7 +78,8 @@ test('capture every page', async () => {
   await page.getByLabel('År').fill('1865');
   await page.getByLabel('År').blur();
   await page.getByRole('button', { name: 'Skapa arrangemang' }).click();
-  await page.getByRole('group', { name: 'Arrangemang 1' }).getByRole('combobox', { name: 'Lägg till del' }).selectOption({ label: '2. Chorus' });
+  await page.getByRole('group', { name: 'Arrangemang 1' }).getByRole('combobox', { name: 'Lägg till del' }).click();
+  await page.getByRole('group', { name: 'Arrangemang 1' }).getByRole('option', { name: '2. Chorus', exact: true }).click();
   await createSong(page, 'Härlig är jorden', [
     ['Verse 1', 'Härlig är jorden,\nHärlig är Guds himmel,\nSkön är själarnas pilgrimsgång.\nGenom de fagra riken på jorden\nGår vi till paradiset fram.'],
     ['Verse 2', 'Tidevarv komma,\nTidevarv försvinna,\nSläkten följa släktens gång.\nAldrig uppslocknar tonen från himlen\nI själens glada pilgrimssång.'],
@@ -89,6 +92,13 @@ test('capture every page', async () => {
   await openAdmin(page, 'Biblar');
   await page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
   await expect(page.getByTestId('bible-import-message')).toBeVisible();
+  // A picture and a sound, for Bilder's and Ljud's ⋯ menus.
+  await openAdmin(page, 'Bilder');
+  await page.getByTestId('image-file').setInputFiles({ name: 'Logotyp.png', mimeType: 'image/png', buffer: solidPng(1600, 900, [14, 165, 233]) });
+  await expect(page.getByTestId('image-card')).toHaveCount(1);
+  await openAdmin(page, 'Ljud');
+  await page.getByTestId('audio-file').setInputFiles({ name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(2) });
+  await expect(page.getByRole('list', { name: 'Ljud' }).getByRole('listitem')).toHaveCount(1);
   await createPresentation(page, 'Utan datum');
   for (const [name, offset] of [
     ['Bönekväll', -18],
@@ -183,7 +193,29 @@ test('capture every page', async () => {
     ['add-bible', presentation, (p) => openAdd(p, 'Control+2')],
     ['add-images', presentation, (p) => openAdd(p, 'Control+3')],
     ['add-audio', presentation, (p) => openAdd(p, 'Control+4')],
+    ['presentation-menu', presentation, (p) => p.getByRole('button', { name: 'Alternativ' }).click()],
     ['live', `/live/${id}`, goLive, stopLive],
+    [
+      'live-black',
+      `/live/${id}`,
+      async (p) => {
+        await goLive(p);
+        await p.getByRole('button', { name: 'Rensa' }).click();
+        await p.getByRole('button', { name: 'Utgångar', exact: true }).scrollIntoViewIfNeeded();
+      },
+      stopLive,
+    ],
+    [
+      'live-hints',
+      `/live/${id}`,
+      async (p) => {
+        await goLive(p);
+        for (const name of ['Overlays', 'Fjärrstyrning']) await p.getByRole('button', { name, exact: true }).click();
+        for (const hint of await p.getByRole('button', { name: /^Förklaring: / }).all()) await hint.click();
+        await p.getByRole('button', { name: 'Utgångar', exact: true }).scrollIntoViewIfNeeded();
+      },
+      stopLive,
+    ],
     [
       'stage',
       `/live/${id}`,
@@ -219,6 +251,14 @@ test('capture every page', async () => {
     ],
     ['song', song, closeAdminMenu],
     [
+      'song-label-menu',
+      song,
+      async (p) => {
+        await closeAdminMenu(p);
+        await p.getByRole('combobox', { name: 'Etikett' }).first().click();
+      },
+    ],
+    [
       'song-end',
       song,
       async (p) => {
@@ -227,7 +267,9 @@ test('capture every page', async () => {
       },
     ],
     ['images', '/admin/images', closeAdminMenu],
+    ['images-menu', '/admin/images', (p) => clickFirst(p, 'Fler val för Logotyp.png')],
     ['audios', '/admin/audios', closeAdminMenu],
+    ['audios-menu', '/admin/audios', (p) => clickFirst(p, 'Fler val för Preludium.wav')],
     ['bibles', '/admin/bibles', closeAdminMenu],
     ['overlays', '/admin/overlays', closeAdminMenu],
     ['overlay-create', '/admin/overlays', (p) => clickFirst(p, 'Skapa')],
@@ -350,7 +392,7 @@ test('capture every page', async () => {
       await expect(toggle).toBeEnabled({ timeout: 10_000 });
       await toggle.check();
     }
-    await page.locator('summary', { hasText: 'Overlays' }).click();
+    await page.getByRole('button', { name: 'Overlays', exact: true }).click();
     await page.getByRole('list', { name: 'Overlays' }).getByLabel('Välkommen').check();
   };
   const besideLive: [string, (theme: string, width: number, height: number) => Promise<Page>][] = [

@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, LabelHTMLAttributes } from 'react';
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, LabelHTMLAttributes, Ref } from 'react';
 import { SpinnerIcon } from './icons.tsx';
 
 /**
@@ -44,7 +44,7 @@ interface Common {
   filled?: boolean;
 }
 
-type AsButton = Common & ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined; asLabel?: false; loading?: boolean };
+type AsButton = Common & ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined; asLabel?: false; loading?: boolean; ref?: Ref<HTMLButtonElement> };
 type AsLink = Common & AnchorHTMLAttributes<HTMLAnchorElement> & { href: string; asLabel?: false };
 /** A label that looks like a button, e.g. around a hidden file input. */
 type AsLabel = Common & LabelHTMLAttributes<HTMLLabelElement> & { href?: undefined; asLabel: true; disabled?: boolean };

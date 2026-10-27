@@ -1,5 +1,4 @@
 import { DEFAULT_LABELS, labelId, LIMITS, parsePartIds, type Label, type SongArrangement, type SongPart } from '@gp/core';
-import type { ReactNode, SelectHTMLAttributes } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { arrangementsOf, getSong, listLabels, presentationsUsing, songPartsOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -9,6 +8,7 @@ import { useConfirm } from '../ui/Dialog.tsx';
 import { FloatingInput, FloatingTextarea } from '../ui/Floating.tsx';
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
+import { SelectMenu } from '../ui/SelectMenu.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { href, navigate } from '../ui/router.ts';
 
@@ -63,23 +63,6 @@ function PartPill({ part, labels }: { part: SongPart; labels: Map<string, Label>
     <span className={`${PILL} ${label ? '' : 'bg-neutral-400'}`} style={label ? { background: label.color } : undefined}>
       {partName(part, labels)}
     </span>
-  );
-}
-
-/**
- * A native select drawn as the current app's dropdown trigger: what shows is
- * `face`, and the select lies invisibly over it, so a click, the keyboard and
- * screen readers still get the select. The face can follow its focus with
- * `group-has-[select:focus-visible]:`.
- */
-function SelectOver({ face, className, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & { face: ReactNode }) {
-  return (
-    <div className={`group relative ${className ?? ''}`}>
-      {face}
-      <select {...rest} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-        {children}
-      </select>
-    </div>
   );
 }
 
@@ -169,28 +152,22 @@ function ArrangementCard({
         })}
       </ol>
       <div className="flex items-center justify-between">
-        <SelectOver
-          aria-label={t('song.addPart')}
-          value=""
-          onChange={(e) => {
-            if (e.target.value) void db.mutate('appendArrangementPart', { id: arrangement.id, partId: e.target.value });
-          }}
+        {/* A list of actions: picking a part appends it, so nothing stays chosen. */}
+        <SelectMenu
+          label={t('song.addPart')}
+          choices={parts.map((p, i) => ({ value: p.id, label: `${i + 1}. ${partName(p, labels)}`, content: <PartPill part={p} labels={labels} /> }))}
+          onChoose={(partId) => void db.mutate('appendArrangementPart', { id: arrangement.id, partId })}
+          buttonClassName="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer transition-colors rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          listClassName="left-0 w-48 max-h-60 overflow-y-auto"
           face={
-            <span className="flex items-center gap-1.5 text-xs text-neutral-400 group-hover:text-neutral-600 dark:group-hover:text-neutral-200 transition-colors group-has-[select:focus-visible]:text-neutral-600 dark:group-has-[select:focus-visible]:text-neutral-200">
+            <>
               <span className="flex items-center justify-center size-6 rounded-lg border border-dashed border-neutral-300 dark:border-neutral-500">
                 <PlusIcon className="size-3.5" />
               </span>
               {t('song.addPart')}
-            </span>
+            </>
           }
-        >
-          <option value="">{t('song.addPart')}</option>
-          {parts.map((p, i) => (
-            <option key={p.id} value={p.id}>
-              {i + 1}. {partName(p, labels)}
-            </option>
-          ))}
-        </SelectOver>
+        />
         <AppButton
           variant="dangerIcon"
           className="p-1.5"
@@ -260,13 +237,27 @@ export function SongEditor({ id }: { id: string }) {
     return (
       <li key={p.id} className={`${CARD} p-4 space-y-3`}>
         <div className="flex items-center gap-2">
-          <SelectOver
-            aria-label={t('song.parts')}
+          <SelectMenu
+            label={t('song.label')}
             value={p.labelId ?? ''}
-            onChange={(e) => void db.mutate('updateSongPart', { id: p.id, labelText: labelChoices.find((l) => l.id === e.target.value)?.text ?? null })}
+            choices={[
+              { value: '', label: t('song.noLabel'), content: <span className="text-neutral-400">{t('song.noLabel')}</span> },
+              ...labelChoices.map((l) => ({
+                value: l.id,
+                label: l.text,
+                content: (
+                  <span className={PILL} style={{ background: l.color }}>
+                    {l.text}
+                  </span>
+                ),
+              })),
+            ]}
+            onChoose={(v) => void db.mutate('updateSongPart', { id: p.id, labelText: labelChoices.find((l) => l.id === v)?.text ?? null })}
             className="flex-1 max-w-[50%]"
+            buttonClassName="w-full flex items-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 px-3 py-2.5 text-sm text-left cursor-pointer focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+            listClassName="left-0 w-full max-h-60 overflow-y-auto"
             face={
-              <span className="w-full flex items-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 px-3 py-2.5 text-sm text-left group-has-[select:focus-visible]:ring-2 group-has-[select:focus-visible]:ring-sky-500 group-has-[select:focus-visible]:border-sky-500">
+              <>
                 {label ? (
                   <>
                     <span className={`${PILL} shrink-0`} style={{ background: label.color }}>
@@ -278,16 +269,9 @@ export function SongEditor({ id }: { id: string }) {
                   <span className="flex-1 truncate text-neutral-400">{t('song.noLabel')}</span>
                 )}
                 <ChevronDownIcon className="size-4 text-neutral-400 shrink-0" />
-              </span>
+              </>
             }
-          >
-            <option value="">{t('song.noLabel')}</option>
-            {labelChoices.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.text}
-              </option>
-            ))}
-          </SelectOver>
+          />
           <div className="flex-1" />
           <div className="flex items-center gap-1">
             <AppButton
@@ -346,8 +330,8 @@ export function SongEditor({ id }: { id: string }) {
             <SaveOnBlur label={t('song.ccli')} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} className="flex-1" />
           </div>
         </div>
-        {/* The current app has no heading over the parts; this one stays until that is decided. */}
-        <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 pt-4">{t('song.parts')}</h2>
+        {/* The current app shows no heading over the parts; this one is for screen readers. */}
+        <h2 className="sr-only">{t('song.parts')}</h2>
         <ol className="space-y-4">{parts.map(partRow)}</ol>
         <AppButton
           variant="secondary"

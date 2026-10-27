@@ -58,6 +58,7 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
           if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void submit();
         }}
       >
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{kind === 'screen' ? t('screens.addText') : t('displays.addText')}</p>
         <FloatingInput label={t('displays.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
         <DialogButtons>
           <AppButton variant="cancel" onClick={() => onClose(null)}>
@@ -72,16 +73,34 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
   );
 }
 
-/** A link as a QR code and as text to copy; for a public output also "Ladda ner som bild" (spec 04 §7). */
+/**
+ * A link as a QR code and as text to copy, with what to do with each; for a
+ * public output also "Ladda ner som bild" (spec 04 §7). A screen's dialog is
+ * Displays.razor's: the QR code, "eller", then the link.
+ */
 function LinkDialog({ title, url, download, onClose }: { title: string; url: string; download?: string; onClose: () => void }) {
   const toast = useToast();
+  const screen = !download;
   return (
     <Dialog title={title} onClose={onClose} maxWidthClass="max-w-sm" showClose>
-      <div className="flex justify-center">
-        <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&_.qr]:m-0">
-          <QrCode value={url} label={t('displays.qr')} />
+      <div className="space-y-2">
+        <div className="flex justify-center">
+          <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&_.qr]:m-0">
+            <QrCode value={url} label={t('displays.qr')} />
+          </div>
         </div>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">{screen ? t('screens.scanHint') : t('displays.scanHint')}</p>
       </div>
+      {screen && (
+        <>
+          <div className="mt-8! flex items-center gap-3">
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+            <span className="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t('screens.or')}</span>
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+          </div>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{t('screens.linkHint')}</p>
+        </>
+      )}
       {download && (
         <div className="flex justify-center">
           <AppButton variant="secondary" className="text-xs flex items-center gap-1.5" onClick={() => downloadQr(url, download)}>

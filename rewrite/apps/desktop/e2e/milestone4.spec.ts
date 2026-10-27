@@ -19,7 +19,8 @@ test.afterEach(async () => {
 
 /** Opens "Redigera detaljer" and picks a theme by its label. */
 async function chooseTheme(page: Page, label: string) {
-  await page.getByRole('button', { name: 'Redigera detaljer' }).click();
+  await page.getByRole('button', { name: 'Alternativ' }).click();
+  await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
   const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
   await details.getByLabel('Tema').selectOption({ label });
   await details.getByRole('button', { name: 'Spara' }).click();
@@ -104,7 +105,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(stage).toHaveAttribute('data-theme', 'midnight');
   await expect(stage).toHaveCSS('background-color', 'rgb(11, 27, 58)');
   await page.goForward();
-  await page.getByRole('button', { name: 'Svart skärm' }).click();
+  await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');
 

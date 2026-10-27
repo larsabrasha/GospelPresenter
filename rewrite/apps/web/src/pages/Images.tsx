@@ -6,7 +6,8 @@ import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { processImage, ImageRefused, type ImageProblem } from '../media/process.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { DropZone } from '../ui/DropZone.tsx';
+import { DropHint, DropZone } from '../ui/DropZone.tsx';
+import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
 import { ArrowDownTrayIcon, EllipsisIcon, PhotoOutlineIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
@@ -83,6 +84,7 @@ export function Images({ role }: { role: Role }) {
       <DropZone className="flex flex-col space-y-5 min-h-[60vh]" label={t('images.drop')} enabled={manage} onFiles={(files) => void importFiles(files)}>
         <PageHeader title={t('images.title')}>
           <div className="flex items-center gap-3">
+            {manage && <DropHint text={t('images.dropAffordance')} />}
             {/* Always here: someone who has just deleted the wrong picture needs the way back in view. */}
             <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Image' })} className="inline-flex items-center gap-1.5">
               <TrashIcon className="size-4" />
@@ -123,7 +125,8 @@ export function Images({ role }: { role: Role }) {
             </ul>
           </div>
         )}
-        <div className={CARD}>
+        {/* Not clipped, so a ⋯ menu can reach past the card's edge. */}
+        <div className={CARD.replace(' overflow-hidden', '')}>
           <div className="px-5 pt-4 pb-2 space-y-3">
             <h2 className="text-base/6 font-semibold">{t('images.all', { n: images?.length ?? 0 })}</h2>
             {!!images?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} compact />}
@@ -138,14 +141,21 @@ export function Images({ role }: { role: Role }) {
                 <div className="relative rounded-lg">
                   <ImageThumb image={image} />
                   {manage && (
-                    <AppButton
-                      variant="plain"
-                      className="absolute top-1 right-1 size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80"
-                      aria-label={`${t('images.remove')} ${image.fileName}`}
-                      onClick={() => void remove(image)}
-                    >
-                      <EllipsisIcon className="size-4" />
-                    </AppButton>
+                    <div className="absolute top-1 right-1">
+                      <Dropdown
+                        menuClassName="min-w-36"
+                        button={{
+                          className: 'size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80',
+                          'aria-label': t('images.more', { name: image.fileName }),
+                        }}
+                        trigger={<EllipsisIcon className="size-4" />}
+                      >
+                        <AppButton variant="plain" role="menuitem" className={MENU_ITEM_DANGER} onClick={() => void remove(image)}>
+                          <TrashIcon className="size-4" />
+                          {t('images.remove')}
+                        </AppButton>
+                      </Dropdown>
+                    </div>
                   )}
                 </div>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>

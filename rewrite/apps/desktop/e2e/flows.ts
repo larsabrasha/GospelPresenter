@@ -40,7 +40,10 @@ export async function createSong(page: Page, name: string, parts: [string, strin
     const part = page.getByLabel(`Delar ${i + 1}`, { exact: true });
     await part.fill(text);
     await part.blur();
-    await page.getByRole('combobox', { name: 'Delar' }).nth(i).selectOption({ label });
+    const labelPicker = page.getByRole('combobox', { name: 'Etikett' }).nth(i);
+    await labelPicker.click();
+    await page.getByRole('listbox', { name: 'Etikett' }).getByRole('option', { name: label, exact: true }).click();
+    await expect(labelPicker).toHaveText(label);
   }
 }
 
@@ -135,4 +138,14 @@ export async function pair(host: Page, device: Page, name: string, as?: string) 
   } else await device.getByLabel('Kod').fill(code);
   await device.getByLabel('Enhetens namn').fill(name);
   await device.getByRole('button', { name: 'Anslut' }).click();
+}
+
+/**
+ * The live page's "Tillåt fjärrstyrning", its section opened first: Fjärrstyrning starts closed, as
+ * LivePanel.razor's.
+ */
+export async function remoteSwitch(page: Page) {
+  const section = page.getByRole('button', { name: 'Fjärrstyrning', exact: true });
+  if ((await section.getAttribute('aria-expanded')) === 'false') await section.click();
+  return page.getByLabel('Tillåt fjärrstyrning');
 }

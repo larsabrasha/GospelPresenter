@@ -49,7 +49,8 @@ function OverlayLayer({ overlay }: { overlay: ShownOverlay }) {
 
 /**
  * One slide on a fixed 1920×1080 stage, scaled to fit its container (ADR 0007,
- * decision 8), styled by `theme` (spec 05, THEME-R9). The same component draws
+ * decision 8), and centred in a box that is not 16:9, as the output window
+ * often is (Slide.razor), styled by `theme` (spec 05, THEME-R9). The same component draws
  * previews, thumbnails and the output, so they always agree. `slide` null
  * draws an empty stage: black, whatever the theme, as the black screen must
  * be. The part label is for the operator: tiles show it, outputs never do (LIVE-R20). The stage view draws its preview without credits (spec 04 §3).
@@ -69,16 +70,20 @@ export function SlideView({
   overlay?: ShownOverlay | null;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0);
+  const [fit, setFit] = useState({ scale: 0, x: 0, y: 0 });
   useLayoutEffect(() => {
     const el = box.current!;
-    const fit = () => setScale(Math.min(el.clientWidth / STAGE_WIDTH, el.clientHeight / STAGE_HEIGHT));
-    fit();
-    const ro = new ResizeObserver(fit);
+    const measure = () => {
+      const scale = Math.min(el.clientWidth / STAGE_WIDTH, el.clientHeight / STAGE_HEIGHT);
+      // Whole pixels, so a 16:9 box (every tile and preview) keeps the stage at its corner.
+      setFit({ scale, x: Math.round((el.clientWidth - STAGE_WIDTH * scale) / 2), y: Math.round((el.clientHeight - STAGE_HEIGHT * scale) / 2) });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const style = { width: STAGE_WIDTH, height: STAGE_HEIGHT, transform: `scale(${scale})`, ...(slide ? stageCss(theme, slide.kind) : {}) };
+  const style = { width: STAGE_WIDTH, height: STAGE_HEIGHT, transform: `translate(${fit.x}px, ${fit.y}px) scale(${fit.scale})`, ...(slide ? stageCss(theme, slide.kind) : {}) };
   return (
     <div ref={box} className="slide-box">
       <div className="slide-stage" style={style} data-testid="slide-stage" data-theme={slide ? theme.id : undefined} data-kind={slide?.kind}>

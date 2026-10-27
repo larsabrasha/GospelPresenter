@@ -4,11 +4,13 @@ import { api } from '../auth/api.ts';
 import { t } from '../i18n.ts';
 import { setOutput } from '../live/owner.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { CopyField } from '../ui/CopyField.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { TickIcon } from '../ui/icons.tsx';
 import { QrCode } from '../ui/QrCode.tsx';
 import { href } from '../ui/router.ts';
 import { useServerBase } from '../ui/serverBase.ts';
+import { useToast } from '../ui/Toast.tsx';
 
 // "Anslut tillfällig skärm" (spec 04 §8): a TV pairs by scanning the QR code
 // or by its four-digit code typed here, for this window's session. The new
@@ -81,6 +83,7 @@ function CodeBoxes({ onComplete }: { onComplete: (code: string) => void }) {
 
 export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
   const base = useServerBase();
+  const toast = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [paired, setPaired] = useState<LiveScreen | null>(null);
   const [wrong, setWrong] = useState(0);
@@ -139,6 +142,15 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
     else setWrong((n) => n + 1);
   };
 
+  const copy = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast(t('displays.copied'));
+    } catch {
+      // No clipboard over plain http on the LAN: the address is on screen to copy by hand.
+    }
+  };
+
   const displayUrl = `${base}${href({ page: 'display', id: null, name: null, token: null })}`;
   return (
     <Dialog title={t('pairScreen.title')} onClose={onClose} maxWidthClass="max-w-sm">
@@ -155,6 +167,7 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
         <>
           <div className="space-y-3">
             <h3 className="font-medium text-sm/5 text-neutral-800 dark:text-neutral-100">{t('pairScreen.scan')}</h3>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('pairScreen.scanHint')}</p>
             <div className="flex justify-center">
               <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
                 {token && <QrCode value={`${base}${href({ page: 'display', id: null, name: null, token })}`} label={t('pairScreen.qr')} />}
@@ -171,14 +184,7 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
             <div className="space-y-2">
               <Step n={1} text={t('pairScreen.step1')} />
               <div className="pl-7">
-                <input
-                  type="text"
-                  readOnly
-                  value={displayUrl}
-                  aria-label={t('pairScreen.url')}
-                  onFocus={(e) => e.currentTarget.select()}
-                  className="w-full min-w-0 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-sm font-mono text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-600 select-all focus:outline-none focus:ring-2 focus:ring-sky-500"
-                />
+                <CopyField value={displayUrl} label={t('pairScreen.url')} copyLabel={t('displays.copy')} onCopy={() => void copy(displayUrl)} />
               </div>
             </div>
             <div className="space-y-2">

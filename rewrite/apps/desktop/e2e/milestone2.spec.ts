@@ -36,6 +36,64 @@ test('without OPFS the output still shows the slide, read through the operator w
   await expect(output.getByTestId('slide-text')).toHaveText('Varje dag och varje stund');
 });
 
+test('the label and Lägg till del menus work from the keyboard alone', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Tangenter', [
+    ['Verse 1', 'Ett'],
+    ['Chorus', 'Två'],
+  ]);
+  const picker = page.getByRole('combobox', { name: 'Etikett' }).first();
+  const list = page.getByRole('listbox', { name: 'Etikett' });
+
+  // ↓ opens on the chosen label, which the button names as active; focus stays on the button.
+  await picker.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(list).toBeVisible();
+  await expect(picker).toHaveAttribute('aria-expanded', 'true');
+  const verse = list.getByRole('option', { name: 'Verse 1', exact: true });
+  await expect(verse).toHaveAttribute('aria-selected', 'true');
+  await expect(picker).toHaveAttribute('aria-activedescendant', (await verse.getAttribute('id'))!);
+  await expect(picker).toBeFocused();
+
+  // Escape closes it, changes nothing, and leaves focus on the button.
+  await page.keyboard.press('Escape');
+  await expect(list).toBeHidden();
+  await expect(picker).toHaveAttribute('aria-expanded', 'false');
+  await expect(picker).toBeFocused();
+  await expect(picker).toHaveText('Verse 1');
+
+  // Enter opens; Home and ↓ move; Enter picks the one moved to.
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowDown');
+  const second = list.getByRole('option').nth(1);
+  await expect(picker).toHaveAttribute('aria-activedescendant', (await second.getAttribute('id'))!);
+  const picked = (await second.getAttribute('aria-label'))!;
+  await page.keyboard.press('Enter');
+  await expect(list).toBeHidden();
+  await expect(picker).toHaveText(picked);
+  await expect(picker).toBeFocused();
+
+  // Space opens too; Home and Enter take the first, no label.
+  await page.keyboard.press(' ');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Enter');
+  await expect(picker).toHaveText('Välj...');
+
+  // Lägg till del, the same way: End is the last part, appended to the arrangement.
+  await page.getByRole('button', { name: 'Skapa arrangemang' }).click();
+  const arrangement = page.getByRole('group', { name: 'Arrangemang 1' });
+  const add = arrangement.getByRole('combobox', { name: 'Lägg till del' });
+  await add.focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await expect(arrangement.getByRole('list', { name: 'Delar i arrangemanget' }).getByRole('listitem')).toHaveText([/Ett/, /Chorus/, /Chorus/]);
+  await expect(add).toBeFocused();
+});
+
 test('arrangements: made in the song, chosen per item, and shown live in their order', async () => {
   host = await launch();
   const page = host.page;
@@ -59,7 +117,8 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await second.getByLabel('Namn').blur();
   const kort = page.getByRole('group', { name: 'Kort' });
   await kort.getByRole('button', { name: 'Ta bort Verse 2 ur arrangemanget' }).click();
-  await kort.getByRole('combobox', { name: 'Lägg till del' }).selectOption({ label: '2. Chorus' });
+  await kort.getByRole('combobox', { name: 'Lägg till del' }).click();
+  await kort.getByRole('option', { name: '2. Chorus', exact: true }).click();
   await kort.getByRole('button', { name: 'Flytta ned Verse 1' }).click();
   const kortChips = kort.getByRole('list', { name: 'Delar i arrangemanget' }).getByRole('listitem');
   await expect(kortChips).toHaveText([/Chorus/, /Verse 1/, /Chorus/]);
@@ -104,7 +163,8 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await expect(order).toHaveText([/Blott en dag/, /Inledning/]);
 
   // The event date changes after create.
-  await page.getByRole('button', { name: 'Redigera detaljer' }).click();
+  await page.getByRole('button', { name: 'Alternativ' }).click();
+  await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
   await page.getByRole('dialog', { name: 'Redigera detaljer' }).getByLabel('Datum').fill('2026-11-08');
   await page.getByRole('dialog', { name: 'Redigera detaljer' }).getByRole('button', { name: 'Spara' }).click();
   await expect(page.getByTestId('schedule')).toContainText('8 nov');
@@ -155,7 +215,8 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await page.getByRole('dialog', { name: 'Ta bort sång' }).getByRole('button', { name: 'Ta bort sång' }).click();
   await openPresentations(page);
   await page.getByRole('link', { name: 'Kväll' }).click();
-  await page.getByRole('button', { name: 'Radera presentation' }).click();
+  await page.getByRole('button', { name: 'Alternativ' }).click();
+  await page.getByRole('menuitem', { name: 'Radera presentation' }).click();
   await expect(page.getByRole('status').getByText('Kväll flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Kväll' })).toHaveCount(0);
 

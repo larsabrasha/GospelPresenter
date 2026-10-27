@@ -41,7 +41,8 @@ function PublicOverlay({ text }: { text: string | null }) {
 
 /**
  * A slide sent as data (spec 04 §5, §6), as PublicSlideView.razor: the text
- * reflows in the middle, the credits below it; its picture is under
+ * reflows in the middle and scrolls when it is taller than the screen, the
+ * credits below it; its picture is under
  * `imageBase`, the output's own API path.
  */
 export function PublicSlideView({ imageBase, slide }: { imageBase: string; slide: PublicSlide }) {
@@ -60,7 +61,8 @@ export function PublicSlideView({ imageBase, slide }: { imageBase: string; slide
   const credits = creditsCss(theme, slide.kind);
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden" style={stageCss(theme, slide.kind)} data-testid="watch-slide" data-theme={theme.id}>
-      <div className="flex-1 min-w-0 min-h-0 flex items-center justify-center overflow-hidden">
+      {/* Text taller than the screen scrolls, as PublicSlideView.razor; "safe" keeps its top reachable. */}
+      <div className="flex-1 min-w-0 min-h-0 flex items-center-safe justify-center overflow-y-auto" data-testid="watch-text-area">
         <div className="w-full px-[5vw] py-[4vh] break-words whitespace-pre-wrap" data-testid="watch-text" style={{ ...main, fontSize: fluid(Number.parseFloat(String(main.fontSize)), 18) }}>
           {slide.verses
             ? slide.verses.map((v, i) => (

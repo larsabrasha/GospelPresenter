@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
@@ -36,8 +37,18 @@ function serviceWorker(): Plugin {
   };
 }
 
+/** The commit being built, seven characters, for the version on the sign-in page; null without git. */
+function commit(): string | null {
+  try {
+    return execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export default defineConfig({
   plugins: [react(), tailwindcss(), serviceWorker()],
+  define: { GP_COMMIT: JSON.stringify(commit()) },
   // wa-sqlite loads its own wasm; pre-bundling would break the URL.
   optimizeDeps: { exclude: ['@journeyapps/wa-sqlite'] },
   worker: { format: 'es' },

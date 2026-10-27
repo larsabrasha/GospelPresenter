@@ -66,11 +66,21 @@ test('a song made on one client is presented on the other client\'s second scree
   await other.page.getByLabel('Delar 1', { exact: true }).blur();
   await expect(output.getByTestId('slide-text')).toHaveText('Härlig är jorden, härlig är Guds himmel', { timeout: 5_000 });
 
-  // The black screen hides the slide and keeps the selection.
-  await one.page.getByRole('button', { name: 'Svart skärm' }).click();
+  // Rensa blacks the screen, keeps the selection, and is gone while it is black. B only blanks too;
+  // the slide shows again when it is picked.
+  await one.page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await one.page.getByRole('button', { name: 'Svart skärm' }).click();
+  await expect(one.page.getByRole('button', { name: 'Rensa' })).toBeHidden();
+  await expect(one.page.getByRole('button', { name: 'Härlig är jorden 1' })).toHaveAttribute('aria-pressed', 'true');
+  await one.page.keyboard.press('b');
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
+  await one.page.getByRole('button', { name: 'Härlig är jorden 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('Härlig är jorden, härlig är Guds himmel');
+  await expect(one.page.getByRole('button', { name: 'Rensa' })).toBeVisible();
+  await one.page.keyboard.press('b');
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
+  await one.page.keyboard.press('b');
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
 
   // Nothing tried to reach the internet.
   expect([...one.events, ...other.events].filter((e) => e.event === 'blocked-request')).toEqual([]);

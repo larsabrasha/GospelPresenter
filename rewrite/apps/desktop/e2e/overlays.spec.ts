@@ -63,7 +63,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   // Switched off by hand, it stays off within the item; back on the item, it comes on again.
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(overlay).toHaveText('Swish 123 45');
-  await page.locator('summary', { hasText: 'Overlays' }).click();
+  await page.getByRole('button', { name: 'Overlays', exact: true }).click();
   const toggles = page.getByRole('list', { name: 'Overlays' });
   await toggles.getByLabel('Kollekt').uncheck();
   await expect(overlay).toHaveCount(0);
@@ -83,7 +83,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await expect(overlay).toHaveText('Välkommen hit');
 
   // Rensa switches it off; the next slide comes back without it.
-  await page.getByRole('button', { name: 'Svart skärm' }).click();
+  await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await expect(overlay).toHaveCount(0);
   await page.getByRole('button', { name: 'Sång B 1' }).click();

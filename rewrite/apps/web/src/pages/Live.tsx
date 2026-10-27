@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import type { LivePointer, LiveSessionInfo, Overlay, PresentationItem } from '@gp/core';
 import { useData, useShownOverlay } from '../db/react.tsx';
 import { listDisplays } from '../db/queries.ts';
@@ -52,13 +52,55 @@ export function Live({
   return <LiveView id={id} live={live} audio={audio} owner={{ sessionId }} link={link} />;
 }
 
-/** "Tillåt fjärrstyrning" and the link a phone opens, as text and as a QR code (spec 04 §1, §9). */
+/**
+ * A section of the live panel (LivePanel.razor): its caption opens and closes
+ * it, with the chevron, and the round "i" beside it shows what the section is
+ * for. Closed, its content is inert, so neither Tab nor a screen reader finds it.
+ */
+function PanelSection({ title, hint, open: initiallyOpen, badge, children }: { title: string; hint: string; open: boolean; badge?: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(initiallyOpen);
+  const [info, setInfo] = useState(false);
+  const id = useId();
+  return (
+    <section>
+      <div className="flex items-center gap-2">
+        <h2 className="flex-1 min-w-0">
+          <AppButton variant="plain" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)} className="cursor-pointer flex items-center gap-2 w-full text-left py-2 -my-2">
+            <ChevronDownIcon className={`size-3 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 ${open ? '' : '-rotate-90'}`} />
+            <span className={CAPTION}>{title}</span>
+            {badge}
+          </AppButton>
+        </h2>
+        <AppButton
+          variant="plain"
+          aria-pressed={info}
+          aria-label={t('live.hint', { title })}
+          title={hint}
+          onClick={() => setInfo((v) => !v)}
+          className={`size-4 shrink-0 flex items-center justify-center rounded-full text-[10px] font-semibold border cursor-pointer transition-colors ${
+            info ? 'bg-sky-500 border-sky-500 text-white' : 'border-neutral-300 dark:border-neutral-500 text-neutral-400 dark:text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300'
+          }`}
+        >
+          i
+        </AppButton>
+      </div>
+      {info && <p className="mt-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-neutral-600 dark:text-neutral-300 text-xs leading-relaxed">{hint}</p>}
+      <div id={id} inert={!open} className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden min-h-0">
+          <div className="flex flex-col gap-3 p-1 pt-3">{children}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** "Tillåt fjärrstyrning" and the link a phone opens, as text and as a QR code (spec 04 §1, §9); closed at first, as LivePanel.razor's. */
 function RemotePanel({ id, sessionId }: { id: string; sessionId: string }) {
   const [on, setOn] = useState(remoteAllowed);
   const base = useServerBase();
   const url = `${base}${href({ page: 'live', id, remote: true, session: sessionId })}`;
   return (
-    <div className="space-y-3">
+    <PanelSection title={t('live.remote')} hint={t('live.remoteHint')} open={false}>
       <ToggleRow
         label={t('remote.allow')}
         icon={<RemoteIcon className="size-4 shrink-0" />}
@@ -83,7 +125,7 @@ function RemotePanel({ id, sessionId }: { id: string; sessionId: string }) {
           />
         </div>
       )}
-    </div>
+    </PanelSection>
   );
 }
 
@@ -161,9 +203,8 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
   const mine = sessions.find((s) => s.id === sessionId);
   const temporary = screens.filter((x) => chosen.includes(x.id));
   return (
-    <section className="space-y-3">
+    <PanelSection title={t('live.outputs')} hint={t('live.outputsHint')} open>
       {dialog}
-      <h2 className={CAPTION}>{t('live.outputs')}</h2>
       <AppButton variant="plain" onClick={openOutput} className={`${rowClass(false)} w-full hover:bg-neutral-200 dark:hover:bg-neutral-700`}>
         <span className="flex items-center gap-2">
           <DesktopIcon className="size-4 shrink-0" />
@@ -223,12 +264,12 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
           </li>
         ))}
       </ul>
-      <AppButton variant="secondary" onClick={() => setPairing(true)} className="flex items-center gap-1.5">
+      <AppButton variant="secondary" onClick={() => setPairing(true)} className="self-start flex items-center gap-1.5">
         <PlusIcon className="size-4" />
         {t('pairScreen.title')}
       </AppButton>
       {pairing && <PairScreenDialog sessionId={sessionId} onClose={() => setPairing(false)} />}
-    </section>
+    </PanelSection>
   );
 }
 
@@ -236,16 +277,14 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
 function OverlaysPanel({ overlays, pointer, live }: { overlays: Overlay[]; pointer: LivePointer; live: LiveControl }) {
   if (!overlays.length) return null;
   return (
-    <details className="group">
-      <summary className="cursor-pointer flex items-center gap-2 list-none [&::-webkit-details-marker]:hidden">
-        <ChevronDownIcon className="size-3 text-neutral-400 dark:text-neutral-500 transition-transform -rotate-90 group-open:rotate-0" />
-        <span className={CAPTION}>{t('overlays.title')}</span>
-        {pointer.overlayId && <span className="size-2 rounded-full bg-sky-500" data-testid="overlay-on" />}
-      </summary>
-      <div className="pt-3">
-        <OverlayToggles overlays={overlays} pointer={pointer} live={live} />
-      </div>
-    </details>
+    <PanelSection
+      title={t('overlays.title')}
+      hint={t('live.overlaysHint')}
+      open={false}
+      badge={pointer.overlayId && <span className="size-2 rounded-full bg-sky-500" data-testid="overlay-on" />}
+    >
+      <OverlayToggles overlays={overlays} pointer={pointer} live={live} />
+    </PanelSection>
   );
 }
 
@@ -352,7 +391,7 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
       if (stage) return; // the stage view has its own keys
       if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) step(1);
       else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) step(-1);
-      else if (e.key === 'b' || e.key === 'B') live.set({ black: !live.pointer.black });
+      else if (e.key === 'b' || e.key === 'B') live.set({ black: true }); // only blanks, as Rensa; a slide shows again
       else return;
       e.preventDefault();
     };
@@ -428,14 +467,13 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
             <div className="aspect-video rounded-lg overflow-hidden">
               <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} overlay={pointer.black ? null : overlay} />
             </div>
-            <AppButton
-              variant={pointer.black ? 'primary' : 'secondary'}
-              aria-pressed={pointer.black}
-              onClick={() => live.set({ black: !pointer.black })}
-              className="mx-1 flex items-center justify-center gap-1.5"
-            >
-              {t('live.black')}
-            </AppButton>
+            {/* Rensa only blanks, and is gone while the screen is black: a slide brings the picture back (LivePanel.razor). */}
+            <div className={`mx-1 ${pointer.black ? 'invisible pointer-events-none' : ''}`}>
+              <AppButton variant="secondary" title={t('live.clear')} onClick={() => live.set({ black: true })} className="w-full flex items-center justify-center gap-1.5">
+                <CloseIcon className="size-4" />
+                <span>{t('live.clear')}</span>
+              </AppButton>
+            </div>
             {owner && (
               <div className="mt-3">
                 <OutputsPanel link={link} sessionId={owner.sessionId} />

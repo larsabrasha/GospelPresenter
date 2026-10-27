@@ -70,6 +70,7 @@ test('desktop host: set up with a passkey, link Google from the session; either 
   await signInWithGoogle(host, ANNA);
   await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
   await signOut(page);
+  await page.getByRole('button', { name: 'Fler alternativ' }).click(); // Google is the first way; a passkey is behind this
   await page.getByRole('button', { name: 'Logga in med passkey' }).click();
   const signedIn = await browserPasskey(host, browser!);
   expect(signedIn.url).toMatch(new RegExp(`^http://localhost:${host.port}/api/app-login\\?`));
@@ -112,6 +113,7 @@ test('desktop host: a Google user adds a passkey in the system browser, then sig
   await expect(page.getByRole('status').getByText('Passkeyn är tillagd')).toBeVisible();
 
   await signOut(page);
+  await page.getByRole('button', { name: 'Fler alternativ' }).click(); // Google is the first way; a passkey is behind this
   await page.getByRole('button', { name: 'Logga in med passkey' }).click();
   await browserPasskey(host, browser!);
   await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');

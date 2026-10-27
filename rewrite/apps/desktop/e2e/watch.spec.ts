@@ -58,7 +58,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await outputs.getByLabel('Kyrkkaffet').check();
   await expect(outputs.getByText('1 enhet')).toBeVisible({ timeout: 5_000 });
   // An overlay with nothing selected reaches the phone on its own, as the projector shows it.
-  await page.locator('summary', { hasText: 'Overlays' }).click();
+  await page.getByRole('button', { name: 'Overlays', exact: true }).click();
   const overlays = page.getByRole('list', { name: 'Overlays' });
   await overlays.getByLabel('Kollekt').check();
   await expect(phone.getByTestId('watch-overlay')).toHaveText('Swish 123 45', { timeout: 5_000 });
@@ -70,9 +70,9 @@ test('a public output follows the presentation in a browser without signing in; 
   await expect(phone.getByTestId('watch-text')).toHaveText('A två', { timeout: 5_000 });
   await expect(phone.getByTestId('watch-slide')).toHaveAttribute('data-theme', 'classic');
   await expect(phone.getByText('Chorus')).toHaveCount(0); // the part label is the operator's
-  await page.getByRole('button', { name: 'Svart skärm' }).click();
+  await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(phone.getByTestId('watch-waiting')).toBeVisible({ timeout: 5_000 });
-  await page.getByRole('button', { name: 'Svart skärm' }).click();
+  await page.getByRole('button', { name: 'Sång A 2' }).click();
   await expect(phone.getByTestId('watch-text')).toHaveText('A två', { timeout: 5_000 });
   // An overlay's text reaches the phone too, above the slide (spec 04 §6).
   await overlays.getByLabel('Kollekt').check();
