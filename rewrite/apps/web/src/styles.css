@@ -201,3 +201,7 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 /* Audio during live (spec 04 section 1b) */
 .audio-player { gap: 8px; align-items: center; margin: 4px 0 8px; }
 .stage-audio { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; color: #eee; font-size: 1.4rem; }
+
+/* Tillgänglig offline */
+.keep-offline { margin: 4px 0; }
+.offline-badge { margin-left: 8px; }

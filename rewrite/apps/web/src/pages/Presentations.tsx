@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useData, useDb } from '../db/react.tsx';
-import { listPresentations } from '../db/queries.ts';
+import { listPresentations, pinnedIds } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { Button } from '../ui/Button.tsx';
@@ -75,6 +75,7 @@ function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string 
 
 export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const presentations = useData(listPresentations, []);
+  const pinned = useData(pinnedIds, []);
   const [creating, setCreating] = useState(false);
 
   return (
@@ -103,6 +104,7 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
           <li key={p.id}>
             <a href={href({ page: 'presentation', id: p.id })}>{p.name}</a>
             {p.eventDate && <span className="muted"> · {formatEventDate(p.eventDate)}</span>}
+            {pinned?.has(p.id) && <span className="badge offline-badge">{t('media.offlineBadge')}</span>}
           </li>
         ))}
       </ul>

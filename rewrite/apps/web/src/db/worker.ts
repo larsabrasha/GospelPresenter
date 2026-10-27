@@ -16,6 +16,7 @@ import {
   storeBibleText,
   storeMediaBlob,
   DEFAULT_MEDIA_POLICY,
+  setPinned,
   syncBibleTexts,
   syncMedia,
   SyncClient,
@@ -284,6 +285,11 @@ async function handle(call: DbCall): Promise<unknown> {
       return;
     case 'closeMedia':
       openMedia.delete(call.key);
+      return;
+    case 'setPinned':
+      await setPinned(client!, call.presentationId, call.on);
+      notifyChanged();
+      syncMediaBlobs();
       return;
   }
 }

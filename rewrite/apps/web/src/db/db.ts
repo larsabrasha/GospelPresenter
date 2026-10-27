@@ -65,6 +65,10 @@ export class Db implements ReadDb {
     return this.call({ op: 'openMedia', key, presentationId, audio });
   }
 
+  setPinned(presentationId: string, on: boolean): Promise<void> {
+    return this.call({ op: 'setPinned', presentationId, on });
+  }
+
   closeMedia(key: string): Promise<void> {
     return this.call({ op: 'closeMedia', key });
   }

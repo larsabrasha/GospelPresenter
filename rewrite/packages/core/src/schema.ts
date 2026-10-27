@@ -196,6 +196,16 @@ export const mediaBlobs = sqliteTable('media_blobs', {
   receivedAt: integer('received_at').notNull(),
 });
 
+/**
+ * Not synced. The presentations this device keeps every file of, whatever
+ * their date ("Tillgänglig offline", README "Which files a device keeps"):
+ * a choice for this device, not for the organisation.
+ */
+export const pinnedPresentations = sqliteTable('pinned_presentations', {
+  id: text('id').primaryKey(),
+  pinnedAt: integer('pinned_at').notNull(),
+});
+
 export const schema = {
   labels,
   songs,
@@ -211,6 +221,7 @@ export const schema = {
   bibleTexts,
   bibleBlobs,
   mediaBlobs,
+  pinnedPresentations,
 };
 
 /** Synced tables in parent-before-child order. */
@@ -228,7 +239,7 @@ export type Display = typeof displays.$inferSelect;
 export type LibraryAudio = typeof audios.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
 const bibleDdl = [
@@ -258,6 +269,9 @@ const audioDdl = [
      hash TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`,
 ];
 
+/** The table version 7 added: presentations this device keeps offline (not synced). */
+const pinDdl = [`CREATE TABLE IF NOT EXISTS pinned_presentations (id TEXT PRIMARY KEY NOT NULL, pinned_at INTEGER NOT NULL)`];
+
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
 // brought up to date by `orgMigrations` instead (see `orgSchemaPlan`).
@@ -280,6 +294,7 @@ export const orgDdl: string[] = [
   ...mediaDdl,
   ...displayDdl,
   ...audioDdl,
+  ...pinDdl,
 ];
 
 /** The statements that take a database from version `n - 1` to `n`. */
@@ -293,6 +308,7 @@ export const orgMigrations: Record<number, string[]> = {
   4: mediaDdl,
   5: displayDdl,
   6: audioDdl,
+  7: pinDdl,
 };
 
 /** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */

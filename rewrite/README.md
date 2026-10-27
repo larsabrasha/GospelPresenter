@@ -345,10 +345,13 @@ library and the pickers show. Ahead of time, on a device that keeps its data (OP
 app, later the tablet app): the full pictures and the audio of every presentation dated from today to seven
 days ahead, so Sunday's material is on the computer before anyone leaves for church. On demand, on any device:
 what a presentation open on one of its pages needs (the editor, the live page, remote control), fetched at
-once. Never: audio for a presentation the device only controls, since it plays on the presenting computer.
+once. Kept offline, on a device that keeps its data: every file of a presentation marked "Tillgänglig
+offline på den här enheten" in the editor, whatever its date, including what is added to it later (a local,
+unsynced table, `pinned_presentations`, organisation schema version 7; the list marks them "Offline"). A device
+that keeps nothing between reloads shows the choice switched off and says why. Never: audio for a presentation the device only controls, since it plays on the presenting computer.
 A device that keeps its data only in memory (a tablet over plain http) fetches nothing ahead, as it would lose
 it at the next reload. Files no open or coming presentation needs are kept within 2 GiB (MEDIA-R14), the
-oldest dropped first; what is coming, open or waiting to be uploaded is never dropped. The editor and the live
+oldest dropped first; what is coming, open, kept offline or waiting to be uploaded is never dropped. The editor and the live
 page say whether everything is on the device ("Alla bilder och ljud finns på den här enheten") or how much is
 being fetched, and, offline, how many files are missing and cannot be. A presentation without a date is
 fetched only when it is opened; "coming" is decided by this device's own calendar day.

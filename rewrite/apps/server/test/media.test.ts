@@ -3,7 +3,7 @@
 // once per device, outside the change log; only its `images` row syncs.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, sha256HexBytes } from '@gp/core';
-import { DEFAULT_MEDIA_POLICY, hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, syncMedia, type MediaPolicy, type SyncClient } from '@gp/sync/client';
+import { DEFAULT_MEDIA_POLICY, hasMediaBlob, MediaUploads, presentationMediaState, setPinned, storeMediaBlob, syncMedia, type MediaPolicy, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
@@ -530,6 +530,21 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     const presenter = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false, open: [{ presentationId: 'P', audio: true }] }));
     expect(presenter.downloaded).toEqual([p.sound]);
     expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });
+  });
+
+  it('fetches and keeps a presentation kept offline on this device, whatever its date; not on one that keeps no data', async () => {
+    const p = await presentation('KEPT', null, 'kept');
+    await bob.client.sync();
+    await setPinned(bob.client, 'KEPT', true);
+    const memoryOnly = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false }));
+    expect(memoryOnly.downloaded).toEqual([p.thumb]);
+    const kept = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy());
+    expect(kept.downloaded.toSorted()).toEqual([p.full, p.sound].toSorted());
+    // Never dropped for the budget while kept; dropped once it is not.
+    expect(await syncMedia(bob.client, async () => null, Date.now(), policy({ budget: 1 }))).toMatchObject({ removed: 0 });
+    await setPinned(bob.client, 'KEPT', false);
+    expect(await syncMedia(bob.client, async () => null, Date.now(), policy({ budget: 1 }))).toMatchObject({ removed: 2 });
+    expect(await hasMediaBlob(bob.client, p.thumb)).toBe(true);
   });
 
   it('keeps what is not needed now only within the budget, oldest out first; never what is coming or open', async () => {

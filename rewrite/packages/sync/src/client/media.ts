@@ -65,7 +65,8 @@ export function addDays(date: string, days: number): string {
 
 /**
  * The blobs this device should hold now, in the order to fetch them:
- * thumbnails, then what the open presentations need, then the coming ones.
+ * thumbnails, then what the open presentations need, then those kept offline
+ * on this device, then the coming ones.
  */
 export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Promise<string[]> {
   const thumbs = (await client.query('SELECT thumb_hash AS hash FROM images ORDER BY created_at DESC')) as { hash: string }[];
@@ -75,7 +76,13 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
         addDays(policy.today, policy.days),
       ])) as { id: string }[])
     : [];
-  const order = [...policy.open, ...coming.map((c) => ({ presentationId: c.id, audio: true }))];
+  // Kept offline on this device ("Tillgänglig offline"), whatever the date: only where the data survives a reload.
+  const pinned = policy.prefetch
+    ? ((await client.query(
+        'SELECT p.id FROM pinned_presentations k JOIN presentations p ON p.id = k.id WHERE p.deleted_at IS NULL ORDER BY k.pinned_at',
+      )) as { id: string }[])
+    : [];
+  const order = [...policy.open, ...pinned.map((c) => ({ presentationId: c.id, audio: true })), ...coming.map((c) => ({ presentationId: c.id, audio: true }))];
   const hashes: string[] = thumbs.map((t) => t.hash);
   for (const { presentationId, audio } of order) {
     const items = (await client.query(
@@ -236,4 +243,13 @@ export function chainBeforePush(...hooks: BeforePush[]): BeforePush {
     }
     return cut;
   };
+}
+
+/** Keeps a presentation's files on this device whatever its date, or stops doing so ("Tillgänglig offline"). */
+export async function setPinned(client: SyncClient, presentationId: string, on: boolean, now = Date.now()): Promise<void> {
+  await client.localWrite([
+    on
+      ? { sql: 'INSERT INTO pinned_presentations (id, pinned_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING', params: [presentationId, now] }
+      : { sql: 'DELETE FROM pinned_presentations WHERE id = ?', params: [presentationId] },
+  ]);
 }

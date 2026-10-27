@@ -151,8 +151,8 @@ describe('client (wa-sqlite)', () => {
     await client.mutate('setItemArrangement', { itemId: 'I1', arrangementId: 'A' });
     const [undo] = await client.query("SELECT before FROM _undo WHERE tbl = 'presentation_items'");
     expect(JSON.parse(String(undo!.before))).toMatchObject({ id: 'I1', arrangement_id: null, sort: 0 });
-    // Every table is made by the DDL: the synced ones, and the three that do not sync (Bible texts and media blobs).
-    expect(orgDdl.length).toBe(tableInfo.length + 3);
+    // Every table is made by the DDL: the synced ones, and the four that do not sync (Bible texts, media blobs, pins).
+    expect(orgDdl.length).toBe(tableInfo.length + 4);
     await client.close();
   });
 });

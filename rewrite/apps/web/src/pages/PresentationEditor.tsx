@@ -11,7 +11,7 @@ import { Highlight } from '../ui/Highlight.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { MediaReadiness } from '../ui/MediaReadiness.tsx';
+import { KeepOffline, MediaReadiness } from '../ui/MediaReadiness.tsx';
 import { BibleTab } from './BibleTab.tsx';
 import { AudioTab } from './AudioTab.tsx';
 import { ImageTab } from './ImageTab.tsx';
@@ -423,6 +423,7 @@ export function PresentationEditor({ id }: { id: string }) {
             {formatEventDate(presentation.eventDate)}
           </p>
         )}
+        <KeepOffline presentationId={id} />
         <MediaReadiness presentationId={id} audio />
         <div className="row">
           <Button onClick={() => setDetails(true)}>{t('presentation.editDetails')}</Button>

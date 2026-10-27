@@ -45,7 +45,9 @@ export type DbCall =
    * for a remote control, which never plays. `key` names the page, for `closeMedia`.
    */
   | { op: 'openMedia'; key: string; presentationId: string; audio: boolean }
-  | { op: 'closeMedia'; key: string };
+  | { op: 'closeMedia'; key: string }
+  /** Keeps a presentation's files on this device whatever its date ("Tillgänglig offline"), or stops. */
+  | { op: 'setPinned'; presentationId: string; on: boolean };
 
 export type DbMessage =
   | { type: 'reply'; id: number; ok: true; value: unknown }

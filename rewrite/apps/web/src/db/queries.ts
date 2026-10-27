@@ -296,3 +296,13 @@ export async function getAudio(db: ReadDb, id: string): Promise<LibraryAudio | n
   const [r] = await db.query('SELECT * FROM audios WHERE id = ?', [id]);
   return r ? libraryAudio(r) : null;
 }
+
+/** Whether this device keeps the presentation's files whatever its date ("Tillgänglig offline"). */
+export async function isPinned(db: ReadDb, presentationId: string): Promise<boolean> {
+  return (await db.query('SELECT 1 FROM pinned_presentations WHERE id = ?', [presentationId])).length > 0;
+}
+
+/** The presentations kept offline on this device. */
+export async function pinnedIds(db: ReadDb): Promise<Set<string>> {
+  return new Set((await db.query<{ id: string }>('SELECT id FROM pinned_presentations')).map((r) => r.id));
+}
