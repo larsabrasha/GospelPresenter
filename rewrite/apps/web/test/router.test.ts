@@ -26,6 +26,7 @@ describe('routes', () => {
       { page: 'devices' },
       { page: 'bibles' },
       { page: 'images' },
+      { page: 'audios' },
       { page: 'themes' },
       { page: 'displays' },
       { page: 'watch', code: 'abcdefg' },
@@ -51,7 +52,7 @@ describe('routes', () => {
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {
-    for (const page of ['users', 'devices', 'bibles', 'images', 'themes', 'displays'] as const) {
+    for (const page of ['users', 'devices', 'bibles', 'images', 'audios', 'themes', 'displays'] as const) {
       const path = href({ page });
       expect(path).toBe(`/admin/${page}`);
       expect(path).not.toMatch(/^\/api/);
@@ -63,7 +64,8 @@ describe('routes', () => {
   it('the trash kind is case-insensitive, and an unknown kind is everything', () => {
     expect(read('/trash?kind=presentation')).toEqual({ page: 'trash', kind: 'Presentation' });
     expect(read('/trash?kind=IMAGE')).toEqual({ page: 'trash', kind: 'Image' });
-    expect(read('/trash?kind=Audio')).toEqual({ page: 'trash', kind: null }); // audio is not built yet
+    expect(read('/trash?kind=audio')).toEqual({ page: 'trash', kind: 'Audio' });
+    expect(read('/trash?kind=Template')).toEqual({ page: 'trash', kind: null }); // templates are not built yet
     expect(read('/trash?kind=')).toEqual({ page: 'trash', kind: null });
   });
 

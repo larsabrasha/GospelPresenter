@@ -313,6 +313,17 @@ stage over the theme's media background. Like a song it is a reference by id: a 
 (MEDIA-R8), a purged one leaves an item marked "Bilden finns inte längre". The output reads the bytes through
 the operator window's database, like everything else, so it works without OPFS.
 
+### Audio
+
+An audio file is a synced row in `audios` (file name, type, hash, size, `created_at`, `deleted_at`; organisation
+schema version 6) and one blob, stored byte for byte as it was picked (MEDIA-R5), through the same storage, upload
+and clean-up as pictures. The server takes a blob it recognises by its first bytes as MP3, WAV, Ogg, MP4/M4A or
+WebM, up to 20 MiB, and serves it with that type; a picture stays limited to 10 MiB. A device fetches an audio
+file only once a presentation uses it, since it may be 20 MiB (MEDIA-R14's pinning, without its eviction). Ljud
+(`/admin/audios`) lists the files, with import, drop, search and the trash; there is no playback there (spec 05).
+An audio item has no slides; in the editor it shows a player for the file. The server's CSP now allows `blob:`
+for media, which the player needs. One file per item: spec 03's item with several audio files is not built.
+
 ### Remote control
 
 Every window that presents owns its session and drives its own outputs from its own state; only the
@@ -414,7 +425,7 @@ The smaller gaps below can be taken along the way.
 
 ## Not done yet
 
-Audio (spec 05 lists it with Images; none of it is built: no library page, no audio item), overlay images,
+Overlay images,
 slide-deck pages, profile pictures and logos, templates, English text, mobile, and deploying to
 Cloudflare. The Workers adapter is tested in local workerd only.
 
@@ -428,6 +439,9 @@ full library of 1 000 pictures is a few hundred MB on each device, not measured)
 file input is used, also in Electron); dropping files onto the add dialog. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.
+
+From audio: playing an audio item live (spec 04 §1b) and its remote control; HTTP Range on `/api/media`
+(MEDIA-R9: clients play their own copies, so nothing asks for it yet); an item with several files.
 
 From spec 04's public outputs: the QR code and "Ladda ner som bild" (the link is shown to copy); paired
 screens, so Skärmar has only public outputs; the Worker serves no static files yet, so on Cloudflare

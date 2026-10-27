@@ -75,7 +75,7 @@ export const presentationItems = sqliteTable('presentation_items', {
   presentationId: text('presentation_id')
     .notNull()
     .references(() => presentations.id),
-  type: text('type', { enum: ['song', 'bible', 'image'] }).notNull(),
+  type: text('type', { enum: ['song', 'bible', 'image', 'audio'] }).notNull(),
   title: text('title').notNull(),
   sourceId: text('source_id').notNull(),
   sort: integer('sort').notNull(),
@@ -118,6 +118,23 @@ export const images = sqliteTable('images', {
   height: integer('height').notNull(),
   createdAt: integer('created_at').notNull(),
   /** Set while the image is in the trash (MEDIA-R8). */
+  deletedAt: integer('deleted_at'),
+});
+
+/**
+ * An audio file in the media library (spec 05 "Media library items"): one
+ * blob named by its SHA-256, stored as it was picked (MEDIA-R5). Only the
+ * metadata syncs; a device fetches the bytes of the files its presentations
+ * use.
+ */
+export const audios = sqliteTable('audios', {
+  id: text('id').primaryKey(),
+  fileName: text('file_name').notNull(),
+  contentType: text('content_type').notNull(),
+  hash: text('hash').notNull(),
+  size: integer('size').notNull(),
+  createdAt: integer('created_at').notNull(),
+  /** Set while the file is in the trash (MEDIA-R8). */
   deletedAt: integer('deleted_at'),
 });
 
@@ -190,13 +207,14 @@ export const schema = {
   orgSettings,
   images,
   displays,
+  audios,
   bibleTexts,
   bibleBlobs,
   mediaBlobs,
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images, displays];
+export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images, displays, audios];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -207,9 +225,10 @@ export type PresentationItem = typeof presentationItems.$inferSelect;
 export type Bible = typeof bibles.$inferSelect;
 export type LibraryImage = typeof images.$inferSelect;
 export type Display = typeof displays.$inferSelect;
+export type LibraryAudio = typeof audios.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
 const bibleDdl = [
@@ -233,6 +252,12 @@ const mediaDdl = [
 /** The table version 5 added: outputs. */
 const displayDdl = [`CREATE TABLE IF NOT EXISTS displays (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL, kind TEXT NOT NULL)`];
 
+/** The table version 6 added: audio files. */
+const audioDdl = [
+  `CREATE TABLE IF NOT EXISTS audios (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
+     hash TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`,
+];
+
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
 // brought up to date by `orgMigrations` instead (see `orgSchemaPlan`).
@@ -254,6 +279,7 @@ export const orgDdl: string[] = [
   ...bibleDdl,
   ...mediaDdl,
   ...displayDdl,
+  ...audioDdl,
 ];
 
 /** The statements that take a database from version `n - 1` to `n`. */
@@ -266,6 +292,7 @@ export const orgMigrations: Record<number, string[]> = {
   3: [`ALTER TABLE presentations ADD COLUMN theme_id TEXT`, `ALTER TABLE presentation_items ADD COLUMN content TEXT`, ...bibleDdl],
   4: mediaDdl,
   5: displayDdl,
+  6: audioDdl,
 };
 
 /** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */

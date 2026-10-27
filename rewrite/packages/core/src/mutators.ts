@@ -6,7 +6,7 @@ import { labelDefaults, labelId } from './labels.ts';
 import { can, type Permission, type Role } from './permissions.ts';
 import { DISPLAY_CODE, MAX_DISPLAYS } from './displays.ts';
 import { MEDIA_LIMITS } from './media.ts';
-import { bibleBlobs, bibles, bibleTexts, displays, images, labels, mediaBlobs, orgSettings, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
+import { audios, bibleBlobs, bibles, bibleTexts, displays, images, labels, mediaBlobs, orgSettings, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
 import { isKnownTheme } from './themes.ts';
 import { parsePartIds } from './slides.ts';
 import { TRASH_RETENTION_MS } from './trash.ts';
@@ -694,6 +694,74 @@ async function addImageToPresentation(tx: Tx, a: z.output<typeof addImageToPrese
   });
 }
 
+// ------------------------------------------------------------------ audio (spec 05 "Media")
+
+const addAudioArgs = z.object({
+  id,
+  fileName: z.string().trim().min(1).max(MEDIA_LIMITS.fileName),
+  /** As the server recognised it when the file was uploaded. */
+  contentType: z.enum(['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm', 'audio/x-m4a']),
+  hash: mediaHash,
+  size: z.number().int().min(1).max(MEDIA_LIMITS.audioBytes),
+  createdAt: z.number().int(),
+});
+/** Adds an audio file (MEDIA-R3, R5): its blob must be known where this runs. At most 500, the trash not counted. */
+async function addAudio(tx: Tx, a: z.output<typeof addAudioArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageAudios');
+  const [existing] = await tx.select({ id: audios.id }).from(audios).where(eq(audios.id, a.id));
+  if (existing) return;
+  const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, a.hash));
+  if (!blob) throw new MutationError('media-missing', 'the audio file has not been uploaded');
+  const [n] = await tx.select({ n: count() }).from(audios).where(isNull(audios.deletedAt));
+  limit((n?.n ?? 0) >= MEDIA_LIMITS.audios, 'audio files');
+  await tx.insert(audios).values({ id: a.id, fileName: a.fileName, contentType: a.contentType, hash: a.hash, size: a.size, createdAt: a.createdAt, deletedAt: null });
+}
+
+const trashAudioArgs = z.object({ id, at: z.number().int() });
+async function trashAudio(tx: Tx, a: z.output<typeof trashAudioArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageAudios');
+  await tx.update(audios).set({ deletedAt: a.at }).where(eq(audios.id, a.id));
+}
+
+const restoreAudioArgs = z.object({ id });
+async function restoreAudio(tx: Tx, a: z.output<typeof restoreAudioArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageAudios');
+  await tx.update(audios).set({ deletedAt: null }).where(eq(audios.id, a.id));
+}
+
+const purgeAudioArgs = z.object({ id });
+/** Permanent delete: only of a file in the trash where this runs. Its blob goes with the next clean-up. */
+async function purgeAudio(tx: Tx, a: z.output<typeof purgeAudioArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageAudios');
+  const [f] = await tx.select({ deletedAt: audios.deletedAt }).from(audios).where(eq(audios.id, a.id));
+  if (!f) return;
+  if (f.deletedAt === null) throw new MutationError('not-in-trash', 'audio file is not in the trash');
+  await tx.delete(audios).where(eq(audios.id, a.id));
+}
+
+const addAudioToPresentationArgs = z.object({ itemId: id, presentationId: id, audioId: id, afterItemId: id.nullable().optional() });
+/**
+ * Adds an audio file as an item (spec 03): it has no slides, and selecting it
+ * live plays it on the presenting computer without changing what is shown
+ * (LIVE-R6). A reference, like a picture: a trashed file still plays.
+ */
+async function addAudioToPresentation(tx: Tx, a: z.output<typeof addAudioToPresentationArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  requirePermission(ctx, 'ViewAudios');
+  await requirePresentation(tx, a.presentationId);
+  const [f] = await tx.select({ fileName: audios.fileName }).from(audios).where(eq(audios.id, a.audioId));
+  if (!f) throw new MutationError('not-found', 'audio file not found');
+  await insertItem(tx, a.afterItemId, {
+    id: a.itemId,
+    presentationId: a.presentationId,
+    type: 'audio',
+    title: f.fileName,
+    sourceId: a.audioId,
+    arrangementId: null,
+    content: null,
+  });
+}
+
 // ------------------------------------------------------------------ bibles
 
 /** Drops a stored text that no translation names any more. */
@@ -827,6 +895,9 @@ async function purgeExpiredTrash(tx: Tx, a: z.output<typeof purgeExpiredTrashArg
   if (can(ctx.role, 'ManageImages')) {
     await tx.delete(images).where(and(isNotNull(images.deletedAt), lte(images.deletedAt, cutoff)));
   }
+  if (can(ctx.role, 'ManageAudios')) {
+    await tx.delete(audios).where(and(isNotNull(audios.deletedAt), lte(audios.deletedAt, cutoff)));
+  }
 }
 
 // ------------------------------------------------------------------ test probe
@@ -881,6 +952,7 @@ export const mutators = {
   addSongToPresentation: m(addSongToPresentationArgs, addSongToPresentation),
   addBibleToPresentation: m(addBibleToPresentationArgs, addBibleToPresentation),
   addImageToPresentation: m(addImageToPresentationArgs, addImageToPresentation),
+  addAudioToPresentation: m(addAudioToPresentationArgs, addAudioToPresentation),
   renameItem: m(renameItemArgs, renameItem),
   setItemArrangement: m(setItemArrangementArgs, setItemArrangement),
   reorderItems: m(reorderItemsArgs, reorderItems),
@@ -897,6 +969,10 @@ export const mutators = {
   trashImage: m(trashImageArgs, trashImage),
   restoreImage: m(restoreImageArgs, restoreImage),
   purgeImage: m(purgeImageArgs, purgeImage),
+  addAudio: m(addAudioArgs, addAudio),
+  trashAudio: m(trashAudioArgs, trashAudio),
+  restoreAudio: m(restoreAudioArgs, restoreAudio),
+  purgeAudio: m(purgeAudioArgs, purgeAudio),
   createDisplay: m(createDisplayArgs, createDisplay),
   newDisplayCode: m(newDisplayCodeArgs, newDisplayCode),
   deleteDisplay: m(deleteDisplayArgs, deleteDisplay),

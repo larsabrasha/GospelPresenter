@@ -1,6 +1,6 @@
 import { listThemes, searchSongs, songSlides, sortedArrangements, type PresentationItem, type SongArrangement, type Theme } from '@gp/core';
 import { useEffect, useEffectEvent, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useData, useDb } from '../db/react.tsx';
+import { useBlobUrl, useData, useDb } from '../db/react.tsx';
 import { arrangementsOf, getPresentation, getSong, itemsOf, listLabels, searchableSongs, songPartsOf, songsById, themeOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
@@ -12,6 +12,7 @@ import { href, navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { BibleTab } from './BibleTab.tsx';
+import { AudioTab } from './AudioTab.tsx';
 import { ImageTab } from './ImageTab.tsx';
 import { CreateSongDialog } from './Songs.tsx';
 
@@ -35,6 +36,12 @@ function ArrangementPills({ arrangements, chosen, onChoose }: { arrangements: So
   );
 }
 
+/** An audio item in the editor: a player for the file (spec 03), once this device has it. */
+function AudioPreview({ hash, name }: { hash: string; name: string }) {
+  const url = useBlobUrl(hash);
+  return url ? <audio controls src={url} aria-label={name} data-testid="audio-preview" /> : <p className="muted">{t('presentation.audioFetching')}</p>;
+}
+
 function SlideGrid({ slides, label, theme }: { slides: ItemSlides['slides']; label: string; theme: Theme }) {
   return (
     <ol className="thumbs grid" aria-label={label}>
@@ -56,16 +63,16 @@ interface TabProps {
 }
 
 /**
- * The add-item modal (spec 03 2d): Sånger, Bibeltexter and Bilder, Ctrl/⌘+1, +2 and +3
+ * The add-item modal (spec 03 2d): Sånger, Bibeltexter, Bilder and Ljud, Ctrl/⌘+1 to +4
  * switch. It never closes after an add (D15). The new item goes after the
  * selected one and becomes selected.
  */
 function AddItemDialog(props: TabProps) {
-  const [tab, setTab] = useState<'songs' | 'bible' | 'images'>('songs');
+  const [tab, setTab] = useState<'songs' | 'bible' | 'images' | 'audio'>('songs');
   const onKeyDown = (e: ReactKeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && (e.key === '1' || e.key === '2' || e.key === '3')) {
+    if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4'].includes(e.key)) {
       e.preventDefault();
-      setTab(e.key === '1' ? 'songs' : e.key === '2' ? 'bible' : 'images');
+      setTab(({ '1': 'songs', '2': 'bible', '3': 'images', '4': 'audio' } as const)[e.key as '1' | '2' | '3' | '4']);
     }
   };
   return (
@@ -81,10 +88,14 @@ function AddItemDialog(props: TabProps) {
           <Button role="tab" aria-selected={tab === 'images'} aria-pressed={tab === 'images'} onClick={() => setTab('images')}>
             {t('presentation.imagesTab')}
           </Button>
+          <Button role="tab" aria-selected={tab === 'audio'} aria-pressed={tab === 'audio'} onClick={() => setTab('audio')}>
+            {t('presentation.audioTab')}
+          </Button>
         </div>
         {tab === 'songs' && <SongTab key="songs" {...props} />}
         {tab === 'bible' && <BibleTab key="bible" {...props} />}
         {tab === 'images' && <ImageTab key="images" {...props} />}
+        {tab === 'audio' && <AudioTab key="audio" {...props} />}
       </div>
     </Dialog>
   );
@@ -439,7 +450,7 @@ export function PresentationEditor({ id }: { id: string }) {
                   }}
                 >
                   {item.title}
-                  {(problem === 'song-trashed' || problem === 'song-missing' || problem === 'image-missing') && <span className="warning"> ⚠</span>}
+                  {(problem === 'song-trashed' || problem === 'song-missing' || problem === 'image-missing' || problem === 'audio-missing') && <span className="warning"> ⚠</span>}
                 </Button>
                 <Button aria-label={`${t('common.moveUp')} ${item.title}`} disabled={i === 0} onClick={() => void db.mutate('moveItem', { itemId: item.id, by: -1 })}>
                   ↑
@@ -481,6 +492,8 @@ export function PresentationEditor({ id }: { id: string }) {
         )}
         {selected && selectedSlides?.problem === 'song-missing' && <p className="warning">{t('presentation.songMissing')}</p>}
         {selected && selectedSlides?.problem === 'image-missing' && <p className="warning">{t('presentation.imageMissing')}</p>}
+        {selected && selectedSlides?.problem === 'audio-missing' && <p className="warning">{t('presentation.audioMissing')}</p>}
+        {selected && selectedSlides?.audio && <AudioPreview hash={selectedSlides.audio.hash} name={selectedSlides.audio.fileName} />}
         {selected && selectedSong?.deletedAt === null && (
           <ArrangementPills
             arrangements={selectedArrangements}

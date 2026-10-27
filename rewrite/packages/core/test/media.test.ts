@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitWithin, IMAGE_VARIANTS, imageTypeFromName, mediaKey, sniffStoredImage, storedTypeFor, utf8Encode } from '@gp/core';
+import { audioTypeFromName, fitWithin, IMAGE_VARIANTS, imageTypeFromName, MEDIA_LIMITS, mediaKey, sniffAudio, sniffMedia, sniffStoredImage, storedTypeFor, utf8Encode } from '@gp/core';
 
 // MEDIA-R4, R11 and R13: the rules a picture is stored by.
 describe('media rules', () => {
@@ -40,5 +40,34 @@ describe('media rules', () => {
     expect(mediaKey('..', hash)).toBe(`org/%2E%2E/media/${hash}`);
     expect(() => mediaKey('org-1', '../../etc/passwd')).toThrow();
     expect(() => mediaKey('org-1', 'A'.repeat(64))).toThrow();
+  });
+});
+
+describe('audio (MEDIA-R1, R5, R13)', () => {
+  const bytes = (...parts: (string | number[])[]) => new Uint8Array(parts.flatMap((p) => (typeof p === 'string' ? [...p].map((c) => c.charCodeAt(0)) : p)));
+
+  it('recognises each accepted kind by its first bytes', () => {
+    expect(sniffAudio(bytes('ID3', [3, 0, 0]))).toBe('audio/mpeg');
+    expect(sniffAudio(bytes([0xff, 0xfb, 0x90, 0x00]))).toBe('audio/mpeg'); // an MP3 frame with no tag
+    expect(sniffAudio(bytes('RIFF', [0, 0, 0, 0], 'WAVE'))).toBe('audio/wav');
+    expect(sniffAudio(bytes('OggS', [0]))).toBe('audio/ogg');
+    expect(sniffAudio(bytes([0, 0, 0, 0x20], 'ftypM4A '))).toBe('audio/x-m4a');
+    expect(sniffAudio(bytes([0, 0, 0, 0x20], 'ftypisom'))).toBe('audio/mp4');
+    expect(sniffAudio(bytes([0x1a, 0x45, 0xdf, 0xa3]))).toBe('audio/webm');
+    expect(sniffAudio(utf8Encode('not a sound'))).toBeNull();
+    expect(sniffAudio(bytes('RIFF', [0, 0, 0, 0], 'WEBP'))).toBeNull(); // a picture, not a sound
+  });
+
+  it('takes a picture up to 10 MiB and a sound up to 20 MiB', () => {
+    expect(sniffMedia(bytes([0xff, 0xd8, 0xff]))).toEqual({ type: 'image/jpeg', maxBytes: MEDIA_LIMITS.blobBytes });
+    expect(sniffMedia(bytes('OggS'))).toEqual({ type: 'audio/ogg', maxBytes: MEDIA_LIMITS.audioBytes });
+    expect(sniffMedia(utf8Encode('text'))).toBeNull();
+  });
+
+  it('takes the type from the extension on a device', () => {
+    expect(audioTypeFromName('Psalm.MP3')).toBe('audio/mpeg');
+    expect(audioTypeFromName('a.m4a')).toBe('audio/x-m4a');
+    expect(audioTypeFromName('a.m4b')).toBe('audio/mp4');
+    expect(audioTypeFromName('a.flac')).toBeNull();
   });
 });

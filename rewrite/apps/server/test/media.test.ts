@@ -356,3 +356,88 @@ describe('uploads before a push', () => {
     expect(sent).toEqual([fullHash, thumbHash, fullHash, thumbHash]);
   });
 });
+
+describe.each(adapters)('%s adapter: audio files', (adapterName) => {
+  let h: Harness;
+  let org: string;
+  let alice: Device;
+  let bob: Device;
+
+  beforeAll(async () => {
+    h = await startAdapter(adapterName, { mediaGraceMs: 0 });
+  }, 60_000);
+  afterAll(async () => {
+    await alice?.client.close();
+    await bob?.client.close();
+    await h?.close();
+  });
+  beforeEach(async () => {
+    await alice?.client.close();
+    await bob?.client.close();
+    org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'alice', org, 'admin');
+    await setRole(h, 'bob', org, 'user');
+    alice = await device(h, org, 'alice', 'admin');
+    bob = await device(h, org, 'bob', 'user');
+  });
+
+  /** Bytes that start like an Ogg file; the rest from the seed. Not playable. */
+  function ogg(seed: string, size = 400): Uint8Array {
+    const b = jpeg(seed, size);
+    b.set([0x4f, 0x67, 0x67, 0x53]);
+    return b;
+  }
+
+  it('stores a sound as it is and serves it with the type its bytes say; a 25 MB file is refused (MEDIA-A10)', async () => {
+    const bytes = ogg('psalm');
+    const hash = await sha256HexBytes(bytes);
+    expect((await put(h, org, 'bob', hash, bytes)).status).toBe(204);
+    const res = await get(h, org, 'alice', hash);
+    expect(res.headers.get('content-type')).toBe('audio/ogg');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(bytes);
+    const big = ogg('big', 25 * 1024 * 1024);
+    expect((await put(h, org, 'bob', await sha256HexBytes(big), big)).status).toBe(413);
+    // A picture is held to its own 10 MiB, sound or not.
+    const bigPicture = jpeg('big-picture', MEDIA_LIMITS.blobBytes + 1);
+    expect((await put(h, org, 'bob', await sha256HexBytes(bigPicture), bigPicture)).status).toBe(413);
+  });
+
+  it('syncs one row; a device fetches the file only once a presentation uses it; purged, it goes', async () => {
+    const bytes = ogg('hymn');
+    const hash = await storeMediaBlob(alice.client, bytes, 'audio/ogg');
+    expect((await put(h, org, 'alice', hash, bytes)).status).toBe(204);
+    await alice.client.mutate('addAudio', { id: 'A1', fileName: 'Psalm 1.ogg', contentType: 'audio/ogg', hash, size: bytes.length, createdAt: 1 });
+    await alice.client.sync();
+    expect(alice.client.rejected).toEqual([]);
+    await bob.client.sync();
+    expect((await serverDump(h, org, 'alice')).tables.audios).toMatchObject([{ id: 'A1', file_name: 'Psalm 1.ogg', hash, size: bytes.length }]);
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toMatchObject({ downloaded: [] }); // in the library only
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    await alice.client.mutate('addAudioToPresentation', { itemId: 'I1', presentationId: 'P', audioId: 'A1' });
+    await alice.client.sync();
+    await bob.client.sync();
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toMatchObject({ downloaded: [hash] });
+    expect((await serverDump(h, org, 'alice')).tables.presentation_items).toMatchObject([{ id: 'I1', type: 'audio', source_id: 'A1', title: 'Psalm 1.ogg' }]);
+
+    await alice.client.mutate('trashAudio', { id: 'A1', at: 2 });
+    await alice.client.mutate('purgeAudio', { id: 'A1' });
+    await alice.client.sync();
+    expect((await get(h, org, 'alice', hash)).status).toBe(404);
+  });
+
+  it('refuses an add whose file was not uploaded, and uploads it before the add when queued', async () => {
+    const bytes = ogg('queued');
+    let d!: Device;
+    const uploads = new MediaUploads(async (hash, b) => (await put(h, org, 'alice', hash, b)).status);
+    d = await device(h, org, 'alice', 'admin', { beforePush: uploads.beforePush });
+    try {
+      const hash = await storeMediaBlob(d.client, bytes, 'audio/ogg');
+      await d.client.mutate('addAudio', { id: 'A2', fileName: 'Kör.ogg', contentType: 'audio/ogg', hash, size: bytes.length, createdAt: 1 });
+      await d.client.sync();
+      expect(d.client.rejected).toEqual([]);
+      expect((await get(h, org, 'alice', hash)).status).toBe(200);
+    } finally {
+      await d.client.close();
+    }
+  });
+});

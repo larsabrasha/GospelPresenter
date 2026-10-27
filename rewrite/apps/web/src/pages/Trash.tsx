@@ -9,9 +9,9 @@ import { href, TRASH_KINDS, type TrashKind } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { formatEventDate } from './PresentationEditor.tsx';
 
-const manages: Record<TrashKind, Parameters<typeof can>[1]> = { Presentation: 'ManagePresentations', Song: 'ManageSongs', Image: 'ManageImages' };
-const restoreMutator = { Presentation: 'restorePresentation', Song: 'restoreSong', Image: 'restoreImage' } as const;
-const purgeMutator = { Presentation: 'purgePresentation', Song: 'purgeSong', Image: 'purgeImage' } as const;
+const manages: Record<TrashKind, Parameters<typeof can>[1]> = { Presentation: 'ManagePresentations', Song: 'ManageSongs', Image: 'ManageImages', Audio: 'ManageAudios' };
+const restoreMutator = { Presentation: 'restorePresentation', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio' } as const;
+const purgeMutator = { Presentation: 'purgePresentation', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio' } as const;
 
 function daysText(days: number) {
   if (days === 0) return t('trash.soon');

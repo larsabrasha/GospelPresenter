@@ -1,6 +1,6 @@
 import { bibleItemSlides, IDLE, imageSlide, newer, parseBibleContent, songSlides, type LivePointer, type PresentationItem, type Slide } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
-import { arrangementsOf, getImage, getSong, listLabels, songPartsOf } from '../db/queries.ts';
+import { arrangementsOf, getAudio, getImage, getSong, listLabels, songPartsOf } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'hello' };
 
@@ -58,8 +58,10 @@ export class LiveChannel {
 
 export interface ItemSlides {
   slides: Slide[];
-  /** Why the item has no slides, if it has none. */
-  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | null;
+  /** Why the item has no slides, if it has none. An audio item has none by nature. */
+  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | null;
+  /** An audio item's file: played on the presenting computer, never shown (LIVE-R6). */
+  audio?: { hash: string; fileName: string };
 }
 
 /**
@@ -72,6 +74,10 @@ export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<Item
     const content = parseBibleContent(item.content);
     const slides = content ? bibleItemSlides(item.title, content) : [];
     return { slides, problem: slides.length ? null : 'no-parts' };
+  }
+  if (item.type === 'audio') {
+    const audio = await getAudio(db, item.sourceId);
+    return audio ? { slides: [], problem: null, audio: { hash: audio.hash, fileName: audio.fileName } } : { slides: [], problem: 'audio-missing' };
   }
   if (item.type === 'image') {
     // A reference like a song, but a trashed picture still shows (MEDIA-R8); a purged one is gone.

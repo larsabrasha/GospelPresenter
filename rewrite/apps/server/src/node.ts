@@ -149,11 +149,12 @@ export function nodeGlobalSql(f: SqliteFile): GlobalSql {
 
 /**
  * Headers for the static app: a strict CSP (ADR 0007, decision 6). wa-sqlite
- * compiles WebAssembly, and React sets inline style attributes.
+ * compiles WebAssembly, React sets inline style attributes, and pictures and
+ * sounds play from this device's own copies as blob: URLs.
  */
 const STATIC_HEADERS = {
   'content-security-policy':
-    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; " +
     "connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',

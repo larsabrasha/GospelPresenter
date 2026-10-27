@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 // no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
-export const TRASH_KINDS = ['Presentation', 'Song', 'Image'] as const;
+export const TRASH_KINDS = ['Presentation', 'Song', 'Image', 'Audio'] as const;
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
 export type Route =
@@ -23,6 +23,7 @@ export type Route =
   | { page: 'devices' }
   | { page: 'bibles' }
   | { page: 'images' }
+  | { page: 'audios' }
   | { page: 'displays' }
   /** A public output (spec 04 §6): anonymous, no database. */
   | { page: 'watch'; code: string }
@@ -51,6 +52,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'devices') return { page: 'devices' };
     if (second === 'bibles') return { page: 'bibles' };
     if (second === 'images') return { page: 'images' };
+    if (second === 'audios') return { page: 'audios' };
     if (second === 'themes') return { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
     return { page: 'songs' };
@@ -78,7 +80,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'songs' };
 }
 
-const ADMIN_PAGES = new Set(['users', 'devices', 'bibles', 'images', 'themes', 'displays']);
+const ADMIN_PAGES = new Set(['users', 'devices', 'bibles', 'images', 'audios', 'themes', 'displays']);
 
 export function href(r: Route): string {
   switch (r.page) {

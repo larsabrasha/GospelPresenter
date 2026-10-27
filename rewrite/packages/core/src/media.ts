@@ -3,15 +3,60 @@
 // (ADR 0007 decision 9: clients compress before upload); the server only
 // checks what it is given.
 
-/** Spec 05 MEDIA-R1 and R3. Trashed images do not count towards the maximum. */
+/** Spec 05 MEDIA-R1 and R3. Trashed files do not count towards the maximums. */
 export const MEDIA_LIMITS = {
   /** What a user may pick, before it is compressed: 10 MiB. */
   sourceBytes: 10 * 1024 * 1024,
-  /** What the server takes for one stored blob: the same, so a client that kept the original still passes. */
+  /** What the server takes for one stored picture blob: the same, so a client that kept the original still passes. */
   blobBytes: 10 * 1024 * 1024,
+  /** An audio file, stored as it is (MEDIA-R5): 20 MiB. */
+  audioBytes: 20 * 1024 * 1024,
   fileName: 200,
   images: 1000,
+  audios: 500,
 } as const;
+
+/** What a user may pick as audio (MEDIA-R1), by the type the browser reports or the extension (MEDIA-R13). */
+export const AUDIO_TYPES = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm', 'audio/x-m4a'] as const;
+export type AudioType = (typeof AUDIO_TYPES)[number];
+
+const AUDIO_EXTENSIONS: Record<string, AudioType> = {
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  m4a: 'audio/x-m4a',
+  mp4: 'audio/mp4',
+  m4b: 'audio/mp4',
+  webm: 'audio/webm',
+};
+
+export function audioTypeFromName(fileName: string): AudioType | null {
+  const dot = fileName.lastIndexOf('.');
+  return dot < 0 ? null : (AUDIO_EXTENSIONS[fileName.slice(dot + 1).toLowerCase()] ?? null);
+}
+
+/**
+ * What audio bytes are, by their first bytes, or null. The server stores the
+ * file as it is (MEDIA-R5), but serves it with the type it has seen the
+ * signature of, never one a client claims.
+ */
+export function sniffAudio(bytes: Uint8Array): AudioType | null {
+  const ascii = (from: number, text: string) => bytes.length >= from + text.length && [...text].every((c, i) => bytes[from + i] === c.charCodeAt(0));
+  if (ascii(0, 'ID3') || (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1]! & 0xe0) === 0xe0)) return 'audio/mpeg';
+  if (ascii(0, 'RIFF') && ascii(8, 'WAVE')) return 'audio/wav';
+  if (ascii(0, 'OggS')) return 'audio/ogg';
+  if (ascii(4, 'ftyp')) return ascii(8, 'M4A ') ? 'audio/x-m4a' : 'audio/mp4';
+  if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return 'audio/webm';
+  return null;
+}
+
+/** A blob the server takes: a stored picture (up to 10 MiB) or an audio file (up to 20 MiB). */
+export function sniffMedia(bytes: Uint8Array): { type: string; maxBytes: number } | null {
+  const image = sniffStoredImage(bytes);
+  if (image) return { type: image, maxBytes: MEDIA_LIMITS.blobBytes };
+  const audio = sniffAudio(bytes);
+  return audio ? { type: audio, maxBytes: MEDIA_LIMITS.audioBytes } : null;
+}
 
 /** The two sizes every picture is stored in (MEDIA-R4). */
 export const IMAGE_VARIANTS = { full: { width: 1920, height: 1080, quality: 0.9 }, thumb: { width: 400, height: 225, quality: 0.8 } } as const;
@@ -88,8 +133,9 @@ export function recordMediaBlobSql(hash: string, contentType: string, size: numb
 /** How long a blob nothing names is kept, so one uploaded just before its `addImage` is pushed survives. */
 export const ORPHAN_GRACE_MS = 60 * 60 * 1000;
 
-/** The blobs no image names, older than the grace period: what a clean-up may remove. */
+/** The blobs no image or audio file names, older than the grace period: what a clean-up may remove. */
 export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
   WHERE received_at < ?
     AND hash NOT IN (SELECT full_hash FROM images)
-    AND hash NOT IN (SELECT thumb_hash FROM images)`;
+    AND hash NOT IN (SELECT thumb_hash FROM images)
+    AND hash NOT IN (SELECT hash FROM audios)`;

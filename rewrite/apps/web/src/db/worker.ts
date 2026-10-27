@@ -21,7 +21,7 @@ import {
   type ClientSqlite,
 } from '@gp/sync/client';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
-import type { BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session } from './protocol.ts';
+import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName } from './share.ts';
 
 /** The backstop poll (SYNC-R43): pokes are never load-bearing. */
@@ -163,6 +163,15 @@ function addImage(img: ImageImport): Promise<void> {
   });
 }
 
+/** Keeps the audio file here and records it in the library, online or not. */
+function addAudio(a: AudioImport): Promise<void> {
+  return serialStore(async () => {
+    const hash = await storeMediaBlob(client!, a.bytes, a.contentType);
+    await client!.mutate('addAudio', { id: a.id, fileName: a.fileName, contentType: a.contentType, hash, size: a.bytes.length, createdAt: Date.now() });
+    void client!.requestSync().then(reportStatus);
+  });
+}
+
 let bibleSyncQueued = false;
 /**
  * Queues again an import the server refused for lack of its text, fetches
@@ -252,6 +261,8 @@ async function handle(call: DbCall): Promise<unknown> {
       return importBible(call.data);
     case 'addImage':
       return addImage(call.image);
+    case 'addAudio':
+      return addAudio(call.audio);
   }
 }
 

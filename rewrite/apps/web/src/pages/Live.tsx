@@ -16,7 +16,7 @@ import { useToast } from '../ui/Toast.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { StageView } from './StageView.tsx';
 
-const problemText = { 'song-missing': t('live.songMissing'), 'song-trashed': t('live.songTrashed'), 'no-parts': t('live.noParts'), 'image-missing': t('live.imageMissing') };
+const problemText = { 'song-missing': t('live.songMissing'), 'song-trashed': t('live.songTrashed'), 'no-parts': t('live.noParts'), 'image-missing': t('live.imageMissing'), 'audio-missing': t('live.audioMissing') };
 
 /**
  * The live page: this window presenting (the owner), or with `remote` a

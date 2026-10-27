@@ -3,7 +3,7 @@
 // `images` row syncs; this uploads the blobs of a queued `addImage` before it
 // is pushed, downloads what the library names and this device lacks, and
 // removes what nothing names.
-import { MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, sniffStoredImage } from '@gp/core';
+import { MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, sniffMedia } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
 export interface MediaBlob {
@@ -43,9 +43,12 @@ export interface MediaSync {
  */
 export async function syncMedia(client: SyncClient, download: (hash: string) => Promise<Uint8Array | null>, now = Date.now()): Promise<MediaSync> {
   const result: MediaSync = { downloaded: [], missing: [], removed: 0 };
+  // Every picture, thumbnails first; an audio file only once a presentation uses it (MEDIA-R14), as it may be 20 MiB.
   const wanted = (await client.query(
     `SELECT hash FROM (
-       SELECT thumb_hash AS hash, 0 AS rank FROM images UNION SELECT full_hash AS hash, 1 AS rank FROM images)
+       SELECT thumb_hash AS hash, 0 AS rank FROM images UNION SELECT full_hash AS hash, 1 AS rank FROM images
+       UNION SELECT a.hash AS hash, 2 AS rank FROM audios a
+         WHERE a.id IN (SELECT source_id FROM presentation_items WHERE type = 'audio'))
      WHERE hash NOT IN (SELECT hash FROM media_blobs WHERE bytes IS NOT NULL) GROUP BY hash ORDER BY min(rank)`,
   )) as { hash: string }[];
   for (const { hash } of wanted) {
@@ -55,7 +58,7 @@ export async function syncMedia(client: SyncClient, download: (hash: string) => 
     } catch {
       bytes = null;
     }
-    const type = bytes && (await sha256HexBytes(bytes)) === hash ? sniffStoredImage(bytes) : null;
+    const type = bytes && (await sha256HexBytes(bytes)) === hash ? (sniffMedia(bytes)?.type ?? null) : null;
     if (!bytes || !type) {
       result.missing.push(hash);
       continue;
@@ -66,10 +69,9 @@ export async function syncMedia(client: SyncClient, download: (hash: string) => 
   }
 
   const queued = new Set<string>();
-  for (const mutation of (await client.pending()).filter((p) => p.name === 'addImage')) {
-    const a = JSON.parse(mutation.args) as { fullHash?: unknown; thumbHash?: unknown };
-    queued.add(String(a.fullHash));
-    queued.add(String(a.thumbHash));
+  for (const mutation of await client.pending()) {
+    if (mutation.name !== 'addImage' && mutation.name !== 'addAudio') continue;
+    for (const hash of blobsOf(mutation)) queued.add(hash);
   }
   const unused = (await client.query(ORPHAN_BLOBS_SQL, [now - ORPHAN_GRACE_MS])) as { hash: string }[];
   const drop = unused.map((u) => u.hash).filter((h) => !queued.has(h));
@@ -78,12 +80,18 @@ export async function syncMedia(client: SyncClient, download: (hash: string) => 
   return result;
 }
 
+/** The blobs a queued add names: a picture's two, or an audio file's one. */
+function blobsOf(m: PendingMutation): Set<string> {
+  const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown };
+  return new Set(m.name === 'addAudio' ? [String(a.hash)] : [String(a.fullHash), String(a.thumbHash)]);
+}
+
 /** Sends a blob to the server (`PUT /media/{hash}`) and returns the HTTP status. Throws when the server cannot be reached. */
 export type MediaBlobUpload = (hash: string, bytes: Uint8Array) => Promise<number>;
 
 /**
- * Uploads the blobs of every queued `addImage` before the mutation is pushed,
- * so a picture imported offline reaches the server with its bytes. Give
+ * Uploads the blobs of every queued `addImage` and `addAudio` before the
+ * mutation is pushed, so a file imported offline reaches the server with its bytes. Give
  * `beforePush` to the SyncClient, alone or through `chainBeforePush`.
  *
  * An upload that cannot reach the server, or fails on its side (5xx), holds
@@ -107,9 +115,8 @@ export class MediaUploads {
 
   beforePush = async (pending: PendingMutation[], client: SyncClient): Promise<number | undefined> => {
     for (const [i, m] of pending.entries()) {
-      if (m.name !== 'addImage') continue;
-      const args = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown };
-      for (const hash of new Set([String(args.fullHash), String(args.thumbHash)])) {
+      if (m.name !== 'addImage' && m.name !== 'addAudio') continue;
+      for (const hash of blobsOf(m)) {
         const at = this.uploaded.get(hash);
         if (!MEDIA_HASH.test(hash) || (at !== undefined && this.now() - at < ORPHAN_GRACE_MS / 2)) continue;
         const blob = await loadMediaBlob(client, hash);

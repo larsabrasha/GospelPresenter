@@ -9,6 +9,7 @@ import type { LiveChannel } from './live/live.ts';
 import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
 import { Bibles } from './pages/Bibles.tsx';
+import { Audios } from './pages/Audios.tsx';
 import { Devices } from './pages/Devices.tsx';
 import { Displays } from './pages/Displays.tsx';
 import { Images } from './pages/Images.tsx';
@@ -131,6 +132,11 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
                 {t('nav.images')}
               </a>
             )}
+            {can(me.role, 'ViewAudios') && (
+              <a href={href({ page: 'audios' })} aria-current={route.page === 'audios' ? 'page' : undefined}>
+                {t('nav.audios')}
+              </a>
+            )}
             <a href={href({ page: 'themes' })} aria-current={route.page === 'themes' ? 'page' : undefined}>
               {t('nav.themes')}
             </a>
@@ -167,6 +173,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           {route.page === 'logins' && <Logins error={route.error} />}
           {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
           {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <p>{t('images.forbidden')}</p>)}
+          {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <p>{t('audios.forbidden')}</p>)}
           {route.page === 'themes' && <Themes role={me.role} />}
           {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <p>{t('displays.forbidden')}</p>)}
         </main>

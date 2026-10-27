@@ -31,7 +31,8 @@ current app:
 - **"Rensa" clears the overlay too.** LIVE-R16 keeps an overlay when the screen is blacked; instead the black
   screen should switch the overlay off. An overlay such as the collection information belongs to what is on now,
   not to the next song sung later in the service.
-- **A slide can carry an overlay.** In the presentation editor, an item (or one of its slides) can name an
+- **An item can carry an overlay.** In the presentation editor, an item can name an
   overlay that switches on when it goes live and off when it leaves, so nobody has to remember it during the
-  service. To settle: per item or per slide, what a manual toggle during live does to it, and how it shows in
-  the editor and on the slide tiles.
+  service. **Decided (2026-10-27): per item**, not per slide: the overlay shows while any slide of the item is
+  live. Still to settle: what a manual toggle during live does to it, and how it shows in the editor and on the
+  slide tiles.

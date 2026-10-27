@@ -34,6 +34,8 @@ export type DbCall =
   | { op: 'status' }
   /** Adds a processed picture to the library (spec 05 "Media"): keep its blobs here, then `addImage`, uploaded before it is pushed. */
   | { op: 'addImage'; image: ImageImport }
+  /** Adds an audio file to the library, as it was picked (MEDIA-R5): kept here, uploaded before `addAudio` is pushed. */
+  | { op: 'addAudio'; audio: AudioImport }
   /** Imports a Bible zip (spec 05): parse and store here, then `importBible`, uploaded before it is pushed. */
   | { op: 'importBible'; data: Uint8Array }
   | { op: 'syncNow' };
@@ -63,4 +65,12 @@ export interface ImageImport {
   height: number;
   full: Uint8Array;
   thumb: Uint8Array;
+}
+
+export interface AudioImport {
+  id: string;
+  fileName: string;
+  /** What its bytes say it is (`sniffAudio`), not what the browser guessed. */
+  contentType: 'audio/mpeg' | 'audio/wav' | 'audio/ogg' | 'audio/mp4' | 'audio/webm' | 'audio/x-m4a';
+  bytes: Uint8Array;
 }

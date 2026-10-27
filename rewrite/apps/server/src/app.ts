@@ -18,7 +18,7 @@ import {
   recordMediaBlobSql,
   serializeBibleText,
   sha256HexBytes,
-  sniffStoredImage,
+  sniffMedia,
   type WatchEvent,
   storeBibleTextSql,
   type PullRequest,
@@ -47,9 +47,9 @@ export interface Org {
 
 /**
  * The pushes after which blobs may be unused: a purge, the expired trash, and
- * an add (whose upload may have left a refused add's blobs behind).
+ * an add (whose upload may have left a refused add's blobs behind), of pictures and of audio.
  */
-const MEDIA_GC_MUTATORS: readonly string[] = ['purgeImage', 'purgeExpiredTrash', 'addImage'];
+const MEDIA_GC_MUTATORS: readonly string[] = ['purgeImage', 'purgeExpiredTrash', 'addImage', 'purgeAudio', 'addAudio'];
 
 /**
  * Removes the stored blobs no image names, once they are older than the grace
@@ -180,18 +180,20 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
   app.put('/api/media/:hash', async (c) => {
     const r = await resolve(c);
     if (r instanceof Response) return r;
-    if (!can(r.caller.ctx.role, 'ManageImages')) return c.json({ error: 'forbidden' }, 403);
+    if (!can(r.caller.ctx.role, 'ManageImages') && !can(r.caller.ctx.role, 'ManageAudios')) return c.json({ error: 'forbidden' }, 403);
     if (!media) return c.json({ error: 'media-disabled' }, 503);
     const hash = c.req.param('hash');
     if (!MEDIA_HASH.test(hash)) return c.json({ error: 'invalid-hash' }, 400);
-    if (Number(c.req.header('content-length') ?? 0) > MEDIA_LIMITS.blobBytes) return c.json({ error: 'too-large' }, 413);
+    if (Number(c.req.header('content-length') ?? 0) > MEDIA_LIMITS.audioBytes) return c.json({ error: 'too-large' }, 413);
     const bytes = new Uint8Array(await c.req.arrayBuffer());
     if (!bytes.length) return c.json({ error: 'empty' }, 400);
-    if (bytes.length > MEDIA_LIMITS.blobBytes) return c.json({ error: 'too-large' }, 413);
+    if (bytes.length > MEDIA_LIMITS.audioBytes) return c.json({ error: 'too-large' }, 413);
     if ((await sha256HexBytes(bytes)) !== hash) return c.json({ error: 'hash-mismatch' }, 400);
-    // The signature, not the type the client claims, decides what is kept (MEDIA-A6).
-    const type = sniffStoredImage(bytes);
-    if (!type) return c.json({ error: 'invalid-image' }, 400);
+    // The signature, not the type the client claims, decides what is kept (MEDIA-A6): a stored picture or a sound.
+    const kind = sniffMedia(bytes);
+    if (!kind) return c.json({ error: 'invalid-image' }, 400);
+    if (bytes.length > kind.maxBytes) return c.json({ error: 'too-large' }, 413);
+    const type = kind.type;
     const orgId = r.caller.orgId;
     await r.org.queue.run(async () => {
       // Known already: the upload says it is about to be used, so its grace period starts over.
