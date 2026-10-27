@@ -13,7 +13,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
-import { syncRoutes, watchRoutes, type Org } from './app.ts';
+import { syncRoutes, watchLocked, watchRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth.ts';
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
@@ -22,7 +22,7 @@ import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
-import { WatchRegistry } from './watch.ts';
+import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 const require = createRequire(import.meta.url);
@@ -269,8 +269,9 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const media = opts.media ?? diskStorage(join(opts.dataDir, 'media'));
   app.route(
     '/',
-    watchRoutes(async (_c, code) => {
-      const t = await watch.lookup(code);
+    watchRoutes(async (c, code) => {
+      const t = await lookupThrottled(watch, accounts, code, clientAddress(c));
+      if (t && 'lockedUntil' in t) return watchLocked(t.lockedUntil);
       if (!t) return null;
       const org = openOrg(t.orgId);
       return { org, live: org.live, orgId: t.orgId, orgName: t.orgName, displayId: t.displayId, code };

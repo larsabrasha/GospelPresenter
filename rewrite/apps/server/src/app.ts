@@ -35,7 +35,7 @@ export { GoogleOidc, TEST_ISSUER_BUILD, type GoogleConfig, type GoogleIdentity, 
 export { Accounts, globalDdl, migrateGlobal, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, type GlobalSql } from './global.ts';
 export { Passkeys, type PasskeyConfig } from './webauthn.ts';
 export { memoryStorage, r2Storage, type MediaStorage, type R2Like } from './media.ts';
-export { WatchRegistry, type WatchTarget } from './watch.ts';
+export { lookupThrottled, WatchRegistry, type WatchTarget } from './watch.ts';
 
 /** An organisation's runtime: its database, its write queue, its poke hub and its live sessions. */
 export interface Org {
@@ -251,13 +251,14 @@ const PING_MS = 15_000;
  * organisation is reachable from here, and a picture only while it is on
  * screen (LIVE-R32).
  */
-export function watchRoutes(resolve: (c: Context, code: string) => Promise<WatchTargetRuntime | null>, media: MediaStorage | null) {
+export function watchRoutes(resolve: (c: Context, code: string) => Promise<WatchTargetRuntime | Response | null>, media: MediaStorage | null) {
   const app = new Hono();
 
   // Whether a code exists, for a page whose stream did not open; it registers no viewer.
   app.get('/api/watch/:code/exists', async (c) => {
     const code = c.req.param('code');
     const t = DISPLAY_CODE.test(code) ? await resolve(c, code) : null;
+    if (t instanceof Response) return t;
     return t ? c.json({ ok: true }) : c.json({ error: 'not-found' }, 404);
   });
 
@@ -266,6 +267,7 @@ export function watchRoutes(resolve: (c: Context, code: string) => Promise<Watch
     const viewerId = c.req.query('v') ?? '';
     if (!/^[0-9a-f]{16}$/.test(viewerId)) return c.json({ error: 'viewer-id' }, 400);
     const t = DISPLAY_CODE.test(code) ? await resolve(c, code) : null;
+    if (t instanceof Response) return t;
     if (!t) return c.json({ error: 'not-found' }, 404);
     const [display] = (await t.org.queue.run(async () => t.org.store.query('SELECT name FROM displays WHERE id = ? AND code = ?', [t.displayId, code]))) as {
       name: string;
@@ -300,6 +302,7 @@ export function watchRoutes(resolve: (c: Context, code: string) => Promise<Watch
     const code = c.req.param('code');
     const hash = c.req.param('hash');
     const t = DISPLAY_CODE.test(code) && MEDIA_HASH.test(hash) ? await resolve(c, code) : null;
+    if (t instanceof Response) return t;
     if (!t || !media) return c.json({ error: 'not-found' }, 404);
     const shown = await t.org.queue.run(async () => {
       if (!t.live.showing(t.displayId, hash)) return null;
@@ -315,4 +318,13 @@ export function watchRoutes(resolve: (c: Context, code: string) => Promise<Watch
   });
 
   return app;
+}
+
+/** The answer to an address that guessed too many codes: 429 with how long to wait. */
+export function watchLocked(lockedUntil: number, now = Date.now()): Response {
+  const seconds = Math.max(1, Math.ceil((lockedUntil - now) / 1000));
+  return new Response(JSON.stringify({ error: 'too-many-attempts', retryAfter: seconds }), {
+    status: 429,
+    headers: { 'content-type': 'application/json', 'retry-after': String(seconds) },
+  });
 }

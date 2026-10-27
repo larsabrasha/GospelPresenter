@@ -274,9 +274,25 @@ export class LiveHub {
     this.countsChanged();
   }
 
-  /** Whether a picture may be shown to an output's viewers: only the one on screen (LIVE-R32, MEDIA-R10). */
+  /**
+   * Whether a picture may be shown to an output's viewers (LIVE-R32,
+   * MEDIA-R10): the one on screen, and only if it is a picture of an item in
+   * the presentation the session shows. The owner's report alone is not
+   * enough: a changed client could otherwise name any picture of the library
+   * and make it public through the output.
+   */
   showing(displayId: string, hash: string): boolean {
-    return this.current(displayId)?.image === hash;
+    if (this.current(displayId)?.image !== hash) return false;
+    const [b] = this.store.query('SELECT session_id FROM live_bindings WHERE display_id = ?', [displayId]) as { session_id: string }[];
+    const row = b && this.row(b.session_id);
+    if (!row) return false;
+    return (
+      this.store.query(
+        `SELECT 1 FROM presentation_items p JOIN images i ON i.id = p.source_id
+         WHERE p.presentation_id = ? AND p.type = 'image' AND i.full_hash = ?`,
+        [row.presentation_id, hash],
+      ).length > 0
+    );
   }
 
   /**

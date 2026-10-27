@@ -1,4 +1,4 @@
-import type { GlobalSql } from './global.ts';
+import { THROTTLE, type Accounts, type GlobalSql } from './global.ts';
 
 // Public output codes across organisations (spec 04 §6, LIVE-R30). An
 // organisation's outputs are synced rows in its own database; an anonymous
@@ -39,4 +39,25 @@ export class WatchRegistry {
     ])) as { org_id: string; display_id: string; name: string | null }[];
     return r ? { orgId: r.org_id, displayId: r.display_id, orgName: r.name ?? '' } : null;
   }
+}
+
+/**
+ * A lookup that a guesser cannot repeat for ever (spec 04 §6 has no limit; a
+ * code is short enough to be found by chance across many organisations).
+ * An unknown code counts as a failure for the address; after 20 in 15
+ * minutes the address gets nothing, a known code included, for 15 minutes.
+ * Viewers with a real code never count, however many share an address.
+ */
+export async function lookupThrottled(
+  registry: WatchRegistry,
+  accounts: Pick<Accounts, 'lockedUntil' | 'fail'>,
+  code: string,
+  address: string,
+): Promise<WatchTarget | { lockedUntil: number } | null> {
+  const key = `watch:${address}`;
+  const until = await accounts.lockedUntil([key]);
+  if (until) return { lockedUntil: until };
+  const target = await registry.lookup(code);
+  if (!target) await accounts.fail(key, THROTTLE.watch);
+  return target;
 }

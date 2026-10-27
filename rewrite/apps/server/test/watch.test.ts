@@ -2,7 +2,7 @@
 // makes one, the owner of a session sends to it, and anyone with the code
 // follows over SSE, anonymously, seeing only what is on screen.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { sha256HexBytes, type PublicSlide, type WatchEvent } from '@gp/core';
+import { DISPLAY_CODE_ALPHABET, type PublicSlide, type WatchEvent } from '@gp/core';
 import { storeMediaBlob } from '@gp/sync/client';
 import { device, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 import { ownState, Window } from './live-window.ts';
@@ -165,32 +165,53 @@ describe.each(adapters)('%s adapter: public outputs', (adapterName) => {
     expect(sessions.find((s) => s.id === 'S1')!.outputs).toEqual([]);
   });
 
-  it('serves a picture only while it is on the output (LIVE-R32, MEDIA-R10)', async () => {
-    await output('D1', 'defghjk');
+  /** A JPEG-looking blob, uploaded and recorded on the admin's device; returns its hash. */
+  async function blob(seed: number): Promise<{ hash: string; bytes: Uint8Array }> {
     const bytes = new Uint8Array(200);
     bytes.set([0xff, 0xd8, 0xff, 0xe0]);
-    bytes[100] = 42;
+    bytes[100] = seed;
     const hash = await storeMediaBlob(admin.client, bytes, 'image/jpeg');
     const put = await fetch(`${h.url}/api/media/${hash}`, { method: 'PUT', headers: { authorization: `Bearer ${tokenOf(h, org, 'anna')}` }, body: bytes });
     expect(put.status).toBe(204);
-    const image = () => fetch(`${h.url}/api/watch/defghjk/image/${hash}`);
-    expect((await image()).status).toBe(404); // not on screen
+    return { hash, bytes };
+  }
+
+  /** A picture in the library; in presentation P too when `inP`. */
+  async function picture(id: string, seed: number, inP: boolean) {
+    const full = await blob(seed);
+    const thumb = await blob(seed + 100);
+    await admin.client.mutate('addImage', { id, fileName: `${id}.jpg`, contentType: 'image/jpeg', fullHash: full.hash, thumbHash: thumb.hash, width: 10, height: 10, createdAt: 1 });
+    if (inP) await admin.client.mutate('addImageToPresentation', { itemId: `item-${id}`, presentationId: 'P', imageId: id });
+    await admin.client.sync();
+    expect(admin.client.rejected).toEqual([]);
+    return full;
+  }
+
+  it('serves a picture only while it is on the output, and only one of the shown presentation (LIVE-R32, MEDIA-R10)', async () => {
+    await output('D1', 'defghjk');
+    await admin.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    const shownPicture = await picture('IN', 42, true);
+    const libraryOnly = await picture('OUT', 43, false);
+    const image = (hash: string) => fetch(`${h.url}/api/watch/defghjk/image/${hash}`);
+    expect((await image(shownPicture.hash)).status).toBe(404); // not on screen
     const owner = track(await Window.open(h, org, 'anna'));
-    owner.send({ type: 'own', state: ownState('S1', { outputs: ['D1'], slide: slide('', { kind: 'media', image: hash }) }) });
+    owner.send({ type: 'own', state: ownState('S1', { outputs: ['D1'], slide: slide('', { kind: 'media', image: shownPicture.hash }) }) });
     await owner.sessions((x) => x[0]?.outputs.length === 1);
-    const shown = await image();
+    const shown = await image(shownPicture.hash);
     expect(shown.status).toBe(200);
     expect(shown.headers.get('content-type')).toBe('image/jpeg');
     expect(shown.headers.get('cache-control')).toBe('private, max-age=3600'); // never in a shared cache
-    expect(new Uint8Array(await shown.arrayBuffer())).toEqual(bytes);
+    expect(new Uint8Array(await shown.arrayBuffer())).toEqual(shownPicture.bytes);
     // Another picture of the organisation is not reachable through the output.
-    const other = new Uint8Array(bytes);
-    other[101] = 7;
-    const otherHash = await sha256HexBytes(other);
-    expect((await fetch(`${h.url}/api/watch/defghjk/image/${otherHash}`)).status).toBe(404);
+    expect((await image(libraryOnly.hash)).status).toBe(404);
+    // Not even when a report names it: it is in no item of the presentation the session shows.
+    owner.send({ type: 'own', state: ownState('S1', { outputs: ['D1'], slide: slide('', { kind: 'media', image: libraryOnly.hash }) }) });
+    await owner.sessions((x) => x[0]?.pointer.rev === 1);
+    await new Promise((r) => setTimeout(r, 200));
+    expect((await image(libraryOnly.hash)).status).toBe(404);
     owner.send({ type: 'own', state: ownState('S1', { outputs: ['D1'], slide: null }) });
     await new Promise((r) => setTimeout(r, 200));
-    expect((await image()).status).toBe(404);
+    expect((await image(shownPicture.hash)).status).toBe(404);
   });
 
   it('a new code disconnects the viewers and the old code stops working; so does deleting (spec 04 §7)', async () => {
@@ -262,6 +283,38 @@ describe('the global index of codes', () => {
       await d.client.close();
       await h.close();
       rmSync(dataDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe.each(adapters)('%s adapter: guessing codes', (adapterName) => {
+  // A server of its own: the address this test locks is the one every other test uses.
+  let h: Harness;
+  beforeAll(async () => {
+    h = await startAdapter(adapterName);
+  }, 60_000);
+  afterAll(async () => {
+    await h?.close();
+  });
+
+  it('20 unknown codes from one address, and the next request from it is refused for 15 minutes, a real code included', async () => {
+    const org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'anna', org, 'admin');
+    const admin = await device(h, org, 'anna', 'admin');
+    try {
+      await admin.client.mutate('createDisplay', { id: 'D1', name: 'Kyrkkaffet', code: 'qrstuvw', kind: 'public' });
+      await admin.client.sync();
+      expect((await fetch(`${h.url}/api/watch/qrstuvw/exists`)).status).toBe(200); // a real code does not count
+      for (let i = 0; i < 20; i++) {
+        const code = `zzzzz${DISPLAY_CODE_ALPHABET[i]}${DISPLAY_CODE_ALPHABET[i]}`; // 20 codes nobody has
+        expect((await fetch(`${h.url}/api/watch/${code}/exists`)).status).toBe(404);
+      }
+      const locked = await fetch(`${h.url}/api/watch/qrstuvw/exists`);
+      expect(locked.status).toBe(429);
+      expect(Number(locked.headers.get('retry-after'))).toBeGreaterThan(800);
+      expect((await fetch(`${h.url}/api/watch/qrstuvw/stream?v=0123456789abcdef`)).status).toBe(429);
+    } finally {
+      await admin.client.close();
     }
   });
 });

@@ -410,7 +410,11 @@ the output's name and the organisation's first, then the newest state and every 
 old stream and is never refused (LIVE-R36). Viewer counts reach the operators at most every 2 s.
 `GET /api/watch/{code}/image/{hash}` serves a picture only while it is on that output (LIVE-R32), with
 `private, max-age=3600` rather than spec 04's `public` (LIVE-R34), so no shared cache serves it after it left
-the screen. A frozen session keeps its last slide on the outputs; an ended one shows the waiting
+the screen. The owner's report alone does not make a picture public: the server also checks that it is a
+picture of an item in the presentation the session shows, so a changed client cannot publish any picture of the
+library through an output. Guessing codes is slowed: an unknown code counts as a failure for the address, and
+after 20 in 15 minutes the address gets 429 for 15 minutes on every `/api/watch/` request (`lookupThrottled`). A
+real code never counts, however many viewers share an address. A frozen session keeps its last slide on the outputs; an ended one shows the waiting
 screen. A new code or a deleted output disconnects its viewers at once, and their page says the code no
 longer exists. On a desktop host, `/api/watch/` answers unpaired devices too (it is the one anonymous API).
 
@@ -686,9 +690,12 @@ Milestone 3 (sign-in, membership, pairing):
 - **Setup is done when a user has a linked login**, not when a user exists, so a setup left before
   its passkey or Google sign-in, or a church migrated from milestone 3, can be finished with the setup
   token.
-- **Throttling** (the spec has none): twenty failures from one address (setup token, pairing code)
+- **Throttling** (the spec has none): twenty failures from one address (setup token, pairing code, unknown public
+  output code)
   lock that address for 15 minutes. At most 20 unfinished Google sign-ins, and 20 unfinished passkey
-  ceremonies, per address at a time. On
+  ceremonies, per address at a time. Only failed guesses at a secret are limited in the app, never ordinary use: a
+  church often shares one address, and a ceiling on all requests would hit its own members during a service. A
+  general limit against floods belongs to the platform (Cloudflare's rate limiting rules, or a reverse proxy). On
   Node the address is the socket's: behind a reverse proxy every client shares the proxy's.
 - **The redirect URI comes from configuration, or from the request.** Without
   `GOOGLE_REDIRECT_BASE_URL` (or `redirectBaseUrl`), the origin of the request that starts the sign-in

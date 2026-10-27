@@ -216,6 +216,8 @@ export interface ThrottlePolicy {
 export const THROTTLE = {
   /** Per address: slows one machine trying setup tokens or pairing codes. */
   address: { free: 20, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
+  /** Per address: slows one machine guessing public output codes (`/api/watch/`). Only unknown codes count. */
+  watch: { free: 20, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
 } satisfies Record<string, ThrottlePolicy>;
 
 /** A sign-in that left for Google, as the callback finds it. */

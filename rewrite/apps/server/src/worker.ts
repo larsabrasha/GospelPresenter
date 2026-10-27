@@ -2,14 +2,14 @@ import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono } from 'hono';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
-import { syncRoutes, watchRoutes, type Org } from './app.ts';
+import { syncRoutes, watchLocked, watchRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { r2Storage, type R2Like } from './media.ts';
 import { Passkeys } from './webauthn.ts';
-import { WatchRegistry } from './watch.ts';
+import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 interface Env {
@@ -284,8 +284,9 @@ worker.get('/api/debug/d1-triggers', async (c) => {
 // organisation is authenticated against D1, then handed to its Durable Object.
 // Public outputs (spec 04 §6): anonymous. The code names the organisation and the output.
 worker.get('/api/watch/:code/*', async (c) => {
-  await globals(c.env); // the global tables are migrated before the first lookup
-  const target = await new WatchRegistry(d1Sql(c.env.DB)).lookup(c.req.param('code'));
+  const { accounts } = await globals(c.env); // the global tables are migrated before the first lookup
+  const target = await lookupThrottled(new WatchRegistry(d1Sql(c.env.DB)), accounts, c.req.param('code'), c.req.header('cf-connecting-ip') ?? 'unknown');
+  if (target && 'lockedUntil' in target) return watchLocked(target.lockedUntil);
   if (!target) return c.json({ error: 'not-found' }, 404);
   const stub = c.env.ORG.get(c.env.ORG.idFromName(target.orgId));
   const headers = new Headers(c.req.raw.headers);
