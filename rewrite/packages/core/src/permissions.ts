@@ -13,12 +13,14 @@ export type Permission =
   | 'ManageBibles'
   | 'ViewThemes'
   | 'ManageThemes'
+  | 'ViewImages'
+  | 'ManageImages'
   | 'ViewUsers'
   | 'ManageUsers'
   | 'ManageOrganizations'
   | 'AssignSuperAdminRole';
 
-const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes'];
+const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes', 'ViewImages', 'ManageImages'];
 /** Importing and deleting Bibles is for admins (D24); everyone uses them. */
 const admin: Permission[] = [...everyone, 'ManageTemplates', 'ManageBibles', 'ManageThemes', 'ViewUsers', 'ManageUsers'];
 

@@ -4,7 +4,8 @@ import { z } from 'zod';
 import { BIBLE_LIMITS, bibleId, bibleTitle, splitBibleSlides, type BibleItemContent } from './bible.ts';
 import { labelDefaults, labelId } from './labels.ts';
 import { can, type Permission, type Role } from './permissions.ts';
-import { bibleBlobs, bibles, bibleTexts, labels, orgSettings, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
+import { MEDIA_LIMITS } from './media.ts';
+import { bibleBlobs, bibles, bibleTexts, images, labels, mediaBlobs, orgSettings, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
 import { isKnownTheme } from './themes.ts';
 import { parsePartIds } from './slides.ts';
 import { TRASH_RETENTION_MS } from './trash.ts';
@@ -596,6 +597,102 @@ async function purgePresentation(tx: Tx, a: z.output<typeof purgePresentationArg
   await tx.delete(presentations).where(eq(presentations.id, a.id));
 }
 
+// ------------------------------------------------------------------ images (spec 05 "Media")
+
+const mediaHash = z.string().regex(/^[0-9a-f]{64}$/);
+
+const addImageArgs = z.object({
+  id,
+  fileName: z.string().trim().min(1).max(MEDIA_LIMITS.fileName),
+  contentType: z.enum(['image/jpeg', 'image/webp']),
+  /** The two blobs, uploaded first (`PUT /media/{hash}`) and recorded in `media_blobs` where this runs. */
+  fullHash: mediaHash,
+  thumbHash: mediaHash,
+  width: z.number().int().min(1).max(1920),
+  height: z.number().int().min(1).max(1080),
+  createdAt: z.number().int(),
+});
+/**
+ * Adds a picture to the library (MEDIA-R3, R6). Both blobs must be known
+ * where this runs: on the server the uploads recorded them, on the importing
+ * device the import did. Bytes first, then the row, so a refused add leaves
+ * only blobs a clean-up removes. At most 1 000 pictures, the trash not counted.
+ */
+async function addImage(tx: Tx, a: z.output<typeof addImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageImages');
+  const [existing] = await tx.select({ id: images.id }).from(images).where(eq(images.id, a.id));
+  if (existing) return; // a replay of an add that already landed
+  for (const hash of new Set([a.fullHash, a.thumbHash])) {
+    const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
+    if (!blob) throw new MutationError('media-missing', 'a picture has not been uploaded');
+  }
+  const [n] = await tx.select({ n: count() }).from(images).where(isNull(images.deletedAt));
+  limit((n?.n ?? 0) >= MEDIA_LIMITS.images, 'images');
+  await tx.insert(images).values({
+    id: a.id,
+    fileName: a.fileName,
+    contentType: a.contentType,
+    fullHash: a.fullHash,
+    thumbHash: a.thumbHash,
+    width: a.width,
+    height: a.height,
+    createdAt: a.createdAt,
+    deletedAt: null,
+  });
+}
+
+const trashImageArgs = z.object({ id, at: z.number().int() });
+/** Soft delete (MEDIA-R8): still served, so presentations that use it keep working. */
+async function trashImage(tx: Tx, a: z.output<typeof trashImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageImages');
+  await tx.update(images).set({ deletedAt: a.at }).where(eq(images.id, a.id));
+}
+
+const restoreImageArgs = z.object({ id });
+/** Restoring may exceed the maximum (MEDIA-R8). */
+async function restoreImage(tx: Tx, a: z.output<typeof restoreImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageImages');
+  await tx.update(images).set({ deletedAt: null }).where(eq(images.id, a.id));
+}
+
+const purgeImageArgs = z.object({ id });
+/** Permanent delete: only of an image in the trash where this runs. Its blobs go with the next clean-up. */
+async function purgeImage(tx: Tx, a: z.output<typeof purgeImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageImages');
+  const [i] = await tx.select({ deletedAt: images.deletedAt }).from(images).where(eq(images.id, a.id));
+  if (!i) return;
+  if (i.deletedAt === null) throw new MutationError('not-in-trash', 'image is not in the trash');
+  await tx.delete(images).where(eq(images.id, a.id));
+}
+
+const addImageToPresentationArgs = z.object({
+  itemId: id,
+  presentationId: id,
+  imageId: id,
+  afterItemId: id.nullable().optional(),
+});
+/**
+ * Adds a library picture as an item: one slide showing it. Like a song it is
+ * a reference, so a trashed picture still shows (MEDIA-R8) and a purged one
+ * leaves an item that says so. The title is the file name at add time.
+ */
+async function addImageToPresentation(tx: Tx, a: z.output<typeof addImageToPresentationArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  requirePermission(ctx, 'ViewImages');
+  await requirePresentation(tx, a.presentationId);
+  const [i] = await tx.select({ fileName: images.fileName }).from(images).where(eq(images.id, a.imageId));
+  if (!i) throw new MutationError('not-found', 'image not found');
+  await insertItem(tx, a.afterItemId, {
+    id: a.itemId,
+    presentationId: a.presentationId,
+    type: 'image',
+    title: i.fileName,
+    sourceId: a.imageId,
+    arrangementId: null,
+    content: null,
+  });
+}
+
 // ------------------------------------------------------------------ bibles
 
 /** Drops a stored text that no translation names any more. */
@@ -687,6 +784,9 @@ async function purgeExpiredTrash(tx: Tx, a: z.output<typeof purgeExpiredTrashArg
       await tx.delete(presentations).where(inArray(presentations.id, ids));
     }
   }
+  if (can(ctx.role, 'ManageImages')) {
+    await tx.delete(images).where(and(isNotNull(images.deletedAt), lte(images.deletedAt, cutoff)));
+  }
 }
 
 // ------------------------------------------------------------------ test probe
@@ -740,6 +840,7 @@ export const mutators = {
   updatePresentation: m(updatePresentationArgs, updatePresentation),
   addSongToPresentation: m(addSongToPresentationArgs, addSongToPresentation),
   addBibleToPresentation: m(addBibleToPresentationArgs, addBibleToPresentation),
+  addImageToPresentation: m(addImageToPresentationArgs, addImageToPresentation),
   renameItem: m(renameItemArgs, renameItem),
   setItemArrangement: m(setItemArrangementArgs, setItemArrangement),
   reorderItems: m(reorderItemsArgs, reorderItems),
@@ -752,6 +853,10 @@ export const mutators = {
   importBible: m(importBibleArgs, importBible),
   deleteBible: m(deleteBibleArgs, deleteBible),
   setDefaultTheme: m(setDefaultThemeArgs, setDefaultTheme),
+  addImage: m(addImageArgs, addImage),
+  trashImage: m(trashImageArgs, trashImage),
+  restoreImage: m(restoreImageArgs, restoreImage),
+  purgeImage: m(purgeImageArgs, purgeImage),
   probeWriteThenThrow: m(probeArgs, probeWriteThenThrow),
 };
 

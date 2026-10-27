@@ -18,6 +18,11 @@ binding = "DB"
 database_name = "gp-sync-spike-global"
 database_id = "00000000-0000-0000-0000-000000000000"
 
+# Picture blobs (D31). The bucket must exist before a deploy: `wrangler r2 bucket create gp-media`.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "gp-media"
+
 [[durable_objects.bindings]]
 name = "ORG"
 class_name = "OrgDurableObject"

@@ -15,3 +15,4 @@ export * from './bible-books.ts';
 export * from './bible.ts';
 export * from './bible-import.ts';
 export * from './themes.ts';
+export * from './media.ts';

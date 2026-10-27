@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 // embedded server without server-side routing.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
-export const TRASH_KINDS = ['Presentation', 'Song'] as const;
+export const TRASH_KINDS = ['Presentation', 'Song', 'Image'] as const;
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
 export type Route =
@@ -17,6 +17,7 @@ export type Route =
   | { page: 'users' }
   | { page: 'devices' }
   | { page: 'bibles' }
+  | { page: 'images' }
   | { page: 'themes' }
   /** The signed-in user's own ways to sign in; `error` when linking Google was refused. */
   | { page: 'logins'; error: string | null }
@@ -46,6 +47,7 @@ export function parseRoute(hash: string): Route {
   if (page === 'users') return { page: 'users' };
   if (page === 'devices') return { page: 'devices' };
   if (page === 'bibles') return { page: 'bibles' };
+  if (page === 'images') return { page: 'images' };
   if (page === 'themes') return { page: 'themes' };
   if (page === 'logins') return { page: 'logins', error: new URLSearchParams(query).get('error') };
   if (page === 'presentations') return { page: 'presentations' };

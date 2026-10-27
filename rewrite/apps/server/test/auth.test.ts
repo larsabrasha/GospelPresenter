@@ -439,7 +439,7 @@ describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing,
   let dataDir: string;
   let admin: SignInResponse;
   const anna = account('Anna');
-  const host: Harness = { name: 'node', url: '', close: async () => {} };
+  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], close: async () => {} };
   const req = <T = unknown>(method: string, path: string, opts: { token?: string; device?: string; body?: unknown } = {}) =>
     api<T>(host, method, path, {
       token: opts.token,

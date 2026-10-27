@@ -5,6 +5,7 @@ import {
   type Bible,
   type BibleBookText,
   type Label,
+  type LibraryImage,
   type Presentation,
   type PresentationItem,
   type SearchableSong,
@@ -49,7 +50,7 @@ const presentation = (r: Row): Presentation => ({
 const item = (r: Row): PresentationItem => ({
   id: String(r.id),
   presentationId: String(r.presentation_id),
-  type: r.type === 'bible' ? 'bible' : 'song',
+  type: r.type === 'bible' || r.type === 'image' ? r.type : 'song',
   title: String(r.title),
   sourceId: String(r.source_id),
   sort: Number(r.sort),
@@ -138,7 +139,7 @@ export async function getPresentation(db: ReadDb, id: string): Promise<Presentat
 }
 
 export interface TrashEntry {
-  kind: 'Presentation' | 'Song';
+  kind: 'Presentation' | 'Song' | 'Image';
   id: string;
   name: string;
   /** The event date of a presentation, the author of a song. */
@@ -150,7 +151,9 @@ export interface TrashEntry {
 export async function listTrash(db: ReadDb): Promise<TrashEntry[]> {
   const songs = (await db.query('SELECT * FROM songs WHERE deleted_at IS NOT NULL')).map(song);
   const presentations = (await db.query('SELECT * FROM presentations WHERE deleted_at IS NOT NULL')).map(presentation);
+  const trashedImages = (await db.query('SELECT * FROM images WHERE deleted_at IS NOT NULL')).map(libraryImage);
   const entries: TrashEntry[] = [
+    ...trashedImages.map((i) => ({ kind: 'Image' as const, id: i.id, name: i.fileName, detail: null, deletedAt: i.deletedAt! })),
     ...presentations.map((p) => ({ kind: 'Presentation' as const, id: p.id, name: p.name, detail: p.eventDate, deletedAt: p.deletedAt! })),
     ...songs.map((s) => ({ kind: 'Song' as const, id: s.id, name: s.name, detail: s.author, deletedAt: s.deletedAt! })),
   ];
@@ -212,4 +215,47 @@ export async function orgDefaultThemeId(db: ReadDb): Promise<string | null> {
 /** The theme a presentation shows: its own, else the organisation's default, else Classic (THEME-R1). */
 export async function themeOf(db: ReadDb, p: Pick<Presentation, 'themeId'> | null): Promise<Theme> {
   return resolveTheme(p?.themeId, await orgDefaultThemeId(db));
+}
+
+// ------------------------------------------------------------------ images
+
+const libraryImage = (r: Row): LibraryImage => ({
+  id: String(r.id),
+  fileName: String(r.file_name),
+  contentType: r.content_type === 'image/jpeg' ? 'image/jpeg' : 'image/webp',
+  fullHash: String(r.full_hash),
+  thumbHash: String(r.thumb_hash),
+  width: Number(r.width),
+  height: Number(r.height),
+  createdAt: Number(r.created_at),
+  deletedAt: (r.deleted_at as number | null) ?? null,
+});
+
+/** The library, newest first, without the trash (MEDIA-R7). */
+export async function listImages(db: ReadDb): Promise<LibraryImage[]> {
+  return (await db.query('SELECT * FROM images WHERE deleted_at IS NULL ORDER BY created_at DESC, id')).map(libraryImage);
+}
+
+/** An image by id, trashed or not: a trashed picture still shows in the presentations that use it (MEDIA-R8). */
+export async function getImage(db: ReadDb, id: string): Promise<LibraryImage | null> {
+  const [r] = await db.query('SELECT * FROM images WHERE id = ?', [id]);
+  return r ? libraryImage(r) : null;
+}
+
+/** Object URLs of blobs, by hash: a blob never changes, so one URL per window serves every use of it. */
+const blobUrls = new Map<string, string>();
+
+/**
+ * A blob from this device's own copy as an object URL, or null while this
+ * device does not have it yet (the next database change asks again). Works in
+ * the output window too, which reads through the operator window.
+ */
+export async function blobUrl(db: ReadDb, hash: string): Promise<string | null> {
+  const known = blobUrls.get(hash);
+  if (known) return known;
+  const [r] = await db.query<{ content_type: string; bytes: Uint8Array | null }>('SELECT content_type, bytes FROM media_blobs WHERE hash = ? AND bytes IS NOT NULL', [hash]);
+  if (!r?.bytes) return null;
+  const url = blobUrls.get(hash) ?? URL.createObjectURL(new Blob([r.bytes as BlobPart], { type: r.content_type }));
+  blobUrls.set(hash, url);
+  return url;
 }

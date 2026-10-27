@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Db } from './db.ts';
 import type { DbStatus } from './protocol.ts';
+import { blobUrl } from './queries.ts';
 import type { ReadDb } from './share.ts';
 
 const DbContext = createContext<Db | null>(null);
@@ -68,4 +69,9 @@ export function useDbStatus(): DbStatus | undefined {
     return db.onStatus(setStatus);
   }, [db]);
   return status;
+}
+
+/** The object URL of a stored picture blob, or null while there is none (not synced to this device yet, or no hash). */
+export function useBlobUrl(hash: string | null): string | null {
+  return useData(async (db) => (hash ? blobUrl(db, hash) : null), [hash]) ?? null;
 }

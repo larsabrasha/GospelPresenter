@@ -1,6 +1,6 @@
-import { bibleItemSlides, IDLE, newer, parseBibleContent, songSlides, type LivePointer, type PresentationItem, type Slide } from '@gp/core';
+import { bibleItemSlides, IDLE, imageSlide, newer, parseBibleContent, songSlides, type LivePointer, type PresentationItem, type Slide } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
-import { arrangementsOf, getSong, listLabels, songPartsOf } from '../db/queries.ts';
+import { arrangementsOf, getImage, getSong, listLabels, songPartsOf } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'hello' };
 
@@ -59,7 +59,7 @@ export class LiveChannel {
 export interface ItemSlides {
   slides: Slide[];
   /** Why the item has no slides, if it has none. */
-  problem: 'song-missing' | 'song-trashed' | 'no-parts' | null;
+  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | null;
 }
 
 /**
@@ -72,6 +72,11 @@ export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<Item
     const content = parseBibleContent(item.content);
     const slides = content ? bibleItemSlides(item.title, content) : [];
     return { slides, problem: slides.length ? null : 'no-parts' };
+  }
+  if (item.type === 'image') {
+    // A reference like a song, but a trashed picture still shows (MEDIA-R8); a purged one is gone.
+    const image = await getImage(db, item.sourceId);
+    return image ? { slides: [imageSlide(image.fullHash)], problem: null } : { slides: [], problem: 'image-missing' };
   }
   const song = await getSong(db, item.sourceId);
   if (!song) return { slides: [], problem: 'song-missing' };

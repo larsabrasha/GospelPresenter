@@ -25,7 +25,8 @@ describe('routes', () => {
 
   it('the trash kind is case-insensitive, and an unknown kind is everything', () => {
     expect(parseRoute('#/trash?kind=presentation')).toEqual({ page: 'trash', kind: 'Presentation' });
-    expect(parseRoute('#/trash?kind=Image')).toEqual({ page: 'trash', kind: null });
+    expect(parseRoute('#/trash?kind=IMAGE')).toEqual({ page: 'trash', kind: 'Image' });
+    expect(parseRoute('#/trash?kind=Audio')).toEqual({ page: 'trash', kind: null }); // audio is not built yet
     expect(parseRoute('#/trash?kind=')).toEqual({ page: 'trash', kind: null });
   });
 

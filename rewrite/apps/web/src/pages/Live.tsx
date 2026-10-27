@@ -9,7 +9,7 @@ import { Button } from '../ui/Button.tsx';
 import { navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 
-const problemText = { 'song-missing': t('live.songMissing'), 'song-trashed': t('live.songTrashed'), 'no-parts': t('live.noParts') };
+const problemText = { 'song-missing': t('live.songMissing'), 'song-trashed': t('live.songTrashed'), 'no-parts': t('live.noParts'), 'image-missing': t('live.imageMissing') };
 
 /** The operator's view of a running presentation (spec 04, milestone 1 subset). */
 export function Live({ id, live }: { id: string; live: LiveChannel }) {

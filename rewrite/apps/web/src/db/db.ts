@@ -1,5 +1,5 @@
 import type { MutatorArgs, MutatorName } from '@gp/core';
-import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
+import type { BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session } from './protocol.ts';
 import type { ReadDb } from './share.ts';
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
@@ -48,6 +48,11 @@ export class Db implements ReadDb {
   /** Imports a Bible zip; rejects with a message to show (in Swedish) if it cannot. */
   importBible(data: Uint8Array): Promise<BibleImportResult> {
     return this.call({ op: 'importBible', data });
+  }
+
+  /** Keeps a processed picture here and adds it to the library, online or not; it is uploaded when the server can be reached. */
+  addImage(image: ImageImport): Promise<void> {
+    return this.call({ op: 'addImage', image });
   }
 
   status(): Promise<DbStatus> {

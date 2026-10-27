@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { CANVAS, CLASSIC, type Slide, type Theme } from '@gp/core';
+import { useBlobUrl } from '../db/react.tsx';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 
 export const STAGE_WIDTH = CANVAS.width;
@@ -23,6 +24,12 @@ function BibleText({ slide }: { slide: Slide }) {
       ))}
     </>
   );
+}
+
+/** A media slide's picture, contained within the stage over the theme's media background. Nothing until this device has the blob. */
+function SlideImage({ hash }: { hash: string }) {
+  const url = useBlobUrl(hash);
+  return url ? <img className="slide-image" src={url} alt="" data-testid="slide-image" draggable={false} /> : null;
 }
 
 /**
@@ -54,15 +61,21 @@ export function SlideView({ slide, theme = CLASSIC, label = true }: { slide: Sli
                 {slide.label.text}
               </span>
             )}
-            <div className="slide-content">
-              <div className="slide-text" data-testid="slide-text" style={mainCss(theme, slide.kind)}>
-                {slide.verses ? <BibleText slide={slide} /> : slide.text}
-              </div>
-            </div>
-            {slide.credits && (
-              <div className="slide-credits" data-testid="slide-credits" style={creditsCss(theme, slide.kind)}>
-                {slide.credits}
-              </div>
+            {slide.kind === 'media' ? (
+              slide.image && <SlideImage hash={slide.image} />
+            ) : (
+              <>
+                <div className="slide-content">
+                  <div className="slide-text" data-testid="slide-text" style={mainCss(theme, slide.kind)}>
+                    {slide.verses ? <BibleText slide={slide} /> : slide.text}
+                  </div>
+                </div>
+                {slide.credits && (
+                  <div className="slide-credits" data-testid="slide-credits" style={creditsCss(theme, slide.kind)}>
+                    {slide.credits}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}

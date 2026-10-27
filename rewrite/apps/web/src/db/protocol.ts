@@ -32,6 +32,8 @@ export type DbCall =
   | { op: 'mutate'; name: string; args: unknown }
   | { op: 'query'; sql: string; params: unknown[] }
   | { op: 'status' }
+  /** Adds a processed picture to the library (spec 05 "Media"): keep its blobs here, then `addImage`, uploaded before it is pushed. */
+  | { op: 'addImage'; image: ImageImport }
   /** Imports a Bible zip (spec 05): parse and store here, then `importBible`, uploaded before it is pushed. */
   | { op: 'importBible'; data: Uint8Array }
   | { op: 'syncNow' };
@@ -50,4 +52,15 @@ export interface BibleImportResult {
   replaced: boolean;
   /** The server could not be reached: the translation is here, and goes to the server once it can be. */
   queued: boolean;
+}
+
+/** A picture the page has fitted and re-encoded (`media/process.ts`), ready to be kept and synced. */
+export interface ImageImport {
+  id: string;
+  fileName: string;
+  contentType: 'image/jpeg' | 'image/webp';
+  width: number;
+  height: number;
+  full: Uint8Array;
+  thumb: Uint8Array;
 }

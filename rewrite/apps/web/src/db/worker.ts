@@ -9,15 +9,19 @@ import { bibleId, importBibleZip, verseCount, type MutatorName } from '@gp/core'
 import {
   authHeaders,
   BibleTextUploads,
+  chainBeforePush,
   httpTransport,
+  MediaUploads,
   socketProtocols,
   storeBibleText,
+  storeMediaBlob,
   syncBibleTexts,
+  syncMedia,
   SyncClient,
   type ClientSqlite,
 } from '@gp/sync/client';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
-import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
+import type { BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName } from './share.ts';
 
 /** The backstop poll (SYNC-R43): pokes are never load-bearing. */
@@ -84,6 +88,7 @@ function startSync(c: SyncClient, s: Session) {
       connected = true;
       await c.requestSync(); // catch up on what happened while disconnected
       syncBibles(); // and fetch any text a failed download left out
+      syncMediaBlobs();
     } catch {
       // A refused socket says nothing of why: a sync attempt tells offline from refused credentials.
       connected = false;
@@ -96,14 +101,15 @@ function startSync(c: SyncClient, s: Session) {
   setInterval(() => {
     void c.requestSync().then(reportStatus);
     syncBibles();
+    syncMediaBlobs();
   }, POLL_MS);
 }
 
-// ------------------------------------------------------------ Bible texts (README, "Bibles")
+// ------------------------------------------------------------ Bible texts (README, "Bibles") and media blobs ("Media")
 
-/** Imports, downloads and clean-ups of stored texts run one at a time. */
+/** Imports, downloads and clean-ups of stored texts and blobs run one at a time. */
 let bibleWork: Promise<unknown> = Promise.resolve();
-function serialBible<T>(fn: () => Promise<T>): Promise<T> {
+function serialStore<T>(fn: () => Promise<T>): Promise<T> {
   const run = bibleWork.then(fn, fn);
   bibleWork = run.catch(() => undefined);
   return run;
@@ -117,6 +123,46 @@ const uploads = new BibleTextUploads(async (hash, json) => {
   return res.status;
 });
 
+/** Uploads the blobs of each queued `addImage` before it is pushed, so a picture can be added offline. */
+const mediaUploads = new MediaUploads(async (hash, bytes) => {
+  const res = await fetch(`/media/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream', ...credentials() }, body: bytes as BodyInit });
+  return res.status;
+});
+
+let mediaSyncQueued = false;
+/** Fetches the blobs of pictures this device lacks (thumbnails first) and drops unused ones; coalesced. */
+function syncMediaBlobs() {
+  if (mediaSyncQueued) return;
+  mediaSyncQueued = true;
+  void serialStore(async () => {
+    mediaSyncQueued = false;
+    const r = await syncMedia(client!, async (hash) => {
+      const res = await fetch(`/media/${hash}`, { headers: credentials() });
+      return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+    });
+    if (r.downloaded.length || r.removed) notifyChanged();
+  }).catch(() => undefined); // offline: the next change or poll tries again
+}
+
+/** Keeps the picture's blobs here and records it in the library, online or not. */
+function addImage(img: ImageImport): Promise<void> {
+  return serialStore(async () => {
+    const fullHash = await storeMediaBlob(client!, img.full, img.contentType);
+    const thumbHash = await storeMediaBlob(client!, img.thumb, img.contentType);
+    await client!.mutate('addImage', {
+      id: img.id,
+      fileName: img.fileName,
+      contentType: img.contentType,
+      fullHash,
+      thumbHash,
+      width: img.width,
+      height: img.height,
+      createdAt: Date.now(),
+    });
+    void client!.requestSync().then(reportStatus);
+  });
+}
+
 let bibleSyncQueued = false;
 /**
  * Queues again an import the server refused for lack of its text, fetches
@@ -125,7 +171,7 @@ let bibleSyncQueued = false;
 function syncBibles() {
   if (bibleSyncQueued) return;
   bibleSyncQueued = true;
-  void serialBible(async () => {
+  void serialStore(async () => {
     bibleSyncQueued = false;
     if (await uploads.retryRefused(client!)) void client!.requestSync().then(reportStatus);
     const r = await syncBibleTexts(client!, async (hash) => {
@@ -141,7 +187,7 @@ function syncBibles() {
  * not. The text is uploaded before the import is pushed (`uploads`).
  */
 function importBible(data: Uint8Array): Promise<BibleImportResult> {
-  return serialBible(async () => {
+  return serialStore(async () => {
     const bible = await importBibleZip(data, () => new Promise((r) => setTimeout(r, 0)));
     const { hash } = await storeBibleText(client!, bible.books);
     const id = bibleId(bible.abbreviation);
@@ -163,7 +209,7 @@ async function handle(call: DbCall): Promise<unknown> {
       const c = await SyncClient.open(sqlite, {
         transport: httpTransport({ baseUrl: location.origin, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
-        beforePush: uploads.beforePush,
+        beforePush: chainBeforePush(uploads.beforePush, mediaUploads.beforePush),
       });
       client = c;
       session = s;
@@ -181,10 +227,12 @@ async function handle(call: DbCall): Promise<unknown> {
       c.onChange(() => {
         notifyChanged();
         syncBibles();
+        syncMediaBlobs();
         void reportStatus();
       });
       startSync(c, s);
       syncBibles();
+      syncMediaBlobs();
       return c.id;
     }
     case 'mutate':
@@ -198,9 +246,12 @@ async function handle(call: DbCall): Promise<unknown> {
     case 'syncNow':
       await client!.requestSync();
       syncBibles();
+      syncMediaBlobs();
       return status();
     case 'importBible':
       return importBible(call.data);
+    case 'addImage':
+      return addImage(call.image);
   }
 }
 

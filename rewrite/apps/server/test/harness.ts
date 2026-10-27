@@ -7,6 +7,7 @@ import { Miniflare } from 'miniflare';
 import { SyncClient, httpTransport, socketProtocols, type SyncClientOptions, type Transport } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import type { Dump, MutatorCtx, Role } from '@gp/core';
+import { memoryStorage } from '@gp/server';
 import { startNodeServer } from '@gp/server/node';
 
 export type AdapterName = 'node' | 'node-sqlite' | 'workers' | 'remote';
@@ -15,6 +16,8 @@ export type AdapterName = 'node' | 'node-sqlite' | 'workers' | 'remote';
 export interface Harness {
   name: AdapterName;
   url: string;
+  /** The keys in the media storage (a fake in memory on Node, local R2 in workerd). Not on a remote server. */
+  mediaKeys(): Promise<string[]>;
   close(): Promise<void>;
 }
 
@@ -31,6 +34,8 @@ export interface AdapterOptions {
   passkeys?: { rpId: string; origins: string[] };
   /** How young a session must be to add a login (the staleness tests shorten it). */
   freshSignInMs?: number;
+  /** How long a picture blob nothing names is kept. Default: an hour. */
+  mediaGraceMs?: number;
   /** Workers only: bundle as `pnpm build:worker` does for a deploy, where a test issuer is not allowed. */
   deployBuild?: boolean;
 }
@@ -40,18 +45,20 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     // A deployed Worker on a real Cloudflare account, e.g. https://gp-sync-spike-xxxx.workers.dev.
     const url = process.env.SYNC_REMOTE_URL;
     if (!url) throw new Error('SYNC_REMOTE_URL is not set');
-    return { name, url: url.replace(/\/$/, ''), close: async () => {} };
+    return { name, url: url.replace(/\/$/, ''), mediaKeys: async () => [], close: async () => {} };
   }
   if (name === 'node' || name === 'node-sqlite') {
     // 'node-sqlite' is the driver the Electron build uses (see apps/desktop).
     const dataDir = mkdtempSync(join(tmpdir(), 'gp-sync-'));
     const driver = name === 'node' ? 'better-sqlite3' : 'node:sqlite';
     const { google, deployBuild: _, ...rest } = opts;
+    const media = memoryStorage();
     const s = await startNodeServer({
       dataDir,
       driver,
       debug: true,
       pokeWindowMs: POKE_WINDOW_MS,
+      media,
       ...rest,
       google: google && { clientId: google.clientId, clientSecret: google.clientSecret, testIssuer: google.url },
       log: () => undefined,
@@ -59,6 +66,7 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     return {
       name,
       url: s.url,
+      mediaKeys: async () => media.keys(),
       async close() {
         await s.close();
         rmSync(dataDir, { recursive: true, force: true });
@@ -86,10 +94,12 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     scriptPath: outfile,
     compatibilityDate: '2026-08-01',
     d1Databases: { DB: 'gp-sync-spike-global' },
+    r2Buckets: { MEDIA: 'gp-media' },
     durableObjects: { ORG: { className: 'OrgDurableObject', useSQLite: true } },
     bindings: {
       SPIKE_DEBUG: '1',
       POKE_WINDOW_MS: String(POKE_WINDOW_MS),
+      ...(opts.mediaGraceMs !== undefined ? { MEDIA_GRACE_MS: String(opts.mediaGraceMs) } : {}),
       ...(opts.setupToken ? { SETUP_TOKEN: opts.setupToken } : {}),
       ...(opts.sessionIdleMs ? { SESSION_IDLE_MS: String(opts.sessionIdleMs) } : {}),
       ...(opts.freshSignInMs ? { FRESH_SIGN_IN_MS: String(opts.freshSignInMs) } : {}),
@@ -102,7 +112,13 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
     port: 0,
   });
   const url = (await mf.ready).toString().replace(/\/$/, '');
-  return { name, url, close: () => mf.dispose() };
+  const bucket = await mf.getR2Bucket('MEDIA');
+  return {
+    name,
+    url,
+    mediaKeys: async () => (await bucket.list()).objects.map((o) => o.key),
+    close: () => mf.dispose(),
+  };
 }
 
 /** Session tokens the debug route handed out, by server, organisation and user. */

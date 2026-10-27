@@ -6,17 +6,22 @@ import { syncRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
+import { r2Storage, type R2Like } from './media.ts';
 import { Passkeys } from './webauthn.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 interface Env {
   DB: D1Database;
+  /** Where picture blobs are kept (D31). Without the binding the media endpoints answer 503. */
+  MEDIA?: R2Bucket;
   ORG: DurableObjectNamespace<OrgDurableObject>;
   SPIKE_DEBUG?: string;
   POKE_WINDOW_MS?: string;
   /** What first-run setup must be given (D19). Unset: setup stays closed. A secret, so never in wrangler.toml. */
   SETUP_TOKEN?: string;
   SESSION_IDLE_MS?: string;
+  /** Tests only: how long a picture blob nothing names is kept. */
+  MEDIA_GRACE_MS?: string;
   /** Sign-in with Google. Without both, nobody can sign in or set up. The secret is a secret: never in wrangler.toml. */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
@@ -80,7 +85,7 @@ export class OrgDurableObject extends DurableObject<Env> {
       const role = c.req.header('x-role') as Role;
       // Sync needs neither when the session signed in nor how: those matter only to the auth routes.
       return { caller: { orgId: c.req.header('x-org')!, sessionId: '', ctx: { userId, role }, signedInAt: 0, paired: true }, org: this.org };
-    }, env.SPIKE_DEBUG === '1');
+    }, env.SPIKE_DEBUG === '1', env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null, env.MEDIA_GRACE_MS ? Number(env.MEDIA_GRACE_MS) : undefined);
     this.app.get('/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
     this.app.get('/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
   }
@@ -189,7 +194,7 @@ function globals(env: Env) {
 }
 
 /** Paths an organisation's Durable Object answers; everything else is the global auth API. */
-const orgPaths = ['/sync/', '/bibles/', '/debug/dump', '/debug/triggers', '/debug/tx-probe'];
+const orgPaths = ['/sync/', '/bibles/', '/media/', '/debug/dump', '/debug/triggers', '/debug/tx-probe'];
 
 const worker = new Hono<{ Bindings: Env }>();
 

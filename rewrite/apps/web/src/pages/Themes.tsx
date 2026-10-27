@@ -13,6 +13,7 @@ const SAMPLE: Slide = {
   kind: 'song',
   text: 'Amazing grace\nhow sweet the sound',
   verses: null,
+  image: null,
   label: null,
   credits: 'John Newton · 1779',
 };

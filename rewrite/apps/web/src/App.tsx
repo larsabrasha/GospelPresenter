@@ -8,6 +8,7 @@ import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
 import { Bibles } from './pages/Bibles.tsx';
 import { Devices } from './pages/Devices.tsx';
+import { Images } from './pages/Images.tsx';
 import { Live } from './pages/Live.tsx';
 import { Logins } from './pages/Logins.tsx';
 import { Output } from './pages/Output.tsx';
@@ -120,6 +121,11 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
                 {t('nav.bibles')}
               </a>
             )}
+            {can(me.role, 'ViewImages') && (
+              <a href={href({ page: 'images' })} aria-current={route.page === 'images' ? 'page' : undefined}>
+                {t('nav.images')}
+              </a>
+            )}
             <a href={href({ page: 'themes' })} aria-current={route.page === 'themes' ? 'page' : undefined}>
               {t('nav.themes')}
             </a>
@@ -150,6 +156,7 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
           {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}
           {route.page === 'logins' && <Logins error={route.error} />}
           {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
+          {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <p>{t('images.forbidden')}</p>)}
           {route.page === 'themes' && <Themes role={me.role} />}
         </main>
         <StatusBar />

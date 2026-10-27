@@ -11,7 +11,8 @@ date after create. The output window reads through the operator window's databas
 where OPFS is missing. Milestone 3 brings real sign-in, membership and pairing (spec 01, ADR 0007
 decisions 6 and 12), so the desktop host can serve other devices on the LAN. Sign-in is with Google or
 a passkey: there are no passwords. Milestone 4 adds Bibles and themes (spec 05), so a Sunday service
-with Bible readings and a chosen look runs offline.
+with Bible readings and a chosen look runs offline. Milestone 5 adds the media library and pictures
+(spec 05 Media, ADR 0007 decision 9, D31): import, trash, and a picture as a slide.
 
 | Package | What it is |
 |---|---|
@@ -26,7 +27,7 @@ pnpm install
 pnpm build
 pnpm lint && pnpm typecheck && pnpm test   # unit and sync tests, on Node, node:sqlite and local workerd
                                            # (lint also refuses a REPLACE in a mutator: see Assumptions)
-pnpm e2e                                   # milestones 1–4 in Electron, with real windows
+pnpm e2e                                   # milestones 1–5 in Electron, with real windows
 
 export GP_GOOGLE_CLIENT_ID=… GP_GOOGLE_CLIENT_SECRET=…   # the host's Google client (see "Sign-in")
 pnpm --filter @gp/desktop start            # the desktop app: the host, on 127.0.0.1:47800
@@ -181,6 +182,7 @@ new pairing. Version 4 adds passkeys: columns for the key, counter, transports a
 `user_logins`, the link columns in `login_flows`, and `passkey_flows`. Every login and session stays.
 Organisation schema version 3 (milestone 4) adds `presentations.theme_id`, `presentation_items.content`,
 the synced tables `bibles` and `org_settings`, and the local tables `bible_texts` and `bible_blobs`.
+Version 4 (milestone 5) adds the synced table `images` and the local table `media_blobs`; nothing existing changes.
 
 ### Bibles
 
@@ -254,23 +256,69 @@ Hungarian, Finnish `š ž` and the like) and `† ‡`: for those, the browser t
 system's sans-serif, so such a word shows in a mixed typeface. To try them: Teman shows each with a sample slide; pick a default there, or a theme per
 presentation in "Redigera detaljer", and start the presentation.
 
+### Media
+
+**What is synced and what is not.** A picture is a row in `images` (file name, type, the hashes of its two
+blobs, size, `created_at`, `deleted_at`), which syncs like any other row, and two blobs that do not: `full`
+(fits 1920×1080) and `thumb` (fits 400×225), each named by the SHA-256 of its bytes. Blobs are immutable, so
+the same picture twice is one object, and each is fetched like a file, not replayed through the change log
+(the reasoning is the Bibles' above). `media_blobs` (not synced) says which blobs a database knows: on a device
+the row holds the bytes (so pictures show offline and survive a reset), on the server it records that the
+bytes are in the media storage. `addImage` checks both hashes there and is refused with `media-missing`
+otherwise, so a mutator still reads only through its transaction.
+
+**Where the bytes live (D31).** Behind `MediaStorage` (`apps/server/src/media.ts`): put, get, delete, by key
+`org/{org}/media/{hash}` (`mediaKey` in core: every key starts with the caller's own organisation, and an
+organisation id cannot contain `/` or `.`). Adapters: a folder (`media-disk.ts`; `{dataDir}/media` by default on
+Node, so on the desktop host and a self-hosted server), R2 through the `MEDIA` binding on Cloudflare (a bucket
+`gp-media` in `wrangler.toml`; without the binding the endpoints answer 503, MEDIA-R18), and memory (tests).
+Backing up a self-hosted install is copying `/data`. S3 is not built (see "Not done yet").
+
+**The endpoints.** `PUT /media/{hash}` (ManageImages) takes the bytes, up to 10 MiB, and refuses a body whose
+SHA-256 is not the hash (`hash-mismatch`), an empty one, and one that does not start like a JPEG or a WebP
+(`invalid-image`: the server trusts the signature, never the type the client claims, MEDIA-A6). The same hash
+again is 204 and changes nothing. `GET /media/{hash}` (ViewImages) answers only for a blob this organisation's
+database knows, with the stored type, `Cache-Control: private, max-age=31536000, immutable` (D28), `ETag`
+and `nosniff`; another organisation's hash is 404 (MEDIA-A11).
+
+**The pipeline is in the client** (`apps/web/src/media/process.ts`): the page checks type, size (10 MiB) and
+name (200 characters), decodes with `createImageBitmap`, fits within both boxes without upscaling, and
+re-encodes: JPEG stays JPEG, PNG, WebP and GIF become WebP (a GIF keeps its first frame). Re-encoding also
+drops metadata such as GPS. The worker keeps both blobs in `media_blobs` and queues `addImage`; before that
+mutation is pushed, `MediaUploads` (`packages/sync/src/client/media.ts`, chained with the Bibles' uploads by
+`chainBeforePush`) uploads them. So importing works offline: the picture shows at once on that device and
+reaches the server and the other devices later. An upload that cannot reach the server or fails with 5xx holds
+back that add and what follows; one refused with 4xx lets the add go, to be refused with a reason. Every other
+device sees the row in a pull and downloads the blobs it lacks (`syncMedia`: thumbnails first, hash checked,
+signature checked).
+
+**Clean-up.** Mutators never touch the blobs. After a push that changed anything, the server removes the
+blobs no `images` row names, and a device does the same in `syncMedia`, but only for blobs older than an hour
+(`ORPHAN_GRACE_MS`), so a blob uploaded just before its `addImage` arrives is never taken away; a device also
+keeps what a queued `addImage` names. A blob shared by two images stays until both are gone.
+
+**In the app.** Bilder (everyone may see and import: User, Admin and SuperAdmin, as spec 05): a grid of
+thumbnails, newest first, import by button or by dropping files on the page, "Importerar i av n...", failures
+listed with their reason, search by file name, "⋯" moves to the trash without confirmation. The trash holds
+images with songs and presentations (30 days; "Töm" and the lazy purge include them). A picture goes into a
+presentation from the add dialog's third tab (Ctrl/⌘+3) and is one slide, the picture contained within the
+stage over the theme's media background. Like a song it is a reference by id: a trashed picture still shows
+(MEDIA-R8), a purged one leaves an item marked "Bilden finns inte längre". The output reads the bytes through
+the operator window's database, like everything else, so it works without OPFS.
+
 ## Next steps
 
-Where to pick up. Milestones 1–4 are on branch `claude/milestone-1`, which also carries the latest ADR
+Where to pick up. Milestones 1–5 are on branch `claude/milestone-1`, which also carries the latest ADR
 0007 and spec (decisions up to D31); `claude/rewrite-behavior-spec` is behind it.
 
-1. **Media library and images** (spec 05 Media, ADR 0007 (9), D28, D31). Storage behind a put/get/delete
-   interface: R2 through its binding on Cloudflare, a folder on disk on the desktop host and by default
-   self-hosted, S3 as an option. Clients keep their own copies (OPFS, or disk) so images show offline.
-   Then images in themes and image slides.
-2. **A trial deploy to Cloudflare**, before or beside (1), and only with Lars's go-ahead: a temporary
+1. **A trial deploy to Cloudflare**, at any point and only with Lars's go-ahead: a temporary
    Worker and D1, measured and then deleted, as the sync spike did. Still unproven there: migrating an
    existing Durable Object (schema and triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys,
-   and Google sign-in against a real Google client.
-3. **The rest of live** (spec 04, ADRs 0004 and 0006): stage view, public output, remote control and
+   Google sign-in against a real Google client, and R2 as the media storage (tested against Miniflare's R2 only).
+2. **The rest of live** (spec 04, ADRs 0004 and 0006): stage view, public output, remote control and
    mirrored live sessions.
-4. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
-5. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
+3. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
+4. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
    per D32 (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app
    for tablets (ADR 0007 (7)), Android first and iOS later.
 
@@ -278,9 +326,20 @@ The smaller gaps below can be taken along the way.
 
 ## Not done yet
 
-Images, audio and the media library (so themes have no pictures of the organisation's own), profile
-pictures and logos, templates, English text, mobile, and deploying to Cloudflare. The Workers adapter
-is tested in local workerd only.
+Audio (spec 05 lists it with Images; none of it is built: no library page, no audio item), overlay images,
+slide-deck pages, profile pictures and logos, templates, English text, mobile, and deploying to
+Cloudflare. The Workers adapter is tested in local workerd only.
+
+From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,
+so an install that wants S3 cannot yet); organisation images as a theme's background (a theme's image is
+still only a built-in asset, `backgroundImageSchema`, and there is no theme editor to choose one);
+a limit on the total size of an organisation's media (only 1 000 pictures and 10 MiB per blob are limited); MEDIA-R14's
+pinning and the 2 GiB eviction (every device keeps every blob of every picture, trashed ones included, so a
+full library of 1 000 pictures is a few hundred MB on each device, not measured); live and public URLs
+(MEDIA-R10) and `/api/watch` with it; HTTP Range for audio; a native file dialog for "Importera" (the page's
+file input is used, also in Electron); dropping files onto the add dialog. The page's
+image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
+it falls back to JPEG on a white background, which is written but untested.
 
 From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
 the Teman page lists the built-ins and sets the default), the stage view and the public output, and
@@ -339,6 +398,30 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 - **The arrangement name field shows only with two or more arrangements** (SONG-A9, as the current
   app does).
 - **A purged song's items stay** in their presentations and say the song is gone.
+
+Milestone 5 (media library):
+
+- **A blob is named by the hash of its bytes, and an image has two** (`full`, `thumb`); spec 05 names objects
+  `org/{org}/images/{id}/{variant}` and gives them a row id. Content addressing (ADR 0007 (9), D28) is what
+  makes `private, immutable` safe and lets the same file twice be one object.
+- **The server decides by signature**, not by a type the client sends, and takes only JPEG and WebP: the client
+  has already re-encoded, so a PNG or GIF reaching the server is refused. It does not decode, so a file that
+  starts like a JPEG and is not a picture is stored (and fails to draw on a device). Spec 05 decodes on the
+  server (MEDIA-R3 "Invalid image file"); the Worker cannot, so the check is the client's decode.
+- **No server-side resize.** The 1920×1080 and 400×225 sizes are the client's work; the server does not check
+  the dimensions of a blob or that `thumb` is smaller than `full`. A client that lies can store a big
+  thumbnail, up to the 10 MiB limit.
+- **Everyone may import and trash images** (spec 05: User, Admin, SuperAdmin), and everyone may trash anyone's.
+- **A file name over 200 characters is refused**, not shortened (spec 05 names the limit and no rule).
+- **A picked file's type is what the browser reports; the extension counts only when it reports none**
+  (MEDIA-R13 uses the extension on a device; a browser's own type is the better guide on the web).
+- **Purging an image leaves its items**, which say the picture is gone, as a purged song does. The spec's
+  "bytes deleted after the row" holds as: row first, blobs at the next clean-up, after the grace period.
+- **Restore may exceed the 1 000 limit** (MEDIA-R8), and the limit counts only what is not in the trash.
+- **An item's title is the file name** when it is added and can be renamed like any item; the picture's own
+  name changes nothing (spec 05 has no rename of images).
+- **Blob uploads that were sent before a restart are sent again** (the server takes the same hash twice), as for
+  Bibles, and a blob whose add was refused (`media-missing`, the limit) is removed after an hour.
 
 Milestone 4 (Bibles and themes):
 

@@ -33,3 +33,9 @@ export async function sha256Hex(text: string): Promise<string> {
   const digest = new Uint8Array(await web.crypto.subtle.digest('SHA-256', utf8Encode(text)));
   return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+/** The SHA-256 of bytes, as 64 lower-case hex digits. */
+export async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await web.crypto.subtle.digest('SHA-256', bytes));
+  return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+}

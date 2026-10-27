@@ -9,7 +9,9 @@ import { href, TRASH_KINDS, type TrashKind } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { formatEventDate } from './PresentationEditor.tsx';
 
-const manages: Record<TrashKind, Parameters<typeof can>[1]> = { Presentation: 'ManagePresentations', Song: 'ManageSongs' };
+const manages: Record<TrashKind, Parameters<typeof can>[1]> = { Presentation: 'ManagePresentations', Song: 'ManageSongs', Image: 'ManageImages' };
+const restoreMutator = { Presentation: 'restorePresentation', Song: 'restoreSong', Image: 'restoreImage' } as const;
+const purgeMutator = { Presentation: 'purgePresentation', Song: 'purgeSong', Image: 'purgeImage' } as const;
 
 function daysText(days: number) {
   if (days === 0) return t('trash.soon');
@@ -68,13 +70,13 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
 
   const restore = (e: TrashEntry) =>
     run(async () => {
-      await db.mutate(e.kind === 'Song' ? 'restoreSong' : 'restorePresentation', { id: e.id });
+      await db.mutate(restoreMutator[e.kind], { id: e.id });
       toast(t('trash.restored', { name: e.name }));
     });
 
   const purge = async (e: TrashEntry) => {
     const ok = await ask({ title: t('trash.purge'), text: t(`trash.purgeConfirm.${e.kind}`, { name: e.name }), confirm: t('common.delete') });
-    if (ok) await run(() => db.mutate(e.kind === 'Song' ? 'purgeSong' : 'purgePresentation', { id: e.id }));
+    if (ok) await run(() => db.mutate(purgeMutator[e.kind], { id: e.id }));
   };
 
   // "Töm papperskorgen" empties everything the user may manage, not just what the filter shows.
@@ -82,7 +84,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
     const ok = await ask({ title: t('trash.empty'), text: t('trash.emptyConfirm', { n: entries.length }), confirm: t('common.delete') });
     if (!ok) return;
     await run(async () => {
-      for (const e of entries) await db.mutate(e.kind === 'Song' ? 'purgeSong' : 'purgePresentation', { id: e.id });
+      for (const e of entries) await db.mutate(purgeMutator[e.kind], { id: e.id });
     });
   };
 

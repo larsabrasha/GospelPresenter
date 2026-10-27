@@ -15,6 +15,8 @@ import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCO
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql } from './global.ts';
+import { diskStorage } from './media-disk.ts';
+import type { MediaStorage } from './media.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
@@ -165,6 +167,13 @@ export interface NodeServerOptions {
   debug?: boolean;
   /** A built web app to serve from the same origin, as the desktop does for tablets on the LAN. */
   webRoot?: string;
+  /**
+   * Where picture blobs are kept (D31): a folder, `{dataDir}/media` by
+   * default. Pass another storage to keep them elsewhere (tests, later S3).
+   */
+  media?: MediaStorage;
+  /** How long a picture blob nothing names is kept: an hour (tests shorten it). */
+  mediaGraceMs?: number;
   /** What first-run setup must be given (D19). Without one, a random one is made at start; see `RunningServer.setupToken`. */
   setupToken?: string;
   /** Refuse every API request from a device that is not paired (the desktop host). */
@@ -244,7 +253,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       const caller = await authenticate(c.req.raw, accounts);
       if (caller instanceof Response) return caller;
       return { caller, org: openOrg(caller.orgId) };
-    }, !!opts.debug),
+    }, !!opts.debug, opts.media ?? diskStorage(join(opts.dataDir, 'media')), opts.mediaGraceMs),
   );
   if (opts.webRoot) {
     app.use('/*', async (c, next) => {

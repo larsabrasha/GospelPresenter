@@ -12,6 +12,7 @@ import { href, navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { BibleTab } from './BibleTab.tsx';
+import { ImageTab } from './ImageTab.tsx';
 import { CreateSongDialog } from './Songs.tsx';
 
 /** "lör 1 nov. 2026" in the viewer's (Swedish) calendar; the date is a plain day, not an instant. */
@@ -55,16 +56,16 @@ interface TabProps {
 }
 
 /**
- * The add-item modal (spec 03 2d): Sånger and Bibeltexter, Ctrl/⌘+1 and +2
+ * The add-item modal (spec 03 2d): Sånger, Bibeltexter and Bilder, Ctrl/⌘+1, +2 and +3
  * switch. It never closes after an add (D15). The new item goes after the
  * selected one and becomes selected.
  */
 function AddItemDialog(props: TabProps) {
-  const [tab, setTab] = useState<'songs' | 'bible'>('songs');
+  const [tab, setTab] = useState<'songs' | 'bible' | 'images'>('songs');
   const onKeyDown = (e: ReactKeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && (e.key === '1' || e.key === '2')) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === '1' || e.key === '2' || e.key === '3')) {
       e.preventDefault();
-      setTab(e.key === '1' ? 'songs' : 'bible');
+      setTab(e.key === '1' ? 'songs' : e.key === '2' ? 'bible' : 'images');
     }
   };
   return (
@@ -77,8 +78,13 @@ function AddItemDialog(props: TabProps) {
           <Button role="tab" aria-selected={tab === 'bible'} aria-pressed={tab === 'bible'} onClick={() => setTab('bible')}>
             {t('bible.tab')}
           </Button>
+          <Button role="tab" aria-selected={tab === 'images'} aria-pressed={tab === 'images'} onClick={() => setTab('images')}>
+            {t('presentation.imagesTab')}
+          </Button>
         </div>
-        {tab === 'songs' ? <SongTab key="songs" {...props} /> : <BibleTab key="bible" {...props} />}
+        {tab === 'songs' && <SongTab key="songs" {...props} />}
+        {tab === 'bible' && <BibleTab key="bible" {...props} />}
+        {tab === 'images' && <ImageTab key="images" {...props} />}
       </div>
     </Dialog>
   );
@@ -433,7 +439,7 @@ export function PresentationEditor({ id }: { id: string }) {
                   }}
                 >
                   {item.title}
-                  {(problem === 'song-trashed' || problem === 'song-missing') && <span className="warning"> ⚠</span>}
+                  {(problem === 'song-trashed' || problem === 'song-missing' || problem === 'image-missing') && <span className="warning"> ⚠</span>}
                 </Button>
                 <Button aria-label={`${t('common.moveUp')} ${item.title}`} disabled={i === 0} onClick={() => void db.mutate('moveItem', { itemId: item.id, by: -1 })}>
                   ↑
@@ -474,6 +480,7 @@ export function PresentationEditor({ id }: { id: string }) {
           </p>
         )}
         {selected && selectedSlides?.problem === 'song-missing' && <p className="warning">{t('presentation.songMissing')}</p>}
+        {selected && selectedSlides?.problem === 'image-missing' && <p className="warning">{t('presentation.imageMissing')}</p>}
         {selected && selectedSong?.deletedAt === null && (
           <ArrangementPills
             arrangements={selectedArrangements}

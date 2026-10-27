@@ -1,4 +1,4 @@
-import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 // An organisation's synced tables (spec 02 and 03, milestone 1 subset). Every
 // synced table has a single text primary key `id`, so the change log and the
@@ -67,14 +67,15 @@ export const presentations = sqliteTable('presentations', {
  * reference: `sourceId` names the song, and its slides are resolved from the
  * current song when shown, in the item's arrangement. A Bible item is a
  * snapshot: `sourceId` names the translation it came from, and `content`
- * holds its slides, split once when it was added (BIBLE-R12, D25).
+ * holds its slides, split once when it was added (BIBLE-R12, D25). An image
+ * item is a reference too: `sourceId` names the library image.
  */
 export const presentationItems = sqliteTable('presentation_items', {
   id: text('id').primaryKey(),
   presentationId: text('presentation_id')
     .notNull()
     .references(() => presentations.id),
-  type: text('type', { enum: ['song', 'bible'] }).notNull(),
+  type: text('type', { enum: ['song', 'bible', 'image'] }).notNull(),
   title: text('title').notNull(),
   sourceId: text('source_id').notNull(),
   sort: integer('sort').notNull(),
@@ -97,6 +98,27 @@ export const bibles = sqliteTable('bibles', {
   language: text('language'),
   verseCount: integer('verse_count').notNull(),
   contentHash: text('content_hash').notNull(),
+});
+
+/**
+ * A picture in the organisation's media library (spec 05 "Media library
+ * items"). The pictures themselves are two immutable blobs named by their
+ * SHA-256, `full` (fits 1920×1080) and `thumb` (fits 400×225), kept outside
+ * the change log (README, "Media"). Only the metadata syncs.
+ */
+export const images = sqliteTable('images', {
+  id: text('id').primaryKey(),
+  fileName: text('file_name').notNull(),
+  /** What the blobs are: JPEG stays JPEG, everything else is WebP (MEDIA-R4). */
+  contentType: text('content_type', { enum: ['image/jpeg', 'image/webp'] }).notNull(),
+  fullHash: text('full_hash').notNull(),
+  thumbHash: text('thumb_hash').notNull(),
+  /** Of `full`, in pixels. */
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  createdAt: integer('created_at').notNull(),
+  /** Set while the image is in the trash (MEDIA-R8). */
+  deletedAt: integer('deleted_at'),
 });
 
 /** The organisation's settings, one row each: `defaultThemeId` so far (THEME-R4). */
@@ -128,10 +150,39 @@ export const bibleBlobs = sqliteTable('bible_blobs', {
   verseCount: integer('verse_count').notNull(),
 });
 
-export const schema = { labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, bibleTexts, bibleBlobs };
+/**
+ * Not synced. Which media blobs this database knows, by hash. On a device the
+ * row holds the bytes, so pictures show offline and through resets; on the
+ * server it records that the blob is in the media storage (`bytes` is null),
+ * which is what `addImage` checks. `receivedAt` is this database's own clock:
+ * a blob nothing names is removed only after a grace period, so one uploaded
+ * just before its `addImage` is pushed is never taken away.
+ */
+export const mediaBlobs = sqliteTable('media_blobs', {
+  hash: text('hash').primaryKey(),
+  contentType: text('content_type').notNull(),
+  size: integer('size').notNull(),
+  bytes: blob('bytes', { mode: 'buffer' }),
+  receivedAt: integer('received_at').notNull(),
+});
+
+export const schema = {
+  labels,
+  songs,
+  songParts,
+  songArrangements,
+  presentations,
+  presentationItems,
+  bibles,
+  orgSettings,
+  images,
+  bibleTexts,
+  bibleBlobs,
+  mediaBlobs,
+};
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings];
+export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -140,9 +191,10 @@ export type SongArrangement = typeof songArrangements.$inferSelect;
 export type Presentation = typeof presentations.$inferSelect;
 export type PresentationItem = typeof presentationItems.$inferSelect;
 export type Bible = typeof bibles.$inferSelect;
+export type LibraryImage = typeof images.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
 const bibleDdl = [
@@ -152,6 +204,15 @@ const bibleDdl = [
   `CREATE TABLE IF NOT EXISTS bible_texts (hash TEXT NOT NULL, book TEXT NOT NULL, sort INTEGER NOT NULL, chunk TEXT NOT NULL,
      PRIMARY KEY (hash, book))`,
   `CREATE TABLE IF NOT EXISTS bible_blobs (hash TEXT PRIMARY KEY NOT NULL, verse_count INTEGER NOT NULL)`,
+];
+
+/** The tables version 4 added: the media library, and the (unsynced) record of media blobs. */
+const mediaDdl = [
+  `CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
+     full_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
+     created_at INTEGER NOT NULL, deleted_at INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS media_blobs (hash TEXT PRIMARY KEY NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL,
+     bytes BLOB, received_at INTEGER NOT NULL)`,
 ];
 
 // Hand-written DDL of the current version: the columns must match the Drizzle
@@ -173,6 +234,7 @@ export const orgDdl: string[] = [
      presentation_id TEXT NOT NULL REFERENCES presentations(id), type TEXT NOT NULL, title TEXT NOT NULL,
      source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT)`,
   ...bibleDdl,
+  ...mediaDdl,
 ];
 
 /** The statements that take a database from version `n - 1` to `n`. */
@@ -183,6 +245,7 @@ export const orgMigrations: Record<number, string[]> = {
     `ALTER TABLE presentation_items ADD COLUMN arrangement_id TEXT`,
   ],
   3: [`ALTER TABLE presentations ADD COLUMN theme_id TEXT`, `ALTER TABLE presentation_items ADD COLUMN content TEXT`, ...bibleDdl],
+  4: mediaDdl,
 };
 
 /** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */

@@ -97,6 +97,24 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     again.close();
   });
 
+  it('migrates a schema 3 file: the media library appears, rows stay', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+    dirs.push(dir);
+    const file = join(dir, 'org.sqlite');
+    const old = openSqlite(file, driver);
+    for (const s of [...milestone2.slice(0, -4), ...orgMigrations[3]!, `INSERT INTO _schema (one, version) VALUES (1, 3)`, ...milestone1Rows]) old.exec(s);
+    old.close();
+
+    const f = openSqlite(file, driver);
+    nodeOrgStore(f);
+    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
+    expect(columnsOf(f.query)).toEqual(Object.fromEntries(tableInfo.map((t) => [t.name, t.columns])));
+    expect(f.query('SELECT id FROM presentation_items')).toEqual([{ id: 'I1' }]);
+    expect(f.query('SELECT count(*) AS n FROM images')).toEqual([{ n: 0 }]);
+    expect(f.query('SELECT count(*) AS n FROM media_blobs')).toEqual([{ n: 0 }]);
+    f.close();
+  });
+
   it('a new file gets the current DDL and its version', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
     dirs.push(dir);
@@ -133,8 +151,8 @@ describe('client (wa-sqlite)', () => {
     await client.mutate('setItemArrangement', { itemId: 'I1', arrangementId: 'A' });
     const [undo] = await client.query("SELECT before FROM _undo WHERE tbl = 'presentation_items'");
     expect(JSON.parse(String(undo!.before))).toMatchObject({ id: 'I1', arrangement_id: null, sort: 0 });
-    // Every table is made by the DDL: the synced ones, and the two that keep Bible texts.
-    expect(orgDdl.length).toBe(tableInfo.length + 2);
+    // Every table is made by the DDL: the synced ones, and the three that do not sync (Bible texts and media blobs).
+    expect(orgDdl.length).toBe(tableInfo.length + 3);
     await client.close();
   });
 });
