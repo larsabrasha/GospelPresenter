@@ -18,6 +18,9 @@ import { useToast } from '../ui/Toast.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { StageView } from './StageView.tsx';
 import { OverlayToggles } from './OverlayToggles.tsx';
+import { PairScreenDialog } from './PairScreen.tsx';
+import { QrCode } from '../ui/QrCode.tsx';
+import { useServerBase } from '../ui/serverBase.ts';
 
 const problemText = { 'song-missing': t('live.songMissing'), 'song-trashed': t('live.songTrashed'), 'no-parts': t('live.noParts'), 'image-missing': t('live.imageMissing'), 'audio-missing': t('live.audioMissing') };
 
@@ -46,14 +49,10 @@ export function Live({
   return <LiveView id={id} live={live} audio={audio} owner={{ sessionId }} link={link} />;
 }
 
-/** "Tillåt fjärrstyrning" and the link a phone opens (spec 04 §1, §9). The QR code is not built. */
+/** "Tillåt fjärrstyrning" and the link a phone opens, as text and as a QR code (spec 04 §1, §9). */
 function RemotePanel({ id, sessionId }: { id: string; sessionId: string }) {
   const [on, setOn] = useState(remoteAllowed);
-  const [base, setBase] = useState(location.origin);
-  useEffect(() => {
-    // On a desktop host, the address other devices reach it at.
-    void window.gpDesktop?.lanUrls().then(([lan]) => lan && setBase(lan));
-  }, []);
+  const base = useServerBase();
   const url = `${base}${href({ page: 'live', id, remote: true, session: sessionId })}`;
   return (
     <div className="card remote-panel">
@@ -71,6 +70,7 @@ function RemotePanel({ id, sessionId }: { id: string; sessionId: string }) {
       {on && (
         <>
           <p className="muted small">{t('remote.how')}</p>
+          <QrCode value={url} label={t('remote.qr')} size={160} />
           <input className="grow" readOnly value={url} aria-label={t('remote.link')} onFocus={(e) => e.currentTarget.select()} />
         </>
       )}
@@ -116,30 +116,34 @@ export function AudioPlayer({ control, itemId, name }: { control: AudioControl; 
 }
 
 /**
- * Utgångar (spec 04 §1): the public outputs this window sends to, each with
- * how many watch, or which presentation sends to it now. Taking one from
- * another presentation asks first (LIVE-R23).
+ * Utgångar (spec 04 §1): the outputs this window sends to. Public outputs,
+ * each with how many watch; saved screens, which can be switched on only
+ * while their page is open (LIVE-A21); and temporary screens paired from
+ * here, with ✕ to let one go. Taking an output from another presentation
+ * asks first (LIVE-R23).
  */
 function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }) {
   const displays = useData(listDisplays, []);
-  const { sessions } = useLiveSessions(link);
+  const { sessions, online, screens } = useLiveSessions(link);
   const { dialog, ask } = useConfirm();
   const [chosen, setChosen] = useState(chosenOutputs);
+  const [pairing, setPairing] = useState(false);
   useEffect(() => {
     const on = () => setChosen(chosenOutputs());
     addEventListener(REMOTE_CHANGED, on);
     return () => removeEventListener(REMOTE_CHANGED, on);
   }, []);
-  if (!displays?.length) return null;
   const mine = sessions.find((s) => s.id === sessionId);
+  const temporary = screens.filter((x) => chosen.includes(x.id));
   return (
     <div className="card live-outputs">
       {dialog}
       <h2>{t('live.outputs')}</h2>
       <ul className="list" aria-label={t('live.outputs')}>
-        {displays.map((d) => {
+        {displays?.map((d) => {
           const elsewhere = sessions.find((s) => s.id !== sessionId && s.outputs.some((o) => o.id === d.id));
           const viewers = mine?.outputs.find((o) => o.id === d.id)?.viewers;
+          const offline = d.kind === 'screen' && !online.includes(d.id);
           const toggle = async (on: boolean) => {
             if (on && elsewhere) {
               const ok = await ask({
@@ -155,15 +159,26 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
           return (
             <li key={d.id} className="row">
               <label className="row grow">
-                <input type="checkbox" checked={chosen.includes(d.id) && !elsewhere} onChange={(e) => void toggle(e.target.checked)} />
+                <input type="checkbox" checked={chosen.includes(d.id) && !elsewhere && !offline} disabled={offline} onChange={(e) => void toggle(e.target.checked)} />
                 {d.name}
               </label>
-              {viewers !== undefined && <span className={viewers > 0 ? 'ok small' : 'muted small'}>{viewersText(viewers)}</span>}
+              {offline && <span className="muted small">{t('screens.offline')}</span>}
+              {d.kind === 'public' && viewers !== undefined && <span className={viewers > 0 ? 'ok small' : 'muted small'}>{viewersText(viewers)}</span>}
               {elsewhere && <span className="muted small">{t('displays.sending', { name: elsewhere.presentationName })}</span>}
             </li>
           );
         })}
+        {temporary.map((x) => (
+          <li key={x.id} className="row" aria-label={t('screens.temporary', { n: x.n })}>
+            <span className="grow">{t('screens.temporary', { n: x.n })}</span>
+            <Button aria-label={t('screens.disconnect', { n: x.n })} onClick={() => setOutput(x.id, false)}>
+              ✕
+            </Button>
+          </li>
+        ))}
       </ul>
+      <Button onClick={() => setPairing(true)}>{t('pairScreen.title')}</Button>
+      {pairing && <PairScreenDialog sessionId={sessionId} onClose={() => setPairing(false)} />}
     </div>
   );
 }

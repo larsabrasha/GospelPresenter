@@ -98,8 +98,17 @@ export async function pair(host: Page, device: Page, name: string, as?: string) 
   if (as) await choose.getByLabel('Logga in som').selectOption({ label: as });
   await choose.getByRole('button', { name: 'Visa kod' }).click();
   const code = (await host.getByTestId('pair-code').textContent())!.trim();
+  // On the LAN the dialog has a QR code too: the code rides in the fragment, and the device's form is filled from it.
+  const qr = host.getByRole('img', { name: 'QR-kod för att ansluta enheten' });
+  const link = (await qr.count()) ? await qr.getAttribute('data-value') : null;
   await host.getByRole('dialog', { name: 'Anslut enhet' }).getByRole('button', { name: 'Stäng' }).click();
-  await device.getByLabel('Kod').fill(code);
+  if (link) {
+    expect(link).toMatch(new RegExp(`^https?://[^/]+/#pair=${code}$`));
+    await device.goto(`${device.url().split('#')[0]}#pair=${code}`);
+    await device.reload();
+    await expect(device.getByLabel('Kod')).toHaveValue(code);
+    await expect.poll(() => new URL(device.url()).hash).toBe(''); // taken out of the address once read
+  } else await device.getByLabel('Kod').fill(code);
   await device.getByLabel('Enhetens namn').fill(name);
   await device.getByRole('button', { name: 'Anslut' }).click();
 }

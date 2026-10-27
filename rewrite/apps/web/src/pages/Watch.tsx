@@ -7,7 +7,7 @@ import { creditsCss, mainCss, stageCss } from '../themes.ts';
 type State = { kind: 'waiting' } | { kind: 'slide'; slide: PublicSlide } | { kind: 'full' } | { kind: 'not-found' };
 
 /** The tab's viewer id (LIVE-R36): 16 hex characters, kept for the tab, so a reload is counted once. */
-function viewerId(): string {
+export function viewerId(): string {
   const key = 'watch-viewer-id';
   try {
     const known = sessionStorage.getItem(key);
@@ -34,12 +34,13 @@ function PublicOverlay({ text }: { text: string | null }) {
   ) : null;
 }
 
-function PublicSlideView({ code, slide }: { code: string; slide: PublicSlide }) {
+/** A slide sent as data (spec 04 §5, §6); its picture is under `imageBase`, the output's own API path. */
+export function PublicSlideView({ imageBase, slide }: { imageBase: string; slide: PublicSlide }) {
   const theme = resolveTheme(slide.themeId, null);
   if (slide.kind === 'media') {
     return (
       <div className="watch-slide" style={stageCss(theme, 'media')}>
-        {slide.image && <img className="watch-image" src={`/api/watch/${encodeURIComponent(code)}/image/${slide.image}`} alt="" data-testid="watch-image" />}
+        {slide.image && <img className="watch-image" src={`${imageBase}/image/${slide.image}`} alt="" data-testid="watch-image" />}
         <PublicOverlay text={slide.overlay} />
       </div>
     );
@@ -94,7 +95,7 @@ export function Watch({ code }: { code: string }) {
             document.title = m.orgName || 'Gospel Presenter';
           } else if (m.type === 'slide') setState({ kind: 'slide', slide: m.slide });
           else if (m.type === 'idle') setState({ kind: 'waiting' });
-          else setState({ kind: 'full' });
+          else if (m.type === 'full') setState({ kind: 'full' });
         },
         notFound: () => setState({ kind: 'not-found' }),
       },
@@ -110,7 +111,7 @@ export function Watch({ code }: { code: string }) {
     };
   }, [code]);
 
-  if (state.kind === 'slide') return <PublicSlideView code={code} slide={state.slide} />;
+  if (state.kind === 'slide') return <PublicSlideView imageBase={`/api/watch/${encodeURIComponent(code)}`} slide={state.slide} />;
   return (
     <div className="watch-waiting" data-testid="watch-waiting">
       {state.kind === 'waiting' && (

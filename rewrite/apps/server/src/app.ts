@@ -13,6 +13,7 @@ import {
   MEDIA_HASH,
   MEDIA_LIMITS,
   mediaKey,
+  SCREEN_ID,
   ORPHAN_BLOBS_SQL,
   ORPHAN_GRACE_MS,
   recordMediaBlobSql,
@@ -232,7 +233,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
   return app;
 }
 
-/** A public output, found by its code (anonymous): its organisation's runtime and live hub. */
+/** An output, found by its code or a temporary screen's id (anonymous): its organisation's runtime and live hub. */
 export interface WatchTargetRuntime {
   org: Org;
   live: LiveHub;
@@ -240,6 +241,25 @@ export interface WatchTargetRuntime {
   orgName: string;
   displayId: string;
   code: string;
+}
+
+/**
+ * The three anonymous outputs (spec 04 §5, §6): a public output at
+ * `/api/watch/{code}`, a saved screen at `/api/display/{code}`, and a
+ * temporary screen at `/api/screen/{id}`, whose id is its secret.
+ */
+export type OutputKind = 'watch' | 'display' | 'screen';
+
+const OUTPUT_KEY: Record<OutputKind, RegExp> = { watch: DISPLAY_CODE, display: DISPLAY_CODE, screen: SCREEN_ID };
+
+/** The output's name, or null when the key no longer names an output of this kind (a new code, a deleted output, a released screen). */
+function outputName(kind: OutputKind, t: WatchTargetRuntime): string | null {
+  // A temporary screen was found paired in the global tables; the session that paired it may not have taken it in yet (a QR token).
+  if (kind === 'screen') return '';
+  const [d] = t.org.store.query('SELECT name FROM displays WHERE id = ? AND code = ? AND kind = ?', [t.displayId, t.code, kind === 'watch' ? 'public' : 'screen']) as {
+    name: string;
+  }[];
+  return d?.name ?? null;
 }
 
 /** How often an open stream is pinged (LIVE-R35). */
@@ -252,27 +272,35 @@ const PING_MS = 15_000;
  * screen (LIVE-R32).
  */
 export function watchRoutes(resolve: (c: Context, code: string) => Promise<WatchTargetRuntime | Response | null>, media: MediaStorage | null) {
+  return outputRoutes('watch', resolve, media);
+}
+
+/** A public output's routes, or a screen's: the same stream and pictures (spec 04 §5 renders as `/live` does). */
+export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string) => Promise<WatchTargetRuntime | Response | null>, media: MediaStorage | null) {
   const app = new Hono();
+  const base = `/api/${kind}/:code`;
+  const find = async (c: Context, key: string) => {
+    const t = OUTPUT_KEY[kind].test(key) ? await resolve(c, key) : null;
+    if (!t || t instanceof Response) return t;
+    const name = await t.org.queue.run(async () => outputName(kind, t));
+    return name === null ? null : { ...t, name };
+  };
 
   // Whether a code exists, for a page whose stream did not open; it registers no viewer.
-  app.get('/api/watch/:code/exists', async (c) => {
-    const code = c.req.param('code');
-    const t = DISPLAY_CODE.test(code) ? await resolve(c, code) : null;
+  app.get(`${base}/exists`, async (c) => {
+    const t = await find(c, (c.req.param('code') ?? ''));
     if (t instanceof Response) return t;
     return t ? c.json({ ok: true }) : c.json({ error: 'not-found' }, 404);
   });
 
-  app.get('/api/watch/:code/stream', async (c) => {
-    const code = c.req.param('code');
+  app.get(`${base}/stream`, async (c) => {
+    const code = (c.req.param('code') ?? '');
     const viewerId = c.req.query('v') ?? '';
     if (!/^[0-9a-f]{16}$/.test(viewerId)) return c.json({ error: 'viewer-id' }, 400);
-    const t = DISPLAY_CODE.test(code) ? await resolve(c, code) : null;
+    const t = await find(c, code);
     if (t instanceof Response) return t;
     if (!t) return c.json({ error: 'not-found' }, 404);
-    const [display] = (await t.org.queue.run(async () => t.org.store.query('SELECT name FROM displays WHERE id = ? AND code = ?', [t.displayId, code]))) as {
-      name: string;
-    }[];
-    if (!display) return c.json({ error: 'not-found' }, 404);
+    const display = { name: t.name };
     c.header('cache-control', 'no-cache, no-store');
     c.header('x-accel-buffering', 'no');
     return streamSSE(c, async (stream) => {
@@ -298,10 +326,10 @@ export function watchRoutes(resolve: (c: Context, code: string) => Promise<Watch
     });
   });
 
-  app.get('/api/watch/:code/image/:hash', async (c) => {
-    const code = c.req.param('code');
-    const hash = c.req.param('hash');
-    const t = DISPLAY_CODE.test(code) && MEDIA_HASH.test(hash) ? await resolve(c, code) : null;
+  app.get(`${base}/image/:hash`, async (c) => {
+    const code = (c.req.param('code') ?? '');
+    const hash = (c.req.param('hash') ?? '');
+    const t = MEDIA_HASH.test(hash) ? await find(c, code) : null;
     if (t instanceof Response) return t;
     if (!t || !media) return c.json({ error: 'not-found' }, 404);
     const shown = await t.org.queue.run(async () => {

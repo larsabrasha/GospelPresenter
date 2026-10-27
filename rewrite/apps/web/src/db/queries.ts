@@ -270,9 +270,9 @@ export async function blobUrl(db: ReadDb, hash: string): Promise<string | null> 
 
 /** The organisation's outputs, by name (spec 04 §7). */
 export async function listDisplays(db: ReadDb): Promise<Display[]> {
-  const rows = await db.query<{ id: string; name: string; code: string }>('SELECT id, name, code FROM displays');
+  const rows = await db.query<{ id: string; name: string; code: string; kind: string }>('SELECT id, name, code, kind FROM displays');
   return rows
-    .map((r) => ({ id: r.id, name: r.name, code: r.code, kind: 'public' as const }))
+    .map((r) => ({ id: r.id, name: r.name, code: r.code, kind: r.kind === 'screen' ? ('screen' as const) : ('public' as const) }))
     .toSorted((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id));
 }
 

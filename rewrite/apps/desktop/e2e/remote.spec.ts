@@ -48,6 +48,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   // Anna allows it; the card appears on Bo's computer without a reload.
   await page.getByLabel('Tillåt fjärrstyrning').check();
   await expect(page.getByLabel('Länk för fjärrstyrning')).toHaveValue(/\/live\/[\w-]+\?remote=1&session=[\w-]+$/);
+  await expect(page.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveAttribute('data-value', await page.getByLabel('Länk för fjärrstyrning').inputValue());
   const card = secondApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
   await expect(card).toContainText('Visas just nu · Söndag', { timeout: 5_000 });
   await card.getByRole('link', { name: 'Ta kontroll' }).click();

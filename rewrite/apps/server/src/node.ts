@@ -13,7 +13,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
-import { syncRoutes, watchLocked, watchRoutes, type Org } from './app.ts';
+import { outputRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
 import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth.ts';
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
@@ -22,6 +22,8 @@ import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
 import { forwardedClient, trustedProxies } from './proxy.ts';
+import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
+import { ScreenRegistry } from './screens.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
@@ -234,6 +236,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   await migrateGlobal(globalSql);
   const accounts = new Accounts(globalSql, { sessionIdleMs: opts.sessionIdleMs });
   const watch = new WatchRegistry(globalSql);
+  const screens = new ScreenRegistry(globalSql);
   const setupToken = opts.setupToken ?? newSecret('gpst_');
   const orgs = new Map<string, Org & { file: SqliteFile; sockets: Map<WebSocket, string>; live: LiveHub; liveSockets: Map<WebSocket, LiveSocket> }>();
 
@@ -249,7 +252,15 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       }, opts.pokeWindowMs);
       const store = nodeOrgStore(file);
       const liveSockets = new Map<WebSocket, LiveSocket>();
-      org = { file, store, queue: new SerialQueue(), poke, sockets, live: new LiveHub(store, () => [...liveSockets.values()]), liveSockets };
+      const queue = new SerialQueue();
+      const live = new LiveHub(
+        store,
+        () => [...liveSockets.values()],
+        Date.now,
+        (ids) => void screens.release(ids).catch(() => undefined),
+        (fn, ms) => setTimeout(() => void queue.run(async () => fn()).catch(() => undefined), ms),
+      );
+      org = { file, store, queue, poke, sockets, live, liveSockets };
       orgs.set(orgId, org);
     }
     return org;
@@ -277,23 +288,38 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     }),
   );
   const media = opts.media ?? diskStorage(join(opts.dataDir, 'media'));
+  // Public outputs and saved screens are found by their code, temporary screens by their id (spec 04 §5, §6).
+  for (const kind of ['watch', 'display'] as const) {
+    app.route(
+      '/',
+      outputRoutes(kind, async (c, code) => {
+        const t = await lookupThrottled(watch, accounts, code, clientAddress(c));
+        if (t && 'lockedUntil' in t) return watchLocked(t.lockedUntil);
+        if (!t) return null;
+        const org = openOrg(t.orgId);
+        return { org, live: org.live, orgId: t.orgId, orgName: t.orgName, displayId: t.displayId, code };
+      }, media),
+    );
+  }
   app.route(
     '/',
-    watchRoutes(async (c, code) => {
-      const t = await lookupThrottled(watch, accounts, code, clientAddress(c));
-      if (t && 'lockedUntil' in t) return watchLocked(t.lockedUntil);
+    outputRoutes('screen', async (_c, id) => {
+      const t = await screens.orgOf(id);
       if (!t) return null;
       const org = openOrg(t.orgId);
-      return { org, live: org.live, orgId: t.orgId, orgName: t.orgName, displayId: t.displayId, code };
+      return { org, live: org.live, orgId: t.orgId, orgName: t.orgName, displayId: id, code: id };
     }, media),
   );
+  const resolveCaller = async (c: Context) => {
+    const caller = await authenticate(c.req.raw, accounts);
+    if (caller instanceof Response) return caller;
+    return { caller, org: openOrg(caller.orgId) };
+  };
+  app.route('/', screenStartRoutes({ screens, accounts, clientAddress }));
+  app.route('/', screenPairRoutes(resolveCaller, { screens, accounts, clientAddress }));
   app.route(
     '/',
-    syncRoutes(async (c) => {
-      const caller = await authenticate(c.req.raw, accounts);
-      if (caller instanceof Response) return caller;
-      return { caller, org: openOrg(caller.orgId) };
-    }, {
+    syncRoutes(resolveCaller, {
       debug: !!opts.debug,
       media,
       mediaGraceMs: opts.mediaGraceMs,

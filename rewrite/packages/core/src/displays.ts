@@ -1,5 +1,7 @@
-// Outputs (spec 04 "Outputs", LIVE-R30): what a presentation can send to.
-// So far a public output, which anyone opens at `/watch/{code}`.
+// Outputs (spec 04 "Outputs", LIVE-R30): what a presentation can send to. A
+// public output, which anyone opens at `/watch/{code}`; a saved screen, which
+// a TV opens at `/display?id={code}`; and a temporary screen, paired for the
+// session with a four-digit code or a QR token (spec 04 §5, LIVE-R28).
 
 /** Lower-case letters and digits that are not easily confused (no i, l, o, 0, 1). */
 export const DISPLAY_CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -20,3 +22,12 @@ export function displayCode(random: (n: number) => Uint8Array): string {
   }
   return code;
 }
+
+/** A temporary screen's id: 32 random bytes, base64url. It is the screen's only credential. */
+export const SCREEN_ID = /^[A-Za-z0-9_-]{43}$/;
+/** A QR pairing token (LIVE-R28): 32 random bytes, base64url. */
+export const SCREEN_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+/** A pairing code (LIVE-R28): four digits in [1000, 9998]. */
+export const SCREEN_PIN = /^\d{4}$/;
+/** How long a pairing code or a QR token is good for (LIVE-R28). */
+export const SCREEN_PAIRING_MS = 10 * 60_000;

@@ -155,16 +155,17 @@ export const overlays = sqliteTable('overlays', {
 });
 
 /**
- * An output a presentation can send to (spec 04 `RemoteDisplay`): so far only
- * a public output, which anyone opens at `/watch/{code}` (LIVE-R30). The code
- * is registered with the server's global tables, so an anonymous viewer finds
- * the organisation by it.
+ * An output a presentation can send to (spec 04 `RemoteDisplay`): a public
+ * output, which anyone opens at `/watch/{code}` (LIVE-R30), or a saved screen,
+ * a TV that opens `/display?id={code}` (spec 04 §5). The code is registered
+ * with the server's global tables, so an anonymous page finds the
+ * organisation by it.
  */
 export const displays = sqliteTable('displays', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   code: text('code').notNull(),
-  kind: text('kind', { enum: ['public'] }).notNull(),
+  kind: text('kind', { enum: ['public', 'screen'] }).notNull(),
 });
 
 /** The organisation's settings, one row each: `defaultThemeId` so far (THEME-R4). */
@@ -257,7 +258,7 @@ export type LibraryAudio = typeof audios.$inferSelect;
 export type Overlay = typeof overlays.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
 const bibleDdl = [
@@ -335,6 +336,8 @@ export const orgMigrations: Record<number, string[]> = {
   6: audioDdl,
   7: pinDdl,
   8: [...overlayDdl, `ALTER TABLE presentation_items ADD COLUMN overlay_id TEXT`],
+  // Saved screens are `displays` of kind 'screen': no new column, but an older app would list them as public outputs.
+  9: [],
 };
 
 /** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */

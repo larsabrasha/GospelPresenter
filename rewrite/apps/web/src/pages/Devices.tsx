@@ -5,6 +5,7 @@ import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
 import { Button } from '../ui/Button.tsx';
 import { Dialog, useConfirm } from '../ui/Dialog.tsx';
+import { QrCode } from '../ui/QrCode.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
 const when = (ms: number) => new Date(ms).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
@@ -76,6 +77,8 @@ function PairCodeDialog({ code, expiresAt, name, onClose }: { code: string; expi
       <p className={expired ? 'pair-code-show muted' : 'pair-code-show'} data-testid="pair-code">
         {code}
       </p>
+      {/* The code goes in the fragment, which no server sees; the tablet's pairing page reads it from there. */}
+      {!!urls?.length && !expired && <QrCode value={`${urls[0]}/#pair=${code}`} label={t('devices.qr')} size={180} />}
       {urls?.length ? urls.map((url) => <p key={url}>{t('devices.openOn', { url })}</p>) : urls && <p className="muted small">{t('devices.lanOff')}</p>}
       <div className="row end">
         <Button variant="primary" onClick={onClose}>

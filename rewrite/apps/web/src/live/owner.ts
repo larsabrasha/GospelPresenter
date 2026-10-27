@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { toPublicSlide, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
-import { getOverlay, getPresentation, itemsOf, shownOverlay, themeOf } from '../db/queries.ts';
+import { getOverlay, getPresentation, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import { slidesOf, type LiveChannel } from './live.ts';
 import type { AudioEngine } from './audio.ts';
@@ -60,6 +60,26 @@ export function setOutput(id: string, on: boolean, take = false) {
     // no storage: the choice lasts for this page only
   }
   dispatchEvent(new Event(REMOTE_CHANGED));
+}
+
+/**
+ * Screens this window saw online or paired, so a screen that is switched on
+ * the moment it is paired is not taken for one that went away.
+ */
+const seen = new Set<string>();
+
+/**
+ * The chosen screens that went away: a saved screen whose page closed
+ * (LIVE-A20), a temporary screen that is no longer paired. Only one seen
+ * online or paired before, so a choice the server has not caught up with
+ * yet stays.
+ */
+export function goneScreens(link: Pick<LiveLink, 'online' | 'screens'>, savedScreens: Set<string>): string[] {
+  const here = new Set([...link.online.filter((id) => savedScreens.has(id)), ...link.screens.map((x) => x.id)]);
+  const gone = chosen.filter((id) => seen.has(id) && !here.has(id));
+  for (const id of here) seen.add(id);
+  for (const id of gone) seen.delete(id);
+  return gone;
 }
 
 /** The chosen outputs another session sends to, which this one did not ask to take over. */
@@ -143,7 +163,15 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       if (p.itemId === change.itemId && p.partIndex === change.partIndex && p.black === change.black && sameOverlay) return;
       live.set(change);
     });
-    const offSessions = link.subscribe(() => settleTakeOver(link.sessions, sessionId));
+    const offSessions = link.subscribe(() => {
+      settleTakeOver(link.sessions, sessionId);
+      // Every snapshot (viewer counts too) lands here: read the outputs only when one is chosen, which could go.
+      if (!chosen.length) return;
+      void listDisplays(db).then((displays) => {
+        const saved = new Set(displays.filter((d) => d.kind === 'screen').map((d) => d.id));
+        for (const id of goneScreens(link, saved)) setOutput(id, false);
+      });
+    });
     // The audio plays here; what it does reaches the controllers with the next report.
     const offAudio = audio.subscribe(again);
     const offAudioCommand = link.onAudioCommand((target, command) => {

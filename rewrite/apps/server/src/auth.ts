@@ -99,6 +99,8 @@ export async function deviceOf(req: Request, accounts: Accounts, pairing: Pairin
   return (await accounts.pairedDevice(device)) ? 'paired' : null;
 }
 
+/** The anonymous outputs (spec 04 §5, §6): public outputs, saved screens and temporary screens. */
+const ANONYMOUS_PREFIXES = ['/api/watch/', '/api/display/', '/api/screen/'];
 /** Paths an unpaired device may reach: the pairing itself. Everything outside the API is the static app. */
 const OPEN_PATHS = new Set(['/api/pair/status', '/api/pair/claim']);
 /**
@@ -129,8 +131,8 @@ export function isLoopback(address: string): boolean {
 /** Refuses every API request from a device that is not paired, before anything else runs. */
 export function pairingGuard(accounts: Accounts, pairing: Pairing, clientAddress: (c: Context) => string): MiddlewareHandler {
   return async (c, next) => {
-    // Public outputs are for anyone on the LAN, paired or not (spec 04 §6).
-    if (!isApiPath(c.req.path) || OPEN_PATHS.has(c.req.path) || c.req.path.startsWith('/api/watch/')) return next();
+    // Public outputs and screens are for anyone on the LAN, paired or not (spec 04 §5, §6): a TV is no device that signs in.
+    if (!isApiPath(c.req.path) || OPEN_PATHS.has(c.req.path) || ANONYMOUS_PREFIXES.some((p) => c.req.path.startsWith(p)) || c.req.path === '/api/screen') return next();
     if (LOOPBACK_PATHS.has(c.req.path) && isLoopback(clientAddress(c))) return next();
     if (!(await deviceOf(c.req.raw, accounts, pairing))) return c.json({ error: 'device-not-paired' satisfies AuthError }, 403);
     return next();

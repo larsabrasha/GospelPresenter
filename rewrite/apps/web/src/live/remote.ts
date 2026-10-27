@@ -6,6 +6,7 @@ import {
   type LiveOwnState,
   type LivePointer,
   type LivePointerChange,
+  type LiveScreen,
   type LiveServerMessage,
   type LiveSessionInfo,
 } from '@gp/core';
@@ -49,6 +50,10 @@ export function remoteAllowed(): boolean {
 
 export class LiveLink {
   sessions: LiveSessionInfo[] = [];
+  /** The outputs with a page open on them (a saved screen can be switched on only then). */
+  online: string[] = [];
+  /** The temporary screens paired with the organisation (spec 04 §5). */
+  screens: LiveScreen[] = [];
   connected = false;
   private ws: WebSocket | null = null;
   private attempt = 0;
@@ -85,6 +90,8 @@ export class LiveLink {
       }
       if (m.type === 'sessions') {
         this.sessions = m.sessions;
+        this.online = m.online;
+        this.screens = m.screens;
         this.notify();
       } else if (m.type === 'command') for (const fn of this.commandListeners) fn(m.sessionId, m.change);
       else if (m.type === 'audio-command') for (const fn of this.audioListeners) fn(m.sessionId, m.command);
@@ -171,10 +178,10 @@ export class LiveLink {
 }
 
 /** The organisation's live sessions, as they change, and whether this window's socket is up. */
-export function useLiveSessions(link: LiveLink): { sessions: LiveSessionInfo[]; connected: boolean } {
-  const [value, setValue] = useState(() => ({ sessions: link.sessions, connected: link.connected }));
+export function useLiveSessions(link: LiveLink): { sessions: LiveSessionInfo[]; connected: boolean; online: string[]; screens: LiveScreen[] } {
+  const [value, setValue] = useState(() => ({ sessions: link.sessions, connected: link.connected, online: link.online, screens: link.screens }));
   useEffect(() => {
-    const read = () => setValue({ sessions: link.sessions, connected: link.connected });
+    const read = () => setValue({ sessions: link.sessions, connected: link.connected, online: link.online, screens: link.screens });
     const off = link.subscribe(read);
     read(); // a list that arrived between the render and this subscription would otherwise be missed until the next one
     return off;

@@ -29,6 +29,12 @@ export type Route =
   | { page: 'displays' }
   /** A public output (spec 04 §6): anonymous, no database. */
   | { page: 'watch'; code: string }
+  /**
+   * A paired screen (spec 04 §5): anonymous, no database. `id` and `name` for
+   * a saved screen (`/display?id={code}&name={name}`); without them a
+   * temporary screen, which `token` (from the operator's QR code) pairs at once.
+   */
+  | { page: 'display'; id: string | null; name: string | null; token: string | null }
   | { page: 'themes' }
   /** The signed-in user's own ways to sign in; `error` when linking Google was refused. */
   | { page: 'logins'; error: string | null }
@@ -90,6 +96,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   if (first === 'signin') return { page: 'signIn', error: query.get('error') };
   if (first === 'output') return { page: 'output' };
   if (first === 'watch' && id) return { page: 'watch', code: id };
+  if (first === 'display') return { page: 'display', id: query.get('id'), name: query.get('name'), token: query.get('token') };
   if (first === 'logins') return { page: 'logins', error: query.get('error') };
   if (first === 'presentations') return { page: 'presentations' };
   return { page: 'songs' };
@@ -114,6 +121,13 @@ export function href(r: Route): string {
       return r.kind ? `/trash?kind=${r.kind}` : '/trash';
     case 'watch':
       return `/watch/${encodeURIComponent(r.code)}`;
+    case 'display': {
+      const q = new URLSearchParams();
+      if (r.id) q.set('id', r.id);
+      if (r.name) q.set('name', r.name);
+      if (r.token) q.set('token', r.token);
+      return q.size ? `/display?${q}` : '/display';
+    }
     case 'invite':
       return `/invite#${encodeURIComponent(r.token)}`;
     case 'signedIn':

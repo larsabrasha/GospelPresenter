@@ -371,6 +371,49 @@ running order and the live page name the overlay an item carries.
 data, else once a presentation is open, since any overlay can be switched on during live. "Alla bilder och ljud
 finns på den här enheten" counts them.
 
+### Paired screens
+
+A TV or a PC in the church opens `/display` at the server, the cloud's or the desktop host's, and shows a
+session (spec 04 §5). It signs in to nothing and is no paired device; on a desktop host `/api/display/` and
+`/api/screen` answer it like `/api/watch/`. Spec 04 has paired screens on the web host only (LIVE-R52); Lars
+chose on 2026-10-27 to have them on the desktop host too, so a TV on the church's LAN works without the
+internet. A screen renders as a public output does, from the slide as data (`PublicSlideView`, D25), and like
+every output never shows an error or reconnection screen (LIVE-R33). Two kinds:
+
+- **A saved screen** is a row in `displays` of kind `screen` (organisation schema 9, no new column; an older
+  app must update first, since it would list it as a public output). An admin adds it under Skärmar → Skärmar
+  ("Lägg till"), and the TV opens its link, `/display?id={code}&name={name}`, as a QR code or text. Its code
+  is in the global index with the public outputs' (`watch_codes`), but each answers at its own path only. It is
+  online while its page has a stream open (`/api/display/{code}/stream`); the live hub sends every socket which
+  outputs are online, so Skärmar shows Online or Offline and Utgångar can switch it on only then (LIVE-A21). A
+  page that closes switches it off (LIVE-R24, LIVE-A20), once it has not come back for 15 s
+  (`SCREEN_GRACE_MS`): a TV whose Wi-Fi blinks reconnects within that and stays on, and Lars chose on
+  2026-10-27 that a blink should not count as a closed page. Unbound, it shows its name.
+- **A temporary screen** is paired for one session. `/display` asks `POST /api/screen` for a code: four digits
+  in [1000, 9998], unique among live codes, good for 10 minutes and single use (LIVE-R28), and asks again every
+  3 s until paired, getting a new code once the old one has run out. Its id is 32 random bytes, kept in the
+  tab (`sessionStorage`), and is its only credential (ADR 0007 decision 5). Since an unpaired screen belongs to
+  no organisation, it lives in the global tables (`screens`, `screen_tokens`, global schema 6), and a stream is
+  found by its id at `/api/screen/{id}/stream`. "Anslut tillfällig skärm" under Utgångar pairs it, by the four
+  digits typed into four boxes (`POST /api/live/screens/claim`; a wrong code counts against the address with
+  the setup token and device pairing codes), or by a QR code of `/display?token={token}`: 32 random bytes,
+  single use, 10 minutes, renewed every 8 minutes while the dialog is open and dropped when it closes. The TV
+  that opens it is paired at once and its address becomes `/display`; the dialog learns which screen used the
+  token by asking every 2 s. Either way the screen is switched on, as "Tillfällig skärm (n)". ✕, or the end of
+  the session, lets it go: the TV gets `unpaired` and shows a new code. A screen nobody pairs is forgotten after
+  a day. Making screens counts against the address too (30 in 15 minutes), so one machine cannot fill the table.
+
+The other QR codes: a public output's (Visa QR-kod, with "Ladda ner som bild": `qr-{code}.png`, 24 pixels per
+module, error correction M), remote control's on the live page, and device pairing's under Enheter (on the
+LAN), whose code rides in the fragment, `/#pair={code}`, so no server sees it; the pairing page fills its form
+from it and takes it out of the address. They are drawn in the page with `uqr` (no service sees a link), and
+built against the host's LAN address on a desktop host.
+
+Tested in `apps/server/test/screens.test.ts` (three adapters: code, QR token, single use, letting go, a saved
+screen online and off, another organisation) and `apps/desktop/e2e/screens.spec.ts` (LIVE-A17 to A21, a TV
+played by Playwright's Chromium); the QR codes in `watch.spec.ts`, `remote.spec.ts` and, through `pair()`,
+`https.spec.ts`.
+
 ### Which files a device keeps
 
 Every device has every row, but not every file (`syncMedia` and `MediaPolicy` in
@@ -591,17 +634,17 @@ audio, files by need, https on the LAN), are on branch `claude/milestone-1`, whi
 0007 and spec (decisions up to D32); `claude/rewrite-behavior-spec` is behind it. Overlays, the first step agreed
 on 2026-10-27, are built (see "Overlays"), and so are the second, starting the app on a tablet without the host
 (see "Starting the app without the host"), and the third, the client's address behind a reverse proxy (see
-"Behind a reverse proxy"). The rest, in this order:
+"Behind a reverse proxy"), and the fourth, paired screens and the QR codes (see "Paired screens"). The rest, in
+this order:
 
-1. **Paired screens** (`/display`, spec 04 §5) and QR codes for public outputs, remote control and pairing.
-2. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
-3. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
+1. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
+2. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
    deleted, as the sync spike did. Still unproven there: migrating an existing Durable Object (schema and
    triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys, Google sign-in against a real Google client,
    R2 as the media storage (tested against Miniflare's R2 only), live sockets in a hibernating Durable Object,
    and the Worker serving the web app (it serves no static files yet; when it does, `/sw.js` and index.html
    need `no-cache` there too).
-4. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
+3. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
    (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app for tablets
    (ADR 0007 (7)), Android first and iOS later. Lars has said the Capacitor app need not come early: https on
    the LAN covers tablets for now.
@@ -647,14 +690,21 @@ on Cloudflare serves no static files, so there is no worker there yet.
 From audio: HTTP Range on `/api/media`
 (MEDIA-R9: clients play their own copies, so nothing asks for it yet); an item with several files.
 
-From spec 04's public outputs: the QR code and "Ladda ner som bild" (the link is shown to copy); paired
-screens, so Skärmar has only public outputs; the Worker serves no static files yet, so on Cloudflare
-`/watch/{code}` has no page, though its API works; a viewer whose network is slow gets every event in turn
+From spec 04's public outputs: the Worker serves no static files yet, so on Cloudflare
+`/watch/{code}` and `/display` have no page, though its API works; a viewer whose network is slow gets every event in turn
 rather than only the newest (the stream is not a one-slot queue); the 500-viewer cap is not tested; texts are
 Swedish only, not per Accept-Language. A Durable Object with open streams does not hibernate; spec 04 and
 ADR 0007 leave a Durable Object per output for when that matters.
 
-From spec 04's remote control: the QR code (the link is shown to copy); `?stage=true` in the link; the
+From spec 04's paired screens: the 4-hour idle unbinding of LIVE-R43; a screen gets what a public output gets,
+so an overlay's picture is not shown, only its text; a saved screen
+bound to a session that is not live shows its name rather than plain black. In local workerd a closed stream is
+never noticed, not even when a ping is written: a saved screen stays Online and a public output's viewer stays
+counted after the page has closed (on Node both go at once); whether Cloudflare itself notices is not known. A
+four-digit code is unique across every organisation on the server: 8 999 at a time, plenty on a desktop host,
+few on a shared cloud. Not tested on a real TV browser.
+
+From spec 04's remote control: `?stage=true` in the link; the
 4-hour idle eviction of LIVE-R42 (only an abandoned session, 2 hours without its owner, is ended); the
 superadmin's Aktiva sessioner. A session id is per window
 (kept for the tab's life), also in the desktop app, rather than derived from the device token (spec 04): a
@@ -686,7 +736,7 @@ profiles and profile images, `/settings` and the
 language switch; organisations other than the one setup makes, the SuperAdmin switcher and super admin
 pages; a user in several organisations (D1 leaves it for later); listing and revoking your own
 devices' sessions (D23; removing the user or pairing again are the ways today); `/admin/devices`;
-MCP keys and calendar feeds; the welcome modal; a QR code for pairing (the code is typed); closing
+MCP keys and calendar feeds; the welcome modal; closing
 an open poke socket when its session is revoked (it receives only sequence numbers until it closes,
 and its next sync is refused); behind a reverse proxy, `X-Forwarded-Proto` and `X-Forwarded-Host`
 (the Google redirect URI then needs `GP_GOOGLE_REDIRECT_BASE_URL`; see "Behind a reverse proxy").

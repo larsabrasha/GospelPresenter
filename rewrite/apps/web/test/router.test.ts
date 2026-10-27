@@ -32,6 +32,9 @@ describe('routes', () => {
       { page: 'themes' },
       { page: 'displays' },
       { page: 'watch', code: 'abcdefg' },
+      { page: 'display', id: null, name: null, token: null },
+      { page: 'display', id: 'abcdefg', name: 'Kyrksal & co', token: null },
+      { page: 'display', id: null, name: null, token: 'Ab-_1' },
       { page: 'logins', error: null },
       { page: 'logins', error: 'login-taken' },
       { page: 'invite', token: 'gpin_abc-_123' },
@@ -51,6 +54,9 @@ describe('routes', () => {
     expect(href({ page: 'invite', token: 'gpin_x' })).toBe('/invite#gpin_x');
     expect(read('/invite')).toEqual({ page: 'songs' }); // an invite page without its token is nothing
     expect(read('/invite/gpin_x')).toEqual({ page: 'songs' });
+    // A saved screen's link, and a temporary screen's (spec 04 §5, §8).
+    expect(href({ page: 'display', id: 'abcdefg', name: 'Kyrksal', token: null })).toBe('/display?id=abcdefg&name=Kyrksal');
+    expect(href({ page: 'display', id: null, name: null, token: null })).toBe('/display');
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {

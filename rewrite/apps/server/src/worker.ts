@@ -1,8 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
-import { syncRoutes, watchLocked, watchRoutes, type Org } from './app.ts';
+import { outputRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
 import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
@@ -10,6 +10,8 @@ import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { r2Storage, type R2Like } from './media.ts';
 import { Passkeys } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
+import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
+import { ScreenRegistry } from './screens.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 interface Env {
@@ -83,15 +85,24 @@ export class OrgDurableObject extends DurableObject<Env> {
     }, Number(env.POKE_WINDOW_MS ?? 500));
     const store = durableSqliteStore(ctx.storage);
     // Which socket owns which session lives on the socket, so it survives hibernation.
-    this.live = new LiveHub(store, () => ctx.getWebSockets('live').map(liveSocket));
-    this.org = { store, queue: new SerialQueue(), poke, live: this.live };
+    const screens = new ScreenRegistry(d1Sql(env.DB));
+    const queue = new SerialQueue();
+    this.live = new LiveHub(
+      store,
+      () => ctx.getWebSockets('live').map(liveSocket),
+      Date.now,
+      (ids) => void screens.release(ids).catch(() => undefined),
+      (fn, ms) => setTimeout(() => void queue.run(async () => fn()).catch(() => undefined), ms),
+    );
+    this.org = { store, queue, poke, live: this.live };
     // The Worker has authenticated the caller against D1 and passes the result in headers.
-    this.app = syncRoutes(async (c) => {
+    const resolveCaller = async (c: Context) => {
       const userId = c.req.header('x-user')!;
       const role = c.req.header('x-role') as Role;
       // Sync needs neither when the session signed in nor how: those matter only to the auth routes.
       return { caller: { orgId: c.req.header('x-org')!, sessionId: '', ctx: { userId, role }, signedInAt: 0, paired: true }, org: this.org };
-    }, {
+    };
+    this.app = syncRoutes(resolveCaller, {
       debug: env.SPIKE_DEBUG === '1',
       media: env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null,
       mediaGraceMs: env.MEDIA_GRACE_MS ? Number(env.MEDIA_GRACE_MS) : undefined,
@@ -99,21 +110,25 @@ export class OrgDurableObject extends DurableObject<Env> {
       watch: new WatchRegistry(d1Sql(env.DB)),
     });
     const media = env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null;
-    // A public output: the Worker found the code in D1 and names the output in headers.
-    this.app.route(
-      '/',
-      watchRoutes(async (c, code) => {
-        if (c.req.header('x-code') !== code) return null;
-        return {
-          org: this.org,
-          live: this.live,
-          orgId: c.req.header('x-org')!,
-          orgName: decodeURIComponent(c.req.header('x-org-name') ?? ''),
-          displayId: c.req.header('x-display')!,
-          code,
-        };
-      }, media),
-    );
+    // An output: the Worker found the code (or a temporary screen's id) in D1 and names the output in headers.
+    for (const kind of ['watch', 'display', 'screen'] as const) {
+      this.app.route(
+        '/',
+        outputRoutes(kind, async (c, code) => {
+          if (c.req.header('x-code') !== code) return null;
+          return {
+            org: this.org,
+            live: this.live,
+            orgId: c.req.header('x-org')!,
+            orgName: decodeURIComponent(c.req.header('x-org-name') ?? ''),
+            displayId: c.req.header('x-display')!,
+            code,
+          };
+        }, media),
+      );
+    }
+    const clientAddress = (c: Context) => c.req.header('cf-connecting-ip') ?? 'unknown';
+    this.app.route('/', screenPairRoutes(resolveCaller, { screens, accounts: new Accounts(d1Sql(env.DB)), clientAddress }));
     this.app.get('/api/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
     this.app.get('/api/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
   }
@@ -282,20 +297,37 @@ worker.get('/api/debug/d1-triggers', async (c) => {
 
 // Sign-in and users are answered here, against D1. Everything for an
 // organisation is authenticated against D1, then handed to its Durable Object.
-// Public outputs (spec 04 §6): anonymous. The code names the organisation and the output.
-worker.get('/api/watch/:code/*', async (c) => {
-  const { accounts } = await globals(c.env); // the global tables are migrated before the first lookup
-  const target = await lookupThrottled(new WatchRegistry(d1Sql(c.env.DB)), accounts, c.req.param('code'), c.req.header('cf-connecting-ip') ?? 'unknown');
-  if (target && 'lockedUntil' in target) return watchLocked(target.lockedUntil);
-  if (!target) return c.json({ error: 'not-found' }, 404);
+// Public outputs and saved screens (spec 04 §5, §6): anonymous. The code names the organisation and the output.
+const toOutput = (c: Context<{ Bindings: Env }>, target: { orgId: string; orgName: string; displayId: string }, key: string) => {
   const stub = c.env.ORG.get(c.env.ORG.idFromName(target.orgId));
   const headers = new Headers(c.req.raw.headers);
   for (const h of ['x-user', 'x-role']) headers.delete(h);
   headers.set('x-org', target.orgId);
   headers.set('x-display', target.displayId);
   headers.set('x-org-name', encodeURIComponent(target.orgName));
-  headers.set('x-code', c.req.param('code'));
+  headers.set('x-code', key);
   return stub.fetch(new Request(c.req.raw, { headers }));
+};
+for (const kind of ['watch', 'display']) {
+  worker.get(`/api/${kind}/:code/*`, async (c) => {
+    const { accounts } = await globals(c.env); // the global tables are migrated before the first lookup
+    const target = await lookupThrottled(new WatchRegistry(d1Sql(c.env.DB)), accounts, c.req.param('code'), c.req.header('cf-connecting-ip') ?? 'unknown');
+    if (target && 'lockedUntil' in target) return watchLocked(target.lockedUntil);
+    if (!target) return c.json({ error: 'not-found' }, 404);
+    return toOutput(c, target, c.req.param('code'));
+  });
+}
+// A temporary screen (spec 04 §5): its id, a secret, names the organisation it is paired with.
+worker.get('/api/screen/:id/*', async (c) => {
+  await globals(c.env);
+  const target = await new ScreenRegistry(d1Sql(c.env.DB)).orgOf(c.req.param('id'));
+  if (!target) return c.json({ error: 'not-found' }, 404);
+  return toOutput(c, { ...target, displayId: c.req.param('id') }, c.req.param('id'));
+});
+worker.post('/api/screen', async (c) => {
+  const { accounts } = await globals(c.env);
+  const screens = new ScreenRegistry(d1Sql(c.env.DB));
+  return screenStartRoutes({ screens, accounts, clientAddress: (x) => x.req.header('cf-connecting-ip') ?? 'unknown' }).fetch(c.req.raw);
 });
 
 worker.all('*', async (c) => {

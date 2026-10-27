@@ -14,7 +14,7 @@ export interface StreamSource {
 
 export interface StreamDeps {
   open(url: string): StreamSource;
-  /** The status of `/api/watch/{code}/exists`, or null when the server cannot be reached. */
+  /** The status of the output's `/exists`, or null when the server cannot be reached. */
   exists(): Promise<number | null>;
   later(fn: () => void, ms: number): unknown;
 }
@@ -40,11 +40,11 @@ export function followStream(
     if (stopped) return;
     const s = deps.open(url);
     source = s;
-    for (const type of ['meta', 'slide', 'idle', 'full']) {
+    for (const type of ['meta', 'slide', 'idle', 'full', 'unpaired']) {
       s.addEventListener(type, (e) => {
         const m = JSON.parse(e.data) as WatchEvent;
         on.event(m);
-        if (m.type === 'full') stop(); // too many watching: do not hammer the server
+        if (m.type === 'full' || m.type === 'unpaired') stop(); // too many watching, or let go: do not hammer the server
       });
     }
     s.addEventListener('open', () => (attempt = 0));

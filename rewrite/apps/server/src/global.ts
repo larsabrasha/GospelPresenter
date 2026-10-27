@@ -44,7 +44,7 @@ export interface GlobalSql {
 }
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 5;
+export const GLOBAL_SCHEMA_VERSION = 6;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -152,7 +152,17 @@ function pairCodesDdl() {
  */
 const watchCodesDdl = `CREATE TABLE IF NOT EXISTS watch_codes (code TEXT PRIMARY KEY NOT NULL, org_id TEXT NOT NULL, display_id TEXT NOT NULL)`;
 
-export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl];
+/**
+ * Temporary screens (spec 04 §5, LIVE-R28) across organisations: a TV that
+ * opened `/display` has no organisation until someone pairs it, by its code or
+ * by a QR token. `id` is the screen's secret; `org_id` is set once paired.
+ */
+const screensDdl = [
+  `CREATE TABLE IF NOT EXISTS screens (id TEXT PRIMARY KEY NOT NULL, pin TEXT UNIQUE, pin_expires INTEGER, org_id TEXT, created_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS screen_tokens (token TEXT PRIMARY KEY NOT NULL, org_id TEXT NOT NULL, expires INTEGER NOT NULL, screen_id TEXT)`,
+];
+
+export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl];
 
 export const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that
@@ -182,6 +192,7 @@ export const globalMigrations: Record<number, string[]> = {
     ...passkeyFlowDdl,
   ],
   5: [watchCodesDdl],
+  6: screensDdl,
 };
 
 /** What to run to bring a global database to GLOBAL_SCHEMA_VERSION; `version` is null without a row. */
@@ -218,6 +229,8 @@ export const THROTTLE = {
   address: { free: 20, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
   /** Per address: slows one machine guessing public output codes (`/api/watch/`). Only unknown codes count. */
   watch: { free: 20, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
+  /** Per address: slows one machine making temporary screens, each a row until it is paired or a day old. */
+  screen: { free: 30, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
 } satisfies Record<string, ThrottlePolicy>;
 
 /** A sign-in that left for Google, as the callback finds it. */

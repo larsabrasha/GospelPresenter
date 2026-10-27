@@ -893,7 +893,7 @@ async function requireFreeCode(tx: Tx, code: string, exceptId: string | null) {
   if (taken && taken.id !== exceptId) throw new MutationError('code-taken', 'the code is in use');
 }
 
-const createDisplayArgs = z.object({ id, name, code: displayCode, kind: z.enum(['public']) });
+const createDisplayArgs = z.object({ id, name, code: displayCode, kind: z.enum(['public', 'screen']) });
 /** Creates an output (LIVE-R30). The code comes from the caller; the server registers it globally after the push. */
 async function createDisplay(tx: Tx, a: z.output<typeof createDisplayArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageRemoteDisplays');

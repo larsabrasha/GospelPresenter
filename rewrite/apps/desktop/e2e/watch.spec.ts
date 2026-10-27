@@ -24,6 +24,11 @@ test('a public output follows the presentation in a browser without signing in; 
   await page.getByRole('button', { name: 'Skapa publik utgång' }).click();
   await page.getByRole('dialog', { name: 'Skapa publik utgång' }).getByLabel('Namn').fill('Kyrkkaffet');
   await page.getByRole('dialog', { name: 'Skapa publik utgång' }).getByRole('button', { name: 'Skapa' }).click();
+  // The new output's QR code and link open at once (spec 04 §7).
+  const shown = page.getByRole('dialog', { name: 'Kyrkkaffet' });
+  await expect(shown.getByRole('img', { name: 'QR-kod' })).toHaveAttribute('data-value', /\/watch\/[a-z2-9]{7}$/);
+  await expect(shown.getByRole('button', { name: 'Ladda ner som bild' })).toBeVisible();
+  await shown.getByRole('button', { name: 'Stäng' }).click();
   const linkField = page.getByLabel('Länk Kyrkkaffet');
   await expect(linkField).toHaveValue(/\/watch\/[a-z2-9]{7}$/);
   const url = await linkField.inputValue();

@@ -155,7 +155,7 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
     owner.send({ type: 'own', state: state('S1') });
     await owner.sessions((s) => s.length === 1);
     const stranger = await win('carol', other);
-    expect(stranger.messages).toEqual([{ type: 'sessions', sessions: [] }]);
+    expect(stranger.messages).toEqual([{ type: 'sessions', sessions: [], online: [], screens: [] }]);
     stranger.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 1, black: false } });
     expect(await stranger.error()).toBe('not-found');
   });

@@ -10,6 +10,7 @@ import { SharedReader, shareChannelName } from './db/share.ts';
 import { socketProtocols } from '@gp/sync/client';
 import { LiveChannel } from './live/live.ts';
 import { LiveLink, windowSessionId } from './live/remote.ts';
+import { Display } from './pages/Display.tsx';
 import { Watch } from './pages/Watch.tsx';
 import { currentRoute, installLinkHandler } from './ui/router.ts';
 import './fonts.css';
@@ -19,14 +20,21 @@ const root = createRoot(document.getElementById('root')!);
 installLinkHandler();
 const route = currentRoute();
 const stored = storedSession();
-// A public output's viewer is anyone's phone: it gets no copy of the app.
-if (route.page !== 'watch') keepApp();
+// A public output's viewer is anyone's phone, and a screen is a TV: neither gets a copy of the app.
+if (route.page !== 'watch' && route.page !== 'display') keepApp();
 
 if (route.page === 'watch') {
   // A public output (spec 04 §6): anyone with the code, signed in or not; no database.
   root.render(
     <StrictMode>
       <Watch code={route.code} />
+    </StrictMode>,
+  );
+} else if (route.page === 'display') {
+  // A paired screen (spec 04 §5): anonymous, no database.
+  root.render(
+    <StrictMode>
+      <Display id={route.id} name={route.name} token={route.token} />
     </StrictMode>,
   );
 } else if (route.page === 'output') {

@@ -5,6 +5,7 @@ import {
   liveClientMessageSchema,
   MAX_VIEWERS,
   type LiveOwnState,
+  type LiveScreen,
   type LiveServerMessage,
   type LiveSessionInfo,
   type PublicSlide,
@@ -38,8 +39,10 @@ const DDL = [
      id TEXT PRIMARY KEY NOT NULL, owner_user_id TEXT NOT NULL, presentation_id TEXT NOT NULL,
      presentation_name TEXT NOT NULL, device_name TEXT NOT NULL, remote INTEGER NOT NULL,
      pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT, audio TEXT)`,
-  // Which session a public output sends from: at most one (LIVE-R23).
+  // Which session an output sends from: at most one (LIVE-R23).
   `CREATE TABLE IF NOT EXISTS live_bindings (display_id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL)`,
+  // Temporary screens paired with the organisation (spec 04 §5), each for the session that paired it.
+  `CREATE TABLE IF NOT EXISTS live_screens (id TEXT PRIMARY KEY NOT NULL, n INTEGER NOT NULL, session_id TEXT NOT NULL)`,
 ];
 
 /** One public viewer's stream (LIVE-R35): it only ever needs the newest event. */
@@ -47,6 +50,12 @@ export interface Viewer {
   send(e: WatchEvent): void;
   close(): void;
 }
+
+/**
+ * How long a saved screen whose stream dropped stays switched on: a TV whose
+ * Wi-Fi blinks reconnects within it; a page that closed is off after it (LIVE-A20).
+ */
+export const SCREEN_GRACE_MS = 15_000;
 
 /** How often at most the viewer counts go out (LIVE-R36), with a trailing update. */
 const COUNT_THROTTLE_MS = 2000;
@@ -73,6 +82,8 @@ export class LiveHub {
   private viewers = new Map<string, Map<string, { viewer: Viewer; code: string }>>();
   private countTimer: ReturnType<typeof setTimeout> | null = null;
   private countDue = false;
+  /** Saved screens whose last stream dropped, waiting out SCREEN_GRACE_MS. */
+  private dropped = new Map<string, unknown>();
   /**
    * Sockets that have closed. A runtime may go on listing one for a while (a
    * Durable Object during and after webSocketClose), so it is left out until
@@ -84,6 +95,10 @@ export class LiveHub {
     private store: LiveStore,
     private allSockets: () => LiveSocket[],
     private now: () => number = Date.now,
+    /** Temporary screens a session let go, for the global tables to forget (`ScreenRegistry.release`). */
+    private released: (ids: string[]) => void = () => undefined,
+    /** Runs `fn` after `ms`, in the organisation's queue like every other call (the runtime wraps it). */
+    private later: (fn: () => void, ms: number) => unknown = (fn, ms) => setTimeout(fn, ms),
   ) {
     for (const d of DDL) store.query(d);
     // A table made before audio: sessions are short-lived, so it is simply made again.
@@ -95,6 +110,8 @@ export class LiveHub {
 
   /** Stops the viewer-count timer: the database is about to close. */
   dispose() {
+    for (const t of this.dropped.values()) clearTimeout(t as ReturnType<typeof setTimeout>);
+    this.dropped.clear();
     if (this.countTimer) clearTimeout(this.countTimer);
     this.countTimer = null;
     this.countDue = false;
@@ -201,10 +218,18 @@ export class LiveHub {
    */
   private bind(s: LiveSocket, state: LiveOwnState): Set<string> {
     const touched = new Set<string>();
-    const known = new Set((this.store.query('SELECT id FROM displays') as { id: string }[]).map((d) => d.id));
+    const displays = this.store.query('SELECT id, kind FROM displays') as { id: string; kind: string }[];
+    // A saved screen only while its page is open (LIVE-A21); a temporary screen only for the session that paired it.
+    const known = new Set([
+      ...displays.filter((d) => d.kind !== 'screen' || this.screenOnline(d.id)).map((d) => d.id),
+      ...(this.store.query('SELECT id FROM live_screens WHERE session_id = ?', [state.sessionId]) as { id: string }[]).map((x) => x.id),
+    ]);
     const mine = (this.store.query('SELECT display_id FROM live_bindings WHERE session_id = ?', [state.sessionId]) as { display_id: string }[]).map((b) => b.display_id);
     for (const id of mine) touched.add(id);
-    for (const id of mine.filter((d) => !state.outputs.includes(d))) this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [id]);
+    const dropped = mine.filter((d) => !state.outputs.includes(d) || !known.has(d));
+    for (const id of dropped) this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [id]);
+    // A temporary screen switched off (✕) is let go: its TV shows a new code.
+    this.releaseScreens((this.store.query('SELECT id FROM live_screens WHERE session_id = ?', [state.sessionId]) as { id: string }[]).map((x) => x.id).filter((id) => dropped.includes(id)));
     let refused = false;
     for (const id of state.outputs) {
       if (!known.has(id) || mine.includes(id)) continue;
@@ -227,7 +252,53 @@ export class LiveHub {
     const bound = (this.store.query('SELECT display_id FROM live_bindings WHERE session_id = ?', [id]) as { display_id: string }[]).map((b) => b.display_id);
     this.store.query('DELETE FROM live_bindings WHERE session_id = ?', [id]);
     this.store.query('DELETE FROM live_sessions WHERE id = ?', [id]);
+    // Its temporary screens go with it (LIVE-R24: the screen disconnects itself).
+    this.releaseScreens((this.store.query('SELECT id FROM live_screens WHERE session_id = ?', [id]) as { id: string }[]).map((x) => x.id));
     for (const d of bound) this.pushTo(d);
+  }
+
+  // ------------------------------------------------------------ temporary screens (spec 04 §5)
+
+  /**
+   * A screen this organisation paired (by code or QR token), for `sessionId`:
+   * that session may now switch it on. Numbered for its name: one more than
+   * the highest paired now. Null when the session is not live here, or not `userId`'s.
+   */
+  addScreen(id: string, sessionId: string, userId: string): LiveScreen | null {
+    if (this.row(sessionId)?.owner_user_id !== userId) return null;
+    const [known] = this.store.query('SELECT id, n FROM live_screens WHERE id = ?', [id]) as unknown as LiveScreen[];
+    if (known) return known;
+    const n = Number((this.store.query('SELECT coalesce(max(n), 0) + 1 AS n FROM live_screens')[0] as { n: number }).n);
+    this.store.query('INSERT INTO live_screens (id, n, session_id) VALUES (?, ?, ?)', [id, n, sessionId]);
+    this.broadcast();
+    return { id, n };
+  }
+
+  /** Whether a temporary screen is paired here, and its number. */
+  screen(id: string): LiveScreen | null {
+    return (this.store.query('SELECT id, n FROM live_screens WHERE id = ?', [id])[0] as unknown as LiveScreen | undefined) ?? null;
+  }
+
+  /** A screen that was paired but that no session took in (a dropped QR token, a session gone): its TV starts again. */
+  dropScreen(id: string) {
+    const known = !!this.screen(id);
+    this.releaseScreens([id]);
+    if (known) this.broadcast();
+  }
+
+  private releaseScreens(ids: string[]) {
+    if (!ids.length) return;
+    for (const id of ids) {
+      this.store.query('DELETE FROM live_screens WHERE id = ?', [id]);
+      this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [id]);
+      const set = this.viewers.get(id);
+      for (const v of set?.values() ?? []) {
+        v.viewer.send({ type: 'unpaired' });
+        v.viewer.close();
+      }
+      this.viewers.delete(id);
+    }
+    this.released(ids);
   }
 
   // ------------------------------------------------------------ public outputs (spec 04 §6)
@@ -258,6 +329,7 @@ export class LiveHub {
       return false;
     }
     set.set(viewerId, { viewer, code });
+    this.dropped.delete(displayId); // back within the grace: its pending switch-off does nothing
     old?.viewer.close();
     viewer.send({ type: 'meta', ...meta });
     const slide = this.current(displayId);
@@ -271,6 +343,17 @@ export class LiveHub {
     const set = this.viewers.get(displayId);
     if (set?.get(viewerId)?.viewer !== viewer) return;
     set.delete(viewerId);
+    // A saved screen whose page closed is switched off (LIVE-R24, LIVE-A20), once it has not come back for SCREEN_GRACE_MS.
+    if (!set.size && !this.dropped.has(displayId) && this.store.query(`SELECT 1 FROM displays WHERE id = ? AND kind = 'screen'`, [displayId]).length) {
+      this.dropped.set(
+        displayId,
+        this.later(() => {
+          if (!this.dropped.delete(displayId) || this.viewerCount(displayId) > 0) return;
+          this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [displayId]);
+          this.broadcast();
+        }, SCREEN_GRACE_MS),
+      );
+    }
     this.countsChanged();
   }
 
@@ -301,8 +384,9 @@ export class LiveHub {
    */
   displaysChanged() {
     const codes = new Map((this.store.query('SELECT id, code FROM displays') as { id: string; code: string }[]).map((d) => [d.id, d.code]));
-    this.store.query(`DELETE FROM live_bindings WHERE display_id NOT IN (SELECT id FROM displays)`);
+    this.store.query(`DELETE FROM live_bindings WHERE display_id NOT IN (SELECT id FROM displays UNION SELECT id FROM live_screens)`);
     for (const [displayId, set] of this.viewers) {
+      if (this.screen(displayId)) continue; // a temporary screen is no row in displays
       for (const [viewerId, v] of set) {
         if (codes.get(displayId) === v.code) continue;
         set.delete(viewerId);
@@ -319,6 +403,11 @@ export class LiveHub {
     const slide = this.current(displayId);
     const e: WatchEvent = slide ? { type: 'slide', slide } : { type: 'idle' };
     for (const v of set.values()) v.viewer.send(e);
+  }
+
+  /** A saved screen is online while a page follows it, and for SCREEN_GRACE_MS after the last one dropped. */
+  private screenOnline(displayId: string): boolean {
+    return this.viewerCount(displayId) > 0 || this.dropped.has(displayId);
   }
 
   private viewerCount(displayId: string): number {
@@ -377,7 +466,10 @@ export class LiveHub {
   }
 
   private snapshot(): string {
-    return JSON.stringify({ type: 'sessions', sessions: this.sessions() } satisfies LiveServerMessage);
+    const sessions = this.sessions();
+    const online = [...new Set([...this.viewers].filter(([, set]) => set.size > 0).map(([id]) => id).concat([...this.dropped.keys()]))].toSorted();
+    const screens = this.store.query('SELECT id, n FROM live_screens ORDER BY n') as unknown as LiveScreen[];
+    return JSON.stringify({ type: 'sessions', sessions, online, screens } satisfies LiveServerMessage);
   }
 
   private broadcast() {

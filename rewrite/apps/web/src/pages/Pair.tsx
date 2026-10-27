@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PairClaimResponse, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
@@ -13,8 +13,15 @@ import { AuthCard, FormError } from './AuthCard.tsx';
  * and a session as the user the host chose. On a host this is how a device
  * signs in: never with Google, which the LAN may not reach.
  */
+/** A code from the host's QR code (`#pair={code}`). */
+const codeFromLink = () => /^#pair=(\d{6})$/.exec(location.hash)?.[1] ?? '';
+
 export function Pair({ paired, onSignedIn }: { paired: boolean; onSignedIn: (r: SignInResponse) => void }) {
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(codeFromLink);
+  // Out of the address once read, so the code is not kept in the history.
+  useEffect(() => {
+    if (codeFromLink()) history.replaceState(null, '', location.pathname + location.search);
+  }, []);
   const [name, setName] = useState(deviceName());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

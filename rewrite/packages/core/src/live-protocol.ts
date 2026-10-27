@@ -109,7 +109,7 @@ export const liveOwnStateSchema = z.object({
   /** "Tillåt fjärrstyrning" (LIVE-R38, R39). */
   remote: z.boolean(),
   pointer: liveChangeSchema.extend({ overlayId: id.nullable().default(null), rev: z.number().int().min(0) }),
-  /** The public outputs this session sends to (LIVE-R23: one session per output). */
+  /** The outputs this session sends to: public ones and screens (LIVE-R23: one session per output). */
   outputs: z.array(id).max(50).default([]),
   /** Outputs another session sends to, which this one takes over ("Ta över"). */
   takeOver: z.array(id).max(50).default([]),
@@ -147,8 +147,19 @@ export interface LiveSessionInfo {
   audio: LiveAudio | null;
 }
 
+/** A temporary screen paired with this organisation (spec 04 §5): numbered for its name, "Tillfällig skärm (n)". */
+export interface LiveScreen {
+  id: string;
+  n: number;
+}
+
 export type LiveServerMessage =
-  | { type: 'sessions'; sessions: LiveSessionInfo[] }
+  /**
+   * `online`: the outputs with a page open on them, so a saved screen can be
+   * switched on only while it is (LIVE-A21). `screens`: the temporary screens
+   * paired with the organisation, each for one session.
+   */
+  | { type: 'sessions'; sessions: LiveSessionInfo[]; online: string[]; screens: LiveScreen[] }
   /** To the owner only: a controller's command, to apply if it still makes sense (LIVE-R49). */
   | { type: 'command'; sessionId: string; change: LiveChange }
   /** To the owner only: a controller's audio command. */
@@ -177,4 +188,6 @@ export type WatchEvent =
   | { type: 'meta'; orgName: string; outputName: string }
   | { type: 'slide'; slide: PublicSlide }
   | { type: 'idle' }
-  | { type: 'full' };
+  | { type: 'full' }
+  /** To a temporary screen: it is no longer paired, and shows a new code (spec 04 §5). */
+  | { type: 'unpaired' };
