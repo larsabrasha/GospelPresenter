@@ -38,7 +38,14 @@ export type DbCall =
   | { op: 'addAudio'; audio: AudioImport }
   /** Imports a Bible zip (spec 05): parse and store here, then `importBible`, uploaded before it is pushed. */
   | { op: 'importBible'; data: Uint8Array }
-  | { op: 'syncNow' };
+  | { op: 'syncNow' }
+  /**
+   * A presentation is open on a page (editor, live, remote control): fetch
+   * what it needs now (README, "Which files a device keeps"); `audio` false
+   * for a remote control, which never plays. `key` names the page, for `closeMedia`.
+   */
+  | { op: 'openMedia'; key: string; presentationId: string; audio: boolean }
+  | { op: 'closeMedia'; key: string };
 
 export type DbMessage =
   | { type: 'reply'; id: number; ok: true; value: unknown }

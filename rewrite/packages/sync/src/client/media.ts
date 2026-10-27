@@ -29,29 +29,87 @@ export async function loadMediaBlob(client: SyncClient, hash: string): Promise<M
 
 export interface MediaSync {
   downloaded: string[];
-  /** Named by an image, but the server did not have it or the download failed. */
+  /** Wanted, but the server did not have it or the download failed. */
   missing: string[];
+  /** Blobs dropped: unused by any image or audio file, or evicted to stay within the budget. */
   removed: number;
 }
 
 /**
- * Downloads the blobs (thumbnails first, so a grid fills quickly) that images
- * name and this device lacks, then removes blobs nothing names that are older
- * than the grace period, keeping any a queued `addImage` names. `download`
- * returns the bytes, or null if the server has none. Callers serialise this
- * with their own imports.
+ * Which files this device fetches (README, "Which files a device keeps").
+ * Every picture's thumbnail, always. The full picture and the audio of a
+ * presentation that is open here, or, on a device that keeps its data,
+ * coming up within `days`. Never audio for a presentation this device only
+ * controls: it plays on the presenting computer.
  */
-export async function syncMedia(client: SyncClient, download: (hash: string) => Promise<Uint8Array | null>, now = Date.now()): Promise<MediaSync> {
+export interface MediaPolicy {
+  /** Presentations open on this device now (editor, live, remote control), and whether their audio is wanted. */
+  open: { presentationId: string; audio: boolean }[];
+  /** Fetch coming presentations ahead: a device that keeps its data (OPFS, the desktop app, the tablet app). */
+  prefetch: boolean;
+  /** Today on this device, `YYYY-MM-DD`. */
+  today: string;
+  /** How many days ahead a presentation counts as coming: 7. */
+  days: number;
+  /** Most bytes kept of files no open or coming presentation needs (MEDIA-R14: 2 GiB). */
+  budget: number;
+}
+
+export const DEFAULT_MEDIA_POLICY = { open: [], prefetch: true, days: 7, budget: 2 * 1024 * 1024 * 1024 } as const;
+
+/** `YYYY-MM-DD` plus `days`, in the calendar (no time zone: dates in presentations are plain dates). */
+export function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y!, m! - 1, d! + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * The blobs this device should hold now, in the order to fetch them:
+ * thumbnails, then what the open presentations need, then the coming ones.
+ */
+export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Promise<string[]> {
+  const thumbs = (await client.query('SELECT thumb_hash AS hash FROM images ORDER BY created_at DESC')) as { hash: string }[];
+  const coming = policy.prefetch
+    ? ((await client.query('SELECT id FROM presentations WHERE deleted_at IS NULL AND event_date >= ? AND event_date <= ? ORDER BY event_date', [
+        policy.today,
+        addDays(policy.today, policy.days),
+      ])) as { id: string }[])
+    : [];
+  const order = [...policy.open, ...coming.map((c) => ({ presentationId: c.id, audio: true }))];
+  const hashes: string[] = thumbs.map((t) => t.hash);
+  for (const { presentationId, audio } of order) {
+    const items = (await client.query(
+      `SELECT i.full_hash AS hash FROM presentation_items p JOIN images i ON i.id = p.source_id
+         WHERE p.presentation_id = ? AND p.type = 'image'
+       UNION ALL
+       SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id
+         WHERE p.presentation_id = ? AND p.type = 'audio' AND ?`,
+      [presentationId, presentationId, audio ? 1 : 0],
+    )) as { hash: string }[];
+    hashes.push(...items.map((i) => i.hash));
+  }
+  return [...new Set(hashes)];
+}
+
+/**
+ * Fetches the blobs `wantedBlobs` names that this device lacks, checking
+ * each one's hash. Then removes blobs nothing names (after the grace period,
+ * and never what a queued add names), and, while the files no open or
+ * coming presentation needs are above the budget, the oldest of those.
+ * `download` returns the bytes, or null if the server has none. Callers
+ * serialise this with their own imports.
+ */
+export async function syncMedia(
+  client: SyncClient,
+  download: (hash: string) => Promise<Uint8Array | null>,
+  now = Date.now(),
+  policy: MediaPolicy = { ...DEFAULT_MEDIA_POLICY, open: [], today: new Date(now).toISOString().slice(0, 10) },
+): Promise<MediaSync> {
   const result: MediaSync = { downloaded: [], missing: [], removed: 0 };
-  // Every picture, thumbnails first; an audio file only once a presentation uses it (MEDIA-R14), as it may be 20 MiB.
-  const wanted = (await client.query(
-    `SELECT hash FROM (
-       SELECT thumb_hash AS hash, 0 AS rank FROM images UNION SELECT full_hash AS hash, 1 AS rank FROM images
-       UNION SELECT a.hash AS hash, 2 AS rank FROM audios a
-         WHERE a.id IN (SELECT source_id FROM presentation_items WHERE type = 'audio'))
-     WHERE hash NOT IN (SELECT hash FROM media_blobs WHERE bytes IS NOT NULL) GROUP BY hash ORDER BY min(rank)`,
-  )) as { hash: string }[];
-  for (const { hash } of wanted) {
+  const wanted = await wantedBlobs(client, policy);
+  const have = new Set(((await client.query('SELECT hash FROM media_blobs WHERE bytes IS NOT NULL')) as { hash: string }[]).map((r) => r.hash));
+  for (const hash of wanted) {
+    if (have.has(hash)) continue;
     let bytes: Uint8Array | null = null;
     try {
       bytes = await download(hash);
@@ -75,9 +133,40 @@ export async function syncMedia(client: SyncClient, download: (hash: string) => 
   }
   const unused = (await client.query(ORPHAN_BLOBS_SQL, [now - ORPHAN_GRACE_MS])) as { hash: string }[];
   const drop = unused.map((u) => u.hash).filter((h) => !queued.has(h));
+
+  // Within the budget: what nobody needs now goes, oldest first; what is wanted, or waiting to be uploaded, stays.
+  const keep = new Set([...wanted, ...queued, ...drop]);
+  const spare = ((await client.query('SELECT hash, size FROM media_blobs WHERE bytes IS NOT NULL ORDER BY received_at, hash')) as { hash: string; size: number }[]).filter(
+    (b) => !keep.has(b.hash),
+  );
+  let spareBytes = spare.reduce((n, b) => n + Number(b.size), 0);
+  for (const b of spare) {
+    if (spareBytes <= policy.budget) break;
+    drop.push(b.hash);
+    spareBytes -= Number(b.size);
+  }
+
   if (drop.length) await client.localWrite(drop.map((h) => ({ sql: 'DELETE FROM media_blobs WHERE hash = ?', params: [h] })));
   result.removed = drop.length;
   return result;
+}
+
+/**
+ * What a presentation's items need from the media library, and how much of
+ * it this device has: for "Allt finns på den här datorn" before going live.
+ */
+export async function presentationMediaState(
+  client: { query(sql: string, params?: unknown[]): Promise<Record<string, unknown>[]> },
+  presentationId: string,
+  audio = true,
+): Promise<{ needed: number; present: number }> {
+  const rows = (await client.query(
+    `SELECT h.hash, EXISTS (SELECT 1 FROM media_blobs b WHERE b.hash = h.hash AND b.bytes IS NOT NULL) AS present FROM (
+       SELECT i.full_hash AS hash FROM presentation_items p JOIN images i ON i.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'image'
+       UNION SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'audio' AND ?) h`,
+    [presentationId, presentationId, audio ? 1 : 0],
+  )) as { hash: string; present: number }[];
+  return { needed: rows.length, present: rows.filter((r) => Number(r.present)).length };
 }
 
 /** The blobs a queued add names: a picture's two, or an audio file's one. */

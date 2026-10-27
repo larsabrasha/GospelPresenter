@@ -13,6 +13,7 @@ import { remoteAllowed, RemoteControl, useLiveSessions, type LiveControl, type L
 import { openOutput, useLivePointer } from '../live/useLive.ts';
 import { Button } from '../ui/Button.tsx';
 import { href, navigate } from '../ui/router.ts';
+import { MediaReadiness } from '../ui/MediaReadiness.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { StageView } from './StageView.tsx';
@@ -317,6 +318,8 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
           <span className="muted small">{t('remote.onlyOwnerStops')}</span>
         )}
       </div>
+      {/* The presenting computer needs everything; a remote control never plays audio, so it fetches none. */}
+      <MediaReadiness presentationId={id} audio={!!owner} />
       {owner && <OutputsPanel link={link} sessionId={owner.sessionId} />}
       {owner && <RemotePanel id={id} sessionId={owner.sessionId} />}
       <div className="live-layout">

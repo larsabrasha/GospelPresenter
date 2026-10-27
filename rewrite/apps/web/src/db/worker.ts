@@ -15,6 +15,7 @@ import {
   socketProtocols,
   storeBibleText,
   storeMediaBlob,
+  DEFAULT_MEDIA_POLICY,
   syncBibleTexts,
   syncMedia,
   SyncClient,
@@ -129,6 +130,9 @@ const mediaUploads = new MediaUploads(async (hash, bytes) => {
   return res.status;
 });
 
+/** Presentations open on this device's pages, by page: their files are fetched now. */
+const openMedia = new Map<string, { presentationId: string; audio: boolean }>();
+
 let mediaSyncQueued = false;
 /** Fetches the blobs of pictures this device lacks (thumbnails first) and drops unused ones; coalesced. */
 function syncMediaBlobs() {
@@ -136,10 +140,21 @@ function syncMediaBlobs() {
   mediaSyncQueued = true;
   void serialStore(async () => {
     mediaSyncQueued = false;
-    const r = await syncMedia(client!, async (hash) => {
-      const res = await fetch(`/api/media/${hash}`, { headers: credentials() });
-      return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
-    });
+    const r = await syncMedia(
+      client!,
+      async (hash) => {
+        const res = await fetch(`/api/media/${hash}`, { headers: credentials() });
+        return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+      },
+      Date.now(),
+      {
+        ...DEFAULT_MEDIA_POLICY,
+        open: [...openMedia.values()],
+        // Only a device that keeps its data fetches coming presentations ahead: in memory it would be lost at the next reload.
+        prefetch: storage === 'opfs',
+        today: new Date().toLocaleDateString('sv-SE'), // YYYY-MM-DD, this device's own calendar day
+      },
+    );
     if (r.downloaded.length || r.removed) notifyChanged();
   }).catch(() => undefined); // offline: the next change or poll tries again
 }
@@ -263,6 +278,13 @@ async function handle(call: DbCall): Promise<unknown> {
       return addImage(call.image);
     case 'addAudio':
       return addAudio(call.audio);
+    case 'openMedia':
+      openMedia.set(call.key, { presentationId: call.presentationId, audio: call.audio });
+      syncMediaBlobs();
+      return;
+    case 'closeMedia':
+      openMedia.delete(call.key);
+      return;
   }
 }
 

@@ -75,6 +75,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+  await expect(page.getByTestId('media-ready')).toHaveText('Alla bilder och ljud finns på den här enheten.');
 
   // A controller starts the sound first, before anyone played it on the presenting computer (LIVE-A32).
   await page.getByLabel('Tillåt fjärrstyrning').check();
@@ -82,6 +83,8 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await second.page.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
   const mirror = second.page.getByTestId('audio-player');
   const player = page.getByTestId('audio-player');
+  // The controller fetches no audio: it never plays (README, "Which files a device keeps").
+  await expect(second.page.getByTestId('media-ready')).toHaveCount(0);
   await mirror.getByRole('button', { name: 'Spela' }).click();
   await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
   await expect(mirror).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });

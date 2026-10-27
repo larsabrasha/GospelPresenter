@@ -60,6 +60,15 @@ export class Db implements ReadDb {
     return this.call({ op: 'addAudio', audio });
   }
 
+  /** Tells the database that a page has a presentation open, so its pictures and audio are fetched now. */
+  openMedia(key: string, presentationId: string, audio: boolean): Promise<void> {
+    return this.call({ op: 'openMedia', key, presentationId, audio });
+  }
+
+  closeMedia(key: string): Promise<void> {
+    return this.call({ op: 'closeMedia', key });
+  }
+
   status(): Promise<DbStatus> {
     return this.call({ op: 'status' });
   }

@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useState, type ReactNode } from 'react';
+import { presentationMediaState } from '@gp/sync/client';
 import type { Db } from './db.ts';
 import type { DbStatus } from './protocol.ts';
 import { blobUrl } from './queries.ts';
@@ -74,4 +75,20 @@ export function useDbStatus(): DbStatus | undefined {
 /** The object URL of a stored picture blob, or null while there is none (not synced to this device yet, or no hash). */
 export function useBlobUrl(hash: string | null): string | null {
   return useData(async (db) => (hash ? blobUrl(db, hash) : null), [hash]) ?? null;
+}
+
+/**
+ * While the page is open, has the database fetch the presentation's pictures
+ * (and its audio, unless `audio` is false: a remote control never plays), and
+ * says how many of the files it needs this device has.
+ */
+export function usePresentationMedia(presentationId: string, audio: boolean): { needed: number; present: number } | undefined {
+  const db = useContext(DbContext);
+  const key = useId();
+  useEffect(() => {
+    if (!db) return;
+    void db.openMedia(key, presentationId, audio);
+    return () => void db.closeMedia(key);
+  }, [db, key, presentationId, audio]);
+  return useData((r) => presentationMediaState(r, presentationId, audio), [presentationId, audio]);
 }

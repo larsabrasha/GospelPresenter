@@ -291,8 +291,8 @@ mutation is pushed, `MediaUploads` (`packages/sync/src/client/media.ts`, chained
 `chainBeforePush`) uploads them. So importing works offline: the picture shows at once on that device and
 reaches the server and the other devices later. An upload that cannot reach the server or fails with 5xx holds
 back that add and what follows; one refused with 4xx lets the add go, to be refused with a reason. Every other
-device sees the row in a pull and downloads the blobs it lacks (`syncMedia`: thumbnails first, hash checked,
-signature checked).
+device sees the row in a pull and downloads, hash and signature checked, the blobs it should keep (see "Which
+files a device keeps").
 
 **Clean-up.** Mutators never touch the blobs. After a push that can leave blobs unused (`addImage`,
 `purgeImage`, `purgeExpiredTrash`), not after every edit, the server removes the blobs no `images` row names,
@@ -319,7 +319,7 @@ An audio file is a synced row in `audios` (file name, type, hash, size, `created
 schema version 6) and one blob, stored byte for byte as it was picked (MEDIA-R5), through the same storage, upload
 and clean-up as pictures. The server takes a blob it recognises by its first bytes as MP3, WAV, Ogg, MP4/M4A or
 WebM, up to 20 MiB, and serves it with that type; a picture stays limited to 10 MiB. A device fetches an audio
-file only once a presentation uses it, since it may be 20 MiB (MEDIA-R14's pinning, without its eviction). Ljud
+file as it does a full picture: for a presentation that is open or coming (see "Which files a device keeps"). Ljud
 (`/admin/audios`) lists the files, with import, drop, search and the trash; there is no playback there (spec 05).
 An audio item has no slides; in the editor it shows a player for the file. The server's CSP now allows `blob:`
 for media, which the player needs. One file per item: spec 03's item with several audio files is not built.
@@ -336,6 +336,22 @@ the desktop app allows sound without a click (`autoplayPolicy`). A browser does 
 something on the page, and Safari only on an element that has played after such a gesture, so the engine plays
 a moment of silence at the operator's first click or key. The e2e shows a controller starting the sound first in
 the desktop app; the browser case, Safari above all, is not tested.
+
+### Which files a device keeps
+
+Every device has every row, but not every file (`syncMedia` and `MediaPolicy` in
+`packages/sync/src/client/media.ts`). Always: every picture's thumbnail, which is small and what the
+library and the pickers show. Ahead of time, on a device that keeps its data (OPFS in a browser, the desktop
+app, later the tablet app): the full pictures and the audio of every presentation dated from today to seven
+days ahead, so Sunday's material is on the computer before anyone leaves for church. On demand, on any device:
+what a presentation open on one of its pages needs (the editor, the live page, remote control), fetched at
+once. Never: audio for a presentation the device only controls, since it plays on the presenting computer.
+A device that keeps its data only in memory (a tablet over plain http) fetches nothing ahead, as it would lose
+it at the next reload. Files no open or coming presentation needs are kept within 2 GiB (MEDIA-R14), the
+oldest dropped first; what is coming, open or waiting to be uploaded is never dropped. The editor and the live
+page say whether everything is on the device ("Alla bilder och ljud finns på den här enheten") or how much is
+being fetched, and, offline, how many files are missing and cannot be. A presentation without a date is
+fetched only when it is opened; "coming" is decided by this device's own calendar day.
 
 ### Remote control
 
@@ -457,9 +473,8 @@ Cloudflare. The Workers adapter is tested in local workerd only.
 From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,
 so an install that wants S3 cannot yet); organisation images as a theme's background (a theme's image is
 still only a built-in asset, `backgroundImageSchema`, and there is no theme editor to choose one);
-a limit on the total size of an organisation's media (only 1 000 pictures and 10 MiB per blob are limited); MEDIA-R14's
-pinning and the 2 GiB eviction (every device keeps every blob of every picture, trashed ones included, so a
-full library of 1 000 pictures is a few hundred MB on each device, not measured); live and public URLs
+a limit on the total size of an organisation's media (only 1 000 pictures and 10 MiB per blob are limited); MEDIA-R14's eviction
+by when a file was last used (it is by when it arrived); live and public URLs
 (MEDIA-R10) and `/api/watch` with it; HTTP Range for audio; a native file dialog for "Importera" (the page's
 file input is used, also in Electron); dropping files onto the add dialog. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there

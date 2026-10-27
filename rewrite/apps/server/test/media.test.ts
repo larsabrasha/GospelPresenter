@@ -3,10 +3,13 @@
 // once per device, outside the change log; only its `images` row syncs.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { MEDIA_LIMITS, mediaKey, ORPHAN_GRACE_MS, sha256HexBytes } from '@gp/core';
-import { hasMediaBlob, MediaUploads, storeMediaBlob, syncMedia, type SyncClient } from '@gp/sync/client';
+import { DEFAULT_MEDIA_POLICY, hasMediaBlob, MediaUploads, presentationMediaState, storeMediaBlob, syncMedia, type MediaPolicy, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
+
+/** Today as `syncMedia` sees it by default. */
+const TODAY = new Date().toISOString().slice(0, 10);
 
 /** Bytes that start like a JPEG; the rest is made from the seed, so each picture has its own hash. Not a decodable picture. */
 function jpeg(seed: string, size = 300): Uint8Array {
@@ -176,10 +179,15 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
     expect(s.changes.filter((c) => c.tbl === 'images')).toHaveLength(1);
     expect(s.changes.some((c) => c.tbl.includes('blob'))).toBe(false);
 
+    // In the library only: every device has the thumbnail, nobody needs the full picture yet.
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [p.thumbHash], missing: [], removed: 0 });
     expect(await hasMediaBlob(bob.client, p.fullHash)).toBe(false);
-    const first = await syncMedia(bob.client, downloader(h, org, 'bob'));
-    expect(first).toEqual({ downloaded: [p.thumbHash, p.fullHash], missing: [], removed: 0 }); // the thumbnail first
-    expect(await hasMediaBlob(bob.client, p.fullHash)).toBe(true);
+    // In a presentation this Sunday: fetched ahead, once.
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag', eventDate: TODAY });
+    await alice.client.mutate('addImageToPresentation', { itemId: 'I1', presentationId: 'P', imageId: 'IMG1' });
+    await alice.client.sync();
+    await bob.client.sync();
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [p.fullHash], missing: [], removed: 0 });
     expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [], missing: [], removed: 0 });
   });
 
@@ -427,7 +435,7 @@ describe.each(adapters)('%s adapter: audio files', (adapterName) => {
     await bob.client.sync();
     expect((await serverDump(h, org, 'alice')).tables.audios).toMatchObject([{ id: 'A1', file_name: 'Psalm 1.ogg', hash, size: bytes.length }]);
     expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toMatchObject({ downloaded: [] }); // in the library only
-    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag', eventDate: TODAY });
     await alice.client.mutate('addAudioToPresentation', { itemId: 'I1', presentationId: 'P', audioId: 'A1' });
     await alice.client.sync();
     await bob.client.sync();
@@ -454,5 +462,90 @@ describe.each(adapters)('%s adapter: audio files', (adapterName) => {
     } finally {
       await d.client.close();
     }
+  });
+});
+
+describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) => {
+  let h: Harness;
+  let org: string;
+  let alice: Device;
+  let bob: Device;
+
+  beforeAll(async () => {
+    h = await startAdapter(adapterName, { mediaGraceMs: 0 });
+  }, 60_000);
+  afterAll(async () => {
+    await alice?.client.close();
+    await bob?.client.close();
+    await h?.close();
+  });
+  beforeEach(async () => {
+    await alice?.client.close();
+    await bob?.client.close();
+    org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'alice', org, 'admin');
+    await setRole(h, 'bob', org, 'user');
+    alice = await device(h, org, 'alice', 'admin');
+    bob = await device(h, org, 'bob', 'user');
+  });
+
+  const policy = (over: Partial<MediaPolicy> = {}): MediaPolicy => ({ ...DEFAULT_MEDIA_POLICY, open: [], today: '2026-11-01', ...over });
+
+  /** A picture and a sound in a presentation on `date`; returns their hashes. */
+  async function presentation(id: string, date: string | null, seed: string) {
+    const p = await uploaded(h, org, alice, seed);
+    await alice.client.mutate('addImage', imageArgs(`IMG-${seed}`, p.fullHash, p.thumbHash));
+    const sound = jpeg(`${seed}-sound`, 300);
+    sound.set([0x4f, 0x67, 0x67, 0x53]);
+    const soundHash = await storeMediaBlob(alice.client, sound, 'audio/ogg');
+    expect((await put(h, org, 'alice', soundHash, sound)).status).toBe(204);
+    await alice.client.mutate('addAudio', { id: `A-${seed}`, fileName: `${seed}.ogg`, contentType: 'audio/ogg', hash: soundHash, size: sound.length, createdAt: 1 });
+    await alice.client.mutate('createPresentation', { id, name: id, eventDate: date });
+    await alice.client.mutate('addImageToPresentation', { itemId: `${id}-i`, presentationId: id, imageId: `IMG-${seed}` });
+    await alice.client.mutate('addAudioToPresentation', { itemId: `${id}-a`, presentationId: id, audioId: `A-${seed}` });
+    await alice.client.sync();
+    expect(alice.client.rejected).toEqual([]);
+    return { full: p.fullHash, thumb: p.thumbHash, sound: soundHash };
+  }
+
+  it('fetches ahead what is coming within seven days, not later or earlier, and nothing ahead on a device that keeps no data', async () => {
+    const soon = await presentation('SOON', '2026-11-08', 'soon');
+    const later = await presentation('LATER', '2026-11-09', 'later');
+    const past = await presentation('PAST', '2026-10-31', 'past');
+    const undated = await presentation('UNDATED', null, 'undated');
+    await bob.client.sync();
+    const memoryOnly = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false }));
+    expect(memoryOnly.downloaded.toSorted()).toEqual([soon.thumb, later.thumb, past.thumb, undated.thumb].toSorted()); // thumbnails only
+    const r = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy());
+    expect(r.downloaded.toSorted()).toEqual([soon.full, soon.sound].toSorted());
+  });
+
+  it('fetches what an open presentation needs; a remote control does not fetch its audio', async () => {
+    const p = await presentation('P', null, 'open');
+    await bob.client.sync();
+    const control = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false, open: [{ presentationId: 'P', audio: false }] }));
+    expect(control.downloaded.toSorted()).toEqual([p.thumb, p.full].toSorted());
+    expect(await presentationMediaState(bob.client, 'P', false)).toEqual({ needed: 1, present: 1 });
+    expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 1 });
+    const presenter = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false, open: [{ presentationId: 'P', audio: true }] }));
+    expect(presenter.downloaded).toEqual([p.sound]);
+    expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });
+  });
+
+  it('keeps what is not needed now only within the budget, oldest out first; never what is coming or open', async () => {
+    const a = await presentation('A', null, 'budget-a');
+    const b = await presentation('B', null, 'budget-b');
+    await bob.client.sync();
+    // Both were open once, so both are on the device.
+    await syncMedia(bob.client, downloader(h, org, 'bob'), 1000, policy({ prefetch: false, open: [{ presentationId: 'A', audio: true }] }));
+    await syncMedia(bob.client, downloader(h, org, 'bob'), 2000, policy({ prefetch: false, open: [{ presentationId: 'B', audio: true }] }));
+    // B is open now; a budget of one byte leaves room for nothing else, so A's files (the older) go, not B's or the thumbnails.
+    const r = await syncMedia(bob.client, async () => null, 3000, policy({ prefetch: false, budget: 1, open: [{ presentationId: 'B', audio: true }] }));
+    expect(r.removed).toBe(2);
+    expect(await hasMediaBlob(bob.client, a.full)).toBe(false);
+    expect(await hasMediaBlob(bob.client, a.sound)).toBe(false);
+    expect(await hasMediaBlob(bob.client, a.thumb)).toBe(true);
+    expect(await hasMediaBlob(bob.client, b.full)).toBe(true);
+    expect(await hasMediaBlob(bob.client, b.sound)).toBe(true);
   });
 });
