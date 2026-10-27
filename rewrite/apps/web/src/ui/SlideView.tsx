@@ -85,7 +85,7 @@ export function SlideView({
         {slide && (
           <>
             {label && slide.label && (
-              <span className="slide-label" style={{ background: slide.label.color }}>
+              <span className="absolute top-6 right-10 z-[1] rounded-full px-8 py-1 font-sans text-[48px]/[1.5] font-semibold text-white" style={{ background: slide.label.color }}>
                 {slide.label.text}
               </span>
             )}

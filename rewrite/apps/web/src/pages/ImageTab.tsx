@@ -1,25 +1,26 @@
 import { useState } from 'react';
 import type { LibraryImage } from '@gp/core';
-import { useData, useDb } from '../db/react.tsx';
+import { useBlobUrl, useData, useDb } from '../db/react.tsx';
 import { listImages } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
-import { Button } from '../ui/Button.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { CheckIcon, PhotoIcon } from '../ui/icons.tsx';
+import { AddFooter, EmptyTab, SearchField } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
-import { ImageThumb } from './Images.tsx';
+
+/** A picture's thumbnail in the picker, once this device has it (AddItem/Image/ImageTab.razor). */
+function PickThumb({ image }: { image: LibraryImage }) {
+  const url = useBlobUrl(image.thumbHash);
+  return url ? (
+    <img src={url} alt={image.fileName} draggable={false} className="block max-w-full max-h-32 rounded-lg" />
+  ) : (
+    <span className="flex aspect-video w-32 max-w-full items-center justify-center rounded-lg bg-neutral-100 dark:bg-neutral-700 text-xs text-neutral-400">{t('images.fetching')}</span>
+  );
+}
 
 /** The add-item modal's picture tab: the library, to add one picture as an item (spec 03 2d, spec 05). */
-export function ImageTab({
-  presentationId,
-  afterItemId,
-  onAdded,
-  onClose,
-}: {
-  presentationId: string;
-  afterItemId: string | null;
-  onAdded: (itemId: string) => void;
-  onClose: () => void;
-}) {
+export function ImageTab({ presentationId, afterItemId, onAdded }: { presentationId: string; afterItemId: string | null; onAdded: (itemId: string) => void }) {
   const db = useDb();
   const toast = useToast();
   const images = useData(listImages, []);
@@ -38,40 +39,52 @@ export function ImageTab({
   };
 
   return (
-    <>
-      <div className="row">
-        <input
-          autoFocus
-          className="grow"
-          type="search"
-          maxLength={100}
-          aria-label={t('presentation.searchImages')}
-          placeholder={t('presentation.searchImages')}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+    <div className="flex-1 min-h-0 flex flex-col">
+      <div className="shrink-0 flex pb-4">
+        <SearchField autoFocus label={t('presentation.searchImages')} value={query} onChange={setQuery} />
       </div>
-      {images && !images.length && <p className="muted">{t('presentation.noImages')}</p>}
-      <ul className="image-grid" aria-label={t('images.title')} data-testid="image-picker">
-        {shown.map((image) => (
-          <li key={image.id} className="image-card">
-            <Button className="image-pick" aria-pressed={image.id === selected?.id} onClick={() => setSelectedId(image.id)} onDoubleClick={() => void add(image)}>
-              <ImageThumb image={image} />
-              <div className="name" title={image.fileName}>
-                {image.fileName}
-              </div>
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <div className="row end">
-        <Button onClick={onClose}>{t('common.close')}</Button>
-        {selected && (
-          <Button variant="primary" onClick={() => void add(selected)}>
-            {t('presentation.addImage', { name: selected.fileName })}
-          </Button>
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {images && !images.length && (
+          <EmptyTab icon={<PhotoIcon className="size-12 text-neutral-300 dark:text-neutral-600" />}>
+            <p>{t('presentation.noImages')}</p>
+          </EmptyTab>
         )}
+        <ul className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center" aria-label={t('images.title')} data-testid="image-picker">
+          {shown.map((image) => {
+            const isSelected = image.id === selected?.id;
+            return (
+              <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0">
+                <AppButton
+                  variant="plain"
+                  aria-pressed={isSelected}
+                  onClick={() => setSelectedId(image.id)}
+                  onDoubleClick={() => void add(image)}
+                  className="flex flex-col items-center w-full min-w-0 cursor-pointer focus:outline-none group"
+                >
+                  <span className={`relative rounded-lg transition-shadow ring-3 group-focus-visible:ring-sky-500 ${isSelected ? 'ring-sky-500' : 'ring-transparent'}`}>
+                    <PickThumb image={image} />
+                    {isSelected && (
+                      <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span className="size-8 flex items-center justify-center rounded-full bg-sky-500 text-white">
+                          <CheckIcon className="size-5" />
+                        </span>
+                      </span>
+                    )}
+                  </span>
+                  <span className="block text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>
+                    {image.fileName}
+                  </span>
+                </AppButton>
+              </li>
+            );
+          })}
+        </ul>
       </div>
-    </>
+      <AddFooter
+        name={selected?.fileName}
+        label={selected ? t('presentation.addImage', { name: selected.fileName }) : undefined}
+        onAdd={selected ? () => void add(selected) : undefined}
+      />
+    </div>
   );
 }

@@ -641,8 +641,15 @@ user's menu) and `AdminLayout.razor`'s side menu (`apps/web/src/Shell.tsx`). The
 rule says so), `Dialog`, `Modal`, `FloatingInput`/`Select`/`Textarea`, `PillTabs`, the lists, `Dropdown` and
 `PageContainer`. The start page (`pages/Presentations.tsx`) is `Dashboard.razor`: Idag, Kommande and the rest.
 
+The presentation (step 2) is `Pages/Presentation.razor` and what it uses: the running order in a white side
+column (`Sidebar.razor`), the slides as rounded tiles (`SlideGrid.razor`, `ui/SlideTile.tsx`), the green
+Starta presentation, the add modal with its pill tabs and round search (`AddItemModal.razor`, `ui/Picker.tsx`),
+the live page's panel at the right (`LivePanel.razor`: Nu visas, Utgångar, Overlays, fjärrstyrning as
+switches in `ui/Toggle.tsx`, Scenläge, the red Avsluta) and the dark stage view with its bottom sheets
+(`StageView.razor`). The flow is kept: live is still its own page, `/live/{id}`, with every item's slides.
+
 The move goes in steps: 1 the frame, the components and the start page (done); 2 the presentation (editor,
-live, stage view, Lägg till); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`, `/watch`
+live, stage view, Lägg till) (done); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`, `/watch`
 and the output. A page not yet moved keeps its old styles (`apps/web/src/styles.css`, in a CSS layer below
 Tailwind's utilities) inside the new frame, and the old `Button` (`ui/Button.tsx`), until its step.
 

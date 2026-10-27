@@ -15,13 +15,13 @@ export function MediaReadiness({ presentationId, audio }: { presentationId: stri
   const missing = state.needed - state.present;
   if (!missing) {
     return (
-      <p className="ok small" data-testid="media-ready">
+      <p className="text-xs text-emerald-600 dark:text-emerald-400" data-testid="media-ready">
         {t('media.ready')}
       </p>
     );
   }
   return (
-    <p className={status?.connected === false ? 'warning small' : 'muted small'} data-testid="media-ready">
+    <p className={`text-xs ${status?.connected === false ? 'text-amber-600 dark:text-amber-400' : 'text-neutral-500 dark:text-neutral-400'}`} data-testid="media-ready">
       {status?.connected === false ? t('media.missingOffline', { n: missing }) : t('media.fetching', { present: state.present, needed: state.needed })}
     </p>
   );
@@ -41,10 +41,11 @@ export function KeepOffline({ presentationId }: { presentationId: string }) {
   const pinned = clicked && clicked.over === saved ? clicked.value : saved;
   const persistent = status?.storage === 'opfs';
   return (
-    <div className="keep-offline">
-      <label className="row">
+    <div>
+      <label className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400 cursor-pointer has-disabled:cursor-default">
         <input
           type="checkbox"
+          className="size-3.5 p-0 m-0 accent-sky-500 cursor-pointer disabled:cursor-default"
           checked={!!pinned && persistent}
           disabled={!persistent || pinned === undefined}
           onChange={(e) => {
@@ -54,7 +55,7 @@ export function KeepOffline({ presentationId }: { presentationId: string }) {
         />
         {t('media.keepOffline')}
       </label>
-      {status && !persistent && <p className="muted small">{t('media.keepOfflineUnavailable')}</p>}
+      {status && !persistent && <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">{t('media.keepOfflineUnavailable')}</p>}
     </div>
   );
 }

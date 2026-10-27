@@ -6,7 +6,7 @@ import { AppButton } from './AppButton.tsx';
  * scrolls sideways when the pills do not fit, with a fade at the edge that
  * has more.
  */
-export function PillTabs({ children, className, label }: { children: ReactNode; className?: string; label?: string }) {
+export function PillTabs({ children, className, label, role = 'group' }: { children: ReactNode; className?: string; label?: string; role?: 'group' | 'tablist' }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [fade, setFade] = useState({ left: false, right: false });
   useEffect(() => {
@@ -23,7 +23,7 @@ export function PillTabs({ children, className, label }: { children: ReactNode; 
   }, []);
   return (
     <div className={`relative bg-neutral-100 dark:bg-neutral-700 rounded-full overflow-hidden md:inline-flex ${className ?? ''}`}>
-      <div ref={scroller} role="group" aria-label={label} className="flex gap-1 overflow-x-auto p-1 [scrollbar-width:none]">
+      <div ref={scroller} role={role} aria-label={label} className="flex gap-1 overflow-x-auto p-1 [scrollbar-width:none]">
         {children}
       </div>
       {fade.left && <div className="absolute top-0 left-0 bottom-0 w-16 rounded-l-full pointer-events-none bg-linear-to-l from-transparent to-neutral-100 dark:to-neutral-700" />}

@@ -11,8 +11,11 @@ import { slidesOf, type ItemSlides } from '../live/live.ts';
 import { chosenOutputs, REMOTE_CHANGED, setOutput, setRemoteAllowed } from '../live/owner.ts';
 import { remoteAllowed, RemoteControl, useLiveSessions, type LiveControl, type LiveLink } from '../live/remote.ts';
 import { openOutput, useLivePointer } from '../live/useLive.ts';
-import { Button } from '../ui/Button.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { ArrowsPointingOutIcon, ChevronDownIcon, CloseIcon, DesktopIcon, FadeOutIcon, ItemIcon, PauseIcon, PlayIcon, PlusIcon, RemoteIcon, StopIcon } from '../ui/icons.tsx';
 import { href, navigate } from '../ui/router.ts';
+import { LiveBadge, tileClass } from '../ui/SlideTile.tsx';
+import { CAPTION, ToggleRow, rowClass } from '../ui/Toggle.tsx';
 import { MediaReadiness } from '../ui/MediaReadiness.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
@@ -55,24 +58,30 @@ function RemotePanel({ id, sessionId }: { id: string; sessionId: string }) {
   const base = useServerBase();
   const url = `${base}${href({ page: 'live', id, remote: true, session: sessionId })}`;
   return (
-    <div className="card remote-panel">
-      <label className="row">
-        <input
-          type="checkbox"
-          checked={on}
-          onChange={(e) => {
-            setOn(e.target.checked);
-            setRemoteAllowed(e.target.checked);
-          }}
-        />
-        {t('remote.allow')}
-      </label>
+    <div className="space-y-3">
+      <ToggleRow
+        label={t('remote.allow')}
+        icon={<RemoteIcon className="size-4 shrink-0" />}
+        checked={on}
+        onChange={(v) => {
+          setOn(v);
+          setRemoteAllowed(v);
+        }}
+      />
       {on && (
-        <>
-          <p className="muted small">{t('remote.how')}</p>
-          <QrCode value={url} label={t('remote.qr')} size={160} />
-          <input className="grow" readOnly value={url} aria-label={t('remote.link')} onFocus={(e) => e.currentTarget.select()} />
-        </>
+        <div className="px-3 py-3 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 space-y-3">
+          <p className="text-xs leading-relaxed text-neutral-600 dark:text-neutral-300">{t('remote.how')}</p>
+          <div className="flex justify-center [&_.qr]:m-0 [&_.qr]:rounded-lg">
+            <QrCode value={url} label={t('remote.qr')} size={160} />
+          </div>
+          <input
+            className="w-full px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-xs text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            readOnly
+            value={url}
+            aria-label={t('remote.link')}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        </div>
       )}
     </div>
   );
@@ -90,27 +99,43 @@ export function AudioPlayer({ control, itemId, name }: { control: AudioControl; 
   const mine = state?.itemId === itemId ? state : null;
   const playing = !!mine?.playing;
   return (
-    <div className="audio-player row" role="group" aria-label={name} data-testid="audio-player" data-playing={playing}>
-      <Button aria-label={playing ? t('audio.pause') : t('audio.play')} onClick={() => control.command({ action: playing ? 'pause' : 'play', itemId })}>
-        {playing ? '⏸' : '▶'}
-      </Button>
-      <input
-        className="grow"
-        type="range"
-        min={0}
-        max={mine?.duration ?? 0}
-        step={0.1}
-        value={mine?.position ?? 0}
-        disabled={!mine}
-        aria-label={t('audio.seek')}
-        onChange={(e) => control.command({ action: 'seek', itemId, position: Number(e.target.value) })}
-      />
-      <span className="muted small" data-testid="audio-time">
-        {clock(mine?.position ?? 0)} / {mine?.duration ? clock(mine.duration) : '–:––'}
-      </span>
-      <Button disabled={!playing || mine?.fading} onClick={() => control.command({ action: 'fade', itemId })}>
-        {t('audio.fade')}
-      </Button>
+    <div className="w-full sm:max-w-lg bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-sm" role="group" aria-label={name} data-testid="audio-player" data-playing={playing}>
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <p className="text-sm font-medium truncate flex-1">{name}</p>
+        <AppButton
+          variant="plain"
+          disabled={!playing || mine?.fading}
+          onClick={() => control.command({ action: 'fade', itemId })}
+          className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 transition shrink-0 disabled:opacity-50 disabled:cursor-default"
+        >
+          <FadeOutIcon className="size-4" />
+          {t('audio.fade')}
+        </AppButton>
+      </div>
+      <div className="flex items-center gap-3">
+        <AppButton
+          variant="plain"
+          aria-label={playing ? t('audio.pause') : t('audio.play')}
+          onClick={() => control.command({ action: playing ? 'pause' : 'play', itemId })}
+          className="size-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 transition shrink-0"
+        >
+          {playing ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5" />}
+        </AppButton>
+        <input
+          className="flex-1 min-w-0 h-1.5 p-0 border-0 accent-sky-500 cursor-pointer disabled:cursor-default"
+          type="range"
+          min={0}
+          max={mine?.duration ?? 0}
+          step={0.1}
+          value={mine?.position ?? 0}
+          disabled={!mine}
+          aria-label={t('audio.seek')}
+          onChange={(e) => control.command({ action: 'seek', itemId, position: Number(e.target.value) })}
+        />
+        <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums shrink-0" data-testid="audio-time">
+          {clock(mine?.position ?? 0)} / {mine?.duration ? clock(mine.duration) : '–:––'}
+        </span>
+      </div>
     </div>
   );
 }
@@ -136,14 +161,21 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
   const mine = sessions.find((s) => s.id === sessionId);
   const temporary = screens.filter((x) => chosen.includes(x.id));
   return (
-    <div className="card live-outputs">
+    <section className="space-y-3">
       {dialog}
-      <h2>{t('live.outputs')}</h2>
-      <ul className="list" aria-label={t('live.outputs')}>
+      <h2 className={CAPTION}>{t('live.outputs')}</h2>
+      <AppButton variant="plain" onClick={openOutput} className={`${rowClass(false)} w-full hover:bg-neutral-200 dark:hover:bg-neutral-700`}>
+        <span className="flex items-center gap-2">
+          <DesktopIcon className="size-4 shrink-0" />
+          {t('live.output')}
+        </span>
+      </AppButton>
+      <ul className="flex flex-col gap-3" aria-label={t('live.outputs')}>
         {displays?.map((d) => {
           const elsewhere = sessions.find((s) => s.id !== sessionId && s.outputs.some((o) => o.id === d.id));
           const viewers = mine?.outputs.find((o) => o.id === d.id)?.viewers;
           const offline = d.kind === 'screen' && !online.includes(d.id);
+          const sending = chosen.includes(d.id) && !elsewhere && !offline;
           const toggle = async (on: boolean) => {
             if (on && elsewhere) {
               const ok = await ask({
@@ -157,29 +189,46 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
             setOutput(d.id, on);
           };
           return (
-            <li key={d.id} className="row">
-              <label className="row grow">
-                <input type="checkbox" checked={chosen.includes(d.id) && !elsewhere && !offline} disabled={offline} onChange={(e) => void toggle(e.target.checked)} />
-                {d.name}
-              </label>
-              {offline && <span className="muted small">{t('screens.offline')}</span>}
-              {d.kind === 'public' && viewers !== undefined && <span className={viewers > 0 ? 'ok small' : 'muted small'}>{viewersText(viewers)}</span>}
-              {elsewhere && <span className="muted small">{t('displays.sending', { name: elsewhere.presentationName })}</span>}
+            <li key={d.id}>
+              <ToggleRow
+                label={d.name}
+                checked={sending}
+                disabled={offline}
+                onChange={(v) => void toggle(v)}
+                icon={<DesktopIcon className={`size-4 shrink-0 ${sending ? 'text-green-500' : 'text-neutral-400 dark:text-neutral-500'}`} />}
+                sub={offline ? t('screens.offline') : elsewhere ? t('displays.sending', { name: elsewhere.presentationName }) : undefined}
+                extra={
+                  d.kind === 'public' &&
+                  viewers !== undefined && <span className={`text-[11px] ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-neutral-400 dark:text-neutral-500'}`}>{viewersText(viewers)}</span>
+                }
+              />
             </li>
           );
         })}
         {temporary.map((x) => (
-          <li key={x.id} className="row" aria-label={t('screens.temporary', { n: x.n })}>
-            <span className="grow">{t('screens.temporary', { n: x.n })}</span>
-            <Button aria-label={t('screens.disconnect', { n: x.n })} onClick={() => setOutput(x.id, false)}>
-              ✕
-            </Button>
+          <li key={x.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" aria-label={t('screens.temporary', { n: x.n })}>
+            <span className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+              <DesktopIcon className="size-4 shrink-0" />
+              {t('screens.temporary', { n: x.n })}
+            </span>
+            <AppButton
+              variant="plain"
+              aria-label={t('screens.disconnect', { n: x.n })}
+              title={t('screens.disconnect', { n: x.n })}
+              onClick={() => setOutput(x.id, false)}
+              className="cursor-pointer text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400"
+            >
+              <CloseIcon className="size-4" />
+            </AppButton>
           </li>
         ))}
       </ul>
-      <Button onClick={() => setPairing(true)}>{t('pairScreen.title')}</Button>
+      <AppButton variant="secondary" onClick={() => setPairing(true)} className="flex items-center gap-1.5">
+        <PlusIcon className="size-4" />
+        {t('pairScreen.title')}
+      </AppButton>
       {pairing && <PairScreenDialog sessionId={sessionId} onClose={() => setPairing(false)} />}
-    </div>
+    </section>
   );
 }
 
@@ -187,12 +236,15 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
 function OverlaysPanel({ overlays, pointer, live }: { overlays: Overlay[]; pointer: LivePointer; live: LiveControl }) {
   if (!overlays.length) return null;
   return (
-    <details className="card live-overlays">
-      <summary>
-        {t('overlays.title')}
-        {pointer.overlayId && <span className="overlay-dot" data-testid="overlay-on" />}
+    <details className="group">
+      <summary className="cursor-pointer flex items-center gap-2 list-none [&::-webkit-details-marker]:hidden">
+        <ChevronDownIcon className="size-3 text-neutral-400 dark:text-neutral-500 transition-transform -rotate-90 group-open:rotate-0" />
+        <span className={CAPTION}>{t('overlays.title')}</span>
+        {pointer.overlayId && <span className="size-2 rounded-full bg-sky-500" data-testid="overlay-on" />}
       </summary>
-      <OverlayToggles overlays={overlays} pointer={pointer} live={live} />
+      <div className="pt-3">
+        <OverlayToggles overlays={overlays} pointer={pointer} live={live} />
+      </div>
     </details>
   );
 }
@@ -208,20 +260,26 @@ function RemoteLive({ id, link, ownSessionId, wanted }: { id: string; link: Live
   const candidates = sessions.filter((s) => s.presentationId === id && s.id !== ownSessionId);
   const chosen: LiveSessionInfo | undefined = candidates.find((s) => s.id === picked) ?? (candidates.length === 1 ? candidates[0] : undefined);
   const notReady = (text: string, extra?: ReactNode) => (
-    <section className="live">
-      <p className="remote-banner">{t('remote.banner')}</p>
-      <p data-testid="remote-state">{text}</p>
-      {extra}
+    <section className="flex-1 min-h-0 flex flex-col bg-neutral-100 dark:bg-neutral-900">
+      <RemoteBanner />
+      <div className="flex-1 flex items-center justify-center text-center px-6 py-16">
+        <div className="w-full max-w-sm space-y-3">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400" data-testid="remote-state">
+            {text}
+          </p>
+          {extra}
+        </div>
+      </div>
     </section>
   );
   if (!chosen && candidates.length > 1) {
     return notReady(
       t('remote.pick'),
-      <div className="row">
+      <div className="space-y-3">
         {candidates.map((c, i) => (
-          <Button key={c.id} onClick={() => setPicked(c.id)}>
+          <AppButton key={c.id} onClick={() => setPicked(c.id)} className="w-full">
             {c.deviceName || t('remote.presentationN', { n: i + 1 })}
-          </Button>
+          </AppButton>
         ))}
       </div>,
     );
@@ -231,12 +289,17 @@ function RemoteLive({ id, link, ownSessionId, wanted }: { id: string; link: Live
   if (!chosen.ownerOnline) {
     return notReady(
       t('remote.ownerOffline'),
-      <Button variant="danger" onClick={() => link.end(chosen.id)}>
+      <AppButton variant="danger" filled onClick={() => link.end(chosen.id)}>
         {t('remote.endAbandoned')}
-      </Button>,
+      </AppButton>,
     );
   }
   return <ControlledLive key={chosen.id} id={id} link={link} sessionId={chosen.id} />;
+}
+
+/** The strip at the top of a controller's page (Pages/Presentation.razor, remote mode). */
+function RemoteBanner() {
+  return <p className="shrink-0 bg-amber-500 text-white text-center py-1.5 px-3 text-sm font-medium">{t('remote.banner')}</p>;
 }
 
 function ControlledLive({ id, link, sessionId }: { id: string; link: LiveLink; sessionId: string }) {
@@ -305,64 +368,111 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
     const selected = item.id === pointer.itemId;
     const carried = item.overlayId ? data.overlays.find((o) => o.id === item.overlayId) : undefined;
     return (
-      <li key={item.id} className={selected ? 'live-item selected' : 'live-item'}>
-        <h3>
-          {item.title}
-          {carried && <span className="overlay-pill" title={t('overlays.carried')}>{carried.title}</span>}
+      <li key={item.id} className="space-y-2">
+        <h3 className={`flex items-center gap-2 px-2 text-sm/6 font-semibold ${selected ? 'text-neutral-900 dark:text-neutral-100' : 'text-neutral-500 dark:text-neutral-400'}`}>
+          <span className={`size-2 shrink-0 rounded-full ${selected && !pointer.black ? 'bg-red-500 animate-pulse' : ''}`} />
+          <ItemIcon type={item.type} className="size-4 shrink-0" />
+          <span className="truncate">{item.title}</span>
+          {carried && (
+            <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-normal bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400" title={t('overlays.carried')}>
+              {carried.title}
+            </span>
+          )}
         </h3>
-        {s.problem && <p className="warning">{problemText[s.problem]}</p>}
-        {s.audio && <AudioPlayer control={audio} itemId={item.id} name={s.audio.fileName} />}
-        <div className="thumbs">
-          {s.slides.map((slide, i) => (
-            <Button
-              key={slide.key}
-              aria-label={`${item.title} ${i + 1}`}
-              aria-pressed={selected && i === pointer.partIndex}
-              className={selected && i === pointer.partIndex ? 'thumb current' : 'thumb'}
-              onClick={() => live.set({ itemId: item.id, partIndex: i, black: false })}
-            >
-              <SlideView slide={slide} theme={data.theme} />
-            </Button>
-          ))}
-        </div>
+        {s.problem && <p className="mx-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">{problemText[s.problem]}</p>}
+        {s.audio && (
+          <div className="px-1">
+            <AudioPlayer control={audio} itemId={item.id} name={s.audio.fileName} />
+          </div>
+        )}
+        {!!s.slides.length && (
+          <div className="flex flex-wrap gap-3">
+            {s.slides.map((slide, i) => {
+              const shown = selected && i === pointer.partIndex;
+              return (
+                <AppButton
+                  key={slide.key}
+                  variant="plain"
+                  aria-label={`${item.title} ${i + 1}`}
+                  aria-pressed={shown}
+                  className={`${tileClass({ selected: shown, live: !pointer.black })} w-full sm:w-[calc(50%-0.75rem)] lg:w-96 m-1 p-0`}
+                  onClick={() => live.set({ itemId: item.id, partIndex: i, black: false })}
+                >
+                  <SlideView slide={slide} theme={data.theme} />
+                  {shown && !pointer.black && <LiveBadge>{t('stage.live')}</LiveBadge>}
+                </AppButton>
+              );
+            })}
+          </div>
+        )}
       </li>
     );
   };
 
   return (
-    <section className="live">
+    <section className="flex-1 min-h-0 flex flex-col">
       {stage && <StageView items={data.items} slides={data.slides} theme={data.theme} overlays={data.overlays} live={live} audio={audio} onLeave={() => setStage(false)} />}
-      {!owner && <p className="remote-banner">{t('remote.banner')}</p>}
-      <div className="row">
-        <h1 className="grow">{data.presentation?.name}</h1>
-        {owner && <Button onClick={openOutput}>{t('live.output')}</Button>}
-        <Button onClick={() => setStage(true)}>{t('live.stage')}</Button>
-        <Button aria-pressed={pointer.black} variant={pointer.black ? 'primary' : 'normal'} onClick={() => live.set({ black: !pointer.black })}>
-          {t('live.black')}
-        </Button>
-        {owner ? (
-          <Button
-            onClick={() => {
-              live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
-              navigate({ page: 'presentation', id });
-            }}
-          >
-            {t('live.end')}
-          </Button>
-        ) : (
-          <span className="muted small">{t('remote.onlyOwnerStops')}</span>
-        )}
-      </div>
-      {/* The presenting computer needs everything; a remote control never plays audio, so it fetches none. */}
-      <MediaReadiness presentationId={id} audio={!!owner} />
-      {owner && <OutputsPanel link={link} sessionId={owner.sessionId} />}
-      {owner && <RemotePanel id={id} sessionId={owner.sessionId} />}
-      <OverlaysPanel overlays={data.overlays} pointer={pointer} live={live} />
-      <div className="live-layout">
-        <ol className="live-items">{data.items.map(itemRow)}</ol>
-        <aside className="live-preview">
-          <h2>{t('live.preview')}</h2>
-          <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} overlay={pointer.black ? null : overlay} />
+      {!owner && <RemoteBanner />}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+        <div className="flex-1 min-w-0 bg-neutral-100 dark:bg-neutral-900 lg:overflow-y-auto">
+          <div className="px-5 pt-3 pb-1">
+            <h1 className="text-xl/10 font-semibold truncate">{data.presentation?.name}</h1>
+            {/* The presenting computer needs everything; a remote control never plays audio, so it fetches none. */}
+            <MediaReadiness presentationId={id} audio={!!owner} />
+          </div>
+          <ol className="px-3 pt-3 pb-6 space-y-6">{data.items.map(itemRow)}</ol>
+        </div>
+        <aside className="w-full lg:w-72 shrink-0 bg-white dark:bg-neutral-800 lg:shadow-xl lg:overflow-y-auto">
+          <div className="p-4 flex flex-col gap-3 lg:min-h-full">
+            <h2 className={CAPTION}>{t('live.preview')}</h2>
+            <div className="aspect-video rounded-lg overflow-hidden">
+              <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} overlay={pointer.black ? null : overlay} />
+            </div>
+            <AppButton
+              variant={pointer.black ? 'primary' : 'secondary'}
+              aria-pressed={pointer.black}
+              onClick={() => live.set({ black: !pointer.black })}
+              className="mx-1 flex items-center justify-center gap-1.5"
+            >
+              {t('live.black')}
+            </AppButton>
+            {owner && (
+              <div className="mt-3">
+                <OutputsPanel link={link} sessionId={owner.sessionId} />
+              </div>
+            )}
+            {!!data.overlays.length && (
+              <div className="mt-3">
+                <OverlaysPanel overlays={data.overlays} pointer={pointer} live={live} />
+              </div>
+            )}
+            {owner && (
+              <div className="mt-3">
+                <RemotePanel id={id} sessionId={owner.sessionId} />
+              </div>
+            )}
+            <AppButton variant="secondary" onClick={() => setStage(true)} className="mt-3 flex items-center justify-center gap-2">
+              <ArrowsPointingOutIcon className="size-5" />
+              <span className="font-medium">{t('live.stage')}</span>
+            </AppButton>
+            <div className="mt-auto pt-4">
+              {owner ? (
+                <AppButton
+                  variant="plain"
+                  onClick={() => {
+                    live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
+                    navigate({ page: 'presentation', id });
+                  }}
+                  className="w-full px-4 py-2.5 rounded-full flex items-center justify-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
+                >
+                  <StopIcon className="size-5" />
+                  <span className="text-sm font-medium">{t('live.end')}</span>
+                </AppButton>
+              ) : (
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">{t('remote.onlyOwnerStops')}</p>
+              )}
+            </div>
+          </div>
         </aside>
       </div>
     </section>

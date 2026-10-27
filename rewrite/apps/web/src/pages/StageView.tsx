@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Overlay, PresentationItem, Theme } from '@gp/core';
 import { useShownOverlay } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -6,7 +6,9 @@ import { useAudio, type AudioControl } from '../live/audio.ts';
 import type { ItemSlides } from '../live/live.ts';
 import type { LiveControl } from '../live/remote.ts';
 import { useLivePointer } from '../live/useLive.ts';
-import { Button } from '../ui/Button.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { ChevronDownIcon, ChevronLeftIcon, CloseIcon, ItemIcon, SpeakerOutlineIcon, SquaresOverlapIcon } from '../ui/icons.tsx';
+import { LiveBadge } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { OverlayToggles } from './OverlayToggles.tsx';
 
@@ -88,81 +90,172 @@ export function StageView({
   const current = item && !pointer.black ? (parts[pointer.partIndex] ?? null) : null;
   const next = item && !pointer.black ? parts[pointer.partIndex + 1] : undefined;
 
+  const caption = 'text-[10px] uppercase tracking-widest text-neutral-500 font-semibold';
+
   return (
-    <div className="stage" role="dialog" aria-modal="true" aria-label={t('live.stage')} data-testid="stage-view">
-      <div className="stage-bar row">
-        <Button onClick={onLeave}>{t('stage.leave')}</Button>
-        <Button className="grow" aria-haspopup="dialog" onClick={() => setPicking(true)}>
-          {item?.title ?? t('stage.choose')}
-        </Button>
+    <div className="fixed inset-0 z-50 bg-neutral-900 text-white flex flex-col select-none" role="dialog" aria-modal="true" aria-label={t('live.stage')} data-testid="stage-view">
+      <div className="shrink-0 relative flex items-center gap-2 px-3 py-2 bg-neutral-950 border-b border-neutral-800">
+        <AppButton
+          variant="plain"
+          onClick={onLeave}
+          aria-label={t('stage.leave')}
+          title={t('stage.leave')}
+          className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-neutral-800 text-sm shrink-0"
+        >
+          <ChevronLeftIcon className="size-5" />
+          <span className="hidden sm:inline">{t('stage.leave')}</span>
+        </AppButton>
+        <AppButton
+          variant="plain"
+          aria-haspopup="dialog"
+          onClick={() => setPicking(true)}
+          className="cursor-pointer absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[60%] flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-neutral-800"
+        >
+          <span className="truncate text-base font-semibold">{item?.title ?? t('stage.choose')}</span>
+          <ChevronDownIcon className="size-4 shrink-0 text-neutral-400" />
+        </AppButton>
         {!!overlays.length && (
-          <Button aria-haspopup="dialog" onClick={() => setOverlaySheet(true)}>
-            {t('overlays.title')}
-            {pointer.overlayId && <span className="overlay-dot" data-testid="overlay-on" />}
-          </Button>
+          <AppButton
+            variant="plain"
+            aria-haspopup="dialog"
+            aria-label={t('overlays.title')}
+            title={t('overlays.title')}
+            onClick={() => setOverlaySheet(true)}
+            className="cursor-pointer ml-auto relative flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg shrink-0 hover:bg-neutral-800 text-neutral-200 text-sm"
+          >
+            <SquaresOverlapIcon className="size-5" />
+            <span className="hidden sm:inline">{t('overlays.title')}</span>
+            {pointer.overlayId && <span className="absolute top-0.5 right-0.5 size-2.5 rounded-full bg-sky-500" data-testid="overlay-on" />}
+          </AppButton>
         )}
       </div>
       {overlaySheet && (
-        <div className="stage-sheet" role="dialog" aria-label={t('overlays.title')}>
-          <OverlayToggles overlays={overlays} pointer={pointer} live={live} />
-          <Button onClick={() => setOverlaySheet(false)}>{t('common.close')}</Button>
-        </div>
+        <Sheet title={t('overlays.title')} onClose={() => setOverlaySheet(false)}>
+          <div className="p-3">
+            <OverlayToggles overlays={overlays} pointer={pointer} live={live} stage />
+          </div>
+        </Sheet>
       )}
       {picking && (
-        <div className="stage-sheet" role="dialog" aria-label={t('stage.itemPicker')}>
-          {!items.length && <p className="muted">{t('stage.empty')}</p>}
-          <ul className="list">
-            {items.map((i) => (
-              <li key={i.id}>
-                <Button className="list-button" onClick={() => pick(i)}>
-                  {i.title}
-                </Button>
-              </li>
-            ))}
-          </ul>
-          <Button onClick={() => setPicking(false)}>{t('common.close')}</Button>
-        </div>
-      )}
-      <div className="stage-main">
-        <section>
-          <h2>{t('stage.nowShowing')}</h2>
-          <div className="stage-now">
-            <SlideView slide={current} theme={theme} label={false} credits={false} overlay={pointer.black ? null : overlay} />
-            {pointer.black && sound?.playing && <p className="stage-audio">{t('stage.audioPlaying')}</p>}
-            {current?.label && (
-              <span className="stage-label" style={{ background: current.label.color }}>
-                {current.label.text}
-              </span>
-            )}
+        <Sheet title={t('stage.itemPicker')} onClose={() => setPicking(false)}>
+          <div className="py-2">
+            {!items.length && <p className="px-4 py-8 text-center text-neutral-500 text-sm">{t('stage.empty')}</p>}
+            <ul>
+              {items.map((i) => (
+                <li key={i.id}>
+                  <AppButton
+                    variant="plain"
+                    onClick={() => pick(i)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer ${i.id === item?.id ? 'bg-sky-600 text-white' : 'text-neutral-200 hover:bg-neutral-800'}`}
+                  >
+                    <ItemIcon type={i.type} className="size-4 shrink-0" />
+                    <span className="truncate">{i.title}</span>
+                  </AppButton>
+                </li>
+              ))}
+            </ul>
           </div>
-          <Button className={pointer.black ? 'invisible' : ''} tabIndex={pointer.black ? -1 : 0} onClick={() => live.set({ black: true })}>
-            {t('stage.clear')}
-          </Button>
+        </Sheet>
+      )}
+      <div className="flex-1 min-h-0 flex flex-col sm:flex-row gap-3 p-3 overflow-hidden">
+        <section className="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-center gap-2">
+          <div className="flex-1 min-h-0 w-full flex items-center justify-center [container-type:size]">
+            <div className="flex flex-col gap-2 w-[min(100cqw,calc((100cqh-1.5rem)*16/9))]">
+              <h2 className={caption}>{t('stage.nowShowing')}</h2>
+              <div className="relative aspect-video rounded-lg shadow-2xl overflow-hidden">
+                <SlideView slide={current} theme={theme} label={false} credits={false} overlay={pointer.black ? null : overlay} />
+                {pointer.black && sound?.playing && (
+                  <div className="absolute inset-0 z-[3] flex flex-col items-center justify-center gap-2 text-neutral-400 pointer-events-none">
+                    <SpeakerOutlineIcon className="size-12 opacity-70" />
+                    <p className="text-xs">{t('stage.audioPlaying')}</p>
+                  </div>
+                )}
+                {current?.label && (
+                  <span
+                    className="absolute top-2 right-2 z-[3] text-xs font-semibold uppercase tracking-wide rounded-full px-3 py-1 pointer-events-none shadow-md text-white"
+                    style={{ background: current.label.color }}
+                  >
+                    {current.label.text}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <AppButton
+            variant="plain"
+            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shrink-0 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 mt-1 ${pointer.black ? 'invisible' : ''}`}
+            tabIndex={pointer.black ? -1 : 0}
+            onClick={() => live.set({ black: true })}
+          >
+            <CloseIcon className="size-4" />
+            <span>{t('stage.clear')}</span>
+          </AppButton>
         </section>
-        <section>
-          <h2>{t('stage.next')}</h2>
+        <section className="shrink-0 flex flex-col items-center sm:justify-center sm:w-2/5 lg:w-1/3">
+          <h2 className={`${caption} mb-2 self-start`}>{t('stage.next')}</h2>
           {next ? (
-            <Button className="stage-next" aria-label={t('stage.next')} onClick={() => go(1)}>
+            <AppButton
+              variant="plain"
+              className="block w-full aspect-video shrink-0 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-sky-400 transition-all p-0"
+              aria-label={t('stage.next')}
+              onClick={() => go(1)}
+            >
               <SlideView slide={next} theme={theme} label={false} credits={false} />
-            </Button>
+            </AppButton>
           ) : (
-            <p className="muted">{item ? t('stage.nextNone') : ''}</p>
+            <div className="w-full aspect-video flex items-center justify-center text-center px-4">
+              <p className="text-sm text-neutral-500">{item ? t('stage.nextNone') : ''}</p>
+            </div>
           )}
         </section>
       </div>
-      <ol className="stage-strip" aria-label={t('stage.strip')}>
-        {parts.map((slide, i) => {
-          const isLive = !pointer.black && i === pointer.partIndex;
-          return (
-            <li key={slide.key} ref={isLive ? liveRef : undefined} className={isLive ? 'stage-tile live' : 'stage-tile'}>
-              <Button aria-label={`${item!.title} ${i + 1}`} aria-pressed={isLive} onClick={() => show(item!.id, i)}>
-                <SlideView slide={slide} theme={theme} label={false} credits={false} />
-              </Button>
-              {isLive && <span className="stage-badge">{t('stage.live')}</span>}
-            </li>
-          );
-        })}
-      </ol>
+      {!!parts.length && (
+        <div className="shrink-0 bg-neutral-950 border-t border-neutral-800 px-3 py-3 overflow-x-auto">
+          <ol className="flex gap-2 items-center" aria-label={t('stage.strip')}>
+            {parts.map((slide, i) => {
+              const isLive = !pointer.black && i === pointer.partIndex;
+              return (
+                <li key={slide.key} ref={isLive ? liveRef : undefined} className="relative shrink-0">
+                  <AppButton
+                    variant="plain"
+                    aria-label={`${item!.title} ${i + 1}`}
+                    aria-pressed={isLive}
+                    onClick={() => show(item!.id, i)}
+                    className={`block w-48 cursor-pointer rounded-md transition-opacity p-0.5 outline-3 ${isLive ? 'outline-red-500' : 'outline-transparent opacity-70 hover:opacity-100'}`}
+                  >
+                    <span className="block aspect-video rounded overflow-hidden">
+                      <SlideView slide={slide} theme={theme} label={false} credits={false} />
+                    </span>
+                  </AppButton>
+                  {isLive && (
+                    <LiveBadge small>
+                      {t('stage.live')}
+                    </LiveBadge>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A sheet over the stage view, from the bottom on a phone and centred above it (StageView.razor's drawers). */
+function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" />
+      <div className="relative w-full sm:max-w-lg bg-neutral-900 text-white rounded-t-2xl sm:rounded-2xl max-h-[80vh] flex flex-col shadow-2xl" role="dialog" aria-label={title}>
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-neutral-800">
+          <h2 className="text-base/6 font-semibold">{title}</h2>
+          <AppButton variant="plain" onClick={onClose} aria-label={t('common.close')} className="cursor-pointer p-2 rounded-full hover:bg-neutral-800">
+            <CloseIcon className="size-5" />
+          </AppButton>
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
+      </div>
     </div>
   );
 }

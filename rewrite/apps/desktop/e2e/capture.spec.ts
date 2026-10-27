@@ -3,9 +3,10 @@
 // runs only with GP_CAPTURE set to the directory the pictures go to.
 //   GP_CAPTURE=/tmp/new pnpm --filter @gp/desktop exec playwright test capture
 import { mkdirSync } from 'node:fs';
-import { test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
 
 const out = process.env.GP_CAPTURE;
 test.skip(!out, 'only with GP_CAPTURE=<directory>');
@@ -29,9 +30,19 @@ test('capture every page', async () => {
   const page = host.page;
   await setUpHost(host, { name: 'Anna', org: 'Foo Bar Kyrka', google: { sub: 'google-anna', email: 'anna@kyrkan.se', name: 'Anna' } });
 
-  // Something on every list, as in the current app's mock data.
+  // Something on every list, as in the current app's mock data: Familjegudstjänst holds the same two songs.
   await createSong(page, 'Blott en dag', [['Verse 1', 'Blott en dag, ett ögonblick i sänder']]);
-  await createSong(page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden, härlig är Guds himmel']]);
+  await createSong(page, 'Härlig är jorden', [
+    ['Verse 1', 'Härlig är jorden,\nHärlig är Guds himmel,\nSkön är själarnas pilgrimsgång.\nGenom de fagra riken på jorden\nGår vi till paradiset fram.'],
+    ['Verse 2', 'Tidevarv komma,\nTidevarv försvinna,\nSläkten följa släktens gång.\nAldrig uppslocknar tonen från himlen\nI själens glada pilgrimssång.'],
+    ['Verse 3', 'Änglar den sjöngo\nFörst för markens herdar;\nSkön var sången, ljuv och lång.\nFrid på vår jord nu!\nGud till oss sände\nHimmelens frid med Davids son.'],
+  ]);
+  await createSong(page, 'Tryggare kan ingen vara', [['Verse 1', 'Tryggare kan ingen vara,\nän Guds lilla barnaskara']]);
+  // A Bible for the add dialog's second tab.
+  await openAdmin(page, 'Biblar');
+  await page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
+  await expect(page.getByTestId('bible-import-message')).toBeVisible();
+  await createPresentation(page, 'Utan datum');
   for (const [name, offset] of [
     ['Bönekväll', -18],
     ['Söndagsgudstjänst', -7],
@@ -40,17 +51,51 @@ test('capture every page', async () => {
     ['Familjegudstjänst', 6],
   ] as const)
     await createPresentation(page, name, day(offset));
-  await createPresentation(page, 'Utan datum');
-  await addSongs(page, ['Blott en dag', 'Härlig är jorden']);
+  await addSongs(page, ['Härlig är jorden', 'Tryggare kan ingen vara']);
   const presentation = new URL(page.url()).pathname;
+  const id = presentation.split('/').pop()!;
   const song = await (async () => {
     await page.goto(`${host!.base}/admin/songs`);
     return (await page.getByRole('link', { name: 'Blott en dag' }).getAttribute('href'))!;
   })();
 
-  const pages: [string, string][] = [
+  // Steps on a page before its picture, and after it; the names match capture-old-app.mjs.
+  const pickItem = (p: Page) => p.getByRole('list', { name: 'Programpunkter' }).getByRole('button').first().click();
+  const openAdd = async (p: Page, key?: string) => {
+    await p.getByRole('button', { name: 'Lägg till', exact: true }).click();
+    if (key) await p.keyboard.press(key);
+  };
+  const goLive = (p: Page) => p.getByRole('button', { name: 'Härlig är jorden 1' }).click();
+  const stopLive = (p: Page) => p.getByRole('button', { name: 'Avsluta' }).click();
+  const pages: [string, string, ((p: Page) => Promise<unknown>)?, ((p: Page) => Promise<unknown>)?][] = [
     ['home', '/'],
     ['presentation', presentation],
+    ['presentation-item', presentation, pickItem],
+    [
+      'add-songs',
+      presentation,
+      async (p) => {
+        await openAdd(p);
+        await p.getByLabel('Sök på titel, författare eller textrad').fill('a');
+        await p.getByRole('dialog', { name: 'Lägg till' }).getByRole('list', { name: 'Sånger' }).getByRole('button').first().click();
+      },
+    ],
+    ['add-bible', presentation, (p) => openAdd(p, 'Control+2')],
+    ['add-images', presentation, (p) => openAdd(p, 'Control+3')],
+    ['add-audio', presentation, (p) => openAdd(p, 'Control+4')],
+    ['live', `/live/${id}`, goLive, stopLive],
+    [
+      'stage',
+      `/live/${id}`,
+      async (p) => {
+        await goLive(p);
+        await p.getByRole('button', { name: 'Scenläge' }).click();
+      },
+      async (p) => {
+        await p.getByRole('button', { name: 'Lämna scenläge' }).click();
+        await stopLive(p);
+      },
+    ],
     ['trash', '/trash'],
     ['settings', '/settings'],
     ['profile', '/logins'],
@@ -73,11 +118,16 @@ test('capture every page', async () => {
       ['mobile', 390, 844],
     ] as const) {
       await page.setViewportSize({ width, height });
-      for (const [name, path] of pages) {
+      for (const [name, path, act, after] of pages) {
         await page.goto(host.base + path);
         await page.getByTestId('me').waitFor();
         await page.waitForTimeout(500);
+        if (act) {
+          await act(page);
+          await page.waitForTimeout(500);
+        }
         await page.screenshot({ path: `${out}/${name}_${theme}_${vp}.png` });
+        await after?.(page);
       }
     }
   }

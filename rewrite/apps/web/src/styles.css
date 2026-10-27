@@ -37,7 +37,6 @@ a { color: var(--accent); }
 input, textarea, select { font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
 textarea { width: 100%; resize: vertical; }
 .search { width: 100%; margin: 8px 0; }
-.title-input { font-size: 1.4rem; font-weight: 600; flex: 1; min-width: 200px; }
 .list { list-style: none; padding: 0; margin: 0; }
 .list li { padding: 6px 0; border-bottom: 1px solid var(--line); }
 .fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
@@ -67,34 +66,8 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .btn.pill-button { border-radius: 999px; padding: 4px 14px; }
 .btn.pill-button[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: white; outline: none; }
 .footer { margin-top: 24px; }
-.list-button { text-align: left; border-color: transparent; }
-.list-button[aria-pressed='true'] { background: color-mix(in srgb, var(--accent) 15%, transparent); outline: none; }
-.selectable li { padding: 2px 0; }
-.selectable .list-button { width: 100%; }
-
-
-/* Presentation editor */
-.editor { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
-.sidebar .items li.item { display: flex; gap: 4px; align-items: center; padding: 2px 0; }
-.sidebar .items .btn { padding: 2px 8px; }
-.sidebar .items .list-button { padding: 6px 8px; }
-.item-title { margin: 0; cursor: text; }
-.thumbs.grid { list-style: none; padding: 0; margin: 12px 0; }
-.thumbs.grid .thumb { aspect-ratio: 16 / 9; }
-.picker { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 40vh; }
-.picker-list { overflow: auto; max-height: 60vh; }
-.picker-preview .thumbs { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-@media (max-width: 800px) {
-  .editor, .picker { grid-template-columns: 1fr; }
-}
 
 /* Bibles and themes */
-.tabs { margin-bottom: 12px; }
-.book-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 4px; margin-bottom: 12px; }
-.book-button { text-align: left; }
-.number-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 4px; }
-.crumbs .crumb.current { color: var(--warn); border-color: var(--warn); }
-.verses li { padding: 4px 0; }
 .drop-zone { min-height: 60vh; }
 .drop-zone.dragging { outline: 2px dashed var(--accent); outline-offset: 8px; }
 .drop-hint { font-weight: 600; color: var(--accent); }
@@ -104,19 +77,6 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .theme-preview { aspect-ratio: 16 / 9; margin-bottom: 8px; }
 .badge { background: var(--accent); color: white; border-radius: 999px; padding: 1px 10px; font-size: 0.85rem; }
 
-/* Live */
-.live-layout { display: grid; grid-template-columns: 1fr 420px; gap: 16px; align-items: start; }
-.live-items { list-style: none; padding: 0; margin: 0; }
-.live-item { padding: 8px; border-radius: 8px; margin-bottom: 8px; border: 1px solid transparent; }
-.live-item.selected { border-color: var(--accent); }
-.overlay-pill { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--accent); font-size: 0.8rem; font-weight: normal; vertical-align: middle; }
-.overlay-dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: var(--accent); }
-.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
-.btn.thumb { padding: 0; border: 2px solid transparent; aspect-ratio: 16 / 9; display: block; }
-.btn.thumb.current { border-color: var(--accent); outline: none; }
-.live-preview { position: sticky; top: 16px; }
-.live-preview .slide-box { aspect-ratio: 16 / 9; }
-
 /* The slide stage: 1920x1080, scaled to its box; the theme sets colours and type (themes.ts, spec 05). */
 .slide-box { width: 100%; height: 100%; position: relative; overflow: hidden; background: black; }
 .slide-stage { position: absolute; top: 0; left: 0; transform-origin: top left; background: black; color: white; overflow: hidden; }
@@ -124,7 +84,6 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .slide-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .slide-text { width: 100%; white-space: pre-wrap; overflow-wrap: break-word; }
 .verse-number { font-size: 0.5em; opacity: 0.4; vertical-align: super; line-height: 0; }
-.slide-label { position: absolute; top: 24px; right: 24px; padding: 8px 20px; border-radius: 12px; font: 600 32px/1.2 system-ui, sans-serif; color: white; z-index: 1; }
 .slide-credits { position: absolute; left: 80px; right: 80px; bottom: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* An overlay (LIVE-R15): above the slide and outside the theme; its text at the top left, 40 px, 60 % white. */
 .slide-overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
@@ -159,28 +118,6 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .overlay-preview { max-width: 640px; aspect-ratio: 16 / 9; }
 .field textarea { color: var(--fg); }
 
-/* Stage view (spec 04 section 3) */
-.stage { position: fixed; inset: 0; z-index: 50; background: #111; color: #eee; display: flex; flex-direction: column; gap: 12px; padding: 12px; overflow: auto; }
-.stage-main { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
-.stage-now { position: relative; }
-.stage-now .slide-box { aspect-ratio: 16 / 9; }
-.stage-label { position: absolute; top: 8px; right: 8px; padding: 2px 12px; border-radius: 8px; color: white; font-weight: 600; }
-.stage-next { display: block; width: 100%; padding: 0; aspect-ratio: 16 / 9; }
-.stage-sheet { position: absolute; inset: 56px 12px auto 12px; z-index: 2; background: #222; padding: 12px; border-radius: 8px; max-height: 70vh; overflow: auto; }
-.stage-strip { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; overflow-x: auto; }
-.stage-tile { position: relative; flex: 0 0 200px; border: 3px solid transparent; }
-.stage-tile.live { border-color: #e03131; }
-.stage-tile .btn { padding: 0; width: 100%; aspect-ratio: 16 / 9; }
-.stage-badge { position: absolute; top: 4px; left: 4px; background: #e03131; color: white; font-size: 0.75rem; padding: 0 6px; border-radius: 4px; }
-.invisible { visibility: hidden; }
-@media (max-width: 700px) { .stage-main { grid-template-columns: 1fr; } }
-
-/* Remote control (spec 04 section 2) */
-.remote-banner { background: #f59f00; color: #1a1a1a; padding: 8px 12px; border-radius: 6px; font-weight: 600; }
-.remote-panel { margin: 8px 0; }
-.remote-panel input[readonly] { width: 100%; }
-.live-now { border-left: 4px solid #e03131; }
-
 /* Public output (spec 04 section 6): the whole viewport, text sized from it */
 .watch-slide, .watch-waiting { position: fixed; inset: 0; display: flex; flex-direction: column; justify-content: center; background: black; color: white; overflow: hidden; }
 .watch-text { padding: 5vh 5vw; white-space: pre-wrap; overflow-wrap: break-word; }
@@ -203,12 +140,3 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .code-box { width: 2.4em; text-align: center; font-size: 1.6em; font-family: ui-monospace, Menlo, monospace; }
 @keyframes watch-pulse { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
 .display-row { padding: 8px 0; border-bottom: 1px solid var(--border, #0002); }
-.live-outputs .row { align-items: center; }
-
-/* Audio during live (spec 04 section 1b) */
-.audio-player { gap: 8px; align-items: center; margin: 4px 0 8px; }
-.stage-audio { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; color: #eee; font-size: 1.4rem; }
-
-/* Tillgänglig offline */
-.keep-offline { margin: 4px 0; }
-.offline-badge { margin-left: 8px; }

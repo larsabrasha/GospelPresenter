@@ -17,8 +17,11 @@ import { useData, useDb } from '../db/react.tsx';
 import { bibleBooks, listBibles } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
-import { Button } from '../ui/Button.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
+import { BookOpenIcon, ChevronDownIcon, ChevronLeftIcon } from '../ui/icons.tsx';
+import { AddFooter, EmptyTab, SearchField } from '../ui/Picker.tsx';
+import { tileClass } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -40,6 +43,11 @@ const chaptersOf = (book: BibleBookText) => [...new Set(book.verses.map(([c]) =>
 const versesOf = (book: BibleBookText, chapter: number) => book.verses.filter(([c]) => c === chapter).map(([, v]) => v);
 const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
+/** A book, chapter or verse to pick (AddItem/Bible/BibleBookPicker.razor and the rest). */
+const CELL = 'rounded-lg bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
+/** A picked verse: tinted sky (BibleVersePicker.razor). */
+const CELL_PICKED = 'rounded-lg bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
+
 /** The book picker, the Old Testament then the New (BIBLE-R10), in canonical order. */
 function BookPicker({ books, onPick }: { books: BibleBookText[]; onPick: (b: BibleBookText) => void }) {
   const groups = [
@@ -47,19 +55,17 @@ function BookPicker({ books, onPick }: { books: BibleBookText[]; onPick: (b: Bib
     { title: t('bible.newTestament'), books: books.filter((b) => !isOldTestament(b.code)) },
   ];
   return (
-    <div data-testid="book-picker">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm" data-testid="book-picker">
       {groups.map(
         (g) =>
           !!g.books.length && (
-            <section key={g.title}>
-              <h3>{g.title}</h3>
-              <div className="book-grid">
-                {g.books.map((b) => (
-                  <Button key={b.code} className="book-button" onClick={() => onPick(b)}>
-                    {swedishBookName(b.code)}
-                  </Button>
-                ))}
-              </div>
+            <section key={g.title} className="flex flex-col gap-1">
+              <h3 className="text-xs/4 font-semibold text-neutral-400 uppercase tracking-wide px-3 mb-1 sticky top-0 bg-white dark:bg-neutral-800 py-2 z-10">{g.title}</h3>
+              {g.books.map((b) => (
+                <AppButton key={b.code} variant="plain" className={`${CELL} px-3 py-2 text-left`} onClick={() => onPick(b)}>
+                  {swedishBookName(b.code)}
+                </AppButton>
+              ))}
             </section>
           ),
       )}
@@ -71,10 +77,15 @@ function BookPicker({ books, onPick }: { books: BibleBookText[]; onPick: (b: Bib
 function BrowsePicker({ browse, setBrowse, onBack }: { browse: Browse; setBrowse: (b: Browse) => void; onBack: () => void }) {
   const { book, step, start, end } = browse;
   const name = swedishBookName(book.code);
+  // The reference so far, each part a link to pick it again; the part being picked is orange (BibleBrowsePicker.razor).
   const crumb = (label: string, target: Step, current: boolean) => (
-    <Button className={current ? 'crumb current' : 'crumb'} onClick={() => setBrowse({ ...browse, step: target })}>
+    <AppButton
+      variant="plain"
+      className={`px-2 py-1 rounded-md cursor-pointer ${current ? 'text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10' : 'text-sky-500 hover:text-sky-600 hover:bg-sky-500/10'}`}
+      onClick={() => setBrowse({ ...browse, step: target })}
+    >
       {label}
-    </Button>
+    </AppButton>
   );
   const prompt = {
     startChapter: t('bible.pickStartChapter'),
@@ -99,28 +110,35 @@ function BrowsePicker({ browse, setBrowse, onBack }: { browse: Browse; setBrowse
   const options = pickedChapter === null ? chaptersOf(book) : versesOf(book, pickedChapter);
   return (
     <div data-testid="browse">
-      <div className="row crumbs">
-        <Button onClick={onBack}>{t('common.back')}</Button>
-        <strong>{name}</strong>
+      <AppButton
+        variant="plain"
+        aria-label={t('common.back')}
+        title={t('common.back')}
+        onClick={onBack}
+        className="mb-2 -ml-1 cursor-pointer p-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+      >
+        <ChevronLeftIcon className="size-5" />
+      </AppButton>
+      <div className="flex flex-wrap items-center gap-x-0.5 ml-1">
+        <span className="px-2 py-1 font-medium">{name}</span>
         {start && crumb(String(start[0]), 'startChapter', step === 'startChapter')}
-        {start && start[1] > 0 && <span>:</span>}
+        {start && start[1] > 0 && <span className="text-neutral-400">:</span>}
         {start && start[1] > 0 && crumb(String(start[1]), 'startVerse', step === 'startVerse')}
-        {browse.endChapter !== null && start && start[1] > 0 && <span>—</span>}
+        {browse.endChapter !== null && start && start[1] > 0 && <span className="text-neutral-400 mx-0.5">—</span>}
         {browse.endChapter !== null && start && start[1] > 0 && crumb(String(browse.endChapter), 'endChapter', step === 'endChapter')}
-        {end && <span>:</span>}
+        {end && <span className="text-neutral-400">:</span>}
         {end && crumb(String(end[1]), 'endVerse', step === 'endVerse')}
       </div>
-      <p className="muted">{prompt}</p>
-      <div className="number-grid" role="group" aria-label={prompt}>
-        {options.map((n) => (
-          <Button
-            key={n}
-            aria-pressed={(step === 'endVerse' && end?.[1] === n && end?.[0] === browse.endChapter) || (step === 'startVerse' && start?.[1] === n)}
-            onClick={() => choose(n)}
-          >
-            {n}
-          </Button>
-        ))}
+      <p className="text-sm text-orange-500 dark:text-orange-400 mt-3 mb-3 px-3">{prompt}</p>
+      <div className="flex flex-wrap gap-1.5 text-sm" role="group" aria-label={prompt}>
+        {options.map((n) => {
+          const picked = (step === 'endVerse' && end?.[1] === n && end?.[0] === browse.endChapter) || (step === 'startVerse' && start?.[1] === n);
+          return (
+            <AppButton key={n} variant="plain" aria-pressed={picked} className={`size-10 flex items-center justify-center ${picked ? CELL_PICKED : CELL}`} onClick={() => choose(n)}>
+              {n}
+            </AppButton>
+          );
+        })}
       </div>
     </div>
   );
@@ -142,13 +160,11 @@ export function BibleTab({
   afterItemId,
   theme,
   onAdded,
-  onClose,
 }: {
   presentationId: string;
   afterItemId: string | null;
   theme: Theme;
   onAdded: (itemId: string) => void;
-  onClose: () => void;
 }) {
   const db = useDb();
   const toast = useToast();
@@ -165,8 +181,10 @@ export function BibleTab({
   if (!bibles) return null;
   if (!bibles.length || !bible) {
     return (
-      <div className="empty" data-testid="no-bibles">
-        <p className="muted">{t('bible.none')}</p>
+      <div data-testid="no-bibles">
+        <EmptyTab icon={<BookOpenIcon className="size-12 text-neutral-300 dark:text-neutral-600" />}>
+          <p>{t('bible.none')}</p>
+        </EmptyTab>
       </div>
     );
   }
@@ -215,98 +233,96 @@ export function BibleTab({
   };
 
   return (
-    <>
+    <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
       {dialog}
-      <div className="picker" onKeyDown={onKeyDown}>
-        <div className="picker-list">
-          <div className="row">
-            <input
-              ref={search}
-              autoFocus
-              className="grow"
-              type="search"
-              maxLength={100}
-              aria-label={t('bible.search')}
-              placeholder={t('bible.search')}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setBrowse(null);
-              }}
-            />
-            {query && (
-              <Button aria-label={t('common.clear')} onClick={() => setQuery('')}>
-                ×
-              </Button>
-            )}
-            <select
-              aria-label={t('bible.translation')}
-              value={bible.id}
-              onChange={(e) => {
-                setBibleId(e.target.value);
-                setBrowse(null);
-              }}
-            >
-              {bibles.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.abbreviation}
-                </option>
-              ))}
-            </select>
-          </div>
-          {!books && <p className="muted">{t('bible.downloading')}</p>}
+      <div className="shrink-0 flex gap-2">
+        <SearchField
+          inputRef={search}
+          autoFocus
+          label={t('bible.search')}
+          value={query}
+          onChange={(v) => {
+            setQuery(v);
+            setBrowse(null);
+          }}
+        />
+        <div className="relative shrink-0">
+          <select
+            aria-label={t('bible.translation')}
+            value={bible.id}
+            onChange={(e) => {
+              setBibleId(e.target.value);
+              setBrowse(null);
+            }}
+            className="appearance-none h-full py-2.5 pl-4 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          >
+            {bibles.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.abbreviation}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon className="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+        </div>
+      </div>
+      <div className="mt-3 flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
+        <div className="w-full md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto md:pr-3">
+          {!books && <p className="py-8 text-center text-sm text-neutral-400">{t('bible.downloading')}</p>}
           {books && query.trim() && !found.length && (
-            <div className="empty">
-              <p className="muted">{t('bible.noHits')}</p>
-              <p className="muted small">
-                {t('bible.tryReference')} {t('bible.examples')}
-              </p>
+            <div className="text-center text-neutral-400 text-sm py-2">
+              <p>{t('bible.noHits')}</p>
+              <div className="text-xs mt-6">
+                <p>{t('bible.tryReference')}</p>
+                <p className="mt-1 text-neutral-500 dark:text-neutral-400">{t('bible.examples')}</p>
+              </div>
             </div>
           )}
           {books && !!found.length && (
             <>
-              {found.length > shown.length && <p className="muted small">{t('bible.showing', { n: shown.length, total: found.length })}</p>}
-              <ol className="list verses" aria-label={t('bible.results')}>
+              <ol className="flex flex-col gap-1.5 text-sm" aria-label={t('bible.results')}>
                 {shown.map((v) => (
-                  <li key={`${v.b}${v.c}:${v.v}`}>
-                    <strong>
+                  <li key={`${v.b}${v.c}:${v.v}`} className="px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-700/50">
+                    <span className="text-sky-500 font-semibold whitespace-nowrap">
                       {swedishBookName(v.b)} {v.c}:{v.v}
-                    </strong>{' '}
-                    {v.t}
+                    </span>{' '}
+                    <span className="text-neutral-700 dark:text-neutral-300">{v.t}</span>
                   </li>
                 ))}
               </ol>
+              {found.length > shown.length && <p className="text-center text-neutral-400 text-xs py-1">{t('bible.showing', { n: shown.length, total: found.length })}</p>}
             </>
           )}
           {books && !query.trim() && !browse && <BookPicker books={books} onPick={(book) => setBrowse({ book, step: 'startChapter', start: null, end: null, endChapter: null })} />}
           {books && !query.trim() && browse && <BrowsePicker browse={browse} setBrowse={setBrowse} onBack={() => setBrowse(null)} />}
         </div>
-        <div className="picker-preview">
-          {!slides.length && <p className="muted">{t('bible.noneSelected')}</p>}
+        <div className="w-full md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3 pt-3 md:pt-0">
+          {!slides.length && (
+            <div className="flex flex-col items-center justify-center h-full py-8 text-sm text-neutral-400 dark:text-neutral-500 select-none">
+              <BookOpenIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />
+              <p>{t('bible.noneSelected')}</p>
+            </div>
+          )}
           {!!slides.length && (
             <>
-              <h3>{bibleTitle(chosen)}</h3>
-              <ol className="thumbs grid" aria-label={bibleTitle(chosen)}>
+              <h3 className="mb-4 px-1 font-semibold text-sm/5">{bibleTitle(chosen)}</h3>
+              <ol className="flex flex-col gap-2" aria-label={bibleTitle(chosen)}>
                 {slides.slice(0, PREVIEW_SLIDES).map((s, i) => (
-                  <li key={s.key} className="thumb" aria-label={`${bibleTitle(chosen)} ${i + 1}`}>
+                  <li key={s.key} className={tileClass({ interactive: false })} aria-label={`${bibleTitle(chosen)} ${i + 1}`}>
                     <SlideView slide={s} theme={theme} />
                   </li>
                 ))}
               </ol>
-              {slides.length > PREVIEW_SLIDES && <p className="muted small">{t('bible.moreSlides', { n: slides.length - PREVIEW_SLIDES })}</p>}
+              {slides.length > PREVIEW_SLIDES && <p className="mt-2 text-center text-xs text-neutral-400">{t('bible.moreSlides', { n: slides.length - PREVIEW_SLIDES })}</p>}
             </>
           )}
         </div>
       </div>
-      <p className="muted small">{t('presentation.addHint')}</p>
-      <div className="row end">
-        <Button onClick={onClose}>{t('common.close')}</Button>
-        {!!chosen.length && (
-          <Button variant="primary" onClick={() => void add()}>
-            {t('presentation.addSong', { name: bibleLabel(chosen) })}
-          </Button>
-        )}
-      </div>
-    </>
+      <AddFooter
+        hint={t('presentation.addHint')}
+        name={chosen.length ? bibleLabel(chosen) : undefined}
+        label={chosen.length ? t('presentation.addSong', { name: bibleLabel(chosen) }) : undefined}
+        onAdd={chosen.length ? () => void add() : undefined}
+      />
+    </div>
   );
 }

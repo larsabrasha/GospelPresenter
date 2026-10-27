@@ -1,5 +1,6 @@
 // The icons of the current app (Components/Symbols and inline SVGs there), Heroicons.
 // Each takes a class for its size and colour; they are decoration, hidden from screen readers.
+import type { PresentationItem } from '@gp/core';
 import type { ReactNode } from 'react';
 
 interface IconProps {
@@ -340,4 +341,154 @@ export function DevicesIcon({ className }: IconProps) {
       />
     </Outline>
   );
+}
+
+// The presentation, live and stage view (Pages/Presentation.razor, LivePanel.razor, StageView.razor).
+
+export function PlayIcon({ className }: IconProps) {
+  return (
+    <Solid className={className}>
+      <path fillRule="evenodd" clipRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" />
+    </Solid>
+  );
+}
+
+export function PauseIcon({ className }: IconProps) {
+  return (
+    <Solid className={className}>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z"
+      />
+    </Solid>
+  );
+}
+
+export function StopIcon({ className }: IconProps) {
+  return (
+    <Solid className={className}>
+      <path fillRule="evenodd" clipRule="evenodd" d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z" />
+    </Solid>
+  );
+}
+
+/** Tona ut: the speaker with its wave faded (Components/Presentations/AudioPlayer.razor). */
+export function FadeOutIcon({ className }: IconProps) {
+  return (
+    <Solid className={className}>
+      <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.905A9.76 9.76 0 0 0 1.5 12c0 .898.121 1.768.35 2.595.341 1.24 1.518 1.905 2.659 1.905h1.93l4.5 4.5c.945.945 2.561.276 2.561-1.06V4.06Z" />
+      <path d="M16.5 12a4.5 4.5 0 0 0-.93-2.737.75.75 0 1 1 1.18-.926A6 6 0 0 1 18 12a6 6 0 0 1-1.25 3.663.75.75 0 1 1-1.18-.926A4.5 4.5 0 0 0 16.5 12Z" opacity="0.4" />
+    </Solid>
+  );
+}
+
+export function SpeakerOutlineIcon({ className }: IconProps) {
+  return (
+    <Outline className={className}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+      />
+    </Outline>
+  );
+}
+
+export function SearchIcon({ className }: IconProps) {
+  return (
+    <Outline className={className} strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+    </Outline>
+  );
+}
+
+export function ChevronLeftIcon({ className }: IconProps) {
+  return (
+    <Outline className={className} strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+    </Outline>
+  );
+}
+
+export function ChevronUpIcon({ className }: IconProps) {
+  return (
+    <Outline className={className} strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+    </Outline>
+  );
+}
+
+/** Scenläge (LivePanel.razor). */
+export function ArrowsPointingOutIcon({ className }: IconProps) {
+  return (
+    <Outline className={className} strokeWidth={1.75}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"
+      />
+    </Outline>
+  );
+}
+
+/** Fjärrstyrning (LivePanel.razor). */
+export function RemoteIcon({ className }: IconProps) {
+  return (
+    <Outline className={className}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0H3"
+      />
+    </Outline>
+  );
+}
+
+/** The empty presentation's picture: three slides and a plus (SlideGrid.razor). */
+export function EmptySlidesPicture({ className }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 200 160" className={className} aria-hidden="true">
+      <rect x="50" y="10" width="120" height="80" rx="8" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.5" />
+      <rect x="35" y="25" width="120" height="80" rx="8" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.7" />
+      <rect x="20" y="40" width="120" height="80" rx="8" stroke="currentColor" strokeWidth="2" className="fill-neutral-100 dark:fill-neutral-800" />
+      <line x1="40" y1="65" x2="120" y2="65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+      <line x1="40" y1="78" x2="100" y2="78" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
+      <line x1="40" y1="91" x2="110" y2="91" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
+      <circle cx="160" cy="130" r="20" stroke="currentColor" strokeWidth="2" className="fill-neutral-100 dark:fill-neutral-800" />
+      <line x1="160" y1="120" x2="160" y2="140" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="150" y1="130" x2="170" y2="130" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function PencilIcon({ className }: IconProps) {
+  return (
+    <Outline className={className}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125"
+      />
+    </Outline>
+  );
+}
+
+/** "Ingen sång vald" (AddItem/Song/SongTab.razor): an outlined note. */
+export function MusicalNoteOutlineIcon({ className }: IconProps) {
+  return (
+    <Outline className={className} strokeWidth={1}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z"
+      />
+    </Outline>
+  );
+}
+
+/** The icon of an item's kind, as in the running order (Components/Presentations/Sidebar.razor). */
+export function ItemIcon({ type, className }: { type: PresentationItem['type']; className?: string }) {
+  const Icon = { song: MusicalNoteIcon, bible: BookOpenIcon, image: PhotoIcon, audio: SpeakerWaveIcon }[type];
+  return <Icon className={className} />;
 }

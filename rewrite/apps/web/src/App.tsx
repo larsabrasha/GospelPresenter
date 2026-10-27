@@ -80,14 +80,16 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         <Presentations link={link} ownSessionId={sessionId} />
       ) : route.page === 'settings' ? (
         <Settings />
+      ) : route.page === 'presentation' ? (
+        <PresentationEditor id={route.id} />
+      ) : route.page === 'live' ? (
+        <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} />
       ) : ADMIN_PAGES.has(route.page) ? (
         <AdminLayout me={me} host={host} route={route}>
           <Legacy>{admin}</Legacy>
         </AdminLayout>
       ) : (
         <Legacy>
-          {route.page === 'presentation' && <PresentationEditor id={route.id} />}
-          {route.page === 'live' && <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} />}
           {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
           {route.page === 'logins' && <Logins error={route.error} />}
         </Legacy>
