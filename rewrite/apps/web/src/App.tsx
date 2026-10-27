@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { can, type Me, type PairStatus } from '@gp/core';
 import { api } from './auth/api.ts';
 import { forgetSession, saveDeviceToken, updateMe } from './auth/session.ts';
@@ -6,6 +6,7 @@ import { REPAIR_KEY } from './Boot.tsx';
 import { useDb, useDbStatus } from './db/react.tsx';
 import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
+import { AudioEngine, audioUrlOfItem } from './live/audio.ts';
 import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
 import { Bibles } from './pages/Bibles.tsx';
@@ -91,8 +92,11 @@ function StatusBar() {
  */
 export function App({ me: initial, live, link, sessionId }: { me: Me; live: LiveChannel; link: LiveLink; sessionId: string }) {
   const route = useRoute();
+  const db = useDb();
+  // The session's audio plays in this window, whichever page is open (spec 04 §1b).
+  const audio = useMemo(() => new AudioEngine((itemId) => audioUrlOfItem(db, itemId)), [db]);
   // This window owns whatever it presents, on every page (LIVE-R49).
-  useLiveOwner(live, link, useDb(), sessionId);
+  useLiveOwner(live, link, db, sessionId, audio);
   const [me, setMe] = useState(initial);
   const [host, setHost] = useState(false);
 
@@ -166,7 +170,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           {route.page === 'song' && <SongEditor id={route.id} />}
           {route.page === 'presentations' && <Presentations link={link} ownSessionId={sessionId} />}
           {route.page === 'presentation' && <PresentationEditor id={route.id} />}
-          {route.page === 'live' && <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} sessionId={sessionId} remote={route.remote} session={route.session} />}
+          {route.page === 'live' && <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} />}
           {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
           {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
           {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}

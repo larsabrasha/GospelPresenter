@@ -70,5 +70,6 @@ export const ownState = (sessionId: string, over: Partial<LiveOwnState> = {}): L
   outputs: [],
   takeOver: [],
   slide: null,
+  audio: null,
   ...over,
 });

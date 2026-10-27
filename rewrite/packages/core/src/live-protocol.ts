@@ -66,6 +66,30 @@ export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses
   };
 }
 
+/**
+ * The session's audio (spec 04 §1b): the audio item the presenting computer
+ * plays, and where it is. Audio plays only there; controllers mirror it.
+ */
+export const liveAudioSchema = z.object({
+  itemId: id,
+  playing: z.boolean(),
+  /** Seconds into the file when this was reported. */
+  position: z.number().min(0).max(24 * 3600),
+  duration: z.number().min(0).max(24 * 3600).nullable(),
+  /** Fading out (Tona ut): five seconds, then it stops and rewinds. */
+  fading: z.boolean(),
+});
+export type LiveAudio = z.infer<typeof liveAudioSchema>;
+
+/** What a controller asks the presenting computer to do with its audio (spec 04 §1b). */
+export const audioCommandSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('play'), itemId: id }),
+  z.object({ action: z.literal('pause'), itemId: id }),
+  z.object({ action: z.literal('seek'), itemId: id, position: z.number().min(0).max(24 * 3600) }),
+  z.object({ action: z.literal('fade'), itemId: id }),
+]);
+export type AudioCommand = z.infer<typeof audioCommandSchema>;
+
 /** What the owner reports, whole, on connect, on every reconnect and on every change (LIVE-R47). */
 export const liveOwnStateSchema = z.object({
   sessionId: id,
@@ -82,6 +106,8 @@ export const liveOwnStateSchema = z.object({
   takeOver: z.array(id).max(50).default([]),
   /** What the outputs show; only sent while there are outputs. */
   slide: publicSlideSchema.nullable().default(null),
+  /** The audio item it plays, if any. */
+  audio: liveAudioSchema.nullable().default(null),
 });
 export type LiveOwnState = z.infer<typeof liveOwnStateSchema>;
 
@@ -90,6 +116,8 @@ export const liveClientMessageSchema = z.discriminatedUnion('type', [
   /** The owner stops; or anyone ends a session whose owner is gone (LIVE-R50). */
   z.object({ type: z.literal('end'), sessionId: id }),
   z.object({ type: z.literal('set'), sessionId: id, change: liveChangeSchema }),
+  /** A controller's audio command, relayed to the owner like `set` (spec 04 §1b). */
+  z.object({ type: z.literal('audio'), sessionId: id, command: audioCommandSchema }),
 ]);
 export type LiveClientMessage = z.infer<typeof liveClientMessageSchema>;
 
@@ -106,12 +134,16 @@ export interface LiveSessionInfo {
   pointer: LiveOwnState['pointer'];
   /** The public outputs it sends to, and how many are watching each. */
   outputs: { id: string; viewers: number }[];
+  /** Its audio, as the owner last reported it. */
+  audio: LiveAudio | null;
 }
 
 export type LiveServerMessage =
   | { type: 'sessions'; sessions: LiveSessionInfo[] }
   /** To the owner only: a controller's command, to apply if it still makes sense (LIVE-R49). */
   | { type: 'command'; sessionId: string; change: LiveChange }
+  /** To the owner only: a controller's audio command. */
+  | { type: 'audio-command'; sessionId: string; command: AudioCommand }
   | { type: 'error'; error: 'invalid-message' | 'not-owner' | 'not-found' | 'remote-off' | 'owner-offline' | 'forbidden' | 'output-taken' };
 
 /** A session whose owner has been gone this long is ended (LIVE-R50's reaper). */

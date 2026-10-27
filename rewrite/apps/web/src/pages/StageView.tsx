@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PresentationItem, Theme } from '@gp/core';
 import { t } from '../i18n.ts';
+import { useAudio, type AudioControl } from '../live/audio.ts';
 import type { ItemSlides } from '../live/live.ts';
 import type { LiveControl } from '../live/remote.ts';
 import { useLivePointer } from '../live/useLive.ts';
@@ -18,15 +19,18 @@ export function StageView({
   slides,
   theme,
   live,
+  audio,
   onLeave,
 }: {
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
   theme: Theme;
   live: LiveControl;
+  audio: AudioControl;
   onLeave: () => void;
 }) {
   const pointer = useLivePointer(live);
+  const sound = useAudio(audio);
   const item = items.find((i) => i.id === pointer.itemId) ?? null;
   const parts = item ? (slides.get(item.id)?.slides ?? []) : [];
   const [picking, setPicking] = useState(!item && items.length > 0); // opens by itself with nothing selected
@@ -54,7 +58,11 @@ export function StageView({
   };
   const pick = (i: PresentationItem) => {
     setPicking(false);
-    if (slides.get(i.id)?.slides.length) show(i.id, 0);
+    if (slides.get(i.id)?.audio) {
+      // An audio item in stage mode: the screen goes black and the sound plays (LIVE-R6, LIVE-A29).
+      live.set({ black: true });
+      audio.command({ action: 'play', itemId: i.id });
+    } else if (slides.get(i.id)?.slides.length) show(i.id, 0);
   };
 
   useEffect(() => {
@@ -102,6 +110,7 @@ export function StageView({
           <h2>{t('stage.nowShowing')}</h2>
           <div className="stage-now">
             <SlideView slide={current} theme={theme} label={false} credits={false} />
+            {pointer.black && sound?.playing && <p className="stage-audio">{t('stage.audioPlaying')}</p>}
             {current?.label && (
               <span className="stage-label" style={{ background: current.label.color }}>
                 {current.label.text}

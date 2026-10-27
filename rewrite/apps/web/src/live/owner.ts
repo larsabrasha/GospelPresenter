@@ -4,6 +4,7 @@ import { deviceName } from '../auth/session.ts';
 import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import { slidesOf, type LiveChannel } from './live.ts';
+import type { AudioEngine } from './audio.ts';
 import { remoteAllowed, type LiveLink } from './remote.ts';
 
 /** Fired when "Tillåt fjärrstyrning" or the chosen outputs change in this window. */
@@ -89,12 +90,15 @@ async function publicSlide(db: ReadDb, p: LivePointer): Promise<PublicSlide | nu
  * item exists. Its own outputs follow the LiveChannel, never the server;
  * public outputs get the slide it reports.
  */
-export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sessionId: string) {
+export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sessionId: string, audio: AudioEngine) {
   useEffect(() => {
     let current = 0;
     const report = async (p: LivePointer) => {
       const mine = ++current;
-      if (!p.presentationId) return link.own(null);
+      if (!p.presentationId) {
+        audio.stop();
+        return link.own(null);
+      }
       const presentation = await getPresentation(db, p.presentationId);
       const slide = chosen.length ? await publicSlide(db, p) : null;
       if (mine !== current) return; // a newer pointer is on its way
@@ -108,6 +112,7 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
         outputs: chosen,
         takeOver,
         slide,
+        audio: audio.state(),
       });
     };
     const off = live.subscribe((p) => void report(p));
@@ -123,6 +128,11 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       live.set(change);
     });
     const offSessions = link.subscribe(() => settleTakeOver(link.sessions, sessionId));
+    // The audio plays here; what it does reaches the controllers with the next report.
+    const offAudio = audio.subscribe(again);
+    const offAudioCommand = link.onAudioCommand((target, command) => {
+      if (target === sessionId && live.pointer.presentationId) audio.command(command);
+    });
     // An output another session sends to was not taken: unless we asked to take it over, stop asking for it.
     const offError = link.onError((e) => {
       if (e !== 'output-taken') return;
@@ -134,7 +144,9 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       offCommand();
       offError();
       offSessions();
+      offAudio();
+      offAudioCommand();
       removeEventListener(REMOTE_CHANGED, again);
     };
-  }, [live, link, db, sessionId]);
+  }, [live, link, db, sessionId, audio]);
 }

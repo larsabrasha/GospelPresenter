@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   liveReconnectDelay,
+  type AudioCommand,
   type LiveChange,
   type LiveOwnState,
   type LivePointer,
@@ -55,6 +56,7 @@ export class LiveLink {
   private closed = false;
   private listeners = new Set<() => void>();
   private commandListeners = new Set<(sessionId: string, change: LiveChange) => void>();
+  private audioListeners = new Set<(sessionId: string, command: AudioCommand) => void>();
   private errorListeners = new Set<(error: string) => void>();
 
   constructor(private protocols: string[]) {
@@ -84,6 +86,7 @@ export class LiveLink {
         this.sessions = m.sessions;
         this.notify();
       } else if (m.type === 'command') for (const fn of this.commandListeners) fn(m.sessionId, m.change);
+      else if (m.type === 'audio-command') for (const fn of this.audioListeners) fn(m.sessionId, m.command);
       else {
         // A refused report is not what the server holds: send the next one even if it is the same.
         this.lastSent = '';
@@ -124,6 +127,16 @@ export class LiveLink {
   /** A controller's command: absolute, and dropped if the server cannot be reached (never queued, LIVE-R48). */
   command(sessionId: string, change: LiveChange) {
     this.send({ type: 'set', sessionId, change });
+  }
+
+  /** A controller's audio command, relayed to the presenting computer (spec 04 §1b). Dropped if unsent. */
+  audioCommand(sessionId: string, command: AudioCommand) {
+    this.send({ type: 'audio', sessionId, command });
+  }
+
+  onAudioCommand(fn: (sessionId: string, command: AudioCommand) => void): () => void {
+    this.audioListeners.add(fn);
+    return () => this.audioListeners.delete(fn);
   }
 
   /** Ends a session whose owner is gone (LIVE-R50). */

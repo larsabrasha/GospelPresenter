@@ -324,6 +324,19 @@ file only once a presentation uses it, since it may be 20 MiB (MEDIA-R14's pinni
 An audio item has no slides; in the editor it shows a player for the file. The server's CSP now allows `blob:`
 for media, which the player needs. One file per item: spec 03's item with several audio files is not built.
 
+**Live** (spec 04 §1b, `apps/web/src/live/audio.ts`). The presenting window has one audio engine: the item it
+plays is the session's audio, and it keeps playing while the operator moves on, on any page, until another
+audio item plays or the presentation ends. Playing never changes what is shown (LIVE-R6); in stage view, picking
+an audio item blacks the screen and plays it, and the preview says "Ljud spelas". Each audio item on the live page
+has play and pause, a seek bar (muted while it moves, until 150 ms after), the time, and Tona ut (5 s, ease-out
+cubic, then pause, rewind and the volume back). Audio plays only on the presenting computer. The owner reports
+its audio with its live state; a controller sees a mirror, its position carried on from when the report arrived,
+and its buttons are commands relayed to the owner like the slide commands. **Starting sound from a controller:**
+the desktop app allows sound without a click (`autoplayPolicy`). A browser does not until the user has done
+something on the page, and Safari only on an element that has played after such a gesture, so the engine plays
+a moment of silence at the operator's first click or key. The e2e shows a controller starting the sound first in
+the desktop app; the browser case, Safari above all, is not tested.
+
 ### Remote control
 
 Every window that presents owns its session and drives its own outputs from its own state; only the
@@ -440,7 +453,7 @@ file input is used, also in Electron); dropping files onto the add dialog. The p
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.
 
-From audio: playing an audio item live (spec 04 §1b) and its remote control; HTTP Range on `/api/media`
+From audio: HTTP Range on `/api/media`
 (MEDIA-R9: clients play their own copies, so nothing asks for it yet); an item with several files.
 
 From spec 04's public outputs: the QR code and "Ladda ner som bild" (the link is shown to copy); paired
@@ -456,7 +469,8 @@ superadmin's Aktiva sessioner; overlays and audio commands, which do not exist y
 (kept for the tab's life), also in the desktop app, rather than derived from the device token (spec 04): a
 desktop that restarts starts a new session, and the old one stays frozen until someone ends it or 2 hours
 pass. Two operator windows on one machine share their pointer (one BroadcastChannel) and so show as two
-sessions that move together. The 2-second warning is written but not tested.
+sessions that move together. The 2-second warning is written but not tested. The audio test that uploads 25 MB to Miniflare failed once in a
+full run and passed in five runs after; it may be slow there under load.
 
 From spec 04: the stage view (Scenläge, a button on the live page, `pages/StageView.tsx`) is built for the
 operator's own session only: no overlays button (overlays do not exist), no audio items, no `?stage=true` in

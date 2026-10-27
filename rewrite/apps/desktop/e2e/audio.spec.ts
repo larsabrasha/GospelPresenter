@@ -2,13 +2,16 @@
 // the device, and added to a presentation as an item with a player.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { createPresentation, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, createUser, pair, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
+let second: Desktop | undefined;
 test.afterEach(async () => {
+  await second?.app.close();
   await host?.app.close();
   host = undefined;
+  second = undefined;
 });
 
 test('an audio file is imported, added to a presentation and plays in the editor; trashed, it goes to the trash', async () => {
@@ -44,4 +47,72 @@ test('an audio file is imported, added to a presentation and plays in the editor
   await expect(page.getByText('Inga ljudfiler än')).toBeVisible();
   await page.getByRole('link', { name: 'Papperskorg' }).click();
   await expect(page.getByRole('list', { name: 'Papperskorg' }).getByRole('listitem')).toHaveText([/Preludium\.wav.*Ljudfil/]);
+});
+
+test('live: audio plays on the presenting computer, keeps playing while slides change, fades out, and a controller drives it (LIVE-A29, A31, A32)', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createUser(page, 'Bo', 'bo@kyrkan.se');
+  second = await launch({ server: host.base });
+  await pair(page, second.page, 'Andra datorn', 'Bo');
+  await expect(second.page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+
+  await page.getByRole('link', { name: 'Ljud' }).click();
+  await page.getByTestId('audio-file').setInputFiles({ name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(20) });
+  await expect(page.getByRole('heading', { name: 'Alla ljudfiler (1)' })).toBeVisible();
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
+  await createPresentation(page, 'Söndag');
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Lägg till' });
+  await page.keyboard.press('Control+4');
+  await picker.getByRole('button', { name: 'Lägg till Preludium.wav' }).click();
+  await picker.getByRole('button', { name: 'Stäng' }).click();
+  await addSongs(page, ['Sång A']);
+
+  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+  await output.getByTestId('output').waitFor();
+  await page.getByRole('button', { name: 'Sång A 1' }).click();
+  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+
+  // A controller starts the sound first, before anyone played it on the presenting computer (LIVE-A32).
+  await page.getByLabel('Tillåt fjärrstyrning').check();
+  await second.page.getByRole('link', { name: 'Presentationer' }).click();
+  await second.page.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
+  const mirror = second.page.getByTestId('audio-player');
+  const player = page.getByTestId('audio-player');
+  await mirror.getByRole('button', { name: 'Spela' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
+  await expect(mirror).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
+  // It plays here, and what is shown stays (LIVE-R6).
+  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+  await expect.poll(async () => (await player.getByTestId('audio-time').textContent())?.startsWith('0:00'), { timeout: 5_000 }).toBe(false);
+  // What is shown changes; the sound plays on (LIVE-A31).
+  await page.getByRole('button', { name: 'Svart skärm' }).click();
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Sång A 1' }).click();
+  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+  await expect(player).toHaveAttribute('data-playing', 'true');
+
+  // The controller pauses it, and the presenting computer stops; then the operator plays it on here.
+  await mirror.getByRole('button', { name: 'Pausa' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'false', { timeout: 5_000 });
+  await expect(mirror).toHaveAttribute('data-playing', 'false', { timeout: 5_000 });
+  await player.getByRole('button', { name: 'Spela' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'true');
+  await expect(mirror).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
+
+  // Tona ut: five seconds, then it stops and rewinds (LIVE-A31).
+  await player.getByRole('button', { name: 'Tona ut' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'false', { timeout: 8_000 });
+  await expect(player.getByTestId('audio-time')).toHaveText(/^0:00 \//);
+
+  // Stage view: picking the audio item blacks the screen and plays (LIVE-A29).
+  await page.getByRole('button', { name: 'Scenläge' }).click();
+  const stage = page.getByTestId('stage-view');
+  await stage.getByRole('button', { name: 'Sång A', exact: true }).click(); // the bar names the selected item and opens the picker
+  await stage.getByRole('dialog', { name: 'Välj programpunkt' }).getByRole('button', { name: 'Preludium.wav' }).click();
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
+  await expect(stage.getByText('Ljud spelas')).toBeVisible();
 });

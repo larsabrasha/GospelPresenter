@@ -6,6 +6,7 @@ import { useConfirm } from '../ui/Dialog.tsx';
 import { viewersText } from './Displays.tsx';
 import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
+import { RemoteAudio, useAudio, type AudioControl } from '../live/audio.ts';
 import { slidesOf, type ItemSlides } from '../live/live.ts';
 import { chosenOutputs, REMOTE_CHANGED, setOutput, setRemoteAllowed } from '../live/owner.ts';
 import { remoteAllowed, RemoteControl, useLiveSessions, type LiveControl, type LiveLink } from '../live/remote.ts';
@@ -26,6 +27,7 @@ export function Live({
   id,
   live,
   link,
+  audio,
   sessionId,
   remote,
   session,
@@ -33,12 +35,13 @@ export function Live({
   id: string;
   live: LiveControl;
   link: LiveLink;
+  audio: AudioControl;
   sessionId: string;
   remote?: boolean;
   session?: string | null;
 }) {
   if (remote) return <RemoteLive id={id} link={link} ownSessionId={sessionId} wanted={session ?? null} />;
-  return <LiveView id={id} live={live} owner={{ sessionId }} link={link} />;
+  return <LiveView id={id} live={live} audio={audio} owner={{ sessionId }} link={link} />;
 }
 
 /** "Tillåt fjärrstyrning" and the link a phone opens (spec 04 §1, §9). The QR code is not built. */
@@ -69,6 +72,43 @@ function RemotePanel({ id, sessionId }: { id: string; sessionId: string }) {
           <input className="grow" readOnly value={url} aria-label={t('remote.link')} onFocus={(e) => e.currentTarget.select()} />
         </>
       )}
+    </div>
+  );
+}
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+/**
+ * An audio item's player (spec 04 §1b): play and pause, the seek bar, the time
+ * and Tona ut. It drives the session's audio, which plays on the presenting
+ * computer only: on a controller this is a mirror that sends commands.
+ */
+export function AudioPlayer({ control, itemId, name }: { control: AudioControl; itemId: string; name: string }) {
+  const state = useAudio(control);
+  const mine = state?.itemId === itemId ? state : null;
+  const playing = !!mine?.playing;
+  return (
+    <div className="audio-player row" role="group" aria-label={name} data-testid="audio-player" data-playing={playing}>
+      <Button aria-label={playing ? t('audio.pause') : t('audio.play')} onClick={() => control.command({ action: playing ? 'pause' : 'play', itemId })}>
+        {playing ? '⏸' : '▶'}
+      </Button>
+      <input
+        className="grow"
+        type="range"
+        min={0}
+        max={mine?.duration ?? 0}
+        step={0.1}
+        value={mine?.position ?? 0}
+        disabled={!mine}
+        aria-label={t('audio.seek')}
+        onChange={(e) => control.command({ action: 'seek', itemId, position: Number(e.target.value) })}
+      />
+      <span className="muted small" data-testid="audio-time">
+        {clock(mine?.position ?? 0)} / {mine?.duration ? clock(mine.duration) : '–:––'}
+      </span>
+      <Button disabled={!playing || mine?.fading} onClick={() => control.command({ action: 'fade', itemId })}>
+        {t('audio.fade')}
+      </Button>
     </div>
   );
 }
@@ -171,12 +211,13 @@ function RemoteLive({ id, link, ownSessionId, wanted }: { id: string; link: Live
 function ControlledLive({ id, link, sessionId }: { id: string; link: LiveLink; sessionId: string }) {
   const toast = useToast();
   const control = useMemo(() => new RemoteControl(link, sessionId, () => toast(t('remote.unconfirmed'))), [link, sessionId, toast]);
+  const audio = useMemo(() => new RemoteAudio(link, sessionId), [link, sessionId]);
   useEffect(() => () => control.dispose(), [control]);
-  return <LiveView id={id} live={control} owner={null} link={link} />;
+  return <LiveView id={id} live={control} audio={audio} owner={null} link={link} />;
 }
 
 /** The operator's view of a running presentation (spec 04): the owner's own, or a controller's. */
-function LiveView({ id, live, owner, link }: { id: string; live: LiveControl; owner: { sessionId: string } | null; link: LiveLink }) {
+function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveControl; audio: AudioControl; owner: { sessionId: string } | null; link: LiveLink }) {
   const pointer = useLivePointer(live);
   const [stage, setStage] = useState(false);
   const data = useData(
@@ -234,6 +275,7 @@ function LiveView({ id, live, owner, link }: { id: string; live: LiveControl; ow
       <li key={item.id} className={selected ? 'live-item selected' : 'live-item'}>
         <h3>{item.title}</h3>
         {s.problem && <p className="warning">{problemText[s.problem]}</p>}
+        {s.audio && <AudioPlayer control={audio} itemId={item.id} name={s.audio.fileName} />}
         <div className="thumbs">
           {s.slides.map((slide, i) => (
             <Button
@@ -253,7 +295,7 @@ function LiveView({ id, live, owner, link }: { id: string; live: LiveControl; ow
 
   return (
     <section className="live">
-      {stage && <StageView items={data.items} slides={data.slides} theme={data.theme} live={live} onLeave={() => setStage(false)} />}
+      {stage && <StageView items={data.items} slides={data.slides} theme={data.theme} live={live} audio={audio} onLeave={() => setStage(false)} />}
       {!owner && <p className="remote-banner">{t('remote.banner')}</p>}
       <div className="row">
         <h1 className="grow">{data.presentation?.name}</h1>

@@ -37,7 +37,7 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS live_sessions (
      id TEXT PRIMARY KEY NOT NULL, owner_user_id TEXT NOT NULL, presentation_id TEXT NOT NULL,
      presentation_name TEXT NOT NULL, device_name TEXT NOT NULL, remote INTEGER NOT NULL,
-     pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT)`,
+     pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT, audio TEXT)`,
   // Which session a public output sends from: at most one (LIVE-R23).
   `CREATE TABLE IF NOT EXISTS live_bindings (display_id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL)`,
 ];
@@ -61,6 +61,7 @@ interface Row {
   pointer: string;
   owner_seen_at: number;
   slide: string | null;
+  audio: string | null;
 }
 
 /**
@@ -85,6 +86,11 @@ export class LiveHub {
     private now: () => number = Date.now,
   ) {
     for (const d of DDL) store.query(d);
+    // A table made before audio: sessions are short-lived, so it is simply made again.
+    if (!(store.query(`SELECT 1 FROM pragma_table_info('live_sessions') WHERE name = 'audio'`).length)) {
+      store.query('DROP TABLE live_sessions');
+      store.query(DDL[0]!);
+    }
   }
 
   /** Stops the viewer-count timer: the database is about to close. */
@@ -144,7 +150,11 @@ export class LiveHub {
     if (!row.remote) return reply(s, { type: 'error', error: 'remote-off' });
     const owners = this.sockets().filter((o) => o.owns.includes(row.id));
     if (!owners.length) return reply(s, { type: 'error', error: 'owner-offline' });
-    const command = JSON.stringify({ type: 'command', sessionId: row.id, change: msg.change } satisfies LiveServerMessage);
+    const command = JSON.stringify(
+      (msg.type === 'audio'
+        ? { type: 'audio-command', sessionId: row.id, command: msg.command }
+        : { type: 'command', sessionId: row.id, change: msg.change }) satisfies LiveServerMessage,
+    );
     for (const o of owners) {
       try {
         o.send(command);
@@ -159,11 +169,11 @@ export class LiveHub {
     // A session id is the owner's; another user cannot take it over by naming it.
     if (existing && existing.owner_user_id !== s.userId) return reply(s, { type: 'error', error: 'not-owner' });
     this.store.query(
-      `INSERT INTO live_sessions (id, owner_user_id, presentation_id, presentation_name, device_name, remote, pointer, owner_seen_at, slide)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO live_sessions (id, owner_user_id, presentation_id, presentation_name, device_name, remote, pointer, owner_seen_at, slide, audio)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (id) DO UPDATE SET presentation_id = excluded.presentation_id, presentation_name = excluded.presentation_name,
          device_name = excluded.device_name, remote = excluded.remote, pointer = excluded.pointer, owner_seen_at = excluded.owner_seen_at,
-         slide = excluded.slide`,
+         slide = excluded.slide, audio = excluded.audio`,
       [
         state.sessionId,
         s.userId,
@@ -174,6 +184,7 @@ export class LiveHub {
         JSON.stringify(state.pointer),
         this.now(),
         state.slide ? JSON.stringify(state.slide) : null,
+        state.audio ? JSON.stringify(state.audio) : null,
       ],
     );
     if (!s.owns.includes(state.sessionId)) s.owns = [...s.owns, state.sessionId];
@@ -343,6 +354,7 @@ export class LiveHub {
         ownerOnline: online.has(r.id),
         pointer: JSON.parse(r.pointer) as LiveSessionInfo['pointer'],
         outputs,
+        audio: r.audio ? (JSON.parse(r.audio) as LiveSessionInfo['audio']) : null,
       });
     }
     return out;

@@ -22,6 +22,7 @@ describe('live reports', () => {
         credits: worst.repeat(PUBLIC_SLIDE_LIMITS.credits),
         themeId: id,
       },
+      audio: { itemId: id, playing: true, position: 86_399.123456789, duration: 86_399.123456789, fading: true },
     };
     const message = { type: 'own', state };
     expect(liveClientMessageSchema.safeParse(message).success).toBe(true);

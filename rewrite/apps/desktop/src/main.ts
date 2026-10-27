@@ -74,6 +74,8 @@ const webPreferences = {
   nodeIntegration: false,
   sandbox: true,
   preload: join(here, 'preload.cjs'),
+  // The session's audio may start on a command from a remote controller, with no click in this window (spec 04 §1b).
+  autoplayPolicy: 'no-user-gesture-required' as const,
   ...(hidden ? { backgroundThrottling: false } : {}),
 };
 

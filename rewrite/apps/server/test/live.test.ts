@@ -47,6 +47,7 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
       ownerOnline: true,
       pointer: { itemId: 'I1', partIndex: 0, black: false, rev: 1 },
       outputs: [],
+      audio: null,
     });
 
     phone.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 2, black: false } });
@@ -104,6 +105,24 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
     const [s] = await owner.sessions((x) => x.length === 1);
     expect(s!.id).toBe('S1');
     expect(owner.messages.some((m) => m.type === 'error')).toBe(false);
+  });
+
+  it('an audio command reaches the owner, and the owner\'s audio reaches everyone (spec 04 §1b, LIVE-A32)', async () => {
+    const owner = await win('anna');
+    const phone = await win('bo');
+    owner.send({ type: 'own', state: state('S1') });
+    await phone.sessions((x) => x.length === 1);
+    phone.send({ type: 'audio', sessionId: 'S1', command: { action: 'play', itemId: 'A1' } });
+    expect(await owner.next((m) => m.type === 'audio-command')).toEqual({ type: 'audio-command', sessionId: 'S1', command: { action: 'play', itemId: 'A1' } });
+    expect(phone.messages.some((m) => m.type === 'audio-command')).toBe(false); // it plays only on the presenting computer
+    owner.send({ type: 'own', state: state('S1', { audio: { itemId: 'A1', playing: true, position: 1.5, duration: 30, fading: false } }) });
+    const [s] = await phone.sessions((x) => x[0]?.audio?.playing === true);
+    expect(s!.audio).toEqual({ itemId: 'A1', playing: true, position: 1.5, duration: 30, fading: false });
+    // Like any command, refused while remote control is off.
+    owner.send({ type: 'own', state: state('S1', { remote: false }) });
+    await phone.sessions((x) => x[0]?.remote === false);
+    phone.send({ type: 'audio', sessionId: 'S1', command: { action: 'fade', itemId: 'A1' } });
+    expect(await phone.error()).toBe('remote-off');
   });
 
   it('the owner ends its own session', async () => {

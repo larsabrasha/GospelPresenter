@@ -197,3 +197,7 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 @keyframes watch-pulse { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
 .display-row { padding: 8px 0; border-bottom: 1px solid var(--border, #0002); }
 .live-outputs .row { align-items: center; }
+
+/* Audio during live (spec 04 section 1b) */
+.audio-player { gap: 8px; align-items: center; margin: 4px 0 8px; }
+.stage-audio { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; color: #eee; font-size: 1.4rem; }

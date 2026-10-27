@@ -14,6 +14,7 @@ const session = (id: string, outputs: string[]): LiveSessionInfo => ({
   ownerOnline: true,
   pointer: { itemId: null, partIndex: 0, black: false, rev: 0 },
   outputs: outputs.map((o) => ({ id: o, viewers: 0 })),
+  audio: null,
 });
 
 // "Ta över" (LIVE-R23) must survive a report that never reached the server.
