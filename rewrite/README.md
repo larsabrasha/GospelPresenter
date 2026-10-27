@@ -308,6 +308,40 @@ stage over the theme's media background. Like a song it is a reference by id: a 
 (MEDIA-R8), a purged one leaves an item marked "Bilden finns inte längre". The output reads the bytes through
 the operator window's database, like everything else, so it works without OPFS.
 
+### Remote control
+
+Every window that presents owns its session and drives its own outputs from its own state; only the
+selection travels (ADR 0004, ADR 0007 decision 4). This holds for a browser as for the desktop app: there is
+no server-side slide and no second kind of session. Each operator window keeps one WebSocket to
+`/api/live/socket` (`apps/web/src/live/remote.ts`), reconnecting after 0, 2, 5, 10 s and then every 30 s
+(LIVE-R51). Over it the owner reports its whole state on connect, on every reconnect and on every change
+(LIVE-R47): presentation, device name, "Tillåt fjärrstyrning" and the pointer. Every member's window gets the
+organisation's sessions as they change. A controller sends an absolute command (item, part, black); the server
+forwards it to the owner's socket only, never queued (LIVE-R48), and refuses it while remote control is off or
+the owner is gone. The owner applies it if it still makes sense (presenting, item exists, not already showing;
+LIVE-R49), whichever page is open (`apps/web/src/live/owner.ts`), and its next report is what everyone sees.
+A controller's own click shows at once; if the owner has not confirmed it within 2 s, it warns once.
+
+**On the server** (`apps/server/src/live-hub.ts`) the same code runs in process on Node and in the
+organisation's Durable Object. Sessions are rows in a server-only table, `live_sessions`, and which socket owns
+which session is kept on the socket (a hibernatable socket's attachment), so a Durable Object may hibernate
+between messages. Every hub call runs in the organisation's queue, so a live write never lands inside a
+mutation's transaction. Only the user who first reported a session id may report it again. A lost owner
+freezes the session (LIVE-R50): it stays, cannot be driven, and anyone in the organisation may then end it
+("Avsluta presentationen"); after 2 hours without its owner it is ended when the sessions are next read.
+Starting and controlling need `ManagePresentations` (ADR 0007 decision 5), which every role has, so any
+member may control, as LIVE-R38 says. The poke sockets are now tagged `poke` in the Durable Object, so a
+poke never goes to a live socket.
+
+**In the app.** On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) shows a link,
+`/live/{id}?remote=1&session={id}`, on a desktop host with its LAN address. Under Presentationer every other
+window of the organisation sees "Visas just nu · {name}" with "Ta kontroll" for each session that allows it
+(LIVE-A27). The controller's live page has the amber banner, the same grid, the black screen and the stage view,
+no "Extern skärm", and "Bara datorn som presenterar kan stoppa presentationen." instead of Avsluta. With
+several candidates it asks which; otherwise it says "Ingen aktiv presentation just nu", "Fjärrstyrning är inte
+aktiverad av presentatören" or that the presenting computer lost contact. Tested in `apps/server/test/live.test.ts`
+(three adapters) and `apps/desktop/e2e/remote.spec.ts` (two desktops).
+
 ### Addresses
 
 The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/songs`,
@@ -334,9 +368,8 @@ Where to pick up. Milestones 1–5 are on branch `claude/milestone-1`, which als
    Worker and D1, measured and then deleted, as the sync spike did. Still unproven there: migrating an
    existing Durable Object (schema and triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys,
    Google sign-in against a real Google client, and R2 as the media storage (tested against Miniflare's R2 only).
-2. **The rest of live** (spec 04, ADRs 0004 and 0006): remote control first (a session with an owner, the
-   pointer over a WebSocket through the server, the "Fjärrstyrning" toggle), then public output and mirrored
-   live sessions. The stage view is done (see "Not done yet" for what it lacks).
+2. **The rest of live** (spec 04): public output (`/watch/{code}` over SSE) and paired screens. Stage
+   view and remote control are done (see "Not done yet" for what they lack).
 3. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
 4. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
    per D32 (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app
@@ -360,6 +393,14 @@ full library of 1 000 pictures is a few hundred MB on each device, not measured)
 file input is used, also in Electron); dropping files onto the add dialog. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.
+
+From spec 04's remote control: the QR code (the link is shown to copy); `?stage=true` in the link; the
+4-hour idle eviction of LIVE-R42 (only an abandoned session, 2 hours without its owner, is ended); the
+superadmin's Aktiva sessioner; overlays and audio commands, which do not exist yet. A session id is per window
+(kept for the tab's life), also in the desktop app, rather than derived from the device token (spec 04): a
+desktop that restarts starts a new session, and the old one stays frozen until someone ends it or 2 hours
+pass. Two operator windows on one machine share their pointer (one BroadcastChannel) and so show as two
+sessions that move together. The 2-second warning is written but not tested.
 
 From spec 04: the stage view (Scenläge, a button on the live page, `pages/StageView.tsx`) is built for the
 operator's own session only: no overlays button (overlays do not exist), no audio items, no `?stage=true` in

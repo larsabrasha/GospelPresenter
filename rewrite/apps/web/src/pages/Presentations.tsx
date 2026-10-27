@@ -6,6 +6,7 @@ import { newId } from '../ids.ts';
 import { Button } from '../ui/Button.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { href, navigate } from '../ui/router.ts';
+import { useLiveSessions, type LiveLink } from '../live/remote.ts';
 import { formatEventDate } from './PresentationEditor.tsx';
 
 /** "Skapa presentation": name (prefilled) and date; Enter saves (spec 03, PRES-A2). */
@@ -45,7 +46,34 @@ function CreatePresentationDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function Presentations() {
+/**
+ * "Visas just nu" (spec 04 §2, LIVE-A27): a card per session elsewhere in the
+ * organisation that allows remote control, with "Ta kontroll". Never this
+ * window's own session.
+ */
+function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
+  const { sessions } = useLiveSessions(link);
+  const shown = sessions.filter((s) => s.remote && s.id !== ownSessionId);
+  if (!shown.length) return null;
+  return (
+    <ul className="list" aria-label={t('remote.nowShowing')}>
+      {shown.map((s) => (
+        <li key={s.id} className="card live-now row">
+          <span className="grow">
+            <strong>{t('remote.nowShowing')}</strong> · {s.presentationName}
+            <br />
+            <span className="muted small">{s.deviceName}</span>
+          </span>
+          <a className="btn btn-primary" href={href({ page: 'live', id: s.presentationId, remote: true, session: s.id })}>
+            {t('remote.takeControl')}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const presentations = useData(listPresentations, []);
   const [creating, setCreating] = useState(false);
 
@@ -60,6 +88,7 @@ export function Presentations() {
           {t('presentations.create')}
         </Button>
       </div>
+      <LiveNow link={link} ownSessionId={ownSessionId} />
       {creating && <CreatePresentationDialog onClose={() => setCreating(false)} />}
       {presentations && !presentations.length && (
         <div className="empty">

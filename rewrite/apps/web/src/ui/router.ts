@@ -16,7 +16,8 @@ export type Route =
   | { page: 'song'; id: string }
   | { page: 'presentations' }
   | { page: 'presentation'; id: string }
-  | { page: 'live'; id: string }
+  /** The live view: this window's own session, or with `remote` a session elsewhere (spec 04 §2), `session` naming which. */
+  | { page: 'live'; id: string; remote?: boolean; session?: string | null }
   | { page: 'trash'; kind: TrashKind | null }
   | { page: 'users' }
   | { page: 'devices' }
@@ -59,7 +60,10 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   }
   if (first === 'songs' && id) return { page: 'song', id };
   if (first === 'presentations' && id) return { page: 'presentation', id };
-  if (first === 'live' && id) return { page: 'live', id };
+  if (first === 'live' && id) {
+    if (query.get('remote') !== '1') return { page: 'live', id };
+    return { page: 'live', id, remote: true, session: query.get('session') };
+  }
   if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decodeURIComponent(hash.slice(1)) };
   if (first === 'signed-in') return { page: 'signedIn' };
   if (first === 'signin') return { page: 'signIn', error: query.get('error') };
@@ -77,8 +81,11 @@ export function href(r: Route): string {
       return `/songs/${encodeURIComponent(r.id)}`;
     case 'presentation':
       return `/presentations/${encodeURIComponent(r.id)}`;
-    case 'live':
-      return `/live/${encodeURIComponent(r.id)}`;
+    case 'live': {
+      const path = `/live/${encodeURIComponent(r.id)}`;
+      if (!r.remote) return path;
+      return r.session ? `${path}?remote=1&session=${encodeURIComponent(r.session)}` : `${path}?remote=1`;
+    }
     case 'trash':
       return r.kind ? `/trash?kind=${r.kind}` : '/trash';
     case 'invite':

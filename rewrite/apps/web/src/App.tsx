@@ -3,9 +3,11 @@ import { can, type Me, type PairStatus } from '@gp/core';
 import { api } from './auth/api.ts';
 import { forgetSession, saveDeviceToken, updateMe } from './auth/session.ts';
 import { REPAIR_KEY } from './Boot.tsx';
-import { useDbStatus } from './db/react.tsx';
+import { useDb, useDbStatus } from './db/react.tsx';
 import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
+import { useLiveOwner } from './live/owner.ts';
+import type { LiveLink } from './live/remote.ts';
 import { Bibles } from './pages/Bibles.tsx';
 import { Devices } from './pages/Devices.tsx';
 import { Images } from './pages/Images.tsx';
@@ -85,8 +87,10 @@ function StatusBar() {
  * the background (spec 01 `GET /api/me`), so a name or role change shows
  * without signing in again. Offline, the stored one is used.
  */
-export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
+export function App({ me: initial, live, link, sessionId }: { me: Me; live: LiveChannel; link: LiveLink; sessionId: string }) {
   const route = useRoute();
+  // This window owns whatever it presents, on every page (LIVE-R49).
+  useLiveOwner(live, link, useDb(), sessionId);
   const [me, setMe] = useState(initial);
   const [host, setHost] = useState(false);
 
@@ -148,9 +152,9 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
         <main>
           {route.page === 'songs' && <Songs />}
           {route.page === 'song' && <SongEditor id={route.id} />}
-          {route.page === 'presentations' && <Presentations />}
+          {route.page === 'presentations' && <Presentations link={link} ownSessionId={sessionId} />}
           {route.page === 'presentation' && <PresentationEditor id={route.id} />}
-          {route.page === 'live' && <Live id={route.id} live={live} />}
+          {route.page === 'live' && <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} sessionId={sessionId} remote={route.remote} session={route.session} />}
           {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
           {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
           {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}

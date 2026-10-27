@@ -6,7 +6,9 @@ import { Boot, REPAIR_KEY } from './Boot.tsx';
 import { Db } from './db/db.ts';
 import { DbProvider, ReaderProvider } from './db/react.tsx';
 import { SharedReader, shareChannelName } from './db/share.ts';
+import { socketProtocols } from '@gp/sync/client';
 import { LiveChannel } from './live/live.ts';
+import { LiveLink, windowSessionId } from './live/remote.ts';
 import { currentRoute, installLinkHandler } from './ui/router.ts';
 import './fonts.css';
 import './styles.css';
@@ -37,10 +39,12 @@ if (route.page === 'output') {
   await db.open(session);
   // One live channel per window, for the window's lifetime.
   const live = new LiveChannel(session.orgId, 'operator');
+  // The organisation's live sessions, and this window's own (spec 04 §2).
+  const link = new LiveLink(socketProtocols({ token: session.token, device: session.device }));
   root.render(
     <StrictMode>
       <DbProvider db={db}>
-        <App me={stored.me} live={live} />
+        <App me={stored.me} live={live} link={link} sessionId={windowSessionId()} />
       </DbProvider>
     </StrictMode>,
   );

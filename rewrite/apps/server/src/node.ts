@@ -15,6 +15,7 @@ import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCO
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql } from './global.ts';
+import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
@@ -210,7 +211,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   await migrateGlobal(globalSql);
   const accounts = new Accounts(globalSql, { sessionIdleMs: opts.sessionIdleMs });
   const setupToken = opts.setupToken ?? newSecret('gpst_');
-  const orgs = new Map<string, Org & { file: SqliteFile; sockets: Map<WebSocket, string> }>();
+  const orgs = new Map<string, Org & { file: SqliteFile; sockets: Map<WebSocket, string>; live: LiveHub; liveSockets: Map<WebSocket, LiveSocket> }>();
 
   // Synchronous, so two requests can never open the same organisation twice.
   function openOrg(orgId: string) {
@@ -222,7 +223,9 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
         const msg = JSON.stringify({ type: 'poke', seq } satisfies Poke);
         for (const [ws, clientId] of sockets) if (clientId !== exclude) ws.send(msg);
       }, opts.pokeWindowMs);
-      org = { file, store: nodeOrgStore(file), queue: new SerialQueue(), poke, sockets };
+      const store = nodeOrgStore(file);
+      const liveSockets = new Map<WebSocket, LiveSocket>();
+      org = { file, store, queue: new SerialQueue(), poke, sockets, live: new LiveHub(store, () => [...liveSockets.values()]), liveSockets };
       orgs.set(orgId, org);
     }
     return org;
@@ -276,12 +279,25 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     const headers = new Headers();
     for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v);
     const request = new Request(url, { headers });
-    if (url.pathname !== '/api/sync/poke') return void socket.destroy();
+    if (url.pathname !== '/api/sync/poke' && url.pathname !== '/api/live/socket') return void socket.destroy();
     if (opts.pairing && !(await deviceOf(request, accounts, opts.pairing))) return void socket.destroy();
     const caller = await authenticate(request, accounts);
     if (caller instanceof Response) return void socket.destroy();
-    const clientId = url.searchParams.get('clientId') ?? '';
     const org = openOrg(caller.orgId);
+    if (url.pathname === '/api/live/socket') {
+      // Live sessions (spec 04): every call runs in the organisation's queue, never inside a mutation.
+      return void wss.handleUpgrade(req, socket, head, (ws) => {
+        const s: LiveSocket = { userId: caller.ctx.userId, role: caller.ctx.role, owns: [], send: (m) => ws.send(m) };
+        org.liveSockets.set(ws, s);
+        void org.queue.run(() => org.live.opened(s));
+        ws.on('message', (data) => void org.queue.run(() => org.live.message(s, String(data))));
+        ws.on('close', () => {
+          org.liveSockets.delete(ws);
+          void org.queue.run(() => org.live.closed(s));
+        });
+      });
+    }
+    const clientId = url.searchParams.get('clientId') ?? '';
     wss.handleUpgrade(req, socket, head, (ws) => {
       org.sockets.set(ws, clientId);
       ws.on('close', () => org.sockets.delete(ws));

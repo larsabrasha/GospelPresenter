@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PresentationItem, Theme } from '@gp/core';
 import { t } from '../i18n.ts';
-import type { ItemSlides, LiveChannel } from '../live/live.ts';
+import type { ItemSlides } from '../live/live.ts';
+import type { LiveControl } from '../live/remote.ts';
 import { useLivePointer } from '../live/useLive.ts';
 import { Button } from '../ui/Button.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
@@ -22,7 +23,7 @@ export function StageView({
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
   theme: Theme;
-  live: LiveChannel;
+  live: LiveControl;
   onLeave: () => void;
 }) {
   const pointer = useLivePointer(live);

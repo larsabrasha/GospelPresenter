@@ -6,6 +6,7 @@ import { syncRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
+import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { r2Storage, type R2Like } from './media.ts';
 import { Passkeys } from './webauthn.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
@@ -71,14 +72,17 @@ export function durableSqliteStore(storage: DurableObjectStorage): OrgStore {
 export class OrgDurableObject extends DurableObject<Env> {
   private org: Org;
   private app: Hono;
+  private live: LiveHub;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     const poke = new PokeCoalescer((exclude, seq) => {
       const msg = JSON.stringify({ type: 'poke', seq } satisfies Poke);
-      for (const ws of ctx.getWebSockets()) if (ctx.getTags(ws)[0] !== exclude) ws.send(msg);
+      for (const ws of ctx.getWebSockets('poke')) if (ctx.getTags(ws)[1] !== exclude) ws.send(msg);
     }, Number(env.POKE_WINDOW_MS ?? 500));
     this.org = { store: durableSqliteStore(ctx.storage), queue: new SerialQueue(), poke };
+    // Which socket owns which session lives on the socket, so it survives hibernation.
+    this.live = new LiveHub(this.org.store, () => ctx.getWebSockets('live').map(liveSocket));
     // The Worker has authenticated the caller against D1 and passes the result in headers.
     this.app = syncRoutes(async (c) => {
       const userId = c.req.header('x-user')!;
@@ -92,19 +96,51 @@ export class OrgDurableObject extends DurableObject<Env> {
 
   override async fetch(request: Request): Promise<Response> {
     if (request.headers.get('upgrade') === 'websocket') {
-      const clientId = new URL(request.url).searchParams.get('clientId') ?? '';
+      const url = new URL(request.url);
       const pair = new WebSocketPair();
-      this.ctx.acceptWebSocket(pair[1], [clientId]);
+      if (url.pathname === '/api/live/socket') {
+        this.ctx.acceptWebSocket(pair[1], ['live']);
+        pair[1].serializeAttachment({ userId: request.headers.get('x-user')!, role: request.headers.get('x-role') as Role, owns: [] } satisfies LiveAttachment);
+        const s = liveSocket(pair[1]);
+        void this.org.queue.run(() => this.live.opened(s));
+      } else this.ctx.acceptWebSocket(pair[1], ['poke', url.searchParams.get('clientId') ?? '']);
       // The client offered credentials as subprotocols too; the answer names only this one.
       return new Response(null, { status: 101, webSocket: pair[0], headers: { 'sec-websocket-protocol': WS_PROTOCOL } });
     }
     return this.app.fetch(request);
   }
 
-  override async webSocketMessage() {}
+  override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+    if (this.ctx.getTags(ws)[0] !== 'live') return;
+    await this.org.queue.run(() => this.live.message(liveSocket(ws), typeof message === 'string' ? message : new TextDecoder().decode(message)));
+  }
   override async webSocketClose(ws: WebSocket, code: number) {
+    if (this.ctx.getTags(ws)[0] === 'live') await this.org.queue.run(() => this.live.closed(liveSocket(ws)));
     ws.close(code, 'closing');
   }
+}
+
+/** What a live socket carries through hibernation: who it is, and the sessions it owns. */
+interface LiveAttachment {
+  userId: string;
+  role: Role;
+  owns: string[];
+}
+
+/** A hibernatable live socket as the hub sees it. */
+function liveSocket(ws: WebSocket): LiveSocket {
+  const get = () => ws.deserializeAttachment() as LiveAttachment;
+  return {
+    userId: get().userId,
+    role: get().role,
+    get owns() {
+      return get().owns.slice();
+    },
+    set owns(owns: string[]) {
+      ws.serializeAttachment({ ...get(), owns } satisfies LiveAttachment);
+    },
+    send: (m) => ws.send(m),
+  };
 }
 
 /** Creates a table with a trigger in a scratch table set and reports whether the trigger fired. */
@@ -194,7 +230,7 @@ function globals(env: Env) {
 }
 
 /** Paths an organisation's Durable Object answers; everything else is the global auth API. */
-const orgPaths = ['/api/sync/', '/api/bibles/', '/api/media/', '/api/debug/dump', '/api/debug/triggers', '/api/debug/tx-probe'];
+const orgPaths = ['/api/sync/', '/api/bibles/', '/api/media/', '/api/live/', '/api/debug/dump', '/api/debug/triggers', '/api/debug/tx-probe'];
 
 const worker = new Hono<{ Bindings: Env }>();
 

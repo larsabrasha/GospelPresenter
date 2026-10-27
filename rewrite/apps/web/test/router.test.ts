@@ -16,6 +16,8 @@ describe('routes', () => {
       { page: 'presentations' },
       { page: 'presentation', id: 'P1' },
       { page: 'live', id: 'P1' },
+      { page: 'live', id: 'P1', remote: true, session: null },
+      { page: 'live', id: 'P1', remote: true, session: 'S 1' },
       { page: 'trash', kind: null },
       { page: 'trash', kind: 'Song' },
       { page: 'trash', kind: 'Image' },

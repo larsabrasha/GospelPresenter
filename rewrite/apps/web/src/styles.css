@@ -176,3 +176,9 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .stage-badge { position: absolute; top: 4px; left: 4px; background: #e03131; color: white; font-size: 0.75rem; padding: 0 6px; border-radius: 4px; }
 .invisible { visibility: hidden; }
 @media (max-width: 700px) { .stage-main { grid-template-columns: 1fr; } }
+
+/* Remote control (spec 04 section 2) */
+.remote-banner { background: #f59f00; color: #1a1a1a; padding: 8px 12px; border-radius: 6px; font-weight: 600; }
+.remote-panel { margin: 8px 0; }
+.remote-panel input[readonly] { width: 100%; }
+.live-now { border-left: 4px solid #e03131; }
