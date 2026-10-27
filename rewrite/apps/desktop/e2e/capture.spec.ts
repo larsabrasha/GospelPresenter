@@ -2,19 +2,40 @@
 // beside the current app's (rewrite/scripts/capture-old-app.mjs). Not a test: it
 // runs only with GP_CAPTURE set to the directory the pictures go to.
 //   GP_CAPTURE=/tmp/new pnpm --filter @gp/desktop exec playwright test capture
+// GP_CAPTURE_ONLY=setup,login,… takes only the named pictures.
 import { mkdirSync } from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
+import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, setUpHost, signOut } from './flows.ts';
 
 const out = process.env.GP_CAPTURE;
 test.skip(!out, 'only with GP_CAPTURE=<directory>');
+const only = process.env.GP_CAPTURE_ONLY?.split(',');
+const wanted = (name: string) => !only || only.includes(name);
+
+const THEMES = ['light', 'dark'] as const;
+const VIEWPORTS = [
+  ['desktop', 1440, 900],
+  ['mobile', 390, 844],
+] as const;
 
 let host: Desktop | undefined;
+let browser: Browser | undefined;
 test.afterAll(async () => {
+  await browser?.close();
   await host?.app.close();
 });
+
+/** A page in a browser beside the app, as a TV or a phone would open one, in a theme and a size. */
+async function beside(url: string, theme: string, width: number, height: number): Promise<Page> {
+  browser ??= await chromium.launch();
+  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: theme as 'light' | 'dark' });
+  await ctx.addInitScript((t) => localStorage.setItem('theme', t), theme);
+  const p = await ctx.newPage();
+  await p.goto(url);
+  return p;
+}
 
 /** A date this many days from today, `YYYY-MM-DD`. */
 function day(offset: number): string {
@@ -28,6 +49,20 @@ test('capture every page', async () => {
   mkdirSync(out!, { recursive: true });
   host = await launch();
   const page = host.page;
+  // First run, before anything else: the setup page (Setup.razor).
+  if (wanted('setup')) {
+    for (const theme of THEMES) {
+      for (const [vp, width, height] of VIEWPORTS) {
+        await page.evaluate((t) => localStorage.setItem('theme', t), theme);
+        await page.setViewportSize({ width, height });
+        await page.reload();
+        await page.getByRole('heading', { name: 'Välkommen!' }).waitFor();
+        await page.waitForTimeout(300);
+        await page.screenshot({ path: `${out}/setup_${theme}_${vp}.png` });
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+  }
   await setUpHost(host, { name: 'Anna', org: 'Foo Bar Kyrka', google: { sub: 'google-anna', email: 'anna@kyrkan.se', name: 'Anna' } });
 
   // Something on every list, as in the current app's mock data: Familjegudstjänst holds the same two songs.
@@ -87,6 +122,23 @@ test('capture every page', async () => {
   const overlay = await (async () => {
     await page.goto(`${host!.base}/admin/overlays`);
     return (await page.getByRole('link', { name: /^Välkommen/ }).getAttribute('href'))!;
+  })();
+
+  // An invite for Eva, accepted at the host: its address is the invite page (InvitePage.razor).
+  const invite = await (async () => {
+    if (!wanted('invite')) return null;
+    await openAdmin(page, 'Användare');
+    await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+    const create = page.getByRole('dialog', { name: 'Skapa användare' });
+    await create.getByLabel('Namn').fill('Eva');
+    await create.getByLabel('E-post').fill('eva@kyrkan.se');
+    await create.getByRole('button', { name: 'Skapa', exact: true }).click();
+    await page.getByRole('button', { name: 'Logga in som Eva här' }).click();
+    await page.getByRole('heading', { name: 'Välkommen Eva!' }).waitFor();
+    const url = new URL(page.url());
+    await page.goto(host!.base);
+    await page.getByTestId('me').waitFor();
+    return url.pathname + url.search + url.hash;
   })();
 
   // Steps on a page before its picture, and after it; the names match capture-old-app.mjs.
@@ -222,15 +274,124 @@ test('capture every page', async () => {
     ],
     ['displays-link', '/admin/displays', (p) => clickFirst(p, 'Visa länk')],
     ['displays-qr', '/admin/displays', (p) => clickFirst(p, 'Visa QR-kod')],
+    // "Anslut tillfällig skärm" (PairingCodeDialog.razor), and after a TV beside it has been paired.
+    [
+      'pair-screen',
+      `/live/${id}`,
+      async (p) => {
+        await goLive(p);
+        await p.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
+        await p.getByRole('img', { name: 'QR-kod för att ansluta en skärm' }).waitFor();
+      },
+      async (p) => {
+        await p.getByRole('dialog', { name: 'Anslut tillfällig skärm' }).getByRole('button', { name: 'Avbryt' }).click();
+        await stopLive(p);
+      },
+    ],
+    [
+      'pair-screen-done',
+      `/live/${id}`,
+      async (p) => {
+        await goLive(p);
+        await p.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
+        const tv = await beside(`${host!.base}/display`, 'dark', 1440, 900);
+        const code = (await tv.getByTestId('display-pin').textContent())!;
+        await tv.context().close();
+        const dialog = p.getByRole('dialog', { name: 'Anslut tillfällig skärm' });
+        for (const [i, d] of [...code].entries()) await dialog.getByLabel(`Siffra ${i + 1}`).fill(d);
+        await dialog.getByText('Skärmen är ansluten').waitFor();
+      },
+      async (p) => {
+        await p.getByRole('dialog', { name: 'Anslut tillfällig skärm' }).getByRole('button', { name: 'Stäng' }).click();
+        await stopLive(p);
+      },
+    ],
   ];
-  for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((t) => localStorage.setItem('theme', t), theme);
-    for (const [vp, width, height] of [
-      ['desktop', 1440, 900],
-      ['mobile', 390, 844],
+  // The saved screen's link and the public output's, read once both exist (displays-filled makes them).
+  let links: { screen: string; watch: string } | undefined;
+  const outputLinks = async () => {
+    if (links) return links;
+    await page.goto(`${host!.base}/admin/displays`);
+    await closeAdminMenu(page);
+    for (const [add, name] of [
+      ['Lägg till', 'Kyrksalen'],
+      ['Skapa publik utgång', 'Mobiler'],
     ] as const) {
+      if (await page.getByRole('listitem', { name }).count()) continue;
+      await page.getByRole('button', { name: add, exact: true }).first().click();
+      await page.getByRole('dialog').getByLabel('Namn').fill(name);
+      await page.getByRole('dialog').getByRole('button', { name: 'Skapa' }).click();
+      await page.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
+    }
+    await page.getByRole('button', { name: 'Visa länk', exact: true }).first().click();
+    const screen = await page.getByRole('dialog').getByLabel('Länk').inputValue();
+    await page.getByRole('dialog').getByRole('button', { name: 'Stäng' }).click();
+    const watch = await page.getByLabel('Länk Mobiler').inputValue();
+    return (links = { screen, watch });
+  };
+  const local = (url: string) => {
+    const u = new URL(url);
+    return u.pathname + u.search;
+  };
+  // Pages with no one signed in, in the app's own window: the invite, /display and /watch.
+  const open: [string, () => Promise<string | null>, (p: Page) => Promise<unknown>][] = [
+    ['invite', async () => invite, (p) => p.getByRole('heading', { name: 'Välkommen Eva!' }).waitFor()],
+    ['invite-invalid', async () => '/invite#not-a-token', (p) => p.getByRole('heading', { name: 'Ogiltig eller redan använd inbjudan.' }).waitFor()],
+    ['display', async () => '/display', (p) => p.getByTestId('display-pin').waitFor()],
+    ['display-saved', async () => local((await outputLinks()).screen), (p) => p.getByTestId('display-idle').waitFor()],
+    ['watch', async () => local((await outputLinks()).watch), (p) => p.getByTestId('watch-waiting').waitFor()],
+  ];
+  // Live with Välkommen over Härlig är jorden 1, then what a TV, a phone or the output window shows beside it.
+  const liveWithOverlay = async (output?: string) => {
+    await page.goto(`${host!.base}/live/${id}`);
+    await goLive(page);
+    if (output) {
+      const toggle = page.getByRole('list', { name: 'Utgångar' }).getByLabel(output);
+      await expect(toggle).toBeEnabled({ timeout: 10_000 });
+      await toggle.check();
+    }
+    await page.locator('summary', { hasText: 'Overlays' }).click();
+    await page.getByRole('list', { name: 'Overlays' }).getByLabel('Välkommen').check();
+  };
+  const besideLive: [string, (theme: string, width: number, height: number) => Promise<Page>][] = [
+    [
+      'watch-slide',
+      async (theme, width, height) => {
+        await liveWithOverlay('Mobiler');
+        const phone = await beside((await outputLinks()).watch, theme, width, height);
+        await phone.getByTestId('watch-overlay').waitFor();
+        return phone;
+      },
+    ],
+    [
+      'display-slide',
+      async (theme, width, height) => {
+        const tv = await beside((await outputLinks()).screen, theme, width, height);
+        await tv.getByTestId('display-idle').waitFor();
+        await liveWithOverlay('Kyrksalen');
+        await tv.getByTestId('watch-overlay').waitFor();
+        return tv;
+      },
+    ],
+    [
+      'output',
+      async (_theme, width, height) => {
+        await liveWithOverlay();
+        const [output] = await Promise.all([host!.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+        await output.setViewportSize({ width, height });
+        await output.getByTestId('slide-overlay').waitFor();
+        return output;
+      },
+    ],
+    ['pair', (theme, width, height) => beside(host!.base, theme, width, height).then(async (p) => (await p.getByRole('heading', { name: 'Anslut till värddatorn' }).waitFor(), p))],
+  ];
+
+  for (const theme of THEMES) {
+    await page.evaluate((t) => localStorage.setItem('theme', t), theme);
+    for (const [vp, width, height] of VIEWPORTS) {
       await page.setViewportSize({ width, height });
       for (const [name, path, act, after] of pages) {
+        if (!wanted(name)) continue;
         await page.goto(host.base + path);
         await page.getByTestId('me').waitFor();
         await page.waitForTimeout(500);
@@ -240,6 +401,46 @@ test('capture every page', async () => {
         }
         await page.screenshot({ path: `${out}/${name}_${theme}_${vp}.png` });
         await after?.(page);
+      }
+      for (const [name, path, ready] of open) {
+        if (!wanted(name)) continue;
+        const to = await path();
+        if (!to) continue;
+        await page.goto('about:blank'); // a new document, also when only the fragment differs
+        await page.goto(host.base + to);
+        await ready(page);
+        await page.waitForTimeout(500);
+        await page.screenshot({ path: `${out}/${name}_${theme}_${vp}.png` });
+      }
+      for (const [name, show] of besideLive) {
+        if (!wanted(name)) continue;
+        const shot = await show(theme, width, height);
+        await shot.waitForTimeout(800);
+        await shot.screenshot({ path: `${out}/${name}_${theme}_${vp}.png` });
+        if (shot !== page) {
+          if (name === 'output') await shot.close();
+          else await shot.context().close();
+        }
+        if (name !== 'pair') {
+          await page.goto(`${host.base}/live/${id}`);
+          await stopLive(page);
+        }
+      }
+    }
+  }
+  // Last, signed out: the sign-in page (Login.razor).
+  if (wanted('login')) {
+    await page.goto(host.base);
+    await signOut(page);
+    await page.getByRole('heading', { name: 'Logga in' }).waitFor(); // forgotten here before the reload
+    for (const theme of THEMES) {
+      await page.evaluate((t) => localStorage.setItem('theme', t), theme);
+      for (const [vp, width, height] of VIEWPORTS) {
+        await page.setViewportSize({ width, height });
+        await page.reload();
+        await page.getByRole('heading', { name: 'Logga in' }).waitFor();
+        await page.waitForTimeout(500);
+        await page.screenshot({ path: `${out}/login_${theme}_${vp}.png` });
       }
     }
   }

@@ -13,7 +13,7 @@ export function QrCode({ value, label, size = 200 }: { value: string; label: str
   let d = '';
   grid.forEach((row, y) => row.forEach((dark, x) => dark && (d += `M${x} ${y}h1v1h-1z`)));
   return (
-    <svg className="qr" role="img" aria-label={label} data-value={value} viewBox={`0 0 ${grid.length} ${grid.length}`} width={size} height={size} shapeRendering="crispEdges">
+    <svg className="qr block bg-white rounded-sm" role="img" aria-label={label} data-value={value} viewBox={`0 0 ${grid.length} ${grid.length}`} width={size} height={size} shapeRendering="crispEdges">
       <rect width={grid.length} height={grid.length} fill="#fff" />
       <path d={d} fill="#000" />
     </svg>

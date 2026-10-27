@@ -13,9 +13,10 @@ export function FloatingInput({
   hideLabel,
   hasError,
   className,
+  inputClassName,
   id,
   ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { label: string; hideLabel?: boolean; hasError?: boolean }) {
+}: InputHTMLAttributes<HTMLInputElement> & { label: string; hideLabel?: boolean; hasError?: boolean; inputClassName?: string }) {
   const own = useId();
   const inputId = id ?? own;
   const border = hasError ? 'border-red-500' : 'border-neutral-300 dark:border-neutral-600';
@@ -26,7 +27,7 @@ export function FloatingInput({
         id={inputId}
         placeholder={hideLabel ? label : ' '}
         aria-label={hideLabel ? label : undefined}
-        className={`peer w-full h-12 px-4 ${hideLabel ? 'py-0' : 'pt-4 pb-0 placeholder-transparent'} ${BOX} ${border} disabled:opacity-50 disabled:cursor-default`}
+        className={`peer w-full h-12 px-4 ${hideLabel ? 'py-0' : 'pt-4 pb-0 placeholder-transparent'} ${BOX} ${border} disabled:opacity-50 disabled:cursor-default ${inputClassName ?? ''}`}
       />
       {!hideLabel && (
         <label htmlFor={inputId} className={LABEL}>

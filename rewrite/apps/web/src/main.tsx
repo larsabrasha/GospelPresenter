@@ -52,7 +52,7 @@ if (route.page === 'watch') {
         </ReaderProvider>
       </StrictMode>,
     );
-  } else root.render(<div className="output" data-testid="output" />);
+  } else root.render(<div className="fixed inset-0 bg-black cursor-none" data-testid="output" />);
 } else if (stored && route.page !== 'invite' && route.page !== 'signedIn' && !sessionStorage.getItem(REPAIR_KEY)) {
   // Signed in: straight into the local database, with or without a network.
   const session = workerSession(stored);

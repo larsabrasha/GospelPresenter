@@ -3,9 +3,13 @@ import type { AuthState, SetupResponse, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
-import { Button } from '../ui/Button.tsx';
-import { AuthCard, FormError } from './AuthCard.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { FloatingInput } from '../ui/Floating.tsx';
+import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
 import { methodsText, SignInChoices } from './SignIn.tsx';
+
+/** A field's message, as Setup.razor's. */
+const ERROR = '-mt-2 text-sm text-red-500 dark:text-red-400';
 
 /**
  * First run (spec 01 `/setup`, D19): the organisation and its SuperAdmin,
@@ -30,15 +34,16 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
   if (invite) {
     return (
       <SignInChoices title={t('setup.title')} invite={invite} methods={methods} autoStart onSignedIn={onSignedIn}>
-        <p>{methodsText(methods, 'setup')}</p>
+        <p className={AUTH_TEXT}>{methodsText(methods, 'setup')}</p>
       </SignInChoices>
     );
   }
   return (
     <AuthCard title={t('setup.title')}>
-      <p>{t('setup.text')}</p>
-      <p>{methodsText(methods, 'setup')}</p>
+      <p className={AUTH_TEXT}>{t('setup.text')}</p>
+      <p className={`${AUTH_TEXT} mb-2`}>{methodsText(methods, 'setup')}</p>
       <form
+        className="flex flex-col gap-4"
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy) return;
@@ -60,33 +65,30 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
           setBusy(false);
         }}
       >
-        <label className="field">
-          {t('setup.name')}
-          <input autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        {errors.name && <p className="danger hint">{errors.name}</p>}
-        <label className="field">
-          {t('setup.orgName')}
-          <input maxLength={200} value={orgName} onChange={(e) => setOrgName(e.target.value)} />
-        </label>
-        {errors.org && <p className="danger hint">{errors.org}</p>}
+        <FloatingInput id="setup-name" label={t('setup.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+        {errors.name && <p className={ERROR}>{errors.name}</p>}
+        <FloatingInput id="setup-organization" label={t('setup.orgName')} maxLength={200} value={orgName} onChange={(e) => setOrgName(e.target.value)} />
+        {errors.org && <p className={ERROR}>{errors.org}</p>}
         {!hostToken && (
-          <>
-            <label className="field">
-              {t('setup.token')}
-              <input autoComplete="off" maxLength={200} aria-describedby="setup-token-hint" value={setupToken} onChange={(e) => setSetupToken(e.target.value)} />
-            </label>
-            <p id="setup-token-hint" className="small muted hint">
+          <div>
+            <FloatingInput
+              id="setup-token"
+              label={t('setup.token')}
+              autoComplete="off"
+              maxLength={200}
+              aria-describedby="setup-token-hint"
+              value={setupToken}
+              onChange={(e) => setSetupToken(e.target.value)}
+            />
+            <p id="setup-token-hint" className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
               {t('setup.tokenHint')}
             </p>
-          </>
+          </div>
         )}
         <FormError text={errors.form ?? null} />
-        <div className="row end">
-          <Button variant="primary" type="submit" disabled={busy}>
-            {t('setup.submit')}
-          </Button>
-        </div>
+        <AppButton variant="plain" type="submit" disabled={busy} className={AUTH_SUBMIT}>
+          {t('setup.submit')}
+        </AppButton>
       </form>
     </AuthCard>
   );

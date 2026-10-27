@@ -25,7 +25,7 @@ export function Output({ live }: { live: LiveChannel }) {
   );
   const overlay = useShownOverlay(pointer.overlayId);
   return (
-    <div className="output" data-testid="output">
+    <div className="fixed inset-0 bg-black cursor-none" data-testid="output">
       <SlideView slide={pointer.black ? null : (shown?.slide ?? null)} theme={shown?.theme} label={false} overlay={pointer.black ? null : overlay} />
     </div>
   );

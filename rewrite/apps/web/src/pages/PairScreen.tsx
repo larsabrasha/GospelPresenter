@@ -3,8 +3,9 @@ import type { LiveScreen } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { t } from '../i18n.ts';
 import { setOutput } from '../live/owner.ts';
-import { Button } from '../ui/Button.tsx';
-import { Dialog } from '../ui/Dialog.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
+import { TickIcon } from '../ui/icons.tsx';
 import { QrCode } from '../ui/QrCode.tsx';
 import { href } from '../ui/router.ts';
 import { useServerBase } from '../ui/serverBase.ts';
@@ -33,14 +34,14 @@ function CodeBoxes({ onComplete }: { onComplete: (code: string) => void }) {
     if (next.every((d) => d)) onComplete(next.join(''));
   };
   return (
-    <div className="row code-boxes" role="group" aria-label={t('pairScreen.code')}>
+    <div className="flex gap-3 pl-7 pt-1" role="group" aria-label={t('pairScreen.code')}>
       {digits.map((d, i) => (
         <input
           key={i}
           ref={(el) => {
             boxes.current[i] = el;
           }}
-          className="code-box"
+          className="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
           inputMode="numeric"
           autoComplete="one-time-code"
           aria-label={t('pairScreen.digit', { n: i + 1 })}
@@ -140,33 +141,70 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
 
   const displayUrl = `${base}${href({ page: 'display', id: null, name: null, token: null })}`;
   return (
-    <Dialog title={t('pairScreen.title')} onClose={onClose}>
+    <Dialog title={t('pairScreen.title')} onClose={onClose} maxWidthClass="max-w-sm">
       {paired ? (
-        <div className="pair-done" role="status">
-          <p className="ok">✓ {t('pairScreen.done')}</p>
-          <p className="muted">{t('pairScreen.doneText')}</p>
-          <div className="row end">
-            <Button variant="primary" onClick={onClose}>
-              {t('common.close')}
-            </Button>
+        <div className="flex flex-col items-center text-center gap-4 py-4" role="status">
+          <div className="size-20 rounded-full bg-green-500 flex items-center justify-center">
+            <TickIcon className="size-12 text-white" />
           </div>
+          <div className="font-semibold text-lg">{t('pairScreen.done')}</div>
+          <div className="text-sm text-neutral-500 dark:text-neutral-400">{t('pairScreen.doneText')}</div>
+          <AppButton onClick={onClose}>{t('common.close')}</AppButton>
         </div>
       ) : (
         <>
-          <h3>{t('pairScreen.scan')}</h3>
-          {token && <QrCode value={`${base}${href({ page: 'display', id: null, name: null, token })}`} label={t('pairScreen.qr')} />}
-          <h3>{t('pairScreen.manual')}</h3>
-          <p className="muted small">{t('pairScreen.step1')}</p>
-          <input readOnly value={displayUrl} aria-label={t('pairScreen.url')} onFocus={(e) => e.currentTarget.select()} />
-          <p className="muted small">{t('pairScreen.step2')}</p>
-          {/* A wrong code empties the boxes (LIVE-A19): new boxes, focused again. */}
-          <CodeBoxes onComplete={(pin) => void submit(pin)} key={wrong} />
-          {wrong > 0 && <p className="error">{t('pairScreen.wrong')}</p>}
-          <div className="row end">
-            <Button onClick={onClose}>{t('common.cancel')}</Button>
+          <div className="space-y-3">
+            <h3 className="font-medium text-sm/5 text-neutral-800 dark:text-neutral-100">{t('pairScreen.scan')}</h3>
+            <div className="flex justify-center">
+              <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full">
+                {token && <QrCode value={`${base}${href({ page: 'display', id: null, name: null, token })}`} label={t('pairScreen.qr')} />}
+              </div>
+            </div>
           </div>
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+            <span className="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t('pairScreen.or')}</span>
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+          </div>
+          <div className="space-y-4">
+            <h3 className="font-medium text-sm/5 text-neutral-800 dark:text-neutral-100">{t('pairScreen.manual')}</h3>
+            <div className="space-y-2">
+              <Step n={1} text={t('pairScreen.step1')} />
+              <div className="pl-7">
+                <input
+                  type="text"
+                  readOnly
+                  value={displayUrl}
+                  aria-label={t('pairScreen.url')}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="w-full min-w-0 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700 text-sm font-mono text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-600 select-all focus:outline-none focus:ring-2 focus:ring-sky-500"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Step n={2} text={t('pairScreen.step2')} />
+              {/* A wrong code empties the boxes (LIVE-A19): new boxes, focused again. */}
+              <CodeBoxes onComplete={(pin) => void submit(pin)} key={wrong} />
+            </div>
+          </div>
+          {wrong > 0 && <p className="text-sm text-red-500 dark:text-red-400">{t('pairScreen.wrong')}</p>}
+          <DialogButtons>
+            <AppButton variant="cancel" onClick={onClose}>
+              {t('common.cancel')}
+            </AppButton>
+          </DialogButtons>
         </>
       )}
     </Dialog>
+  );
+}
+
+/** A numbered step: the number in a small sky circle (PairingCodeDialog.razor). */
+function Step({ n, text }: { n: number; text: string }) {
+  return (
+    <div className="flex items-start gap-2 text-sm text-neutral-700 dark:text-neutral-200">
+      <span className="size-5 rounded-full bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400 flex items-center justify-center text-xs font-semibold shrink-0">{n}</span>
+      <span>{text}</span>
+    </div>
   );
 }

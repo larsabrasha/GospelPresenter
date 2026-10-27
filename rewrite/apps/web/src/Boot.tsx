@@ -4,12 +4,12 @@ import { api } from './auth/api.ts';
 import { errorText } from './auth/errors.ts';
 import { deviceName, saveDeviceToken, saveSession, storedSession } from './auth/session.ts';
 import { t } from './i18n.ts';
-import { AuthCard, FormError } from './pages/AuthCard.tsx';
+import { AUTH_TEXT, AuthCard, FormError } from './pages/AuthCard.tsx';
 import { Invite } from './pages/Invite.tsx';
 import { Pair } from './pages/Pair.tsx';
 import { Setup } from './pages/Setup.tsx';
 import { SignIn } from './pages/SignIn.tsx';
-import { Button } from './ui/Button.tsx';
+import { AppButton } from './ui/AppButton.tsx';
 
 /** Set when the user asks to pair again from inside the app, so the next start goes through here. */
 export const REPAIR_KEY = 'gp.repair';
@@ -66,11 +66,11 @@ function Handoff() {
     );
   }, []);
   return (
-    <AuthCard title={error ? t('auth.signIn') : t('auth.signingIn')}>
-      <FormError text={error} />
+    <AuthCard title={error ? t('auth.signIn') : t('auth.signingIn')} centered>
+      <FormError text={error} center />
       {error && (
-        <div className="row end">
-          <Button onClick={() => location.assign(`/signin${location.search}`)}>{t('auth.retry')}</Button>
+        <div className="flex justify-center">
+          <AppButton onClick={() => location.assign(`/signin${location.search}`)}>{t('auth.retry')}</AppButton>
         </div>
       )}
     </AuthCard>
@@ -95,12 +95,14 @@ export function Boot({ boot }: { boot: BootFor }) {
 
   switch (screen) {
     case 'loading':
-      return <AuthCard title={t('auth.loading')}>{null}</AuthCard>;
+      return <AuthCard title={t('auth.loading')} titleClassName="text-base/6 font-normal text-neutral-400" />;
     case 'offline':
       return (
-        <AuthCard title={t('auth.signIn')}>
-          <p>{t('auth.offline')}</p>
-          <Button onClick={decide}>{t('auth.retry')}</Button>
+        <AuthCard title={t('auth.signIn')} centered>
+          <p className={AUTH_TEXT}>{t('auth.offline')}</p>
+          <div className="flex justify-center">
+            <AppButton onClick={decide}>{t('auth.retry')}</AppButton>
+          </div>
         </AuthCard>
       );
     case 'pair':

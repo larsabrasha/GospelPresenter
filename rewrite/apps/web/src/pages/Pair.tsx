@@ -4,8 +4,9 @@ import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { deviceName, saveDeviceToken } from '../auth/session.ts';
 import { t } from '../i18n.ts';
-import { Button } from '../ui/Button.tsx';
-import { AuthCard, FormError } from './AuthCard.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { FloatingInput } from '../ui/Floating.tsx';
+import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
 
 /**
  * A device the desktop host has not paired sees only this (ADR 0007,
@@ -28,9 +29,10 @@ export function Pair({ paired, onSignedIn }: { paired: boolean; onSignedIn: (r: 
   const digits = code.replace(/\D/g, '');
   return (
     <AuthCard title={t('pair.title')}>
-      <p>{t('pair.text')}</p>
-      {paired && <p className="muted small">{t('pair.signIn')}</p>}
+      <p className={AUTH_TEXT}>{t('pair.text')}</p>
+      {paired && <p className={AUTH_TEXT}>{t('pair.signIn')}</p>}
       <form
+        className="flex flex-col gap-4 pt-2"
         onSubmit={async (e) => {
           e.preventDefault();
           if (busy || digits.length !== 6) return;
@@ -49,20 +51,22 @@ export function Pair({ paired, onSignedIn }: { paired: boolean; onSignedIn: (r: 
           setBusy(false);
         }}
       >
-        <label className="field">
-          {t('pair.code')}
-          <input className="pair-code" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={7} value={code} onChange={(e) => setCode(e.target.value)} />
-        </label>
-        <label className="field">
-          {t('pair.name')}
-          <input maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
+        <FloatingInput
+          id="pair-code"
+          label={t('pair.code')}
+          inputClassName="font-mono text-xl tracking-[0.3em]"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          autoFocus
+          maxLength={7}
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+        />
+        <FloatingInput id="pair-name" label={t('pair.name')} maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
         <FormError text={error} />
-        <div className="row end">
-          <Button variant="primary" type="submit" disabled={busy || digits.length !== 6 || !name.trim()}>
-            {t('pair.submit')}
-          </Button>
-        </div>
+        <AppButton variant="plain" type="submit" disabled={busy || digits.length !== 6 || !name.trim()} className={AUTH_SUBMIT}>
+          {t('pair.submit')}
+        </AppButton>
       </form>
     </AuthCard>
   );

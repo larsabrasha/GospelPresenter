@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { PublicSlide } from '@gp/core';
 import { followStream } from '../live/watch-stream.ts';
 import { t } from '../i18n.ts';
+import { LogoIcon } from '../ui/icons.tsx';
 import { PublicSlideView, viewerId } from './Watch.tsx';
 
 // A paired screen (spec 04 §5): a TV or a PC that shows a session, with no
@@ -79,7 +80,20 @@ function follow(base: string, on: { shown: (s: Shown) => void; name?: (n: string
 }
 
 function Slide({ base, shown }: { base: string; shown: Shown }) {
-  return shown.kind === 'slide' ? <PublicSlideView imageBase={base} slide={shown.slide} /> : <div className="watch-slide" data-testid="display-black" />;
+  return shown.kind === 'slide' ? <PublicSlideView imageBase={base} slide={shown.slide} /> : <div className="fixed inset-0 bg-black" data-testid="display-black" />;
+}
+
+/** A screen waiting, black (Display.razor): what it says in the middle, and the logo and name at the foot. */
+function Waiting({ testId, children }: { testId: string; children: ReactNode }) {
+  return (
+    <div className="fixed inset-0 flex flex-col bg-black text-white items-center justify-center" data-testid={testId}>
+      <div className="flex-1 flex flex-col items-center justify-center gap-6">{children}</div>
+      <div className="flex items-center gap-3 text-neutral-600 pb-8">
+        <LogoIcon className="size-8" />
+        <span className="text-xl font-semibold tracking-wide">Gospel Presenter</span>
+      </div>
+    </div>
+  );
 }
 
 /** A saved screen: online while open; its name while nothing is sent to it. */
@@ -91,11 +105,10 @@ function SavedScreen({ code, name }: { code: string; name: string | null }) {
   useEffect(() => follow(base, { shown: setShown, name: (n) => setTitle(n || name), gone: () => setGone(true) }), [base, name]);
   if (shown.kind === 'slide' && !gone) return <Slide base={base} shown={shown} />;
   return (
-    <div className="watch-waiting display-idle" data-testid="display-idle">
-      <p className="display-name">{title}</p>
-      <p className="display-brand">Gospel Presenter</p>
-      {gone && <p>{t('display.notFound')}</p>}
-    </div>
+    <Waiting testId="display-idle">
+      {title && <div className="text-neutral-300 text-[3vw] font-semibold">{title}</div>}
+      {gone && <div className="text-neutral-500 text-[2.5vw] text-center max-w-3xl leading-snug">{t('display.notFound')}</div>}
+    </Waiting>
   );
 }
 
@@ -152,25 +165,24 @@ function TemporaryScreen({ token }: { token: string | null }) {
 
   if (pairedId) return <Slide base={`/api/screen/${pairedId}`} shown={shown} />;
   return (
-    <div className="watch-waiting display-idle" data-testid="display-pairing">
+    <Waiting testId="display-pairing">
       {state.kind === 'code' && (
         <>
-          <p className="display-label">{t('display.code')}</p>
-          <p className="display-pin" data-testid="display-pin">
+          <div className="text-neutral-400 text-[2.5vw] tracking-widest uppercase">{t('display.code')}</div>
+          <div className="text-[14vw] leading-none font-bold tracking-[0.3em] font-mono" data-testid="display-pin">
             {state.pin}
-          </p>
-          <p>{t('display.codeText')}</p>
+          </div>
+          <div className="text-neutral-500 text-[2.5vw] text-center max-w-3xl leading-snug">{t('display.codeText')}</div>
         </>
       )}
-      <p className="display-brand">Gospel Presenter</p>
-    </div>
+    </Waiting>
   );
 }
 
 /** `/display` (spec 04 §5): a click asks for full screen. */
 export function Display({ id, name, token }: { id: string | null; name: string | null; token: string | null }) {
   return (
-    <div className="display" onClick={() => void document.documentElement.requestFullscreen?.().catch(() => undefined)}>
+    <div onClick={() => void document.documentElement.requestFullscreen?.().catch(() => undefined)}>
       {id ? <SavedScreen code={id} name={name} /> : <TemporaryScreen token={token} />}
     </div>
   );
