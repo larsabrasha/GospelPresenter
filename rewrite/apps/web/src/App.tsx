@@ -60,8 +60,6 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const viewUsers = can(me.role, 'ViewUsers');
   const admin = (
     <>
-      {route.page === 'songs' && <Songs />}
-      {route.page === 'song' && <SongEditor id={route.id} />}
       {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <p>{t('users.forbidden')}</p>)}
       {route.page === 'devices' && (host ? <Devices me={me} /> : <p>{t('devices.onlyHost')}</p>)}
       {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <p>{t('bibles.forbidden')}</p>)}
@@ -86,7 +84,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} />
       ) : ADMIN_PAGES.has(route.page) ? (
         <AdminLayout me={me} host={host} route={route}>
-          <Legacy>{admin}</Legacy>
+          {route.page === 'songs' ? <Songs /> : route.page === 'song' ? <SongEditor id={route.id} /> : <Legacy>{admin}</Legacy>}
         </AdminLayout>
       ) : (
         <Legacy>

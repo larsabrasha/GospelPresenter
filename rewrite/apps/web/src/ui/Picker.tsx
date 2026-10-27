@@ -7,19 +7,27 @@ import { CloseIcon, SearchIcon } from './icons.tsx';
 // the round search field, the row at the foot with the add button, and the
 // grey picture and line of an empty tab.
 
-/** The round search field with a magnifier, and a clear button once there is text. */
+/**
+ * The round search field with a magnifier, and a clear button once there is text.
+ * `compact` is the song library's, a little lower and with smaller text (Pages/Admin/Songs.razor).
+ */
 export function SearchField({
   value,
   onChange,
   label,
+  placeholder,
   inputRef,
   autoFocus,
+  compact,
 }: {
   value: string;
   onChange: (v: string) => void;
   label: string;
+  /** Shown in the empty field; the label when not given. */
+  placeholder?: string;
   inputRef?: Ref<HTMLInputElement>;
   autoFocus?: boolean;
+  compact?: boolean;
 }) {
   return (
     <div className="relative flex-1 min-w-0">
@@ -30,10 +38,10 @@ export function SearchField({
         type="search"
         maxLength={100}
         aria-label={label}
-        placeholder={label}
+        placeholder={placeholder ?? label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full py-2.5 pl-10 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
+        className={`w-full ${compact ? 'py-2 text-sm' : 'py-2.5'} pl-10 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
       />
       {value && (
         <AppButton variant="icon" aria-label={t('common.clear')} onClick={() => onChange('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6!">

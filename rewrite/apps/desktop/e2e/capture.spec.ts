@@ -31,13 +31,25 @@ test('capture every page', async () => {
   await setUpHost(host, { name: 'Anna', org: 'Foo Bar Kyrka', google: { sub: 'google-anna', email: 'anna@kyrkan.se', name: 'Anna' } });
 
   // Something on every list, as in the current app's mock data: Familjegudstjänst holds the same two songs.
-  await createSong(page, 'Blott en dag', [['Verse 1', 'Blott en dag, ett ögonblick i sänder']]);
+  // Blott en dag as in the current app's mock data: who wrote it, three parts, and an arrangement that repeats the chorus.
+  await createSong(page, 'Blott en dag', [
+    ['Verse 1', 'Blott en dag, ett ögonblick i sänder,\nVad det lyser mig på vägars gång!\nDet är nog, ty med din hand mig leder\nDu som känner mina svaghetsplag.'],
+    ['Chorus', 'Ja, allt vad jag behöver dag för dagen,\nDet giver du mig, o Fader kär;\nVad sen skall hända, är i dina händer\nOch jag vet att du också är där.'],
+    ['Verse 2', 'Morgondagen, hur den kommer, vet jag icke,\nMen jag vet att du är konung där.\nVad dig lyster låter du mig möta\nNär den dagen gryr i öster.'],
+  ]);
+  await page.getByLabel('Upphovspersoner').fill('Lina Sandell');
+  await page.getByLabel('År').fill('1865');
+  await page.getByLabel('År').blur();
+  await page.getByRole('button', { name: 'Skapa arrangemang' }).click();
+  await page.getByRole('group', { name: 'Arrangemang 1' }).getByRole('combobox', { name: 'Lägg till del' }).selectOption({ label: '2. Chorus' });
   await createSong(page, 'Härlig är jorden', [
     ['Verse 1', 'Härlig är jorden,\nHärlig är Guds himmel,\nSkön är själarnas pilgrimsgång.\nGenom de fagra riken på jorden\nGår vi till paradiset fram.'],
     ['Verse 2', 'Tidevarv komma,\nTidevarv försvinna,\nSläkten följa släktens gång.\nAldrig uppslocknar tonen från himlen\nI själens glada pilgrimssång.'],
     ['Verse 3', 'Änglar den sjöngo\nFörst för markens herdar;\nSkön var sången, ljuv och lång.\nFrid på vår jord nu!\nGud till oss sände\nHimmelens frid med Davids son.'],
   ]);
   await createSong(page, 'Tryggare kan ingen vara', [['Verse 1', 'Tryggare kan ingen vara,\nän Guds lilla barnaskara']]);
+  await page.getByLabel('Upphovspersoner').fill('Lina Sandell');
+  await page.getByLabel('Upphovspersoner').blur();
   // A Bible for the add dialog's second tab.
   await openAdmin(page, 'Biblar');
   await page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
@@ -67,6 +79,19 @@ test('capture every page', async () => {
   };
   const goLive = (p: Page) => p.getByRole('button', { name: 'Härlig är jorden 1' }).click();
   const stopLive = (p: Page) => p.getByRole('button', { name: 'Avsluta' }).click();
+  // On a phone the admin menu covers the page at first; tap the dimmed page to close it.
+  const closeAdminMenu = async (p: Page) => {
+    if (p.viewportSize()!.width < 1024 && (await p.locator('aside:visible').count())) await p.mouse.click(370, 400);
+    await p.waitForTimeout(400);
+  };
+  // Every scrolling box to its end, for what is below the first screen.
+  const scrollDown = (p: Page) =>
+    p.evaluate(() => {
+      for (const el of document.querySelectorAll('*')) {
+        const y = getComputedStyle(el).overflowY;
+        if ((y === 'auto' || y === 'scroll') && el.scrollHeight > el.clientHeight) el.scrollTop = el.scrollHeight;
+      }
+    });
   const pages: [string, string, ((p: Page) => Promise<unknown>)?, ((p: Page) => Promise<unknown>)?][] = [
     ['home', '/'],
     ['presentation', presentation],
@@ -101,7 +126,31 @@ test('capture every page', async () => {
     ['profile', '/logins'],
     ['admin', '/admin'],
     ['songs', '/admin/songs'],
-    ['song', song],
+    [
+      'songs-search',
+      '/admin/songs',
+      async (p) => {
+        await closeAdminMenu(p);
+        await p.getByLabel('Sök', { exact: true }).fill('dag');
+      },
+    ],
+    [
+      'song-create',
+      '/admin/songs',
+      async (p) => {
+        await closeAdminMenu(p);
+        await p.getByRole('button', { name: 'Skapa', exact: true }).click();
+      },
+    ],
+    ['song', song, closeAdminMenu],
+    [
+      'song-end',
+      song,
+      async (p) => {
+        await closeAdminMenu(p);
+        await scrollDown(p);
+      },
+    ],
     ['images', '/admin/images'],
     ['audios', '/admin/audios'],
     ['bibles', '/admin/bibles'],

@@ -648,8 +648,15 @@ the live page's panel at the right (`LivePanel.razor`: Nu visas, Utgångar, Over
 switches in `ui/Toggle.tsx`, Scenläge, the red Avsluta) and the dark stage view with its bottom sheets
 (`StageView.razor`). The flow is kept: live is still its own page, `/live/{id}`, with every item's slides.
 
+The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the list in a light card with
+Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button
+(`ui/PageContainer.tsx`), the fields as floating fields, a card per part with its label as a pill, ↑ ↓ and
+the bin, and the arrangements as stacked chips with the dashed Lägg till del. The label and Lägg till del
+are still native selects, drawn as the old dropdowns. Song history and the ProPresenter import are not built,
+so their pages and buttons are missing.
+
 The move goes in steps: 1 the frame, the components and the start page (done); 2 the presentation (editor,
-live, stage view, Lägg till) (done); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`, `/watch`
+live, stage view, Lägg till) (done); 3 songs (done); 4 the admin pages; 5 sign-in, setup, pairing, `/display`, `/watch`
 and the output. A page not yet moved keeps its old styles (`apps/web/src/styles.css`, in a CSS layer below
 Tailwind's utilities) inside the new frame, and the old `Button` (`ui/Button.tsx`), until its step.
 

@@ -4,12 +4,17 @@ import { useData, useDb } from '../db/react.tsx';
 import { searchableSongs } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
-import { Button } from '../ui/Button.tsx';
-import { Dialog } from '../ui/Dialog.tsx';
+import { AppButton } from '../ui/AppButton.tsx';
+import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
+import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
+import { MusicalNoteOutlineIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { CARD, ListLinkRow } from '../ui/List.tsx';
+import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { SearchField } from '../ui/Picker.tsx';
 import { href, navigate } from '../ui/router.ts';
 
-/** "Skapa sång": a name, then the editor (spec 02, SONG-A1, A2). */
+/** "Skapa sång": a name, then the editor (spec 02, SONG-A1, A2; Components/Presentations/NameDialog.razor). */
 export function CreateSongDialog({ initial = '', onClose, onCreated }: { initial?: string; onClose: () => void; onCreated: (id: string) => void }) {
   const db = useDb();
   const [name, setName] = useState(initial);
@@ -22,29 +27,29 @@ export function CreateSongDialog({ initial = '', onClose, onCreated }: { initial
     onCreated(id);
   };
   return (
-    <Dialog title={t('songs.createTitle')} onClose={onClose}>
+    <Dialog title={t('songs.createTitle')} onClose={onClose} maxWidthClass="max-w-2xl">
       <form
+        className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           void save();
         }}
       >
-        <label className="field">
-          {t('song.name')}
-          <input autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <div className="row end">
-          <Button onClick={onClose}>{t('common.cancel')}</Button>
-          <Button variant="primary" type="submit" disabled={!name.trim() || saving}>
+        <FloatingInput label={t('song.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+        <DialogButtons>
+          <AppButton variant="cancel" onClick={onClose}>
+            {t('common.cancel')}
+          </AppButton>
+          <AppButton type="submit" disabled={!name.trim() || saving}>
             {t('common.create')}
-          </Button>
-        </div>
+          </AppButton>
+        </DialogButtons>
       </form>
     </Dialog>
   );
 }
 
-/** The song library (spec 02, `/admin/songs`). */
+/** The song library (spec 02, `/admin/songs`; Pages/Admin/Songs.razor). */
 export function Songs() {
   const songs = useData(searchableSongs, []);
   const [query, setQuery] = useState('');
@@ -52,59 +57,51 @@ export function Songs() {
   const shown = songs && searchSongs(songs, query);
 
   return (
-    <section>
-      <div className="row">
-        <h1 className="grow">{t('nav.songs')}</h1>
-        <Button variant="primary" onClick={() => setCreating(true)}>
+    <PageContainer>
+      {/* Always here, also with no songs (the current app hides it then and offers the import): there is no import yet. */}
+      <PageHeader title={t('nav.songs')}>
+        <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
+          <PlusIcon className="size-4" />
           {t('common.create')}
-        </Button>
-      </div>
+        </AppButton>
+      </PageHeader>
       {creating && <CreateSongDialog onClose={() => setCreating(false)} onCreated={(id) => navigate({ page: 'song', id })} />}
-      <div className="row">
-        <h2 className="grow">{t('songs.all', { n: songs?.length ?? 0 })}</h2>
-        <a className="btn" href={href({ page: 'trash', kind: 'Song' })}>
-          {t('nav.trash')}
-        </a>
+      <div className={CARD}>
+        <div className="px-5 pt-4 pb-2 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base/6 font-semibold">{t('songs.all', { n: songs?.length ?? 0 })}</h2>
+            <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Song' })} className="flex items-center gap-1.5">
+              <TrashIcon className="size-4" />
+              {t('nav.trash')}
+            </AppButton>
+          </div>
+          {!!songs?.length && <SearchField value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} compact />}
+        </div>
+        {songs && !songs.length && (
+          <div className="flex flex-col items-center justify-center text-center text-sm py-12 px-6 select-none">
+            <MusicalNoteOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />
+            <p className="font-medium text-neutral-500 dark:text-neutral-400 mb-1">{t('songs.emptyTitle')}</p>
+            <p className="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">{t('songs.emptyText')}</p>
+          </div>
+        )}
+        {!!songs?.length && shown && !shown.length && <p className="px-5 py-4 text-neutral-400 text-sm">{t('songs.noHits')}</p>}
+        {!!shown?.length && (
+          <ul aria-label={t('nav.songs')}>
+            {shown.map((s) => (
+              <ListLinkRow
+                key={s.id}
+                href={href({ page: 'song', id: s.id })}
+                title={
+                  <span className="font-medium">
+                    <Highlight text={s.name} query={query} />
+                  </span>
+                }
+                subtitle={s.author ? <Highlight text={s.author} query={query} /> : ' '}
+              />
+            ))}
+          </ul>
+        )}
       </div>
-      {songs && !songs.length && (
-        <div className="empty">
-          <p>
-            <strong>{t('songs.emptyTitle')}</strong>
-          </p>
-          <p className="muted">{t('songs.emptyText')}</p>
-        </div>
-      )}
-      {!!songs?.length && (
-        <div className="row">
-          <input
-            className="search grow"
-            type="search"
-            maxLength={100}
-            aria-label={t('songs.search')}
-            placeholder={t('songs.search')}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {query && (
-            <Button aria-label={t('common.clear')} onClick={() => setQuery('')}>
-              ×
-            </Button>
-          )}
-        </div>
-      )}
-      {!!songs?.length && shown && !shown.length && <p className="muted">{t('songs.noHits')}</p>}
-      <ul className="list" aria-label={t('nav.songs')}>
-        {shown?.map((s) => (
-          <li key={s.id}>
-            <a href={href({ page: 'song', id: s.id })}>
-              <strong>
-                <Highlight text={s.name} query={query} />
-              </strong>
-            </a>
-            <div className="muted">{s.author ? <Highlight text={s.author} query={query} /> : ' '}</div>
-          </li>
-        ))}
-      </ul>
-    </section>
+    </PageContainer>
   );
 }

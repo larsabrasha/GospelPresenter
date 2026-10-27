@@ -39,7 +39,12 @@ const firstHref = async (url, pattern) => {
   return hrefs.find((h) => pattern.test(h ?? '')) ?? null;
 };
 const presentation = await firstHref('/', /^\/?presentations\/[^/?]+$/);
-const song = await firstHref('/admin/songs', /^\/?admin\/songs\/[^/?]+$/);
+// Blott en dag, as in the new app's pictures (capture.spec.ts gives it the same parts and arrangement).
+const song = await (async () => {
+  await probe.goto(base + '/admin/songs', { waitUntil: 'networkidle' });
+  await probe.waitForTimeout(800);
+  return probe.locator('a[href*="admin/songs/"]', { hasText: 'Blott en dag' }).first().getAttribute('href');
+})();
 const overlay = await firstHref('/admin/overlays', /^\/?admin\/overlays\/[^/?]+$/);
 const user = await firstHref('/admin/users', /^\/?admin\/users\/[^/?]+$/);
 console.log({ presentation, song, overlay, user });
@@ -69,6 +74,19 @@ const stopLive = async (p) => {
   await p.waitForTimeout(400);
   await stop.click({ timeout: 5000 });
   await p.waitForTimeout(500);
+};
+// Every scrolling box to its end, for what is below the first screen.
+const scrollDown = (p) =>
+  p.evaluate(() => {
+    for (const el of document.querySelectorAll('*')) {
+      const y = getComputedStyle(el).overflowY;
+      if ((y === 'auto' || y === 'scroll') && el.scrollHeight > el.clientHeight) el.scrollTop = el.scrollHeight;
+    }
+  });
+// On a phone the admin menu covers the page at first; tap the dimmed page to close it.
+const closeAdminMenu = async (p) => {
+  if (p.viewportSize().width < 1024 && (await p.locator('aside:visible').count())) await p.mouse.click(370, 400);
+  await p.waitForTimeout(400);
 };
 const openAdd = async (p, tab) => {
   const add = p.getByRole('button', { name: 'Lägg till', exact: true }).first();
@@ -112,8 +130,20 @@ const pages = [
   ['profile', '/profile'],
   ['admin', '/admin'],
   ['songs', '/admin/songs'],
-  ['song', abs(song)],
-  ['song-history', abs(song) && abs(song) + '/history'],
+  ['songs-search', '/admin/songs', async (p) => {
+    await closeAdminMenu(p);
+    await p.locator('input[type=text]:visible').first().fill('dag');
+  }],
+  ['song-create', '/admin/songs', async (p) => {
+    await closeAdminMenu(p);
+    await p.getByRole('button', { name: 'Skapa', exact: true }).click();
+  }],
+  ['song', abs(song), closeAdminMenu],
+  ['song-end', abs(song), async (p) => {
+    await closeAdminMenu(p);
+    await scrollDown(p);
+  }],
+  ['song-history', abs(song) && abs(song) + '/history', closeAdminMenu],
   ['images', '/admin/images'],
   ['audios', '/admin/audios'],
   ['bibles', '/admin/bibles'],

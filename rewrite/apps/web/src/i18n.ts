@@ -25,6 +25,7 @@ const sv = {
   'nav.trash': 'Papperskorg',
   'songs.all': 'Alla sånger ({n})',
   'songs.search': 'Sök',
+  'songs.searchPlaceholder': 'Sök...',
   'songs.emptyTitle': 'Inga sånger i biblioteket ännu',
   'songs.emptyText': 'Skapa en sång med Skapa ovan.',
   'songs.noHits': 'Inga sånger hittades',

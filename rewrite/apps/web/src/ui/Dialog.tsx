@@ -53,12 +53,27 @@ function DialogFrame({ titleId, onClose, className, children }: { titleId: strin
 
 /**
  * A dialog: a title and its content, as the current app's dialogs (a white
- * card, rounded, over a dimmed page). `wide` for a large one, such as a picker.
+ * card, rounded, over a dimmed page). `wide` for a large one, such as a picker;
+ * `maxWidthClass` for another width, as NameDialog.razor's `max-w-2xl`.
  */
-export function Dialog({ title, onClose, children, wide, showClose }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; showClose?: boolean }) {
+export function Dialog({
+  title,
+  onClose,
+  children,
+  wide,
+  maxWidthClass,
+  showClose,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  wide?: boolean;
+  maxWidthClass?: string;
+  showClose?: boolean;
+}) {
   const titleId = useId();
   return (
-    <DialogFrame titleId={titleId} onClose={onClose} className={wide ? 'max-w-5xl' : 'max-w-md'}>
+    <DialogFrame titleId={titleId} onClose={onClose} className={maxWidthClass ?? (wide ? 'max-w-5xl' : 'max-w-md')}>
       {showClose && <CloseButton onClick={onClose} />}
       <div className="p-6 space-y-4">
         <h2 id={titleId} className={`font-semibold text-lg/7 ${showClose ? 'pr-8' : ''}`}>
