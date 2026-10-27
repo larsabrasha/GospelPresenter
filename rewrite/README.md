@@ -491,19 +491,38 @@ a real Google client registered with the old one must get the new one.
 
 ## Next steps
 
-Where to pick up. Milestones 1–5, and the live work after them, are on branch `claude/milestone-1`, which also carries the latest ADR
-0007 and spec (decisions up to D31); `claude/rewrite-behavior-spec` is behind it.
+Where to pick up. Milestones 1–5, and the live work after them (stage view, remote control, public outputs,
+audio, files by need, https on the LAN), are on branch `claude/milestone-1`, which also carries the latest ADR
+0007 and spec (decisions up to D32); `claude/rewrite-behavior-spec` is behind it. In this order, as agreed
+with Lars on 2026-10-27:
 
-1. **A trial deploy to Cloudflare**, at any point and only with Lars's go-ahead: a temporary
-   Worker and D1, measured and then deleted, as the sync spike did. Still unproven there: migrating an
-   existing Durable Object (schema and triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys,
-   Google sign-in against a real Google client, and R2 as the media storage (tested against Miniflare's R2 only).
-2. **The rest of live** (spec 04): overlays (with the changes in TODO.md) and paired screens (`/display`).
-   Stage view, remote control, public outputs and audio are done (see "Not done yet" for what they lack).
-3. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
-4. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
-   per D32 (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app
-   for tablets (ADR 0007 (7)), Android first and iOS later.
+1. **Overlays** (spec 04 LIVE-R15, R16), with the two changes and the decision in TODO.md: "Rensa" switches the
+   overlay off, and an item can carry one (per item, not per slide). Still to decide when it is built: what a
+   manual toggle during live does to an item's overlay. Overlay images use the media library.
+2. **Starting the app on a tablet without the host**: a service worker that keeps the built web app, so a
+   tablet over https on the LAN (see "https on the LAN") can reload and start with the host gone. Its data is
+   already in OPFS; only the page itself comes from the host today.
+3. **The client's address behind a reverse proxy** (`X-Forwarded-For` from a trusted proxy only, a setting),
+   before anyone self-hosts behind nginx or Caddy: without it every client shares the proxy's address, and the
+   throttles (setup token, pairing code, public output codes) lock out a whole church at once.
+4. **Paired screens** (`/display`, spec 04 §5) and QR codes for public outputs, remote control and pairing.
+5. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
+6. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
+   deleted, as the sync spike did. Still unproven there: migrating an existing Durable Object (schema and
+   triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys, Google sign-in against a real Google client,
+   R2 as the media storage (tested against Miniflare's R2 only), live sockets in a hibernating Durable Object,
+   and the Worker serving the web app (it serves no static files yet).
+7. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
+   (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app for tablets
+   (ADR 0007 (7)), Android first and iOS later. Lars has said the Capacitor app need not come early: https on
+   the LAN covers tablets for now.
+
+Also waiting, in TODO.md: remote control as an organisation setting ("Aldrig", "Presentatören väljer",
+"Alltid").
+
+To try it with a tablet: `GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start`, then
+`https://<the Mac's LAN address>:47843` on the tablet, accept the certificate warning once, and pair it under
+Enheter → Anslut enhet.
 
 The smaller gaps below can be taken along the way.
 
