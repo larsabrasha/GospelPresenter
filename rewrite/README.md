@@ -315,8 +315,9 @@ Where to pick up. Milestones 1–5 are on branch `claude/milestone-1`, which als
    Worker and D1, measured and then deleted, as the sync spike did. Still unproven there: migrating an
    existing Durable Object (schema and triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys,
    Google sign-in against a real Google client, and R2 as the media storage (tested against Miniflare's R2 only).
-2. **The rest of live** (spec 04, ADRs 0004 and 0006): stage view, public output, remote control and
-   mirrored live sessions.
+2. **The rest of live** (spec 04, ADRs 0004 and 0006): remote control first (a session with an owner, the
+   pointer over a WebSocket through the server, the "Fjärrstyrning" toggle), then public output and mirrored
+   live sessions. The stage view is done (see "Not done yet" for what it lacks).
 3. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
 4. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates
    per D32 (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app
@@ -340,6 +341,12 @@ full library of 1 000 pictures is a few hundred MB on each device, not measured)
 file input is used, also in Electron); dropping files onto the add dialog. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.
+
+From spec 04: the stage view (Scenläge, a button on the live page, `pages/StageView.tsx`) is built for the
+operator's own session only: no overlays button (overlays do not exist), no audio items, no `?stage=true` in
+the URL, and no remote controller (there is no remote control yet). Next and previous stay within the selected
+item (LIVE-R41); the page's own step keys, which cross items, are off while it is open. It is tested in
+`e2e/milestone6.spec.ts`. The wake lock is requested but not tested.
 
 From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
 the Teman page lists the built-ins and sets the default), the stage view and the public output, and

@@ -160,3 +160,19 @@ mark { background: #fde68a; color: inherit; border-radius: 2px; }
 .image-card .remove { position: absolute; top: 4px; right: 4px; }
 .image-pick { display: block; width: 100%; padding: 0; text-align: left; }
 .image-pick[aria-pressed='true'] .frame { outline: 3px solid var(--accent); }
+
+/* Stage view (spec 04 section 3) */
+.stage { position: fixed; inset: 0; z-index: 50; background: #111; color: #eee; display: flex; flex-direction: column; gap: 12px; padding: 12px; overflow: auto; }
+.stage-main { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.stage-now { position: relative; }
+.stage-now .slide-box { aspect-ratio: 16 / 9; }
+.stage-label { position: absolute; top: 8px; right: 8px; padding: 2px 12px; border-radius: 8px; color: white; font-weight: 600; }
+.stage-next { display: block; width: 100%; padding: 0; aspect-ratio: 16 / 9; }
+.stage-sheet { position: absolute; inset: 56px 12px auto 12px; z-index: 2; background: #222; padding: 12px; border-radius: 8px; max-height: 70vh; overflow: auto; }
+.stage-strip { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; overflow-x: auto; }
+.stage-tile { position: relative; flex: 0 0 200px; border: 3px solid transparent; }
+.stage-tile.live { border-color: #e03131; }
+.stage-tile .btn { padding: 0; width: 100%; aspect-ratio: 16 / 9; }
+.stage-badge { position: absolute; top: 4px; left: 4px; background: #e03131; color: white; font-size: 0.75rem; padding: 0 6px; border-radius: 4px; }
+.invisible { visibility: hidden; }
+@media (max-width: 700px) { .stage-main { grid-template-columns: 1fr; } }

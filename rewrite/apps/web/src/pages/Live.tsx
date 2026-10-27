@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PresentationItem } from '@gp/core';
 import { useData } from '../db/react.tsx';
 import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
@@ -8,12 +8,14 @@ import { openOutput, useLivePointer } from '../live/useLive.ts';
 import { Button } from '../ui/Button.tsx';
 import { navigate } from '../ui/router.ts';
 import { SlideView } from '../ui/SlideView.tsx';
+import { StageView } from './StageView.tsx';
 
 const problemText = { 'song-missing': t('live.songMissing'), 'song-trashed': t('live.songTrashed'), 'no-parts': t('live.noParts'), 'image-missing': t('live.imageMissing') };
 
 /** The operator's view of a running presentation (spec 04, milestone 1 subset). */
 export function Live({ id, live }: { id: string; live: LiveChannel }) {
   const pointer = useLivePointer(live);
+  const [stage, setStage] = useState(false);
   const data = useData(
     async (db) => {
       const items = await itemsOf(db, id);
@@ -47,6 +49,7 @@ export function Live({ id, live }: { id: string; live: LiveChannel }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (stage) return; // the stage view has its own keys
       if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) step(1);
       else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) step(-1);
       else if (e.key === 'b' || e.key === 'B') live.set({ black: !live.pointer.black });
@@ -55,7 +58,7 @@ export function Live({ id, live }: { id: string; live: LiveChannel }) {
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
-  }, [step, live]);
+  }, [step, live, stage]);
 
   if (!data) return null;
   const current = pointer.itemId ? data.slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null : null;
@@ -86,9 +89,11 @@ export function Live({ id, live }: { id: string; live: LiveChannel }) {
 
   return (
     <section className="live">
+      {stage && <StageView items={data.items} slides={data.slides} theme={data.theme} live={live} onLeave={() => setStage(false)} />}
       <div className="row">
         <h1 className="grow">{data.presentation?.name}</h1>
         <Button onClick={openOutput}>{t('live.output')}</Button>
+        <Button onClick={() => setStage(true)}>{t('live.stage')}</Button>
         <Button aria-pressed={pointer.black} variant={pointer.black ? 'primary' : 'normal'} onClick={() => live.set({ black: !pointer.black })}>
           {t('live.black')}
         </Button>

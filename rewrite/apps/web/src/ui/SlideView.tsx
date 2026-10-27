@@ -37,9 +37,9 @@ function SlideImage({ hash }: { hash: string }) {
  * decision 8), styled by `theme` (spec 05, THEME-R9). The same component draws
  * previews, thumbnails and the output, so they always agree. `slide` null
  * draws an empty stage: black, whatever the theme, as the black screen must
- * be. The part label is for the operator: tiles show it, outputs never do (LIVE-R20).
+ * be. The part label is for the operator: tiles show it, outputs never do (LIVE-R20). The stage view draws its preview without credits (spec 04 §3).
  */
-export function SlideView({ slide, theme = CLASSIC, label = true }: { slide: Slide | null; theme?: Theme; label?: boolean }) {
+export function SlideView({ slide, theme = CLASSIC, label = true, credits = true }: { slide: Slide | null; theme?: Theme; label?: boolean; credits?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   useLayoutEffect(() => {
@@ -70,7 +70,7 @@ export function SlideView({ slide, theme = CLASSIC, label = true }: { slide: Sli
                     {slide.verses ? <BibleText slide={slide} /> : slide.text}
                   </div>
                 </div>
-                {slide.credits && (
+                {credits && slide.credits && (
                   <div className="slide-credits" data-testid="slide-credits" style={creditsCss(theme, slide.kind)}>
                     {slide.credits}
                   </div>
