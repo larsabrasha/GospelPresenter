@@ -40,6 +40,9 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
         deviceName: deviceName(),
         remote: remoteAllowed(),
         pointer: { itemId: p.itemId, partIndex: p.partIndex, black: p.black, rev: p.rev },
+        outputs: [],
+        takeOver: [],
+        slide: null,
       });
     };
     const off = live.subscribe((p) => void report(p));

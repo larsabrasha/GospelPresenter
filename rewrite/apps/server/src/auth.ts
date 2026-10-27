@@ -129,7 +129,8 @@ export function isLoopback(address: string): boolean {
 /** Refuses every API request from a device that is not paired, before anything else runs. */
 export function pairingGuard(accounts: Accounts, pairing: Pairing, clientAddress: (c: Context) => string): MiddlewareHandler {
   return async (c, next) => {
-    if (!isApiPath(c.req.path) || OPEN_PATHS.has(c.req.path)) return next();
+    // Public outputs are for anyone on the LAN, paired or not (spec 04 §6).
+    if (!isApiPath(c.req.path) || OPEN_PATHS.has(c.req.path) || c.req.path.startsWith('/api/watch/')) return next();
     if (LOOPBACK_PATHS.has(c.req.path) && isLoopback(clientAddress(c))) return next();
     if (!(await deviceOf(c.req.raw, accounts, pairing))) return c.json({ error: 'device-not-paired' satisfies AuthError }, 403);
     return next();

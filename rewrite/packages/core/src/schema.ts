@@ -121,6 +121,19 @@ export const images = sqliteTable('images', {
   deletedAt: integer('deleted_at'),
 });
 
+/**
+ * An output a presentation can send to (spec 04 `RemoteDisplay`): so far only
+ * a public output, which anyone opens at `/watch/{code}` (LIVE-R30). The code
+ * is registered with the server's global tables, so an anonymous viewer finds
+ * the organisation by it.
+ */
+export const displays = sqliteTable('displays', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  code: text('code').notNull(),
+  kind: text('kind', { enum: ['public'] }).notNull(),
+});
+
 /** The organisation's settings, one row each: `defaultThemeId` so far (THEME-R4). */
 export const orgSettings = sqliteTable('org_settings', {
   id: text('id').primaryKey(),
@@ -176,13 +189,14 @@ export const schema = {
   bibles,
   orgSettings,
   images,
+  displays,
   bibleTexts,
   bibleBlobs,
   mediaBlobs,
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images];
+export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images, displays];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -192,9 +206,10 @@ export type Presentation = typeof presentations.$inferSelect;
 export type PresentationItem = typeof presentationItems.$inferSelect;
 export type Bible = typeof bibles.$inferSelect;
 export type LibraryImage = typeof images.$inferSelect;
+export type Display = typeof displays.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
 const bibleDdl = [
@@ -214,6 +229,9 @@ const mediaDdl = [
   `CREATE TABLE IF NOT EXISTS media_blobs (hash TEXT PRIMARY KEY NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL,
      bytes BLOB, received_at INTEGER NOT NULL)`,
 ];
+
+/** The table version 5 added: outputs. */
+const displayDdl = [`CREATE TABLE IF NOT EXISTS displays (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL, kind TEXT NOT NULL)`];
 
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
@@ -235,6 +253,7 @@ export const orgDdl: string[] = [
      source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT)`,
   ...bibleDdl,
   ...mediaDdl,
+  ...displayDdl,
 ];
 
 /** The statements that take a database from version `n - 1` to `n`. */
@@ -246,6 +265,7 @@ export const orgMigrations: Record<number, string[]> = {
   ],
   3: [`ALTER TABLE presentations ADD COLUMN theme_id TEXT`, `ALTER TABLE presentation_items ADD COLUMN content TEXT`, ...bibleDdl],
   4: mediaDdl,
+  5: displayDdl,
 };
 
 /** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */

@@ -44,7 +44,7 @@ export interface GlobalSql {
 }
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 4;
+export const GLOBAL_SCHEMA_VERSION = 5;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -145,7 +145,14 @@ function pairCodesDdl() {
      expires_at INTEGER NOT NULL, failures INTEGER NOT NULL, user_id TEXT NOT NULL, org_id TEXT NOT NULL)`;
 }
 
-export const globalDdl = [membershipsDdl, ...accountDdl];
+/**
+ * Version 5: public output codes, so an anonymous `/watch/{code}` finds its
+ * organisation (LIVE-R30). Written by the server after a push that changed an
+ * organisation's outputs; the code is unique across organisations.
+ */
+const watchCodesDdl = `CREATE TABLE IF NOT EXISTS watch_codes (code TEXT PRIMARY KEY NOT NULL, org_id TEXT NOT NULL, display_id TEXT NOT NULL)`;
+
+export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl];
 
 export const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that
@@ -174,6 +181,7 @@ export const globalMigrations: Record<number, string[]> = {
     `ALTER TABLE login_flows ADD COLUMN link_session_id TEXT`,
     ...passkeyFlowDdl,
   ],
+  5: [watchCodesDdl],
 };
 
 /** What to run to bring a global database to GLOBAL_SCHEMA_VERSION; `version` is null without a row. */

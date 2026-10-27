@@ -2,13 +2,14 @@ import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono } from 'hono';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
-import { syncRoutes, type Org } from './app.ts';
+import { syncRoutes, watchRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { r2Storage, type R2Like } from './media.ts';
 import { Passkeys } from './webauthn.ts';
+import { WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 interface Env {
@@ -80,16 +81,39 @@ export class OrgDurableObject extends DurableObject<Env> {
       const msg = JSON.stringify({ type: 'poke', seq } satisfies Poke);
       for (const ws of ctx.getWebSockets('poke')) if (ctx.getTags(ws)[1] !== exclude) ws.send(msg);
     }, Number(env.POKE_WINDOW_MS ?? 500));
-    this.org = { store: durableSqliteStore(ctx.storage), queue: new SerialQueue(), poke };
+    const store = durableSqliteStore(ctx.storage);
     // Which socket owns which session lives on the socket, so it survives hibernation.
-    this.live = new LiveHub(this.org.store, () => ctx.getWebSockets('live').map(liveSocket));
+    this.live = new LiveHub(store, () => ctx.getWebSockets('live').map(liveSocket));
+    this.org = { store, queue: new SerialQueue(), poke, live: this.live };
     // The Worker has authenticated the caller against D1 and passes the result in headers.
     this.app = syncRoutes(async (c) => {
       const userId = c.req.header('x-user')!;
       const role = c.req.header('x-role') as Role;
       // Sync needs neither when the session signed in nor how: those matter only to the auth routes.
       return { caller: { orgId: c.req.header('x-org')!, sessionId: '', ctx: { userId, role }, signedInAt: 0, paired: true }, org: this.org };
-    }, env.SPIKE_DEBUG === '1', env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null, env.MEDIA_GRACE_MS ? Number(env.MEDIA_GRACE_MS) : undefined);
+    }, {
+      debug: env.SPIKE_DEBUG === '1',
+      media: env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null,
+      mediaGraceMs: env.MEDIA_GRACE_MS ? Number(env.MEDIA_GRACE_MS) : undefined,
+      // The organisation's object writes its codes to the global index in D1.
+      watch: new WatchRegistry(d1Sql(env.DB)),
+    });
+    const media = env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null;
+    // A public output: the Worker found the code in D1 and names the output in headers.
+    this.app.route(
+      '/',
+      watchRoutes(async (c, code) => {
+        if (c.req.header('x-code') !== code) return null;
+        return {
+          org: this.org,
+          live: this.live,
+          orgId: c.req.header('x-org')!,
+          orgName: decodeURIComponent(c.req.header('x-org-name') ?? ''),
+          displayId: c.req.header('x-display')!,
+          code,
+        };
+      }, media),
+    );
     this.app.get('/api/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
     this.app.get('/api/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
   }
@@ -252,6 +276,21 @@ worker.get('/api/debug/d1-triggers', async (c) => {
 
 // Sign-in and users are answered here, against D1. Everything for an
 // organisation is authenticated against D1, then handed to its Durable Object.
+// Public outputs (spec 04 §6): anonymous. The code names the organisation and the output.
+worker.get('/api/watch/:code/*', async (c) => {
+  await globals(c.env); // the global tables are migrated before the first lookup
+  const target = await new WatchRegistry(d1Sql(c.env.DB)).lookup(c.req.param('code'));
+  if (!target) return c.json({ error: 'not-found' }, 404);
+  const stub = c.env.ORG.get(c.env.ORG.idFromName(target.orgId));
+  const headers = new Headers(c.req.raw.headers);
+  for (const h of ['x-user', 'x-role']) headers.delete(h);
+  headers.set('x-org', target.orgId);
+  headers.set('x-display', target.displayId);
+  headers.set('x-org-name', encodeURIComponent(target.orgName));
+  headers.set('x-code', c.req.param('code'));
+  return stub.fetch(new Request(c.req.raw, { headers }));
+});
+
 worker.all('*', async (c) => {
   const { accounts, auth } = await globals(c.env);
   if (!orgPaths.some((p) => c.req.path.startsWith(p))) return auth.fetch(c.req.raw);

@@ -17,12 +17,13 @@ export type Permission =
   | 'ManageImages'
   | 'ViewUsers'
   | 'ManageUsers'
+  | 'ManageRemoteDisplays'
   | 'ManageOrganizations'
   | 'AssignSuperAdminRole';
 
 const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes', 'ViewImages', 'ManageImages'];
 /** Importing and deleting Bibles is for admins (D24); everyone uses them. */
-const admin: Permission[] = [...everyone, 'ManageTemplates', 'ManageBibles', 'ManageThemes', 'ViewUsers', 'ManageUsers'];
+const admin: Permission[] = [...everyone, 'ManageTemplates', 'ManageBibles', 'ManageThemes', 'ViewUsers', 'ManageUsers', 'ManageRemoteDisplays'];
 
 const grants: Record<Role, ReadonlySet<Permission>> = {
   user: new Set(everyone),

@@ -4,8 +4,9 @@ import { z } from 'zod';
 import { BIBLE_LIMITS, bibleId, bibleTitle, splitBibleSlides, type BibleItemContent } from './bible.ts';
 import { labelDefaults, labelId } from './labels.ts';
 import { can, type Permission, type Role } from './permissions.ts';
+import { DISPLAY_CODE, MAX_DISPLAYS } from './displays.ts';
 import { MEDIA_LIMITS } from './media.ts';
-import { bibleBlobs, bibles, bibleTexts, images, labels, mediaBlobs, orgSettings, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
+import { bibleBlobs, bibles, bibleTexts, displays, images, labels, mediaBlobs, orgSettings, presentationItems, presentations, songArrangements, songParts, songs } from './schema.ts';
 import { isKnownTheme } from './themes.ts';
 import { parsePartIds } from './slides.ts';
 import { TRASH_RETENTION_MS } from './trash.ts';
@@ -758,6 +759,45 @@ async function setDefaultTheme(tx: Tx, a: z.output<typeof setDefaultThemeArgs>, 
     .onConflictDoUpdate({ target: orgSettings.id, set: { value: a.themeId } });
 }
 
+// ------------------------------------------------------------------ outputs (spec 04 §7)
+
+const displayCode = z.string().regex(DISPLAY_CODE);
+
+async function requireFreeCode(tx: Tx, code: string, exceptId: string | null) {
+  const [taken] = await tx.select({ id: displays.id }).from(displays).where(eq(displays.code, code));
+  if (taken && taken.id !== exceptId) throw new MutationError('code-taken', 'the code is in use');
+}
+
+const createDisplayArgs = z.object({ id, name, code: displayCode, kind: z.enum(['public']) });
+/** Creates an output (LIVE-R30). The code comes from the caller; the server registers it globally after the push. */
+async function createDisplay(tx: Tx, a: z.output<typeof createDisplayArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageRemoteDisplays');
+  const [existing] = await tx.select({ id: displays.id }).from(displays).where(eq(displays.id, a.id));
+  if (existing) return;
+  const [n] = await tx.select({ n: count() }).from(displays);
+  limit((n?.n ?? 0) >= MAX_DISPLAYS, 'outputs');
+  await requireFreeCode(tx, a.code, null);
+  await tx.insert(displays).values({ id: a.id, name: a.name, code: a.code, kind: a.kind });
+}
+
+const newDisplayCodeArgs = z.object({ id, code: displayCode });
+/** "Ny kod": the old code stops working at once, and everyone watching is disconnected (spec 04 §7). */
+async function newDisplayCode(tx: Tx, a: z.output<typeof newDisplayCodeArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageRemoteDisplays');
+  await requireFreeCode(tx, a.code, a.id);
+  await tx.update(displays).set({ code: a.code }).where(eq(displays.id, a.id));
+}
+
+const deleteDisplayArgs = z.object({ id });
+/** No trash (spec 04 §7). A no-op if it is gone. */
+async function deleteDisplay(tx: Tx, a: z.output<typeof deleteDisplayArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageRemoteDisplays');
+  await tx.delete(displays).where(eq(displays.id, a.id));
+}
+
+/** The mutators that change which codes an organisation has: after a push with one, the server registers them. */
+export const DISPLAY_MUTATORS: readonly string[] = ['createDisplay', 'newDisplayCode', 'deleteDisplay'];
+
 // ------------------------------------------------------------------ trash
 
 const purgeExpiredTrashArgs = z.object({ now: z.number().int() });
@@ -857,6 +897,9 @@ export const mutators = {
   trashImage: m(trashImageArgs, trashImage),
   restoreImage: m(restoreImageArgs, restoreImage),
   purgeImage: m(purgeImageArgs, purgeImage),
+  createDisplay: m(createDisplayArgs, createDisplay),
+  newDisplayCode: m(newDisplayCodeArgs, newDisplayCode),
+  deleteDisplay: m(deleteDisplayArgs, deleteDisplay),
   probeWriteThenThrow: m(probeArgs, probeWriteThenThrow),
 };
 

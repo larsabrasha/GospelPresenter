@@ -1,10 +1,13 @@
 import { Hono, type Context } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import {
   BIBLE_LIMITS,
   bibleTextHash,
   bibleTextSchema,
   bookChunk,
   can,
+  DISPLAY_CODE,
+  DISPLAY_MUTATORS,
   joinBibleText,
   LOAD_BIBLE_TEXT_SQL,
   MEDIA_HASH,
@@ -16,25 +19,30 @@ import {
   serializeBibleText,
   sha256HexBytes,
   sniffStoredImage,
+  type WatchEvent,
   storeBibleTextSql,
   type PullRequest,
   type PushRequest,
 } from '@gp/core';
 import { currentSeq, dump, handlePull, handlePush, type OrgStore, type PokeCoalescer, type SerialQueue } from '@gp/sync/server';
 import type { Caller } from './auth.ts';
+import type { LiveHub, Viewer } from './live-hub.ts';
 import type { MediaStorage } from './media.ts';
+import type { WatchRegistry } from './watch.ts';
 
 export { authenticate, authRoutes, credentials, isApiPath, isLoopback, pairingGuard, WS_PROTOCOL, type AuthDeps, type Caller, type Pairing } from './auth.ts';
 export { GoogleOidc, TEST_ISSUER_BUILD, type GoogleConfig, type GoogleIdentity, type TokenProblem } from './google.ts';
 export { Accounts, globalDdl, migrateGlobal, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, type GlobalSql } from './global.ts';
 export { Passkeys, type PasskeyConfig } from './webauthn.ts';
 export { memoryStorage, r2Storage, type MediaStorage, type R2Like } from './media.ts';
+export { WatchRegistry, type WatchTarget } from './watch.ts';
 
-/** An organisation's runtime: its database, its write queue and its poke hub. */
+/** An organisation's runtime: its database, its write queue, its poke hub and its live sessions. */
 export interface Org {
   store: OrgStore;
   queue: SerialQueue;
   poke: PokeCoalescer;
+  live?: LiveHub;
 }
 
 /**
@@ -55,13 +63,17 @@ async function collectMedia(org: Org, orgId: string, media: MediaStorage, graceM
  * request. `media` is where picture blobs are kept; without it the media
  * endpoints answer 503 (MEDIA-R18) and nothing else is affected.
  */
-export function syncRoutes(
-  resolve: (c: Context) => Promise<{ caller: Caller; org: Org } | Response>,
-  debug: boolean,
-  media: MediaStorage | null = null,
+export interface SyncRouteOptions {
+  debug: boolean;
+  media?: MediaStorage | null;
   /** How long a blob nothing names is kept (tests shorten it). */
-  mediaGraceMs: number = ORPHAN_GRACE_MS,
-) {
+  mediaGraceMs?: number;
+  /** The global index of public output codes; kept up to date after a push that changed outputs. */
+  watch?: WatchRegistry | null;
+}
+
+export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; org: Org } | Response>, opts: SyncRouteOptions) {
+  const { debug, media = null, mediaGraceMs = ORPHAN_GRACE_MS, watch = null } = opts;
   const app = new Hono();
 
   app.post('/api/sync/push', async (c) => {
@@ -75,6 +87,10 @@ export function syncRoutes(
       const after = currentSeq(org.store);
       if (after > before) org.poke.changed(body.clientId, after);
       if (after > before && media) await collectMedia(org, caller.orgId, media, mediaGraceMs).catch(() => undefined); // a failed clean-up waits for the next push
+      if (after > before && watch && body.mutations.some((m) => DISPLAY_MUTATORS.includes(m.name))) {
+        await watch.sync(caller.orgId, org.store.query('SELECT id, code FROM displays') as { id: string; code: string }[]);
+        org.live?.displaysChanged(); // a deleted output, or a new code, disconnects its viewers at once
+      }
       return res;
     });
     return c.json(result.body, result.status);
@@ -199,5 +215,82 @@ export function syncRoutes(
       return c.json(await r.org.queue.run(() => dump(r.org.store)));
     });
   }
+  return app;
+}
+
+/** A public output, found by its code (anonymous): its organisation's runtime and live hub. */
+export interface WatchTargetRuntime {
+  org: Org;
+  live: LiveHub;
+  orgId: string;
+  orgName: string;
+  displayId: string;
+  code: string;
+}
+
+/** How often an open stream is pinged (LIVE-R35). */
+const PING_MS = 15_000;
+
+/**
+ * Public outputs (spec 04 §6): anonymous, read-only, found by code. The
+ * stream sends the newest state first, then each change; nothing else of the
+ * organisation is reachable from here, and a picture only while it is on
+ * screen (LIVE-R32).
+ */
+export function watchRoutes(resolve: (c: Context, code: string) => Promise<WatchTargetRuntime | null>, media: MediaStorage | null) {
+  const app = new Hono();
+
+  app.get('/api/watch/:code/stream', async (c) => {
+    const code = c.req.param('code');
+    const viewerId = c.req.query('v') ?? '';
+    if (!/^[0-9a-f]{16}$/.test(viewerId)) return c.json({ error: 'viewer-id' }, 400);
+    const t = DISPLAY_CODE.test(code) ? await resolve(c, code) : null;
+    if (!t) return c.json({ error: 'not-found' }, 404);
+    const [display] = (await t.org.queue.run(async () => t.org.store.query('SELECT name FROM displays WHERE id = ? AND code = ?', [t.displayId, code]))) as {
+      name: string;
+    }[];
+    if (!display) return c.json({ error: 'not-found' }, 404);
+    c.header('cache-control', 'no-cache, no-store');
+    c.header('x-accel-buffering', 'no');
+    return streamSSE(c, async (stream) => {
+      const live = { open: true };
+      const done = new Promise<void>((resolveDone) => {
+        const viewer: Viewer = {
+          // Only the newest state matters (LIVE-R36): a write that fails ends the stream.
+          send: (e: WatchEvent) => void stream.writeSSE({ event: e.type, data: JSON.stringify(e) }).catch(() => viewer.close()),
+          close: () => {
+            if (!live.open) return;
+            live.open = false;
+            void t.org.queue.run(() => t.live.unwatch(t.displayId, viewerId, viewer)).catch(() => undefined); // the server may be closing
+            resolveDone();
+          },
+        };
+        stream.onAbort(() => viewer.close());
+        void t.org.queue.run(() => t.live.watch(t.displayId, code, viewerId, viewer, { orgName: t.orgName, outputName: display.name })).catch(() => viewer.close());
+      });
+      while (live.open) {
+        await Promise.race([done, stream.sleep(PING_MS)]);
+        if (live.open) await stream.write(': ping\n\n').catch(() => undefined);
+      }
+    });
+  });
+
+  app.get('/api/watch/:code/image/:hash', async (c) => {
+    const code = c.req.param('code');
+    const hash = c.req.param('hash');
+    const t = DISPLAY_CODE.test(code) && MEDIA_HASH.test(hash) ? await resolve(c, code) : null;
+    if (!t || !media) return c.json({ error: 'not-found' }, 404);
+    const shown = await t.org.queue.run(async () => {
+      if (!t.live.showing(t.displayId, hash)) return null;
+      return t.org.store.query('SELECT content_type FROM media_blobs WHERE hash = ?', [hash])[0] as { content_type: string } | undefined;
+    });
+    const bytes = shown ? await media.get(mediaKey(t.orgId, hash)) : null;
+    if (!bytes) return c.json({ error: 'not-found' }, 404);
+    c.header('content-type', shown!.content_type);
+    c.header('cache-control', 'public, max-age=3600'); // LIVE-R34
+    c.header('x-content-type-options', 'nosniff');
+    return c.body(bytes as Uint8Array<ArrayBuffer>);
+  });
+
   return app;
 }

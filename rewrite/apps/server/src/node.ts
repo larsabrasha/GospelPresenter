@@ -10,7 +10,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
-import { syncRoutes, type Org } from './app.ts';
+import { syncRoutes, watchRoutes, type Org } from './app.ts';
 import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth.ts';
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
@@ -19,6 +19,7 @@ import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
+import { WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 const require = createRequire(import.meta.url);
@@ -210,6 +211,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const globalSql = nodeGlobalSql(globalFile);
   await migrateGlobal(globalSql);
   const accounts = new Accounts(globalSql, { sessionIdleMs: opts.sessionIdleMs });
+  const watch = new WatchRegistry(globalSql);
   const setupToken = opts.setupToken ?? newSecret('gpst_');
   const orgs = new Map<string, Org & { file: SqliteFile; sockets: Map<WebSocket, string>; live: LiveHub; liveSockets: Map<WebSocket, LiveSocket> }>();
 
@@ -250,13 +252,28 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       log: opts.log ?? ((e) => process.stderr.write(JSON.stringify(e) + '\n')),
     }),
   );
+  const media = opts.media ?? diskStorage(join(opts.dataDir, 'media'));
+  app.route(
+    '/',
+    watchRoutes(async (_c, code) => {
+      const t = await watch.lookup(code);
+      if (!t) return null;
+      const org = openOrg(t.orgId);
+      return { org, live: org.live, orgId: t.orgId, orgName: t.orgName, displayId: t.displayId, code };
+    }, media),
+  );
   app.route(
     '/',
     syncRoutes(async (c) => {
       const caller = await authenticate(c.req.raw, accounts);
       if (caller instanceof Response) return caller;
       return { caller, org: openOrg(caller.orgId) };
-    }, !!opts.debug, opts.media ?? diskStorage(join(opts.dataDir, 'media')), opts.mediaGraceMs),
+    }, {
+      debug: !!opts.debug,
+      media,
+      mediaGraceMs: opts.mediaGraceMs,
+      watch,
+    }),
   );
   if (opts.webRoot) {
     app.use('/*', async (c, next) => {
@@ -289,11 +306,13 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       return void wss.handleUpgrade(req, socket, head, (ws) => {
         const s: LiveSocket = { userId: caller.ctx.userId, role: caller.ctx.role, owns: [], send: (m) => ws.send(m) };
         org.liveSockets.set(ws, s);
-        void org.queue.run(() => org.live.opened(s));
-        ws.on('message', (data) => void org.queue.run(() => org.live.message(s, String(data))));
+        // A failure here is a closing server: the socket is going with it.
+        const run = (fn: () => void) => void org.queue.run(fn).catch(() => undefined);
+        run(() => org.live.opened(s));
+        ws.on('message', (data) => run(() => org.live.message(s, String(data))));
         ws.on('close', () => {
           org.liveSockets.delete(ws);
-          void org.queue.run(() => org.live.closed(s));
+          run(() => org.live.closed(s));
         });
       });
     }
@@ -314,7 +333,10 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       wss.close();
       (server as { closeAllConnections?: () => void }).closeAllConnections?.();
       await new Promise<void>((r) => server.close(() => r()));
-      for (const o of orgs.values()) o.file.close();
+      for (const o of orgs.values()) {
+        o.live.dispose();
+        o.file.close();
+      }
       globalFile.close();
     },
   };
