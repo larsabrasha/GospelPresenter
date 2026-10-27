@@ -100,6 +100,8 @@ export async function startHost(opts: {
     // Off only for the localhost development server (serve.ts); never on the LAN.
     pairing: opts.hostToken || onLan() ? { hostToken: opts.hostToken ?? `gphost_${randomBytes(32).toString('base64url')}` } : undefined,
     setupToken: process.env.GP_SETUP_TOKEN || undefined,
+    // Comma-separated addresses or CIDR blocks of reverse proxies (README, "Behind a reverse proxy").
+    trustedProxies: process.env.GP_TRUSTED_PROXIES?.split(','),
     // The redirect is to this server on this machine: the system browser beside it comes back here.
     google: opts.google,
     passkeys: opts.passkeys,

@@ -544,6 +544,29 @@ shows its songs, another page opens by its address, and `/api/` fails rather tha
 comes back with another build, which one reload brings, and which the worker keeps instead of the old one. The
 host's own window has no worker. All in Chromium; not tested in Safari or on a real iPad.
 
+### Behind a reverse proxy
+
+A self-hosted Node server behind nginx or Caddy sees every client at the proxy's address, so the throttles
+(setup token, pairing code, public output codes; see Assumptions) would lock out a whole church at once.
+`GP_TRUSTED_PROXIES` (for the desktop host and `serve`; `trustedProxies` for `startNodeServer`) names the
+proxies, as addresses or CIDR blocks, comma-separated:
+
+```sh
+GP_TRUSTED_PROXIES=127.0.0.1,::1 pnpm --filter @gp/desktop serve   # Caddy or nginx on the same machine
+GP_TRUSTED_PROXIES=10.0.0.0/8 …                                      # a proxy somewhere on that network
+```
+
+Only a request whose socket is one of them has its `X-Forwarded-For` read, from the right: each trusted proxy
+is skipped, and the first address that is not one is the client. A client may write anything at the left of the
+header, but never past a trusted proxy, which appends the address it saw. So list the proxies only: a block
+that also holds the clients would let a client name itself anything. An entry that is not an address or a
+block stops the server at start. Without the setting the header is ignored, as before. The address the proxy
+names is also what the host's own sign-in (Google, passkeys) is held to: from this machine only
+(`isLoopback`). The Worker is not affected: there the address is `CF-Connecting-IP`, which Cloudflare sets.
+
+Code in `apps/server/src/proxy.ts`, tested in `apps/server/test/proxy.test.ts`: the walk, and the setup
+throttle locking out one client behind a proxy and not the next, and, without the setting, both.
+
 ### Addresses
 
 The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/songs`,
@@ -566,21 +589,19 @@ a real Google client registered with the old one must get the new one.
 Where to pick up. Milestones 1–5, and the live work after them (stage view, remote control, public outputs,
 audio, files by need, https on the LAN), are on branch `claude/milestone-1`, which also carries the latest ADR
 0007 and spec (decisions up to D32); `claude/rewrite-behavior-spec` is behind it. Overlays, the first step agreed
-on 2026-10-27, are built (see "Overlays"), and so is the second, starting the app on a tablet without the host
-(see "Starting the app without the host"). The rest, in this order:
+on 2026-10-27, are built (see "Overlays"), and so are the second, starting the app on a tablet without the host
+(see "Starting the app without the host"), and the third, the client's address behind a reverse proxy (see
+"Behind a reverse proxy"). The rest, in this order:
 
-1. **The client's address behind a reverse proxy** (`X-Forwarded-For` from a trusted proxy only, a setting),
-   before anyone self-hosts behind nginx or Caddy: without it every client shares the proxy's address, and the
-   throttles (setup token, pairing code, public output codes) lock out a whole church at once.
-2. **Paired screens** (`/display`, spec 04 §5) and QR codes for public outputs, remote control and pairing.
-3. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
-4. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
+1. **Paired screens** (`/display`, spec 04 §5) and QR codes for public outputs, remote control and pairing.
+2. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
+3. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
    deleted, as the sync spike did. Still unproven there: migrating an existing Durable Object (schema and
    triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys, Google sign-in against a real Google client,
    R2 as the media storage (tested against Miniflare's R2 only), live sockets in a hibernating Durable Object,
    and the Worker serving the web app (it serves no static files yet; when it does, `/sw.js` and index.html
    need `no-cache` there too).
-5. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
+4. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
    (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app for tablets
    (ADR 0007 (7)), Android first and iOS later. Lars has said the Capacitor app need not come early: https on
    the LAN covers tablets for now.
@@ -667,7 +688,8 @@ pages; a user in several organisations (D1 leaves it for later); listing and rev
 devices' sessions (D23; removing the user or pairing again are the ways today); `/admin/devices`;
 MCP keys and calendar feeds; the welcome modal; a QR code for pairing (the code is typed); closing
 an open poke socket when its session is revoked (it receives only sequence numbers until it closes,
-and its next sync is refused); `X-Forwarded-For` behind a reverse proxy (see Assumptions).
+and its next sync is refused); behind a reverse proxy, `X-Forwarded-Proto` and `X-Forwarded-Host`
+(the Google redirect URI then needs `GP_GOOGLE_REDIRECT_BASE_URL`; see "Behind a reverse proxy").
 
 From spec 02 and 03 in particular: song history (SONG-R20–R24, D9), the labels page, CCLI, ProPresenter
 import, the dashboard's Idag/Kommande sections and "last changed" order, event time, place,
@@ -796,7 +818,7 @@ Milestone 3 (sign-in, membership, pairing):
   ceremonies, per address at a time. Only failed guesses at a secret are limited in the app, never ordinary use: a
   church often shares one address, and a ceiling on all requests would hit its own members during a service. A
   general limit against floods belongs to the platform (Cloudflare's rate limiting rules, or a reverse proxy). On
-  Node the address is the socket's: behind a reverse proxy every client shares the proxy's.
+  Node the address is the socket's, or behind a trusted proxy the one it names (see "Behind a reverse proxy").
 - **The redirect URI comes from configuration, or from the request.** Without
   `GOOGLE_REDIRECT_BASE_URL` (or `redirectBaseUrl`), the origin of the request that starts the sign-in
   is used; Google refuses any redirect URI that is not registered, so a wrong Host header fails rather

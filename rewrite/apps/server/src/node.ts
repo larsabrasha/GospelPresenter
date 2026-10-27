@@ -21,6 +21,7 @@ import { Accounts, migrateGlobal, type GlobalSql } from './global.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
+import { forwardedClient, trustedProxies } from './proxy.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
@@ -204,6 +205,12 @@ export interface NodeServerOptions {
    * "https on the LAN".
    */
   tls?: { key: string | Buffer; cert: string | Buffer; port?: number; hostname?: string };
+  /**
+   * Reverse proxies (addresses or CIDR blocks) whose `X-Forwarded-For` names
+   * the client, for the throttles and the host's own sign-in. Without them the
+   * header is ignored. See README, "Behind a reverse proxy".
+   */
+  trustedProxies?: string[];
   /** Where refused sign-ins are reported (JSON on stderr by default). */
   log?: (event: Record<string, unknown>) => void;
 }
@@ -250,7 +257,9 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
 
   const google = opts.google ? new GoogleOidc(opts.google) : null;
   const passkeys = opts.passkeys ? new Passkeys(opts.passkeys) : null;
-  const clientAddress = (c: Context) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown';
+  const proxies = opts.trustedProxies?.length ? trustedProxies(opts.trustedProxies) : null;
+  const socketAddress = (c: Context) => (c.env as HttpBindings).incoming.socket.remoteAddress ?? 'unknown';
+  const clientAddress = proxies ? (c: Context) => forwardedClient(socketAddress(c), c.req.header('x-forwarded-for'), proxies) : socketAddress;
   const app = new Hono<{ Bindings: HttpBindings }>();
   if (opts.pairing) app.use('*', pairingGuard(accounts, opts.pairing, clientAddress));
   app.route(
