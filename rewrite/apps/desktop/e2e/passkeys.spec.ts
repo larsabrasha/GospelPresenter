@@ -145,7 +145,7 @@ test('in a browser: setup with a passkey in the page, a second passkey from anot
   const s = await serve();
   browser = await passkeyBrowser();
   const page = browser.page;
-  await page.goto(`${s.url}/#/songs`);
+  await page.goto(`${s.url}/songs`);
 
   await expect(page.getByRole('heading', { name: 'Välkommen!' })).toBeVisible();
   await expect(page.getByText('Sedan skapar du en passkey, som blir superanvändarens sätt att logga in.')).toBeVisible(); // no Google here

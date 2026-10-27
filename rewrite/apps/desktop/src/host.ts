@@ -52,5 +52,5 @@ export function lanUrls(port: number): string[] {
 /** The page. `GP_STORAGE=memory` keeps its database in memory, as on a machine without OPFS. */
 export function pageUrl(base: string, route = 'songs') {
   const q = process.env.GP_STORAGE === 'memory' ? '?storage=memory' : '';
-  return `${base}/${q}#/${route}`;
+  return `${base}/${route}${q}`;
 }

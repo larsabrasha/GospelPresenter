@@ -21,7 +21,7 @@ import { useToast } from '../ui/Toast.tsx';
 /** Where an invite link points: the address other devices reach this server at (DESK-R8). */
 async function inviteUrl(token: string): Promise<string> {
   const [lan] = (await window.gpDesktop?.lanUrls()) ?? [];
-  return `${lan ?? location.origin}${location.pathname}#/invite/${token}`;
+  return `${lan ?? location.origin}/invite#${token}`;
 }
 
 function copy(input: HTMLInputElement | null, text: string): Promise<void> {
@@ -34,7 +34,7 @@ function copy(input: HTMLInputElement | null, text: string): Promise<void> {
 
 /** Accepts an invite in this window: on a desktop host, Google sign-in happens at the host, in its system browser. */
 function acceptHere(token: string) {
-  history.replaceState(null, '', `${location.pathname}${location.search}#/invite/${token}`);
+  history.replaceState(null, '', `/invite${location.search}#${token}`);
   location.reload();
 }
 
@@ -51,7 +51,7 @@ function InviteLinkDialog({ name, url, host, onClose }: { name: string; url: str
       <Dialog title={t('users.inviteTitle')} onClose={onClose}>
         <p>{t('users.inviteHost', { name })}</p>
         <div className="row end">
-          <Button onClick={() => acceptHere(url.slice(url.indexOf('#/invite/') + '#/invite/'.length))}>{t('users.acceptHere', { name })}</Button>
+          <Button onClick={() => acceptHere(url.slice(url.indexOf('#') + 1))}>{t('users.acceptHere', { name })}</Button>
           <Button variant="primary" onClick={onClose}>
             {t('common.close')}
           </Button>

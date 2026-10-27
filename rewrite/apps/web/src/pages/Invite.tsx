@@ -6,7 +6,7 @@ import { AuthCard } from './AuthCard.tsx';
 import { methodsText, SignInChoices } from './SignIn.tsx';
 
 /**
- * `#/invite/{token}` (spec 01): the invited person makes a passkey or signs
+ * `/invite#{token}` (spec 01): the invited person makes a passkey or signs
  * in with Google, and that becomes their way in. More can be added later
  * under Inloggningsmetoder.
  */

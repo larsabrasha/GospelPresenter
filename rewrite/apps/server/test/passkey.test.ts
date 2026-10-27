@@ -8,6 +8,9 @@ import { api, startAdapter, type AdapterName, type Harness } from './harness.ts'
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle } from './fake-google.ts';
 import { b64url, SoftAuthenticator, type Alg, type Spoil } from './soft-authenticator.ts';
 
+/** The path and query a redirect ended at: the app's pages are paths now, not fragments. */
+const where = (url: string) => new URL(url).pathname + new URL(url).search;
+
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',').filter((a) => a !== 'remote') as AdapterName[];
 const SETUP_TOKEN = 'gpst_the-setup-token-for-tests';
 const RP_ID = 'localhost';
@@ -83,8 +86,8 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     if (begun.status !== 200) return { error: begun.body.error!, hash: '' };
     fake.next(who);
     const end = await browser.open(h.url + begun.body.url);
-    const hash = new URL(end.url).hash;
-    if (hash !== '#/signed-in') return { error: /error=([\w-]+)/.exec(hash)?.[1] ?? null, hash };
+    const hash = where(end.url);
+    if (hash !== '/signed-in') return { error: /error=([\w-]+)/.exec(hash)?.[1] ?? null, hash };
     const res = await browser.fetch(`${h.url}/auth/google/finish`, json({ deviceName: 'Browser' }));
     return { session: (await res.json()) as SignInResponse, hash };
   }
@@ -278,7 +281,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     const p = await passkeyMember('Pia');
     const pias = googleAccount('Pia');
     const linked = await google(pias, { link: p.token });
-    expect(linked.hash).toBe('#/logins');
+    expect(linked.hash).toBe('/logins');
     expect((await logins(p.token)).map((l) => l.provider)).toEqual(['passkey', 'google']);
     expect((await google(pias)).session?.me.userId).toBe(p.id);
     expect((await signIn(p.key)).body.me?.userId).toBe(p.id);

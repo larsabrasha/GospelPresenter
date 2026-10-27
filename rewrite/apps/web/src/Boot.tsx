@@ -17,7 +17,7 @@ export const REPAIR_KEY = 'gp.repair';
 /** Opens the app as the signed-in user: a fresh start, so the database worker opens their database (D3). */
 export function enterApp() {
   sessionStorage.removeItem(REPAIR_KEY);
-  history.replaceState(null, '', `${location.pathname}${location.search}#/songs`); // drops an invite token from the address
+  history.replaceState(null, '', `/songs${location.search}`); // drops an invite token from the address
   location.reload();
 }
 
@@ -70,7 +70,7 @@ function Handoff() {
       <FormError text={error} />
       {error && (
         <div className="row end">
-          <Button onClick={() => location.assign(`${location.pathname}${location.search}#/signin`)}>{t('auth.retry')}</Button>
+          <Button onClick={() => location.assign(`/signin${location.search}`)}>{t('auth.retry')}</Button>
         </div>
       )}
     </AuthCard>

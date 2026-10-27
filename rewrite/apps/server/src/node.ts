@@ -262,6 +262,8 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       for (const [k, v] of Object.entries(STATIC_HEADERS)) c.header(k, v);
     });
     app.use('/*', serveStatic({ root: opts.webRoot }));
+    // An address with no file behind it is a page of the app: the client's router draws it.
+    app.get('*', (c, next) => (/\.[a-z0-9]+$/i.test(c.req.path) ? next() : serveStatic({ root: opts.webRoot, path: 'index.html' })(c, next)));
   }
 
   const server = serve({ fetch: app.fetch, port: opts.port ?? 0, hostname: opts.hostname ?? '127.0.0.1' });

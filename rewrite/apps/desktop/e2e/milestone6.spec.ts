@@ -52,3 +52,30 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   await stage.getByRole('button', { name: 'Lämna scenläge' }).click();
   await expect(stage).toHaveCount(0);
 });
+
+test('addresses are plain paths: links navigate without a reload, a reload or a pasted link lands on the same page', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await page.getByRole('link', { name: 'Bilder' }).click();
+  await expect(page).toHaveURL(`${host.base}/admin/images`);
+  await expect(page.getByRole('heading', { name: 'Bilder', exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page).toHaveURL(`${host.base}/admin/images`);
+  await expect(page.getByRole('heading', { name: 'Bilder', exact: true })).toBeVisible();
+
+  await createPresentation(page, 'Söndag');
+  const editor = page.url();
+  expect(editor).toMatch(/\/presentations\/[\w-]+$/);
+  await page.goto(editor);
+  await expect(page.getByRole('heading', { name: 'Söndag', exact: true })).toBeVisible();
+  await page.goBack(); // the History API keeps the steps between pages
+  await expect(page).toHaveURL(/\/presentations$/);
+
+  // A path with a file extension is a file, so a missing one is a 404 and not the app; an API path stays the API.
+  expect((await page.request.get(`${host.base}/assets/nope.js`)).status()).toBe(404);
+  const api = await page.request.get(`${host.base}/users`);
+  expect(api.headers()['content-type']).toContain('application/json');
+  expect(page.url()).not.toContain('#');
+});

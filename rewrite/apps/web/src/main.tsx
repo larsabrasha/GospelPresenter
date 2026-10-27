@@ -7,12 +7,13 @@ import { Db } from './db/db.ts';
 import { DbProvider, ReaderProvider } from './db/react.tsx';
 import { SharedReader, shareChannelName } from './db/share.ts';
 import { LiveChannel } from './live/live.ts';
-import { parseRoute } from './ui/router.ts';
+import { currentRoute, installLinkHandler } from './ui/router.ts';
 import './fonts.css';
 import './styles.css';
 
 const root = createRoot(document.getElementById('root')!);
-const route = parseRoute(location.hash);
+installLinkHandler();
+const route = currentRoute();
 const stored = storedSession();
 
 if (route.page === 'output') {

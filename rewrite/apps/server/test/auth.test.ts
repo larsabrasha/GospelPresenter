@@ -16,6 +16,9 @@ import { api, pokeUrl, setRole, startAdapter, type AdapterName, type Harness, ty
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle, type Tamper } from './fake-google.ts';
 import { SoftAuthenticator } from './soft-authenticator.ts';
 
+/** The path and query a redirect ended at: the app's pages are paths now, not fragments. */
+const where = (url: string) => new URL(url).pathname + new URL(url).search;
+
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',').filter((a) => a !== 'remote') as AdapterName[];
 const SETUP_TOKEN = 'gpst_the-setup-token-for-tests';
 
@@ -40,8 +43,8 @@ async function webSignIn(h: Harness, who: FakeAccount | null, opts: { invite?: s
   if (begin.status !== 200) return { error: begin.body.error! };
   fake.next(who, opts.tamper);
   const end = await browser.open(h.url + begin.body.url);
-  const hash = new URL(end.url).hash;
-  if (hash !== '#/signed-in') return { error: /error=([\w-]+)/.exec(hash)?.[1] ?? /data-error="([\w-]+)"/.exec(end.html)?.[1] ?? `page ${end.status}` };
+  const hash = where(end.url);
+  if (hash !== '/signed-in') return { error: /error=([\w-]+)/.exec(hash)?.[1] ?? /data-error="([\w-]+)"/.exec(end.html)?.[1] ?? `page ${end.status}` };
   const res = await browser.fetch(`${h.url}/auth/google/finish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"deviceName":"Browser"}' });
   const body = (await res.json()) as SignInResponse & { error?: string };
   return res.ok ? { session: body } : { error: body.error! };
@@ -199,7 +202,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     const r1 = await browser.fetch(h.url + b2.body.url);
     const cb = (await fetch(r1.headers.get('location')!, { redirect: 'manual' })).headers.get('location')!;
     const saved = new Map(browser.cookies(new URL(h.url).origin));
-    expect(new URL((await browser.open(cb)).url).hash).toBe('#/signed-in');
+    expect(where((await browser.open(cb)).url)).toBe('/signed-in');
     for (const [k, v] of saved) browser.cookies(new URL(h.url).origin).set(k, v); // even with the flow cookie kept
     expect((await browser.open(cb)).status).toBe(400);
 

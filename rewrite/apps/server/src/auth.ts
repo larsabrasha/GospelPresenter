@@ -476,7 +476,7 @@ export function authRoutes(deps: AuthDeps) {
     const isApp = flow.callbackScheme !== null;
     const refused = (error: AuthError, reason: string) => {
       log({ event: 'google-refused', reason });
-      return isApp ? signInFailed(c, error, true) : c.redirect(`/#/signin?error=${error}`, 302);
+      return isApp ? signInFailed(c, error, true) : c.redirect(`/signin?error=${error}`, 302);
     };
     const code = c.req.query('code');
     if (!code) return refused('google-failed', `provider: ${c.req.query('error') ?? 'no code'}`);
@@ -494,9 +494,9 @@ export function authRoutes(deps: AuthDeps) {
       const added = await accounts.addLogin(flow.link.userId, flow.link.sessionId, { provider: 'google', subject: identity.sub, name: identity.email }, identity.email);
       if (typeof added === 'string') {
         log({ event: 'google-refused', reason: `link: ${added}` });
-        return isApp ? signInFailed(c, added, true) : c.redirect(`/#/logins?error=${added}`, 302);
+        return isApp ? signInFailed(c, added, true) : c.redirect(`/logins?error=${added}`, 302);
       }
-      return isApp ? page(c, 200, 'Google-kontot är kopplat', '<p>Gå tillbaka till Gospel Presenter. Du kan stänga den här fliken.</p>') : c.redirect('/#/logins', 302);
+      return isApp ? page(c, 200, 'Google-kontot är kopplat', '<p>Gå tillbaka till Gospel Presenter. Du kan stänga den här fliken.</p>') : c.redirect('/logins', 302);
     }
 
     const who = await accounts.signInWithGoogle(identity, flow.inviteHash);
@@ -520,7 +520,7 @@ export function authRoutes(deps: AuthDeps) {
     const handoff = newSecret('');
     await accounts.setHandoff(c.req.query('state') ?? '', handoff, who.userId, who.orgId);
     cookie(c, HANDOFF_COOKIE, handoff, 120);
-    return c.redirect('/#/signed-in', 302);
+    return c.redirect('/signed-in', 302);
   });
 
   /** The page that a web sign-in returned to collects its session, once. */

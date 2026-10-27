@@ -7,7 +7,7 @@ import { startPasskey } from './passkey.ts';
 import { deviceName } from './session.ts';
 
 // Sign-in with Google (spec 01). In a browser the page goes to Google and
-// comes back to `#/signed-in`. In the desktop app Google is never shown in
+// comes back to `/signed-in`. In the desktop app Google is never shown in
 // the app's own window: the system browser signs in, and the server hands
 // the token back through the app's callback scheme (spec 01 device sign-in).
 

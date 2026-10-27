@@ -12,5 +12,5 @@ export function useLivePointer(live: LiveChannel): LivePointer {
 export function openOutput() {
   const desktop = window.gpDesktop;
   if (desktop) desktop.openOutput();
-  else window.open(`${location.pathname}${location.search}#/output`, 'gp-output', 'popup');
+  else window.open(`/output${location.search}`, 'gp-output', 'popup');
 }

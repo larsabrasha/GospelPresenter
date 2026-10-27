@@ -78,7 +78,7 @@ callback from another browser, a forged `state` or a replay is refused. The ID t
 Web Crypto: RS256 only, against Google's published keys (cached, fetched again for a new key at most
 once a minute), then `iss`, `aud`, `exp`, `iat`, `nonce`, `sub` and `email_verified`. Why a sign-in was
 refused goes to the server log; the user sees one generic error (spec 01). A browser comes back to
-`#/signed-in`, and the page collects its session with a one-time cookie (`POST /auth/google/finish`),
+`/signed-in`, and the page collects its session with a one-time cookie (`POST /auth/google/finish`),
 so no token is in a URL.
 
 The desktop app never shows Google in its own windows. It opens the server's `/app-login?device=…&
@@ -305,6 +305,19 @@ presentation from the add dialog's third tab (Ctrl/⌘+3) and is one slide, the 
 stage over the theme's media background. Like a song it is a reference by id: a trashed picture still shows
 (MEDIA-R8), a purged one leaves an item marked "Bilden finns inte längre". The output reads the bytes through
 the operator window's database, like everything else, so it works without OPFS.
+
+### Addresses
+
+The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/songs`,
+`/songs/{id}`, `/presentations`, `/presentations/{id}`, `/live/{id}`, `/trash?kind=Image`, `/logins`,
+`/signin`, `/signed-in`, `/output`, and the admin pages under `/admin/`: `users`, `devices`, `bibles`,
+`images`, `themes`. They live under `/admin/` because `/users` and `/bibles/` are API paths. An unknown
+address is the song list. The one fragment left is an invite's token, `/invite#{token}`, because a
+fragment never reaches a server and so never a log. The Node server (and so the desktop host) answers any
+GET with no file extension and no API prefix with `index.html`; a missing file (`/assets/x.js`) is a 404. The
+Worker serves no static files yet, so there a reload on a page gives 404, as the web sign-in already did.
+Links are ordinary `<a href>`: one click handler (`installLinkHandler`) turns same-origin clicks into
+History navigation. For `pnpm dev` the Vite proxy covers `/media` too.
 
 ## Next steps
 
