@@ -1,13 +1,14 @@
 // https on the LAN (README): the host serves the LAN over https with a
 // certificate the operator provides. A device that trusts it is a secure
 // context, so it keeps its database in OPFS through a reload, as a tablet's
-// Safari should with the certificate installed. The page itself still comes
-// from the host: with the host gone it cannot be reloaded (no service worker).
+// Safari should with the certificate installed, and a service worker keeps
+// the page itself, so it starts again with the host gone.
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { networkInterfaces, tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { chromium, expect, test, type Browser } from '@playwright/test';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { createSong, pair, setUpHost } from './flows.ts';
 
@@ -81,6 +82,79 @@ test('a device that trusts the host\'s certificate keeps its data through a relo
   await expect(tablet.getByTestId('status')).not.toContainText('minnet');
   await tablet.getByRole('link', { name: 'Härlig är jorden' }).click();
   await expect(tablet.getByRole('heading', { name: 'Härlig är jorden' })).toBeVisible();
+});
+
+/** The app's caches on a page: one per build the service worker keeps. */
+const appCaches = (page: Page) => page.evaluate(async () => (await caches.keys()).filter((k) => k.startsWith('gp-app-')));
+
+/** Waits until a service worker controls the page, which it does once its cache is full. */
+async function keptByWorker(page: Page) {
+  await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, { timeout: 15_000 });
+  return appCaches(page);
+}
+
+/** A copy of the built web app that looks like the next build: another index.html and another version in sw.js. */
+function nextBuild() {
+  const web = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'web', 'dist');
+  const dir = mkdtempSync(join(tmpdir(), 'gp-web-'));
+  cpSync(web, dir, { recursive: true });
+  const index = join(dir, 'index.html');
+  writeFileSync(index, readFileSync(index, 'utf8').replace('<head>', '<head><meta name="gp-build" content="next" />'));
+  const sw = join(dir, 'sw.js');
+  writeFileSync(sw, readFileSync(sw, 'utf8').replace(/"version":"[0-9a-f]+"/, '"version":"e2e0next0build00"'));
+  return dir;
+}
+
+test('a device over https on the LAN starts the app with the host gone, and takes the host\'s next build', async () => {
+  test.skip(!lan, 'this machine has no LAN address');
+  const tls = certificate(lan!);
+  const tlsPort = 20_000 + Math.floor(Math.random() * 20_000);
+  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const env = { GP_TLS_CERT: tls.cert, GP_TLS_KEY: tls.key, GP_TLS_PORT: String(tlsPort) };
+  host = await launch({ lan: true, port, env });
+  await setUpHost(host);
+  const dataDir = host.dataDir;
+  // The host's own window loads its page from its own server: no worker there.
+  expect(await host.page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)).toBe(0);
+
+  browser = await chromium.launch({ args: [`--ignore-certificate-errors-spki-list=${tls.spki}`] });
+  const tablet = await browser.newPage();
+  const app = `https://${lan}:${tlsPort}`;
+  await tablet.goto(`${app}/`);
+  await pair(host.page, tablet, 'Surfplattan');
+  await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await createSong(host.page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
+  await tablet.getByRole('link', { name: 'Sånger' }).click();
+  await expect(tablet.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible({ timeout: 5_000 });
+  const first = await keptByWorker(tablet);
+  expect(first).toHaveLength(1);
+
+  // The host goes away; the tablet reloads, and opens another page of the app by its address.
+  await host.app.close();
+  host = undefined;
+  await tablet.reload();
+  await expect(tablet.getByTestId('status')).toContainText('Offline', { timeout: 10_000 });
+  await expect(tablet.getByTestId('status')).not.toContainText('minnet');
+  await tablet.getByRole('link', { name: 'Härlig är jorden' }).click();
+  await expect(tablet.getByRole('heading', { name: 'Härlig är jorden' })).toBeVisible();
+  await tablet.goto(`${app}/presentations`);
+  await expect(tablet.getByRole('heading', { name: 'Presentationer' })).toBeVisible();
+  // The API is never answered from the kept copy.
+  expect(await tablet.evaluate(() => fetch('/api/auth/state').then((r) => r.status, () => 'failed'))).toBe('failed');
+
+  // The host comes back with its next build: a reload gets it at once, and the worker keeps it instead of the old one.
+  host = await launch({ lan: true, port, dataDir, env: { ...env, GP_WEB_ROOT: nextBuild() } });
+  await tablet.goto(`${app}/songs`);
+  await expect(tablet.locator('meta[name="gp-build"]')).toHaveCount(1);
+  await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect.poll(() => appCaches(tablet), { timeout: 15_000 }).toEqual(['gp-app-e2e0next0build00']);
+
+  await host.app.close();
+  host = undefined;
+  await tablet.reload();
+  await expect(tablet.locator('meta[name="gp-build"]')).toHaveCount(1);
+  await expect(tablet.getByTestId('status')).toContainText('Offline', { timeout: 10_000 });
+  await expect(tablet.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible();
 });
 
 test('GP_TLS=self-signed: the host makes its own certificate once and keeps it; a browser that accepts the warning gets in', async () => {

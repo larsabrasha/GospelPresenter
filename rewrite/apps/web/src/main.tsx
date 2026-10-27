@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App, OutputApp } from './App.tsx';
 import { storedSession, workerSession } from './auth/session.ts';
 import { Boot, REPAIR_KEY } from './Boot.tsx';
+import { keepApp } from './keep-app.ts';
 import { Db } from './db/db.ts';
 import { DbProvider, ReaderProvider } from './db/react.tsx';
 import { SharedReader, shareChannelName } from './db/share.ts';
@@ -18,6 +19,8 @@ const root = createRoot(document.getElementById('root')!);
 installLinkHandler();
 const route = currentRoute();
 const stored = storedSession();
+// A public output's viewer is anyone's phone: it gets no copy of the app.
+if (route.page !== 'watch') keepApp();
 
 if (route.page === 'watch') {
   // A public output (spec 04 §6): anyone with the code, signed in or not; no database.

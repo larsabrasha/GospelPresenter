@@ -502,9 +502,47 @@ Making a certificate an iPad trusts, with mkcert (`brew install mkcert`): `mkcer
 `mkcert 192.168.1.59 $(scutil --get LocalHostName).local` (the Mac's LAN address and name) for the two PEM
 files. On the iPad: send it `$(mkcert -CAROOT)/rootCA.pem` (AirDrop), install the profile under Settings, and
 switch on full trust under Settings → General → About → Certificate Trust Settings. Then open
-`https://192.168.1.59:47843`. The page itself still comes from the host: with the host gone the open page keeps
-working from its database, but a reload needs the host (there is no service worker). Not tested on a real
-iPad: whether Safari there gives the database worker OPFS's synchronous access handles, which wa-sqlite uses.
+`https://192.168.1.59:47843`. With the host gone the open page keeps working from its database, and a service
+worker keeps the page itself, so a reload starts the app too (see "Starting the app without the host"). Not
+tested on a real iPad: whether Safari there gives the database worker OPFS's synchronous access handles, which wa-sqlite uses.
+
+### Starting the app without the host
+
+A device over https on the LAN keeps the built web app in a service worker, so it can reload, or open any
+page of the app by its address, while the host is gone; its data is already in OPFS. The worker is
+`apps/web/sw/sw.ts`, about 60 lines and no library, built by a small Vite plugin in `apps/web/vite.config.ts` as
+`/sw.js`. The plugin writes into it the build's files (index.html and everything under `/assets/`: the scripts,
+the database worker, wa-sqlite's wasm, the CSS, fonts and the background) and a hash of their contents.
+
+- **One cache per build**, `gp-app-{hash}`, filled whole when the worker installs; if one file fails, the
+  install fails and the old worker and its cache stay. So the kept index.html always has its own assets.
+- **Pages come from the network first**, so a host with a newer build is used at once, and the worker's
+  index.html only when the network fails or does not answer in 3 s (a host that is off may stay silent rather
+  than refuse). Every page address is a page: `/songs`, `/presentations/{id}`, `/admin/overlays`, `/output`,
+  `/watch/{code}`.
+- **The build's files come from the cache first**: their names carry their contents' hash, so a kept copy is
+  never stale. A file the cache does not have goes to the network.
+- **Nothing under `/api/` ever goes through a cache** (sync, sign-in, live sockets, media, public outputs); nor
+  does anything but GET or another origin.
+- **Updating.** Every start registers the worker again, which makes the browser ask the host for `/sw.js`. A new
+  build has a new hash in it, so a new worker installs, fills its own cache, takes over at once
+  (`skipWaiting`, `clients.claim`) and deletes the old cache. An old page that is still open needs no more
+  files from it: the app loads everything at start. A device that started from its kept copy while the host was
+  gone, and finds the host back with a newer build (the sync's "update first", 426), gets the new app with a
+  reload, since a page comes from the network first.
+- **Where it registers** (`apps/web/src/keep-app.ts`): only a built app (not `pnpm dev`), only in a secure context,
+  and never in the desktop app's windows, whose page comes from their own server. Not for `/watch/{code}`, as
+  a viewer's phone needs no copy of the app; a device that already has the worker gets `/watch/` through it,
+  network first. Over plain http on the LAN a browser allows no service worker, so such a tablet still needs the
+  host to load the page.
+- **On the server**, `index.html`, `/sw.js` and every page address are sent with `cache-control: no-cache`, so a
+  new build is seen at once; the CSP's `worker-src 'self'` covers the worker.
+
+Tested in `apps/web/test/sw-route.test.ts` (which requests go where), `apps/server/test/tls.test.ts` (headers)
+and `apps/desktop/e2e/https.spec.ts`: a browser over https on the LAN pairs, the host goes, the page reloads and
+shows its songs, another page opens by its address, and `/api/` fails rather than coming from a cache; the host
+comes back with another build, which one reload brings, and which the worker keeps instead of the old one. The
+host's own window has no worker. All in Chromium; not tested in Safari or on a real iPad.
 
 ### Addresses
 
@@ -528,22 +566,21 @@ a real Google client registered with the old one must get the new one.
 Where to pick up. Milestones 1–5, and the live work after them (stage view, remote control, public outputs,
 audio, files by need, https on the LAN), are on branch `claude/milestone-1`, which also carries the latest ADR
 0007 and spec (decisions up to D32); `claude/rewrite-behavior-spec` is behind it. Overlays, the first step agreed
-on 2026-10-27, are built (see "Overlays"). The rest, in this order:
+on 2026-10-27, are built (see "Overlays"), and so is the second, starting the app on a tablet without the host
+(see "Starting the app without the host"). The rest, in this order:
 
-1. **Starting the app on a tablet without the host**: a service worker that keeps the built web app, so a
-   tablet over https on the LAN (see "https on the LAN") can reload and start with the host gone. Its data is
-   already in OPFS; only the page itself comes from the host today.
-2. **The client's address behind a reverse proxy** (`X-Forwarded-For` from a trusted proxy only, a setting),
+1. **The client's address behind a reverse proxy** (`X-Forwarded-For` from a trusted proxy only, a setting),
    before anyone self-hosts behind nginx or Caddy: without it every client shares the proxy's address, and the
    throttles (setup token, pairing code, public output codes) lock out a whole church at once.
-3. **Paired screens** (`/display`, spec 04 §5) and QR codes for public outputs, remote control and pairing.
-4. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
-5. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
+2. **Paired screens** (`/display`, spec 04 §5) and QR codes for public outputs, remote control and pairing.
+3. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
+4. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
    deleted, as the sync spike did. Still unproven there: migrating an existing Durable Object (schema and
    triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys, Google sign-in against a real Google client,
    R2 as the media storage (tested against Miniflare's R2 only), live sockets in a hibernating Durable Object,
-   and the Worker serving the web app (it serves no static files yet).
-6. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
+   and the Worker serving the web app (it serves no static files yet; when it does, `/sw.js` and index.html
+   need `no-cache` there too).
+5. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
    (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app for tablets
    (ADR 0007 (7)), Android first and iOS later. Lars has said the Capacitor app need not come early: https on
    the LAN covers tablets for now.
@@ -577,6 +614,14 @@ saving 500 ms after typing (a field saves when it loses focus, as song fields do
 overlay page (the picture comes from Bilder); the 500 ms fade of the black screen, which would cover the overlay.
 An overlay deleted while it is shown disappears from the outputs at once (spec 04 keeps it until toggled). The
 picture in an overlay is tested in the unit tests (which files are fetched), not drawn in an e2e test.
+
+From the service worker: a tablet over plain http keeps no page (no secure context). Nothing tells the user that
+a newer build is waiting while the app runs from its kept copy; the sync's update message is all, and a reload
+fetches it. The worker is tested in Chromium only: whether Safari lets it answer the database worker's fetch of
+wa-sqlite's wasm (a dedicated worker inherits its page's service worker in Chromium) is not known. A device
+whose new build ran from the host, and whose new worker then failed to install before the host went, starts the
+older kept build against a database the newer one may have migrated; that is not handled or tested. The Worker
+on Cloudflare serves no static files, so there is no worker there yet.
 
 From audio: HTTP Range on `/api/media`
 (MEDIA-R9: clients play their own copies, so nothing asks for it yet); an item with several files.
@@ -785,5 +830,11 @@ Milestone 3 (sign-in, membership, pairing):
 - **`SPIKE_DEBUG` left `wrangler.toml`**: the debug routes (which mint sessions) and `SETUP_TOKEN`
   belong in `.dev.vars` or secrets, never in a file that ships with a deploy. Without `SETUP_TOKEN`
   the Worker refuses setup.
+- **The service worker keeps the app only, never data or the API**, and only the build it was made with: no
+  runtime caching of anything the build did not list. A page waits 3 s for the host before it starts from the
+  kept copy. A new build takes over at once rather than waiting for every tab to close, so a tablet whose tab
+  stays open for weeks still gets it. As D32 has it for the Capacitor app, the copy always comes from the server
+  the device is connected to, so it matches that server's version. Not registered in the desktop app's windows
+  (their page comes from their own server) nor for a public output's viewer.
 - **LIVE-R20: the "Visas nu" preview hides the part label too**, as the output does: it shows what
   the screen shows. Thumbnails keep it.

@@ -153,7 +153,8 @@ export function nodeGlobalSql(f: SqliteFile): GlobalSql {
 /**
  * Headers for the static app: a strict CSP (ADR 0007, decision 6). wa-sqlite
  * compiles WebAssembly, React sets inline style attributes, and pictures and
- * sounds play from this device's own copies as blob: URLs.
+ * sounds play from this device's own copies as blob: URLs. `worker-src 'self'`
+ * covers the database worker and the service worker (`/sw.js`).
  */
 const STATIC_HEADERS = {
   'content-security-policy':
@@ -295,6 +296,8 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       if (isApiPath(c.req.path)) return c.json({ error: 'not-found' }, 404);
       await next();
       for (const [k, v] of Object.entries(STATIC_HEADERS)) c.header(k, v);
+      // index.html and sw.js keep their names from build to build: always asked again, so a new build is seen at once.
+      if (!c.req.path.startsWith('/assets/')) c.header('cache-control', 'no-cache');
     });
     app.use('/*', serveStatic({ root: opts.webRoot }));
     // An address with no file behind it is a page of the app: the client's router draws it.

@@ -27,12 +27,12 @@ function certificate(dir: string): { key: string; cert: string } | null {
 }
 
 /** A GET over https that trusts only `ca`. */
-function get(url: string, ca: string, headers: Record<string, string> = {}): Promise<{ status: number; body: string; type: string }> {
+function get(url: string, ca: string, headers: Record<string, string> = {}): Promise<{ status: number; body: string; type: string; headers: Record<string, unknown> }> {
   return new Promise((resolve, reject) => {
     const req = request(url, { ca, headers }, (res) => {
       let body = '';
       res.on('data', (c) => (body += c));
-      res.on('end', () => resolve({ status: res.statusCode ?? 0, body, type: String(res.headers['content-type'] ?? '') }));
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body, type: String(res.headers['content-type'] ?? ''), headers: res.headers }));
     });
     req.on('error', reject);
     req.end();
@@ -50,6 +50,8 @@ describe.skipIf(!pem)('https beside http', () => {
     const web = join(dir, 'web');
     execFileSync('mkdir', ['-p', web]);
     execFileSync('sh', ['-c', `printf '<!doctype html><title>Gospel Presenter</title>' > '${join(web, 'index.html')}'`]);
+    execFileSync('mkdir', ['-p', join(web, 'assets')]);
+    execFileSync('sh', ['-c', `printf 'self;' > '${join(web, 'sw.js')}'; printf 'x;' > '${join(web, 'assets', 'index-abc.js')}'`]);
     server = await startNodeServer({ dataDir: join(dir, 'data'), debug: true, webRoot: web, tls: { ...pem!, port: 0 }, log: () => undefined });
     h = { name: 'node', url: server.url, mediaKeys: async () => [], close: () => server.close() };
   });
@@ -67,6 +69,15 @@ describe.skipIf(!pem)('https beside http', () => {
     // A page address is the app, over https as over http.
     const page = await get(`${server.tls!.url}/presentations`, pem!.cert);
     expect([page.status, page.type, page.body]).toEqual([200, expect.stringContaining('text/html'), expect.stringContaining('Gospel Presenter')]);
+  });
+
+  it('serves the service worker under the CSP, and asks again for the files whose names stay from build to build', async () => {
+    const sw = await get(`${server.tls!.url}/sw.js`, pem!.cert);
+    expect([sw.status, sw.type]).toEqual([200, expect.stringContaining('javascript')]);
+    expect(sw.headers['content-security-policy']).toContain("worker-src 'self'");
+    for (const path of ['/sw.js', '/index.html', '/presentations']) expect((await get(`${server.tls!.url}${path}`, pem!.cert)).headers['cache-control'], path).toBe('no-cache');
+    // A hashed asset's name changes with its content.
+    expect((await get(`${server.tls!.url}/assets/index-abc.js`, pem!.cert)).headers['cache-control']).toBeUndefined();
   });
 
   it('a client that does not trust the certificate cannot connect', async () => {
