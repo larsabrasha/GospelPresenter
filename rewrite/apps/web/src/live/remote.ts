@@ -172,7 +172,12 @@ export class LiveLink {
 /** The organisation's live sessions, as they change, and whether this window's socket is up. */
 export function useLiveSessions(link: LiveLink): { sessions: LiveSessionInfo[]; connected: boolean } {
   const [value, setValue] = useState(() => ({ sessions: link.sessions, connected: link.connected }));
-  useEffect(() => link.subscribe(() => setValue({ sessions: link.sessions, connected: link.connected })), [link]);
+  useEffect(() => {
+    const read = () => setValue({ sessions: link.sessions, connected: link.connected });
+    const off = link.subscribe(read);
+    read(); // a list that arrived between the render and this subscription would otherwise be missed until the next one
+    return off;
+  }, [link]);
   return value;
 }
 

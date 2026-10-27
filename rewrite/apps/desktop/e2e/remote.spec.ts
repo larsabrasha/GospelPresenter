@@ -4,6 +4,7 @@
 import { chromium, expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, createUser, pair, setUpHost } from './flows.ts';
+import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -119,6 +120,15 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     expect(await phone.evaluate(() => isSecureContext)).toBe(false); // as on a real phone over the LAN
     await pair(host.page, phone, 'Telefonen');
     await expect(phone.getByTestId('status')).toContainText('Ansluten', { timeout: 10_000 });
+
+    // A picture imported on the host reaches the phone: fetched and checked without Web Crypto.
+    await host.page.getByRole('link', { name: 'Bilder' }).click();
+    await host.page.getByTestId('image-file').setInputFiles({ name: 'Kors.png', mimeType: 'image/png', buffer: solidPng(800, 600, [20, 60, 200]) });
+    await expect(host.page.getByRole('heading', { name: 'Alla bilder (1)' })).toBeVisible();
+    await phone.getByRole('link', { name: 'Bilder' }).click();
+    const thumb = phone.getByTestId('image-card').getByRole('img', { name: 'Kors.png' });
+    await expect(thumb).toBeVisible({ timeout: 10_000 });
+    await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
 
     await createSong(host.page, 'Sång A', [
       ['Verse 1', 'A ett'],

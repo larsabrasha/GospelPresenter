@@ -1,3 +1,5 @@
+import { sha256 } from './sha256.ts';
+
 // Web platform APIs that browsers, Node 22+ and Workers all have, but that
 // this package's types (ES2023 only, no DOM) do not describe. Typed here once,
 // narrowly, rather than pulling the DOM library into the core.
@@ -8,7 +10,7 @@ interface WebGlobals {
   DecompressionStream: new (format: 'deflate-raw') => unknown;
   Blob: new (parts: Uint8Array[]) => { stream(): { pipeThrough(t: unknown): unknown } };
   Response: new (body: unknown) => { arrayBuffer(): Promise<ArrayBuffer> };
-  crypto: RandomSource & { subtle: { digest(alg: 'SHA-256', data: Uint8Array): Promise<ArrayBuffer> } };
+  crypto: RandomSource & { subtle?: { digest(alg: 'SHA-256', data: Uint8Array): Promise<ArrayBuffer> } };
 }
 
 /** The random part of Web Crypto. `randomUUID` exists only in secure contexts (https, localhost). */
@@ -51,12 +53,16 @@ export async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
 
 /** The SHA-256 of a text's UTF-8 bytes, as 64 lower-case hex digits. */
 export async function sha256Hex(text: string): Promise<string> {
-  const digest = new Uint8Array(await web.crypto.subtle.digest('SHA-256', utf8Encode(text)));
-  return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return sha256HexBytes(utf8Encode(text));
 }
 
-/** The SHA-256 of bytes, as 64 lower-case hex digits. */
+/**
+ * The SHA-256 of bytes, as 64 lower-case hex digits: with Web Crypto where it
+ * is, and in plain JavaScript where a page is not a secure context and has no
+ * `crypto.subtle` (a tablet over plain http on the LAN).
+ */
 export async function sha256HexBytes(bytes: Uint8Array): Promise<string> {
-  const digest = new Uint8Array(await web.crypto.subtle.digest('SHA-256', bytes));
+  const subtle = web.crypto.subtle;
+  const digest = subtle ? new Uint8Array(await subtle.digest('SHA-256', bytes)) : sha256(bytes);
   return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
