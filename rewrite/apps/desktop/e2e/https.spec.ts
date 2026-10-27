@@ -4,7 +4,7 @@
 // Safari should with the certificate installed. The page itself still comes
 // from the host: with the host gone it cannot be reloaded (no service worker).
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { networkInterfaces, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium, expect, test, type Browser } from '@playwright/test';
@@ -81,4 +81,29 @@ test('a device that trusts the host\'s certificate keeps its data through a relo
   await expect(tablet.getByTestId('status')).not.toContainText('minnet');
   await tablet.getByRole('link', { name: 'Härlig är jorden' }).click();
   await expect(tablet.getByRole('heading', { name: 'Härlig är jorden' })).toBeVisible();
+});
+
+test('GP_TLS=self-signed: the host makes its own certificate once and keeps it; a browser that accepts the warning gets in', async () => {
+  test.skip(!lan, 'this machine has no LAN address');
+  const tlsPort = 20_000 + Math.floor(Math.random() * 20_000);
+  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  host = await launch({ lan: true, port, env: { GP_TLS: 'self-signed', GP_TLS_PORT: String(tlsPort) } });
+  await setUpHost(host);
+  const certFile = join(host.dataDir, 'tls', 'cert.pem');
+  const first = readFileSync(certFile, 'utf8');
+  expect(execFileSync('openssl', ['x509', '-in', certFile, '-noout', '-ext', 'subjectAltName']).toString()).toContain(`IP Address:${lan}`);
+
+  // As a person who taps "visit the website anyway" in the warning.
+  browser = await chromium.launch();
+  const context = await browser.newContext({ ignoreHTTPSErrors: true });
+  const tablet = await context.newPage();
+  await tablet.goto(`https://${lan}:${tlsPort}/`);
+  await pair(host.page, tablet, 'Surfplattan');
+  await expect(tablet.getByTestId('status')).toContainText('Ansluten', { timeout: 10_000 });
+
+  // A restart keeps the same certificate, so the device need not accept it again.
+  const dataDir = host.dataDir;
+  await host.app.close();
+  host = await launch({ lan: true, port, dataDir, env: { GP_TLS: 'self-signed', GP_TLS_PORT: String(tlsPort) } });
+  expect(readFileSync(certFile, 'utf8')).toBe(first);
 });

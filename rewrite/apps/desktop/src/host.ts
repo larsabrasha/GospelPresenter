@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync } from 'node:fs';
-import { networkInterfaces } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { hostname, networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import type { GoogleConfig, PasskeyConfig } from '@gp/server';
 import { startNodeServer } from '@gp/server/node';
@@ -12,16 +13,61 @@ export const onLan = () => process.env.GP_LAN === '1';
 export const TLS_PORT = 47843;
 
 /**
- * The operator's own certificate (README, "https on the LAN"): `GP_TLS_CERT`
- * and `GP_TLS_KEY` are paths to PEM files, `GP_TLS_PORT` the port. Both files,
- * or neither; a file that cannot be read stops the host at start.
+ * The certificate for https on the LAN (README, "https on the LAN"), or null
+ * for none. `GP_TLS_CERT` and `GP_TLS_KEY` are paths to the operator's own
+ * PEM files. `GP_TLS=self-signed` instead has the host make one, kept in its
+ * data folder so a device that accepted it once keeps accepting it; each
+ * device then accepts it in its browser's warning. `GP_TLS_PORT` is the port.
  */
-export function tlsConfig(): { key: string; cert: string; port: number } | null {
+export function tlsConfig(dataDir: string): { key: string; cert: string; port: number } | null {
+  const port = Number(process.env.GP_TLS_PORT || TLS_PORT);
+  if (process.env.GP_TLS === 'self-signed') {
+    const paths = selfSigned(join(dataDir, 'tls'));
+    return { cert: readFileSync(paths.cert, 'utf8'), key: readFileSync(paths.key, 'utf8'), port };
+  }
   const cert = process.env.GP_TLS_CERT;
   const key = process.env.GP_TLS_KEY;
   if (!cert && !key) return null;
   if (!cert || !key) throw new Error('GP_TLS_CERT and GP_TLS_KEY go together: set both, or neither');
-  return { cert: readFileSync(cert, 'utf8'), key: readFileSync(key, 'utf8'), port: Number(process.env.GP_TLS_PORT || TLS_PORT) };
+  return { cert: readFileSync(cert, 'utf8'), key: readFileSync(key, 'utf8'), port };
+}
+
+/**
+ * A self-signed certificate for this machine: its LAN addresses, its
+ * `.local` name and localhost, valid for ten years. Made once with openssl
+ * (macOS and Linux have it) and kept; made again only when this machine has
+ * an address the certificate does not name, which a device then accepts anew.
+ */
+function selfSigned(dir: string): { key: string; cert: string } {
+  const key = join(dir, 'key.pem');
+  const cert = join(dir, 'cert.pem');
+  const names = join(dir, 'names');
+  const want = [
+    'DNS:localhost',
+    `DNS:${hostname().replace(/\.local$/, '')}.local`,
+    'IP:127.0.0.1',
+    ...lanAddresses().map((a) => `IP:${a}`),
+  ].join(',');
+  if (existsSync(cert) && existsSync(key) && existsSync(names) && readFileSync(names, 'utf8') === want) return { key, cert };
+  mkdirSync(dir, { recursive: true });
+  try {
+    execFileSync('openssl', [
+      'req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:prime256v1', '-nodes', '-keyout', key, '-out', cert,
+      '-days', '3650', '-subj', '/CN=Gospel Presenter', '-addext', `subjectAltName=${want}`,
+    ], { stdio: 'ignore' });
+  } catch {
+    throw new Error('GP_TLS=self-signed needs openssl on this machine; or give GP_TLS_CERT and GP_TLS_KEY');
+  }
+  writeFileSync(names, want);
+  return { key, cert };
+}
+
+/** This machine's IPv4 LAN addresses. */
+function lanAddresses(): string[] {
+  return Object.values(networkInterfaces())
+    .flat()
+    .filter((i) => i && i.family === 'IPv4' && !i.internal)
+    .map((i) => i!.address);
 }
 
 /**
@@ -42,7 +88,7 @@ export async function startHost(opts: {
   passkeys?: PasskeyConfig;
 }) {
   mkdirSync(opts.dataDir, { recursive: true });
-  const tls = tlsConfig();
+  const tls = tlsConfig(opts.dataDir);
   return startNodeServer({
     dataDir: join(opts.dataDir, 'server'),
     driver: 'node:sqlite',
@@ -71,10 +117,7 @@ export function lanUrls(port: number, tlsPort: number | null = null): string[] {
   const scheme = tlsPort ? 'https' : 'http';
   const p = tlsPort ?? port;
   if (tlsPort && process.env.GP_TLS_HOSTNAME) return [`https://${process.env.GP_TLS_HOSTNAME}:${p}`];
-  return Object.values(networkInterfaces())
-    .flat()
-    .filter((i) => i && i.family === 'IPv4' && !i.internal)
-    .map((i) => `${scheme}://${i!.address}:${p}`);
+  return lanAddresses().map((a) => `${scheme}://${a}:${p}`);
 }
 
 /** The page. `GP_STORAGE=memory` keeps its database in memory, as on a machine without OPFS. */

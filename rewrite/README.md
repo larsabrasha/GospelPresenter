@@ -438,8 +438,15 @@ certificate; this is an option for whoever is willing to set that up, beside pla
 plain http") and the tablet app to come.
 
 ```sh
-GP_LAN=1 GP_TLS_CERT=cert.pem GP_TLS_KEY=key.pem pnpm --filter @gp/desktop start   # https on :47843 (GP_TLS_PORT)
+GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start                         # the host makes its own certificate
+GP_LAN=1 GP_TLS_CERT=cert.pem GP_TLS_KEY=key.pem pnpm --filter @gp/desktop start   # or brings one; https on :47843 (GP_TLS_PORT)
 ```
+
+`GP_TLS=self-signed` is the way of the author's other apps (`@vitejs/plugin-basic-ssl`): the host makes a
+certificate with openssl for its LAN addresses, its `.local` name and localhost, keeps it in its data folder
+(`tls/`), and makes it again only when it has an address the certificate does not name. Each device accepts it
+once in its browser's warning. Whether Safari then counts the page as a secure context and allows its worker
+and `wss` is not tested here (the e2e accepts it in Chromium).
 
 With a certificate, the LAN gets https only: plain http stays on 127.0.0.1 for the host's own window, so
 Electron, passkeys at `localhost` and Google's redirect URI are as before. Links the host shows for other devices
