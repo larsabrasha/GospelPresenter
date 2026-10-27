@@ -6,6 +6,7 @@ import {
   runMutator,
   migrateOrgSchema,
   PROTOCOL_VERSION,
+  randomId,
   SCHEMA_VERSION,
   SerialQueue,
   tableByName,
@@ -102,7 +103,7 @@ export class SyncClient {
       },
     );
     for (const s of [...clientSyncDdl, ...clientUndoTriggers()]) await this.exec(s);
-    const id = this.opts.clientId ?? crypto.randomUUID();
+    const id = this.opts.clientId ?? randomId(); // not crypto.randomUUID: missing over plain http on the LAN
     await this.exec('INSERT OR IGNORE INTO _sync_meta (one, client_id) VALUES (1, ?)', [id]);
     this.clientId = String((await this.exec('SELECT client_id FROM _sync_meta')).rows[0]![0]);
   }

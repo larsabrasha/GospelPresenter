@@ -1,7 +1,7 @@
 // Remote control (spec 04 §2, ADR 0004): a second computer drives what the
 // host presents. The host's outputs follow its own state; commands travel
 // through the server, and losing the presenter freezes the session.
-import { expect, test } from '@playwright/test';
+import { chromium, expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, createUser, pair, setUpHost } from './flows.ts';
 
@@ -100,4 +100,41 @@ test('when the presenting computer drops out, the session freezes and someone el
   await expect(hostApp.page.getByTestId('remote-state')).toContainText('Datorn som presenterar har tappat kontakten', { timeout: 5_000 });
   await hostApp.page.getByRole('button', { name: 'Avsluta presentationen' }).click();
   await expect(hostApp.page.getByTestId('remote-state')).toHaveText('Ingen aktiv presentation just nu', { timeout: 5_000 });
+});
+
+test('a phone on the LAN, over plain http (no secure context), pairs and takes control', async () => {
+  const { networkInterfaces } = await import('node:os');
+  const lan = Object.values(networkInterfaces())
+    .flat()
+    .find((i) => i && i.family === 'IPv4' && !i.internal)?.address;
+  test.skip(!lan, 'this machine has no LAN address');
+  host = await launch({ lan: true });
+  await setUpHost(host);
+  const browser = await chromium.launch();
+  try {
+    const phone = await browser.newPage();
+    const errors: string[] = [];
+    phone.on('pageerror', (e) => errors.push(e.message));
+    await phone.goto(`http://${lan}:${host.port}/`);
+    expect(await phone.evaluate(() => isSecureContext)).toBe(false); // as on a real phone over the LAN
+    await pair(host.page, phone, 'Telefonen');
+    await expect(phone.getByTestId('status')).toContainText('Ansluten', { timeout: 10_000 });
+
+    await createSong(host.page, 'Sång A', [
+      ['Verse 1', 'A ett'],
+      ['Chorus', 'A två'],
+    ]);
+    await createPresentation(host.page, 'Söndag');
+    await addSongs(host.page, ['Sång A']);
+    await host.page.getByRole('link', { name: 'Starta presentation' }).click();
+    await host.page.getByLabel('Tillåt fjärrstyrning').check();
+
+    await phone.getByRole('link', { name: 'Presentationer' }).click();
+    await phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 10_000 });
+    await phone.getByRole('button', { name: 'Sång A 2' }).click();
+    await expect(host.page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true', { timeout: 5_000 });
+    expect(errors).toEqual([]);
+  } finally {
+    await browser.close();
+  }
 });

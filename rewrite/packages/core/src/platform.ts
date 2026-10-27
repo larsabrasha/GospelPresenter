@@ -8,10 +8,31 @@ interface WebGlobals {
   DecompressionStream: new (format: 'deflate-raw') => unknown;
   Blob: new (parts: Uint8Array[]) => { stream(): { pipeThrough(t: unknown): unknown } };
   Response: new (body: unknown) => { arrayBuffer(): Promise<ArrayBuffer> };
-  crypto: { subtle: { digest(alg: 'SHA-256', data: Uint8Array): Promise<ArrayBuffer> } };
+  crypto: RandomSource & { subtle: { digest(alg: 'SHA-256', data: Uint8Array): Promise<ArrayBuffer> } };
+}
+
+/** The random part of Web Crypto. `randomUUID` exists only in secure contexts (https, localhost). */
+export interface RandomSource {
+  randomUUID?: () => string;
+  getRandomValues<T extends Uint8Array>(array: T): T;
 }
 
 const web = globalThis as unknown as WebGlobals;
+
+/**
+ * A new random id (a version 4 UUID). `crypto.randomUUID` exists only in
+ * secure contexts, and a tablet that opens the desktop host over plain http
+ * on the LAN is not one (ADR 0007 decision 7), so this falls back to
+ * `getRandomValues`, which every context has.
+ */
+export function randomId(source: RandomSource = web.crypto): string {
+  if (typeof source.randomUUID === 'function') return source.randomUUID();
+  const b = source.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6]! & 0x0f) | 0x40;
+  b[8] = (b[8]! & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
 
 export function utf8Encode(s: string): Uint8Array {
   return new web.TextEncoder().encode(s);
