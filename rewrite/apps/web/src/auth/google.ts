@@ -24,10 +24,10 @@ export async function startGoogle(invite?: string): Promise<string | null> {
   try {
     let path: string;
     if (desktop && !invite) {
-      path = `/app-login?${new URLSearchParams({ device: deviceName(), callback_scheme: desktop.callbackScheme })}`;
+      path = `/api/app-login?${new URLSearchParams({ device: deviceName(), callback_scheme: desktop.callbackScheme })}`;
     } else {
       const app = desktop ? { deviceName: deviceName(), callbackScheme: desktop.callbackScheme } : undefined;
-      const r = await api<{ url: string }>('POST', '/auth/google/begin', { invite, app });
+      const r = await api<{ url: string }>('POST', '/api/auth/google/begin', { invite, app });
       if (r.error) return errorText(r);
       path = r.body.url;
     }
@@ -52,7 +52,7 @@ export function useDesktopSignIn(onSignedIn: (r: SignInResponse) => void) {
     if (!desktop) return;
     return desktop.onSignInCallback(async (token) => {
       try {
-        const r = await api<Me>('GET', '/auth/me', undefined, { token });
+        const r = await api<Me>('GET', '/api/auth/me', undefined, { token });
         if (r.error) throw new Error(r.error);
         onSignedIn({ token, me: r.body });
       } catch {

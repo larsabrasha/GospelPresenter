@@ -5,7 +5,7 @@
 //
 // Signing in (spec 01 device sign-in): neither Google nor a passkey ceremony
 // runs in the app's own windows. The system browser opens the server's
-// `/app-login` (or a flow the window began), and the server hands the token
+// `/api/app-login` (or a flow the window began), and the server hands the token
 // back to this app's callback scheme. Passkeys run there rather than in
 // Electron, whose support for platform authenticators (Touch ID, iCloud
 // Keychain) is unreliable; and at http://localhost rather than 127.0.0.1,
@@ -192,9 +192,9 @@ app.whenReady().then(async () => {
   ipcMain.on('callback-scheme', (e) => (e.returnValue = CALLBACK_SCHEME));
   // Opens a sign-in of this app's own server in the system browser: only its entry paths, never another URL.
   ipcMain.handle('open-sign-in', async (_e, path: unknown) => {
-    if (typeof path !== 'string' || !/^\/(app-login|auth\/google\/start|auth\/passkey\/start)\?/.test(path)) return false;
+    if (typeof path !== 'string' || !/^\/api\/(app-login|auth\/google\/start|auth\/passkey\/start)\?/.test(path)) return false;
     signInUntil = Date.now() + SIGN_IN_WAIT_MS;
-    const passkey = path.startsWith('/auth/passkey/') || new URLSearchParams(path.split('?')[1]).get('method') === 'passkey';
+    const passkey = path.startsWith('/api/auth/passkey/') || new URLSearchParams(path.split('?')[1]).get('method') === 'passkey';
     await shell.openExternal(new URL(path, passkey ? passkeyBase(base) : base).toString());
     return true;
   });

@@ -89,7 +89,7 @@ export async function startFakeGoogle(opts: { clientId?: string; clientSecret?: 
     };
     if (u.pathname === '/certs') return json(200, { keys: [{ kty: 'RSA', kid, alg: 'RS256', use: 'sig', n: jwk.n, e: jwk.e }] });
 
-    if (u.pathname === '/auth') {
+    if (u.pathname === '/api/auth') {
       const q = u.searchParams;
       authorizations.push(q);
       const redirectUri = q.get('redirect_uri') ?? '';

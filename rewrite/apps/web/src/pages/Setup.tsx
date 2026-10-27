@@ -51,7 +51,7 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
           if (next.name || next.org) return;
           setBusy(true);
           try {
-            const r = await api<SetupResponse>('POST', '/auth/setup', { setupToken: hostToken ?? setupToken.trim(), name, orgName });
+            const r = await api<SetupResponse>('POST', '/api/auth/setup', { setupToken: hostToken ?? setupToken.trim(), name, orgName });
             if (!r.error) return setInvite(r.body.inviteToken);
             setErrors({ form: errorText(r) });
           } catch {

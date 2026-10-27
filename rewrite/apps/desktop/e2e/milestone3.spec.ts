@@ -62,11 +62,11 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
   await setUpHost(host);
 
   // A stranger gets the app's files but nothing from the API, not even a Google sign-in.
-  const stranger = await fetch(`${host.base}/auth/state`);
+  const stranger = await fetch(`${host.base}/api/auth/state`);
   expect(stranger.status).toBe(403);
   expect(await stranger.json()).toEqual({ error: 'device-not-paired' });
-  expect((await fetch(`${host.base}/auth/google/begin`, { method: 'POST', body: '{}' })).status).toBe(403);
-  expect((await fetch(`${host.base}/sync/pull`, { method: 'POST', body: '{}' })).status).toBe(403);
+  expect((await fetch(`${host.base}/api/auth/google/begin`, { method: 'POST', body: '{}' })).status).toBe(403);
+  expect((await fetch(`${host.base}/api/sync/pull`, { method: 'POST', body: '{}' })).status).toBe(403);
   const index = await fetch(`${host.base}/`);
   expect(index.status).toBe(200);
   expect(index.headers.get('content-security-policy')).toContain("default-src 'self'");

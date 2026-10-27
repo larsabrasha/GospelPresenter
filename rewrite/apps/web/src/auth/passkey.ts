@@ -60,7 +60,7 @@ export async function ceremony(options: PasskeyOptions): Promise<PasskeyCredenti
 
 /** Begins in this page, runs the ceremony and sends the credential back. An error text, or the server's answer. */
 async function inPage<T extends PasskeyFinishResponse>(begin: object): Promise<string | T> {
-  const r = await api<PasskeyBeginResponse>('POST', '/auth/passkey/begin', begin);
+  const r = await api<PasskeyBeginResponse>('POST', '/api/auth/passkey/begin', begin);
   if (r.error || !('options' in r.body)) return errorText(r);
   let credential: PasskeyCredentialJson;
   try {
@@ -68,7 +68,7 @@ async function inPage<T extends PasskeyFinishResponse>(begin: object): Promise<s
   } catch {
     return t('passkey.cancelled');
   }
-  const f = await api<T>('POST', '/auth/passkey/finish', { credential, deviceName: deviceName() });
+  const f = await api<T>('POST', '/api/auth/passkey/finish', { credential, deviceName: deviceName() });
   return f.error ? errorText(f) : f.body;
 }
 
@@ -81,9 +81,9 @@ export async function startPasskey(invite?: string): Promise<string | SignInResp
   const desktop = window.gpDesktop;
   try {
     if (desktop) {
-      let path = `/app-login?${new URLSearchParams({ method: 'passkey', device: deviceName(), callback_scheme: desktop.callbackScheme })}`;
+      let path = `/api/app-login?${new URLSearchParams({ method: 'passkey', device: deviceName(), callback_scheme: desktop.callbackScheme })}`;
       if (invite) {
-        const r = await api<PasskeyBeginResponse>('POST', '/auth/passkey/begin', {
+        const r = await api<PasskeyBeginResponse>('POST', '/api/auth/passkey/begin', {
           mode: 'register',
           invite,
           app: { deviceName: deviceName(), callbackScheme: desktop.callbackScheme },
@@ -108,7 +108,7 @@ export async function addPasskey(name: string): Promise<string | LoginMethod | n
   const desktop = window.gpDesktop;
   try {
     if (desktop) {
-      const r = await api<PasskeyBeginResponse>('POST', '/auth/passkey/begin', {
+      const r = await api<PasskeyBeginResponse>('POST', '/api/auth/passkey/begin', {
         mode: 'register',
         name,
         app: { deviceName: deviceName(), callbackScheme: desktop.callbackScheme },
@@ -129,7 +129,7 @@ export async function linkGoogle(): Promise<string | null> {
   const desktop = window.gpDesktop;
   try {
     const app = desktop ? { deviceName: deviceName(), callbackScheme: desktop.callbackScheme } : undefined;
-    const r = await api<{ url: string }>('POST', '/auth/google/begin', { link: true, app });
+    const r = await api<{ url: string }>('POST', '/api/auth/google/begin', { link: true, app });
     if (r.error) return errorText(r);
     if (desktop) return (await desktop.openSignIn(r.body.url)) ? null : t('auth.failed');
     location.assign(r.body.url);

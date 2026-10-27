@@ -17,7 +17,7 @@ const WAIT_MS = 5 * 60_000;
 /** The user's logins, or why they cannot be shown. */
 async function fetchLogins(): Promise<LoginMethod[] | string> {
   try {
-    const r = await api<LoginMethod[]>('GET', '/auth/logins');
+    const r = await api<LoginMethod[]>('GET', '/api/auth/logins');
     return r.error ? errorText(r) : r.body;
   } catch {
     return t('auth.offline');
@@ -83,7 +83,7 @@ export function Logins({ error: initialError }: { error: string | null }) {
 
   useEffect(() => {
     void fetchLogins().then(setList);
-    api<AuthState>('GET', '/auth/state').then(
+    api<AuthState>('GET', '/api/auth/state').then(
       (r) => setMethods(r.error ? null : r.body),
       () => undefined,
     );
@@ -112,7 +112,7 @@ export function Logins({ error: initialError }: { error: string | null }) {
     const ok = await confirm.ask({ title: t('logins.removeTitle'), text: t('logins.removeConfirm', { name: label(l) }), confirm: t('logins.remove') });
     if (!ok) return;
     try {
-      const r = await api('DELETE', `/auth/logins/${l.provider}/${encodeURIComponent(l.id)}`);
+      const r = await api('DELETE', `/api/auth/logins/${l.provider}/${encodeURIComponent(l.id)}`);
       if (r.error) setError(errorText(r));
       else toast(t('logins.removed', { name: label(l) }));
     } catch {
@@ -196,7 +196,7 @@ export function Logins({ error: initialError }: { error: string | null }) {
           onClose={() => setDialog(null)}
           submit={async (name) => {
             try {
-              const r = await api('PATCH', `/auth/logins/passkey/${encodeURIComponent(dialog.login.id)}`, { name });
+              const r = await api('PATCH', `/api/auth/logins/passkey/${encodeURIComponent(dialog.login.id)}`, { name });
               if (r.error) setError(errorText(r));
               else toast(t('logins.renamed'));
             } catch {

@@ -100,7 +100,7 @@ export async function deviceOf(req: Request, accounts: Accounts, pairing: Pairin
 }
 
 /** Paths an unpaired device may reach: the pairing itself. Everything outside the API is the static app. */
-const OPEN_PATHS = new Set(['/pair/status', '/pair/claim']);
+const OPEN_PATHS = new Set(['/api/pair/status', '/api/pair/claim']);
 /**
  * The host's own sign-in, which runs in the system browser of the host's
  * machine (spec 01 device sign-in): Google, or a passkey ceremony. That
@@ -108,18 +108,17 @@ const OPEN_PATHS = new Set(['/pair/status', '/pair/claim']);
  * device on the LAN never signs in against the host, it pairs.
  */
 const LOOPBACK_PATHS = new Set([
-  '/app-login',
-  '/auth/google/start',
-  '/auth/google/callback',
-  '/auth/app-callback.js',
-  '/auth/passkey/start',
-  '/auth/passkey/finish',
-  '/auth/passkey.js',
+  '/api/app-login',
+  '/api/auth/google/start',
+  '/api/auth/google/callback',
+  '/api/auth/app-callback.js',
+  '/api/auth/passkey/start',
+  '/api/auth/passkey/finish',
+  '/api/auth/passkey.js',
 ]);
-const API_PREFIXES = ['/auth/', '/sync/', '/bibles/', '/media/', '/users', '/pair/', '/debug/', '/app-login'];
-
+/** Everything the server answers itself is under `/api/`; every other path is the web app. */
 export function isApiPath(path: string): boolean {
-  return API_PREFIXES.some((p) => path === p.replace(/\/$/, '') || path.startsWith(p));
+  return path === '/api' || path.startsWith('/api/');
 }
 
 /** Whether a socket address is this machine. */
@@ -139,7 +138,7 @@ export function pairingGuard(accounts: Accounts, pairing: Pairing, clientAddress
 
 export interface AuthDeps {
   accounts: Accounts;
-  /** What `/auth/setup` must be given (D19). Null: setup is closed until one is configured. */
+  /** What `/api/auth/setup` must be given (D19). Null: setup is closed until one is configured. */
   setupToken: string | null;
   /** The caller's network address, for throttling. */
   clientAddress: (c: Context) => string;
@@ -183,7 +182,7 @@ const APP_CALLBACK_JS = `const a = document.getElementById('app-callback');\nif 
 
 /**
  * The passkey page's only script, in the system browser (or any browser
- * that opens `/auth/passkey/start`): runs the ceremony with the options in
+ * that opens `/api/auth/passkey/start`): runs the ceremony with the options in
  * `data-options`, sends the credential back, and follows the app's callback
  * link if there is one. The outcome is in `data-result`, for tests.
  */
@@ -215,7 +214,7 @@ async function run() {
     ? { clientDataJSON: text(r.clientDataJSON), attestationObject: text(r.attestationObject), transports: r.getTransports ? r.getTransports() : [] }
     : { clientDataJSON: text(r.clientDataJSON), authenticatorData: text(r.authenticatorData), signature: text(r.signature), userHandle: r.userHandle ? text(r.userHandle) : null };
   try {
-    const res = await fetch('/auth/passkey/finish', { method: 'POST', headers: { 'content-type': 'application/json' },
+    const res = await fetch('/api/auth/passkey/finish', { method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ credential: { id: cred.id, type: cred.type, response } }) });
     const answer = await res.json();
     if (!res.ok) { body.dataset.error = answer.error || ''; return done('failed', body.dataset.failed); }
@@ -281,7 +280,7 @@ function passkeyPage(c: Context, options: PasskeyOptions) {
     title,
     `<p>${create ? 'Skapa en passkey för Gospel Presenter. Din enhet ber om fingeravtryck, ansikte eller kod.' : 'Logga in med en passkey som du har sparat för Gospel Presenter.'}</p>` +
       `<p><button id="passkey" type="button">${title}</button></p><p id="passkey-status" role="status"></p>` +
-      `<p><a id="app-callback" hidden>Öppna Gospel Presenter</a></p><script src="/auth/passkey.js"></script>`,
+      `<p><a id="app-callback" hidden>Öppna Gospel Presenter</a></p><script src="/api/auth/passkey.js"></script>`,
     Object.entries(data)
       .map(([k, v]) => ` data-${k}="${escapeHtml(v)}"`)
       .join(''),
@@ -320,7 +319,7 @@ export function authRoutes(deps: AuthDeps) {
 
   const secure = (c: Context) => new URL(c.req.url).protocol === 'https:';
   const cookie = (c: Context, name: string, value: string, maxAge: number) =>
-    setCookie(c, name, value, { path: '/auth', httpOnly: true, sameSite: 'Lax', secure: secure(c), maxAge });
+    setCookie(c, name, value, { path: '/api/auth', httpOnly: true, sameSite: 'Lax', secure: secure(c), maxAge });
 
   /**
    * A caller who may add a login to themselves: signed in by themselves (not
@@ -365,10 +364,10 @@ export function authRoutes(deps: AuthDeps) {
 
   // -------------------------------------------------------------- first run, sign-in, sign-out
 
-  app.get('/auth/state', async (c) => c.json({ setupRequired: !(await accounts.setupDone()), google: !!google, passkeys: !!passkeys } satisfies AuthState));
+  app.get('/api/auth/state', async (c) => c.json({ setupRequired: !(await accounts.setupDone()), google: !!google, passkeys: !!passkeys } satisfies AuthState));
 
   /** First run (D19): makes the SuperAdmin and answers with their invite, which they accept with Google or a new passkey. */
-  app.post('/auth/setup', async (c) => {
+  app.post('/api/auth/setup', async (c) => {
     const a = await body(c, setupRequest);
     if (!a) return fail(c, 400, 'invalid-request');
     const address = `address:${deps.clientAddress(c)}`;
@@ -393,7 +392,7 @@ export function authRoutes(deps: AuthDeps) {
    * for itself through the system browser. With `link`, the Google account
    * is linked to the caller's session instead of signing in.
    */
-  app.post('/auth/google/begin', async (c) => {
+  app.post('/api/auth/google/begin', async (c) => {
     const a = await body(c, googleBeginRequest);
     if (!a) return fail(c, 400, 'invalid-request');
     if (a.app && !isCallbackScheme(a.app.callbackScheme)) return fail(c, 400, 'callback-scheme');
@@ -421,10 +420,10 @@ export function authRoutes(deps: AuthDeps) {
       link,
     });
     if (state === 'limit') return fail(c, 429, 'too-many-attempts', { retryAfter: 600 });
-    return c.json({ url: `/auth/google/start?flow=${encodeURIComponent(state)}` });
+    return c.json({ url: `/api/auth/google/start?flow=${encodeURIComponent(state)}` });
   });
 
-  app.get('/auth/google/start', async (c) => start(c, c.req.query('flow') ?? '', false));
+  app.get('/api/auth/google/start', async (c) => start(c, c.req.query('flow') ?? '', false));
 
   /**
    * The desktop and mobile apps' sign-in (spec 01 device sign-in), opened in
@@ -432,7 +431,7 @@ export function authRoutes(deps: AuthDeps) {
    * case-sensitively, so an unknown one is refused before any sign-in starts
    * and no token is ever minted for it (AUTH-R10, ADR 0005 (7)).
    */
-  app.get('/app-login', async (c) => {
+  app.get('/api/app-login', async (c) => {
     const scheme = c.req.query('callback_scheme') ?? 'gospelpresenter';
     if (!isCallbackScheme(scheme)) return fail(c, 400, 'callback-scheme');
     const method = c.req.query('method') ?? 'google';
@@ -452,7 +451,7 @@ export function authRoutes(deps: AuthDeps) {
     return start(c, state, true);
   });
 
-  app.get('/auth/app-callback.js', (c) => {
+  app.get('/api/auth/app-callback.js', (c) => {
     c.header('content-type', 'text/javascript; charset=utf-8');
     c.header('cache-control', 'no-store');
     return c.body(APP_CALLBACK_JS);
@@ -464,11 +463,11 @@ export function authRoutes(deps: AuthDeps) {
    * PKCE verifier, and the ID token verified. Then the user is found by the
    * Google account's `sub`, or linked through the flow's invite.
    */
-  app.get('/auth/google/callback', async (c) => {
+  app.get('/api/auth/google/callback', async (c) => {
     if (!google) return signInFailed(c, 'google-disabled', false);
     const browser = getCookie(c, FLOW_COOKIE) ?? '';
     const flow = browser ? await accounts.takeFlow(c.req.query('state') ?? '', browser) : null;
-    deleteCookie(c, FLOW_COOKIE, { path: '/auth', secure: secure(c) });
+    deleteCookie(c, FLOW_COOKIE, { path: '/api/auth', secure: secure(c) });
     if (!flow) {
       log({ event: 'google-refused', reason: browser ? 'unknown-state' : 'no-flow-cookie' });
       return signInFailed(c, 'google-failed', false);
@@ -513,7 +512,7 @@ export function authRoutes(deps: AuthDeps) {
         c,
         200,
         'Du är inloggad',
-        `<p>Gospel Presenter öppnas. Du kan stänga den här fliken.</p><p><a id="app-callback" href="${escapeHtml(link)}">Öppna Gospel Presenter</a></p><script src="/auth/app-callback.js"></script>`,
+        `<p>Gospel Presenter öppnas. Du kan stänga den här fliken.</p><p><a id="app-callback" href="${escapeHtml(link)}">Öppna Gospel Presenter</a></p><script src="/api/auth/app-callback.js"></script>`,
       );
     }
     // A web sign-in: the session is made when the page collects it, so no token is ever in a URL.
@@ -524,11 +523,11 @@ export function authRoutes(deps: AuthDeps) {
   });
 
   /** The page that a web sign-in returned to collects its session, once. */
-  app.post('/auth/google/finish', async (c) => {
+  app.post('/api/auth/google/finish', async (c) => {
     const a = await body(c, googleFinishRequest);
     if (!a) return fail(c, 400, 'invalid-request');
     const handoff = getCookie(c, HANDOFF_COOKIE);
-    deleteCookie(c, HANDOFF_COOKIE, { path: '/auth', secure: secure(c) });
+    deleteCookie(c, HANDOFF_COOKIE, { path: '/api/auth', secure: secure(c) });
     const who = handoff ? await accounts.takeHandoff(handoff) : null;
     const r = who && (await signedIn(who.userId, who.orgId, a.deviceName));
     return r ? c.json(r) : fail(c, 401, 'unauthenticated');
@@ -543,7 +542,7 @@ export function authRoutes(deps: AuthDeps) {
    * desktop host, only the host's own window may begin, and only through the
    * system browser, as for Google.
    */
-  app.post('/auth/passkey/begin', async (c) => {
+  app.post('/api/auth/passkey/begin', async (c) => {
     const a = await body(c, passkeyBeginRequest);
     if (!a) return fail(c, 400, 'invalid-request');
     if (a.app && !isCallbackScheme(a.app.callbackScheme)) return fail(c, 400, 'callback-scheme');
@@ -573,21 +572,21 @@ export function authRoutes(deps: AuthDeps) {
       callbackScheme: a.app?.callbackScheme ?? null,
     });
     if (state === 'limit') return fail(c, 429, 'too-many-attempts', { retryAfter: PASSKEY_FLOW.ttlMs / 1000 });
-    if (a.app) return c.json({ url: `/auth/passkey/start?flow=${encodeURIComponent(state)}` } satisfies PasskeyBeginResponse);
+    if (a.app) return c.json({ url: `/api/auth/passkey/start?flow=${encodeURIComponent(state)}` } satisfies PasskeyBeginResponse);
     const options = await startPasskey(c, state);
     if (typeof options === 'string') return fail(c, 400, options);
     return c.json({ options } satisfies PasskeyBeginResponse);
   });
 
   /** The system browser opens an app's ceremony here: the flow is bound to it, and the page runs the ceremony. */
-  app.get('/auth/passkey/start', async (c) => {
+  app.get('/api/auth/passkey/start', async (c) => {
     const options = await startPasskey(c, c.req.query('flow') ?? '');
     if (typeof options !== 'string') return passkeyPage(c, options);
     log({ event: 'passkey-refused', reason: `start: ${options}` });
     return signInFailed(c, options, true);
   });
 
-  app.get('/auth/passkey.js', (c) => {
+  app.get('/api/auth/passkey.js', (c) => {
     c.header('content-type', 'text/javascript; charset=utf-8');
     c.header('cache-control', 'no-store');
     return c.body(PASSKEY_JS);
@@ -600,12 +599,12 @@ export function authRoutes(deps: AuthDeps) {
    * credential cannot be replayed. Then the credential is verified, and the
    * passkey is linked (invite, or a signed-in user adding one) or signs in.
    */
-  app.post('/auth/passkey/finish', async (c) => {
+  app.post('/api/auth/passkey/finish', async (c) => {
     const a = await body(c, passkeyFinishRequest);
     if (!a) return fail(c, 400, 'invalid-request');
     if (!passkeys) return fail(c, 503, 'passkey-disabled');
     const browser = getCookie(c, PASSKEY_COOKIE) ?? '';
-    deleteCookie(c, PASSKEY_COOKIE, { path: '/auth', secure: secure(c) });
+    deleteCookie(c, PASSKEY_COOKIE, { path: '/api/auth', secure: secure(c) });
     const cred = a.credential;
     const kind = cred.response.attestationObject !== undefined ? 'register' : 'authenticate';
     const cd = parseClientData(cred.response.clientDataJSON);
@@ -653,12 +652,12 @@ export function authRoutes(deps: AuthDeps) {
   // -------------------------------------------------------------- your own logins (never another user's: no user id is taken)
 
   app.get(
-    '/auth/logins',
+    '/api/auth/logins',
     withCaller(null, async (c, caller) => c.json(await accounts.logins(caller.ctx.userId))),
   );
 
   app.patch(
-    '/auth/logins/passkey/:id',
+    '/api/auth/logins/passkey/:id',
     withCaller(null, async (c, caller) => {
       const a = await body(c, renameLoginRequest);
       if (!a) return fail(c, 400, 'invalid-request');
@@ -668,7 +667,7 @@ export function authRoutes(deps: AuthDeps) {
 
   /** Removes one of your own logins, never the last one: then only an admin's new invite would let you in. */
   app.delete(
-    '/auth/logins/:provider/:id',
+    '/api/auth/logins/:provider/:id',
     withCaller(null, async (c, caller) => {
       // A paired device was signed in by whoever paired it, not by the user: it does not manage their logins.
       if (caller.paired) return fail(c, 403, 'forbidden');
@@ -680,7 +679,7 @@ export function authRoutes(deps: AuthDeps) {
   );
 
   app.post(
-    '/auth/signout',
+    '/api/auth/signout',
     withCaller(null, async (c, caller) => {
       await accounts.revokeSession(caller.sessionId);
       return c.json({ ok: true });
@@ -688,7 +687,7 @@ export function authRoutes(deps: AuthDeps) {
   );
 
   app.get(
-    '/auth/me',
+    '/api/auth/me',
     withCaller(null, async (c, caller) => {
       const me: Me | null = await accounts.me({ sessionId: caller.sessionId, userId: caller.ctx.userId, orgId: caller.orgId, role: caller.ctx.role });
       return me ? c.json(me) : fail(c, 401, 'unauthenticated');
@@ -697,7 +696,7 @@ export function authRoutes(deps: AuthDeps) {
 
   // -------------------------------------------------------------- invites (the token travels in a body, not a URL)
 
-  app.post('/auth/invites/lookup', async (c) => {
+  app.post('/api/auth/invites/lookup', async (c) => {
     const token = (await c.req.json().catch(() => null))?.token;
     return c.json(await accounts.invite(typeof token === 'string' ? token : ''));
   });
@@ -705,12 +704,12 @@ export function authRoutes(deps: AuthDeps) {
   // -------------------------------------------------------------- the organisation's users
 
   app.get(
-    '/users',
+    '/api/users',
     withCaller('ViewUsers', async (c, caller) => c.json(await accounts.listUsers(caller.orgId))),
   );
 
   app.post(
-    '/users',
+    '/api/users',
     withCaller('ManageUsers', async (c, caller) => {
       const a = await body(c, createUserRequest);
       if (!a) return fail(c, 400, 'invalid-request');
@@ -727,7 +726,7 @@ export function authRoutes(deps: AuthDeps) {
   const actor = (caller: Caller) => ({ id: caller.ctx.userId, role: caller.ctx.role });
 
   app.patch(
-    '/users/:id',
+    '/api/users/:id',
     withCaller('ManageUsers', async (c, caller) => {
       const a = await body(c, changeRoleRequest);
       if (!a) return fail(c, 400, 'invalid-request');
@@ -741,7 +740,7 @@ export function authRoutes(deps: AuthDeps) {
   );
 
   app.delete(
-    '/users/:id',
+    '/api/users/:id',
     withCaller('ManageUsers', async (c, caller) => {
       const t = await target(caller, c.req.param('id')!);
       if (!t) return fail(c, 404, 'not-found');
@@ -753,7 +752,7 @@ export function authRoutes(deps: AuthDeps) {
   );
 
   app.post(
-    '/users/:id/invites',
+    '/api/users/:id/invites',
     withCaller('ManageUsers', async (c, caller) => {
       const t = await target(caller, c.req.param('id')!);
       if (!t) return fail(c, 404, 'not-found');
@@ -768,14 +767,14 @@ export function authRoutes(deps: AuthDeps) {
   // -------------------------------------------------------------- pairing
 
   const pairing = deps.pairing;
-  app.get('/pair/status', async (c) => {
+  app.get('/api/pair/status', async (c) => {
     const device = pairing ? await deviceOf(c.req.raw, accounts, pairing) : null;
     return c.json({ required: !!pairing, paired: !!device, host: device === 'host' } satisfies PairStatus);
   });
 
   if (pairing) {
     /** The code buys the device its token and a session as the user the host chose: on a host, pairing is how a device signs in. */
-    app.post('/pair/claim', async (c) => {
+    app.post('/api/pair/claim', async (c) => {
       const a = await body(c, pairClaimRequest);
       if (!a) return fail(c, 400, 'invalid-request');
       const address = `address:${deps.clientAddress(c)}`;
@@ -801,7 +800,7 @@ export function authRoutes(deps: AuthDeps) {
 
     /** A code that signs the device in as a member: the caller, or someone they may make an invite for (D20, D21). */
     app.post(
-      '/pair/code',
+      '/api/pair/code',
       atHost(async (c, caller) => {
         const a = await body(c, pairCodeRequest);
         if (!a) return fail(c, 400, 'invalid-request');
@@ -814,11 +813,11 @@ export function authRoutes(deps: AuthDeps) {
       }),
     );
     app.get(
-      '/pair/devices',
+      '/api/pair/devices',
       atHost(async (c) => c.json(await accounts.pairedDevices())),
     );
     app.delete(
-      '/pair/devices/:id',
+      '/api/pair/devices/:id',
       atHost(async (c) => ((await accounts.revokeDevice(c.req.param('id')!)) ? c.json({ ok: true }) : fail(c, 404, 'not-found'))),
     );
   }
@@ -826,13 +825,13 @@ export function authRoutes(deps: AuthDeps) {
   // -------------------------------------------------------------- tests only
 
   if (deps.debug) {
-    app.get('/debug/counts', async (c) => c.json(await accounts.debugCounts()));
-    app.post('/debug/session', async (c) => {
+    app.get('/api/debug/counts', async (c) => c.json(await accounts.debugCounts()));
+    app.post('/api/debug/session', async (c) => {
       const { userId, orgId, role } = await c.req.json<{ userId: string; orgId: string; role: string }>();
       return c.json({ token: await accounts.debugSession(userId, orgId, roleSchema.parse(role)) });
     });
     /** Sets a membership's role, or removes the membership with `role: null`. */
-    app.post('/debug/membership', async (c) => {
+    app.post('/api/debug/membership', async (c) => {
       const { userId, orgId, role } = await c.req.json<{ userId: string; orgId: string; role: string | null }>();
       if (role === null) await accounts.sql.run('DELETE FROM memberships WHERE user_id = ? AND org_id = ?', [userId, orgId]);
       else await accounts.sql.run('INSERT OR REPLACE INTO memberships (user_id, org_id, role) VALUES (?, ?, ?)', [userId, orgId, roleSchema.parse(role)]);

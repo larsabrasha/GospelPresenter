@@ -25,7 +25,7 @@ interface Env {
   /** Sign-in with Google. Without both, nobody can sign in or set up. The secret is a secret: never in wrangler.toml. */
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
-  /** The public origin, e.g. https://app.example.org: the redirect URI is `{it}/auth/google/callback`. */
+  /** The public origin, e.g. https://app.example.org: the redirect URI is `{it}/api/auth/google/callback`. */
   GOOGLE_REDIRECT_BASE_URL?: string;
   /** Test builds only (GP_TEST_ISSUER): a fake issuer instead of Google. A deploy build refuses to start with it set. */
   GOOGLE_TEST_ISSUER?: string;
@@ -86,8 +86,8 @@ export class OrgDurableObject extends DurableObject<Env> {
       // Sync needs neither when the session signed in nor how: those matter only to the auth routes.
       return { caller: { orgId: c.req.header('x-org')!, sessionId: '', ctx: { userId, role }, signedInAt: 0, paired: true }, org: this.org };
     }, env.SPIKE_DEBUG === '1', env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null, env.MEDIA_GRACE_MS ? Number(env.MEDIA_GRACE_MS) : undefined);
-    this.app.get('/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
-    this.app.get('/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
+    this.app.get('/api/debug/triggers', (c) => c.json(triggerCheck((s, ...p) => ctx.storage.sql.exec(s, ...p).toArray())));
+    this.app.get('/api/debug/tx-probe', async (c) => c.json(await transactionProbe(ctx.storage)));
   }
 
   override async fetch(request: Request): Promise<Response> {
@@ -194,13 +194,13 @@ function globals(env: Env) {
 }
 
 /** Paths an organisation's Durable Object answers; everything else is the global auth API. */
-const orgPaths = ['/sync/', '/bibles/', '/media/', '/debug/dump', '/debug/triggers', '/debug/tx-probe'];
+const orgPaths = ['/api/sync/', '/api/bibles/', '/api/media/', '/api/debug/dump', '/api/debug/triggers', '/api/debug/tx-probe'];
 
 const worker = new Hono<{ Bindings: Env }>();
 
-worker.use('/debug/*', async (c, next) => (c.env.SPIKE_DEBUG === '1' ? next() : c.notFound()));
+worker.use('/api/debug/*', async (c, next) => (c.env.SPIKE_DEBUG === '1' ? next() : c.notFound()));
 // Triggers in local D1: same check as in the Durable Object.
-worker.get('/debug/d1-triggers', async (c) => {
+worker.get('/api/debug/d1-triggers', async (c) => {
   const db = c.env.DB;
   await db.prepare('CREATE TABLE IF NOT EXISTS _tc_t (id TEXT PRIMARY KEY)').run();
   await db.prepare('CREATE TABLE IF NOT EXISTS _tc_log (seq INTEGER PRIMARY KEY AUTOINCREMENT, pk TEXT, UNIQUE (pk))').run();

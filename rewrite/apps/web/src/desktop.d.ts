@@ -11,8 +11,8 @@ interface Window {
     /** The scheme this installation receives its sign-in on (spec 01 device sign-in, ADR 0005). */
     callbackScheme: string;
     /**
-     * Opens a sign-in path of this window's server (`/app-login?…` or
-     * `/auth/google/start?…`) in the system browser, and waits up to 5
+     * Opens a sign-in path of this window's server (`/api/app-login?…` or
+     * `/api/auth/google/start?…`) in the system browser, and waits up to 5
      * minutes for the callback. False if the main process refused it.
      */
     openSignIn(path: string): Promise<boolean>;

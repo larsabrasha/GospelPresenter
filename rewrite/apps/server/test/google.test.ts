@@ -114,8 +114,8 @@ describe('a fake Google only in test builds', () => {
     const before = fake.authorizations.length;
     const h = await startAdapter('workers', { google: fake, deployBuild: true });
     try {
-      expect((await fetch(`${h.url}/auth/state`)).status).toBe(500);
-      expect((await fetch(`${h.url}/app-login?callback_scheme=gospelpresenter`, { redirect: 'manual' })).status).toBe(500);
+      expect((await fetch(`${h.url}/api/auth/state`)).status).toBe(500);
+      expect((await fetch(`${h.url}/api/app-login?callback_scheme=gospelpresenter`, { redirect: 'manual' })).status).toBe(500);
     } finally {
       await h.close();
     }

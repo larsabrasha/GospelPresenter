@@ -87,7 +87,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     it('server: a mutator that writes, awaits and throws leaves nothing behind', async () => {
       await seed();
       const before = await server();
-      const res = await api<{ lastMutationId: number; results: { id: number; error: string }[] }>(h, 'POST', '/sync/push', {
+      const res = await api<{ lastMutationId: number; results: { id: number; error: string }[] }>(h, 'POST', '/api/sync/push', {
         user: 'alice',
         org,
         body: {
@@ -566,7 +566,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
   it('invalid arguments are refused on the client and on the server', async () => {
     await expect(alice.client.mutate('createPresentation', { id: 'P', name: '   ' })).rejects.toThrow(/too_small|at least/i);
     expect(await alice.client.pending()).toEqual([]);
-    const res = await api<{ results: { id: number; error: string }[] }>(h, 'POST', '/sync/push', {
+    const res = await api<{ results: { id: number; error: string }[] }>(h, 'POST', '/api/sync/push', {
       user: 'alice',
       org,
       body: {
@@ -617,7 +617,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     await fresh.client.pull();
     const pullMs = performance.now() - start;
     expect((await fresh.client.dump()).songs).toHaveLength(1200);
-    expect(fresh.net.requests.filter((p) => p === '/sync/pull')).toHaveLength(3); // pages of 500
+    expect(fresh.net.requests.filter((p) => p === '/api/sync/pull')).toHaveLength(3); // pages of 500
     await alice.client.pull();
     await expectConverged(alice, fresh);
     console.log(`[measure] ${adapterName} push 1200 mutations: ${Math.round(pushMs)} ms; first pull of 1200 rows (3 pages): ${Math.round(pullMs)} ms`);
@@ -632,7 +632,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect(old.client.updateRequired).toBe(true);
     expect(await old.client.pending()).toHaveLength(1);
     expect((await server()).tables.presentations).toEqual([]);
-    const raw = await api(h, 'POST', '/sync/pull', {
+    const raw = await api(h, 'POST', '/api/sync/pull', {
       user: 'dave',
       org,
       body: { protocol: 0, schemaVersion: SCHEMA_VERSION, clientId: 'x', cookie: null, lastMutationId: 0 },
@@ -668,7 +668,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
   });
 
   it.runIf(adapterName === 'workers' || adapterName === 'remote')('DO SQLite: only storage.transaction() makes an async mutator atomic', async () => {
-    const { body } = await api<Record<string, { error: string; rowsLeft: string[] }>>(h, 'GET', '/debug/tx-probe', {
+    const { body } = await api<Record<string, { error: string; rowsLeft: string[] }>>(h, 'GET', '/api/debug/tx-probe', {
       user: 'alice',
       org,
     });
@@ -702,7 +702,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
   });
 
   it.runIf(adapterName === 'workers' || adapterName === 'remote')('SQLite triggers fire in DO SQLite and in local D1', async () => {
-    expect(await api(h, 'GET', '/debug/d1-triggers')).toEqual({ status: 200, body: { fired: true } });
-    expect(await api(h, 'GET', '/debug/triggers', { user: 'alice', org })).toEqual({ status: 200, body: { fired: true } });
+    expect(await api(h, 'GET', '/api/debug/d1-triggers')).toEqual({ status: 200, body: { fired: true } });
+    expect(await api(h, 'GET', '/api/debug/triggers', { user: 'alice', org })).toEqual({ status: 200, body: { fired: true } });
   });
 });

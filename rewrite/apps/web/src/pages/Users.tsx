@@ -91,7 +91,7 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (name
           if (!emailSchema.safeParse(email).success) return setError(t('error.invalid-email')); // ORG-A2
           setSaving(true);
           try {
-            const r = await api<{ inviteToken: string }>('POST', '/users', { name, email, role });
+            const r = await api<{ inviteToken: string }>('POST', '/api/users', { name, email, role });
             if (!r.error) return onCreated(name.trim(), r.body.inviteToken);
             setError(errorText(r));
           } catch {
@@ -147,7 +147,7 @@ function inviteStatus(u: UserRow): string {
 /** The organisation's users, or why they cannot be shown. */
 async function fetchUsers(): Promise<UserRow[] | string> {
   try {
-    const r = await api<UserRow[]>('GET', '/users');
+    const r = await api<UserRow[]>('GET', '/api/users');
     return r.error ? errorText(r) : r.body;
   } catch {
     return t('auth.offline');
@@ -214,7 +214,7 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
                     value={u.role}
                     disabled={!manage || !!roleRefusal}
                     title={self ? t('users.ownRole') : undefined}
-                    onChange={(e) => void act(() => api('PATCH', `/users/${encodeURIComponent(u.id)}`, { role: e.target.value }), t('users.roleSaved'))}
+                    onChange={(e) => void act(() => api('PATCH', `/api/users/${encodeURIComponent(u.id)}`, { role: e.target.value }), t('users.roleSaved'))}
                   >
                     {roles.map((r) => (
                       <option key={r} value={r}>
@@ -227,7 +227,7 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
                   <Button
                     onClick={async () => {
                       try {
-                        const r = await api<{ inviteToken: string }>('POST', `/users/${encodeURIComponent(u.id)}/invites`);
+                        const r = await api<{ inviteToken: string }>('POST', `/api/users/${encodeURIComponent(u.id)}/invites`);
                         if (r.error) toast(errorText(r));
                         else await showLink(u.name, r.body.inviteToken);
                       } catch {
@@ -244,7 +244,7 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
                     variant="danger"
                     onClick={async () => {
                       const ok = await ask({ title: t('users.remove'), text: t('users.removeConfirm', { name: u.name }), confirm: t('common.delete') });
-                      if (ok) await act(() => api('DELETE', `/users/${encodeURIComponent(u.id)}`), t('users.removed', { name: u.name }));
+                      if (ok) await act(() => api('DELETE', `/api/users/${encodeURIComponent(u.id)}`), t('users.removed', { name: u.name }));
                     }}
                   >
                     {t('users.remove')}

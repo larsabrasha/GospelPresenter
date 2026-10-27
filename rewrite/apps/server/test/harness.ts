@@ -160,7 +160,7 @@ export async function api<T = unknown>(
  * through the debug route, and keeps a session token for them. Debug servers only.
  */
 export async function setRole(h: Harness, userId: string, orgId: string, role: Role): Promise<string> {
-  const r = await api<{ token: string }>(h, 'POST', '/debug/session', { body: { userId, orgId, role } });
+  const r = await api<{ token: string }>(h, 'POST', '/api/debug/session', { body: { userId, orgId, role } });
   if (r.status !== 200) throw new Error(`debug session: ${r.status} ${JSON.stringify(r.body)}`);
   tokens.set(tokenKey(h, orgId, userId), r.body.token);
   return r.body.token;
@@ -172,7 +172,7 @@ export interface ServerDump {
 }
 
 export async function serverDump(h: Harness, org: string, user: string): Promise<ServerDump> {
-  const r = await api<ServerDump>(h, 'GET', '/debug/dump', { user, org });
+  const r = await api<ServerDump>(h, 'GET', '/api/debug/dump', { user, org });
   if (r.status !== 200) throw new Error(`dump: ${r.status} ${JSON.stringify(r.body)}`);
   return r.body;
 }
@@ -206,7 +206,7 @@ export async function device(
       if (!net.online) throw new Error('offline');
       net.requests.push(path);
       const r = await http.post(path, body);
-      if (path === '/sync/push' && net.loseNextPushResponse) {
+      if (path === '/api/sync/push' && net.loseNextPushResponse) {
         net.loseNextPushResponse = false;
         throw new Error('connection reset (response lost)');
       }
@@ -219,7 +219,7 @@ export async function device(
 }
 
 export function pokeUrl(h: Harness) {
-  return h.url.replace(/^http/, 'ws') + '/sync/poke';
+  return h.url.replace(/^http/, 'ws') + '/api/sync/poke';
 }
 
 /** The subprotocols that carry a user's credentials on the poke socket. */

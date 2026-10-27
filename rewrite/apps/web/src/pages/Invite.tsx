@@ -14,7 +14,7 @@ export function Invite({ token, methods, onSignedIn }: { token: string; methods:
   const [state, setState] = useState<InviteState | 'offline' | null>(null);
 
   useEffect(() => {
-    api<InviteState>('POST', '/auth/invites/lookup', { token }).then(
+    api<InviteState>('POST', '/api/auth/invites/lookup', { token }).then(
       (r) => setState(r.error ? { state: 'invalid' } : r.body),
       () => setState('offline'),
     );

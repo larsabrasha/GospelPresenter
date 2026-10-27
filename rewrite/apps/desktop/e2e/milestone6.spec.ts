@@ -75,7 +75,7 @@ test('addresses are plain paths: links navigate without a reload, a reload or a 
 
   // A path with a file extension is a file, so a missing one is a 404 and not the app; an API path stays the API.
   expect((await page.request.get(`${host.base}/assets/nope.js`)).status()).toBe(404);
-  const api = await page.request.get(`${host.base}/users`);
+  const api = await page.request.get(`${host.base}/api/users`);
   expect(api.headers()['content-type']).toContain('application/json');
   expect(page.url()).not.toContain('#');
 });

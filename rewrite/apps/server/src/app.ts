@@ -64,7 +64,7 @@ export function syncRoutes(
 ) {
   const app = new Hono();
 
-  app.post('/sync/push', async (c) => {
+  app.post('/api/sync/push', async (c) => {
     const r = await resolve(c);
     if (r instanceof Response) return r;
     const { org, caller } = r;
@@ -80,7 +80,7 @@ export function syncRoutes(
     return c.json(result.body, result.status);
   });
 
-  app.post('/sync/pull', async (c) => {
+  app.post('/api/sync/pull', async (c) => {
     const r = await resolve(c);
     if (r instanceof Response) return r;
     const body = await c.req.json<PullRequest>();
@@ -95,7 +95,7 @@ export function syncRoutes(
 
   const HASH = /^[0-9a-f]{64}$/;
 
-  app.put('/bibles/:hash', async (c) => {
+  app.put('/api/bibles/:hash', async (c) => {
     const r = await resolve(c);
     if (r instanceof Response) return r;
     if (!can(r.caller.ctx.role, 'ManageBibles')) return c.json({ error: 'forbidden' }, 403);
@@ -126,7 +126,7 @@ export function syncRoutes(
 
   // Not compressed here: Cloudflare compresses at its edge (a gzip body from
   // here would be gzipped twice), and the desktop's server is on the same machine.
-  app.get('/bibles/:hash', async (c) => {
+  app.get('/api/bibles/:hash', async (c) => {
     const r = await resolve(c);
     if (r instanceof Response) return r;
     if (!can(r.caller.ctx.role, 'ViewBibles')) return c.json({ error: 'forbidden' }, 403);
@@ -150,7 +150,7 @@ export function syncRoutes(
   // bytes live in the media storage; `media_blobs` records which are there, so
   // `addImage` can check and an organisation never reads another's.
 
-  app.put('/media/:hash', async (c) => {
+  app.put('/api/media/:hash', async (c) => {
     const r = await resolve(c);
     if (r instanceof Response) return r;
     if (!can(r.caller.ctx.role, 'ManageImages')) return c.json({ error: 'forbidden' }, 403);
@@ -175,7 +175,7 @@ export function syncRoutes(
     return c.body(null, 204);
   });
 
-  app.get('/media/:hash', async (c) => {
+  app.get('/api/media/:hash', async (c) => {
     const r = await resolve(c);
     if (r instanceof Response) return r;
     if (!can(r.caller.ctx.role, 'ViewImages')) return c.json({ error: 'forbidden' }, 403);
@@ -193,7 +193,7 @@ export function syncRoutes(
   });
 
   if (debug) {
-    app.get('/debug/dump', async (c) => {
+    app.get('/api/debug/dump', async (c) => {
       const r = await resolve(c);
       if (r instanceof Response) return r;
       return c.json(await r.org.queue.run(() => dump(r.org.store)));

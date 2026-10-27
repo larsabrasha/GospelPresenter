@@ -15,7 +15,7 @@ function PairAsDialog({ me, onCode, onClose }: { me: Me; onCode: (c: { code: str
   const [userId, setUserId] = useState(me.userId);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    api<UserRow[]>('GET', '/users').then(
+    api<UserRow[]>('GET', '/api/users').then(
       (r) => !r.error && setUsers(r.body.filter((u) => u.id === me.userId || !inviteRefusal({ id: me.userId, role: me.role }, u))),
       () => undefined,
     );
@@ -26,7 +26,7 @@ function PairAsDialog({ me, onCode, onClose }: { me: Me; onCode: (c: { code: str
         onSubmit={async (e) => {
           e.preventDefault();
           try {
-            const r = await api<{ code: string; expiresAt: number }>('POST', '/pair/code', { userId });
+            const r = await api<{ code: string; expiresAt: number }>('POST', '/api/pair/code', { userId });
             if (r.error) return setError(errorText(r));
             onCode({ ...r.body, name: users.find((u) => u.id === userId)?.name ?? me.name });
           } catch {
@@ -89,7 +89,7 @@ function PairCodeDialog({ code, expiresAt, name, onClose }: { code: string; expi
 /** The paired devices, or why they cannot be shown. */
 async function fetchDevices(): Promise<PairedDevice[] | string> {
   try {
-    const r = await api<PairedDevice[]>('GET', '/pair/devices');
+    const r = await api<PairedDevice[]>('GET', '/api/pair/devices');
     return r.error ? errorText(r) : r.body;
   } catch {
     return t('auth.offline');
@@ -140,7 +140,7 @@ export function Devices({ me }: { me: Me }) {
                   onClick={async () => {
                     if (!(await ask({ title: t('devices.disconnect'), text: t('devices.disconnectConfirm', { name: d.name }), confirm: t('devices.disconnect') }))) return;
                     try {
-                      const r = await api('DELETE', `/pair/devices/${encodeURIComponent(d.id)}`);
+                      const r = await api('DELETE', `/api/pair/devices/${encodeURIComponent(d.id)}`);
                       if (r.error) toast(errorText(r));
                     } catch {
                       toast(t('auth.offline'));

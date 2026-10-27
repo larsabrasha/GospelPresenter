@@ -51,12 +51,12 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   });
 
   async function begin(browser: TestBrowser, body: object, token?: string) {
-    const res = await browser.fetch(`${h.url}/auth/passkey/begin`, json(body, token));
+    const res = await browser.fetch(`${h.url}/api/auth/passkey/begin`, json(body, token));
     return { status: res.status, body: (await res.json()) as PasskeyBeginResponse & { error?: string } };
   }
 
   async function finish<T = SignInResponse>(browser: TestBrowser, credential: PasskeyCredentialJson, deviceName = 'Testdator') {
-    const res = await browser.fetch(`${h.url}/auth/passkey/finish`, json({ credential, deviceName }));
+    const res = await browser.fetch(`${h.url}/api/auth/passkey/finish`, json({ credential, deviceName }));
     return { status: res.status, body: (await res.json()) as T & { error?: string } };
   }
 
@@ -79,7 +79,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   /** A web Google sign-in (as in auth.test.ts), optionally linking to `link`'s session instead. */
   async function google(who: FakeAccount, opts: { invite?: string; link?: string } = {}) {
     const browser = new TestBrowser();
-    const begun = await api<{ url: string; error?: string }>(h, 'POST', '/auth/google/begin', {
+    const begun = await api<{ url: string; error?: string }>(h, 'POST', '/api/auth/google/begin', {
       token: opts.link,
       body: opts.invite ? { invite: opts.invite } : opts.link ? { link: true } : {},
     });
@@ -88,16 +88,16 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     const end = await browser.open(h.url + begun.body.url);
     const hash = where(end.url);
     if (hash !== '/signed-in') return { error: /error=([\w-]+)/.exec(hash)?.[1] ?? null, hash };
-    const res = await browser.fetch(`${h.url}/auth/google/finish`, json({ deviceName: 'Browser' }));
+    const res = await browser.fetch(`${h.url}/api/auth/google/finish`, json({ deviceName: 'Browser' }));
     return { session: (await res.json()) as SignInResponse, hash };
   }
 
-  const counts = async () => (await api<Record<string, number>>(h, 'GET', '/debug/counts')).body;
-  const logins = async (token: string) => (await api<LoginMethod[]>(h, 'GET', '/auth/logins', { token })).body;
+  const counts = async () => (await api<Record<string, number>>(h, 'GET', '/api/debug/counts')).body;
+  const logins = async (token: string) => (await api<LoginMethod[]>(h, 'GET', '/api/auth/logins', { token })).body;
 
   /** An admin-made user who accepted their invite with a new passkey on `auth`. */
   async function passkeyMember(name: string, auth = key(), role: 'user' | 'admin' = 'user') {
-    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/users', {
+    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', {
       token: admin.token,
       body: { name, email: `${name.toLowerCase().replace(/\W/g, '')}-${crypto.randomUUID().slice(0, 8)}@x.se`, role },
     });
@@ -109,7 +109,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
 
   /** An admin-made user who accepted their invite with Google. */
   async function googleMember(name: string) {
-    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/users', {
+    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', {
       token: admin.token,
       body: { name, email: `${name.toLowerCase()}-${crypto.randomUUID().slice(0, 8)}@x.se`, role: 'user' },
     });
@@ -122,8 +122,8 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   // ------------------------------------------------------------ first run (runs first: no user may exist yet)
 
   it('D19 with a passkey: setup\'s invite is accepted by making a passkey, and it signs in with no Google and no username', async () => {
-    expect((await api<AuthState>(h, 'GET', '/auth/state')).body).toEqual({ setupRequired: true, google: true, passkeys: true });
-    const setup = await api<{ inviteToken: string }>(h, 'POST', '/auth/setup', { body: { setupToken: SETUP_TOKEN, name: 'Anna', orgName: 'Lilla Kyrkan' } });
+    expect((await api<AuthState>(h, 'GET', '/api/auth/state')).body).toEqual({ setupRequired: true, google: true, passkeys: true });
+    const setup = await api<{ inviteToken: string }>(h, 'POST', '/api/auth/setup', { body: { setupToken: SETUP_TOKEN, name: 'Anna', orgName: 'Lilla Kyrkan' } });
     expect(setup.status).toBe(200);
 
     const browser = new TestBrowser();
@@ -140,7 +140,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     });
     expect(o.pubKeyCredParams.map((p) => p.alg)).toEqual([-7, -8, -257]);
     expect(o.challenge).toMatch(/^[\w-]{43}$/);
-    expect((await api<AuthState>(h, 'GET', '/auth/state')).body.setupRequired).toBe(true); // nothing linked yet
+    expect((await api<AuthState>(h, 'GET', '/api/auth/state')).body.setupRequired).toBe(true); // nothing linked yet
 
     adminKey = key({ counter: 'none' }); // iCloud Keychain and Google Password Manager keep no counter
     const r = await finish(browser, await adminKey.create(o));
@@ -149,8 +149,8 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     expect(r.body.me).toMatchObject({ name: 'Anna', role: 'superAdmin', orgName: 'Lilla Kyrkan', email: null });
     admin = r.body;
     expect(o.user.id).toBe(b64url(admin.me.userId)); // the user handle is the random user id, nothing personal
-    expect((await api<AuthState>(h, 'GET', '/auth/state')).body.setupRequired).toBe(false);
-    expect((await api(h, 'POST', '/auth/setup', { body: { setupToken: SETUP_TOKEN, name: 'Eve', orgName: 'Evil' } })).status).toBe(409);
+    expect((await api<AuthState>(h, 'GET', '/api/auth/state')).body.setupRequired).toBe(false);
+    expect((await api(h, 'POST', '/api/auth/setup', { body: { setupToken: SETUP_TOKEN, name: 'Eve', orgName: 'Evil' } })).status).toBe(409);
 
     // Signing in names no user: the passkey says who it is.
     const signin = await begin(new TestBrowser(), { mode: 'signin' });
@@ -186,7 +186,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   it.each<Spoil>(['origin', 'rp-id', 'no-uv', 'no-up', 'type', 'cross-origin', 'attestation', 'challenge'])(
     'registration with a wrong %s is refused: nothing linked, and the invite still good',
     async (spoil) => {
-      const created = await api<{ inviteToken: string }>(h, 'POST', '/users', {
+      const created = await api<{ inviteToken: string }>(h, 'POST', '/api/users', {
         token: admin.token,
         body: { name: `R ${spoil}`, email: `r-${spoil}-${crypto.randomUUID().slice(0, 6)}@x.se`, role: 'user' },
       });
@@ -194,7 +194,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
       expect(await register(key(), { invite: created.body.inviteToken }, { spoil })).toEqual({ status: 400, body: { error: 'passkey-failed' } });
       expect((await counts()).user_logins).toBe(before.user_logins);
       expect((await counts()).sessions).toBe(before.sessions);
-      expect((await api(h, 'POST', '/auth/invites/lookup', { body: { token: created.body.inviteToken } })).body).toMatchObject({ state: 'valid' });
+      expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: created.body.inviteToken } })).body).toMatchObject({ state: 'valid' });
     },
   );
 
@@ -250,9 +250,9 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     expect(await signIn(lone)).toEqual({ status: 400, body: { error: 'passkey-failed' } });
 
     const gone = await passkeyMember('Gone');
-    expect((await api(h, 'DELETE', `/users/${gone.id}`, { token: admin.token })).status).toBe(200);
+    expect((await api(h, 'DELETE', `/api/users/${gone.id}`, { token: admin.token })).status).toBe(200);
     expect(await signIn(gone.key)).toEqual({ status: 400, body: { error: 'passkey-failed' } });
-    expect((await api(h, 'GET', '/auth/me', { token: gone.token })).status).toBe(401);
+    expect((await api(h, 'GET', '/api/auth/me', { token: gone.token })).status).toBe(401);
   });
 
   // ------------------------------------------------------------ your own logins
@@ -286,9 +286,9 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     expect((await google(pias)).session?.me.userId).toBe(p.id);
     expect((await signIn(p.key)).body.me?.userId).toBe(p.id);
     // The email is filled from Google's when the user has none... Pia has one, so it stays.
-    expect((await api<Me>(h, 'GET', '/auth/me', { token: p.token })).body.email).toMatch(/^pia-.*@x\.se$/);
+    expect((await api<Me>(h, 'GET', '/api/auth/me', { token: p.token })).body.email).toMatch(/^pia-.*@x\.se$/);
     // One Google account per user.
-    expect((await api(h, 'POST', '/auth/google/begin', { token: p.token, body: { link: true } })).body).toEqual({ error: 'limit' });
+    expect((await api(h, 'POST', '/api/auth/google/begin', { token: p.token, body: { link: true } })).body).toEqual({ error: 'limit' });
 
     // A Google account that is another user's is refused, and nothing changes.
     const q = await passkeyMember('Qi');
@@ -298,7 +298,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     expect(await logins(q.token)).toEqual(before);
     expect((await google(g.google)).session?.me.userId).toBe(g.id);
     // Linking needs a session.
-    expect((await api(h, 'POST', '/auth/google/begin', { body: { link: true } })).status).toBe(401);
+    expect((await api(h, 'POST', '/api/auth/google/begin', { body: { link: true } })).status).toBe(401);
   });
 
   it('list, rename and remove your own logins; never the last one, of either kind; never someone else\'s', async () => {
@@ -307,29 +307,29 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     const b = key();
     const pa = (await register<{ added: LoginMethod }>(a, { name: 'A' }, { token: g.token })).body.added;
     const pb = (await register<{ added: LoginMethod }>(b, { name: 'B' }, { token: g.token })).body.added;
-    expect((await api(h, 'PATCH', `/auth/logins/passkey/${pa.id}`, { token: g.token, body: { name: '  Jobbdatorn ' } })).status).toBe(200);
-    expect((await api(h, 'PATCH', `/auth/logins/passkey/${pa.id}`, { token: g.token, body: { name: '   ' } })).status).toBe(400);
+    expect((await api(h, 'PATCH', `/api/auth/logins/passkey/${pa.id}`, { token: g.token, body: { name: '  Jobbdatorn ' } })).status).toBe(200);
+    expect((await api(h, 'PATCH', `/api/auth/logins/passkey/${pa.id}`, { token: g.token, body: { name: '   ' } })).status).toBe(400);
     expect((await logins(g.token)).find((l) => l.id === pa.id)?.name).toBe('Jobbdatorn');
 
     // Someone else cannot rename or remove them, not even an admin.
     for (const token of [admin.token, (await passkeyMember('Other')).token]) {
-      expect((await api(h, 'PATCH', `/auth/logins/passkey/${pa.id}`, { token, body: { name: 'Mine' } })).status).toBe(404);
-      expect((await api(h, 'DELETE', `/auth/logins/passkey/${pa.id}`, { token })).status).toBe(404);
-      expect((await api(h, 'DELETE', `/auth/logins/google/${g.google.sub}`, { token })).status).toBe(404);
+      expect((await api(h, 'PATCH', `/api/auth/logins/passkey/${pa.id}`, { token, body: { name: 'Mine' } })).status).toBe(404);
+      expect((await api(h, 'DELETE', `/api/auth/logins/passkey/${pa.id}`, { token })).status).toBe(404);
+      expect((await api(h, 'DELETE', `/api/auth/logins/google/${g.google.sub}`, { token })).status).toBe(404);
     }
 
-    expect((await api(h, 'DELETE', `/auth/logins/google/${g.google.sub}`, { token: g.token })).status).toBe(200);
+    expect((await api(h, 'DELETE', `/api/auth/logins/google/${g.google.sub}`, { token: g.token })).status).toBe(200);
     expect(await google(g.google)).toMatchObject({ error: 'not-linked' });
-    expect((await api(h, 'DELETE', `/auth/logins/passkey/${pa.id}`, { token: g.token })).status).toBe(200);
+    expect((await api(h, 'DELETE', `/api/auth/logins/passkey/${pa.id}`, { token: g.token })).status).toBe(200);
     expect(await signIn(a)).toEqual({ status: 400, body: { error: 'passkey-failed' } });
     // The last one stays.
-    expect(await api(h, 'DELETE', `/auth/logins/passkey/${pb.id}`, { token: g.token })).toEqual({ status: 409, body: { error: 'last-login' } });
+    expect(await api(h, 'DELETE', `/api/auth/logins/passkey/${pb.id}`, { token: g.token })).toEqual({ status: 409, body: { error: 'last-login' } });
     expect((await signIn(b)).body.me?.userId).toBe(g.id);
-    expect((await api(h, 'DELETE', `/auth/logins/other/x`, { token: g.token })).status).toBe(404);
+    expect((await api(h, 'DELETE', `/api/auth/logins/other/x`, { token: g.token })).status).toBe(404);
 
     // A Google-only user cannot remove their Google account either.
     const go = await googleMember('Go');
-    expect(await api(h, 'DELETE', `/auth/logins/google/${go.google.sub}`, { token: go.token })).toEqual({ status: 409, body: { error: 'last-login' } });
+    expect(await api(h, 'DELETE', `/api/auth/logins/google/${go.google.sub}`, { token: go.token })).toEqual({ status: 409, body: { error: 'last-login' } });
   });
 
   it('an Admin cannot add a passkey for someone else: registration is always for the caller\'s own session', async () => {
@@ -348,18 +348,18 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     expect((await begin(new TestBrowser(), { mode: 'register' })).status).toBe(401);
     expect((await begin(new TestBrowser(), { mode: 'signin', invite: 'gpin_x' })).status).toBe(400);
     // Clean up, so Anna keeps one passkey for the later tests.
-    expect((await api(h, 'DELETE', `/auth/logins/passkey/${r.body.added.id}`, { token: admin.token })).status).toBe(200);
+    expect((await api(h, 'DELETE', `/api/auth/logins/passkey/${r.body.added.id}`, { token: admin.token })).status).toBe(200);
   });
 
   it('a new invite is the reset: the passkey that accepts it replaces every login, and the old sessions end', async () => {
     const g = await googleMember('Reset');
     const old = key();
     await register(old, {}, { token: g.token });
-    const invite = await api<{ inviteToken: string }>(h, 'POST', `/users/${g.id}/invites`, { token: admin.token });
+    const invite = await api<{ inviteToken: string }>(h, 'POST', `/api/users/${g.id}/invites`, { token: admin.token });
     const fresh = key();
     const r = await register(fresh, { invite: invite.body.inviteToken });
     expect(r.body.me?.userId).toBe(g.id);
-    expect((await api(h, 'GET', '/auth/me', { token: g.token })).status).toBe(401);
+    expect((await api(h, 'GET', '/api/auth/me', { token: g.token })).status).toBe(401);
     expect(await google(g.google)).toMatchObject({ error: 'not-linked' });
     expect(await signIn(old)).toEqual({ status: 400, body: { error: 'passkey-failed' } });
     expect((await signIn(fresh)).body.me?.userId).toBe(g.id);
@@ -368,31 +368,31 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
 
   // ------------------------------------------------------------ apps: the ceremony in the system browser (spec 01 device sign-in)
 
-  it('/app-login?method=passkey: unknown schemes refused first; the page runs the ceremony and hands the token to the app', async () => {
+  it('/api/app-login?method=passkey: unknown schemes refused first; the page runs the ceremony and hands the token to the app', async () => {
     const before = await counts();
     for (const scheme of ['evil', 'GospelPresenter', '']) {
-      const r = await fetch(`${h.url}/app-login?method=passkey&callback_scheme=${encodeURIComponent(scheme)}`);
+      const r = await fetch(`${h.url}/api/app-login?method=passkey&callback_scheme=${encodeURIComponent(scheme)}`);
       expect([scheme, r.status]).toEqual([scheme, 400]);
     }
-    expect((await fetch(`${h.url}/app-login?method=password&callback_scheme=gospelpresenter`)).status).toBe(400);
+    expect((await fetch(`${h.url}/api/app-login?method=password&callback_scheme=gospelpresenter`)).status).toBe(400);
     expect(await counts()).toEqual(before);
 
     const m = await passkeyMember('App');
     const browser = new TestBrowser();
-    const res = await browser.fetch(`${h.url}/app-login?method=passkey&device=Mac&callback_scheme=gospelpresenter-test`);
+    const res = await browser.fetch(`${h.url}/api/app-login?method=passkey&device=Mac&callback_scheme=gospelpresenter-test`);
     const html = await res.text();
     expect(res.headers.get('content-security-policy')).toContain("script-src 'self'");
-    expect(html).toContain('<script src="/auth/passkey.js"></script>');
+    expect(html).toContain('<script src="/api/auth/passkey.js"></script>');
     const done = await finish<{ callback: string }>(browser, await m.key.get(pageOptions(html).get!));
     const link = new URL(done.body.callback);
     expect(`${link.protocol}//${link.host}`).toBe('gospelpresenter-test://auth');
     const token = new URLSearchParams(link.hash.slice(1)).get('token')!;
-    expect((await api<Me>(h, 'GET', '/auth/me', { token })).body.userId).toBe(m.id);
-    expect((await fetch(`${h.url}/auth/passkey.js`)).headers.get('content-type')).toMatch(/javascript/);
+    expect((await api<Me>(h, 'GET', '/api/auth/me', { token })).body.userId).toBe(m.id);
+    expect((await fetch(`${h.url}/api/auth/passkey.js`)).headers.get('content-type')).toMatch(/javascript/);
   });
 
   it('an app begins an invite or a new passkey; the system browser opens it once and gets the callback, or a done', async () => {
-    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/users', {
+    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', {
       token: admin.token,
       body: { name: 'Desk', email: `desk-${crypto.randomUUID().slice(0, 6)}@x.se`, role: 'user' },
     });
@@ -407,7 +407,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     const auth = key();
     const done = await finish<{ callback: string }>(browser, await auth.create(pageOptions(page.html).create!));
     const token = new URLSearchParams(new URL(done.body.callback).hash.slice(1)).get('token')!;
-    expect((await api<Me>(h, 'GET', '/auth/me', { token })).body.userId).toBe(created.body.id);
+    expect((await api<Me>(h, 'GET', '/api/auth/me', { token })).body.userId).toBe(created.body.id);
     expect(appCallbackLink(page.html)).toBeNull(); // the link appears only once the script has it
 
     // A signed-in app adds a passkey the same way; nothing is handed back but "done".
@@ -424,7 +424,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
     let refused: Response | null = null;
     let ok = 0;
     for (let i = 0; i < 25 && !refused; i++) {
-      const res = await fetch(`${h.url}/auth/passkey/begin`, json({ mode: 'signin' }));
+      const res = await fetch(`${h.url}/api/auth/passkey/begin`, json({ mode: 'signin' }));
       if (res.status === 429) refused = res;
       else ok++;
     }
@@ -446,11 +446,11 @@ describe.each(adapters)('%s adapter, passkeys and a session that is no longer fr
   it('adding a passkey or linking Google needs a recent sign-in; listing does not', async () => {
     const { setRole } = await import('./harness.ts');
     const token = await setRole(h, 'old', 'org-old', 'user');
-    expect((await api(h, 'POST', '/auth/passkey/begin', { token, body: { mode: 'register' } })).status).toBe(200);
+    expect((await api(h, 'POST', '/api/auth/passkey/begin', { token, body: { mode: 'register' } })).status).toBe(200);
     await new Promise((r) => setTimeout(r, 1200));
-    expect((await api(h, 'POST', '/auth/passkey/begin', { token, body: { mode: 'register' } })).body).toEqual({ error: 'reauth-required' });
-    expect((await api(h, 'POST', '/auth/google/begin', { token, body: { link: true } })).body).toEqual({ error: 'reauth-required' });
-    expect((await api(h, 'GET', '/auth/logins', { token })).status).toBe(200);
+    expect((await api(h, 'POST', '/api/auth/passkey/begin', { token, body: { mode: 'register' } })).body).toEqual({ error: 'reauth-required' });
+    expect((await api(h, 'POST', '/api/auth/google/begin', { token, body: { link: true } })).body).toEqual({ error: 'reauth-required' });
+    expect((await api(h, 'GET', '/api/auth/logins', { token })).status).toBe(200);
   });
 });
 
@@ -464,9 +464,9 @@ describe.each(adapters)('%s adapter, passkeys not configured', (adapterName) => 
   });
 
   it('every passkey route says so', async () => {
-    expect((await api<AuthState>(h, 'GET', '/auth/state')).body.passkeys).toBe(false);
-    expect(await api(h, 'POST', '/auth/passkey/begin', { body: { mode: 'signin' } })).toEqual({ status: 503, body: { error: 'passkey-disabled' } });
-    expect((await fetch(`${h.url}/app-login?method=passkey&callback_scheme=gospelpresenter`)).status).toBe(503);
-    expect((await fetch(`${h.url}/auth/passkey/start?flow=x`)).status).toBe(503);
+    expect((await api<AuthState>(h, 'GET', '/api/auth/state')).body.passkeys).toBe(false);
+    expect(await api(h, 'POST', '/api/auth/passkey/begin', { body: { mode: 'signin' } })).toEqual({ status: 503, body: { error: 'passkey-disabled' } });
+    expect((await fetch(`${h.url}/api/app-login?method=passkey&callback_scheme=gospelpresenter`)).status).toBe(503);
+    expect((await fetch(`${h.url}/api/auth/passkey/start?flow=x`)).status).toBe(503);
   });
 });

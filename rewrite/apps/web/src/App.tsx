@@ -34,7 +34,7 @@ function toSignIn() {
  * the session is only forgotten here), and this device forgets it.
  */
 async function signOut() {
-  await Promise.race([api('POST', '/auth/signout').catch(() => undefined), new Promise((r) => setTimeout(r, 3000))]);
+  await Promise.race([api('POST', '/api/auth/signout').catch(() => undefined), new Promise((r) => setTimeout(r, 3000))]);
   toSignIn();
 }
 
@@ -91,14 +91,14 @@ export function App({ me: initial, live }: { me: Me; live: LiveChannel }) {
   const [host, setHost] = useState(false);
 
   useEffect(() => {
-    api<Me>('GET', '/auth/me')
+    api<Me>('GET', '/api/auth/me')
       .then((r) => {
         if (r.error) return;
         updateMe(r.body);
         setMe(r.body);
       })
       .catch(() => undefined); // offline: keep the stored identity
-    api<PairStatus>('GET', '/pair/status')
+    api<PairStatus>('GET', '/api/pair/status')
       .then((r) => setHost(!r.error && r.body.host))
       .catch(() => undefined);
   }, []);

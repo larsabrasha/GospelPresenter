@@ -46,11 +46,11 @@ describe('routes', () => {
     expect(read('/invite/gpin_x')).toEqual({ page: 'songs' });
   });
 
-  it('admin pages live under /admin, so none collides with an API path (/users, /bibles/)', () => {
+  it('admin pages live under /admin, and no page is under /api', () => {
     for (const page of ['users', 'devices', 'bibles', 'images', 'themes'] as const) {
       const path = href({ page });
       expect(path).toBe(`/admin/${page}`);
-      expect(path).not.toMatch(/^\/(users|bibles|media|pair)/);
+      expect(path).not.toMatch(/^\/api/);
     }
     expect(read('/users')).toEqual({ page: 'songs' });
     expect(read('/admin/nowhere')).toEqual({ page: 'songs' });

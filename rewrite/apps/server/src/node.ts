@@ -276,7 +276,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     const headers = new Headers();
     for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v);
     const request = new Request(url, { headers });
-    if (url.pathname !== '/sync/poke') return void socket.destroy();
+    if (url.pathname !== '/api/sync/poke') return void socket.destroy();
     if (opts.pairing && !(await deviceOf(request, accounts, opts.pairing))) return void socket.destroy();
     const caller = await authenticate(request, accounts);
     if (caller instanceof Response) return void socket.destroy();

@@ -18,7 +18,7 @@ export interface GoogleConfig {
   clientId: string;
   clientSecret: string;
   /**
-   * Where Google sends the browser back: `{redirectBaseUrl}/auth/google/callback`
+   * Where Google sends the browser back: `{redirectBaseUrl}/api/auth/google/callback`
    * must be registered with the OAuth client. Without it, the origin of the
    * request that starts the sign-in is used (tests and the desktop host).
    */
@@ -101,14 +101,14 @@ export class GoogleOidc {
       // A build that may not use a fake refuses to start rather than quietly using Google.
       if (!TEST_ISSUER_BUILD) throw new Error('a test issuer is configured, but this build does not allow one');
       const base = config.testIssuer.replace(/\/$/, '');
-      this.endpoints = { issuers: [base], authorize: `${base}/auth`, token: `${base}/token`, jwks: `${base}/certs` };
+      this.endpoints = { issuers: [base], authorize: `${base}/api/auth`, token: `${base}/token`, jwks: `${base}/certs` };
     } else {
       this.endpoints = GOOGLE;
     }
   }
 
   redirectUri(requestUrl: string): string {
-    return `${(this.config.redirectBaseUrl ?? new URL(requestUrl).origin).replace(/\/$/, '')}/auth/google/callback`;
+    return `${(this.config.redirectBaseUrl ?? new URL(requestUrl).origin).replace(/\/$/, '')}/api/auth/google/callback`;
   }
 
   /** Where the browser goes to sign in. `prompt=select_account` always asks which account (spec 01). */

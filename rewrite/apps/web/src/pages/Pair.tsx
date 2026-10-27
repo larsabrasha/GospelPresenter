@@ -29,7 +29,7 @@ export function Pair({ paired, onSignedIn }: { paired: boolean; onSignedIn: (r: 
           if (busy || digits.length !== 6) return;
           setBusy(true);
           try {
-            const r = await api<PairClaimResponse>('POST', '/pair/claim', { code: digits, name });
+            const r = await api<PairClaimResponse>('POST', '/api/pair/claim', { code: digits, name });
             if (!r.error) {
               saveDeviceToken(r.body.device);
               return onSignedIn(r.body.session);

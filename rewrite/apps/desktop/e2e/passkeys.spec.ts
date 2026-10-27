@@ -42,7 +42,7 @@ test('desktop host: set up with a passkey, link Google from the session; either 
   await page.getByRole('button', { name: 'Skapa passkey' }).click();
   await expect(page.getByRole('heading', { name: 'Fortsätt i webbläsaren' })).toBeVisible();
   const made = await browserPasskey(host, browser!);
-  expect(made.url).toMatch(new RegExp(`^http://localhost:${host.port}/auth/passkey/start\\?flow=`));
+  expect(made.url).toMatch(new RegExp(`^http://localhost:${host.port}/api/auth/passkey/start\\?flow=`));
   expect(made.result).toBe('ok');
   expect(made.link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
   await expect(page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
@@ -57,7 +57,7 @@ test('desktop host: set up with a passkey, link Google from the session; either 
   await page.getByRole('button', { name: 'Koppla Google-konto' }).click();
   await expect(page.getByRole('status').getByText('Fortsätt i webbläsaren som öppnades')).toBeVisible();
   const google = await opened(host);
-  expect(google).toMatch(new RegExp(`^http://127\\.0\\.0\\.1:${host.port}/auth/google/start\\?flow=`));
+  expect(google).toMatch(new RegExp(`^http://127\\.0\\.0\\.1:${host.port}/api/auth/google/start\\?flow=`));
   (await fakeGoogle()).next(ANNA);
   const linked = await new TestBrowser().open(google);
   expect(linked.html).toContain('Google-kontot är kopplat');
@@ -71,7 +71,7 @@ test('desktop host: set up with a passkey, link Google from the session; either 
   await page.getByRole('button', { name: 'Logga ut' }).click();
   await page.getByRole('button', { name: 'Logga in med passkey' }).click();
   const signedIn = await browserPasskey(host, browser!);
-  expect(signedIn.url).toMatch(new RegExp(`^http://localhost:${host.port}/app-login\\?`));
+  expect(signedIn.url).toMatch(new RegExp(`^http://localhost:${host.port}/api/app-login\\?`));
   expect(signedIn.link).toMatch(/^gospelpresenter-local:\/\/auth#token=gpdt_/);
   await expect(page.getByTestId('me')).toHaveText('Anna · Lilla Kyrkan');
 

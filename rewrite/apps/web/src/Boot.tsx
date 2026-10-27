@@ -34,14 +34,14 @@ type Screen = 'loading' | 'offline' | 'pair' | 'repair' | 'setup' | 'signin' | '
 /** Which screen comes first: pairing, then an invite, a web sign-in coming back, setup or sign-in; and how one signs in here. */
 async function firstScreen(boot: BootFor): Promise<{ screen: Screen; state?: AuthState }> {
   try {
-    const pair = await api<PairStatus>('GET', '/pair/status');
+    const pair = await api<PairStatus>('GET', '/api/pair/status');
     const host = !pair.error && pair.body.required;
     if (host && !pair.body.paired) {
       saveDeviceToken(null); // a token the host no longer knows
       return { screen: 'pair' };
     }
     if ('signedIn' in boot) return { screen: 'handoff' };
-    const state = (await api<AuthState>('GET', '/auth/state')).body ?? undefined;
+    const state = (await api<AuthState>('GET', '/api/auth/state')).body ?? undefined;
     if ('invite' in boot) return { screen: 'invite', state };
     // Signed in and only here to pair again: back to the app.
     if (storedSession()) {
@@ -60,7 +60,7 @@ async function firstScreen(boot: BootFor): Promise<{ screen: Screen; state?: Aut
 function Handoff() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    api<SignInResponse>('POST', '/auth/google/finish', { deviceName: deviceName() }).then(
+    api<SignInResponse>('POST', '/api/auth/google/finish', { deviceName: deviceName() }).then(
       (r) => (r.error ? setError(errorText(r)) : signedIn(r.body)),
       () => setError(t('auth.offline')),
     );

@@ -23,7 +23,7 @@ function webp(seed: string): Uint8Array {
 }
 
 function put(h: Harness, org: string, user: string | null, hash: string, body: Uint8Array | string) {
-  return fetch(`${h.url}/media/${hash}`, {
+  return fetch(`${h.url}/api/media/${hash}`, {
     method: 'PUT',
     headers: { ...(user ? { authorization: `Bearer ${tokenOf(h, org, user)}` } : {}), 'content-type': 'application/octet-stream' },
     body: body as BodyInit,
@@ -31,7 +31,7 @@ function put(h: Harness, org: string, user: string | null, hash: string, body: U
 }
 
 function get(h: Harness, org: string, user: string | null, hash: string) {
-  return fetch(`${h.url}/media/${hash}`, { headers: user ? { authorization: `Bearer ${tokenOf(h, org, user)}` } : {} });
+  return fetch(`${h.url}/api/media/${hash}`, { headers: user ? { authorization: `Bearer ${tokenOf(h, org, user)}` } : {} });
 }
 
 function downloader(h: Harness, org: string, user: string) {

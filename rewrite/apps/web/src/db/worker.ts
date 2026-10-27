@@ -73,7 +73,7 @@ async function reportStatus() {
  * backstop poll; stops for good once the server refuses the credentials.
  */
 function startSync(c: SyncClient, s: Session) {
-  const url = new URL('/sync/poke', location.origin.replace(/^http/, 'ws')).toString();
+  const url = new URL('/api/sync/poke', location.origin.replace(/^http/, 'ws')).toString();
   const connect = async () => {
     if (c.authError) return void reportStatus();
     try {
@@ -119,13 +119,13 @@ const credentials = () => authHeaders({ token: session!.token, device: session!.
 
 /** Uploads the text of each queued import before the import is pushed, so imports work offline. */
 const uploads = new BibleTextUploads(async (hash, json) => {
-  const res = await fetch(`/bibles/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/json', ...credentials() }, body: json });
+  const res = await fetch(`/api/bibles/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/json', ...credentials() }, body: json });
   return res.status;
 });
 
 /** Uploads the blobs of each queued `addImage` before it is pushed, so a picture can be added offline. */
 const mediaUploads = new MediaUploads(async (hash, bytes) => {
-  const res = await fetch(`/media/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream', ...credentials() }, body: bytes as BodyInit });
+  const res = await fetch(`/api/media/${hash}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream', ...credentials() }, body: bytes as BodyInit });
   return res.status;
 });
 
@@ -137,7 +137,7 @@ function syncMediaBlobs() {
   void serialStore(async () => {
     mediaSyncQueued = false;
     const r = await syncMedia(client!, async (hash) => {
-      const res = await fetch(`/media/${hash}`, { headers: credentials() });
+      const res = await fetch(`/api/media/${hash}`, { headers: credentials() });
       return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
     });
     if (r.downloaded.length || r.removed) notifyChanged();
@@ -175,7 +175,7 @@ function syncBibles() {
     bibleSyncQueued = false;
     if (await uploads.retryRefused(client!)) void client!.requestSync().then(reportStatus);
     const r = await syncBibleTexts(client!, async (hash) => {
-      const res = await fetch(`/bibles/${hash}`, { headers: credentials() });
+      const res = await fetch(`/api/bibles/${hash}`, { headers: credentials() });
       return res.ok ? res.text() : null;
     });
     if (r.downloaded.length || r.removed) notifyChanged();

@@ -78,10 +78,10 @@ callback from another browser, a forged `state` or a replay is refused. The ID t
 Web Crypto: RS256 only, against Google's published keys (cached, fetched again for a new key at most
 once a minute), then `iss`, `aud`, `exp`, `iat`, `nonce`, `sub` and `email_verified`. Why a sign-in was
 refused goes to the server log; the user sees one generic error (spec 01). A browser comes back to
-`/signed-in`, and the page collects its session with a one-time cookie (`POST /auth/google/finish`),
+`/signed-in`, and the page collects its session with a one-time cookie (`POST /api/auth/google/finish`),
 so no token is in a URL.
 
-The desktop app never shows Google in its own windows. It opens the server's `/app-login?device=…&
+The desktop app never shows Google in its own windows. It opens the server's `/api/app-login?device=…&
 callback_scheme=…` in the system browser (spec 01 device sign-in), or, to accept an invite, a flow its
 window began; the server hands the token back on the app's callback scheme in the URL fragment. The
 schemes are `gospelpresenter`, `gospelpresenter-test` and `gospelpresenter-local`, compared exactly;
@@ -101,7 +101,7 @@ its own database with no network; when the server refuses it, sync stops, local 
 status bar asks it to sign in again (SYNC-A15).
 
 The desktop host refuses every API request from a device it has not paired, on localhost too: only
-the static app and `/pair/status`, `/pair/claim` answer (and the sign-in above, from the host machine).
+the static app and `/api/pair/status`, `/api/pair/claim` answer (and the sign-in above, from the host machine).
 Its own window's requests carry a host token that the Electron main process adds and no page sees. On
 the host, Enheter → Anslut enhet asks who the device signs in as (the admin, or a member they may make
 an invite for), and shows a six-digit code (10 minutes, one use, dead after five wrong guesses); the
@@ -111,7 +111,7 @@ stops it and ends the session its pairing made. `pnpm --filter @gp/desktop serve
 unless `GP_LAN=1`.
 
 **Configuration of passkeys.** An explicit RP ID and the exact origins ceremonies may come from;
-without both, passkeys are off and `/auth/state` says so. Node: `startNodeServer({ passkeys: { rpId,
+without both, passkeys are off and `/api/auth/state` says so. Node: `startNodeServer({ passkeys: { rpId,
 origins } })`, and `GP_PASSKEY_RP_ID`, `GP_PASSKEY_ORIGINS` (comma-separated) for `serve`. The Worker:
 `PASSKEY_RP_ID`, `PASSKEY_ORIGINS` (vars, not secrets; e.g. `app.example.org` and
 `https://app.example.org`). The desktop host always has RP ID `localhost` and origin
@@ -120,11 +120,11 @@ origin that is not on the RP ID, or plain http anywhere but localhost.
 
 **Configuration of Google.** Node (`startNodeServer({ google })`, and `GP_GOOGLE_CLIENT_ID`,
 `GP_GOOGLE_CLIENT_SECRET`, `GP_GOOGLE_REDIRECT_BASE_URL` for `serve`): the client id and secret, and
-the public origin the redirect URI is built from (`{origin}/auth/google/callback`; without it, the
+the public origin the redirect URI is built from (`{origin}/api/auth/google/callback`; without it, the
 origin of the request). The desktop host reads `GP_GOOGLE_CLIENT_ID` and `GP_GOOGLE_CLIENT_SECRET`;
-its redirect is `http://127.0.0.1:47800/auth/google/callback`. The Worker reads `GOOGLE_CLIENT_ID`,
+its redirect is `http://127.0.0.1:47800/api/auth/google/callback`. The Worker reads `GOOGLE_CLIENT_ID`,
 `GOOGLE_CLIENT_SECRET` (a secret) and `GOOGLE_REDIRECT_BASE_URL`. Without a client id and secret,
-Google is off: `/auth/state` says so, and its sign-in is refused (503 `google-disabled`). With neither
+Google is off: `/api/auth/state` says so, and its sign-in is refused (503 `google-disabled`). With neither
 Google nor passkeys, setup is refused too. Paired devices and sessions already made keep working.
 
 **The fake Google** (`apps/server/test/fake-google.ts`) is an OIDC issuer with its own key, JWKS,
@@ -138,7 +138,7 @@ desktop app (`app.isPackaged`) also never reads `GP_GOOGLE_TEST_ISSUER`.
 
 ### Passkeys
 
-How a ceremony runs (`apps/server/src/webauthn.ts`, `auth.ts`): `POST /auth/passkey/begin` with
+How a ceremony runs (`apps/server/src/webauthn.ts`, `auth.ts`): `POST /api/auth/passkey/begin` with
 `mode` `signin` or `register` (with an invite, or for the caller's own session) makes a row in
 `passkey_flows` with a fresh 32-byte challenge: single use, 5 minutes, bound to the browser by a
 cookie, and to its kind, so a registration's challenge never signs anyone in. `POST
@@ -159,8 +159,8 @@ whose RP ID is `localhost`, and one made on a host works only on that host's mac
 join a host by pairing; a page from the host over `http://192.168.…` is not a secure context and could
 not use a passkey anyway.
 
-**The desktop app** runs every ceremony in the system browser, through the same `/app-login` device
-flow (`?method=passkey`) or a flow its window began (`/auth/passkey/start?flow=…`), and the server
+**The desktop app** runs every ceremony in the system browser, through the same `/api/app-login` device
+flow (`?method=passkey`) or a flow its window began (`/api/auth/passkey/start?flow=…`), and the server
 hands the token back on the callback scheme, as for Google. Not in Electron: its support for platform
 authenticators (Touch ID, iCloud Keychain) is unreliable, and in the e2e a sign-in with a discoverable
 passkey failed in an Electron window while it works in Chromium. The window's origin, `127.0.0.1`,
@@ -194,7 +194,7 @@ SHA-256 of exactly that JSON. It is kept one row per book in `bible_texts`, plus
 Durable Object) and on every device. Import reads the zip on the device (USX from a DBL zip, or
 USFM; `packages/core/src/bible-import.ts`), stores the text there and runs the `importBible`
 mutation, online or not. Before that mutation is pushed, the device uploads the text once
-(`PUT /bibles/{hash}`, Admin; `BibleTextUploads` in `packages/sync/src/client/bibles.ts`, as the
+(`PUT /api/bibles/{hash}`, Admin; `BibleTextUploads` in `packages/sync/src/client/bibles.ts`, as the
 sync client's `beforePush`), and the server refuses the import unless it has the text. So a
 translation imported while the server cannot be reached is there at once on that device, and reaches
 the server when it can be: an upload that cannot reach the server or fails on its side holds back
@@ -203,7 +203,7 @@ lets the import through to be refused with a reason. A queued import's text is n
 server still lacks the text when the import arrives (`bible-text-missing`), the device queues the
 import once more while it still has the text, which uploads it again; refused a second time, it
 stays refused. Every other device sees the row arrive in a pull and downloads the text
-once (`GET /bibles/{hash}`, any member, only from its own organisation), checks the hash, and keeps
+once (`GET /api/bibles/{hash}`, any member, only from its own organisation), checks the hash, and keeps
 it; a text that no translation names any more is dropped on the next sync. Searching and adding
 verses then needs no network. An added reading is split into slides when it is added and kept on the
 item (`content`), so re-importing or deleting the translation leaves it as it was.
@@ -274,10 +274,10 @@ Node, so on the desktop host and a self-hosted server), R2 through the `MEDIA` b
 `gp-media` in `wrangler.toml`; without the binding the endpoints answer 503, MEDIA-R18), and memory (tests).
 Backing up a self-hosted install is copying `/data`. S3 is not built (see "Not done yet").
 
-**The endpoints.** `PUT /media/{hash}` (ManageImages) takes the bytes, up to 10 MiB, and refuses a body whose
+**The endpoints.** `PUT /api/media/{hash}` (ManageImages) takes the bytes, up to 10 MiB, and refuses a body whose
 SHA-256 is not the hash (`hash-mismatch`), an empty one, and one that does not start like a JPEG or a WebP
 (`invalid-image`: the server trusts the signature, never the type the client claims, MEDIA-A6). The same hash
-again is 204 and changes nothing. `GET /media/{hash}` (ViewImages) answers only for a blob this organisation's
+again is 204 and changes nothing. `GET /api/media/{hash}` (ViewImages) answers only for a blob this organisation's
 database knows, with the stored type, `Cache-Control: private, max-age=31536000, immutable` (D28), `ETag`
 and `nosniff`; another organisation's hash is 404 (MEDIA-A11).
 
@@ -311,13 +311,17 @@ the operator window's database, like everything else, so it works without OPFS.
 The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/songs`,
 `/songs/{id}`, `/presentations`, `/presentations/{id}`, `/live/{id}`, `/trash?kind=Image`, `/logins`,
 `/signin`, `/signed-in`, `/output`, and the admin pages under `/admin/`: `users`, `devices`, `bibles`,
-`images`, `themes`. They live under `/admin/` because `/users` and `/bibles/` are API paths. An unknown
-address is the song list. The one fragment left is an invite's token, `/invite#{token}`, because a
+`images`, `themes` (as in the current app). Everything the server answers itself is under `/api/`, so no page
+can collide with it, and an unknown `/api/…` path is a JSON 404, never the app. An unknown page address is the
+song list. The one fragment left is an invite's token, `/invite#{token}`, because a
 fragment never reaches a server and so never a log. The Node server (and so the desktop host) answers any
-GET with no file extension and no API prefix with `index.html`; a missing file (`/assets/x.js`) is a 404. The
+GET with no file extension outside `/api/` with `index.html`; a missing file (`/assets/x.js`) is a 404. The
 Worker serves no static files yet, so there a reload on a page gives 404, as the web sign-in already did.
 Links are ordinary `<a href>`: one click handler (`installLinkHandler`) turns same-origin clicks into
-History navigation. For `pnpm dev` the Vite proxy covers `/media` too.
+History navigation. For `pnpm dev` the Vite proxy forwards `/api` (and its WebSocket) to the server.
+
+**Moving the API under `/api/` changed the Google redirect URI** to `{origin}/api/auth/google/callback`:
+a real Google client registered with the old one must get the new one.
 
 ## Next steps
 

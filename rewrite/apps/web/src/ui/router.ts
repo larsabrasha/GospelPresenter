@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 // Path routes through the History API (`/songs`, `/admin/images`, ...). The
 // server answers every address that is not a file or an API path with the
 // app's index.html, so a reload or a pasted link lands on the right page.
-// Pages that would collide with an API prefix (`/users`, `/bibles/`) live
-// under `/admin/`, as in the current app. Secrets stay in the fragment, which
+// The server's own paths are all under `/api/`, so no page can collide with
+// one. Admin pages live under `/admin/`, as in the current app. Secrets stay in the fragment, which
 // no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
@@ -102,7 +102,7 @@ export function navigate(r: Route) {
 }
 
 /** Paths the server answers itself: a link to one is a real navigation, not a page of the app. */
-const SERVER_PATHS = /^\/(auth|sync|bibles|media|pair|debug|app-login|users)(\/|$|\?)/;
+const SERVER_PATHS = /^\/api(\/|$)/;
 
 /**
  * Turns clicks on same-origin links into History navigation, so `<a href>`

@@ -195,7 +195,7 @@ export class SyncClient {
       clientId: this.clientId,
       mutations: pending.map((m) => ({ id: m.id, name: m.name, v: m.v, args: JSON.parse(m.args) })),
     };
-    const res = await this.opts.transport.post<PushResponse>('/sync/push', req);
+    const res = await this.opts.transport.post<PushResponse>('/api/sync/push', req);
     if (this.isRefused(res)) return;
     if (res.status !== 200) throw new Error(`push failed: ${res.status} ${JSON.stringify(res.body)}`);
   }
@@ -214,7 +214,7 @@ export class SyncClient {
         cookie,
         lastMutationId: meta.last_mutation_id,
       };
-      const res = await this.opts.transport.post<PullResponse>('/sync/pull', req);
+      const res = await this.opts.transport.post<PullResponse>('/api/sync/pull', req);
       if (this.isRefused(res)) return;
       if (res.status !== 200) throw new Error(`pull failed: ${res.status} ${JSON.stringify(res.body)}`);
       pages.push(res.body);

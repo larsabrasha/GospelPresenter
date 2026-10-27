@@ -57,7 +57,7 @@ async function upload(h: Harness, org: string, d: Device, books: BibleBookText[]
 }
 
 function put(h: Harness, org: string, user: string, hash: string, body: string) {
-  return fetch(`${h.url}/bibles/${hash}`, {
+  return fetch(`${h.url}/api/bibles/${hash}`, {
     method: 'PUT',
     headers: { authorization: `Bearer ${tokenOf(h, org, user)}`, 'content-type': 'application/json' },
     body,
@@ -66,7 +66,7 @@ function put(h: Harness, org: string, user: string, hash: string, body: string) 
 
 function downloader(h: Harness, org: string, user: string) {
   return async (hash: string) => {
-    const res = await fetch(`${h.url}/bibles/${hash}`, { headers: { authorization: `Bearer ${tokenOf(h, org, user)}` } });
+    const res = await fetch(`${h.url}/api/bibles/${hash}`, { headers: { authorization: `Bearer ${tokenOf(h, org, user)}` } });
     return res.status === 200 ? res.text() : null;
   };
 }
@@ -152,7 +152,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     expect(after.tables.bibles).toEqual([]);
     expect(after.tables.presentation_items).toEqual([item]);
     // And the text goes with it, on the server and on every device.
-    expect((await fetch(`${h.url}/bibles/${hash}`, { headers: { authorization: `Bearer ${tokenOf(h, org, 'alice')}` } })).status).toBe(404);
+    expect((await fetch(`${h.url}/api/bibles/${hash}`, { headers: { authorization: `Bearer ${tokenOf(h, org, 'alice')}` } })).status).toBe(404);
     await bob.client.sync();
     expect(await syncBibleTexts(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [], missing: [], removed: 1 });
     expect(await loadBibleText(bob.client, hash)).toBeNull();
@@ -213,7 +213,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
 
     a.net.online = true;
     await a.client.sync();
-    expect(a.net.requests).toEqual([`PUT /bibles/${hash}`, '/sync/push', '/sync/pull']);
+    expect(a.net.requests).toEqual([`PUT /bibles/${hash}`, '/api/sync/push', '/api/sync/pull']);
     expect(a.client.rejected).toEqual([]);
     expect(await a.client.pending()).toEqual([]);
     expect((await serverDump(h, org, 'alice')).tables.bibles).toMatchObject([{ id: 'bible:web', content_hash: hash }]);
@@ -319,7 +319,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     const other = `org-${crypto.randomUUID()}`;
     await setRole(h, 'eve', other, 'admin');
     expect(await downloader(h, other, 'eve')(hash)).toBeNull();
-    expect((await fetch(`${h.url}/bibles/${hash}`)).status).toBe(401);
+    expect((await fetch(`${h.url}/api/bibles/${hash}`)).status).toBe(401);
   });
 
   it('at most ten translations; replacing one does not count (BIBLE-R6)', async () => {
