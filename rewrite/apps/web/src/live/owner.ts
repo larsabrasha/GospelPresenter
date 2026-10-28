@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { toPublicSlide, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
+import { toCanvas, toPublicSlide, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
 import { getOverlay, getPresentation, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
@@ -89,19 +89,25 @@ export function refusedOutputs(sessions: LiveSessionInfo[], sessionId: string): 
 }
 
 /**
- * What a public output shows (spec 04 §6): the slide this window shows, as
- * data, with its theme. Null is the waiting screen: black, or nothing
- * selected and no overlay (LIVE-R14).
+ * What the outputs show, from the slide this window shows. A public output
+ * (spec 04 §6) gets it as data, with its theme; null is the waiting screen:
+ * black, or nothing selected and no overlay text (LIVE-R14). A paired screen
+ * (spec 04 §5) gets the canvas the output window draws, overlay picture
+ * included; null is black.
  */
-async function publicSlide(db: ReadDb, p: LivePointer): Promise<PublicSlide | null> {
-  if (!p.presentationId || p.black) return null;
+async function shownOnOutputs(db: ReadDb, p: LivePointer): Promise<{ slide: PublicSlide | null; canvas: Canvas | null }> {
+  if (!p.presentationId || p.black) return { slide: null, canvas: null };
   const item = p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
-  const slide = item ? (await slidesOf(db, item)).slides[p.partIndex] : undefined;
-  const overlay = (await shownOverlay(db, p.overlayId))?.content ?? null;
-  // An overlay with nothing selected is shown on its own, as the projector shows it.
-  if (!slide && !overlay) return null;
+  const slide = item ? ((await slidesOf(db, item)).slides[p.partIndex] ?? null) : null;
+  const shown = await shownOverlay(db, p.overlayId);
+  const overlay = shown && { text: shown.content, image: shown.imageHash };
+  if (!slide && !overlay?.text && !overlay?.image) return { slide: null, canvas: null };
   const theme = await themeOf(db, await getPresentation(db, p.presentationId));
-  return toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme.id, overlay);
+  return {
+    // An overlay with nothing selected is shown on its own, as the projector shows it.
+    slide: slide || overlay?.text ? toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme.id, overlay?.text ?? null) : null,
+    canvas: toCanvas(slide, theme.id, overlay),
+  };
 }
 
 /**
@@ -122,7 +128,7 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
         return link.own(null);
       }
       const presentation = await getPresentation(db, p.presentationId);
-      const slide = chosen.length ? await publicSlide(db, p) : null;
+      const { slide, canvas } = chosen.length ? await shownOnOutputs(db, p) : { slide: null, canvas: null };
       if (mine !== current) return; // a newer pointer is on its way
       link.own({
         sessionId,
@@ -134,6 +140,7 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
         outputs: chosen,
         takeOver,
         slide,
+        canvas,
         audio: audio.state(),
       });
     };

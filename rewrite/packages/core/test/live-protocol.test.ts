@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LIVE_MESSAGE_MAX, OVERLAY_LIMITS, liveClientMessageSchema, PUBLIC_SLIDE_LIMITS, toPublicSlide, type LiveOwnState } from '@gp/core';
+import { canvasOfPublicSlide, LIVE_MESSAGE_MAX, OVERLAY_LIMITS, liveClientMessageSchema, PUBLIC_SLIDE_LIMITS, toCanvas, toPublicSlide, type LiveOwnState } from '@gp/core';
 
 describe('live reports', () => {
   it('the largest valid report fits the server limit, even when every character needs escaping', () => {
@@ -23,6 +23,17 @@ describe('live reports', () => {
         themeId: id,
         overlay: worst.repeat(OVERLAY_LIMITS.content),
       },
+      canvas: {
+        slide: {
+          kind: 'bible',
+          text: worst.repeat(PUBLIC_SLIDE_LIMITS.text),
+          verses: Array.from({ length: PUBLIC_SLIDE_LIMITS.segments }, () => ({ n: 999, t: worst.repeat(PUBLIC_SLIDE_LIMITS.text / PUBLIC_SLIDE_LIMITS.segments) })),
+          image: 'a'.repeat(64),
+          credits: worst.repeat(PUBLIC_SLIDE_LIMITS.credits),
+        },
+        themeId: id,
+        overlay: { text: worst.repeat(OVERLAY_LIMITS.content), image: 'b'.repeat(64) },
+      },
       audio: { itemId: id, playing: true, position: 86_399.123456789, duration: 86_399.123456789, fading: true },
     };
     const message = { type: 'own', state };
@@ -44,5 +55,29 @@ describe('live reports', () => {
     ]);
     const message = { type: 'own', state: { sessionId: 'S', presentationId: 'P', presentationName: '', deviceName: '', remote: false, pointer: { itemId: null, partIndex: 0, black: false, rev: 0 }, slide: verses } };
     expect(liveClientMessageSchema.safeParse(message).success).toBe(true);
+  });
+
+  it('cuts a canvas slide to what a report may carry, as the public slide', () => {
+    const canvas = toCanvas({ kind: 'song', text: 'a'.repeat(9000), verses: null, image: null, credits: null }, 'classic', null);
+
+    expect(canvas.slide!.text).toHaveLength(PUBLIC_SLIDE_LIMITS.text);
+  });
+
+  it('keeps the overlay of a canvas with nothing selected, picture and text', () => {
+    const canvas = toCanvas(null, 'classic', { text: 'Välkommen', image: 'c'.repeat(64) });
+
+    expect(canvas).toEqual({ slide: null, themeId: 'classic', overlay: { text: 'Välkommen', image: 'c'.repeat(64) } });
+  });
+
+  it('drops an overlay with neither text nor picture from the canvas', () => {
+    const canvas = toCanvas({ kind: 'song', text: 'A', verses: null, image: null, credits: null }, 'classic', { text: null, image: null });
+
+    expect(canvas.overlay).toBeNull();
+  });
+
+  it('draws an older owner\'s public slide on a screen, with the overlay text and no picture', () => {
+    const canvas = canvasOfPublicSlide({ kind: 'song', text: 'A', verses: null, image: null, credits: 'C', themeId: 'dark', overlay: 'Ö' });
+
+    expect(canvas).toEqual({ slide: { kind: 'song', text: 'A', verses: null, image: null, credits: 'C' }, themeId: 'dark', overlay: { text: 'Ö', image: null } });
   });
 });

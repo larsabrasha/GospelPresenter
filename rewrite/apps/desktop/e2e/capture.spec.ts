@@ -457,7 +457,7 @@ test('capture every page', async () => {
         const tv = await beside((await outputLinks()).screen, theme, width, height);
         await tv.getByTestId('display-idle').waitFor();
         await liveWithOverlay('Kyrksalen');
-        await tv.getByTestId('watch-overlay').waitFor();
+        await tv.getByTestId('slide-overlay').waitFor();
         return tv;
       },
     ],

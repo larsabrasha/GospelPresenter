@@ -1,17 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import type { PublicSlide } from '@gp/core';
+import { resolveTheme, type Canvas } from '@gp/core';
 import { followStream } from '../live/watch-stream.ts';
 import { t } from '../i18n.ts';
 import { LogoIcon } from '../ui/icons.tsx';
-import { PublicSlideView, viewerId } from './Watch.tsx';
+import { SlideView } from '../ui/SlideView.tsx';
+import { viewerId } from './Watch.tsx';
 
 // A paired screen (spec 04 §5): a TV or a PC that shows a session, with no
 // database and no sign-in. A saved screen opens `/display?id={code}`; a
 // temporary one opens `/display`, shows a code until an operator pairs it,
 // and starts again with a new code when it is let go. Like every output it
 // shows no error or reconnection screen (LIVE-R33): what was there stays.
+// Bound to a session it draws the projector's canvas, as the output window
+// does (Display.razor renders LiveDisplay), from the canvas the server sends.
 
-type Shown = { kind: 'idle' } | { kind: 'slide'; slide: PublicSlide };
+type Shown = { kind: 'idle' } | { kind: 'canvas'; canvas: Canvas | null };
 
 const SCREEN_KEY = 'ad-hoc-display-id';
 const POLL_MS = 3000;
@@ -65,7 +68,7 @@ function follow(base: string, on: { shown: (s: Shown) => void; name?: (n: string
         if (m.type === 'meta') {
           on.name?.(m.outputName);
           document.title = m.orgName || 'Gospel Presenter';
-        } else if (m.type === 'slide') on.shown({ kind: 'slide', slide: m.slide });
+        } else if (m.type === 'canvas') on.shown({ kind: 'canvas', canvas: m.canvas });
         else if (m.type === 'idle') on.shown({ kind: 'idle' });
         else if (m.type === 'unpaired') on.gone();
       },
@@ -79,8 +82,17 @@ function follow(base: string, on: { shown: (s: Shown) => void; name?: (n: string
   );
 }
 
+/** The projector's canvas, as the output window draws it (`Output.tsx`): black while unbound or black. */
 function Slide({ base, shown }: { base: string; shown: Shown }) {
-  return shown.kind === 'slide' ? <PublicSlideView imageBase={base} slide={shown.slide} /> : <div className="fixed inset-0 bg-black" data-testid="display-black" />;
+  const canvas = shown.kind === 'canvas' ? shown.canvas : null;
+  if (!canvas) return <div className="fixed inset-0 bg-black cursor-none" data-testid="display-black" />;
+  const slide = canvas.slide && { ...canvas.slide, key: '', label: null };
+  const overlay = canvas.overlay && { content: canvas.overlay.text, imageHash: canvas.overlay.image };
+  return (
+    <div className="fixed inset-0 bg-black cursor-none" data-testid="output">
+      <SlideView slide={slide} theme={resolveTheme(canvas.themeId, null)} label={false} overlay={overlay} media={(hash) => `${base}/image/${hash}`} />
+    </div>
+  );
 }
 
 /** A screen waiting, black (Display.razor): what it says in the middle, and the logo and name at the foot. */
@@ -103,7 +115,7 @@ function SavedScreen({ code, name }: { code: string; name: string | null }) {
   const [title, setTitle] = useState(name);
   const [gone, setGone] = useState(false);
   useEffect(() => follow(base, { shown: setShown, name: (n) => setTitle(n || name), gone: () => setGone(true) }), [base, name]);
-  if (shown.kind === 'slide' && !gone) return <Slide base={base} shown={shown} />;
+  if (shown.kind === 'canvas' && !gone) return <Slide base={base} shown={shown} />;
   return (
     <Waiting testId="display-idle">
       {title && <div className="text-neutral-300 text-[3vw] font-semibold">{title}</div>}

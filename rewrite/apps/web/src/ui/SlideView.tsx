@@ -27,21 +27,27 @@ function BibleText({ slide }: { slide: Slide }) {
   );
 }
 
-/** A media slide's picture, contained within the stage over the theme's media background. Nothing until this device has the blob. */
-function SlideImage({ hash }: { hash: string }) {
+/** Where a picture comes from: this device's blob (nothing until it has it), or, on a page with no database (a paired screen), the URL `media` gives. */
+type Media = ((hash: string) => string) | undefined;
+
+function BlobPicture({ hash, className, testId }: { hash: string | null; className: string; testId?: string }) {
   const url = useBlobUrl(hash);
-  return url ? <img className="slide-image" src={url} alt="" data-testid="slide-image" draggable={false} /> : null;
+  return url ? <img className={className} src={url} alt="" data-testid={testId} draggable={false} /> : null;
+}
+
+function Picture({ hash, media, className, testId }: { hash: string | null; media: Media; className: string; testId?: string }) {
+  if (!media) return <BlobPicture hash={hash} className={className} testId={testId} />;
+  return hash ? <img className={className} src={media(hash)} alt="" data-testid={testId} draggable={false} /> : null;
 }
 
 /**
  * An overlay above the slide (LIVE-R15): its picture over the whole stage,
  * contained, and its text at the top left. Outside the theme.
  */
-function OverlayLayer({ overlay }: { overlay: ShownOverlay }) {
-  const url = useBlobUrl(overlay.imageHash);
+function OverlayLayer({ overlay, media }: { overlay: ShownOverlay; media: Media }) {
   return (
     <div className="slide-overlay" data-testid="slide-overlay">
-      {url && <img className="slide-overlay-image" src={url} alt="" draggable={false} />}
+      <Picture hash={overlay.imageHash} media={media} className="slide-overlay-image" testId="slide-overlay-image" />
       {overlay.content && <div className="slide-overlay-text">{overlay.content}</div>}
     </div>
   );
@@ -55,6 +61,7 @@ function OverlayLayer({ overlay }: { overlay: ShownOverlay }) {
  * draws an empty stage: black, whatever the theme, as the black screen must
  * be. The part label is for the operator: tiles show it, outputs never do (LIVE-R20). The stage view draws its preview without credits (spec 04 §3).
  * `overlay` is drawn above the slide, also when no slide is selected.
+ * `media` gives a picture's URL on a page with no database (a paired screen).
  */
 export function SlideView({
   slide,
@@ -62,12 +69,14 @@ export function SlideView({
   label = true,
   credits = true,
   overlay = null,
+  media,
 }: {
   slide: Slide | null;
   theme?: Theme;
   label?: boolean;
   credits?: boolean;
   overlay?: ShownOverlay | null;
+  media?: (hash: string) => string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState({ scale: 0, x: 0, y: 0 });
@@ -95,7 +104,7 @@ export function SlideView({
               </span>
             )}
             {slide.kind === 'media' ? (
-              slide.image && <SlideImage hash={slide.image} />
+              slide.image && <Picture hash={slide.image} media={media} className="slide-image" testId="slide-image" />
             ) : (
               <>
                 <div className="slide-content">
@@ -112,7 +121,7 @@ export function SlideView({
             )}
           </>
         )}
-        {overlay && <OverlayLayer overlay={overlay} />}
+        {overlay && <OverlayLayer overlay={overlay} media={media} />}
       </div>
     </div>
   );

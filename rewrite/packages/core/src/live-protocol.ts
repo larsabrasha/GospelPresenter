@@ -76,6 +76,51 @@ export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses
 }
 
 /**
+ * What a paired screen draws (spec 04 §5: "same rendering as /live"): the
+ * projector's canvas, so the slide, its theme and the overlay with its
+ * picture. A paired screen is bound to the session by an operator, like the
+ * projector, so it gets what the projector draws; a public output gets the
+ * PublicSlide only. The slide is cut to PUBLIC_SLIDE_LIMITS like the public
+ * one. `slide` null with an overlay: the overlay on a black stage, as the
+ * projector draws it with nothing selected. The whole canvas null: black.
+ */
+export const canvasSchema = z.object({
+  slide: publicSlideSchema.pick({ kind: true, text: true, verses: true, image: true, credits: true }).nullable(),
+  themeId: z.string().max(100),
+  overlay: z
+    .object({
+      text: z.string().max(OVERLAY_LIMITS.content).nullable(),
+      /** The overlay picture's `full` blob, served at the screen's `/image/{hash}` while it is shown. */
+      image: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
+    })
+    .nullable(),
+});
+export type Canvas = z.infer<typeof canvasSchema>;
+
+/** The canvas of `slide` (null: nothing selected) and the overlay, cut to what a report may carry. */
+export function toCanvas(
+  slide: Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'> | null,
+  themeId: string,
+  overlay: { text: string | null; image: string | null } | null,
+): Canvas {
+  const cut = slide && toPublicSlide(slide, themeId);
+  return {
+    slide: cut && { kind: cut.kind, text: cut.text, verses: cut.verses, image: cut.image, credits: cut.credits },
+    themeId,
+    overlay: overlay && (overlay.text || overlay.image) ? { text: overlay.text?.slice(0, OVERLAY_LIMITS.content) ?? null, image: overlay.image } : null,
+  };
+}
+
+/**
+ * The canvas a report without one stands for: an owner of an older build
+ * sends only the public slide, so its screens draw that, without the overlay's picture.
+ */
+export function canvasOfPublicSlide(slide: PublicSlide): Canvas {
+  const { overlay, themeId, ...rest } = slide;
+  return { slide: rest, themeId, overlay: overlay ? { text: overlay, image: null } : null };
+}
+
+/**
  * The session's audio (spec 04 §1b): the audio item the presenting computer
  * plays, and where it is. Audio plays only there; controllers mirror it.
  */
@@ -113,8 +158,10 @@ export const liveOwnStateSchema = z.object({
   outputs: z.array(id).max(50).default([]),
   /** Outputs another session sends to, which this one takes over ("Ta över"). */
   takeOver: z.array(id).max(50).default([]),
-  /** What the outputs show; only sent while there are outputs. */
+  /** What the public outputs show; only sent while there are outputs. */
   slide: publicSlideSchema.nullable().default(null),
+  /** What the paired screens draw, the projector's canvas; only sent while there are outputs. Absent from an older owner. */
+  canvas: canvasSchema.nullable().default(null),
   /** The audio item it plays, if any. */
   audio: liveAudioSchema.nullable().default(null),
 });
@@ -173,7 +220,7 @@ export const ABANDONED_SESSION_MS = 2 * 60 * 60 * 1000;
  * even if every character of its slide needs a six-character JSON escape (a
  * test builds that report and checks it fits).
  */
-export const LIVE_MESSAGE_MAX = 96 * 1024;
+export const LIVE_MESSAGE_MAX = 192 * 1024;
 
 /** Reconnect delays (LIVE-R51): 0, 2, 5, 10 s, then every 30 s, forever. */
 export function liveReconnectDelay(attempt: number): number {
@@ -187,6 +234,11 @@ export const MAX_VIEWERS = 500;
 export type WatchEvent =
   | { type: 'meta'; orgName: string; outputName: string }
   | { type: 'slide'; slide: PublicSlide }
+  /**
+   * To a paired screen only, in place of `slide` and `idle` while it is bound:
+   * the projector's canvas (spec 04 §5), null for black. `idle`: not bound.
+   */
+  | { type: 'canvas'; canvas: Canvas | null }
   | { type: 'idle' }
   | { type: 'full' }
   /** To a temporary screen: it is no longer paired, and shows a new code (spec 04 §5). */

@@ -1,9 +1,11 @@
 import {
   ABANDONED_SESSION_MS,
   can,
+  canvasOfPublicSlide,
   LIVE_MESSAGE_MAX,
   liveClientMessageSchema,
   MAX_VIEWERS,
+  type Canvas,
   type LiveOwnState,
   type LiveScreen,
   type LiveServerMessage,
@@ -38,7 +40,7 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS live_sessions (
      id TEXT PRIMARY KEY NOT NULL, owner_user_id TEXT NOT NULL, presentation_id TEXT NOT NULL,
      presentation_name TEXT NOT NULL, device_name TEXT NOT NULL, remote INTEGER NOT NULL,
-     pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT, audio TEXT)`,
+     pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT, audio TEXT, canvas TEXT)`,
   // Which session an output sends from: at most one (LIVE-R23).
   `CREATE TABLE IF NOT EXISTS live_bindings (display_id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL)`,
   // Temporary screens paired with the organisation (spec 04 §5), each for the session that paired it.
@@ -71,6 +73,7 @@ interface Row {
   owner_seen_at: number;
   slide: string | null;
   audio: string | null;
+  canvas: string | null;
 }
 
 /**
@@ -79,7 +82,7 @@ interface Row {
  */
 export class LiveHub {
   /** Public viewers, by output, by viewer id. In memory: a viewer reconnects if the process restarts. */
-  private viewers = new Map<string, Map<string, { viewer: Viewer; code: string }>>();
+  private viewers = new Map<string, Map<string, { viewer: Viewer; code: string; screen: boolean }>>();
   private countTimer: ReturnType<typeof setTimeout> | null = null;
   private countDue = false;
   /**
@@ -105,8 +108,8 @@ export class LiveHub {
     private later: (fn: () => void, ms: number) => unknown = (fn, ms) => setTimeout(fn, ms),
   ) {
     for (const d of DDL) store.query(d);
-    // A table made before audio: sessions are short-lived, so it is simply made again.
-    if (!(store.query(`SELECT 1 FROM pragma_table_info('live_sessions') WHERE name = 'audio'`).length)) {
+    // A table made before audio or the canvas: sessions are short-lived, so it is simply made again.
+    if (!(store.query(`SELECT 1 FROM pragma_table_info('live_sessions') WHERE name = 'canvas'`).length)) {
       store.query('DROP TABLE live_sessions');
       store.query(DDL[0]!);
     }
@@ -190,11 +193,11 @@ export class LiveHub {
     // A session id is the owner's; another user cannot take it over by naming it.
     if (existing && existing.owner_user_id !== s.userId) return reply(s, { type: 'error', error: 'not-owner' });
     this.store.query(
-      `INSERT INTO live_sessions (id, owner_user_id, presentation_id, presentation_name, device_name, remote, pointer, owner_seen_at, slide, audio)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO live_sessions (id, owner_user_id, presentation_id, presentation_name, device_name, remote, pointer, owner_seen_at, slide, audio, canvas)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (id) DO UPDATE SET presentation_id = excluded.presentation_id, presentation_name = excluded.presentation_name,
          device_name = excluded.device_name, remote = excluded.remote, pointer = excluded.pointer, owner_seen_at = excluded.owner_seen_at,
-         slide = excluded.slide, audio = excluded.audio`,
+         slide = excluded.slide, audio = excluded.audio, canvas = excluded.canvas`,
       [
         state.sessionId,
         s.userId,
@@ -206,6 +209,7 @@ export class LiveHub {
         this.now(),
         state.slide ? JSON.stringify(state.slide) : null,
         state.audio ? JSON.stringify(state.audio) : null,
+        state.canvas ? JSON.stringify(state.canvas) : null,
       ],
     );
     if (!s.owns.includes(state.sessionId)) s.owns = [...s.owns, state.sessionId];
@@ -313,9 +317,32 @@ export class LiveHub {
    * screen. A black screen or nothing selected is the waiting screen (LIVE-R14).
    */
   current(displayId: string): PublicSlide | null {
-    const [b] = this.store.query('SELECT session_id FROM live_bindings WHERE display_id = ?', [displayId]) as { session_id: string }[];
-    const row = b && this.row(b.session_id);
+    const row = this.boundRow(displayId);
     return row?.slide ? (JSON.parse(row.slide) as PublicSlide) : null;
+  }
+
+  /**
+   * What a paired screen draws now (spec 04 §5): the canvas of the session it
+   * is bound to; from an owner that reports none (an older build), the public
+   * slide's. Null: black.
+   */
+  canvas(displayId: string): Canvas | null {
+    const row = this.boundRow(displayId);
+    if (row?.canvas) return JSON.parse(row.canvas) as Canvas;
+    return row?.slide ? canvasOfPublicSlide(JSON.parse(row.slide) as PublicSlide) : null;
+  }
+
+  /** The event an output's viewer gets for what it shows now: a public output the public slide, a paired screen the canvas. */
+  private shown(displayId: string, screen: boolean): WatchEvent {
+    // A screen bound to a session draws its canvas, black included, as Display.razor; unbound, it waits.
+    if (screen) return this.boundRow(displayId) ? { type: 'canvas', canvas: this.canvas(displayId) } : { type: 'idle' };
+    const slide = this.current(displayId);
+    return slide ? { type: 'slide', slide } : { type: 'idle' };
+  }
+
+  private boundRow(displayId: string): Row | undefined {
+    const [b] = this.store.query('SELECT session_id FROM live_bindings WHERE display_id = ?', [displayId]) as { session_id: string }[];
+    return b && this.row(b.session_id);
   }
 
   /**
@@ -323,7 +350,7 @@ export class LiveHub {
    * known (a reload, a reconnect) replaces its old stream and is never refused.
    * Sends the newest state at once. False when it was refused as one too many.
    */
-  watch(displayId: string, code: string, viewerId: string, viewer: Viewer, meta: { orgName: string; outputName: string }): boolean {
+  watch(displayId: string, code: string, viewerId: string, viewer: Viewer, meta: { orgName: string; outputName: string }, screen = false): boolean {
     let set = this.viewers.get(displayId);
     if (!set) this.viewers.set(displayId, (set = new Map()));
     const old = set.get(viewerId);
@@ -332,14 +359,13 @@ export class LiveHub {
       viewer.close();
       return false;
     }
-    set.set(viewerId, { viewer, code });
+    set.set(viewerId, { viewer, code, screen });
     const pending = this.dropped.get(displayId);
     if (pending) clearTimeout(pending.timer as ReturnType<typeof setTimeout>); // back within the grace
     this.dropped.delete(displayId);
     old?.viewer.close();
     viewer.send({ type: 'meta', ...meta });
-    const slide = this.current(displayId);
-    viewer.send(slide ? { type: 'slide', slide } : { type: 'idle' });
+    viewer.send(this.shown(displayId, screen));
     this.countsChanged();
     return true;
   }
@@ -369,19 +395,30 @@ export class LiveHub {
    * MEDIA-R10): the one on screen, and only if it is a picture of an item in
    * the presentation the session shows. The owner's report alone is not
    * enough: a changed client could otherwise name any picture of the library
-   * and make it public through the output.
+   * and make it public through the output. A paired screen may also show the
+   * overlay's picture (LIVE-R34), only if it is the picture of the overlay
+   * the session's pointer has switched on; a public output never gets it.
    */
-  showing(displayId: string, hash: string): boolean {
-    if (this.current(displayId)?.image !== hash) return false;
-    const [b] = this.store.query('SELECT session_id FROM live_bindings WHERE display_id = ?', [displayId]) as { session_id: string }[];
-    const row = b && this.row(b.session_id);
+  showing(displayId: string, hash: string, screen = false): boolean {
+    const row = this.boundRow(displayId);
     if (!row) return false;
-    return (
+    const shown = screen ? this.canvas(displayId) : null;
+    const slideImage = screen ? shown?.slide?.image : this.current(displayId)?.image;
+    if (
+      slideImage === hash &&
       this.store.query(
         `SELECT 1 FROM presentation_items p JOIN images i ON i.id = p.source_id
          WHERE p.presentation_id = ? AND p.type = 'image' AND i.full_hash = ?`,
         [row.presentation_id, hash],
       ).length > 0
+    ) {
+      return true;
+    }
+    if (!screen || shown?.overlay?.image !== hash) return false;
+    const overlayId = (JSON.parse(row.pointer) as LiveOwnState['pointer']).overlayId;
+    return (
+      !!overlayId &&
+      this.store.query('SELECT 1 FROM overlays o JOIN images i ON i.id = o.image_id WHERE o.id = ? AND i.full_hash = ?', [overlayId, hash]).length > 0
     );
   }
 
@@ -408,9 +445,12 @@ export class LiveHub {
   private pushTo(displayId: string) {
     const set = this.viewers.get(displayId);
     if (!set?.size) return; // nobody watching: nothing to send (LIVE-R37)
-    const slide = this.current(displayId);
-    const e: WatchEvent = slide ? { type: 'slide', slide } : { type: 'idle' };
-    for (const v of set.values()) v.viewer.send(e);
+    const events = new Map<boolean, WatchEvent>();
+    for (const v of set.values()) {
+      let e = events.get(v.screen);
+      if (!e) events.set(v.screen, (e = this.shown(displayId, v.screen)));
+      v.viewer.send(e);
+    }
   }
 
   /** A saved screen is online while a page follows it, and for SCREEN_GRACE_MS after the last one dropped. */

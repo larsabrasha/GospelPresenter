@@ -377,8 +377,8 @@ A TV or a PC in the church opens `/display` at the server, the cloud's or the de
 session (spec 04 §5). It signs in to nothing and is no paired device; on a desktop host `/api/display/` and
 `/api/screen` answer it like `/api/watch/`. Spec 04 has paired screens on the web host only (LIVE-R52); Lars
 chose on 2026-10-27 to have them on the desktop host too, so a TV on the church's LAN works without the
-internet. A screen renders as a public output does, from the slide as data (`PublicSlideView`, D25), and like
-every output never shows an error or reconnection screen (LIVE-R33). Two kinds:
+internet. A screen draws the projector's canvas, as the output window does (`SlideView`, spec 04 §5 "same
+rendering as `/live`"), and like every output never shows an error or reconnection screen (LIVE-R33). Two kinds:
 
 - **A saved screen** is a row in `displays` of kind `screen` (organisation schema 9, no new column; an older
   app must update first, since it would list it as a public output). An admin adds it under Skärmar → Skärmar
@@ -409,9 +409,24 @@ LAN), whose code rides in the fragment, `/#pair={code}`, so no server sees it; t
 from it and takes it out of the address. They are drawn in the page with `uqr` (no service sees a link), and
 built against the host's LAN address on a desktop host.
 
+**What a screen gets.** It has no database, so the owner reports, beside the public slide, the canvas
+(`canvasSchema` in `live-protocol.ts`): the slide as data, the theme's id, and the overlay's text and picture;
+null is black. The hub sends a screen `canvas` events and a public output `slide` events as before, so `/watch`
+gets nothing new. A screen is bound to the session by an operator, as the projector is, so it gets what the
+projector draws; what that adds to the public slide is only the overlay's picture and "nothing selected". Its
+pictures come through its own path (`/api/screen/{id}/image/{hash}`, `/api/display/{code}/image/{hash}`): the
+slide's under the public output's rule (LIVE-R32), and the overlay's only while that overlay is the one the
+session's pointer has on and has that picture (LIVE-R34). An owner of an older build sends no canvas: its screens
+draw the public slide on the canvas, without the overlay's picture. A screen that is bound draws black while the
+session is black, rather than waiting with its name, as `Display.razor`. The live socket has no version number:
+the field is optional, as every field added before it, and the largest report is now 192 KiB, as it carries the
+slide twice.
+
 Tested in `apps/server/test/screens.test.ts` (three adapters: code, QR token, single use, letting go, a saved
-screen online and off, another organisation) and `apps/desktop/e2e/screens.spec.ts` (LIVE-A17 to A21, a TV
-played by Playwright's Chromium); the QR codes in `watch.spec.ts`, `remote.spec.ts` and, through `pair()`,
+screen online and off, another organisation; the canvas to a screen and the public slide to `/watch` from the
+same session, an older owner, black, and the overlay's picture to a screen and never to `/watch`) and
+`apps/desktop/e2e/screens.spec.ts` (LIVE-A17 to A21, a TV played by Playwright's Chromium; the canvas, its theme,
+black, and a picture item's picture); the QR codes in `watch.spec.ts`, `remote.spec.ts` and, through `pair()`,
 `https.spec.ts`.
 
 ### Which files a device keeps
@@ -697,7 +712,7 @@ Anslut till värddatorn has no counterpart and is drawn as setup. Anslut tillfä
 and the four large digit boxes, and the green tick when a screen is paired. `/display` is `Display.razor`'s
 black page (the code huge in mono, the logo and name at the foot); `/watch` is `PublicWatchPage.razor`'s
 three faint dots and `PublicSlideView.razor`'s slide, with the credits below the text rather than over it.
-A paired screen shows `/watch`'s reflowing slide rather than the canvas. Where the new pages do more than the
+A paired screen draws the projector's canvas, as the output window (see "Paired screens"). Where the new pages do more than the
 current ones (Avbryt and Stäng in the pairing dialog), they keep what they do and only take the look.
 
 Where the look would change what the app does, Lars decided (2026-10-27) to follow the current app: Bilder and
@@ -707,7 +722,7 @@ coloured pills (`ui/SelectMenu.tsx`, an ARIA select-only combobox, usable by key
 blank, and Rensa is gone while black; Utgångar, Overlays and Fjärrstyrning fold, each with an "i"; sign-in shows
 the first way in, the rest behind "Fler alternativ", and the version (the commit: there is no release number yet);
 the canvas is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen
-scrolls on `/watch` and a paired screen, not on the output window.
+scrolls on `/watch`, not on the output window or a paired screen.
 
 Extern skärm under Utgångar is a switch, as there (`live/outputWindow.ts`): on opens the output window, off
 closes it, and it shows whether the window is open, so closing the window some other way turns it off. In the
@@ -772,9 +787,8 @@ To try it with a tablet: `GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop 
 `https://<the Mac's LAN address>:47843` on the tablet, accept the certificate warning once, and pair it under
 Enheter → Anslut enhet.
 
-Look work left for later, each as the current app does it: a
-paired screen drawing the projector's canvas, which needs the slide as `Slide` rather than `PublicSlide` (5.3);
-and a "Gör tillgänglig offline" button per Bible, which needs each device to choose its Bibles (4.10).
+Look work left for later, as the current app does it: a "Gör tillgänglig offline" button per Bible, which needs
+each device to choose its Bibles (4.10).
 
 The smaller gaps below can be taken along the way.
 
@@ -816,9 +830,9 @@ rather than only the newest (the stream is not a one-slot queue); the 500-viewer
 Swedish only, not per Accept-Language. A Durable Object with open streams does not hibernate; spec 04 and
 ADR 0007 leave a Durable Object per output for when that matters.
 
-From spec 04's paired screens: the 4-hour idle unbinding of LIVE-R43; a screen gets what a public output gets,
-so an overlay's picture is not shown, only its text; a saved screen
-bound to a session that is not live shows its name rather than plain black. In local workerd a closed stream is
+From spec 04's paired screens: the 4-hour idle unbinding of LIVE-R43; a saved screen whose session has
+ended shows its name rather than plain black; a `/display` page of an older build, still open when the server
+is updated, does not know the `canvas` event and waits until it is reloaded. In local workerd a closed stream is
 never noticed, not even when a ping is written: a saved screen stays Online and a public output's viewer stays
 counted after the page has closed (on Node both go at once); whether Cloudflare itself notices is not known. A
 four-digit code is unique across every organisation on the server: 8 999 at a time, plenty on a desktop host,

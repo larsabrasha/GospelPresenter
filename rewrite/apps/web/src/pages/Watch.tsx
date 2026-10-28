@@ -40,7 +40,7 @@ function PublicOverlay({ text }: { text: string | null }) {
 }
 
 /**
- * A slide sent as data (spec 04 §5, §6), as PublicSlideView.razor: the text
+ * A slide sent as data (spec 04 §6), as PublicSlideView.razor: the text
  * reflows in the middle and scrolls when it is taller than the screen, the
  * credits below it; its picture is under
  * `imageBase`, the output's own API path.

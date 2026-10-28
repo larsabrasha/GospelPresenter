@@ -317,7 +317,7 @@ export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string
           },
         };
         stream.onAbort(() => viewer.close());
-        void t.org.queue.run(() => t.live.watch(t.displayId, code, viewerId, viewer, { orgName: t.orgName, outputName: display.name })).catch(() => viewer.close());
+        void t.org.queue.run(() => t.live.watch(t.displayId, code, viewerId, viewer, { orgName: t.orgName, outputName: display.name }, kind !== 'watch')).catch(() => viewer.close());
       });
       while (live.open) {
         await Promise.race([done, stream.sleep(PING_MS)]);
@@ -333,7 +333,7 @@ export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string
     if (t instanceof Response) return t;
     if (!t || !media) return c.json({ error: 'not-found' }, 404);
     const shown = await t.org.queue.run(async () => {
-      if (!t.live.showing(t.displayId, hash)) return null;
+      if (!t.live.showing(t.displayId, hash, kind !== 'watch')) return null;
       return t.org.store.query('SELECT content_type FROM media_blobs WHERE hash = ?', [hash])[0] as { content_type: string } | undefined;
     });
     const bytes = shown ? await media.get(mediaKey(t.orgId, hash)) : null;

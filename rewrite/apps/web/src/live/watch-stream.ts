@@ -40,7 +40,7 @@ export function followStream(
     if (stopped) return;
     const s = deps.open(url);
     source = s;
-    for (const type of ['meta', 'slide', 'idle', 'full', 'unpaired']) {
+    for (const type of ['meta', 'slide', 'canvas', 'idle', 'full', 'unpaired']) {
       s.addEventListener(type, (e) => {
         const m = JSON.parse(e.data) as WatchEvent;
         on.event(m);
