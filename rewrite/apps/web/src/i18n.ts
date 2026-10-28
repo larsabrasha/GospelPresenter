@@ -84,6 +84,7 @@ const sv = {
   'presentation.editDetails': 'Redigera detaljer',
   'presentation.trash': 'Radera presentation',
   'presentation.options': 'Alternativ',
+  'presentation.itemOptions': 'Fler val för {title}',
   'presentation.editSong': 'Redigera',
   'presentation.trashed': '{name} flyttad till papperskorgen',
   'presentation.songTrashed': 'Sången ligger i papperskorgen och visas inte live.',

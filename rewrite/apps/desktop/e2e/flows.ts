@@ -1,7 +1,22 @@
 // Steps the e2e tests share, written as a user would do them.
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import type { FakeAccount } from '../../server/test/fake-google.ts';
 import { browserSignIn, type Desktop } from './apps.ts';
+
+/**
+ * Drags `handle` with the mouse until its row is just past `target`'s middle,
+ * above or below it, in small steps as a hand would.
+ */
+export async function dragTo(page: Page, handle: Locator, target: Locator, where: 'above' | 'below') {
+  await handle.evaluate((e) => e.scrollIntoView({ block: 'center' })); // away from the edges, which scroll while dragging
+  const from = (await handle.boundingBox())!;
+  const to = (await target.boundingBox())!;
+  const x = from.x + from.width / 2;
+  await page.mouse.move(x, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(x, where === 'above' ? to.y + 2 : to.y + to.height - 2, { steps: 12 });
+  await page.mouse.up();
+}
 
 /** The admin menu at the side, opened with the cog in the bar unless an admin page is open already. */
 export async function adminMenu(page: Page) {

@@ -2,7 +2,7 @@
 // the output window when the operator's database has no shared file.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, openPresentations, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, dragTo, openAdmin, openPresentations, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -119,9 +119,19 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await kort.getByRole('button', { name: 'Ta bort Verse 2 ur arrangemanget' }).click();
   await kort.getByRole('combobox', { name: 'Lägg till del' }).click();
   await kort.getByRole('option', { name: '2. Chorus', exact: true }).click();
-  await kort.getByRole('button', { name: 'Flytta ned Verse 1' }).click();
   const kortChips = kort.getByRole('list', { name: 'Delar i arrangemanget' }).getByRole('listitem');
+  await expect(kortChips).toHaveText([/Verse 1/, /Chorus/, /Chorus/]);
+  // The chip is dragged, as in the current app: Verse 1 below the first Chorus.
+  await dragTo(page, kortChips.nth(0), kortChips.nth(1), 'below');
   await expect(kortChips).toHaveText([/Chorus/, /Verse 1/, /Chorus/]);
+  // From the keyboard, Alt+↑/↓ moves the focused chip, and focus stays on it.
+  await kortChips.nth(1).focus();
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect(kortChips).toHaveText([/Chorus/, /Chorus/, /Verse 1/]);
+  await expect(kortChips.nth(2)).toBeFocused();
+  await page.keyboard.press('Alt+ArrowUp');
+  await expect(kortChips).toHaveText([/Chorus/, /Verse 1/, /Chorus/]);
+  await expect(kortChips.nth(1)).toBeFocused();
 
   await createSong(page, 'Blott en dag', [['Verse 1', 'Blott en dag']]);
 
@@ -145,9 +155,18 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   const order = page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem');
   await expect(order).toHaveText([/Pilgrimsfärd/, /Blott en dag/]);
 
-  // Reorder, then look at the first item: Kort, three slides; the default arrangement shows its own order.
-  await page.getByRole('button', { name: 'Flytta upp Blott en dag' }).click();
+  // Reorder by the drag handle, then by Alt+↑/↓ on the selected item; the order is saved either way.
+  await dragTo(page, order.nth(1).getByTestId('drag-handle'), order.nth(0), 'above');
   await expect(order).toHaveText([/Blott en dag/, /Pilgrimsfärd/]);
+  await page.getByRole('button', { name: 'Pilgrimsfärd', exact: true }).click();
+  await page.keyboard.press('Alt+ArrowUp');
+  await expect(order).toHaveText([/Pilgrimsfärd/, /Blott en dag/]);
+  await page.keyboard.press('Alt+ArrowDown');
+  await expect(order).toHaveText([/Blott en dag/, /Pilgrimsfärd/]);
+  await page.reload();
+  await expect(order).toHaveText([/Blott en dag/, /Pilgrimsfärd/]);
+
+  // Look at the first item: Kort, three slides; the default arrangement shows its own order.
   await page.getByRole('button', { name: 'Pilgrimsfärd', exact: true }).click();
   const tiles = page.getByRole('list', { name: 'Pilgrimsfärd' }).getByTestId('slide-text');
   await expect(tiles).toHaveText(['Pilgrimsfärd', 'Härlig är jorden', 'Pilgrimsfärd']);
@@ -243,4 +262,10 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await page.getByRole('link', { name: 'Kväll' }).click();
   await page.getByRole('button', { name: /^Amazing Grace/ }).click();
   await expect(page.getByText('Sången finns inte längre.')).toBeVisible();
+
+  // The selected item's ⋯ menu removes it, after asking (Sidebar.razor).
+  await page.getByRole('button', { name: 'Fler val för Amazing Grace' }).click();
+  await page.getByRole('menuitem', { name: 'Ta bort' }).click();
+  await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
+  await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveCount(0);
 });

@@ -13,7 +13,6 @@ import { Highlight } from '../ui/Highlight.tsx';
 import {
   BookOpenIcon,
   ChevronDownIcon,
-  ChevronUpIcon,
   CloseIcon,
   EllipsisOutlineIcon,
   EmptySlidesPicture,
@@ -34,6 +33,7 @@ import { AddFooter, EmptyTab, SearchField } from '../ui/Picker.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { tileClass } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
+import { useSortable } from '../ui/sortable.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { KeepOffline, MediaReadiness } from '../ui/MediaReadiness.tsx';
 import { BibleTab } from './BibleTab.tsx';
@@ -476,12 +476,21 @@ export function PresentationEditor({ id }: { id: string }) {
     const ok = await ask({ title: t('presentation.removeTitle'), text: t('presentation.removeConfirm', { title: item.title }), confirm: t('common.delete') });
     if (ok) void db.mutate('removeItem', { itemId: item.id });
   };
+  // Dragged by the handle (Sidebar.razor), saved by the same mutator as Alt+↑/↓.
+  const { listRef, rowStyle, handle, dragging } = useSortable<HTMLOListElement>((from, to) => void db.mutate('moveItem', { itemId: items[from]!.id, by: to - from }));
 
   // Page shortcuts (spec 03 section 6). A dialog stops its keys, so these never fire behind one.
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
-    if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (document.querySelector('[aria-modal="true"]')) return; // a dialog is open, even if focus slipped behind it (PRES-R37)
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      // Alt+↑/↓ moves the selected item one place: the keyboard's way to do what the drag handle does.
+      if (!selected) return;
+      e.preventDefault();
+      void db.mutate('moveItem', { itemId: selected.id, by: e.key === 'ArrowUp' ? -1 : 1 });
+      return;
+    }
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === 'a') setAdding(true);
     else if (e.key === 'F2' && selected) setRenaming(true);
     else if (e.key === 'Delete' && selected) void removeItem(selected);
@@ -512,8 +521,6 @@ export function PresentationEditor({ id }: { id: string }) {
   const selectedSong = selected?.type === 'song' ? songs.get(selected.sourceId) : undefined;
   const selectedArrangements = selectedSong ? sortedArrangements(data.arrangements, selectedSong.id) : [];
   const selectedSlides = selected ? slides.get(selected.id) : undefined;
-
-  const moveButton = 'size-7 flex items-center justify-center rounded-full cursor-pointer disabled:opacity-30 disabled:cursor-default';
 
   return (
     <section className="flex-1 min-h-0 flex relative">
@@ -564,7 +571,7 @@ export function PresentationEditor({ id }: { id: string }) {
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <ol className="pb-8" aria-label={t('presentation.items')}>
+          <ol ref={listRef} className="pb-8" aria-label={t('presentation.items')}>
             {items.map((item, i) => {
               const problem = slides.get(item.id)?.problem;
               const carried = item.overlayId ? overlays.find((o) => o.id === item.overlayId) : undefined;
@@ -572,7 +579,11 @@ export function PresentationEditor({ id }: { id: string }) {
               return (
                 <li
                   key={item.id}
-                  className={`flex items-center mx-2 rounded-lg text-sm group ${isSelected ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+                  data-sort-row
+                  style={rowStyle(i)}
+                  className={`flex items-center mx-2 rounded-lg text-sm group ${isSelected ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'} ${
+                    dragging === i ? `shadow-lg ${isSelected ? '' : 'bg-white dark:bg-neutral-700'}` : ''
+                  }`}
                 >
                   <AppButton
                     variant="plain"
@@ -601,34 +612,31 @@ export function PresentationEditor({ id }: { id: string }) {
                       </span>
                     )}
                   </AppButton>
-                  <span className={`flex items-center shrink-0 pr-1 ${isSelected ? 'text-white/70' : 'text-neutral-300 dark:text-neutral-500'}`}>
-                    <AppButton
-                      variant="plain"
-                      className={`${moveButton} ${isSelected ? 'hover:bg-sky-400 hover:text-white' : 'hover:bg-neutral-200 dark:hover:bg-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-300'}`}
-                      aria-label={`${t('common.moveUp')} ${item.title}`}
-                      disabled={i === 0}
-                      onClick={() => void db.mutate('moveItem', { itemId: item.id, by: -1 })}
+                  {isSelected && (
+                    <Dropdown
+                      className="shrink-0"
+                      menuClassName="w-48"
+                      button={{
+                        className: 'p-2 rounded-full hover:bg-sky-400 cursor-pointer text-white/70 hover:text-white',
+                        title: t('presentation.options'),
+                        'aria-label': t('presentation.itemOptions', { title: item.title }),
+                      }}
+                      trigger={<EllipsisOutlineIcon className="size-4" />}
                     >
-                      <ChevronUpIcon className="size-3.5" />
-                    </AppButton>
-                    <AppButton
-                      variant="plain"
-                      className={`${moveButton} ${isSelected ? 'hover:bg-sky-400 hover:text-white' : 'hover:bg-neutral-200 dark:hover:bg-neutral-600 hover:text-neutral-600 dark:hover:text-neutral-300'}`}
-                      aria-label={`${t('common.moveDown')} ${item.title}`}
-                      disabled={i === items.length - 1}
-                      onClick={() => void db.mutate('moveItem', { itemId: item.id, by: 1 })}
-                    >
-                      <ChevronDownIcon className="size-3.5" />
-                    </AppButton>
-                    <AppButton
-                      variant="plain"
-                      className={`${moveButton} ${isSelected ? 'hover:bg-sky-400 hover:text-white' : 'hover:bg-red-100 dark:hover:bg-red-950/60 hover:text-red-500'}`}
-                      aria-label={`${t('presentation.remove')} ${item.title}`}
-                      onClick={() => void removeItem(item)}
-                    >
-                      <CloseIcon className="size-3.5" />
-                    </AppButton>
-                  </span>
+                      <AppButton variant="plain" role="menuitem" className={`${MENU_ITEM} text-red-500! dark:text-red-400!`} onClick={() => void removeItem(item)}>
+                        <TrashIcon className="size-4" strokeWidth={1.5} />
+                        {t('presentation.remove')}
+                      </AppButton>
+                    </Dropdown>
+                  )}
+                  {/* The drag handle; Alt+↑/↓ moves the selected item from the keyboard. */}
+                  <div
+                    {...handle(i)}
+                    data-testid="drag-handle"
+                    className={`px-3 py-2 shrink-0 cursor-grab active:cursor-grabbing touch-none select-none ${isSelected ? 'text-white/30' : 'text-neutral-300 dark:text-neutral-500'}`}
+                  >
+                    <MenuIcon className="size-4" />
+                  </div>
                 </li>
               );
             })}

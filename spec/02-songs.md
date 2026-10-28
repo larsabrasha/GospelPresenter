@@ -141,7 +141,8 @@ save. Body = `SongEditor` (also used inside the add-item modal, see below):
    - Each arrangement card: name field "Namn" (only shown when the song has ≥ 2 arrangements;
      auto-save 500 ms); a vertical list of part chips (label pill in label colour, or grey pill with
      the first line of the content cut to 20 chars + "..."); chips are drag-reorderable (saved on
-     drop); each chip has × to remove that occurrence (no confirmation); "Lägg till del" dropdown
+     drop; rewrite: Alt+↑/↓ moves the focused chip one place, as the current app has no keyboard
+     way); each chip has × to remove that occurrence (no confirmation); "Lägg till del" dropdown
      lists every song part and appends the chosen one at the end; trash icon deletes the
      arrangement after "Vill du ta bort arrangemanget?".
    - **Skapa arrangemang** shown while fewer than 10 arrangements; creates an unnamed arrangement

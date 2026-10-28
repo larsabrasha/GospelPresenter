@@ -82,6 +82,15 @@ export function MenuIcon({ className }: IconProps) {
   );
 }
 
+/** Two lines: an arrangement chip's drag handle (SongArrangementEditor.razor). */
+export function GripIcon({ className }: IconProps) {
+  return (
+    <Outline className={className} strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
+    </Outline>
+  );
+}
+
 export function TrashIcon({ className, strokeWidth = 2 }: StrokeIconProps) {
   return (
     <Outline className={className} strokeWidth={strokeWidth}>

@@ -645,7 +645,8 @@ rule says so), `Dialog`, `Modal`, `FloatingInput`/`Select`/`Textarea`, `PillTabs
 `PageContainer`. The start page (`pages/Presentations.tsx`) is `Dashboard.razor`: Idag, Kommande and the rest.
 
 The presentation (step 2) is `Pages/Presentation.razor` and what it uses: the running order in a white side
-column (`Sidebar.razor`), the slides as rounded tiles (`SlideGrid.razor`, `ui/SlideTile.tsx`), the green
+column (`Sidebar.razor`; an item is dragged by its handle at the right, and the selected one has a ⋯ menu with
+Ta bort), the slides as rounded tiles (`SlideGrid.razor`, `ui/SlideTile.tsx`), the green
 Starta presentation, the add modal with its pill tabs and round search (`AddItemModal.razor`, `ui/Picker.tsx`),
 the live page's panel at the right (`LivePanel.razor`: Nu visas, Utgångar, Overlays, fjärrstyrning as
 switches in `ui/Toggle.tsx`, Scenläge, the red Avsluta) and the dark stage view with its bottom sheets
@@ -659,7 +660,7 @@ button, while Bibeltexter keeps its preview in the tab. The live page has no run
 The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the list in a light card with
 Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button
 (`ui/PageContainer.tsx`), the fields as floating fields, a card per part with its label as a pill, ↑ ↓ and
-the bin, and the arrangements as stacked chips with the dashed Lägg till del. Song history and the ProPresenter import are not built,
+the bin, and the arrangements as stacked chips, each dragged by the whole chip, with the dashed Lägg till del. Song history and the ProPresenter import are not built,
 so their pages and buttons are missing.
 
 The admin pages (step 4) are `Pages/Admin/*.razor`, `Trash.razor` and `Profile.razor`: each a title row and
@@ -694,6 +695,15 @@ blank, and Rensa is gone while black; Utgångar, Overlays and Fjärrstyrning fol
 the first way in, the rest behind "Fler alternativ", and the version (the commit: there is no release number yet);
 the canvas is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen
 scrolls on `/watch` and a paired screen, not on the output window.
+
+Dragging, in the running order and an arrangement's chips, is the current app's SortableJS lists redone with
+pointer events (`ui/sortable.ts`, no library): the mouse drags at once; a finger drags after holding still
+150 ms, so a swipe still scrolls; the rows make room as the dragged one passes; near the edge of a scrolling list it
+scrolls; Escape cancels. A drop is saved by the mutators the ↑ ↓ buttons used before (`moveItem`,
+`moveArrangementPart`, moved `by` the places it passed), so sync is as before. The current app has no keyboard
+way; here Alt+↑/↓ moves the selected item in the running order, and the focused chip in an arrangement (Tab
+reaches each chip). Tested in e2e: the mouse and the keys (`milestone2.spec.ts`), and touch through Chromium's
+touch input (`drag.spec.ts`); not on a real tablet or in Safari.
 
 The move went in steps, and is finished: 1 the frame, the components and the start page; 2 the presentation
 (editor, live, stage view, Lägg till); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`,
@@ -738,8 +748,7 @@ To try it with a tablet: `GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop 
 `https://<the Mac's LAN address>:47843` on the tablet, accept the certificate warning once, and pair it under
 Enheter → Anslut enhet.
 
-Look work left for later, each as the current app does it: dragging items in the running order (2.4) and arrangement chips (3.6),
-with a ⋯ menu per item; "✓ Sparad" in the song's
+Look work left for later, each as the current app does it: "✓ Sparad" in the song's
 header, with saving 500 ms after typing (3.5); Extern skärm as a switch, once the window can be closed from there (2.6); a
 paired screen drawing the projector's canvas, which needs the slide as `Slide` rather than `PublicSlide` (5.3);
 and a "Gör tillgänglig offline" button per Bible, which needs each device to choose its Bibles (4.10).

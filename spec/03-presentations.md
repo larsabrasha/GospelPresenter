@@ -160,7 +160,8 @@ nothing.
 - Bottom (normal mode): sticky **Lägg till** button → Add modal.
 - Selecting an item: closes the mobile menu, scrolls the slide grid to top.
 - Keyboard in the list: ↑/↓/Home/End *select* (not just focus) the previous/next item (no wrap);
-  ignored with modifier keys and in multi-select mode.
+  ignored with modifier keys and in multi-select mode. (Rewrite: Alt+↑/↓ moves the selected item one
+  place, the keyboard's way to do what the drag handle does; the current app has none.)
 
 #### 2b. Header (`S/Components/Presentations/PresentationHeader.razor`)
 - Selected item title; on desktop (≥lg) clicking it (or F2) turns it into an input: Enter or blur
@@ -298,6 +299,7 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 | Presentation | `a` | Open Add modal (ignored in remote and stage mode). |
 | Presentation | `F2` | Rename selected item (ignored in stage mode). |
 | Presentation | `Delete` | Confirm-remove selected item (ignored in remote and stage mode). |
+| Presentation (rewrite) | Alt+↑ / Alt+↓ | Move the selected item one place up / down. |
 | Presentation (doc) | ↓ / → / Enter | Move through running order / slides / show slide. |
 | Lägg till (blocking) | Ctrl/⌘+1…5 | Switch tab. |
 | Lägg till (doc) | Ctrl/⌘+Enter, Shift+Enter, ↓ | Add and close / add and stay / move in results. |

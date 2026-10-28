@@ -1,4 +1,5 @@
 import { DEFAULT_LABELS, labelId, LIMITS, parsePartIds, type Label, type SongArrangement, type SongPart } from '@gp/core';
+import { useEffect, useRef } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { arrangementsOf, getSong, listLabels, presentationsUsing, songPartsOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -6,9 +7,10 @@ import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { FloatingInput, FloatingTextarea } from '../ui/Floating.tsx';
-import { ChevronDownIcon, ChevronUpIcon, CloseIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { ChevronDownIcon, ChevronUpIcon, CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { SelectMenu } from '../ui/SelectMenu.tsx';
+import { useSortable } from '../ui/sortable.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { href, navigate } from '../ui/router.ts';
 
@@ -66,9 +68,6 @@ function PartPill({ part, labels }: { part: SongPart; labels: Map<string, Label>
   );
 }
 
-/** A small icon button on an arrangement chip. */
-const CHIP_BUTTON = 'p-0.5 text-neutral-300 dark:text-neutral-500 cursor-pointer shrink-0 disabled:opacity-40 disabled:cursor-default';
-
 /** One arrangement: a list of part chips to reorder, remove and append to (spec 02 "Arrangemang"). */
 function ArrangementCard({
   arrangement,
@@ -91,6 +90,26 @@ function ArrangementCard({
   const ids = parsePartIds(arrangement.partIds);
   const visible = ids.flatMap((id, i) => (byId.has(id) ? [i] : []));
   const title = arrangement.name ?? `${t('song.arrangement')} ${index + 1}`;
+  // The chip moved from the keyboard, by its place in the stored list, to focus again once it is there.
+  const refocus = useRef<{ partId: string; index: number } | null>(null);
+
+  /** Moves the chip shown `from`th to be shown `to`th; hidden ids keep their places. */
+  const move = (from: number, to: number) => {
+    const at = visible[from];
+    const target = visible[to];
+    if (at === undefined || target === undefined || at === target) return;
+    const partId = ids[at]!;
+    void db.mutate('moveArrangementPart', { id: arrangement.id, index: at, partId, by: target - at });
+    return { partId, index: target };
+  };
+  const { listRef, list, rowStyle, handle, dragging } = useSortable<HTMLOListElement>((from, to) => void move(from, to));
+
+  useEffect(() => {
+    const want = refocus.current;
+    if (!want || ids[want.index] !== want.partId) return;
+    refocus.current = null;
+    list.current?.querySelector<HTMLElement>(`[data-index="${want.index}"]`)?.focus();
+  });
 
   return (
     <li className="bg-neutral-50 dark:bg-neutral-800 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-4 space-y-3" role="group" aria-label={title}>
@@ -106,43 +125,40 @@ function ArrangementCard({
           <div className="flex-1" />
         </div>
       )}
-      <ol className="flex flex-col gap-1 max-w-[50%]" aria-label={t('song.arrangementParts')}>
-        {ids.map((id, i) => {
-          const part = byId.get(id);
-          if (!part) return null;
-          const name = partName(part, labels);
-          // Moved with ↑ and ↓ rather than dragged, so the chip has no drag handle.
+      <ol
+        ref={listRef}
+        className="flex flex-col gap-1 max-w-[50%]"
+        aria-label={t('song.arrangementParts')}
+      >
+        {visible.map((i, v) => {
+          const id = ids[i]!;
+          const part = byId.get(id)!;
+          // The whole chip is the drag handle, as in the current app; with focus on it, Alt+↑/↓ moves it.
           return (
             <li
               key={`${id}-${i}`}
-              className="flex items-center gap-1.5 bg-white dark:bg-neutral-700 rounded-lg shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 px-2 py-1.5"
+              data-sort-row
+              data-index={i}
+              tabIndex={0}
+              aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+              style={rowStyle(v)}
+              {...handle(v)}
+              onKeyDown={(e) => {
+                if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+                e.preventDefault();
+                refocus.current = move(v, e.key === 'ArrowUp' ? v - 1 : v + 1) ?? null;
+              }}
+              className={`flex items-center gap-1.5 bg-white dark:bg-neutral-700 rounded-lg shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 px-2 py-1.5 cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                dragging === v ? 'shadow-lg' : ''
+              }`}
             >
+              <GripIcon className="size-4 text-neutral-300 dark:text-neutral-500 shrink-0" />
               <PartPill part={part} labels={labels} />
               <span className="flex-1" />
               <AppButton
                 variant="plain"
-                className={`${CHIP_BUTTON} hover:text-neutral-600 dark:hover:text-neutral-200`}
-                aria-label={`${t('common.moveUp')} ${name}`}
-                title={t('common.moveUp')}
-                disabled={i === visible[0]}
-                onClick={() => void db.mutate('moveArrangementPart', { id: arrangement.id, index: i, partId: id, by: -1 })}
-              >
-                <ChevronUpIcon className="size-3.5" />
-              </AppButton>
-              <AppButton
-                variant="plain"
-                className={`${CHIP_BUTTON} hover:text-neutral-600 dark:hover:text-neutral-200`}
-                aria-label={`${t('common.moveDown')} ${name}`}
-                title={t('common.moveDown')}
-                disabled={i === visible.at(-1)}
-                onClick={() => void db.mutate('moveArrangementPart', { id: arrangement.id, index: i, partId: id, by: 1 })}
-              >
-                <ChevronDownIcon className="size-3.5" />
-              </AppButton>
-              <AppButton
-                variant="plain"
-                className={`${CHIP_BUTTON} hover:text-red-500 dark:hover:text-red-400`}
-                aria-label={t('song.removeChip', { part: name })}
+                className="p-0.5 text-neutral-300 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400 cursor-pointer shrink-0"
+                aria-label={t('song.removeChip', { part: partName(part, labels) })}
                 onClick={() => void db.mutate('removeArrangementPart', { id: arrangement.id, index: i, partId: id })}
               >
                 <CloseIcon className="size-3.5" />
