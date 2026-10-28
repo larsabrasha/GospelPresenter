@@ -14,7 +14,7 @@ import { OverlayEditor, Overlays } from './pages/Overlays.tsx';
 import { Devices } from './pages/Devices.tsx';
 import { Displays } from './pages/Displays.tsx';
 import { Images } from './pages/Images.tsx';
-import { Live } from './pages/Live.tsx';
+import { Live } from './pages/live/index.ts';
 import { Logins } from './pages/Logins.tsx';
 import { Output } from './pages/Output.tsx';
 import { PresentationEditor } from './pages/presentation-editor/index.ts';
