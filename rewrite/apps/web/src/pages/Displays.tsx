@@ -74,11 +74,12 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
 }
 
 /**
- * A link as a QR code and as text to copy, with what to do with each; for a
- * public output also "Ladda ner som bild" (spec 04 §7). A screen's dialog is
- * Displays.razor's: the QR code, "eller", then the link.
+ * A link as a QR code and as text to copy, with what to do with each (spec 04
+ * §7). A screen's dialog is Displays.razor's: the QR code, "eller", then the
+ * link. A public output's also has "Ladda ner som bild" and, under a line,
+ * "Ny kod" (`renew`).
  */
-function LinkDialog({ title, url, download, onClose }: { title: string; url: string; download?: string; onClose: () => void }) {
+function LinkDialog({ title, url, download, renew, onClose }: { title: string; url: string; download?: string; renew?: () => void; onClose: () => void }) {
   const toast = useToast();
   const screen = !download;
   return (
@@ -110,11 +111,20 @@ function LinkDialog({ title, url, download, onClose }: { title: string; url: str
         </div>
       )}
       <CopyField value={url} label={t('displays.link')} copyLabel={t('displays.copy')} onCopy={() => void copyLink(url, () => toast(t('displays.copied')))} />
+      {renew && (
+        <div className="mt-8! pt-4 border-t border-neutral-200 dark:border-neutral-700 space-y-3">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">{t('displays.newCodeText')}</p>
+          <AppButton variant="danger" className="text-xs" onClick={renew}>
+            {t('displays.newCode')}
+          </AppButton>
+        </div>
+      )}
     </Dialog>
   );
 }
 
-async function copyLink(url: string, done: () => void) {
+/** Copies a link and says so; over plain http there is no clipboard, and nothing happens. */
+export async function copyLink(url: string, done: () => void) {
   try {
     await navigator.clipboard.writeText(url);
     done();
@@ -139,17 +149,17 @@ export function Displays({ link }: { link: LiveLink }) {
   const [creating, setCreating] = useState<Display['kind'] | null>(null);
   const [showing, setShowing] = useState<Display | null>(null);
 
+  /** The session sending to a public output, if one is, and how many watch it. */
   const status = (d: Display) => {
     const s = sessions.find((x) => x.outputs.some((o) => o.id === d.id));
-    const viewers = s?.outputs.find((o) => o.id === d.id)?.viewers ?? 0;
-    return s ? `${t('displays.sending', { name: s.presentationName })} · ${viewersText(viewers)}` : null;
+    return { sending: s?.presentationName ?? null, viewers: s?.outputs.find((o) => o.id === d.id)?.viewers ?? 0 };
   };
 
-  const copy = (d: Display) => copyLink(watchUrl(d.code, base), () => toast(t('displays.copied')));
-
+  // As Displays.razor's: the old code's dialog closes, since its link and QR code no longer work.
   const renew = async (d: Display) => {
     if (!(await ask({ title: t('displays.newCode'), text: t('displays.newCodeConfirm', { name: d.name }), confirm: t('displays.newCode') }))) return;
     await db.mutate('newDisplayCode', { id: d.id, code: newDisplayCode() });
+    setShowing(null);
     toast(t('displays.newCodeDone'));
   };
 
@@ -214,27 +224,22 @@ export function Displays({ link }: { link: LiveLink }) {
         )}
         <ul aria-label={t('displays.public')}>
           {displays?.map((d) => {
-            const sending = status(d);
+            const { sending, viewers } = status(d);
             return (
               <li key={d.id} className={ROW} aria-label={d.name}>
                 <QrCodeIcon className={`size-5 ${sending ? 'text-green-500' : 'text-neutral-300 dark:text-neutral-600'}`} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{d.name}</div>
-                  {sending && <div className="text-xs text-green-600 dark:text-green-400 truncate">{sending}</div>}
+                  {sending && <div className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{t('displays.sending', { name: sending })}</div>}
                 </div>
+                <div className={`text-xs ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-neutral-400 dark:text-neutral-500'}`}>{viewersText(viewers)}</div>
                 <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
                   <QrCodeIcon className="size-3.5" />
                   {t('displays.showQr')}
                 </AppButton>
-                <AppButton variant="neutral" className="text-xs" onClick={() => void renew(d)}>
-                  {t('displays.newCode')}
-                </AppButton>
                 <AppButton variant="danger" className="text-xs" onClick={() => void remove(d)}>
                   {t('displays.delete')}
                 </AppButton>
-                <div className="basis-full">
-                  <CopyField value={watchUrl(d.code, base)} label={`${t('displays.link')} ${d.name}`} copyLabel={t('displays.copy')} onCopy={() => void copy(d)} />
-                </div>
               </li>
             );
           })}
@@ -254,6 +259,7 @@ export function Displays({ link }: { link: LiveLink }) {
           title={showing.name}
           url={showing.kind === 'screen' ? screenUrl(showing, base) : watchUrl(showing.code, base)}
           download={showing.kind === 'public' ? `qr-${showing.code}.png` : undefined}
+          renew={showing.kind === 'public' ? () => void renew(showing) : undefined}
           onClose={() => setShowing(null)}
         />
       )}

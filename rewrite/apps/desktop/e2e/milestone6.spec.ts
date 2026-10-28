@@ -49,6 +49,31 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   await stage.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
 
+  // The keys of a pedal or clicker (spec 04 §10): `b` blanks as Rensa does, and again does not show it back;
+  // `.` and `B` blank too; Enter is next.
+  await page.keyboard.press('b');
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
+  await expect(stage.getByRole('button', { name: 'Rensa' })).toBeHidden();
+  await page.keyboard.press('b');
+  await page.keyboard.press('Enter');
+  await expect(output.getByTestId('slide-text')).toHaveText('A två');
+  await page.keyboard.press('B');
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
+  await page.keyboard.press('ArrowLeft');
+  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+  await page.keyboard.press('.');
+  await expect(output.getByTestId('slide-text')).toHaveCount(0);
+
+  // Esc closes an open sheet first, and only then the stage view.
+  await stage.getByRole('button', { name: 'Sång A', exact: true }).click();
+  await expect(stage.getByRole('dialog', { name: 'Välj programpunkt' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(stage.getByRole('dialog', { name: 'Välj programpunkt' })).toHaveCount(0);
+  await expect(stage).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(stage).toHaveCount(0);
+  await page.getByRole('button', { name: 'Scenläge' }).click();
+
   await stage.getByRole('button', { name: 'Lämna scenläge' }).click();
   await expect(stage).toHaveCount(0);
 

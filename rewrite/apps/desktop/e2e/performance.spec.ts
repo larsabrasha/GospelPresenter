@@ -3,7 +3,7 @@
 // database answers the page, so the hash must give the thread back.
 import { chromium, expect, test, type Browser } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, openPresentations, pair, remoteSwitch, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -44,7 +44,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Stäng' }).click();
   await addSongs(page, ['Sång A']);
   await page.getByRole('link', { name: 'Starta presentation' }).click();
-  await (await remoteSwitch(page)).check();
+  await allowRemote(page);
 
   await openPresentations(phone);
   const take = phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' });

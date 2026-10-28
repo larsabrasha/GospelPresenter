@@ -2,8 +2,9 @@ import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from
 import type { LivePointer, LiveSessionInfo, Overlay, PresentationItem } from '@gp/core';
 import { useData, useShownOverlay } from '../db/react.tsx';
 import { listDisplays } from '../db/queries.ts';
-import { useConfirm } from '../ui/Dialog.tsx';
-import { viewersText } from './Displays.tsx';
+import { Dialog, useConfirm } from '../ui/Dialog.tsx';
+import { CopyField } from '../ui/CopyField.tsx';
+import { copyLink, viewersText } from './Displays.tsx';
 import { getPresentation, itemsOf, listOverlays, themeOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { RemoteAudio, useAudio, type AudioControl } from '../live/audio.ts';
@@ -12,7 +13,7 @@ import { chosenOutputs, REMOTE_CHANGED, setOutput, setRemoteAllowed } from '../l
 import { remoteAllowed, RemoteControl, useLiveSessions, type LiveControl, type LiveLink } from '../live/remote.ts';
 import { openOutput, useLivePointer } from '../live/useLive.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { ArrowsPointingOutIcon, ChevronDownIcon, CloseIcon, DesktopIcon, FadeOutIcon, ItemIcon, PauseIcon, PlayIcon, PlusIcon, RemoteIcon, StopIcon } from '../ui/icons.tsx';
+import { ArrowsPointingOutIcon, ChevronDownIcon, CloseIcon, DesktopIcon, FadeOutIcon, ItemIcon, PauseIcon, PlayIcon, PlusIcon, QrCodeOutlineIcon, RemoteIcon, StopIcon } from '../ui/icons.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { LiveBadge, tileClass } from '../ui/SlideTile.tsx';
 import { CAPTION, ToggleRow, rowClass } from '../ui/Toggle.tsx';
@@ -94,38 +95,130 @@ function PanelSection({ title, hint, open: initiallyOpen, badge, children }: { t
   );
 }
 
-/** "Tillåt fjärrstyrning" and the link a phone opens, as text and as a QR code (spec 04 §1, §9); closed at first, as LivePanel.razor's. */
-function RemotePanel({ id, sessionId }: { id: string; sessionId: string }) {
+/**
+ * "Tillåt fjärrstyrning" and, beside it, the button for the link a phone opens
+ * (spec 04 §1, §9); closed at first, as LivePanel.razor's. The first time it is
+ * switched on here, the link's dialog opens by itself.
+ */
+function RemotePanel({ id, sessionId, name }: { id: string; sessionId: string; name: string | undefined }) {
   const [on, setOn] = useState(remoteAllowed);
-  const base = useServerBase();
-  const url = `${base}${href({ page: 'live', id, remote: true, session: sessionId })}`;
+  const [info, setInfo] = useState(false);
+  const [autoShown, setAutoShown] = useState(false);
   return (
     <PanelSection title={t('live.remote')} hint={t('live.remoteHint')} open={false}>
-      <ToggleRow
-        label={t('remote.allow')}
-        icon={<RemoteIcon className="size-4 shrink-0" />}
-        checked={on}
-        onChange={(v) => {
-          setOn(v);
-          setRemoteAllowed(v);
-        }}
-      />
-      {on && (
-        <div className="px-3 py-3 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 space-y-3">
-          <p className="text-xs leading-relaxed text-neutral-600 dark:text-neutral-300">{t('remote.how')}</p>
-          <div className="flex justify-center [&_.qr]:m-0 [&_.qr]:rounded-lg">
-            <QrCode value={url} label={t('remote.qr')} size={160} />
-          </div>
-          <input
-            className="w-full px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-xs text-neutral-600 dark:text-neutral-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
-            readOnly
-            value={url}
-            aria-label={t('remote.link')}
-            onFocus={(e) => e.currentTarget.select()}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <ToggleRow
+            label={t('remote.allow')}
+            icon={<RemoteIcon className="size-4 shrink-0" />}
+            checked={on}
+            onChange={(v) => {
+              setOn(v);
+              setRemoteAllowed(v);
+              if (v && !autoShown) {
+                setAutoShown(true);
+                setInfo(true);
+              }
+            }}
           />
         </div>
-      )}
+        <AppButton
+          variant="plain"
+          disabled={!on}
+          title={t('remote.showInfo')}
+          aria-label={t('remote.showInfo')}
+          onClick={() => setInfo(true)}
+          className={`size-8 flex items-center justify-center rounded-lg shrink-0 transition-colors ${
+            on
+              ? 'cursor-pointer text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/30 hover:bg-sky-200 dark:hover:bg-sky-900/50'
+              : 'cursor-default text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-700/50 opacity-50'
+          }`}
+        >
+          <QrCodeOutlineIcon className="size-4" />
+        </AppButton>
+      </div>
+      {info && <RemoteInfoDialog url={remoteUrl(id, sessionId)} name={name} onClose={() => setInfo(false)} />}
     </PanelSection>
+  );
+}
+
+function remoteUrl(id: string, sessionId: string): string {
+  // The session is named in the link: a code taped to a lectern keeps meaning this machine.
+  return href({ page: 'live', id, remote: true, session: sessionId });
+}
+
+/** A caption that opens and closes what is under it (RemoteControlInfoDialog.razor); closed, its content is inert. */
+function Fold({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  return (
+    <div>
+      <AppButton variant="plain" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)} className="cursor-pointer flex items-center gap-2 w-full text-left py-2 -my-2">
+        <ChevronDownIcon className={`size-3 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 ${open ? '' : '-rotate-90'}`} />
+        <span className={CAPTION}>{title}</span>
+      </AppButton>
+      <div id={id} inert={!open} className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+        <div className="overflow-hidden min-h-0">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Fjärrstyr presentationen" (RemoteControlInfoDialog.razor): the link as a QR
+ * code, then, folded, the link to copy and how to take control from the app.
+ */
+function RemoteInfoDialog({ url: path, name, onClose }: { url: string; name: string | undefined; onClose: () => void }) {
+  const toast = useToast();
+  const url = `${useServerBase()}${path}`;
+  return (
+    <Dialog title={t('remote.infoTitle')} onClose={onClose} maxWidthClass="max-w-sm" showClose>
+      <div className="space-y-2">
+        <div className="flex justify-center">
+          <div className="bg-white p-3 rounded-lg w-48 h-48 flex items-center justify-center [&>svg]:w-full [&>svg]:h-full [&_.qr]:m-0">
+            <QrCode value={url} label={t('remote.qr')} />
+          </div>
+        </div>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">{t('remote.scanHint')}</p>
+      </div>
+      <div className="mt-8! flex items-center gap-3">
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+        <span className="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t('remote.or')}</span>
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+      </div>
+      <Fold title={t('remote.copyLink')}>
+        <div className="pt-3">
+          <CopyField value={url} label={t('remote.link')} copyLabel={t('displays.copy')} onCopy={() => void copyLink(url, () => toast(t('displays.copied')))} />
+        </div>
+      </Fold>
+      <Fold title={t('remote.openAppTitle')}>
+        <div className="pt-3 space-y-2">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('remote.openAppHint')}</p>
+          {/* A small picture of the other app's start page, with its "Ta kontroll" card. */}
+          <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-white dark:bg-neutral-900 shadow-sm pointer-events-none select-none" aria-hidden="true">
+            <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+              <span className="size-1.5 rounded-full bg-red-400" />
+              <span className="size-1.5 rounded-full bg-yellow-400" />
+              <span className="size-1.5 rounded-full bg-green-400" />
+            </div>
+            <div className="p-2">
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded border border-emerald-200 dark:border-emerald-800">
+                <div className="px-2 py-1.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="inline-block size-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+                    <div className="min-w-0">
+                      <div className="text-[8px] font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('remote.nowShowing')}</div>
+                      <div className="text-[10px] font-medium text-neutral-700 dark:text-neutral-200 truncate">{name ?? t('remote.activePresentation')}</div>
+                    </div>
+                  </div>
+                  <div className="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500 text-white text-[9px] font-medium">{t('remote.takeControl')}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Fold>
+    </Dialog>
   );
 }
 
@@ -486,7 +579,7 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
             )}
             {owner && (
               <div className="mt-3">
-                <RemotePanel id={id} sessionId={owner.sessionId} />
+                <RemotePanel id={id} sessionId={owner.sessionId} name={data.presentation?.name} />
               </div>
             )}
             <AppButton variant="secondary" onClick={() => setStage(true)} className="mt-3 flex items-center justify-center gap-2">

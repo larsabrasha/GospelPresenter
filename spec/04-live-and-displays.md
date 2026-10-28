@@ -140,7 +140,7 @@ Not available on `/templates/{id}` (template mode never shows live controls).
   card header shows a tiny live preview). Contents, top to bottom
   (`GospelPresenter/GospelPresenter.Shared/Components/Presentations/LivePanel.razor`):
   1. **Nu visas** — live preview (exactly what outputs show incl. overlay and black fade).
-  2. **Rensa** — toggles black screen. The button is invisible while black (LIVE-R13).
+  2. **Rensa** — blacks the screen; it does not toggle back. The button is invisible while black (LIVE-R13).
   3. **Utgångar** (hidden in remote mode) with hint text. Rows:
      - **Extern skärm** toggle — shown when the host has a second display (desktop), the browser has
        the Presentation API, or the projector is currently on.
@@ -292,9 +292,10 @@ Full-screen dark overlay for a worship leader/foot pedal. Only shown while the s
   link/QR dialog for the new one.
 - Screen link dialog: QR + copyable URL `{server}/display?id={code}&name={name}` ("Länk kopierad").
 - Public QR dialog: QR of `{server}/watch/{code}`, **Ladda ner som bild** (`qr-{code}.png`, 24 px per
-  module, ECC M), copyable URL, **Ny kod** with confirmation "“{0}” får en helt ny kod. Alla utskrivna
+  module, ECC M), copyable URL, and under a line "Om koden har spridits dit den inte hör hemma kan du byta
+  ut den mot en ny." with **Ny kod** with confirmation "“{0}” får en helt ny kod. Alla utskrivna
   skyltar och sparade länkar slutar fungera, och alla som tittar just nu kopplas bort. Detta kan inte
-  ångras." → toast "Ny kod skapad"; error → "Common.ErrorOccurred".
+  ångras." → toast "Ny kod skapad" and the dialog closes; error → "Common.ErrorOccurred".
 - Delete: confirm dialog "Är du säker på att du vill ta bort skärmen {0}?" (no trash). Delete and
   regenerate immediately disconnect viewers and unbind the old code.
 - URLs are built against the *server* address even on a device host.
@@ -330,7 +331,7 @@ Live-updates on start/stop/presence. (Connected-users page belongs to the *Admin
 | Slide grid | Enter (focused tile) | put slide live | `SlideGrid.razor:366-369` |
 | Stage mode | → ↓ PageDown Space Enter | next part (first part if nothing of this item is live) | `utils.js:1160-1165`, `StageView.razor:494-499` |
 | Stage mode | ← ↑ PageUp | previous part (no-op at 0) | same |
-| Stage mode | `.` `b` `B` | toggle black screen | same |
+| Stage mode | `.` `b` `B` | black screen, as Rensa: only blanks; picking a part shows it again (decided 2026-10-27; it toggled before) | same |
 | Stage mode | Esc | close open sheet, else exit stage mode | same |
 Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default action prevented.
 `?` (global help) lists the page's shortcuts (*Navigation/Shortcuts* area).
@@ -370,12 +371,12 @@ Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default
   `GospelPresenter/GospelPresenter.UnitTests/Components/LiveSelectionFollowTests.cs:92-115`
 
 ### Black screen and overlays
-- **LIVE-R11** Black screen keeps the selection; un-blacking (toggle, or selecting any slide) returns to
+- **LIVE-R11** Black screen keeps the selection; un-blacking (selecting any slide; Rensa and `b` only blank) returns to
   content. Outputs fade to black over 500 ms (black layer above overlay). `SharedAppState.cs:174-183`;
   `GospelPresenter/GospelPresenter.Shared/Components/Presentations/LiveDisplay.razor:25`
 - **LIVE-R12** Stop leaves the slide black (selection kept) then deactivates. `Presentation.razor:811-818`
 - **LIVE-R13** The "Rensa" buttons (panel and stage) are hidden while black; the way back is selecting a
-  slide (or `b`/`.` in stage mode, which toggles). `LivePanel.razor:67`; `StageView.razor:113-117`
+  slide (in stage mode also next/previous; `b`/`.` only blank, decided 2026-10-27). `LivePanel.razor:67`; `StageView.razor:113-117`
 - **LIVE-R14** Public outputs show the waiting screen (not black) while black or before anything is
   selected. `GospelPresenter/GospelPresenter.Shared/State/PublicOutputBroadcaster.cs:85-89`
 - **LIVE-R15** At most one overlay per session; toggling the active one clears it, toggling another
@@ -653,7 +654,7 @@ Setup unless stated: org "Församling", admin user, presentation P with items [S
 - **LIVE-A27** Given the dashboard of a second user in the org while P is live with remote enabled, Then
   a card "Visas just nu · P" with "Ta kontroll" is shown; it is not shown on the presenting tab itself.
 - **LIVE-A28** Given stage mode on P live, When I press Space on the last part, Then nothing changes;
-  When I press `b`, Then the screen blacks; `b` again un-blacks; Esc exits to the normal page.
+  When I press `b`, Then the screen blacks; `b` again keeps it black; Esc exits to the normal page.
 - **LIVE-A29** Given stage mode, When I pick audio item A from the picker, Then outputs go black and the
   stage shows "Ljud spelas"; When I pick S, Then part 1 of S goes live immediately.
 - **LIVE-A30** Given stage mode and another operator moves the live slide to item B, Then the stage

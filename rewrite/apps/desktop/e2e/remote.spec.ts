@@ -3,7 +3,7 @@
 // through the server, and losing the presenter freezes the session.
 import { chromium, expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, remoteSwitch, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, remoteSwitch, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -46,9 +46,26 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0);
 
   // Anna allows it; the card appears on Bo's computer without a reload.
+  // The QR code button waits for the switch; switching on the first time opens its dialog (LivePanel.razor).
+  const showInfo = page.getByRole('button', { name: 'Visa info om fjärrstyrning' });
+  await (await remoteSwitch(page)).scrollIntoViewIfNeeded();
+  await expect(showInfo).toBeDisabled();
   await (await remoteSwitch(page)).check();
-  await expect(page.getByLabel('Länk för fjärrstyrning')).toHaveValue(/\/live\/[\w-]+\?remote=1&session=[\w-]+$/);
-  await expect(page.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveAttribute('data-value', await page.getByLabel('Länk för fjärrstyrning').inputValue());
+  const info = page.getByRole('dialog', { name: 'Fjärrstyr presentationen' });
+  await expect(info.getByText('Skanna med kameran på enheten du vill fjärrstyra från.')).toBeVisible();
+  // The link to copy is folded away under the QR code, and is the code's link.
+  await info.getByRole('button', { name: 'Kopiera länken' }).click();
+  const remoteLink = info.getByLabel('Länk för fjärrstyrning');
+  await expect(remoteLink).toBeVisible();
+  await expect(remoteLink).toHaveValue(/\/live\/[\w-]+\?remote=1&session=[\w-]+$/);
+  await expect(info.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveAttribute('data-value', await remoteLink.inputValue());
+  await info.getByRole('button', { name: 'Stäng' }).click();
+  await expect(info).toHaveCount(0);
+  // Not inline in the panel any more; the button opens it again.
+  await expect(page.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveCount(0);
+  await showInfo.click();
+  await expect(info.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toBeVisible();
+  await info.getByRole('button', { name: 'Stäng' }).click();
   const card = secondApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
   await expect(card).toContainText('Söndag', { timeout: 5_000 });
   await card.getByRole('link', { name: 'Ta kontroll' }).click();
@@ -89,7 +106,7 @@ test('when the presenting computer drops out, the session freezes and someone el
   await openPresentations(secondApp.page);
   await secondApp.page.getByRole('link', { name: 'Söndag' }).click({ timeout: 5_000 });
   await secondApp.page.getByRole('link', { name: 'Starta presentation' }).click();
-  await (await remoteSwitch(secondApp.page)).check();
+  await allowRemote(secondApp.page);
   await secondApp.page.getByRole('button', { name: 'Sång A 1' }).click();
 
   await openPresentations(hostApp.page);
@@ -138,7 +155,7 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     await createPresentation(host.page, 'Söndag');
     await addSongs(host.page, ['Sång A']);
     await host.page.getByRole('link', { name: 'Starta presentation' }).click();
-    await (await remoteSwitch(host.page)).check();
+    await allowRemote(host.page);
 
     await openPresentations(phone);
     await phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 10_000 });

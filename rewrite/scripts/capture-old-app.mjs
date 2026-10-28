@@ -232,6 +232,24 @@ const pages = [
     for (const hint of await p.locator('button:visible', { hasText: /^\s*i\s*$/ }).all()) await hint.click();
     await p.waitForTimeout(400);
   }, stopLive],
+  // Fjärrstyrning switched on: its dialog opens by itself; then the panel with the QR code button.
+  ...['live-remote', 'live-remote-on'].map((name) => [name, abs(presentation), async (p) => {
+    await goLive(p);
+    await panelOpen(p);
+    const section = p.locator('button:visible', { hasText: 'Fjärrstyrning' }).first();
+    if ((await section.getAttribute('aria-expanded')) !== 'true') await section.click();
+    await p.waitForTimeout(400);
+    await p.locator('button:visible', { hasText: 'Tillåt fjärrstyrning' }).click({ timeout: 5000 });
+    await p.waitForTimeout(600);
+    if (name === 'live-remote-on') {
+      await p.locator('dialog[open] button[aria-label]').first().click({ timeout: 5000 });
+      await p.waitForTimeout(400);
+    }
+  }, async (p) => {
+    if (name === 'live-remote') await p.locator('dialog[open] button[aria-label]').first().click({ timeout: 5000 });
+    await p.waitForTimeout(400);
+    await stopLive(p);
+  }]),
   ['stage', abs(presentation), async (p) => {
     await goLive(p);
     // On a phone the live panel starts folded; its "Nu visas" header opens it.

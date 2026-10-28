@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, setUpHost, signOut } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, remoteSwitch, setUpHost, signOut } from './flows.ts';
 import { solidPng } from './png.ts';
 import { toneWav } from './wav.ts';
 
@@ -216,6 +216,26 @@ test('capture every page', async () => {
       },
       stopLive,
     ],
+    // Fjärrstyrning switched on: its dialog opens by itself; then the panel with the QR code button.
+    ...(['live-remote', 'live-remote-on'] as const).map(
+      (name) =>
+        [
+          name,
+          `/live/${id}`,
+          async (p: Page) => {
+            await goLive(p);
+            await (await remoteSwitch(p)).check();
+            const info = p.getByRole('dialog', { name: 'Fjärrstyr presentationen' });
+            await info.waitFor();
+            if (name === 'live-remote-on') await info.getByRole('button', { name: 'Stäng' }).click();
+          },
+          async (p: Page) => {
+            if (name === 'live-remote') await p.getByRole('dialog', { name: 'Fjärrstyr presentationen' }).getByRole('button', { name: 'Stäng' }).click();
+            await (await remoteSwitch(p)).uncheck();
+            await stopLive(p);
+          },
+        ] as [string, string, (p: Page) => Promise<unknown>, (p: Page) => Promise<unknown>],
+    ),
     [
       'stage',
       `/live/${id}`,
@@ -368,7 +388,9 @@ test('capture every page', async () => {
     await page.getByRole('button', { name: 'Visa länk', exact: true }).first().click();
     const screen = await page.getByRole('dialog').getByLabel('Länk').inputValue();
     await page.getByRole('dialog').getByRole('button', { name: 'Stäng' }).click();
-    const watch = await page.getByLabel('Länk Mobiler').inputValue();
+    await page.getByRole('listitem', { name: 'Mobiler' }).getByRole('button', { name: 'Visa QR-kod' }).click();
+    const watch = await page.getByRole('dialog').getByLabel('Länk').inputValue();
+    await page.getByRole('dialog').getByRole('button', { name: 'Stäng' }).click();
     return (links = { screen, watch });
   };
   const local = (url: string) => {

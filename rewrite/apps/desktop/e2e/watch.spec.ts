@@ -28,10 +28,16 @@ test('a public output follows the presentation in a browser without signing in; 
   const shown = page.getByRole('dialog', { name: 'Kyrkkaffet' });
   await expect(shown.getByRole('img', { name: 'QR-kod' })).toHaveAttribute('data-value', /\/watch\/[a-z2-9]{7}$/);
   await expect(shown.getByRole('button', { name: 'Ladda ner som bild' })).toBeVisible();
-  await shown.getByRole('button', { name: 'Stäng' }).click();
-  const linkField = page.getByLabel('Länk Kyrkkaffet');
+  // The link is in the dialog, with the QR code; the row has only the count and its buttons (Displays.razor).
+  const linkField = shown.getByLabel('Länk');
   await expect(linkField).toHaveValue(/\/watch\/[a-z2-9]{7}$/);
   const url = await linkField.inputValue();
+  await expect(shown.getByRole('img', { name: 'QR-kod' })).toHaveAttribute('data-value', url);
+  await shown.getByRole('button', { name: 'Stäng' }).click();
+  const row = page.getByRole('listitem', { name: 'Kyrkkaffet' });
+  await expect(row).toContainText('0 enheter');
+  await expect(row.getByRole('textbox')).toHaveCount(0);
+  await expect(row.getByRole('button', { name: 'Ny kod' })).toHaveCount(0);
 
   // A phone opens it: the waiting screen, with the output's name.
   browser = await chromium.launch();
@@ -81,12 +87,18 @@ test('a public output follows the presentation in a browser without signing in; 
 
   // Skärmar says what it sends and to how many.
   await openAdmin(page, 'Skärmar');
-  await expect(page.getByRole('listitem', { name: 'Kyrkkaffet' })).toContainText('Sänder från Söndag · 1 enhet');
+  await expect(row).toContainText('Sänder från Söndag');
+  await expect(row).toContainText('1 enhet');
 
-  // A new code: the old link stops working, and the phone is told so.
-  await page.getByRole('button', { name: 'Ny kod' }).click();
+  // A new code, from the QR code's dialog: the old link stops working, and the phone is told so.
+  await row.getByRole('button', { name: 'Visa QR-kod' }).click();
+  await expect(shown.getByText('Om koden har spridits dit den inte hör hemma kan du byta ut den mot en ny.')).toBeVisible();
+  await shown.getByRole('button', { name: 'Ny kod' }).click();
   await page.getByRole('dialog', { name: 'Ny kod' }).getByRole('button', { name: 'Ny kod' }).click();
   await expect(page.getByRole('status').getByText('Ny kod skapad')).toBeVisible();
+  await expect(shown).toHaveCount(0); // the old code's dialog closes, as Displays.razor's
+  await row.getByRole('button', { name: 'Visa QR-kod' }).click();
+  await expect(linkField).toHaveValue(/\/watch\/[a-z2-9]{7}$/);
   await expect(linkField).not.toHaveValue(url);
   await expect(phone.getByText('Det finns ingen sändning med den här koden.')).toBeVisible({ timeout: 10_000 });
 });

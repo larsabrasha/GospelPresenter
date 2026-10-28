@@ -2,7 +2,7 @@
 // the device, and added to a presentation as an item with a player.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, remoteSwitch, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -80,7 +80,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await expect(page.getByTestId('media-ready')).toHaveText('Alla bilder och ljud finns på den här enheten.');
 
   // A controller starts the sound first, before anyone played it on the presenting computer (LIVE-A32).
-  await (await remoteSwitch(page)).check();
+  await allowRemote(page);
   await openPresentations(second.page);
   await second.page.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
   const mirror = second.page.getByTestId('audio-player');

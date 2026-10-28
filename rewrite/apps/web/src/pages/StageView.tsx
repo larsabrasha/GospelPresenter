@@ -74,11 +74,18 @@ export function StageView({
   };
 
   useEffect(() => {
+    // Foot pedals and clickers are HID keyboards, so every mode they ship with counts (utils.js installStageKeys).
     const onKey = (e: KeyboardEvent) => {
-      if (picking || overlaySheet) return;
-      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) go(1);
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (e.key === 'Escape') {
+        if (overlaySheet) setOverlaySheet(false);
+        else if (picking) setPicking(false);
+        else onLeave();
+      } else if (picking || overlaySheet) return;
+      else if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) go(1);
       else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) go(-1);
-      else if (e.key === 'Escape') onLeave();
+      else if (['.', 'b', 'B'].includes(e.key)) live.set({ black: true }); // as Rensa: only blanks
       else return;
       e.preventDefault();
       e.stopPropagation();

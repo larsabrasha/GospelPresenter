@@ -149,3 +149,12 @@ export async function remoteSwitch(page: Page) {
   if ((await section.getAttribute('aria-expanded')) === 'false') await section.click();
   return page.getByLabel('Tillåt fjärrstyrning');
 }
+
+/**
+ * Switches remote control on for the first time on this live page, and closes the
+ * "Fjärrstyr presentationen" dialog that then opens by itself, as LivePanel.razor's.
+ */
+export async function allowRemote(page: Page) {
+  await (await remoteSwitch(page)).check();
+  await page.getByRole('dialog', { name: 'Fjärrstyr presentationen' }).getByRole('button', { name: 'Stäng' }).click();
+}

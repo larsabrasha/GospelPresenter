@@ -458,8 +458,11 @@ Starting and controlling need `ManagePresentations` (ADR 0007 decision 5), which
 member may control, as LIVE-R38 says. The poke sockets are now tagged `poke` in the Durable Object, so a
 poke never goes to a live socket.
 
-**In the app.** On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) shows a link,
-`/live/{id}?remote=1&session={id}`, on a desktop host with its LAN address. Under Presentationer every other
+**In the app.** On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) has a QR code
+button beside it, grey while off, for the "Fjärrstyr presentationen" dialog (`RemoteControlInfoDialog.razor`):
+the link, `/live/{id}?remote=1&session={id}`, as a QR code, and folded under it the link to copy and how to take
+control from the app. The first time it is switched on on a live page, the dialog opens by itself. On a desktop
+host the link has its LAN address. Under Presentationer every other
 window of the organisation sees "Visas just nu · {name}" with "Ta kontroll" for each session that allows it
 (LIVE-A27). The controller's live page has the amber banner, the same grid, the black screen and the stage view,
 no "Extern skärm", and "Bara datorn som presenterar kan stoppa presentationen." instead of Avsluta. With
@@ -660,8 +663,10 @@ large grey pictures and small icons when a list is empty (`ui/Empty.tsx`), the d
 over a page that takes them (`DropZone.razor`, `ui/DropZone.tsx`), the overlay under `DetailHeader` with
 floating fields, the QR dialogs with the grey link field and its copy button (`ui/CopyField.tsx`), and the
 trash under `DetailHeader` with its pill tabs. Inloggningsmetoder (`/logins`) is drawn as Min profil. Where the
-new pages do more or less than the current ones (the user row's actions, a public output's link and Ny kod in
-its row, the overlay's preview), they keep what they do and only take the look. The current app's user page,
+new pages do more or less than the current ones (the user row's actions, the overlay's preview), they keep
+what they do and only take the look. A public output's row is the current one's: the name, "Sänder från …"
+under it while it sends, the viewer count ("0 enheter" too), Visa QR-kod and Ta bort; its link, the copy
+button and Ny kod (under a line saying what it is for; the dialog closes after it) are in the QR dialog. The current app's user page,
 templates, labels, CCLI report, API keys and super-admin pages have no counterpart yet.
 
 Sign-in, setup, the invite and pairing (step 5) are `Login.razor`, `Setup.razor` and `InvitePage.razor`
@@ -731,9 +736,8 @@ Enheter → Anslut enhet.
 Look work left for later, each as the current app does it: the running order in a drawer from the left on a
 phone (2.2); the live panel as a floating, collapsible box at the bottom right on a phone (2.9); Lägg till's
 preview full screen on a phone (2.12); dragging items in the running order (2.4) and arrangement chips (3.6),
-with a ⋯ menu per item; the remote control's QR code and link in a dialog (2.7); "✓ Sparad" in the song's
-header, with saving 500 ms after typing (3.5); a public output's Ny kod and link inside its QR dialog, and its
-viewer count always shown (4.5); Extern skärm as a switch, once the window can be closed from there (2.6); a
+with a ⋯ menu per item; "✓ Sparad" in the song's
+header, with saving 500 ms after typing (3.5); Extern skärm as a switch, once the window can be closed from there (2.6); a
 paired screen drawing the projector's canvas, which needs the slide as `Slide` rather than `PublicSlide` (5.3);
 and a "Gör tillgänglig offline" button per Bible, which needs each device to choose its Bibles (4.10).
 
@@ -796,7 +800,9 @@ sessions that move together. The 2-second warning is written but not tested.
 From spec 04: the stage view (Scenläge, a button on the live page, `pages/StageView.tsx`) is built for the
 operator's own session and a controller's, with the Overlays button; no `?stage=true` in
 the URL. Next and previous stay within the selected
-item (LIVE-R41); the page's own step keys, which cross items, are off while it is open. It is tested in
+item (LIVE-R41); the page's own step keys, which cross items, are off while it is open. Its keys are a pedal's
+or clicker's, as `utils.js`'s: → ↓ PageDown Space Enter next, ← ↑ PageUp previous, `.` `b` `B` blank (only
+blank, as Rensa), Esc closes an open sheet or else the view; none of them in a text field. It is tested in
 `e2e/milestone6.spec.ts`. The wake lock is requested but not tested.
 
 From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
