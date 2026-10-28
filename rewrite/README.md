@@ -716,9 +716,9 @@ The sync spike measured 588–677 ms, 824–955 ms and 194–248 ms for the last
 reported a startup time of 20–43 ms for the bundle.
 
 **Not proven.** Google sign-in: it needs a real Google client, which only Lars can make. The grace period of
-unused blobs on R2 (`media.test.ts` ran with none). The web app in a browser on Cloudflare: its files and
-headers were checked with curl, not by opening it, so the service worker there is not tried. Behaviour under
-load, and where the objects were placed.
+unused blobs on R2 (`media.test.ts` ran with none). Behaviour under load, and where the objects were placed.
+The web app in a browser on Cloudflare was tried by hand only: Lars opened the trial, set it up with a passkey
+and the setup token, signed in and found it working; no browser test runs against it.
 
 ### Look
 
@@ -846,8 +846,8 @@ this order:
 2. **The trial deploy to Cloudflare** ran on 2026-10-28 and is kept for Lars to try (see "On Cloudflare"):
    migrating a Durable Object and D1 (`DROP COLUMN` included), Ed25519 passkeys, R2, hibernating live sockets
    and the Worker serving the web app are proven there. Left: Google sign-in against a real Google client
-   (Lars makes the client; its redirect URI is `{origin}/api/auth/google/callback`), opening the app there in a
-   browser, and deleting the trial when Lars is done.
+   (Lars makes the client; its redirect URI is `{origin}/api/auth/google/callback`), and deleting the trial
+   when Lars is done. Setup and sign-in with a passkey there work in a browser, tried by hand.
 3. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
    (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app for tablets
    (ADR 0007 (7)), Android first and iOS later. Lars has said the Capacitor app need not come early: https on
