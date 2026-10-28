@@ -70,3 +70,24 @@ export class Debounced<T> {
     return this.next !== undefined || this.running > 0;
   }
 }
+
+/**
+ * Tells whether a field's value differs from what is stored, counting the
+ * field's own last write until the stored value moves: a save queued behind
+ * another one sees the stored value from before the first, so typing "ab" and
+ * back to "a" would otherwise look like nothing to write and leave "ab".
+ */
+export class SaveBaseline {
+  private last: { value: string; over: string } | undefined;
+
+  /** True when `value` is what is stored, or what was last written while `stored` has not moved since. */
+  unchanged(value: string, stored: string): boolean {
+    return value === (this.last && this.last.over === stored ? this.last.value : stored);
+  }
+
+  /** Remembers a write of `value` made while `stored` was the stored value. */
+  wrote(value: string, stored: string): void {
+    this.last = { value, over: stored };
+  }
+}
+

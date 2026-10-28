@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Debounced, type SaveResult } from '../src/ui/debounce.ts';
+import { Debounced, SaveBaseline, type SaveResult } from '../src/ui/debounce.ts';
 
 /** A Debounced whose writes and results are recorded; `run` may be swapped per test. */
 function recorder(run?: (v: string) => Promise<unknown> | undefined) {
@@ -135,3 +135,33 @@ describe('saving while the user types', () => {
     expect([waiting, writing, saver.busy]).toEqual([true, true, false]);
   });
 });
+
+describe('telling whether a field has changed', () => {
+  it('counts a value typed back to the stored one as unchanged', () => {
+    const baseline = new SaveBaseline();
+
+    expect(baseline.unchanged('a', 'a')).toBe(true);
+  });
+
+  it('counts the stored value as changed while a write of another value has not come back', () => {
+    const baseline = new SaveBaseline();
+    baseline.wrote('ab', 'a');
+
+    expect(baseline.unchanged('a', 'a')).toBe(false);
+  });
+
+  it('counts the last written value as unchanged while the stored value has not caught up', () => {
+    const baseline = new SaveBaseline();
+    baseline.wrote('ab', 'a');
+
+    expect(baseline.unchanged('ab', 'a')).toBe(true);
+  });
+
+  it('goes by the stored value again once it has moved since the write', () => {
+    const baseline = new SaveBaseline();
+    baseline.wrote('ab', 'a');
+
+    expect(baseline.unchanged('ab', 'x')).toBe(false);
+  });
+});
+

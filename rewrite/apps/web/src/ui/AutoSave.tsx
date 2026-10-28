@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { t } from '../i18n.ts';
-import { Debounced } from './debounce.ts';
+import { Debounced, SaveBaseline } from './debounce.ts';
 import { FloatingInput, FloatingTextarea } from './Floating.tsx';
 import { TickIcon } from './icons.tsx';
 
@@ -59,10 +59,16 @@ export function AutoSaveField({
   const [draft, setDraft] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [saver] = useState(() => new Debounced<string>());
+  const [baseline] = useState(() => new SaveBaseline());
   useEffect(() => {
     saver.use(
-      // Typed back to what is stored: nothing to write.
-      (v) => (v === value ? undefined : onSave(v)),
+      (v) => {
+        // Typed back to what is stored (or to this field's last write): nothing to write.
+        if (baseline.unchanged(v, value)) return undefined;
+        const write = onSave(v);
+        if (write) baseline.wrote(v, value);
+        return write;
+      },
       (result) => {
         if (result === 'saved') onSaved?.();
       },
