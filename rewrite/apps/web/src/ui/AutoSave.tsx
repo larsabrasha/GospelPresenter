@@ -3,6 +3,13 @@ import { t } from '../i18n.ts';
 import { Debounced, SaveBaseline } from './debounce.ts';
 import { FloatingInput, FloatingTextarea } from './Floating.tsx';
 import { TickIcon } from './icons.tsx';
+import { useToast } from './Toast.tsx';
+
+/** Tells the user a save was refused: a warning toast "Kunde inte spara". The current app shows nothing (spec 02, open question 10). */
+export function useSaveFailed(): () => void {
+  const toast = useToast();
+  return useCallback(() => toast(t('common.saveFailed'), 'warning'), [toast]);
+}
 
 /**
  * The fading "✓ Sparad" at the right of a detail page's header
@@ -39,7 +46,8 @@ export function useSavedIndicator(): { node: ReactNode; show: () => void } {
  * meanwhile moves the cursor or takes back a letter. `onSave` returns the
  * write, or nothing when the value is not to be written (a blank name, say):
  * the field then shows the stored value again once the user leaves it.
- * `onSaved` hears of each write that succeeded.
+ * `onSaved` hears of each write that succeeded; a refused write shows
+ * "Kunde inte spara", and the field keeps what the user typed.
  */
 export function AutoSaveField({
   label,
@@ -61,6 +69,7 @@ export function AutoSaveField({
   const [focused, setFocused] = useState(false);
   const [saver] = useState(() => new Debounced<string>());
   const [baseline] = useState(() => new SaveBaseline());
+  const saveFailed = useSaveFailed();
   // Whether `onSave` turned down the last value; read after a flush, so refs rather than state.
   const refused = useRef(false);
   const hasFocus = useRef(false);
@@ -79,6 +88,11 @@ export function AutoSaveField({
       },
       (result) => {
         if (result === 'saved') onSaved?.();
+        else if (result === 'failed') {
+          // Saves run one at a time, so the next one has not yet compared against this refused write.
+          baseline.forget();
+          saveFailed();
+        }
       },
     );
   });

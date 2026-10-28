@@ -22,6 +22,7 @@ const sv = {
   'common.moveDown': 'Flytta ned',
   'common.back': 'Tillbaka',
   'common.saved': 'Sparad',
+  'common.saveFailed': 'Kunde inte spara',
   'common.error': 'Något gick fel. Försök igen.',
   'nav.trash': 'Papperskorg',
   'songs.all': 'Alla sånger ({n})',

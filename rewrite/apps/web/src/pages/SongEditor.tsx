@@ -5,7 +5,7 @@ import { arrangementsOf, getSong, listLabels, presentationsUsing, songPartsOf } 
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
+import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
@@ -186,6 +186,7 @@ export function SongEditor({ id }: { id: string }) {
   const toast = useToast();
   const { dialog, ask } = useConfirm();
   const saved = useSavedIndicator();
+  const saveFailed = useSaveFailed();
   const data = useData(
     async (d) => ({
       song: await getSong(d, id),
@@ -205,8 +206,11 @@ export function SongEditor({ id }: { id: string }) {
     );
 
   const update = (fields: Record<string, string | number | null>) => db.mutate('updateSong', { id, ...fields });
-  // "Sparad" after the writes the current app flags: fields, a part's text and label, and arrangements.
-  const saving = (write: Promise<void>) => afterWrite(write, saved.show);
+  // "Sparad" after the writes the current app flags: fields, a part's text and label, and arrangements;
+  // "Kunde inte spara" when one of them is refused.
+  const saving = (write: Promise<void>) => afterWrite(write, saved.show, saveFailed);
+  // The writes it does not flag ("Sparad") still say when they are refused.
+  const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
   const labelChoices: Label[] = [
     ...DEFAULT_LABELS.map((l) => ({ id: labelId(l.text), ...l })).filter((l) => !labels.has(l.id)),
     ...labels.values(),
@@ -215,7 +219,7 @@ export function SongEditor({ id }: { id: string }) {
   const removePart = async (p: SongPart) => {
     const label = p.labelId ? (labels.get(p.labelId)?.text ?? t('song.noLabel')) : t('song.noLabel');
     const ok = await ask({ title: t('song.removePart'), text: t('song.removePartConfirm', { label }), confirm: t('common.delete') });
-    if (ok) void db.mutate('removeSongPart', { id: p.id });
+    if (ok) failing(db.mutate('removeSongPart', { id: p.id }));
   };
 
   const trash = async () => {
@@ -225,7 +229,14 @@ export function SongEditor({ id }: { id: string }) {
       .filter(Boolean)
       .join(' ');
     if (!(await ask({ title: t('song.trash'), text, confirm: t('song.trash') }))) return;
-    await db.mutate('trashSong', { id, at: Date.now() });
+    try {
+      await db.mutate('trashSong', { id, at: Date.now() });
+    } catch (e) {
+      // Refused: the song stays, and so does the page.
+      console.error('save failed', e);
+      saveFailed();
+      return;
+    }
     toast(t('song.trashed', { name: song.name }));
     navigate({ page: 'songs' });
   };
@@ -278,7 +289,7 @@ export function SongEditor({ id }: { id: string }) {
               aria-label={t('common.moveUp')}
               title={t('common.moveUp')}
               disabled={i === 0}
-              onClick={() => void db.mutate('moveSongPart', { id: p.id, toIndex: i - 1 })}
+              onClick={() => failing(db.mutate('moveSongPart', { id: p.id, toIndex: i - 1 }))}
             >
               <ChevronUpIcon className="size-4" />
             </AppButton>
@@ -288,7 +299,7 @@ export function SongEditor({ id }: { id: string }) {
               aria-label={t('common.moveDown')}
               title={t('common.moveDown')}
               disabled={i === parts.length - 1}
-              onClick={() => void db.mutate('moveSongPart', { id: p.id, toIndex: i + 1 })}
+              onClick={() => failing(db.mutate('moveSongPart', { id: p.id, toIndex: i + 1 }))}
             >
               <ChevronDownIcon className="size-4" />
             </AppButton>
@@ -343,7 +354,7 @@ export function SongEditor({ id }: { id: string }) {
           variant="secondary"
           className="flex items-center gap-1.5 self-start"
           disabled={parts.length >= LIMITS.partsPerSong}
-          onClick={() => void db.mutate('addSongPart', { id: newId(), songId: id, labelText: null, content: '' })}
+          onClick={() => failing(db.mutate('addSongPart', { id: newId(), songId: id, labelText: null, content: '' }))}
         >
           <PlusIcon className="size-4" />
           {t('song.addPart')}

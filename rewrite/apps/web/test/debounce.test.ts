@@ -157,6 +157,15 @@ describe('telling whether a field has changed', () => {
     expect(baseline.unchanged('ab', 'a')).toBe(true);
   });
 
+  it('counts a refused write as changed again once it is forgotten', () => {
+    const baseline = new SaveBaseline();
+    baseline.wrote('ab', 'a');
+
+    baseline.forget();
+
+    expect(baseline.unchanged('ab', 'a')).toBe(false);
+  });
+
   it('goes by the stored value again once it has moved since the write', () => {
     const baseline = new SaveBaseline();
     baseline.wrote('ab', 'a');
@@ -171,8 +180,17 @@ describe('a write made at once', () => {
   it('reports a write that went through', async () => {
     const onSaved = vi.fn();
 
-    afterWrite(Promise.resolve(), onSaved);
+    afterWrite(Promise.resolve(), onSaved, () => {});
     await vi.waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  });
+
+  it('does not report a write that went through as failed', async () => {
+    const onFailed = vi.fn();
+
+    afterWrite(Promise.resolve(), () => {}, onFailed);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onFailed).not.toHaveBeenCalled();
   });
 
   it('logs a refused write as a failed save, as the fields do, and does not call it saved', async () => {
@@ -180,10 +198,18 @@ describe('a write made at once', () => {
     const onSaved = vi.fn();
     const refusal = new Error('refused');
 
-    afterWrite(Promise.reject(refusal), onSaved);
+    afterWrite(Promise.reject(refusal), onSaved, () => {});
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(error).toHaveBeenCalledWith('save failed', refusal);
     expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it('reports a refused write as failed', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onFailed = vi.fn();
+
+    afterWrite(Promise.reject(new Error('refused')), () => {}, onFailed);
+    await vi.waitFor(() => expect(onFailed).toHaveBeenCalledOnce());
   });
 });

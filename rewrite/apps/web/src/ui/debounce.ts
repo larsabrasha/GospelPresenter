@@ -89,12 +89,21 @@ export class SaveBaseline {
   wrote(value: string, stored: string): void {
     this.last = { value, over: stored };
   }
+
+  /** Drops the last write, once it was refused: the same value is then written again rather than taken as stored. */
+  forget(): void {
+    this.last = undefined;
+  }
 }
 
 /**
  * Calls `onSaved` once a write that is not debounced (a choice in a menu, say)
- * has gone through; a refused write is logged as `Debounced` logs one.
+ * has gone through, and `onFailed` when it is refused; a refused write is
+ * logged as `Debounced` logs one.
  */
-export function afterWrite(write: Promise<unknown>, onSaved: () => void): void {
-  write.then(onSaved, (e: unknown) => console.error('save failed', e));
+export function afterWrite(write: Promise<unknown>, onSaved: () => void, onFailed: () => void): void {
+  write.then(onSaved, (e: unknown) => {
+    console.error('save failed', e);
+    onFailed();
+  });
 }

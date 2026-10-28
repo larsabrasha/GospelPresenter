@@ -158,6 +158,42 @@ test('a blank name or a year out of range is not saved, and the field shows the 
   await expect(year).toHaveValue('1998');
 });
 
+test('a refused save says "Kunde inte spara", not "Sparad", and the field keeps what was typed', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Avvisas', [['Verse 1', 'Ett']]);
+  const saved = page.getByTestId('saved');
+  await expect(saved).toHaveCount(0); // gone 2.3 s after the last save of creating the song
+  const ccli = page.getByLabel('CCLI');
+
+  // A CCLI number is at most 20 characters; the field takes more, and the write is refused.
+  await ccli.fill('1'.repeat(21));
+  await ccli.blur();
+
+  const failed = page.getByRole('alert').getByText('Kunde inte spara');
+  await expect(failed).toBeVisible();
+  // Checked once, not retried: a "Sparad" from the same save would still show (it stays 2.3 s).
+  expect(await saved.count()).toBe(0);
+  await expect(ccli).toHaveValue('1'.repeat(21));
+
+  // The same text again, after a letter typed and taken back: tried again, and refused again.
+  await expect(failed).toHaveCount(0, { timeout: 6000 });
+  await ccli.press('End');
+  await ccli.press('2');
+  await ccli.press('Backspace');
+  await ccli.blur();
+  await expect(failed).toBeVisible();
+
+  // Refused once more while the warning shows: still one warning, not two.
+  await ccli.press('3');
+  await ccli.blur();
+  await page.waitForTimeout(300);
+  expect(await failed.count()).toBe(1);
+  await page.reload();
+  await expect(page.getByLabel('CCLI')).toHaveValue('');
+});
+
 test('arrangements: made in the song, chosen per item, and shown live in their order', async () => {
   host = await launch();
   const page = host.page;
