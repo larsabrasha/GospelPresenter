@@ -279,6 +279,16 @@ test('capture every page', async () => {
       },
     ],
     [
+      'song-saved',
+      song,
+      async (p) => {
+        await closeAdminMenu(p);
+        // A space in the empty Förlag: written (and stored trimmed, as nothing), so "Sparad" shows.
+        await p.getByLabel('Förlag').pressSequentially(' ');
+        await p.getByTestId('saved').waitFor();
+      },
+    ],
+    [
       'song-end',
       song,
       async (p) => {

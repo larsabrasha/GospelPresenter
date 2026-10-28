@@ -94,6 +94,51 @@ test('the label and Lägg till del menus work from the keyboard alone', async ()
   await expect(add).toBeFocused();
 });
 
+test('the song saves 500 ms after typing, says "Sparad", and keeps what was typed when left at once', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Sparas', [['Verse 1', 'Ett']]);
+  const saved = page.getByTestId('saved');
+  await expect(saved).toHaveCount(0); // gone 2.3 s after the last save of creating the song
+  const author = page.getByLabel('Upphovspersoner');
+
+  // Typing, then a pause with focus still in the field: saved, and the header says so before it fades.
+  await author.pressSequentially('Lina ');
+  await expect(saved).toHaveText('Sparad');
+  await expect(author).toBeFocused();
+  // The stored value is trimmed ("Lina"), but the field keeps the space and the cursor, so typing goes on.
+  await author.pressSequentially('Sandell');
+  await expect(author).toHaveValue('Lina Sandell');
+  await expect(saved).toHaveCount(0, { timeout: 5000 });
+  await page.reload();
+  await expect(page.getByLabel('Upphovspersoner')).toHaveValue('Lina Sandell');
+
+  // A part typed in and left at once, by the back button: nothing lost.
+  const part = page.getByLabel('Delar 1', { exact: true });
+  await part.focus();
+  await part.evaluate((e: HTMLTextAreaElement) => e.setSelectionRange(e.value.length, e.value.length));
+  await page.keyboard.type(', två, tre');
+  await page.getByRole('link', { name: 'Tillbaka' }).click();
+  await page.getByRole('link', { name: 'Sparas' }).click();
+  await expect(page.getByLabel('Delar 1', { exact: true })).toHaveValue('Ett, två, tre');
+
+  // A blank name is not saved, and not called saved.
+  const name = page.getByLabel('Namn', { exact: true });
+  await expect(saved).toHaveCount(0, { timeout: 5000 });
+  await name.fill('');
+  await page.waitForTimeout(700);
+  await expect(saved).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Sparas', exact: true })).toBeVisible();
+  await name.fill('Sparad sång');
+  await expect(page.getByRole('heading', { name: 'Sparad sång', exact: true })).toBeVisible();
+
+  // A reload at once, before the 500 ms are up and with focus still in the field: written as the page goes.
+  await page.getByLabel('CCLI').pressSequentially('12345');
+  await page.reload();
+  await expect(page.getByLabel('CCLI')).toHaveValue('12345');
+});
+
 test('arrangements: made in the song, chosen per item, and shown live in their order', async () => {
   host = await launch();
   const page = host.page;

@@ -280,6 +280,13 @@ const pages = [
     await closeAdminMenu(p);
     await p.locator('#song-part-0 button').first().click({ timeout: 5000 });
   }],
+  ['song-saved', abs(song), async (p) => {
+    await closeAdminMenu(p);
+    // A letter typed and taken back in Förlag: saved 500 ms later, so "Sparad" shows.
+    await p.locator('#song-publisher').pressSequentially('x');
+    await p.locator('#song-publisher').press('Backspace');
+    await p.locator('text=Sparad').first().waitFor({ timeout: 5000 });
+  }],
   ['song-end', abs(song), async (p) => {
     await closeAdminMenu(p);
     await scrollDown(p);

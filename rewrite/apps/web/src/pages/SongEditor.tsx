@@ -5,8 +5,8 @@ import { arrangementsOf, getSong, listLabels, presentationsUsing, songPartsOf } 
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
-import { FloatingInput, FloatingTextarea } from '../ui/Floating.tsx';
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { SelectMenu } from '../ui/SelectMenu.tsx';
@@ -22,34 +22,6 @@ const CARD = 'bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl
 
 /** A label's coloured pill; grey when the part has none. */
 const PILL = 'rounded-full px-2.5 py-0.5 text-xs font-semibold text-white whitespace-nowrap';
-
-/**
- * A text field that saves when it loses focus, and only if it changed. It is
- * keyed by the stored value, so a change that arrives by sync shows up.
- */
-function SaveOnBlur({
-  label,
-  value,
-  onSave,
-  multiline,
-  className,
-}: {
-  label: string;
-  value: string;
-  onSave: (v: string) => void;
-  multiline?: boolean;
-  className?: string;
-}) {
-  const onBlur = (e: { currentTarget: { value: string } }) => {
-    if (e.currentTarget.value !== value) onSave(e.currentTarget.value);
-  };
-  // A part's text has no visible label, as in the current app; its name is for screen readers and tests.
-  return multiline ? (
-    <FloatingTextarea key={value} label="" aria-label={label} rows={8} defaultValue={value} onBlur={onBlur} className={className} />
-  ) : (
-    <FloatingInput key={value} label={label} defaultValue={value} onBlur={onBlur} className={className} />
-  );
-}
 
 /** How a part is named in arrangement chips: its label, else the start of its first line (spec 02). */
 function partName(p: SongPart, labels: Map<string, Label>): string {
@@ -75,12 +47,17 @@ function ArrangementCard({
   named,
   parts,
   labels,
+  saving,
+  showSaved,
 }: {
   arrangement: SongArrangement;
   index: number;
   named: boolean;
   parts: SongPart[];
   labels: Map<string, Label>;
+  /** Shows "Sparad" once the write is done, as every change to an arrangement does in the current app. */
+  saving: (write: Promise<void>) => void;
+  showSaved: () => void;
 }) {
   const db = useDb();
   const { dialog, ask } = useConfirm();
@@ -99,7 +76,7 @@ function ArrangementCard({
     const target = visible[to];
     if (at === undefined || target === undefined || at === target) return;
     const partId = ids[at]!;
-    void db.mutate('moveArrangementPart', { id: arrangement.id, index: at, partId, by: target - at });
+    saving(db.mutate('moveArrangementPart', { id: arrangement.id, index: at, partId, by: target - at }));
     return { partId, index: target };
   };
   const { listRef, list, rowStyle, handle, dragging } = useSortable<HTMLOListElement>((from, to) => void move(from, to));
@@ -116,10 +93,11 @@ function ArrangementCard({
       {dialog}
       {named && (
         <div className="flex gap-4">
-          <SaveOnBlur
+          <AutoSaveField
             label={t('song.name')}
             value={arrangement.name ?? ''}
-            onSave={(name) => void db.mutate('updateArrangement', { id: arrangement.id, name })}
+            onSave={(name) => db.mutate('updateArrangement', { id: arrangement.id, name })}
+            onSaved={showSaved}
             className="flex-1"
           />
           <div className="flex-1" />
@@ -159,7 +137,7 @@ function ArrangementCard({
                 variant="plain"
                 className="p-0.5 text-neutral-300 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400 cursor-pointer shrink-0"
                 aria-label={t('song.removeChip', { part: partName(part, labels) })}
-                onClick={() => void db.mutate('removeArrangementPart', { id: arrangement.id, index: i, partId: id })}
+                onClick={() => saving(db.mutate('removeArrangementPart', { id: arrangement.id, index: i, partId: id }))}
               >
                 <CloseIcon className="size-3.5" />
               </AppButton>
@@ -172,7 +150,7 @@ function ArrangementCard({
         <SelectMenu
           label={t('song.addPart')}
           choices={parts.map((p, i) => ({ value: p.id, label: `${i + 1}. ${partName(p, labels)}`, content: <PartPill part={p} labels={labels} /> }))}
-          onChoose={(partId) => void db.mutate('appendArrangementPart', { id: arrangement.id, partId })}
+          onChoose={(partId) => saving(db.mutate('appendArrangementPart', { id: arrangement.id, partId }))}
           buttonClassName="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer transition-colors rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
           listClassName="left-0 w-48 max-h-60 overflow-y-auto"
           face={
@@ -191,7 +169,7 @@ function ArrangementCard({
           title={t('song.removeArrangement')}
           onClick={async () => {
             const ok = await ask({ title: t('song.removeArrangement'), text: t('song.removeArrangementConfirm'), confirm: t('common.delete') });
-            if (ok) void db.mutate('removeArrangement', { id: arrangement.id });
+            if (ok) saving(db.mutate('removeArrangement', { id: arrangement.id }));
           }}
         >
           <TrashIcon className="size-4" />
@@ -206,6 +184,7 @@ export function SongEditor({ id }: { id: string }) {
   const db = useDb();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
+  const saved = useSavedIndicator();
   const data = useData(
     async (d) => ({
       song: await getSong(d, id),
@@ -224,7 +203,9 @@ export function SongEditor({ id }: { id: string }) {
       </PageContainer>
     );
 
-  const update = (fields: Record<string, string | number | null>) => void db.mutate('updateSong', { id, ...fields });
+  const update = (fields: Record<string, string | number | null>) => db.mutate('updateSong', { id, ...fields });
+  // "Sparad" after the writes the current app flags: fields, a part's text and label, and arrangements.
+  const saving = (write: Promise<void>) => void write.then(saved.show);
   const labelChoices: Label[] = [
     ...DEFAULT_LABELS.map((l) => ({ id: labelId(l.text), ...l })).filter((l) => !labels.has(l.id)),
     ...labels.values(),
@@ -268,7 +249,7 @@ export function SongEditor({ id }: { id: string }) {
                 ),
               })),
             ]}
-            onChoose={(v) => void db.mutate('updateSongPart', { id: p.id, labelText: labelChoices.find((l) => l.id === v)?.text ?? null })}
+            onChoose={(v) => saving(db.mutate('updateSongPart', { id: p.id, labelText: labelChoices.find((l) => l.id === v)?.text ?? null }))}
             className="flex-1 max-w-[50%]"
             buttonClassName="w-full flex items-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 px-3 py-2.5 text-sm text-left cursor-pointer focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
             listClassName="left-0 w-full max-h-60 overflow-y-auto"
@@ -312,7 +293,13 @@ export function SongEditor({ id }: { id: string }) {
             </AppButton>
           </div>
         </div>
-        <SaveOnBlur label={`${t('song.parts')} ${i + 1}`} value={p.content} multiline onSave={(content) => void db.mutate('updateSongPart', { id: p.id, content })} />
+        <AutoSaveField
+          label={`${t('song.parts')} ${i + 1}`}
+          value={p.content}
+          multiline
+          onSave={(content) => db.mutate('updateSongPart', { id: p.id, content })}
+          onSaved={saved.show}
+        />
         <div className="flex justify-end">
           <AppButton variant="dangerIcon" className="p-1.5" aria-label={t('song.removePart')} title={t('song.removePart')} onClick={() => void removePart(p)}>
             <TrashIcon className="size-4" />
@@ -325,25 +312,27 @@ export function SongEditor({ id }: { id: string }) {
   return (
     <PageContainer className="pb-8">
       {dialog}
-      <DetailHeader backHref={href({ page: 'songs' })} title={song.name} className="px-5" />
+      <DetailHeader backHref={href({ page: 'songs' })} title={song.name} saved={saved.node} className="px-5" />
       <div className="space-y-4">
         <div className={`${CARD} p-5 space-y-4`}>
-          <SaveOnBlur label={t('song.name')} value={song.name} onSave={(v) => v.trim() && update({ name: v })} />
+          {/* A blank name is not saved (spec 02). */}
+          <AutoSaveField label={t('song.name')} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
           <div className="flex gap-4">
-            <SaveOnBlur label={t('song.author')} value={song.author ?? ''} onSave={(v) => update({ author: v })} className="flex-1" />
-            <SaveOnBlur label={t('song.publisher')} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} className="flex-1" />
+            <AutoSaveField label={t('song.author')} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} className="flex-1" />
+            <AutoSaveField label={t('song.publisher')} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} onSaved={saved.show} className="flex-1" />
           </div>
           <div className="flex gap-4">
-            <SaveOnBlur
+            <AutoSaveField
               label={t('song.year')}
               value={song.year === null ? '' : String(song.year)}
               onSave={(v) => {
                 const year = v.trim() === '' ? null : Number(v);
-                if (year === null || (Number.isInteger(year) && year >= 0 && year <= 9999)) update({ year });
+                return year === null || (Number.isInteger(year) && year >= 0 && year <= 9999) ? update({ year }) : undefined;
               }}
+              onSaved={saved.show}
               className="flex-1"
             />
-            <SaveOnBlur label={t('song.ccli')} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} className="flex-1" />
+            <AutoSaveField label={t('song.ccli')} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} onSaved={saved.show} className="flex-1" />
           </div>
         </div>
         {/* The current app shows no heading over the parts; this one is for screen readers. */}
@@ -364,7 +353,7 @@ export function SongEditor({ id }: { id: string }) {
             {arrangements.length > 0 && (
               <ol className="space-y-4">
                 {arrangements.map((a, i) => (
-                  <ArrangementCard key={a.id} arrangement={a} index={i} named={arrangements.length >= 2} parts={parts} labels={labels} />
+                  <ArrangementCard key={a.id} arrangement={a} index={i} named={arrangements.length >= 2} parts={parts} labels={labels} saving={saving} showSaved={saved.show} />
                 ))}
               </ol>
             )}
@@ -372,7 +361,7 @@ export function SongEditor({ id }: { id: string }) {
               <AppButton
                 variant="secondary"
                 className="flex items-center gap-1.5 self-start"
-                onClick={() => void db.mutate('createArrangement', { id: newId(), songId: id, partIds: parts.map((p) => p.id) })}
+                onClick={() => saving(db.mutate('createArrangement', { id: newId(), songId: id, partIds: parts.map((p) => p.id) }))}
               >
                 <PlusIcon className="size-4" />
                 {t('song.createArrangement')}

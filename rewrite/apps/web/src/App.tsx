@@ -62,7 +62,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const admin = (
     <>
       {route.page === 'songs' && <Songs />}
-      {route.page === 'song' && <SongEditor id={route.id} />}
+      {/* Keyed by the song, so its fields write their pending saves to it before another song's open. */}
+      {route.page === 'song' && <SongEditor key={route.id} id={route.id} />}
       {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <Refused text={t('users.forbidden')} />)}
       {route.page === 'devices' && (host ? <Devices me={me} /> : <Refused text={t('devices.onlyHost')} />)}
       {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <Refused text={t('bibles.forbidden')} />)}

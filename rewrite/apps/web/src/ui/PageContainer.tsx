@@ -27,9 +27,10 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 
 /**
  * A detail page's heading row (Components/DetailHeader.razor): the round back
- * button at the left, the title in the middle. Without `backHref`, the title alone (Profile.razor).
+ * button at the left, the title in the middle, and `saved` ("✓ Sparad", see
+ * ui/AutoSave.tsx) at the right. Without `backHref`, the title alone (Profile.razor).
  */
-export function DetailHeader({ backHref, title, className }: { backHref?: string; title: string; className?: string }) {
+export function DetailHeader({ backHref, title, saved, className }: { backHref?: string; title: string; saved?: ReactNode; className?: string }) {
   return (
     <div className={`relative flex items-center justify-center min-h-10 ${className ?? ''}`}>
       {backHref && (
@@ -44,6 +45,7 @@ export function DetailHeader({ backHref, title, className }: { backHref?: string
         </AppButton>
       )}
       <h1 className="text-xl/7 font-bold dark:text-neutral-100 truncate max-w-[60%]">{title}</h1>
+      {saved}
     </div>
   );
 }

@@ -663,6 +663,19 @@ Papperskorg and the round search, marks in yellow; the editor under `DetailHeade
 the bin, and the arrangements as stacked chips, each dragged by the whole chip, with the dashed Lägg till del. Song history and the ProPresenter import are not built,
 so their pages and buttons are missing.
 
+A song's fields, its parts' text and its arrangements' names save 500 ms after the last keystroke, as
+`Utils/Debouncer.cs` does there, and `AutoSaveIndicator.razor`'s grey "✓ Sparad" shows at the right of the
+header after each save, fading after 2 s (`ui/AutoSave.tsx`). It also shows after a label, a chip or an
+arrangement changes, as there. Unlike the current app, a waiting save is never dropped: it is written at once
+when the field loses focus, the page closes or another page opens, and before a reload or a closing window. A
+field shows what was typed while it has focus, so its own save coming back (trimmed) or a sync does not move
+the cursor or take back a letter; once it is left, the stored value shows when it next changes. A blank name
+and a year that is not 0–9999 are not written and say nothing; a refused write says nothing either. Each save
+is a mutation of its own (`updateSong` with one field, `updateSongPart`, `updateArrangement`), so typing now
+queues a few more mutations, which the sync sends together; nothing keeps a snapshot per write (song history
+and CCLI reports are not built). Tested in `apps/web/test/debounce.test.ts` (the wait, flushing, failures, order)
+and e2e in `milestone2.spec.ts` (Sparad, typing on through a save, leaving at once, reloading at once, a blank name).
+
 The admin pages (step 4) are `Pages/Admin/*.razor`, `Trash.razor` and `Profile.razor`: each a title row and
 light cards (Biblar, Bilder, Ljud, Overlays, Teman, Skärmar, Användare, Enheter, the trash), the current app's
 large grey pictures and small icons when a list is empty (`ui/Empty.tsx`), the dashed sky frame while files hover
@@ -748,8 +761,7 @@ To try it with a tablet: `GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop 
 `https://<the Mac's LAN address>:47843` on the tablet, accept the certificate warning once, and pair it under
 Enheter → Anslut enhet.
 
-Look work left for later, each as the current app does it: "✓ Sparad" in the song's
-header, with saving 500 ms after typing (3.5); Extern skärm as a switch, once the window can be closed from there (2.6); a
+Look work left for later, each as the current app does it: Extern skärm as a switch, once the window can be closed from there (2.6); a
 paired screen drawing the projector's canvas, which needs the slide as `Slide` rather than `PublicSlide` (5.3);
 and a "Gör tillgänglig offline" button per Bible, which needs each device to choose its Bibles (4.10).
 
@@ -771,7 +783,7 @@ image pipeline runs only in Chromium (Electron) in the tests; Safari cannot enco
 it falls back to JPEG on a white background, which is written but untested.
 
 From overlays: the picture on a public output (only the text is sent); reordering (spec 03 Q11, as there);
-saving 500 ms after typing (a field saves when it loses focus, as song fields do); dropping a file onto the
+saving 500 ms after typing with "Sparad" in the header, as songs do now (a field saves when it loses focus); dropping a file onto the
 overlay page (the picture comes from Bilder); the 500 ms fade of the black screen, which would cover the overlay.
 An overlay deleted while it is shown disappears from the outputs at once (spec 04 keeps it until toggled). The
 picture in an overlay is tested in the unit tests (which files are fetched), not drawn in an e2e test.
@@ -843,8 +855,7 @@ and its next sync is refused); behind a reverse proxy, `X-Forwarded-Proto` and `
 From spec 02 and 03 in particular: song history (SONG-R20–R24, D9), the labels page, CCLI, ProPresenter
 import, the dashboard's Idag/Kommande sections and "last changed" order, event time, place,
 description and theme, multi-select removal, the keyboard help dialog, the song editor inside the add
-dialog, the clash warning of D18, and drag and drop (moving is by ↑ and ↓ buttons). Song fields
-still save when a field loses focus rather than 500 ms after typing.
+dialog, the clash warning of D18, and drag and drop (moving is by ↑ and ↓ buttons).
 
 ## Assumptions
 
