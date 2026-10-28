@@ -10,7 +10,7 @@ export function userRoutes(app: Hono, kit: AuthKit) {
 
   app.get(
     '/api/users',
-    withCaller('ViewUsers', async (c, caller) => c.json(await accounts.listUsers(caller.orgId))),
+    withCaller('ViewUsers', async (c, caller) => c.json(await accounts.members.listUsers(caller.orgId))),
   );
 
   app.post(
@@ -20,7 +20,7 @@ export function userRoutes(app: Hono, kit: AuthKit) {
       if (!a) return fail(c, 400, 'invalid-request');
       const refusal = createUserRefusal(caller.ctx.role, a.role);
       if (refusal) return fail(c, 403, refusal);
-      const r = await accounts.createUser(caller.orgId, a);
+      const r = await accounts.members.createUser(caller.orgId, a);
       if (typeof r === 'string') return fail(c, 409, r);
       return c.json(r);
     }),
@@ -35,7 +35,7 @@ export function userRoutes(app: Hono, kit: AuthKit) {
       if (!t) return fail(c, 404, 'not-found');
       const refusal = roleChangeRefusal(actor(caller), t, a.role);
       if (refusal) return fail(c, 403, refusal);
-      await accounts.setRole(t.id, caller.orgId, a.role);
+      await accounts.members.setRole(t.id, caller.orgId, a.role);
       return c.json({ ok: true });
     }),
   );
@@ -47,7 +47,7 @@ export function userRoutes(app: Hono, kit: AuthKit) {
       if (!t) return fail(c, 404, 'not-found');
       const refusal = removeUserRefusal(actor(caller), t);
       if (refusal) return fail(c, 403, refusal);
-      await accounts.deleteUser(t.id);
+      await accounts.members.deleteUser(t.id);
       return c.json({ ok: true });
     }),
   );
@@ -59,7 +59,7 @@ export function userRoutes(app: Hono, kit: AuthKit) {
       if (!t) return fail(c, 404, 'not-found');
       const refusal = inviteRefusal(actor(caller), t);
       if (refusal) return fail(c, 403, refusal);
-      const token = await accounts.createInvite(t.id, caller.orgId);
+      const token = await accounts.members.createInvite(t.id, caller.orgId);
       if (token === 'limit') return fail(c, 409, 'limit');
       return c.json({ inviteToken: token });
     }),

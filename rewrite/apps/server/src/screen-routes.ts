@@ -11,7 +11,7 @@ import type { ScreenRegistry } from './screens.ts';
 
 interface Deps {
   screens: ScreenRegistry;
-  accounts: Pick<Accounts, 'lockedUntil' | 'fail' | 'now'>;
+  accounts: Pick<Accounts, 'throttle' | 'now'>;
   clientAddress: (c: Context) => string;
 }
 
@@ -28,19 +28,19 @@ export function screenStartRoutes(deps: Deps) {
     const id = typeof a.id === 'string' && SCREEN_ID.test(a.id) ? a.id : null;
     const token = typeof a.token === 'string' ? a.token : null;
     const address = `screen:${deps.clientAddress(c)}`;
-    const locked = await deps.accounts.lockedUntil([address]);
+    const locked = await deps.accounts.throttle.lockedUntil([address]);
     if (locked) return watchLocked(locked, deps.accounts.now());
     if (token !== null) {
       const paired = SCREEN_TOKEN.test(token) ? await deps.screens.startWithToken(token) : null;
       if (!paired) {
-        await deps.accounts.fail(address, THROTTLE.screen);
+        await deps.accounts.throttle.fail(address, THROTTLE.screen);
         return c.json({ error: 'token-invalid' }, 400);
       }
       return c.json({ id: paired, paired: true });
     }
     const started = await deps.screens.start(id);
     if (!started) return c.json({ error: 'no-free-code' }, 503);
-    if (started.id !== id) await deps.accounts.fail(address, THROTTLE.screen); // a new screen, not the tab's own again
+    if (started.id !== id) await deps.accounts.throttle.fail(address, THROTTLE.screen); // a new screen, not the tab's own again
     return c.json(started);
   });
   return app;
@@ -73,11 +73,11 @@ export function screenPairRoutes(resolve: (c: Context) => Promise<{ caller: Call
     if (typeof a.pin !== 'string' || !SCREEN_PIN.test(a.pin) || !sessionId) return c.json({ error: 'invalid-request' }, 400);
     // Shared with setup tokens and device pairing codes: twenty wrong guesses lock the address.
     const address = `address:${deps.clientAddress(c)}`;
-    const locked = await deps.accounts.lockedUntil([address]);
+    const locked = await deps.accounts.throttle.lockedUntil([address]);
     if (locked) return watchLocked(locked, deps.accounts.now());
     const id = await deps.screens.claimPin(a.pin, r.caller.orgId);
     if (!id) {
-      await deps.accounts.fail(address, THROTTLE.address);
+      await deps.accounts.throttle.fail(address, THROTTLE.address);
       return c.json({ error: 'pin-invalid' }, 400);
     }
     const screen = await add(r, id, sessionId);

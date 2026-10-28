@@ -322,13 +322,13 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
 
     // Nobody has a login yet, so setup is open again, and it finishes Anna's church rather than making a second one.
     const accounts = new Accounts(sql);
-    expect(await accounts.setupDone()).toBe(false);
-    const setup = await accounts.setup({ name: 'Anna', orgName: 'Lilla Kyrkan' });
+    expect(await accounts.members.setupDone()).toBe(false);
+    const setup = await accounts.members.setup({ name: 'Anna', orgName: 'Lilla Kyrkan' });
     expect(setup).toMatchObject({ userId: 'anna', orgId: 'church' });
-    const linked = await accounts.signInWithGoogle({ sub: 'google-anna', email: 'anna@gmail.com', name: 'Anna' }, await sha256((setup as { inviteToken: string }).inviteToken));
+    const linked = await accounts.signIn.signInWithGoogle({ sub: 'google-anna', email: 'anna@gmail.com', name: 'Anna' }, await sha256((setup as { inviteToken: string }).inviteToken));
     expect(linked).toEqual({ userId: 'anna', orgId: 'church' });
     expect(f.query('SELECT provider, subject, user_id FROM user_logins')).toEqual([{ provider: 'google', subject: 'google-anna', user_id: 'anna' }]);
-    expect(await accounts.setupDone()).toBe(true);
+    expect(await accounts.members.setupDone()).toBe(true);
     f.close();
 
     const again = openSqlite(file, driver);
@@ -358,12 +358,12 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
 
     // Still set up; Anna signs in with Google, and her session can add a passkey beside it.
     const accounts = new Accounts(sql);
-    expect(await accounts.setupDone()).toBe(true);
-    expect(await accounts.signInWithGoogle({ sub: 'google-anna', email: 'anna@gmail.com', name: 'Anna' }, null)).toEqual({ userId: 'anna', orgId: 'church' });
-    const { sessionId } = await accounts.createSession('anna', 'church', 'Mac');
-    const added = await accounts.addLogin('anna', sessionId, { provider: 'passkey', passkey: { id: 'cred-1', publicKey: 'cose', signCount: 0, transports: ['internal'] }, name: 'Mac' });
+    expect(await accounts.members.setupDone()).toBe(true);
+    expect(await accounts.signIn.signInWithGoogle({ sub: 'google-anna', email: 'anna@gmail.com', name: 'Anna' }, null)).toEqual({ userId: 'anna', orgId: 'church' });
+    const { sessionId } = await accounts.members.createSession('anna', 'church', 'Mac');
+    const added = await accounts.logins.add('anna', sessionId, { provider: 'passkey', passkey: { id: 'cred-1', publicKey: 'cose', signCount: 0, transports: ['internal'] }, name: 'Mac' });
     expect(added).toMatchObject({ provider: 'passkey', id: 'cred-1', name: 'Mac' });
-    expect((await accounts.logins('anna')).map((l) => l.provider)).toEqual(['google', 'passkey']);
+    expect((await accounts.logins.list('anna')).map((l) => l.provider)).toEqual(['google', 'passkey']);
     f.close();
 
     const again = openSqlite(file, driver);

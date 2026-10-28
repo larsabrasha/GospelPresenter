@@ -3,7 +3,7 @@ import type { AuthError } from '@gp/core';
 import { newRowId, newSecret, sha256 } from '../crypto.ts';
 import type { GoogleIdentity } from '../google.ts';
 import type { NewPasskey } from '../webauthn.ts';
-import { MemberAccounts } from './members.ts';
+import type { GlobalSql } from './sql.ts';
 
 /** A sign-in that left for Google, as the callback finds it. */
 export interface LoginFlow {
@@ -29,8 +29,12 @@ export function loginValues(l: NewLogin): [provider: string, subject: string, na
     : ['passkey', l.passkey.id, l.name, l.passkey.publicKey, l.passkey.signCount, JSON.stringify(l.passkey.transports)];
 }
 
-export class SignInAccounts extends MemberAccounts {
-  // ------------------------------------------------------------ sign-in with Google
+/** Sign-in with Google, and accepting invites. */
+export class SignInService {
+  constructor(
+    private readonly sql: GlobalSql,
+    private readonly now: () => number,
+  ) {}
 
   /**
    * A sign-in about to leave for Google. Its `state` is the returned secret;

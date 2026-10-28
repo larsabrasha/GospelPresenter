@@ -14,23 +14,23 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
 
   // -------------------------------------------------------------- first run, sign-in, sign-out
 
-  app.get('/api/auth/state', async (c) => c.json({ setupRequired: !(await accounts.setupDone()), google: !!google, passkeys: !!passkeys } satisfies AuthState));
+  app.get('/api/auth/state', async (c) => c.json({ setupRequired: !(await accounts.members.setupDone()), google: !!google, passkeys: !!passkeys } satisfies AuthState));
 
   /** First run (D19): makes the SuperAdmin and answers with their invite, which they accept with Google or a new passkey. */
   app.post('/api/auth/setup', async (c) => {
     const a = await body(c, setupRequest);
     if (!a) return fail(c, 400, 'invalid-request');
     const address = `address:${deps.clientAddress(c)}`;
-    const locked = await accounts.lockedUntil([address]);
+    const locked = await accounts.throttle.lockedUntil([address]);
     if (locked) return tooMany(c, locked);
-    if (await accounts.setupDone()) return fail(c, 409, 'setup-done');
+    if (await accounts.members.setupDone()) return fail(c, 409, 'setup-done');
     if (!deps.setupToken || !constantTimeEqual(a.setupToken, deps.setupToken)) {
-      await accounts.fail(address, THROTTLE.address);
+      await accounts.throttle.fail(address, THROTTLE.address);
       return fail(c, 403, 'setup-token');
     }
     // Without a way to sign in nobody could accept the invite, and the installation would be claimed by no one.
     if (!google && !passkeys) return fail(c, 503, 'google-disabled');
-    const r = await accounts.setup({ name: a.name, orgName: a.orgName });
+    const r = await accounts.members.setup({ name: a.name, orgName: a.orgName });
     if (r === 'setup-done') return fail(c, 409, 'setup-done');
     return c.json({ inviteToken: r.inviteToken } satisfies SetupResponse);
   });
@@ -53,16 +53,16 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
     if (a.link) {
       const caller = await mayAddLogin(c);
       if (caller instanceof Response) return caller;
-      const mine = await accounts.logins(caller.ctx.userId);
+      const mine = await accounts.logins.list(caller.ctx.userId);
       // One Google account per user, within ORG-R13's cap.
       if (mine.some((l) => l.provider === 'google') || mine.length >= ACCOUNT_LIMITS.loginsPerUser) return fail(c, 409, 'limit');
       link = { userId: caller.ctx.userId, sessionId: caller.sessionId };
     }
     if (a.invite) {
-      const state = await accounts.invite(a.invite);
+      const state = await accounts.members.invite(a.invite);
       if (state.state !== 'valid') return fail(c, 400, state.state === 'expired' ? 'invite-expired' : 'invite-invalid');
     }
-    const state = await accounts.createFlow({
+    const state = await accounts.signIn.createFlow({
       address: deps.clientAddress(c),
       inviteToken: a.invite ?? null,
       deviceName: a.app?.deviceName ?? '',
@@ -89,14 +89,14 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
     if (method === 'passkey') {
       // The same device sign-in with a passkey: the ceremony runs on this page, in this browser.
       if (!passkeys) return signInFailed(c, 'passkey-disabled', true);
-      const state = await accounts.createPasskeyFlow({ kind: 'authenticate', address: deps.clientAddress(c), deviceName, callbackScheme: scheme });
+      const state = await accounts.passkeys.createFlow({ kind: 'authenticate', address: deps.clientAddress(c), deviceName, callbackScheme: scheme });
       if (state === 'limit') return fail(c, 429, 'too-many-attempts', { retryAfter: PASSKEY_FLOW.ttlMs / 1000 });
       const options = await startPasskey(c, state);
       return typeof options === 'string' ? signInFailed(c, options, true) : passkeyPage(c, options);
     }
     if (method !== 'google') return fail(c, 400, 'invalid-request');
     if (!google) return signInFailed(c, 'google-disabled', true);
-    const state = await accounts.createFlow({ address: deps.clientAddress(c), inviteToken: null, deviceName, callbackScheme: scheme });
+    const state = await accounts.signIn.createFlow({ address: deps.clientAddress(c), inviteToken: null, deviceName, callbackScheme: scheme });
     if (state === 'limit') return fail(c, 429, 'too-many-attempts', { retryAfter: 600 });
     return start(c, state, true);
   });
@@ -116,7 +116,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
   app.get('/api/auth/google/callback', async (c) => {
     if (!google) return signInFailed(c, 'google-disabled', false);
     const browser = getCookie(c, FLOW_COOKIE) ?? '';
-    const flow = browser ? await accounts.takeFlow(c.req.query('state') ?? '', browser) : null;
+    const flow = browser ? await accounts.signIn.takeFlow(c.req.query('state') ?? '', browser) : null;
     deleteCookie(c, FLOW_COOKIE, { path: '/api/auth', secure: secure(c) });
     if (!flow) {
       log({ event: 'google-refused', reason: browser ? 'unknown-state' : 'no-flow-cookie' });
@@ -140,7 +140,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
 
     if (flow.link) {
       // Linking to a signed-in user: no session is made, the page goes back to their logins.
-      const added = await accounts.addLogin(flow.link.userId, flow.link.sessionId, { provider: 'google', subject: identity.sub, name: identity.email }, identity.email);
+      const added = await accounts.logins.add(flow.link.userId, flow.link.sessionId, { provider: 'google', subject: identity.sub, name: identity.email }, identity.email);
       if (typeof added === 'string') {
         log({ event: 'google-refused', reason: `link: ${added}` });
         return isApp ? signInFailed(c, added, true) : c.redirect(`/logins?error=${added}`, 302);
@@ -148,7 +148,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
       return isApp ? page(c, 200, 'Google-kontot är kopplat', '<p>Gå tillbaka till Gospel Presenter. Du kan stänga den här fliken.</p>') : c.redirect('/logins', 302);
     }
 
-    const who = await accounts.signInWithGoogle(identity, flow.inviteHash);
+    const who = await accounts.signIn.signInWithGoogle(identity, flow.inviteHash);
     if (typeof who === 'string') return refused(who, who);
 
     if (isApp) {
@@ -167,7 +167,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
     }
     // A web sign-in: the session is made when the page collects it, so no token is ever in a URL.
     const handoff = newSecret('');
-    await accounts.setHandoff(c.req.query('state') ?? '', handoff, who.userId, who.orgId);
+    await accounts.signIn.setHandoff(c.req.query('state') ?? '', handoff, who.userId, who.orgId);
     cookie(c, HANDOFF_COOKIE, handoff, 120);
     return c.redirect('/signed-in', 302);
   });
@@ -178,7 +178,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
     if (!a) return fail(c, 400, 'invalid-request');
     const handoff = getCookie(c, HANDOFF_COOKIE);
     deleteCookie(c, HANDOFF_COOKIE, { path: '/api/auth', secure: secure(c) });
-    const who = handoff ? await accounts.takeHandoff(handoff) : null;
+    const who = handoff ? await accounts.signIn.takeHandoff(handoff) : null;
     const r = who && (await signedIn(who.userId, who.orgId, a.deviceName));
     return r ? c.json(r) : fail(c, 401, 'unauthenticated');
   });

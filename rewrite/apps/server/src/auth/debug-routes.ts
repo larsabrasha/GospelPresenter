@@ -9,10 +9,10 @@ export function debugRoutes(app: Hono, kit: AuthKit) {
   // -------------------------------------------------------------- tests only
 
   if (deps.debug) {
-    app.get('/api/debug/counts', async (c) => c.json(await accounts.debugCounts()));
+    app.get('/api/debug/counts', async (c) => c.json(await accounts.debug.counts()));
     app.post('/api/debug/session', async (c) => {
       const { userId, orgId, role } = await c.req.json<{ userId: string; orgId: string; role: string }>();
-      return c.json({ token: await accounts.debugSession(userId, orgId, roleSchema.parse(role)) });
+      return c.json({ token: await accounts.debug.session(userId, orgId, roleSchema.parse(role)) });
     });
     /** Sets a membership's role, or removes the membership with `role: null`. */
     app.post('/api/debug/membership', async (c) => {

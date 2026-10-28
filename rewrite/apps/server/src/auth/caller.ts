@@ -40,7 +40,7 @@ const refuse = (status: 401 | 403, error: AuthError) => Response.json({ error },
  */
 export async function authenticate(req: Request, accounts: Accounts): Promise<Caller | Response> {
   const { token } = credentials(req);
-  const s = token ? await accounts.session(token) : null;
+  const s = token ? await accounts.members.session(token) : null;
   if (!s) return refuse(401, 'unauthenticated');
   if (!s.role) return refuse(403, 'not-a-member');
   return { orgId: s.orgId, sessionId: s.sessionId, ctx: { userId: s.userId, role: s.role }, signedInAt: s.createdAt, paired: s.paired };

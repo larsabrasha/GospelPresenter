@@ -2,7 +2,7 @@
 import type { AuthError } from '@gp/core';
 import { newSecret, sha256 } from '../crypto.ts';
 import type { StoredPasskey } from '../webauthn.ts';
-import { LoginAccounts } from './logins.ts';
+import type { GlobalSql } from './sql.ts';
 
 function parseTransports(v: unknown): string[] {
   try {
@@ -30,15 +30,19 @@ export interface PasskeyFlow {
   callbackScheme: string | null;
 }
 
-export class PasskeyAccounts extends LoginAccounts {
-  // ------------------------------------------------------------ passkeys
+/** Passkey ceremonies and the stored passkeys they check. */
+export class PasskeyService {
+  constructor(
+    private readonly sql: GlobalSql,
+    private readonly now: () => number,
+  ) {}
 
   /**
    * A passkey ceremony about to start. Its `state` is the returned secret;
    * only its hash is kept. At most PASSKEY_FLOW.perAddress unfinished per
    * address; old ones are swept here.
    */
-  async createPasskeyFlow(a: {
+  async createFlow(a: {
     kind: PasskeyFlow['kind'];
     address: string;
     userId?: string;
@@ -78,13 +82,13 @@ export class PasskeyAccounts extends LoginAccounts {
   }
 
   /** Binds a flow to the browser that opens it first and gives it its `challenge`. A flow starts once. */
-  async startPasskeyFlow(state: string, browser: string, challenge: string): Promise<PasskeyFlow | null> {
+  async startFlow(state: string, browser: string, challenge: string): Promise<PasskeyFlow | null> {
     const hash = await sha256(state);
     const n = await this.sql.run(
       'UPDATE passkey_flows SET browser_hash = ?, challenge_hash = ? WHERE state_hash = ? AND browser_hash IS NULL AND used_at IS NULL AND expires_at > ?',
       [await sha256(browser), await sha256(challenge), hash, this.now()],
     );
-    return n === 1 ? this.passkeyFlowRow('state_hash', hash) : null;
+    return n === 1 ? this.flowRow('state_hash', hash) : null;
   }
 
   /**
@@ -92,17 +96,17 @@ export class PasskeyAccounts extends LoginAccounts {
    * kind, in the browser that started it, not expired and not used before.
    * Taking it uses it, so a replayed credential finds nothing.
    */
-  async takePasskeyFlow(challenge: string, browser: string, kind: PasskeyFlow['kind']): Promise<PasskeyFlow | null> {
+  async takeFlow(challenge: string, browser: string, kind: PasskeyFlow['kind']): Promise<PasskeyFlow | null> {
     const hash = await sha256(challenge);
     const now = this.now();
     const n = await this.sql.run(
       'UPDATE passkey_flows SET used_at = ? WHERE challenge_hash = ? AND browser_hash = ? AND kind = ? AND used_at IS NULL AND expires_at > ?',
       [now, hash, await sha256(browser), kind, now],
     );
-    return n === 1 ? this.passkeyFlowRow('challenge_hash', hash) : null;
+    return n === 1 ? this.flowRow('challenge_hash', hash) : null;
   }
 
-  private async passkeyFlowRow(column: 'state_hash' | 'challenge_hash', hash: string): Promise<PasskeyFlow | null> {
+  private async flowRow(column: 'state_hash' | 'challenge_hash', hash: string): Promise<PasskeyFlow | null> {
     const [r] = await this.sql.all(
       `SELECT kind, user_id, session_id, invite_hash, name, device_name, callback_scheme FROM passkey_flows WHERE ${column} = ?`,
       [hash],
@@ -150,7 +154,7 @@ export class PasskeyAccounts extends LoginAccounts {
   }
 
   /** A stored passkey by its credential id. */
-  async passkey(id: string): Promise<StoredPasskey | null> {
+  async get(id: string): Promise<StoredPasskey | null> {
     const [r] = await this.sql.all("SELECT user_id, public_key, sign_count FROM user_logins WHERE provider = 'passkey' AND subject = ?", [id]);
     return r && r.public_key !== null ? { userId: String(r.user_id), publicKey: String(r.public_key), signCount: Number(r.sign_count ?? 0) } : null;
   }
@@ -160,7 +164,7 @@ export class PasskeyAccounts extends LoginAccounts {
    * still the one that was checked, so of two sign-ins racing with the same
    * counter at most one passes where the counter matters.
    */
-  async usePasskey(id: string, checked: number, signCount: number): Promise<boolean> {
+  async use(id: string, checked: number, signCount: number): Promise<boolean> {
     return (
       (await this.sql.run("UPDATE user_logins SET sign_count = ?, last_used_at = ? WHERE provider = 'passkey' AND subject = ? AND sign_count = ?", [
         signCount,

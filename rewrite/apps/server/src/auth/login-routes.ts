@@ -10,7 +10,7 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
 
   app.get(
     '/api/auth/logins',
-    withCaller(null, async (c, caller) => c.json(await accounts.logins(caller.ctx.userId))),
+    withCaller(null, async (c, caller) => c.json(await accounts.logins.list(caller.ctx.userId))),
   );
 
   app.patch(
@@ -18,7 +18,7 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
     withCaller(null, async (c, caller) => {
       const a = await body(c, renameLoginRequest);
       if (!a) return fail(c, 400, 'invalid-request');
-      return (await accounts.renamePasskey(caller.ctx.userId, c.req.param('id')!, a.name)) ? c.json({ ok: true }) : fail(c, 404, 'not-found');
+      return (await accounts.logins.renamePasskey(caller.ctx.userId, c.req.param('id')!, a.name)) ? c.json({ ok: true }) : fail(c, 404, 'not-found');
     }),
   );
 
@@ -30,7 +30,7 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
       if (caller.paired) return fail(c, 403, 'forbidden');
       const provider = c.req.param('provider')!;
       if (!(LOGIN_PROVIDERS as readonly string[]).includes(provider)) return fail(c, 404, 'not-found');
-      const r = await accounts.removeLogin(caller.ctx.userId, provider, c.req.param('id')!);
+      const r = await accounts.logins.remove(caller.ctx.userId, provider, c.req.param('id')!);
       return r === 'ok' ? c.json({ ok: true }) : r === 'last-login' ? fail(c, 409, 'last-login') : fail(c, 404, 'not-found');
     }),
   );
@@ -38,7 +38,7 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
   app.post(
     '/api/auth/signout',
     withCaller(null, async (c, caller) => {
-      await accounts.revokeSession(caller.sessionId);
+      await accounts.members.revokeSession(caller.sessionId);
       return c.json({ ok: true });
     }),
   );
@@ -46,7 +46,7 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
   app.get(
     '/api/auth/me',
     withCaller(null, async (c, caller) => {
-      const me: Me | null = await accounts.me({ sessionId: caller.sessionId, userId: caller.ctx.userId, orgId: caller.orgId, role: caller.ctx.role });
+      const me: Me | null = await accounts.members.me({ sessionId: caller.sessionId, userId: caller.ctx.userId, orgId: caller.orgId, role: caller.ctx.role });
       return me ? c.json(me) : fail(c, 401, 'unauthenticated');
     }),
   );
@@ -55,6 +55,6 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
 
   app.post('/api/auth/invites/lookup', async (c) => {
     const token = (await c.req.json().catch(() => null))?.token;
-    return c.json(await accounts.invite(typeof token === 'string' ? token : ''));
+    return c.json(await accounts.members.invite(typeof token === 'string' ? token : ''));
   });
 }

@@ -1,5 +1,5 @@
 // Sign-in throttling: failures per key, and the locks they earn.
-import { PasskeyAccounts } from './passkeys.ts';
+import type { GlobalSql } from './sql.ts';
 
 /** How sign-in failures slow an attacker down (docs/assumptions.md). */
 export interface ThrottlePolicy {
@@ -20,8 +20,12 @@ export const THROTTLE = {
   screen: { free: 30, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
 } satisfies Record<string, ThrottlePolicy>;
 
-export class ThrottleAccounts extends PasskeyAccounts {
-  // ------------------------------------------------------------ throttling
+/** Sign-in failures per key, and the locks they earn. */
+export class ThrottleService {
+  constructor(
+    private readonly sql: GlobalSql,
+    private readonly now: () => number,
+  ) {}
 
   /** Until when any of `keys` is locked (0 when none is). */
   async lockedUntil(keys: string[]): Promise<number> {
@@ -49,7 +53,7 @@ export class ThrottleAccounts extends PasskeyAccounts {
     ]);
   }
 
-  async clearThrottle(key: string): Promise<void> {
+  async clear(key: string): Promise<void> {
     await this.sql.run('DELETE FROM auth_throttle WHERE key = ?', [key]);
   }
 }

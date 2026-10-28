@@ -25,17 +25,17 @@ export function pairingRoutes(app: Hono, kit: AuthKit) {
       const a = await body(c, pairClaimRequest);
       if (!a) return fail(c, 400, 'invalid-request');
       const address = `address:${deps.clientAddress(c)}`;
-      const locked = await accounts.lockedUntil([address]);
+      const locked = await accounts.throttle.lockedUntil([address]);
       if (locked) return tooMany(c, locked);
-      const claimed = await accounts.claimPairCode(a.code, a.name, ACCOUNT_LIMITS.pairCodeAttempts);
+      const claimed = await accounts.pairing.claimPairCode(a.code, a.name, ACCOUNT_LIMITS.pairCodeAttempts);
       if (!claimed) {
-        await accounts.fail(address, THROTTLE.address);
+        await accounts.throttle.fail(address, THROTTLE.address);
         return fail(c, 400, 'pair-code-invalid');
       }
       const session = await signedIn(claimed.userId, claimed.orgId, a.name, claimed.deviceId);
       if (!session) {
         // The user was removed while the code waited.
-        await accounts.revokeDevice(claimed.deviceId);
+        await accounts.pairing.revokeDevice(claimed.deviceId);
         return fail(c, 400, 'pair-code-invalid');
       }
       return c.json({ device: claimed.token, session } satisfies PairClaimResponse);
@@ -56,16 +56,16 @@ export function pairingRoutes(app: Hono, kit: AuthKit) {
         const refusal = inviteRefusal(actor(caller), t);
         if (refusal) return fail(c, 403, refusal);
         const code = newDigits(6);
-        return c.json({ code, expiresAt: await accounts.newPairCode(code, ACCOUNT_LIMITS.pairCodeTtlMs, t.id, caller.orgId) });
+        return c.json({ code, expiresAt: await accounts.pairing.newPairCode(code, ACCOUNT_LIMITS.pairCodeTtlMs, t.id, caller.orgId) });
       }),
     );
     app.get(
       '/api/pair/devices',
-      atHost(async (c) => c.json(await accounts.pairedDevices())),
+      atHost(async (c) => c.json(await accounts.pairing.pairedDevices())),
     );
     app.delete(
       '/api/pair/devices/:id',
-      atHost(async (c) => ((await accounts.revokeDevice(c.req.param('id')!)) ? c.json({ ok: true }) : fail(c, 404, 'not-found'))),
+      atHost(async (c) => ((await accounts.pairing.revokeDevice(c.req.param('id')!)) ? c.json({ ok: true }) : fail(c, 404, 'not-found'))),
     );
   }
 }

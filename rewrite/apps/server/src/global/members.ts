@@ -1,4 +1,4 @@
-// Users, organisations, memberships, sessions and invites: the root of the `Accounts` chain.
+// Users, organisations, memberships, sessions and invites.
 import { ACCOUNT_LIMITS, type InviteState, type Me, type Role, type UserRow } from '@gp/core';
 import { newRowId, newSecret, sha256 } from '../crypto.ts';
 import type { GlobalSql } from './sql.ts';
@@ -15,24 +15,14 @@ export interface SessionInfo {
   paired: boolean;
 }
 
-export interface AccountOptions {
-  now?: () => number;
-  /** A session unused for this long is refused (ACCOUNT_LIMITS.sessionIdleMs by default). */
-  sessionIdleMs?: number;
-}
-
-/** Users, organisations, memberships, sessions and invites; `Accounts` adds the rest. */
-export class MemberAccounts {
-  readonly now: () => number;
-  private readonly idleMs: number;
-
+/** Users, organisations, memberships, sessions and invites. */
+export class MemberService {
   constructor(
-    readonly sql: GlobalSql,
-    opts: AccountOptions = {},
-  ) {
-    this.now = opts.now ?? Date.now;
-    this.idleMs = opts.sessionIdleMs ?? ACCOUNT_LIMITS.sessionIdleMs;
-  }
+    private readonly sql: GlobalSql,
+    private readonly now: () => number,
+    /** A session unused for this long is refused. */
+    private readonly idleMs: number,
+  ) {}
 
   /** Whether the first run is finished: some user has linked a sign-in (AUTH-R12). */
   async setupDone(): Promise<boolean> {
@@ -240,7 +230,7 @@ export class MemberAccounts {
     return { state: 'valid', name: String(r.name), orgName: String(r.org_name), email: (r.email as string | null) ?? null };
   }
 
-    async setRole(userId: string, orgId: string, role: Role): Promise<void> {
+  async setRole(userId: string, orgId: string, role: Role): Promise<void> {
     await this.sql.run('UPDATE memberships SET role = ? WHERE user_id = ? AND org_id = ?', [role, userId, orgId]);
   }
 

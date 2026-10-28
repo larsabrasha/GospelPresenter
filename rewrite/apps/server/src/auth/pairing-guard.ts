@@ -16,7 +16,7 @@ export async function deviceOf(req: Request, accounts: Accounts, pairing: Pairin
   const { device } = credentials(req);
   if (!device) return null;
   if (constantTimeEqual(device, pairing.hostToken)) return 'host';
-  return (await accounts.pairedDevice(device)) ? 'paired' : null;
+  return (await accounts.pairing.pairedDevice(device)) ? 'paired' : null;
 }
 
 /** The anonymous outputs (spec 04 §5, §6): public outputs, saved screens and temporary screens. */

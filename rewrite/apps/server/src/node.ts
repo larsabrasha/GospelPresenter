@@ -381,7 +381,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     port,
     url: `http://${local(opts.hostname)}:${port}`,
     tls: secure && tlsPort ? { port: tlsPort, url: `https://${local(opts.tls?.hostname)}:${tlsPort}` } : null,
-    setupToken: (await accounts.setupDone()) ? null : setupToken,
+    setupToken: (await accounts.members.setupDone()) ? null : setupToken,
     async close() {
       for (const c of wss.clients) c.terminate();
       wss.close();

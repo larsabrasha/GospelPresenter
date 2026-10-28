@@ -1,9 +1,14 @@
 // A signed-in user's own logins: adding, listing, renaming and removing them.
 import { ACCOUNT_LIMITS, type AuthError, type LoginMethod, type LoginProvider } from '@gp/core';
-import { loginValues, SignInAccounts, type NewLogin } from './sign-in.ts';
+import { loginValues, type NewLogin } from './sign-in.ts';
+import type { GlobalSql } from './sql.ts';
 
-export class LoginAccounts extends SignInAccounts {
-  // ------------------------------------------------------------ a signed-in user's own logins
+/** A signed-in user's own logins. */
+export class LoginService {
+  constructor(
+    private readonly sql: GlobalSql,
+    private readonly now: () => number,
+  ) {}
 
   /**
    * Adds a login to a signed-in user: a passkey, or a Google account linked
@@ -11,11 +16,11 @@ export class LoginAccounts extends SignInAccounts {
    * (ORG-R13), and at most one Google account per user. A login that is
    * already this user's is fine; another user's is `login-taken`.
    */
-  async addLogin(userId: string, sessionId: string, login: NewLogin, email: string | null = null): Promise<LoginMethod | AuthError> {
+  async add(userId: string, sessionId: string, login: NewLogin, email: string | null = null): Promise<LoginMethod | AuthError> {
     const now = this.now();
     const [provider, subject, name, publicKey, signCount, transports] = loginValues(login);
     const [linked] = await this.sql.all('SELECT user_id FROM user_logins WHERE provider = ? AND subject = ?', [provider, subject]);
-    if (linked) return String(linked.user_id) === userId ? ((await this.logins(userId)).find((l) => l.provider === provider && l.id === subject) ?? 'login-taken') : 'login-taken';
+    if (linked) return String(linked.user_id) === userId ? ((await this.list(userId)).find((l) => l.provider === provider && l.id === subject) ?? 'login-taken') : 'login-taken';
     const session = `EXISTS (SELECT 1 FROM sessions WHERE id = ? AND user_id = ? AND revoked_at IS NULL)`;
     let inserted: number | undefined;
     try {
@@ -47,7 +52,7 @@ export class LoginAccounts extends SignInAccounts {
   }
 
   /** The user's logins, oldest first. */
-  async logins(userId: string): Promise<LoginMethod[]> {
+  async list(userId: string): Promise<LoginMethod[]> {
     const rows = await this.sql.all('SELECT provider, subject, name, created_at, last_used_at FROM user_logins WHERE user_id = ? ORDER BY created_at, provider, subject', [userId]);
     return rows.map((r) => ({
       provider: r.provider as LoginProvider,
@@ -68,7 +73,7 @@ export class LoginAccounts extends SignInAccounts {
    * so two removals at once cannot leave none. A user who loses every way in
    * gets a new invite from an admin.
    */
-  async removeLogin(userId: string, provider: string, id: string): Promise<'ok' | 'last-login' | 'not-found'> {
+  async remove(userId: string, provider: string, id: string): Promise<'ok' | 'last-login' | 'not-found'> {
     const n = await this.sql.run(
       `DELETE FROM user_logins WHERE provider = ? AND subject = ? AND user_id = ? AND (SELECT count(*) FROM user_logins WHERE user_id = ?) > 1`,
       [provider, id, userId, userId],

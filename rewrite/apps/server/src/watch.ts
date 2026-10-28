@@ -50,14 +50,14 @@ export class WatchRegistry {
  */
 export async function lookupThrottled(
   registry: WatchRegistry,
-  accounts: Pick<Accounts, 'lockedUntil' | 'fail'>,
+  accounts: Pick<Accounts, 'throttle'>,
   code: string,
   address: string,
 ): Promise<WatchTarget | { lockedUntil: number } | null> {
   const key = `watch:${address}`;
-  const until = await accounts.lockedUntil([key]);
+  const until = await accounts.throttle.lockedUntil([key]);
   if (until) return { lockedUntil: until };
   const target = await registry.lookup(code);
-  if (!target) await accounts.fail(key, THROTTLE.watch);
+  if (!target) await accounts.throttle.fail(key, THROTTLE.watch);
   return target;
 }

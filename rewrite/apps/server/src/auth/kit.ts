@@ -64,10 +64,10 @@ export function authKit(deps: AuthDeps) {
   };
 
   async function signedIn(userId: string, orgId: string, deviceName: string, pairedDeviceId: string | null = null): Promise<SignInResponse | null> {
-    const member = await accounts.member(userId, orgId);
+    const member = await accounts.members.member(userId, orgId);
     if (!member) return null;
-    const { token, sessionId } = await accounts.createSession(userId, orgId, deviceName, pairedDeviceId);
-    const me = await accounts.me({ sessionId, userId, orgId, role: member.role });
+    const { token, sessionId } = await accounts.members.createSession(userId, orgId, deviceName, pairedDeviceId);
+    const me = await accounts.members.me({ sessionId, userId, orgId, role: member.role });
     return me && { token, me };
   }
 
@@ -102,12 +102,12 @@ export function authKit(deps: AuthDeps) {
     if (!passkeys) return 'passkey-disabled';
     const browser = newSecret('');
     const challenge = newSecret('');
-    const flow = await accounts.startPasskeyFlow(state, browser, challenge);
+    const flow = await accounts.passkeys.startFlow(state, browser, challenge);
     if (!flow) return 'passkey-failed';
     let options: PasskeyOptions;
     if (flow.kind === 'authenticate') options = { get: passkeys.requestOptions(challenge) };
     else {
-      const who = await accounts.registrant(flow);
+      const who = await accounts.passkeys.registrant(flow);
       if (typeof who === 'string') return who;
       options = { create: passkeys.creationOptions({ challenge, userId: who.userId, name: who.email ?? who.name, displayName: who.name, exclude: who.exclude }) };
     }
@@ -119,7 +119,7 @@ export function authKit(deps: AuthDeps) {
   async function start(c: Context, state: string, forApp: boolean): Promise<Response> {
     if (!google) return signInFailed(c, 'google-disabled', forApp);
     const browser = newSecret('');
-    const flow = await accounts.startFlow(state, browser);
+    const flow = await accounts.signIn.startFlow(state, browser);
     if (!flow) return signInFailed(c, 'google-failed', forApp);
     cookie(c, FLOW_COOKIE, browser, LOGIN_FLOW.ttlMs / 1000);
     c.header('referrer-policy', 'no-referrer');
@@ -127,7 +127,7 @@ export function authKit(deps: AuthDeps) {
   }
 
   /** The target user, only if they are in the caller's organisation (PERM-R3). */
-  const target = (caller: Caller, id: string) => accounts.member(id, caller.orgId);
+  const target = (caller: Caller, id: string) => accounts.members.member(id, caller.orgId);
   const actor = (caller: Caller) => ({ id: caller.ctx.userId, role: caller.ctx.role });
 
   return { deps, accounts, google, passkeys, log, tooMany, signedIn, withCaller, secure, cookie, mayAddLogin, startPasskey, start, target, actor };

@@ -34,14 +34,14 @@ export function passkeyRoutes(app: Hono, kit: AuthKit) {
     if (a.mode === 'register' && !a.invite) {
       const caller = await mayAddLogin(c);
       if (caller instanceof Response) return caller;
-      if ((await accounts.logins(caller.ctx.userId)).length >= ACCOUNT_LIMITS.loginsPerUser) return fail(c, 409, 'limit');
+      if ((await accounts.logins.list(caller.ctx.userId)).length >= ACCOUNT_LIMITS.loginsPerUser) return fail(c, 409, 'limit');
       owner = caller;
     }
     if (a.invite) {
-      const state = await accounts.invite(a.invite);
+      const state = await accounts.members.invite(a.invite);
       if (state.state !== 'valid') return fail(c, 400, state.state === 'expired' ? 'invite-expired' : 'invite-invalid');
     }
-    const state = await accounts.createPasskeyFlow({
+    const state = await accounts.passkeys.createFlow({
       kind: a.mode === 'signin' ? 'authenticate' : 'register',
       address: deps.clientAddress(c),
       userId: owner?.ctx.userId,
@@ -88,7 +88,7 @@ export function passkeyRoutes(app: Hono, kit: AuthKit) {
     const cred = a.credential;
     const kind = cred.response.attestationObject !== undefined ? 'register' : 'authenticate';
     const cd = parseClientData(cred.response.clientDataJSON);
-    const flow = browser && cd ? await accounts.takePasskeyFlow(cd.challenge, browser, kind) : null;
+    const flow = browser && cd ? await accounts.passkeys.takeFlow(cd.challenge, browser, kind) : null;
     const refused = (error: AuthError, reason: string) => {
       log({ event: 'passkey-refused', reason });
       const status = error === 'unauthenticated' ? 401 : error === 'not-a-member' ? 403 : error === 'login-taken' || error === 'limit' ? 409 : 400;
@@ -102,20 +102,20 @@ export function passkeyRoutes(app: Hono, kit: AuthKit) {
       if ('problem' in p) return refused('passkey-failed', p.problem);
       const login: NewLogin = { provider: 'passkey', passkey: p, name: flow.name ?? ((flow.callbackScheme ? flow.deviceName : a.deviceName) || 'Passkey') };
       if (!flow.inviteHash) {
-        const added = await accounts.addLogin(flow.userId ?? '', flow.sessionId ?? '', login);
+        const added = await accounts.logins.add(flow.userId ?? '', flow.sessionId ?? '', login);
         if (typeof added === 'string') return refused(added, added);
         return c.json((flow.callbackScheme ? { done: true } : { added }) satisfies PasskeyFinishResponse);
       }
-      const r = await accounts.acceptInvite(flow.inviteHash, login);
+      const r = await accounts.signIn.acceptInvite(flow.inviteHash, login);
       if (typeof r === 'string') return refused(r, r);
       who = r;
     } else {
-      const stored = await accounts.passkey(cred.id);
+      const stored = await accounts.passkeys.get(cred.id);
       if (!stored) return refused('passkey-failed', 'unknown-credential');
       const v = await passkeys.verifyAssertion(cred, cd, stored);
       if ('problem' in v) return refused('passkey-failed', v.problem);
-      if (!(await accounts.usePasskey(cred.id, stored.signCount, v.signCount))) return refused('passkey-failed', 'counter-race');
-      const r = await accounts.signedInAs(stored.userId);
+      if (!(await accounts.passkeys.use(cred.id, stored.signCount, v.signCount))) return refused('passkey-failed', 'counter-race');
+      const r = await accounts.signIn.signedInAs(stored.userId);
       if (typeof r === 'string') return refused(r, r);
       who = r;
     }

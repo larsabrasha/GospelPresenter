@@ -1,26 +1,47 @@
-// `Accounts`, the end of the chain: every domain's methods, and the debug helpers tests use.
-import type { Role } from '@gp/core';
-import { PairingAccounts } from './pairing.ts';
+// `Accounts`: the global tables' services, built in dependency order.
+import { ACCOUNT_LIMITS } from '@gp/core';
+import { DebugService } from './debug.ts';
+import { LoginService } from './logins.ts';
+import { MemberService } from './members.ts';
+import { PairingService } from './pairing.ts';
+import { PasskeyService } from './passkeys.ts';
+import { SignInService } from './sign-in.ts';
+import type { GlobalSql } from './sql.ts';
+import { ThrottleService } from './throttle.ts';
 
-/** Every read and write of the global tables. Methods return an error code instead of throwing for expected refusals. */
-export class Accounts extends PairingAccounts {
-  // ------------------------------------------------------------ tests
+export interface AccountOptions {
+  now?: () => number;
+  /** A session unused for this long is refused (ACCOUNT_LIMITS.sessionIdleMs by default). */
+  sessionIdleMs?: number;
+}
 
-  /** Debug servers only: how many rows the tables that hold credentials have. */
-  async debugCounts(): Promise<Record<string, number>> {
-    const out: Record<string, number> = {};
-    for (const t of ['sessions', 'login_flows', 'passkey_flows', 'user_logins', 'invites']) out[t] = Number((await this.sql.all(`SELECT count(*) AS n FROM ${t}`))[0]?.n ?? 0);
-    return out;
-  }
+/**
+ * Every read and write of the global tables, one service per concern, all on
+ * one database and one clock. Methods return an error code instead of throwing
+ * for expected refusals.
+ */
+export class Accounts {
+  readonly now: () => number;
+  readonly members: MemberService;
+  readonly signIn: SignInService;
+  readonly logins: LoginService;
+  readonly passkeys: PasskeyService;
+  readonly throttle: ThrottleService;
+  readonly pairing: PairingService;
+  /** Debug servers and tests only. */
+  readonly debug: DebugService;
 
-  /** Debug servers only: a user (made if missing) with a role in `orgId`, and a fresh session. */
-  async debugSession(userId: string, orgId: string, role: Role): Promise<string> {
-    const now = this.now();
-    await this.sql.batch([
-      ['INSERT OR IGNORE INTO users (id, name, created_at) VALUES (?, ?, ?)', [userId, userId, now]],
-      ['INSERT OR IGNORE INTO orgs (id, name, created_at) VALUES (?, ?, ?)', [orgId, orgId, now]],
-      ['INSERT OR REPLACE INTO memberships (user_id, org_id, role) VALUES (?, ?, ?)', [userId, orgId, role]],
-    ]);
-    return (await this.createSession(userId, orgId, 'test')).token;
+  constructor(
+    readonly sql: GlobalSql,
+    opts: AccountOptions = {},
+  ) {
+    const now = (this.now = opts.now ?? Date.now);
+    this.members = new MemberService(sql, now, opts.sessionIdleMs ?? ACCOUNT_LIMITS.sessionIdleMs);
+    this.signIn = new SignInService(sql, now);
+    this.logins = new LoginService(sql, now);
+    this.passkeys = new PasskeyService(sql, now);
+    this.throttle = new ThrottleService(sql, now);
+    this.pairing = new PairingService(sql, now);
+    this.debug = new DebugService(sql, now, this.members);
   }
 }

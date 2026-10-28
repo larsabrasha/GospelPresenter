@@ -1,10 +1,14 @@
 // The desktop host's pairing codes and paired devices.
 import type { PairedDevice } from '@gp/core';
 import { constantTimeEqual, newRowId, newSecret, sha256 } from '../crypto.ts';
-import { ThrottleAccounts } from './throttle.ts';
+import type { GlobalSql } from './sql.ts';
 
-export class PairingAccounts extends ThrottleAccounts {
-  // ------------------------------------------------------------ pairing (desktop host)
+/** The desktop host's pairing codes and paired devices. */
+export class PairingService {
+  constructor(
+    private readonly sql: GlobalSql,
+    private readonly now: () => number,
+  ) {}
 
   /** A new pairing code, which will sign the device in as `userId`; it replaces any earlier one (LIVE-R28: one code at a time). */
   async newPairCode(code: string, ttlMs: number, userId: string, orgId: string): Promise<number> {
