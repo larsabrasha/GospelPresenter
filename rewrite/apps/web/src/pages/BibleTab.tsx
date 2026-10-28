@@ -176,7 +176,7 @@ export function BibleTab({
   const search = useRef<HTMLInputElement>(null);
 
   const bible = bibles?.find((b) => b.id === bibleId) ?? bibles?.[0] ?? null;
-  // A translation this device does not keep is fetched now, for this window only (README, "Bibles").
+  // A translation this device does not keep is fetched now, for this window only (docs/bibles-and-themes.md, "Bibles").
   const books = useData((d) => (bible ? bibleBooks(d, bible.contentHash, (hash) => db.fetchBibleText(hash)) : Promise.resolve(null)), [bible?.contentHash, bible?.stored]);
 
   if (!bibles) return null;

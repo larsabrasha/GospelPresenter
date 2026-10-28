@@ -1,4 +1,4 @@
-// Behind a reverse proxy (README, "Behind a reverse proxy"): the throttles
+// Behind a reverse proxy (docs/lan-https-and-addresses.md, "Behind a reverse proxy"): the throttles
 // count the client the proxy names, but only a trusted proxy is believed.
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

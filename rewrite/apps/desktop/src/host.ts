@@ -13,7 +13,7 @@ export const onLan = () => process.env.GP_LAN === '1';
 export const TLS_PORT = 47843;
 
 /**
- * The certificate for https on the LAN (README, "https on the LAN"), or null
+ * The certificate for https on the LAN (docs/lan-https-and-addresses.md, "https on the LAN"), or null
  * for none. `GP_TLS_CERT` and `GP_TLS_KEY` are paths to the operator's own
  * PEM files. `GP_TLS=self-signed` instead has the host make one, kept in its
  * data folder so a device that accepted it once keeps accepting it; each
@@ -100,7 +100,7 @@ export async function startHost(opts: {
     // Off only for the localhost development server (serve.ts); never on the LAN.
     pairing: opts.hostToken || onLan() ? { hostToken: opts.hostToken ?? `gphost_${randomBytes(32).toString('base64url')}` } : undefined,
     setupToken: process.env.GP_SETUP_TOKEN || undefined,
-    // Comma-separated addresses or CIDR blocks of reverse proxies (README, "Behind a reverse proxy").
+    // Comma-separated addresses or CIDR blocks of reverse proxies (docs/lan-https-and-addresses.md, "Behind a reverse proxy").
     trustedProxies: process.env.GP_TRUSTED_PROXIES?.split(','),
     // The redirect is to this server on this machine: the system browser beside it comes back here.
     google: opts.google,

@@ -1,7 +1,7 @@
 // Bibles and themes against every server adapter (spec 05): the text of a
 // translation is uploaded once and downloaded once per device, outside the
 // change log; only its `bibles` row syncs. Also measures one full-size
-// (generated) translation for the README.
+// (generated) translation for docs/bibles-and-themes.md.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { bibleId, bibleTextHash, BIBLE_LIMITS, parseBibleContent, serializeBibleText, type BibleBookText } from '@gp/core';
 import { BibleTextUploads, dropBible, fetchBibleText, keepBible, loadBibleText, setBibleKept, storeBibleText, syncBibleTexts, type SyncClient } from '@gp/sync/client';
@@ -126,7 +126,7 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     expect(await syncBibleTexts(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [], missing: [], removed: 0 });
   });
 
-  describe('a device that keeps the translations it chose (BIBLE-R15, README "Bibles")', () => {
+  describe('a device that keeps the translations it chose (BIBLE-R15, docs/bibles-and-themes.md "Bibles")', () => {
     const KJ: BibleBookText[] = [{ code: 'JHN', verses: [[3, 16, 'For God so loved the world.']] }];
 
     /** WEB and KJ imported by Alice and synced to Bob, who has no text yet. */

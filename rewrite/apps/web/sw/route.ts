@@ -1,4 +1,4 @@
-// What the service worker does with a request (README, "Starting the app
+// What the service worker does with a request (docs/lan-https-and-addresses.md, "Starting the app
 // without the host"). Pure, so it is tested without a worker.
 
 /** `pass`: the network only, as if there were no worker. `page`: network first, the kept index.html if that fails. `file`: the kept copy first. */

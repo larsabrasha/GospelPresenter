@@ -1,4 +1,4 @@
-// Media blobs on a client (README, "Media"): a picture is two immutable blobs
+// Media blobs on a client (docs/media-and-files.md, "Media"): a picture is two immutable blobs
 // named by their SHA-256, kept in `media_blobs`, which does not sync. Only the
 // `images` row syncs; this uploads the blobs of a queued `addImage` before it
 // is pushed, downloads what the library names and this device lacks, and
@@ -36,7 +36,7 @@ export interface MediaSync {
 }
 
 /**
- * Which files this device fetches (README, "Which files a device keeps").
+ * Which files this device fetches (docs/media-and-files.md, "Which files a device keeps").
  * Every picture's thumbnail, always. The full picture and the audio of a
  * presentation that is open here, or, on a device that keeps its data,
  * coming up within `days`. Every overlay's picture when either applies. Never audio for a presentation this device only

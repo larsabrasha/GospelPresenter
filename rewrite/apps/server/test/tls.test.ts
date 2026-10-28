@@ -1,4 +1,4 @@
-// https on the LAN (README, "https on the LAN"): the desktop host serves the
+// https on the LAN (docs/lan-https-and-addresses.md, "https on the LAN"): the desktop host serves the
 // same app over https with a certificate the operator provides, beside its
 // plain http on 127.0.0.1. Pages, the API and both sockets work over it.
 import { execFileSync } from 'node:child_process';

@@ -1,7 +1,9 @@
 # Agent guide: the rewrite
 
 The TypeScript, local-first rewrite of Gospel Presenter (pnpm + turbo: `apps/web`, `apps/server`, `apps/desktop`,
-`packages/core`, `packages/sync`). Read `README.md` here first (packages, "Look", "Assumptions"). The decision is
+`packages/core`, `packages/sync`). Read `README.md` here first (packages, commands, and the table of
+`docs/`, one file per topic); then only the `docs/` file your task touches, and `docs/look.md` and
+`docs/assumptions.md` for UI or behaviour work. The decision is
 `../adr/0007-rewrite-on-typescript-local-first.md`; the behaviour spec is `../spec/` at the repo root (not here).
 
 ## Commands (from `rewrite/`)
@@ -16,10 +18,10 @@ pnpm e2e -- drag watch                 # only these e2e specs (by file name), bu
 pnpm --filter @gp/desktop exec playwright test drag     # the same without turbo; its global setup builds first
 SYNC_ADAPTERS=node pnpm --filter @gp/server test        # server tests on one adapter (default node,node-sqlite,workers)
 GP_E2E_WORKERS=1 pnpm e2e              # e2e workers (default: half the CPU cores); GP_E2E_VISIBLE=1 shows windows
-pnpm --filter @gp/desktop start        # the desktop host on 127.0.0.1:47800 (Google client: README "Sign-in")
-GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start   # on the LAN, over https (README "https on the LAN")
+pnpm --filter @gp/desktop start        # the desktop host on 127.0.0.1:47800 (Google client: docs/sign-in-and-pairing.md)
+GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start   # on the LAN, over https (docs/lan-https-and-addresses.md)
 GP_CAPTURE=/tmp/new pnpm --filter @gp/desktop exec playwright test capture   # pictures of every page
-GP_CAPTURE_ONLY=setup,login pnpm …     # only the named pictures (README "Look", last paragraph)
+GP_CAPTURE_ONLY=setup,login pnpm …     # only the named pictures (docs/look.md, last paragraph)
 node scripts/compare-old-app.mjs /tmp/cmp home,songs   # old app and new, same names, into /tmp/cmp/{old,new}
 ```
 
@@ -33,7 +35,7 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
 - `AppButton` (`apps/web/src/ui/AppButton.tsx`) is the only place a `<button>` is made; the lint enforces it.
 - Never `cursor-not-allowed`; use `cursor-default`.
 - Every screen works light and dark, desktop and phone (390 px wide).
-- Take the old app's Tailwind classes; the look follows the old app (README "Look").
+- Take the old app's Tailwind classes; the look follows the old app (docs/look.md).
 - UI strings are Swedish, in `apps/web/src/i18n.ts`.
 
 ## Code rules
@@ -55,6 +57,6 @@ Never build the MAUI iOS/Android targets.
 
 ## Workflow
 
-- Ask before changing behaviour; the spec and README say what the app does.
+- Ask before changing behaviour; the spec and `docs/` say what the app does.
 - A spec change is committed together with the code it describes.
 - Commit only after the full checks pass, and only when asked.

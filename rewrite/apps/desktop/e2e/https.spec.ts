@@ -1,4 +1,4 @@
-// https on the LAN (README): the host serves the LAN over https with a
+// https on the LAN (docs/lan-https-and-addresses.md): the host serves the LAN over https with a
 // certificate the operator provides. A device that trusts it is a secure
 // context, so it keeps its database in OPFS through a reload, as a tablet's
 // Safari should with the certificate installed, and a service worker keeps

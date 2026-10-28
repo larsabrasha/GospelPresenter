@@ -117,7 +117,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
   });
 
   // ------------------------------------------------------------ Bible texts
-  // A translation's verses are an immutable text named by its SHA-256 (README,
+  // A translation's verses are an immutable text named by its SHA-256 (docs/bibles-and-themes.md,
   // "Bibles"). The importing device uploads it before it pushes `importBible`;
   // every device downloads it once. Neither goes through the change log.
 
@@ -172,7 +172,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
   });
 
   // ------------------------------------------------------------ Media blobs
-  // A picture is two immutable blobs named by their SHA-256 (README, "Media").
+  // A picture is two immutable blobs named by their SHA-256 (docs/media-and-files.md, "Media").
   // The importing device uploads them before it pushes `addImage`; every
   // device downloads what it lacks. Neither goes through the change log. The
   // bytes live in the media storage; `media_blobs` records which are there, so

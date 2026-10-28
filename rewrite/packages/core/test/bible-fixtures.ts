@@ -1,6 +1,6 @@
 // A tiny sample translation for tests and development: a few verses of the
 // World English Bible, which is in the public domain. No copyrighted
-// translation is ever committed (README, "Bibles").
+// translation is ever committed (docs/bibles-and-themes.md, "Bibles").
 import { makeZip, utf8Encode } from '../src/index.ts';
 
 /** [book, chapter, verse, text] */

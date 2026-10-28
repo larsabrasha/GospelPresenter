@@ -2,7 +2,7 @@
 // only put, get and delete, which a folder does as well as an object store.
 // Three adapters: a folder on disk (`media-disk.ts`: the desktop host and, by
 // default, a self-hosted server), R2 through its Workers binding, and memory
-// (tests). S3 is not built yet (README, "Not done yet").
+// (tests). S3 is not built yet (docs/not-done-yet.md).
 
 export interface MediaStorage {
   /** Stores the bytes under the key; the same key again is the same bytes (it names their hash). */

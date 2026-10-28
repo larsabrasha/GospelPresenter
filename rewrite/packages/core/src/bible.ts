@@ -219,7 +219,7 @@ export function parseBibleContent(json: string | null): BibleItemContent | null 
 
 /**
  * A translation's verses travel and are stored as one immutable text, named
- * by the SHA-256 of its canonical JSON (see the README, "Bibles"). Books are
+ * by the SHA-256 of its canonical JSON (see docs/bibles-and-themes.md, "Bibles"). Books are
  * stored one per row, so no row comes near the 2 MB a Durable Object allows.
  */
 export const BIBLE_LIMITS = { bibles: 10, verses: 60_000, verseLength: 10_000, bookBytes: 1_800_000, textBytes: 32 * 1024 * 1024 } as const;

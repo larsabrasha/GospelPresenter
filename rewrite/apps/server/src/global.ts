@@ -97,7 +97,7 @@ const passkeyFlowDdl = [
 ];
 
 /**
- * A user signs in through a linked login, never a password (README,
+ * A user signs in through a linked login, never a password (docs/sign-in-and-pairing.md,
  * "Sign-in"): a Google account (`provider` 'google', its `sub` as `subject`)
  * or a passkey ('passkey', its credential id, with its COSE public key,
  * signature counter and transports beside it). `name` is the passkey's name,
@@ -214,7 +214,7 @@ export async function migrateGlobal(sql: GlobalSql): Promise<void> {
   if (plan.length) await sql.batch(plan.map((s) => [s, []]));
 }
 
-/** How sign-in failures slow an attacker down (README, "Assumptions"). */
+/** How sign-in failures slow an attacker down (docs/assumptions.md). */
 export interface ThrottlePolicy {
   /** Failures allowed in `windowMs` before a lock. */
   free: number;
@@ -641,7 +641,7 @@ export class Accounts {
    * replaces every login the user had and revokes their sessions, since a new
    * invite is also how an admin resets a lost account: whoever held the old
    * passkey or Google account is out. A login already linked to another user
-   * is refused (spec 01 E4 says otherwise; README "Assumptions"). The invite is
+   * is refused (spec 01 E4 says otherwise; docs/assumptions.md). The invite is
    * used in the same batch, so it is spent only by a link that succeeds.
    */
   async acceptInvite(inviteHash: string, login: NewLogin, email: string | null = null): Promise<{ userId: string; orgId: string } | AuthError> {

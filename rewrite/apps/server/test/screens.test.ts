@@ -185,7 +185,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     owner.send({ type: 'own', state: ownState('S1', { outputs: ['K1'], slide: slide('Härlig är jorden'), canvas: canvas('Härlig är jorden') }) });
     expect(await page.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', canvas: canvas('Härlig är jorden') });
 
-    // Not in local workerd: there a closed stream is never noticed, not even when a ping is written (README, "Not done yet").
+    // Not in local workerd: there a closed stream is never noticed, not even when a ping is written (docs/not-done-yet.md).
     if (adapterName === 'workers') return;
     // A blink: the stream drops and the TV comes back within SCREEN_GRACE_MS, still switched on.
     page.close();

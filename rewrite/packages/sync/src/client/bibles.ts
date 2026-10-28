@@ -1,4 +1,4 @@
-// Bible texts on a client (README, "Bibles"): a translation's verses are an
+// Bible texts on a client (docs/bibles-and-themes.md, "Bibles"): a translation's verses are an
 // immutable text named by its hash, kept in tables that do not sync. Only the
 // `bibles` row syncs; this fetches the text of each translation the device
 // keeps once and keeps it, and drops texts it no longer keeps.
@@ -161,7 +161,7 @@ export type BibleTextUpload = (hash: string, json: string) => Promise<number>;
 /**
  * Uploads the text of every queued `importBible` before the mutation is
  * pushed, so a translation imported offline reaches the server with its text
- * (README, "Bibles"). Give `beforePush` to the SyncClient.
+ * (docs/bibles-and-themes.md, "Bibles"). Give `beforePush` to the SyncClient.
  *
  * An upload that cannot reach the server, or that fails on the server's side
  * (5xx), holds that import and every mutation after it back until the next

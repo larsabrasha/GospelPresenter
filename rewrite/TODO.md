@@ -1,6 +1,6 @@
 # TODO
 
-Smaller things decided or wished for, not yet built. The larger steps are in README.md, "Next steps".
+Smaller things decided or wished for, not yet built. The larger steps are in docs/next-steps.md.
 
 ## Remote control for the whole organisation
 

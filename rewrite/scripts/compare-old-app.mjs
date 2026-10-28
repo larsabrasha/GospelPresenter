@@ -1,4 +1,4 @@
-// Pictures of the old Blazor app and of the rewrite, same names, in one go (README "Look").
+// Pictures of the old Blazor app and of the rewrite, same names, in one go (docs/look.md).
 // Usage: node scripts/compare-old-app.mjs <outDir> [name,name,…]
 // Makes the reference worktree ../GospelPresenter-main-ref if it is missing (detached at origin/main, after a
 // fetch; an existing one is used as it is), runs the old app in mock mode on a free port, takes its pictures into

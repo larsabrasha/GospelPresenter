@@ -91,7 +91,7 @@ export const presentationItems = sqliteTable('presentation_items', {
  * A translation the organisation has imported (spec 05 "Bible translation").
  * The id comes from the abbreviation, which is unique per organisation
  * (BIBLE-R5). Only the metadata syncs: the verses are an immutable text named
- * by `contentHash`, downloaded once by each device (README, "Bibles").
+ * by `contentHash`, downloaded once by each device (docs/bibles-and-themes.md, "Bibles").
  */
 export const bibles = sqliteTable('bibles', {
   id: text('id').primaryKey(),
@@ -106,7 +106,7 @@ export const bibles = sqliteTable('bibles', {
  * A picture in the organisation's media library (spec 05 "Media library
  * items"). The pictures themselves are two immutable blobs named by their
  * SHA-256, `full` (fits 1920×1080) and `thumb` (fits 400×225), kept outside
- * the change log (README, "Media"). Only the metadata syncs.
+ * the change log (docs/media-and-files.md, "Media"). Only the metadata syncs.
  */
 export const images = sqliteTable('images', {
   id: text('id').primaryKey(),
@@ -215,7 +215,7 @@ export const mediaBlobs = sqliteTable('media_blobs', {
 
 /**
  * Not synced. The presentations this device keeps every file of, whatever
- * their date ("Tillgänglig offline", README "Which files a device keeps"):
+ * their date ("Tillgänglig offline", docs/media-and-files.md "Which files a device keeps"):
  * a choice for this device, not for the organisation.
  */
 export const pinnedPresentations = sqliteTable('pinned_presentations', {
@@ -225,7 +225,7 @@ export const pinnedPresentations = sqliteTable('pinned_presentations', {
 
 /**
  * Not synced. The translations this device keeps the text of ("Tillgänglig
- * offline", README "Bibles"): a choice for this device, not for the
+ * offline", docs/bibles-and-themes.md "Bibles"): a choice for this device, not for the
  * organisation. By id, so a re-imported translation stays kept. A desktop
  * host keeps every text whatever this says.
  */

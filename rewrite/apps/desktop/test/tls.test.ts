@@ -1,4 +1,4 @@
-// The self-signed certificate of GP_TLS=self-signed (README, "https on the LAN"):
+// The self-signed certificate of GP_TLS=self-signed (docs/lan-https-and-addresses.md, "https on the LAN"):
 // every device has accepted it once, so it must not be made anew without need.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync } from 'node:fs';

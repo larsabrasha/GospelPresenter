@@ -1,4 +1,4 @@
-// "Tillgänglig offline" (README, "Which files a device keeps"): a device
+// "Tillgänglig offline" (docs/media-and-files.md, "Which files a device keeps"): a device
 // keeps every file of a presentation it was told to, whatever its date, and
 // fetches what is added to it later without the presentation being opened.
 import { expect, test } from '@playwright/test';

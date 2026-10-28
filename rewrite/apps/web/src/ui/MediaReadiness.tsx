@@ -8,7 +8,7 @@ import { CheckIcon } from './icons.tsx';
 
 /**
  * Whether the pictures and audio a presentation needs are on this device
- * (README, "Which files a device keeps"). While it is open they are fetched;
+ * (docs/media-and-files.md, "Which files a device keeps"). While it is open they are fetched;
  * offline, what is missing cannot be, and that is said before going live.
  */
 export function MediaReadiness({ presentationId, audio }: { presentationId: string; audio: boolean }) {

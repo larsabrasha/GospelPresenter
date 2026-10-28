@@ -18,7 +18,7 @@ type Message = { ok: boolean; text: string } | null;
  * them, delete one. Admins only (D24). The zip is read on this device and its
  * text uploaded once. Each device keeps the texts it chose ("Gör tillgänglig
  * offline", BIBLE-R15); a desktop host keeps them all and shows no choice
- * (README, "Bibles").
+ * (docs/bibles-and-themes.md, "Bibles").
  */
 export function Bibles() {
   const db = useDb();

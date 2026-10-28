@@ -40,7 +40,7 @@ export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'th
 /**
  * Bilder (spec 05 `/admin/images`): the organisation's pictures. Each file is
  * fitted and re-encoded here (`media/process.ts`), kept on this device and
- * uploaded when the server can be reached (README, "Media"). No preview step,
+ * uploaded when the server can be reached (docs/media-and-files.md, "Media"). No preview step,
  * no rename, no detail view (spec 05).
  */
 export function Images({ role }: { role: Role }) {

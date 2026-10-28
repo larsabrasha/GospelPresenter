@@ -190,14 +190,14 @@ export interface NodeServerOptions {
    * Also serve over https, with a certificate the operator provides (PEM),
    * on its own port and address: on a desktop host, the LAN gets https while
    * the host's own window keeps http on 127.0.0.1. A device that trusts the
-   * certificate is then a secure context (OPFS, Web Crypto). See README,
+   * certificate is then a secure context (OPFS, Web Crypto). See docs/lan-https-and-addresses.md,
    * "https on the LAN".
    */
   tls?: { key: string | Buffer; cert: string | Buffer; port?: number; hostname?: string };
   /**
    * Reverse proxies (addresses or CIDR blocks) whose `X-Forwarded-For` names
    * the client, for the throttles and the host's own sign-in. Without them the
-   * header is ignored. See README, "Behind a reverse proxy".
+   * header is ignored. See docs/lan-https-and-addresses.md, "Behind a reverse proxy".
    */
   trustedProxies?: string[];
   /** Where refused sign-ins are reported (JSON on stderr by default). */
@@ -326,7 +326,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const listening = (srv: ServerType) => new Promise<void>((resolve) => (srv.listening ? resolve() : srv.once('listening', () => resolve())));
   const server = serve({ fetch: app.fetch, port: opts.port ?? 0, hostname: opts.hostname ?? '127.0.0.1' });
   await listening(server);
-  // The same app over https, for the LAN (README, "https on the LAN").
+  // The same app over https, for the LAN (docs/lan-https-and-addresses.md, "https on the LAN").
   const secure = opts.tls
     ? serve({
         fetch: app.fetch,

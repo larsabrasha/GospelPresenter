@@ -1,6 +1,6 @@
 # The Cloudflare trial
 
-The repo's Worker on a real Cloudflare account, as tried on 2026-10-28 (README "On Cloudflare"): Worker
+The repo's Worker on a real Cloudflare account, as tried on 2026-10-28 (docs/cloudflare.md): Worker
 `gp-trial-gospel`, D1 `gp-trial-global`, R2 `gp-trial-media`. Nothing here holds an ID or a secret: `setup.sh`
 writes the filled config and the tokens to `.local/` (git-ignored).
 

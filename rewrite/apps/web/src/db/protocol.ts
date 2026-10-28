@@ -12,7 +12,7 @@ export interface Session {
   device: string | null;
   /** 'memory' keeps the database in memory even where OPFS exists (development and tests). */
   storage?: 'memory';
-  /** A desktop host's own window: it keeps every Bible text, whatever was chosen (README, "Bibles"). */
+  /** A desktop host's own window: it keeps every Bible text, whatever was chosen (docs/bibles-and-themes.md, "Bibles"). */
   keepsEveryBible?: true;
 }
 
@@ -43,7 +43,7 @@ export type DbCall =
   | { op: 'syncNow' }
   /**
    * A presentation is open on a page (editor, live, remote control): fetch
-   * what it needs now (README, "Which files a device keeps"); `audio` false
+   * what it needs now (docs/media-and-files.md, "Which files a device keeps"); `audio` false
    * for a remote control, which never plays. `key` names the page, for `closeMedia`.
    */
   | { op: 'openMedia'; key: string; presentationId: string; audio: boolean }

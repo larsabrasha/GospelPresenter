@@ -1,7 +1,7 @@
 import { BlockList, isIP } from 'node:net';
 
 /**
- * The proxies whose `X-Forwarded-For` the server believes (README, "Behind a
+ * The proxies whose `X-Forwarded-For` the server believes (docs/lan-https-and-addresses.md, "Behind a
  * reverse proxy"): addresses and CIDR blocks, IPv4 or IPv6. Throws on an entry
  * that is neither, so a typo stops the server rather than trusting nobody.
  */

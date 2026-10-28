@@ -7,7 +7,7 @@ You make one part of the TypeScript rewrite match the old Blazor app. Lars, the 
 in your task should work as the old app does; he may not be there to answer questions.
 
 Read first: `rewrite/AGENTS.md` (commands, UI and code rules, where the old app is and how to run it) and follow
-it; `rewrite/README.md` "Look" and "Next steps"; the parts of `spec/` (repo root) your task touches. Run every
+it; `rewrite/docs/look.md` and `rewrite/docs/next-steps.md`; the parts of `spec/` (repo root) your task touches. Run every
 command from the checkout you were started in; never cd to another one.
 
 ## Rules for this work
@@ -20,12 +20,12 @@ command from the checkout you were started in; never cd to another one.
   to `questions.md` in the folder (below), under a heading with your task name, one short entry each: what, what
   the old app does, what you chose, what you suggest.
 - If a rule in `spec/` changes with your work, update the spec and say so.
-- Update `rewrite/README.md`: take your item off the "Next steps" look list and describe the result where it
-  belongs, in the README's style.
+- Update the docs: take your item off the list in `rewrite/docs/next-steps.md` and describe the result where it
+  belongs in `rewrite/docs/` (usually `look.md`), in the docs' style.
 - Add or update e2e tests for what you built; never weaken what a test checks.
 - Pictures, old and new, with the same file names, so they can be set side by side:
   `node rewrite/scripts/compare-old-app.mjs <folder>/<task-slug> <name,…>` writes `old/` and `new/` there
-  (README "Look"). Pages with no counterpart in the old app are taken in the new app only.
+  (`rewrite/docs/look.md`, last paragraph). Pages with no counterpart in the old app are taken in the new app only.
 - Before you report: the full checks from `rewrite/AGENTS.md`, the whole `pnpm e2e` included. All must pass;
   if you cannot make them pass, stop and report what fails.
 - Do not commit. Never use `git stash`. Stop every server you start.

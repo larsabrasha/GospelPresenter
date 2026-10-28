@@ -85,7 +85,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await second.page.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
   const mirror = second.page.getByTestId('audio-player');
   const player = page.getByTestId('audio-player');
-  // The controller fetches no audio: it never plays (README, "Which files a device keeps").
+  // The controller fetches no audio: it never plays (docs/media-and-files.md, "Which files a device keeps").
   await expect(second.page.getByTestId('media-ready')).toHaveCount(0);
   await mirror.getByRole('button', { name: 'Spela' }).click();
   await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });

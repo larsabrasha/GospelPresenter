@@ -1,4 +1,4 @@
-// The service worker (README, "Starting the app without the host"): keeps
+// The service worker (docs/lan-https-and-addresses.md, "Starting the app without the host"): keeps
 // this build of the web app, so a device that reached the host over https
 // can reload and start with the host gone. Its data is already in OPFS.
 //

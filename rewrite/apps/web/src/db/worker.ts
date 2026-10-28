@@ -111,7 +111,7 @@ function startSync(c: SyncClient, s: Session) {
   }, POLL_MS);
 }
 
-// ------------------------------------------------------------ Bible texts (README, "Bibles") and media blobs ("Media")
+// ------------------------------------------------------------ Bible texts (docs/bibles-and-themes.md, "Bibles") and media blobs ("Media")
 
 /** Imports, downloads and clean-ups of stored texts and blobs run one at a time. */
 let bibleWork: Promise<unknown> = Promise.resolve();

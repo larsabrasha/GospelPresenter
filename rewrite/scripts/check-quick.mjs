@@ -1,6 +1,6 @@
 // The quick check, for a change in progress: typecheck, lint and the unit tests, with the server's
 // tests on the node adapter only (SYNC_ADAPTERS). Spec files given as arguments then run in e2e,
-// on a fresh build. Not a replacement for the full checks (README, "Commands").
+// on a fresh build. Not a replacement for the full checks (AGENTS.md, "Commands").
 // Usage: pnpm check:quick [-- e2e/drag.spec.ts …]
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
