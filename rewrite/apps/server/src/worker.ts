@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { outputRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
-import { authenticate, authRoutes, isApiPath, WS_PROTOCOL } from './auth.ts';
+import { authenticate, authRoutes, isApiPath, WS_PROTOCOL } from './auth/index.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';

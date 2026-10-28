@@ -14,7 +14,7 @@ import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
 import { outputRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
-import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth.ts';
+import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql } from './global/index.ts';

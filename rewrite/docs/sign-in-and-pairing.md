@@ -24,7 +24,7 @@ refused (`login-taken`). Nothing takes a user id: no one, an admin included, add
 user's logins. An admin's new invite is the only way back for someone who lost every login. The same page changes roles and removes users, with spec 01's
 rules (PERM-R4–R6, D20, D21) in `packages/core/src/accounts.ts`, which the server and the UI share.
 
-How the sign-in runs (`apps/server/src/google.ts`, `auth.ts`): the authorization code flow with PKCE
+How the sign-in runs (`apps/server/src/google.ts`, `auth/sign-in-routes.ts`): the authorization code flow with PKCE
 (S256), `state` and `nonce`, and `prompt=select_account`. A sign-in in progress is a row in
 `login_flows`: single use, 10 minutes, and bound to the browser that started it by a cookie, so a
 callback from another browser, a forged `state` or a replay is refused. The ID token is checked with
@@ -91,7 +91,7 @@ desktop app (`app.isPackaged`) also never reads `GP_GOOGLE_TEST_ISSUER`.
 
 ## Passkeys
 
-How a ceremony runs (`apps/server/src/webauthn.ts`, `auth.ts`): `POST /api/auth/passkey/begin` with
+How a ceremony runs (`apps/server/src/webauthn.ts`, `auth/passkey-routes.ts`): `POST /api/auth/passkey/begin` with
 `mode` `signin` or `register` (with an invite, or for the caller's own session) makes a row in
 `passkey_flows` with a fresh 32-byte challenge: single use, 5 minutes, bound to the browser by a
 cookie, and to its kind, so a registration's challenge never signs anyone in. `POST

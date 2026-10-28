@@ -26,12 +26,12 @@ import {
   type PushRequest,
 } from '@gp/core';
 import { currentSeq, dump, handlePull, handlePush, type OrgStore, type PokeCoalescer, type SerialQueue } from '@gp/sync/server';
-import type { Caller } from './auth.ts';
+import type { Caller } from './auth/index.ts';
 import type { LiveHub, Viewer } from './live-hub.ts';
 import type { MediaStorage } from './media.ts';
 import type { WatchRegistry } from './watch.ts';
 
-export { authenticate, authRoutes, credentials, isApiPath, isLoopback, pairingGuard, WS_PROTOCOL, type AuthDeps, type Caller, type Pairing } from './auth.ts';
+export { authenticate, authRoutes, credentials, isApiPath, isLoopback, pairingGuard, WS_PROTOCOL, type AuthDeps, type Caller, type Pairing } from './auth/index.ts';
 export { GoogleOidc, TEST_ISSUER_BUILD, type GoogleConfig, type GoogleIdentity, type TokenProblem } from './google.ts';
 export { Accounts, globalDdl, migrateGlobal, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, type GlobalSql } from './global/index.ts';
 export { Passkeys, type PasskeyConfig } from './webauthn.ts';
