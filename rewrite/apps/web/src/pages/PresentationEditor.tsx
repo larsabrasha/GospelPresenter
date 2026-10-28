@@ -18,6 +18,7 @@ import {
   EllipsisOutlineIcon,
   EmptySlidesPicture,
   ItemIcon,
+  MenuIcon,
   MusicalNoteIcon,
   MusicalNoteOutlineIcon,
   PencilIcon,
@@ -95,6 +96,9 @@ function SlideGrid({ slides, label, theme, overlayId = null, column }: { slides:
   );
 }
 
+/** Below `md`, as SongTab.razor's `window.innerWidth < 768`. */
+const isPhone = () => matchMedia('(max-width: 767.98px)').matches;
+
 interface TabProps {
   presentationId: string;
   afterItemId: string | null;
@@ -156,6 +160,8 @@ function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [arrangementId, setArrangementId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // On a phone a tapped song opens its preview full screen, with the add button there (SongTab.razor).
+  const [fullScreen, setFullScreen] = useState(false);
   const search = useRef<HTMLInputElement>(null);
   const shown = songs ? searchSongs(songs, query) : [];
   // Typing selects the first hit, also when the library loads after the typing.
@@ -189,6 +195,7 @@ function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProps) {
     onAdded(itemId);
     setQuery('');
     select(null);
+    setFullScreen(false);
     search.current?.focus();
   };
 
@@ -239,7 +246,10 @@ function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProps) {
                 <AppButton
                   variant="plain"
                   aria-pressed={s.id === effectiveId}
-                  onClick={() => select(s.id)}
+                  onClick={() => {
+                    select(s.id);
+                    if (isPhone()) setFullScreen(true);
+                  }}
                   className={`w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm ${
                     s.id === effectiveId ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600'
                   }`}
@@ -255,7 +265,7 @@ function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProps) {
           {/* Under the list whenever it has songs, as the current app's; an empty list has its own. */}
           {!!shown.length && <div className="shrink-0 pt-3">{create}</div>}
         </div>
-        <div className="w-full md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3 pt-3 md:pt-0">
+        <div className="hidden md:block md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3">
           {!shownPreview && (
             <div className="flex flex-col items-center justify-center h-full py-8 text-sm text-neutral-400 dark:text-neutral-500 select-none">
               <MusicalNoteOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />
@@ -279,7 +289,47 @@ function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProps) {
           )}
         </div>
       </div>
-      <AddFooter hint={t('presentation.addHint')} name={selected?.name} label={selected ? t('presentation.addSong', { name: selected.name }) : undefined} onAdd={selected ? () => void add() : undefined} />
+      <div className="hidden md:block">
+        <AddFooter hint={t('presentation.addHint')} name={selected?.name} label={selected ? t('presentation.addSong', { name: selected.name }) : undefined} onAdd={selected ? () => void add() : undefined} />
+      </div>
+      {fullScreen && shownPreview && selected && (
+        <div
+          className="md:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800"
+          role="dialog"
+          aria-modal="true"
+          aria-label={shownPreview.song.name}
+          data-testid="song-preview-full"
+          onKeyDown={(e) => {
+            if (e.key !== 'Escape') return;
+            e.stopPropagation(); // Escape closes the preview, not the whole add dialog
+            setFullScreen(false);
+          }}
+        >
+          <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+            <AppButton variant="icon" autoFocus aria-label={t('common.close')} title={t('common.close')} onClick={() => setFullScreen(false)}>
+              <CloseIcon className="size-5" />
+            </AppButton>
+            <div className="flex-1 min-w-0 text-left">
+              <h3 className="font-semibold text-sm truncate">{shownPreview.song.name}</h3>
+              {shownPreview.song.author && <p className="text-xs text-neutral-400 truncate">{shownPreview.song.author}</p>}
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <ArrangementPills arrangements={shownPreview.arrangements} chosen={chosen} onChoose={setArrangementId} className="mb-3" />
+            <SlideGrid
+              column
+              theme={theme}
+              label={shownPreview.song.name}
+              slides={songSlides(shownPreview.song, shownPreview.parts, shownPreview.labels, shownPreview.arrangements, chosen)}
+            />
+          </div>
+          <div className="shrink-0 flex items-center justify-end gap-4 px-4 py-3 border-t-[0.5px] border-neutral-200 dark:border-neutral-700">
+            <AppButton aria-label={t('presentation.addSong', { name: selected.name })} onClick={() => void add()} className="min-w-0 inline-flex items-center gap-1">
+              <span className="shrink-0">{t('presentation.add')}</span> <span className="font-bold truncate">{selected.name}</span>
+            </AppButton>
+          </div>
+        </div>
+      )}
       {creating && (
         <CreateSongDialog
           initial={query}
@@ -416,6 +466,8 @@ export function PresentationEditor({ id }: { id: string }) {
   const [adding, setAdding] = useState(false);
   const [details, setDetails] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  // Below `lg` the running order is a drawer from the left, open when the page opens (Presentation.razor).
+  const [menuVisible, setMenuVisible] = useState(true);
 
   const items = data?.items ?? [];
   const selected = items.find((i) => i.id === selectedId) ?? null;
@@ -464,9 +516,19 @@ export function PresentationEditor({ id }: { id: string }) {
   const moveButton = 'size-7 flex items-center justify-center rounded-full cursor-pointer disabled:opacity-30 disabled:cursor-default';
 
   return (
-    <section className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+    <section className="flex-1 min-h-0 flex relative">
       {dialog}
-      <aside className="w-full lg:w-[300px] shrink-0 lg:h-full flex flex-col bg-white dark:bg-neutral-800 lg:shadow-xl lg:z-10 lg:overflow-y-auto">
+      {/* Below `lg`: the dimmed page behind the drawer; a tap on it closes the drawer. */}
+      <div
+        className={`bg-black/30 z-[100] absolute inset-0 transition-opacity lg:invisible ${menuVisible ? 'visible opacity-100' : 'invisible opacity-0'}`}
+        onClick={() => setMenuVisible(false)}
+        data-testid="menu-backdrop"
+      />
+      <aside
+        className={`w-[300px] duration-200 ease-in-out shrink-0 h-full flex flex-col overflow-y-auto bg-white dark:bg-neutral-800 absolute inset-y-0 left-0 z-[110] shadow-xl lg:relative lg:inset-auto lg:z-10 lg:visible lg:translate-x-0 ${
+          menuVisible ? 'visible translate-x-0' : 'invisible -translate-x-full'
+        }`}
+      >
         <div className="shrink-0 px-4 pt-4 pb-2 space-y-2">
           <div className="flex items-center justify-between gap-1">
             <h1 className="font-semibold text-lg/7 px-1 min-w-0 line-clamp-2">{presentation.name}</h1>
@@ -501,7 +563,7 @@ export function PresentationEditor({ id }: { id: string }) {
             <MediaReadiness presentationId={id} audio />
           </div>
         </div>
-        <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <ol className="pb-8" aria-label={t('presentation.items')}>
             {items.map((item, i) => {
               const problem = slides.get(item.id)?.problem;
@@ -519,6 +581,7 @@ export function PresentationEditor({ id }: { id: string }) {
                     onClick={() => {
                       setSelectedId(item.id);
                       setRenaming(false);
+                      setMenuVisible(false);
                     }}
                   >
                     <ItemIcon type={item.type} className="size-4 shrink-0" />
@@ -578,103 +641,116 @@ export function PresentationEditor({ id }: { id: string }) {
           </div>
         </div>
       </aside>
-      <div className="flex-1 min-w-0 flex flex-col bg-neutral-100 dark:bg-neutral-900 lg:overflow-y-auto">
-        <div className="flex items-center justify-between gap-3 px-5 py-3 lg:pr-3">
-          {selected ? (
-            <div className="flex items-center gap-3 min-w-0">
-              <ItemTitle key={selected.id} item={selected} editing={renaming} setEditing={setRenaming} />
-              {selectedSong?.deletedAt === null && !renaming && (
-                <a
-                  href={href({ page: 'song', id: selectedSong.id })}
-                  className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer no-underline text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"
-                  title={t('presentation.editSong')}
-                >
-                  <PencilIcon className="size-4" />
-                  {t('presentation.editSong')}
-                </a>
-              )}
-            </div>
-          ) : (
-            <span />
-          )}
-          <AppButton
-            variant="plain"
-            href={href({ page: 'live', id })}
-            className="fixed bottom-3 right-3 z-30 lg:static shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
-          >
-            <PlayIcon className="size-5" />
-            <span className="text-sm font-medium">{t('presentation.start')}</span>
-          </AppButton>
-        </div>
-        <div className="flex-1 flex flex-col gap-3 px-3 pb-24 lg:pb-3">
-          {!items.length && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-12 select-none">
-              <EmptySlidesPicture className="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600" />
-              <h2 className="text-lg/7 font-semibold text-neutral-500 dark:text-neutral-400 mb-2">{t('presentation.empty')}</h2>
-              <p className="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">{t('presentation.emptyText')}</p>
-            </div>
-          )}
-          {!selected && !!items.length && (
-            <div className="flex-1 flex items-center justify-center py-12 select-none">
-              <p className="text-sm text-neutral-400 dark:text-neutral-500 italic">{t('presentation.selectItem')}</p>
-            </div>
-          )}
-          {selected && selectedSlides?.problem === 'song-trashed' && (
-            <ItemWarning
-              action={
-                <AppButton
-                  variant="secondary"
-                  onClick={async () => {
-                    await db.mutate('restoreSong', { id: selected.sourceId });
-                    toast(t('presentation.songRestored', { name: selectedSong?.name ?? selected.title }));
-                  }}
-                >
-                  {t('common.restore')}
-                </AppButton>
-              }
+      <div className="flex-1 min-w-0 flex flex-col relative bg-neutral-100 dark:bg-neutral-900">
+        <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+          <div className="flex items-center justify-between gap-3 px-5 py-3 lg:pr-3">
+            {selected ? (
+              <div className="flex items-center gap-3 min-w-0">
+                <ItemTitle key={selected.id} item={selected} editing={renaming} setEditing={setRenaming} />
+                {selectedSong?.deletedAt === null && !renaming && (
+                  <a
+                    href={href({ page: 'song', id: selectedSong.id })}
+                    className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full text-xs cursor-pointer no-underline text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"
+                    title={t('presentation.editSong')}
+                  >
+                    <PencilIcon className="size-4" />
+                    {t('presentation.editSong')}
+                  </a>
+                )}
+              </div>
+            ) : (
+              <span />
+            )}
+            <AppButton
+              variant="plain"
+              href={href({ page: 'live', id })}
+              className="absolute bottom-3 right-3 z-30 lg:static shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
             >
-              {t('presentation.songTrashed')}
-            </ItemWarning>
-          )}
-          {selected && selectedSlides?.problem === 'song-missing' && <ItemWarning>{t('presentation.songMissing')}</ItemWarning>}
-          {selected && selectedSlides?.problem === 'image-missing' && <ItemWarning>{t('presentation.imageMissing')}</ItemWarning>}
-          {selected && selectedSlides?.problem === 'audio-missing' && <ItemWarning>{t('presentation.audioMissing')}</ItemWarning>}
-          {selected && selectedSlides?.audio && <AudioPreview hash={selectedSlides.audio.hash} name={selectedSlides.audio.fileName} />}
-          {selected && (selectedSong?.deletedAt === null || !!overlays.length) && (
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-1 empty:hidden">
-              {selectedSong?.deletedAt === null && (
-                <ArrangementPills
-                  arrangements={selectedArrangements}
-                  chosen={selected.arrangementId ?? selectedArrangements[0]?.id ?? null}
-                  onChoose={(arrangementId) => void db.mutate('setItemArrangement', { itemId: selected.id, arrangementId })}
-                />
-              )}
-              {!!overlays.length && (
-                <label className="flex flex-wrap items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400" title={t('overlays.itemHint')}>
-                  {t('overlays.itemOverlay')}
-                  <span className="relative">
-                    <select
-                      aria-label={t('overlays.itemOverlay')}
-                      value={selected.overlayId ?? ''}
-                      onChange={(e) => void db.mutate('setItemOverlay', { itemId: selected.id, overlayId: e.target.value || null })}
-                      className="appearance-none py-1.5 pl-3 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    >
-                      <option value="">{t('overlays.itemNone')}</option>
-                      {overlays.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.title}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDownIcon className="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-                  </span>
-                  <span className="text-xs text-neutral-400 dark:text-neutral-500">{t('overlays.itemHint')}</span>
-                </label>
-              )}
-            </div>
-          )}
-          {selected && selectedSlides && <SlideGrid theme={theme} label={selected.title} slides={selectedSlides.slides} overlayId={selected.overlayId} />}
+              <PlayIcon className="size-5" />
+              <span className="text-sm font-medium">{t('presentation.start')}</span>
+            </AppButton>
+          </div>
+          <div className="flex-1 flex flex-col gap-3 px-3 pb-24 lg:pb-3">
+            {!items.length && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center px-6 py-12 select-none">
+                <EmptySlidesPicture className="w-48 h-auto mb-6 text-neutral-300 dark:text-neutral-600" />
+                <h2 className="text-lg/7 font-semibold text-neutral-500 dark:text-neutral-400 mb-2">{t('presentation.empty')}</h2>
+                <p className="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">{t('presentation.emptyText')}</p>
+              </div>
+            )}
+            {!selected && !!items.length && (
+              <div className="flex-1 flex items-center justify-center py-12 select-none">
+                <p className="text-sm text-neutral-400 dark:text-neutral-500 italic">{t('presentation.selectItem')}</p>
+              </div>
+            )}
+            {selected && selectedSlides?.problem === 'song-trashed' && (
+              <ItemWarning
+                action={
+                  <AppButton
+                    variant="secondary"
+                    onClick={async () => {
+                      await db.mutate('restoreSong', { id: selected.sourceId });
+                      toast(t('presentation.songRestored', { name: selectedSong?.name ?? selected.title }));
+                    }}
+                  >
+                    {t('common.restore')}
+                  </AppButton>
+                }
+              >
+                {t('presentation.songTrashed')}
+              </ItemWarning>
+            )}
+            {selected && selectedSlides?.problem === 'song-missing' && <ItemWarning>{t('presentation.songMissing')}</ItemWarning>}
+            {selected && selectedSlides?.problem === 'image-missing' && <ItemWarning>{t('presentation.imageMissing')}</ItemWarning>}
+            {selected && selectedSlides?.problem === 'audio-missing' && <ItemWarning>{t('presentation.audioMissing')}</ItemWarning>}
+            {selected && selectedSlides?.audio && <AudioPreview hash={selectedSlides.audio.hash} name={selectedSlides.audio.fileName} />}
+            {selected && (selectedSong?.deletedAt === null || !!overlays.length) && (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-1 empty:hidden">
+                {selectedSong?.deletedAt === null && (
+                  <ArrangementPills
+                    arrangements={selectedArrangements}
+                    chosen={selected.arrangementId ?? selectedArrangements[0]?.id ?? null}
+                    onChoose={(arrangementId) => void db.mutate('setItemArrangement', { itemId: selected.id, arrangementId })}
+                  />
+                )}
+                {!!overlays.length && (
+                  <label className="flex flex-wrap items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400" title={t('overlays.itemHint')}>
+                    {t('overlays.itemOverlay')}
+                    <span className="relative">
+                      <select
+                        aria-label={t('overlays.itemOverlay')}
+                        value={selected.overlayId ?? ''}
+                        onChange={(e) => void db.mutate('setItemOverlay', { itemId: selected.id, overlayId: e.target.value || null })}
+                        className="appearance-none py-1.5 pl-3 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      >
+                        <option value="">{t('overlays.itemNone')}</option>
+                        {overlays.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.title}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDownIcon className="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                    </span>
+                    <span className="text-xs text-neutral-400 dark:text-neutral-500">{t('overlays.itemHint')}</span>
+                  </label>
+                )}
+              </div>
+            )}
+            {selected && selectedSlides && <SlideGrid theme={theme} label={selected.title} slides={selectedSlides.slides} overlayId={selected.overlayId} />}
+          </div>
         </div>
+        {/* Below `lg`: the slides fade out under the round menu button at the bottom left, and Starta presentation at the right. */}
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent lg:hidden z-20 pointer-events-none" />
+        <AppButton
+          variant="plain"
+          className="absolute bottom-3 left-3 z-30 lg:hidden cursor-pointer p-4 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          title={t('nav.menu')}
+          aria-label={t('nav.menu')}
+          onClick={() => setMenuVisible(true)}
+        >
+          <MenuIcon className="size-8" />
+        </AppButton>
       </div>
       {adding && <AddItemDialog presentationId={id} afterItemId={selectedId} theme={theme} onAdded={setSelectedId} onClose={() => setAdding(false)} />}
       {details && (

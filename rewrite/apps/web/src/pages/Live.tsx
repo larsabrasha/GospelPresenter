@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import type { LivePointer, LiveSessionInfo, Overlay, PresentationItem } from '@gp/core';
 import { useData, useShownOverlay } from '../db/react.tsx';
 import { listDisplays } from '../db/queries.ts';
@@ -219,6 +219,18 @@ function RemoteInfoDialog({ url: path, name, onClose }: { url: string; name: str
         </div>
       </Fold>
     </Dialog>
+  );
+}
+
+/** Whether the window is `lg` or wider, where the live panel is a column rather than a floating box. */
+const wideQuery = matchMedia('(min-width: 1024px)');
+function useWide(): boolean {
+  return useSyncExternalStore(
+    (on) => {
+      wideQuery.addEventListener('change', on);
+      return () => wideQuery.removeEventListener('change', on);
+    },
+    () => wideQuery.matches,
   );
 }
 
@@ -446,6 +458,11 @@ function ControlledLive({ id, link, sessionId }: { id: string; link: LiveLink; s
 function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveControl; audio: AudioControl; owner: { sessionId: string } | null; link: LiveLink }) {
   const pointer = useLivePointer(live);
   const [stage, setStage] = useState(false);
+  // Below `lg` the panel floats at the bottom right and folds to its caption (LivePanel.razor's Collapsible).
+  const [folded, setFolded] = useState(false);
+  const wide = useWide();
+  const collapsed = folded && !wide;
+  const panelId = useId();
   const data = useData(
     async (db) => {
       const items = await itemsOf(db, id);
@@ -545,63 +562,94 @@ function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveCont
     <section className="flex-1 min-h-0 flex flex-col">
       {stage && <StageView items={data.items} slides={data.slides} theme={data.theme} overlays={data.overlays} live={live} audio={audio} onLeave={() => setStage(false)} />}
       {!owner && <RemoteBanner />}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
-        <div className="flex-1 min-w-0 bg-neutral-100 dark:bg-neutral-900 lg:overflow-y-auto">
+      <div className="relative flex-1 min-h-0 flex overflow-hidden">
+        <div className="flex-1 min-w-0 bg-neutral-100 dark:bg-neutral-900 overflow-y-auto">
           <div className="px-5 pt-3 pb-1">
             <h1 className="text-xl/10 font-semibold truncate">{data.presentation?.name}</h1>
             {/* The presenting computer needs everything; a remote control never plays audio, so it fetches none. */}
             <MediaReadiness presentationId={id} audio={!!owner} />
           </div>
-          <ol className="px-3 pt-3 pb-6 space-y-6">{data.items.map(itemRow)}</ol>
+          <ol className="px-3 pt-3 pb-24 lg:pb-6 space-y-6">{data.items.map(itemRow)}</ol>
         </div>
-        <aside className="w-full lg:w-72 shrink-0 bg-white dark:bg-neutral-800 lg:shadow-xl lg:overflow-y-auto">
-          <div className="p-4 flex flex-col gap-3 lg:min-h-full">
-            <h2 className={CAPTION}>{t('live.preview')}</h2>
-            <div className="aspect-video rounded-lg overflow-hidden">
-              <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} overlay={pointer.black ? null : overlay} />
-            </div>
-            {/* Rensa only blanks, and is gone while the screen is black: a slide brings the picture back (LivePanel.razor). */}
-            <div className={`mx-1 ${pointer.black ? 'invisible pointer-events-none' : ''}`}>
-              <AppButton variant="secondary" title={t('live.clear')} onClick={() => live.set({ black: true })} className="w-full flex items-center justify-center gap-1.5">
-                <CloseIcon className="size-4" />
-                <span>{t('live.clear')}</span>
-              </AppButton>
-            </div>
-            {owner && (
-              <div className="mt-3">
-                <OutputsPanel link={link} sessionId={owner.sessionId} />
-              </div>
-            )}
-            {!!data.overlays.length && (
-              <div className="mt-3">
-                <OverlaysPanel overlays={data.overlays} pointer={pointer} live={live} />
-              </div>
-            )}
-            {owner && (
-              <div className="mt-3">
-                <RemotePanel id={id} sessionId={owner.sessionId} name={data.presentation?.name} />
-              </div>
-            )}
-            <AppButton variant="secondary" onClick={() => setStage(true)} className="mt-3 flex items-center justify-center gap-2">
-              <ArrowsPointingOutIcon className="size-5" />
-              <span className="font-medium">{t('live.stage')}</span>
+        <aside
+          className="absolute bottom-3 right-3 z-30 w-72 max-w-[calc(100%-1.5rem)] max-h-[calc(100dvh-7rem)] flex flex-col overflow-hidden rounded-2xl shadow-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm lg:static lg:max-w-none lg:max-h-none lg:shrink-0 lg:rounded-none lg:bg-white lg:dark:bg-neutral-800 lg:backdrop-blur-none lg:block lg:overflow-y-auto"
+          data-testid="live-panel"
+        >
+          <div className="p-4 flex flex-col gap-3 min-h-0 lg:min-h-full">
+            <AppButton
+              variant="plain"
+              aria-expanded={!collapsed}
+              aria-controls={panelId}
+              aria-label={t('live.togglePanel')}
+              onClick={() => setFolded((f) => !f)}
+              className={`lg:hidden cursor-pointer flex items-center justify-between gap-3 text-left -mx-4 -mt-4 px-4 pt-4 pb-2 ${collapsed ? '-mb-5' : '-mb-2'}`}
+            >
+              <span className={CAPTION}>{t('live.preview')}</span>
+              <span className="flex items-center gap-3">
+                {collapsed && (
+                  <span className="block w-16 aspect-video rounded overflow-hidden">
+                    <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} overlay={pointer.black ? null : overlay} />
+                  </span>
+                )}
+                <ChevronDownIcon className={`size-4 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
+              </span>
             </AppButton>
-            <div className="mt-auto pt-4">
-              {owner ? (
-                <AppButton
-                  variant="plain"
-                  onClick={() => {
-                    live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
-                    navigate({ page: 'presentation', id });
-                  }}
-                  className="w-full px-4 py-2.5 rounded-full flex items-center justify-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
-                >
-                  <StopIcon className="size-5" />
-                  <span className="text-sm font-medium">{t('live.end')}</span>
-                </AppButton>
-              ) : (
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">{t('remote.onlyOwnerStops')}</p>
-              )}
+            <h2 className={`hidden lg:block ${CAPTION}`}>{t('live.preview')}</h2>
+            <div
+              id={panelId}
+              inert={collapsed}
+              className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr] grow min-h-0'}`}
+            >
+              <div className="overflow-hidden lg:overflow-visible flex flex-col min-h-0">
+                <div className="flex flex-col gap-3 min-h-0 px-1 -mx-1 grow overflow-y-auto lg:overflow-visible">
+                  <div className="w-48 mx-auto lg:w-auto lg:mx-0 aspect-video rounded-lg overflow-hidden">
+                    <SlideView slide={pointer.black ? null : current} theme={data.theme} label={false} overlay={pointer.black ? null : overlay} />
+                  </div>
+                  {/* Rensa only blanks, and is gone while the screen is black: a slide brings the picture back (LivePanel.razor). */}
+                  <div className={`mx-1 ${pointer.black ? 'invisible pointer-events-none' : ''}`}>
+                    <AppButton variant="secondary" title={t('live.clear')} onClick={() => live.set({ black: true })} className="w-full flex items-center justify-center gap-1.5">
+                      <CloseIcon className="size-4" />
+                      <span>{t('live.clear')}</span>
+                    </AppButton>
+                  </div>
+                  {owner && (
+                    <div className="mt-3">
+                      <OutputsPanel link={link} sessionId={owner.sessionId} />
+                    </div>
+                  )}
+                  {!!data.overlays.length && (
+                    <div className="mt-3">
+                      <OverlaysPanel overlays={data.overlays} pointer={pointer} live={live} />
+                    </div>
+                  )}
+                  {owner && (
+                    <div className="mt-3">
+                      <RemotePanel id={id} sessionId={owner.sessionId} name={data.presentation?.name} />
+                    </div>
+                  )}
+                  <AppButton variant="secondary" onClick={() => setStage(true)} className="mt-3 flex items-center justify-center gap-2">
+                    <ArrowsPointingOutIcon className="size-5" />
+                    <span className="font-medium">{t('live.stage')}</span>
+                  </AppButton>
+                  <div className="mt-auto pt-4">
+                    {owner ? (
+                      <AppButton
+                        variant="plain"
+                        onClick={() => {
+                          live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
+                          navigate({ page: 'presentation', id });
+                        }}
+                        className="w-full px-4 py-2.5 rounded-full flex items-center justify-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
+                      >
+                        <StopIcon className="size-5" />
+                        <span className="text-sm font-medium">{t('live.end')}</span>
+                      </AppButton>
+                    ) : (
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">{t('remote.onlyOwnerStops')}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </aside>

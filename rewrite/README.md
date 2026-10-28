@@ -650,6 +650,11 @@ Starta presentation, the add modal with its pill tabs and round search (`AddItem
 the live page's panel at the right (`LivePanel.razor`: Nu visas, Utgångar, Overlays, fjärrstyrning as
 switches in `ui/Toggle.tsx`, Scenläge, the red Avsluta) and the dark stage view with its bottom sheets
 (`StageView.razor`). The flow is kept: live is still its own page, `/live/{id}`, with every item's slides.
+Below `lg` (a phone) it is laid out as the current app's: the running order is a drawer from the left, open when
+the page opens and closed by choosing an item or tapping the dimmed page, with the round menu button at the bottom
+left and Starta presentation at the right; live's panel floats at the bottom right and folds to its caption and a
+small picture; and a song tapped under Lägg till opens its preview full screen, with ✕ (or Escape) and its own add
+button, while Bibeltexter keeps its preview in the tab. The live page has no running order, so no menu button.
 
 The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the list in a light card with
 Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button
@@ -733,9 +738,7 @@ To try it with a tablet: `GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop 
 `https://<the Mac's LAN address>:47843` on the tablet, accept the certificate warning once, and pair it under
 Enheter → Anslut enhet.
 
-Look work left for later, each as the current app does it: the running order in a drawer from the left on a
-phone (2.2); the live panel as a floating, collapsible box at the bottom right on a phone (2.9); Lägg till's
-preview full screen on a phone (2.12); dragging items in the running order (2.4) and arrangement chips (3.6),
+Look work left for later, each as the current app does it: dragging items in the running order (2.4) and arrangement chips (3.6),
 with a ⋯ menu per item; "✓ Sparad" in the song's
 header, with saving 500 ms after typing (3.5); Extern skärm as a switch, once the window can be closed from there (2.6); a
 paired screen drawing the projector's canvas, which needs the slide as `Slide` rather than `PublicSlide` (5.3);

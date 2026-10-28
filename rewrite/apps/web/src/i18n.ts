@@ -134,6 +134,7 @@ const sv = {
   'live.songTrashed': 'Sången ligger i papperskorgen och visas inte.',
   'live.noParts': 'Sången har inga delar.',
   'live.preview': 'Visas nu',
+  'live.togglePanel': 'Fäll in eller ut live-vyn',
   'live.stage': 'Scenläge',
   'remote.allow': 'Tillåt fjärrstyrning',
   'remote.showInfo': 'Visa info om fjärrstyrning',
