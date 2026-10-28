@@ -709,6 +709,17 @@ the first way in, the rest behind "Fler alternativ", and the version (the commit
 the canvas is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen
 scrolls on `/watch` and a paired screen, not on the output window.
 
+Extern skärm under Utgångar is a switch, as there (`live/outputWindow.ts`): on opens the output window, off
+closes it, and it shows whether the window is open, so closing the window some other way turns it off. In the
+desktop app the main process reports each open and close (`output-changed`), and a reloaded page asks
+(`output-open`); in a browser the popup is checked every 0.5 s, since a page has no event for it, and a reloaded
+page shows it off until it is switched on again, which takes the open popup back by its name. Unlike the
+current app the row is always there (with one display the output is a window) and a browser opens a popup,
+not a Presentation-API receiver; there is no Esc in the output window and Avsluta does not close it, as before.
+A blocked popup says "Live-vyn kunde inte öppnas". Tested in e2e in Electron (`milestone6.spec.ts`: on, off,
+closed by the window, a reload) and in unit tests for both kinds (`apps/web/test/outputWindow.test.ts`); the
+browser's popup is not tested in a real browser.
+
 Dragging, in the running order and an arrangement's chips, is the current app's SortableJS lists redone with
 pointer events (`ui/sortable.ts`, no library): the mouse drags at once; a finger drags after holding still
 150 ms, so a swipe still scrolls; the rows make room as the dragged one passes; near the edge of a scrolling list it
@@ -761,7 +772,7 @@ To try it with a tablet: `GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop 
 `https://<the Mac's LAN address>:47843` on the tablet, accept the certificate warning once, and pair it under
 Enheter → Anslut enhet.
 
-Look work left for later, each as the current app does it: Extern skärm as a switch, once the window can be closed from there (2.6); a
+Look work left for later, each as the current app does it: a
 paired screen drawing the projector's canvas, which needs the slide as `Slide` rather than `PublicSlide` (5.3);
 and a "Gör tillgänglig offline" button per Bible, which needs each device to choose its Bibles (4.10).
 

@@ -195,6 +195,20 @@ test('capture every page', async () => {
     ['add-audio', presentation, (p) => openAdd(p, 'Control+4')],
     ['presentation-menu', presentation, (p) => p.getByRole('button', { name: 'Alternativ' }).click()],
     ['live', `/live/${id}`, goLive, stopLive],
+    // Extern skärm switched on: the output window is open and the row is ringed.
+    [
+      'live-external',
+      `/live/${id}`,
+      async (p) => {
+        await goLive(p);
+        const [output] = await Promise.all([host!.app.waitForEvent('window'), p.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+        await output.getByTestId('output').waitFor();
+      },
+      async (p) => {
+        await p.getByRole('checkbox', { name: 'Extern skärm' }).uncheck();
+        await stopLive(p);
+      },
+    ],
     [
       'live-black',
       `/live/${id}`,
@@ -451,7 +465,7 @@ test('capture every page', async () => {
       'output',
       async (_theme, width, height) => {
         await liveWithOverlay();
-        const [output] = await Promise.all([host!.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+        const [output] = await Promise.all([host!.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
         await output.setViewportSize({ width, height });
         await output.getByTestId('slide-overlay').waitFor();
         return output;

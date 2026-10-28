@@ -11,12 +11,13 @@ import { RemoteAudio, useAudio, type AudioControl } from '../live/audio.ts';
 import { slidesOf, type ItemSlides } from '../live/live.ts';
 import { chosenOutputs, REMOTE_CHANGED, setOutput, setRemoteAllowed } from '../live/owner.ts';
 import { remoteAllowed, RemoteControl, useLiveSessions, type LiveControl, type LiveLink } from '../live/remote.ts';
-import { openOutput, useLivePointer } from '../live/useLive.ts';
+import { useLivePointer } from '../live/useLive.ts';
+import { outputWindow } from '../live/outputWindow.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { ArrowsPointingOutIcon, ChevronDownIcon, CloseIcon, DesktopIcon, FadeOutIcon, ItemIcon, PauseIcon, PlayIcon, PlusIcon, QrCodeOutlineIcon, RemoteIcon, StopIcon } from '../ui/icons.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { LiveBadge, tileClass } from '../ui/SlideTile.tsx';
-import { CAPTION, ToggleRow, rowClass } from '../ui/Toggle.tsx';
+import { CAPTION, ToggleRow } from '../ui/Toggle.tsx';
 import { MediaReadiness } from '../ui/MediaReadiness.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
@@ -300,6 +301,9 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
   const { dialog, ask } = useConfirm();
   const [chosen, setChosen] = useState(chosenOutputs);
   const [pairing, setPairing] = useState(false);
+  const output = outputWindow();
+  const externalOn = useSyncExternalStore(output.subscribe, output.isOpen);
+  const toast = useToast();
   useEffect(() => {
     const on = () => setChosen(chosenOutputs());
     addEventListener(REMOTE_CHANGED, on);
@@ -310,12 +314,14 @@ function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }
   return (
     <PanelSection title={t('live.outputs')} hint={t('live.outputsHint')} open>
       {dialog}
-      <AppButton variant="plain" onClick={openOutput} className={`${rowClass(false)} w-full hover:bg-neutral-200 dark:hover:bg-neutral-700`}>
-        <span className="flex items-center gap-2">
-          <DesktopIcon className="size-4 shrink-0" />
-          {t('live.output')}
-        </span>
-      </AppButton>
+      <ToggleRow
+        label={t('live.output')}
+        checked={externalOn}
+        onChange={(on) => {
+          if (!output.turn(on)) toast(t('live.outputFailed'));
+        }}
+        icon={<DesktopIcon className="size-4 shrink-0" />}
+      />
       <ul className="flex flex-col gap-3" aria-label={t('live.outputs')}>
         {displays?.map((d) => {
           const elsewhere = sessions.find((s) => s.id !== sessionId && s.outputs.some((o) => o.id === d.id));

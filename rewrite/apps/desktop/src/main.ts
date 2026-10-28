@@ -131,9 +131,17 @@ function passkeyBase(serverBase: string): string {
   return u.origin;
 }
 
+/** Tells the main window whether the output window is open, for the Extern skärm switch. */
+function outputChanged(open: boolean) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('output-changed', open);
+}
+
 /** The output goes fullscreen on the first non-primary display, or into a window when there is one display. */
 function openOutput() {
-  if (output && !output.isDestroyed()) return hidden ? undefined : output.focus();
+  if (output && !output.isDestroyed()) {
+    outputChanged(true);
+    return hidden ? undefined : output.focus();
+  }
   const primary = screen.getPrimaryDisplay();
   const external = hidden ? undefined : screen.getAllDisplays().find((d) => d.id !== primary.id);
   output = new BrowserWindow({
@@ -144,9 +152,22 @@ function openOutput() {
     autoHideMenuBar: true,
     webPreferences,
   });
-  if (!hidden) output.once('ready-to-show', () => output?.show());
-  void output.loadURL(pageUrl(base, 'output'));
+  const opened = output;
+  if (!hidden) opened.once('ready-to-show', () => opened.show());
+  // However it closes (the switch, the window's own close button, the OS), the switch hears of it.
+  opened.on('closed', () => {
+    if (output === opened) output = null;
+    outputChanged(false);
+    log({ event: 'output-closed' });
+  });
+  void opened.loadURL(pageUrl(base, 'output'));
+  outputChanged(true);
   log({ event: 'output-opened', external: !!external });
+}
+
+/** Closes the output window, if it is open. Its `closed` event tells the main window. */
+function closeOutput() {
+  if (output && !output.isDestroyed()) output.close();
 }
 
 /** Only the server this window was loaded from: no request leaves for the internet. */
@@ -200,6 +221,8 @@ app.whenReady().then(async () => {
   }
   lockNetwork(new URL(base).origin);
   ipcMain.on('open-output', openOutput);
+  ipcMain.on('close-output', closeOutput);
+  ipcMain.handle('output-open', () => !!output && !output.isDestroyed());
   ipcMain.on('device-name', (e) => (e.returnValue = hostname()));
   // Only on the host, and only if no user existed at start: the window that sets the host up gets the token.
   ipcMain.handle('setup-token', () => setupToken);

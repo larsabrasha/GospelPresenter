@@ -4,6 +4,13 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('gpDesktop', {
   openOutput: () => ipcRenderer.send('open-output'),
+  closeOutput: () => ipcRenderer.send('close-output'),
+  outputOpen: () => ipcRenderer.invoke('output-open') as Promise<boolean>,
+  onOutputChanged(cb: (open: boolean) => void) {
+    const on = (_e: unknown, open: unknown) => typeof open === 'boolean' && cb(open);
+    ipcRenderer.on('output-changed', on);
+    return () => void ipcRenderer.off('output-changed', on);
+  },
   deviceName: String(ipcRenderer.sendSync('device-name')),
   setupToken: () => ipcRenderer.invoke('setup-token') as Promise<string | null>,
   lanUrls: () => ipcRenderer.invoke('lan-urls') as Promise<string[]>,

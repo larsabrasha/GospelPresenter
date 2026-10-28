@@ -35,7 +35,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
   await page.getByRole('link', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([hostApp.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+  const [output] = await Promise.all([hostApp.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
@@ -71,7 +71,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await card.getByRole('link', { name: 'Ta kontroll' }).click();
   await expect(secondApp.page.getByText('Fjärrstyrningsläge – du styr en aktiv presentation')).toBeVisible();
   await expect(secondApp.page.getByText('Bara datorn som presenterar kan stoppa presentationen.')).toBeVisible();
-  await expect(secondApp.page.getByRole('button', { name: 'Extern skärm' })).toHaveCount(0);
+  await expect(secondApp.page.getByRole('checkbox', { name: 'Extern skärm' })).toHaveCount(0);
   await expect(secondApp.page.getByRole('button', { name: 'Sång A 1' })).toHaveAttribute('aria-pressed', 'true');
 
   // Bo picks the chorus: Anna's output and her tile follow.

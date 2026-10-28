@@ -123,6 +123,7 @@ const sv = {
   'trash.purgeConfirm.Image': 'Vill du ta bort {name} permanent? Programpunkter som visar bilden blir tomma.',
   'trash.restored': '{name} återställd',
   'live.output': 'Extern skärm',
+  'live.outputFailed': 'Live-vyn kunde inte öppnas',
   'live.clear': 'Rensa',
   'live.hint': 'Förklaring: {title}',
   'live.outputsHint': 'En utgång är en extern skärm (TV, projektor) som visar presentationen. Lägg till en lokal vy eller en separat enhet via parkod.',

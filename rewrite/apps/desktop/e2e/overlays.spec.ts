@@ -45,7 +45,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByText('Kollekt')).toBeVisible();
 
   await page.getByRole('link', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   const overlay = output.getByTestId('slide-overlay');
 

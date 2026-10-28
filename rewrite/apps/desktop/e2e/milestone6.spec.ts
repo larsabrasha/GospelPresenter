@@ -21,7 +21,7 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A', 'Sång B']);
   await page.getByRole('link', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
 
   await page.getByRole('button', { name: 'Scenläge' }).click();
@@ -80,6 +80,42 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   // The tests take no focus and no screen: the operator window and the output exist but were never shown.
   const windows = await host.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => ({ visible: w.isVisible(), fullScreen: w.isFullScreen() })));
   if (process.env.GP_E2E_VISIBLE !== '1') expect(windows).toEqual([{ visible: false, fullScreen: false }, { visible: false, fullScreen: false }]);
+});
+
+test('Extern skärm is a switch: on opens the output, off closes it, and closing the window turns it off', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createPresentation(page, 'Söndag');
+  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  const external = page.getByRole('checkbox', { name: 'Extern skärm' });
+  const windowCount = () => host!.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
+  await expect(external).not.toBeChecked();
+
+  // On opens the output window.
+  const [output] = await Promise.all([host.app.waitForEvent('window'), external.check()]);
+  await output.getByTestId('output').waitFor();
+  await expect(external).toBeChecked();
+  expect(await windowCount()).toBe(2);
+
+  // Off closes it.
+  await Promise.all([output.waitForEvent('close'), external.uncheck()]);
+  await expect(external).not.toBeChecked();
+  await expect.poll(windowCount).toBe(1);
+
+  // Closed another way (its own close button, the OS): the switch follows.
+  const [again] = await Promise.all([host.app.waitForEvent('window'), external.check()]);
+  await again.getByTestId('output').waitFor();
+  await expect(external).toBeChecked();
+  await host.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find((w) => new URL(w.webContents.getURL()).pathname === '/output')?.close());
+  await expect(external).not.toBeChecked();
+  await expect.poll(windowCount).toBe(1);
+
+  // A reloaded page adopts an output that is still open.
+  const [third] = await Promise.all([host.app.waitForEvent('window'), external.check()]);
+  await third.getByTestId('output').waitFor();
+  await page.reload();
+  await expect(page.getByRole('checkbox', { name: 'Extern skärm' })).toBeChecked();
 });
 
 test('addresses are plain paths: links navigate without a reload, a reload or a pasted link lands on the same page', async () => {

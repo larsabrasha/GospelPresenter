@@ -75,7 +75,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
 
   // Live, on the output.
   await page.getByRole('link', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Johannes 3:16-17 1' }).click();
   const stage = output.getByTestId('slide-stage');

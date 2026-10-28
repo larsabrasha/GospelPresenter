@@ -23,7 +23,7 @@ test('without OPFS the output still shows the slide, read through the operator w
   await createPresentation(page, 'Kväll');
   await addSongs(page, ['Blott en dag']);
   await page.getByRole('link', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Blott en dag 2' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('Ett ögonblick i sänder');
@@ -235,7 +235,7 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
 
   // Live, the item shows Kort's order on the output.
   await page.getByRole('link', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('button', { name: 'Extern skärm' }).click()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Inledning 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('Pilgrimsfärd');

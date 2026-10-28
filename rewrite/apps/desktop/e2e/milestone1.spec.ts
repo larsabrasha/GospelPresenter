@@ -49,7 +49,7 @@ test('a song made on one client is presented on the other client\'s second scree
 
   // Start, open the output, and show the chorus.
   await one.page.getByRole('link', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([one.app.waitForEvent('window'), one.page.getByRole('button', { name: 'Extern skärm' }).click()]);
+  const [output] = await Promise.all([one.app.waitForEvent('window'), one.page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await expect(output.getByTestId('slide-text')).toHaveCount(0); // nothing selected yet
   await one.page.getByRole('button', { name: 'Härlig är jorden 2' }).click();

@@ -143,7 +143,13 @@ Not available on `/templates/{id}` (template mode never shows live controls).
   2. **Rensa** — blacks the screen; it does not toggle back. The button is invisible while black (LIVE-R13).
   3. **Utgångar** (hidden in remote mode) with hint text. Rows:
      - **Extern skärm** toggle — shown when the host has a second display (desktop), the browser has
-       the Presentation API, or the projector is currently on.
+       the Presentation API, or the projector is currently on. On opens the projector window, off closes
+       it; the toggle shows whether the window is open, so closing it some other way (its close button,
+       the OS) turns it off. Unplugging the display does not close the window, so the toggle stays on.
+       (Rewrite, 2026-10-28: always shown; with one display it opens a window, and in a browser a popup
+       window rather than a Presentation-API receiver. A browser notices a popup closed by hand within
+       0.5 s, and an operator page reloaded in a browser shows it off until switched on again, which
+       takes the open popup back by its name.)
      - one toggle per saved **screen** (web only): green icon when bound, grey when online, faded and
        disabled with an "offline" icon when offline and not bound.
      - one toggle per **public output**: shows "{0} enheter"/"{0} enhet" (green when > 0) while bound

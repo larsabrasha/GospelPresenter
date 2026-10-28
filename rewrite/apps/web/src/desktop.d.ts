@@ -1,7 +1,14 @@
 // What the desktop app's preload gives a page (apps/desktop/src/preload.ts). Absent in a browser.
 interface Window {
   gpDesktop?: {
+    /** Opens the output window, or brings it forward if it is open. */
     openOutput(): void;
+    /** Closes the output window, if it is open. */
+    closeOutput(): void;
+    /** Whether the output window is open now. */
+    outputOpen(): Promise<boolean>;
+    /** Called whenever the output window opens or closes, however it closed. Returns an unsubscribe. */
+    onOutputChanged(cb: (open: boolean) => void): () => void;
     /** This machine's name, for the server's device lists. */
     deviceName: string;
     /** The host's first-run setup token, while setup is pending on this machine's own server. */
