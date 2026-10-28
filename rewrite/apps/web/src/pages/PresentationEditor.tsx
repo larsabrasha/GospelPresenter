@@ -35,7 +35,7 @@ import { tileClass } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { useSortable } from '../ui/sortable.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { KeepOffline, MediaReadiness } from '../ui/MediaReadiness.tsx';
+import { KeepOfflineItem, MediaReadiness, OfflinePill, useKeepOffline } from '../ui/MediaReadiness.tsx';
 import { BibleTab } from './BibleTab.tsx';
 import { AudioTab } from './AudioTab.tsx';
 import { ImageTab } from './ImageTab.tsx';
@@ -465,6 +465,7 @@ export function PresentationEditor({ id }: { id: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [details, setDetails] = useState(false);
+  const keep = useKeepOffline(id);
   const [renaming, setRenaming] = useState(false);
   // Below `lg` the running order is a drawer from the left, open when the page opens (Presentation.razor).
   const [menuVisible, setMenuVisible] = useState(true);
@@ -538,10 +539,13 @@ export function PresentationEditor({ id }: { id: string }) {
       >
         <div className="shrink-0 px-4 pt-4 pb-2 space-y-2">
           <div className="flex items-center justify-between gap-1">
-            <h1 className="font-semibold text-lg/7 px-1 min-w-0 line-clamp-2">{presentation.name}</h1>
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="font-semibold text-lg/7 px-1 min-w-0 line-clamp-2">{presentation.name}</h1>
+              {keep.kept && <OfflinePill />}
+            </div>
             <Dropdown
               className="shrink-0"
-              menuClassName="w-56"
+              menuClassName="w-64"
               button={{
                 className: 'p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300',
                 title: t('presentation.options'),
@@ -553,6 +557,7 @@ export function PresentationEditor({ id }: { id: string }) {
                 <PencilIcon className="size-4" />
                 {t('presentation.editDetails')}
               </AppButton>
+              <KeepOfflineItem keep={keep} />
               <div className="border-t-[0.5px] border-neutral-200 dark:border-neutral-600" />
               <AppButton variant="plain" role="menuitem" className={`${MENU_ITEM} text-red-500! dark:text-red-400!`} onClick={() => void trash()}>
                 <TrashIcon className="size-4" strokeWidth={1.5} />
@@ -565,8 +570,7 @@ export function PresentationEditor({ id }: { id: string }) {
               {formatEventDate(presentation.eventDate)}
             </p>
           )}
-          <div className="px-1 space-y-1">
-            <KeepOffline presentationId={id} />
+          <div className="px-1">
             <MediaReadiness presentationId={id} audio />
           </div>
         </div>

@@ -24,10 +24,10 @@ export function Dropdown({
   const [open, setOpen] = useState<false | 'mouse' | 'keyboard'>(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const items = () => [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])];
+  const items = () => [...(menuRef.current?.querySelectorAll<HTMLElement>(ITEMS) ?? [])];
 
   useEffect(() => {
-    if (open === 'keyboard') menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus();
+    if (open === 'keyboard') menuRef.current?.querySelector<HTMLElement>(ITEMS)?.focus();
   }, [open]);
 
   const close = (refocus: boolean) => {
@@ -90,6 +90,9 @@ export function Dropdown({
     </div>
   );
 }
+
+/** The choices the arrows move between, a ticked one included. */
+const ITEMS = '[role="menuitem"]:not([disabled]), [role="menuitemcheckbox"]:not([disabled])';
 
 /** A choice in a Dropdown, as a link or a button, with an icon before it. */
 export const MENU_ITEM =

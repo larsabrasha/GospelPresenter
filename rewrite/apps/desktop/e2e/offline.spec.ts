@@ -27,7 +27,12 @@ test('a presentation kept offline on a computer has its pictures there, fetched 
   await createPresentation(host.page, 'Konsert');
   await openPresentations(second.page);
   await second.page.getByRole('link', { name: 'Konsert' }).click({ timeout: 5_000 });
-  await second.page.getByLabel('Tillgänglig offline på den här enheten').check();
+  await second.page.getByRole('button', { name: 'Alternativ' }).click();
+  await second.page.getByRole('menuitemcheckbox', { name: 'Tillgänglig offline på den här enheten' }).click();
+  await expect(second.page.getByRole('heading', { name: 'Konsert' }).locator('..').getByText('Offline')).toBeVisible();
+  await second.page.getByRole('button', { name: 'Alternativ' }).click();
+  await expect(second.page.getByRole('menuitemcheckbox', { name: 'Tillgänglig offline på den här enheten' })).toHaveAttribute('aria-checked', 'true');
+  await second.page.keyboard.press('Escape');
   await openPresentations(second.page);
   await expect(second.page.getByRole('listitem').filter({ hasText: 'Konsert' })).toContainText('Offline');
 
