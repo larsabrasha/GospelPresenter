@@ -1,9 +1,9 @@
 // Media blobs on a client (docs/media-and-files.md, "Media"): a picture is two immutable blobs
 // named by their SHA-256, kept in `media_blobs`, which does not sync. Only the
-// `images` row syncs; this uploads the blobs of a queued `addImage` before it
-// is pushed, downloads what the library names and this device lacks, and
+// `images` row syncs; this uploads the blobs of a queued `addImage` (or
+// `addAudio`, `addSlides`) before it is pushed, downloads what the library names and this device lacks, and
 // removes what nothing names.
-import { MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, sniffMedia } from '@gp/core';
+import { MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
 export interface MediaBlob {
@@ -31,14 +31,14 @@ export interface MediaSync {
   downloaded: string[];
   /** Wanted, but the server did not have it or the download failed. */
   missing: string[];
-  /** Blobs dropped: unused by any image or audio file, or evicted to stay within the budget. */
+  /** Blobs dropped: unused by any image, audio file or slide deck, or evicted to stay within the budget. */
   removed: number;
 }
 
 /**
  * Which files this device fetches (docs/media-and-files.md, "Which files a device keeps").
- * Every picture's thumbnail, always. The full picture and the audio of a
- * presentation that is open here, or, on a device that keeps its data,
+ * Every picture's thumbnail, always. The full picture, the audio and the
+ * slide decks' pages (both sizes) of a presentation that is open here, or, on a device that keeps its data,
  * coming up within `days`. Every overlay's picture when either applies. Never audio for a presentation this device only
  * controls: it plays on the presenting computer.
  */
@@ -95,8 +95,12 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
          WHERE p.presentation_id = ? AND p.type = 'image'
        UNION ALL
        SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id
-         WHERE p.presentation_id = ? AND p.type = 'audio' AND ?`,
-      [presentationId, presentationId, audio ? 1 : 0],
+         WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
+       UNION ALL
+       SELECT s.thumb_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
+       UNION ALL
+       SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?`,
+      [presentationId, presentationId, audio ? 1 : 0, presentationId, presentationId],
     )) as { hash: string }[];
     hashes.push(...items.map((i) => i.hash));
   }
@@ -140,7 +144,7 @@ export async function syncMedia(
 
   const queued = new Set<string>();
   for (const mutation of await client.pending()) {
-    if (mutation.name !== 'addImage' && mutation.name !== 'addAudio') continue;
+    if (!BLOB_ADDS.has(mutation.name)) continue;
     for (const hash of blobsOf(mutation)) queued.add(hash);
   }
   const unused = (await client.query(ORPHAN_BLOBS_SQL, [now - ORPHAN_GRACE_MS])) as { hash: string }[];
@@ -177,24 +181,33 @@ export async function presentationMediaState(
     `SELECT h.hash, EXISTS (SELECT 1 FROM media_blobs b WHERE b.hash = h.hash AND b.bytes IS NOT NULL) AS present FROM (
        SELECT i.full_hash AS hash FROM presentation_items p JOIN images i ON i.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'image'
        UNION SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
+       UNION SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
        UNION SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id) h`,
-    [presentationId, presentationId, audio ? 1 : 0],
+    [presentationId, presentationId, audio ? 1 : 0, presentationId],
   )) as { hash: string; present: number }[];
   return { needed: rows.length, present: rows.filter((r) => Number(r.present)).length };
 }
 
-/** The blobs a queued add names: a picture's two, or an audio file's one. */
+/** The mutations that name blobs the device must upload first. */
+const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addSlides']);
+
+/** The blobs a queued add names: a picture's two, an audio file's one, or two per page of a slide deck. */
 function blobsOf(m: PendingMutation): Set<string> {
-  const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown };
-  return new Set(m.name === 'addAudio' ? [String(a.hash)] : [String(a.fullHash), String(a.thumbHash)]);
+  const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown; pages?: unknown };
+  if (m.name === 'addAudio') return new Set([String(a.hash)]);
+  if (m.name === 'addSlides') {
+    const pages = Array.isArray(a.pages) ? (a.pages as { full?: unknown; thumb?: unknown }[]) : [];
+    return new Set(pages.flatMap((p) => [String(p?.full), String(p?.thumb)]));
+  }
+  return new Set([String(a.fullHash), String(a.thumbHash)]);
 }
 
 /** Sends a blob to the server (`PUT /media/{hash}`) and returns the HTTP status. Throws when the server cannot be reached. */
 export type MediaBlobUpload = (hash: string, bytes: Uint8Array) => Promise<number>;
 
 /**
- * Uploads the blobs of every queued `addImage` and `addAudio` before the
- * mutation is pushed, so a file imported offline reaches the server with its bytes. Give
+ * Uploads the blobs of every queued `addImage`, `addAudio` and `addSlides`
+ * before the mutation is pushed, so a file imported offline reaches the server with its bytes. Give
  * `beforePush` to the SyncClient, alone or through `chainBeforePush`.
  *
  * An upload that cannot reach the server, or fails on its side (5xx), holds
@@ -218,7 +231,7 @@ export class MediaUploads {
 
   beforePush = async (pending: PendingMutation[], client: SyncClient): Promise<number | undefined> => {
     for (const [i, m] of pending.entries()) {
-      if (m.name !== 'addImage' && m.name !== 'addAudio') continue;
+      if (!BLOB_ADDS.has(m.name)) continue;
       for (const hash of blobsOf(m)) {
         const at = this.uploaded.get(hash);
         if (!MEDIA_HASH.test(hash) || (at !== undefined && this.now() - at < ORPHAN_GRACE_MS / 2)) continue;

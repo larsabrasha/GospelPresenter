@@ -130,12 +130,21 @@ export function recordMediaBlobSql(hash: string, contentType: string, size: numb
   };
 }
 
-/** How long a blob nothing names is kept, so one uploaded just before its `addImage` is pushed survives. */
+/** How long a blob nothing names is kept, so one uploaded just before its `addImage` or `addSlides` is pushed survives. */
 export const ORPHAN_GRACE_MS = 60 * 60 * 1000;
 
-/** The blobs no image or audio file names, older than the grace period: what a clean-up may remove. */
+/**
+ * Every page of every slide deck item (`SlidesItemContent`), with the
+ * presentation it is in: the pictures a deck names. A row per page.
+ */
+export const SLIDE_PAGES_SQL = `SELECT p.presentation_id, json_extract(j.value, '$.full') AS full_hash, json_extract(j.value, '$.thumb') AS thumb_hash
+  FROM presentation_items p, json_each(p.content, '$.pages') j WHERE p.type = 'slides'`;
+
+/** The blobs no image, audio file or slide deck names, older than the grace period: what a clean-up may remove. */
 export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
   WHERE received_at < ?
     AND hash NOT IN (SELECT full_hash FROM images)
     AND hash NOT IN (SELECT thumb_hash FROM images)
-    AND hash NOT IN (SELECT hash FROM audios)`;
+    AND hash NOT IN (SELECT hash FROM audios)
+    AND hash NOT IN (SELECT full_hash FROM (${SLIDE_PAGES_SQL}))
+    AND hash NOT IN (SELECT thumb_hash FROM (${SLIDE_PAGES_SQL}))`;

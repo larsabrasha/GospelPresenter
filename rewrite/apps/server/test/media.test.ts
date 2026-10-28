@@ -632,3 +632,112 @@ describe.each(adapters)('%s adapter: overlays (spec 03 §4, LIVE-R15)', (adapter
     expect(s.tables.presentation_items).toMatchObject([{ id: 'I1', overlay_id: null }]);
   });
 });
+
+describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName) => {
+  let h: Harness;
+  let org: string;
+  let alice: Device;
+  let bob: Device;
+
+  beforeAll(async () => {
+    h = await startAdapter(adapterName, { mediaGraceMs: 0 });
+  }, 60_000);
+  afterAll(async () => {
+    await alice?.client.close();
+    await bob?.client.close();
+    await h?.close();
+  });
+  beforeEach(async () => {
+    await alice?.client.close();
+    await bob?.client.close();
+    org = `org-${crypto.randomUUID()}`;
+    await setRole(h, 'alice', org, 'admin');
+    await setRole(h, 'bob', org, 'user');
+    alice = await device(h, org, 'alice', 'admin');
+    bob = await device(h, org, 'bob', 'user');
+  });
+
+  /** A deck's pages as WebP blobs kept on `d`, and uploaded unless `upload` is false. */
+  async function pages(d: Device, seed: string, n: number, upload = true) {
+    const out: { full: string; thumb: string }[] = [];
+    for (let i = 0; i < n; i++) {
+      const full = webp(`${seed}-${i}-full`);
+      const thumb = webp(`${seed}-${i}-thumb`);
+      const page = { full: await storeMediaBlob(d.client, full, 'image/webp'), thumb: await storeMediaBlob(d.client, thumb, 'image/webp') };
+      if (upload) {
+        expect((await put(h, org, d.user, page.full, full)).status).toBe(204);
+        expect((await put(h, org, d.user, page.thumb, thumb)).status).toBe(204);
+      }
+      out.push(page);
+    }
+    return out;
+  }
+
+  it('syncs a deck as one item holding its pages, with the file name as title', async () => {
+    const deck = await pages(alice, 'syncs', 2);
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+
+    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
+    await alice.client.sync();
+
+    expect(alice.client.rejected).toEqual([]);
+    const [item] = (await serverDump(h, org, 'alice')).tables.presentation_items as { content: string }[];
+    expect(item).toMatchObject({ id: 'I1', type: 'slides', title: 'Predikan.pdf', source_id: 'I1' });
+    expect(JSON.parse(item!.content)).toEqual({ fileName: 'Predikan.pdf', pages: deck });
+  });
+
+  it('refuses a deck whose pages were not uploaded (media-missing)', async () => {
+    const deck = await pages(alice, 'missing', 1, false);
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+
+    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
+    await alice.client.sync();
+
+    expect(alice.client.rejected).toMatchObject([{ error: 'media-missing' }]);
+    expect((await serverDump(h, org, 'alice')).tables.presentation_items).toEqual([]);
+  });
+
+  it("another device fetches a coming presentation's deck pages, both sizes, and counts them as needed live", async () => {
+    const deck = await pages(alice, 'coming', 2);
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag', eventDate: TODAY });
+    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
+    await alice.client.sync();
+    await bob.client.sync();
+
+    const r = await syncMedia(bob.client, downloader(h, org, 'bob'));
+
+    expect(r.downloaded.toSorted()).toEqual(deck.flatMap((p) => [p.full, p.thumb]).toSorted());
+    expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });
+  });
+
+  it('keeps the pages while the item names them, and removes them with the item', async () => {
+    const deck = await pages(alice, 'kept', 1);
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
+    await alice.client.sync(); // an add: the server cleans up after it
+    expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(200);
+
+    await alice.client.mutate('removeItem', { itemId: 'I1' });
+    await alice.client.sync();
+
+    expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(404);
+    expect(await h.mediaKeys()).not.toContain(mediaKey(org, deck[0]!.thumb));
+  });
+
+  it('uploads the pages of a deck added offline before the add is pushed', async () => {
+    const uploads = new MediaUploads(async (hash, b) => (await put(h, org, 'alice', hash, b)).status);
+    const d = await device(h, org, 'alice', 'admin', { beforePush: uploads.beforePush });
+    try {
+      const deck = await pages(d, 'queued', 2, false);
+      await d.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+      await d.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
+
+      await d.client.sync();
+
+      expect(d.client.rejected).toEqual([]);
+      for (const p of deck) expect((await get(h, org, 'alice', p.thumb)).status).toBe(200);
+    } finally {
+      await d.client.close();
+    }
+  });
+});

@@ -85,6 +85,8 @@ import {
   purgeAudio,
   addAudioToPresentationArgs,
   addAudioToPresentation,
+  addSlidesArgs,
+  addSlides,
 } from './media.ts';
 import {
   createOverlayArgs,
@@ -156,6 +158,7 @@ export const mutators = {
   addBibleToPresentation: m(addBibleToPresentationArgs, addBibleToPresentation),
   addImageToPresentation: m(addImageToPresentationArgs, addImageToPresentation),
   addAudioToPresentation: m(addAudioToPresentationArgs, addAudioToPresentation),
+  addSlides: m(addSlidesArgs, addSlides),
   renameItem: m(renameItemArgs, renameItem),
   setItemArrangement: m(setItemArrangementArgs, setItemArrangement),
   setItemOverlay: m(setItemOverlayArgs, setItemOverlay),

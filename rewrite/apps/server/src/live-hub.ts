@@ -5,6 +5,7 @@ import {
   LIVE_MESSAGE_MAX,
   liveClientMessageSchema,
   MAX_VIEWERS,
+  SLIDE_PAGES_SQL,
   type Canvas,
   type LiveOwnState,
   type LiveScreen,
@@ -393,7 +394,7 @@ export class LiveHub {
   /**
    * Whether a picture may be shown to an output's viewers (LIVE-R32,
    * MEDIA-R10): the one on screen, and only if it is a picture of an item in
-   * the presentation the session shows. The owner's report alone is not
+   * the presentation the session shows, or a page of a slide deck in it. The owner's report alone is not
    * enough: a changed client could otherwise name any picture of the library
    * and make it public through the output. A paired screen may also show the
    * overlay's picture (LIVE-R34), only if it is the picture of the overlay
@@ -408,8 +409,10 @@ export class LiveHub {
       slideImage === hash &&
       this.store.query(
         `SELECT 1 FROM presentation_items p JOIN images i ON i.id = p.source_id
-         WHERE p.presentation_id = ? AND p.type = 'image' AND i.full_hash = ?`,
-        [row.presentation_id, hash],
+         WHERE p.presentation_id = ? AND p.type = 'image' AND i.full_hash = ?
+         UNION ALL
+         SELECT 1 FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ? AND s.full_hash = ?`,
+        [row.presentation_id, hash, row.presentation_id, hash],
       ).length > 0
     ) {
       return true;

@@ -147,6 +147,24 @@ describe.each(adapters)('%s adapter: public outputs', (adapterName) => {
     expect((await image(shownPicture.hash)).status).toBe(404);
   });
 
+  it('serves a page of a slide deck in the shown presentation while it is on the output (D29)', async () => {
+    await output('D1', 'hjkmnpq');
+    await admin.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    const page = await blob(44);
+    const thumb = await blob(144);
+    await admin.client.mutate('addSlides', { itemId: 'deck', presentationId: 'P', fileName: 'Predikan.pdf', pages: [{ full: page.hash, thumb: thumb.hash }] });
+    await admin.client.sync();
+    expect(admin.client.rejected).toEqual([]);
+    const owner = track(await Window.open(h, org, 'anna'));
+
+    owner.send({ type: 'own', state: ownState('S1', { outputs: ['D1'], slide: slide('', { kind: 'media', image: page.hash }) }) });
+    await owner.sessions((x) => x[0]?.outputs.length === 1);
+
+    const shown = await fetch(`${h.url}/api/watch/hjkmnpq/image/${page.hash}`);
+    expect(shown.status).toBe(200);
+    expect(new Uint8Array(await shown.arrayBuffer())).toEqual(page.bytes);
+  });
+
   it('a new code disconnects the viewers and the old code stops working; so does deleting (spec 04 §7)', async () => {
     await output('D1', 'efghjkm');
     const v = track(await Viewer.open(h, 'efghjkm'));

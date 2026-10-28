@@ -1,7 +1,9 @@
+import { z } from 'zod';
 import { bibleCredits, bibleSlideText, type BibleItemContent, type BibleSlide } from './bible.ts';
+import { MEDIA_HASH } from './media.ts';
 import type { Label, Song, SongArrangement, SongPart } from './schema.ts';
 
-/** What an output renders for one slide (spec 04 `LiveSlide`): a song part or a piece of a Bible passage. */
+/** What an output renders for one slide (spec 04 `LiveSlide`): a song part, a piece of a Bible passage or a picture. */
 export interface Slide {
   /** The part id, plus the occurrence when an arrangement repeats the part: stable while the song is edited. */
   key: string;
@@ -81,4 +83,47 @@ export function bibleItemSlides(title: string, content: BibleItemContent): Slide
 /** The one slide of an image item: the picture, over the theme's media background (spec 05). */
 export function imageSlide(fullHash: string): Slide {
   return { key: 'image', kind: 'media', text: '', verses: null, image: fullHash, label: null, credits: null };
+}
+
+// ------------------------------------------------------------------ slide decks (PRES-R11, D29)
+
+/** At most this many pages in one slide deck (PRES-R11). */
+export const MAX_SLIDE_PAGES = 100;
+
+/** One page of a slide deck: the hashes of its two pictures, as a library picture has (MEDIA-R4). */
+export interface SlidePage {
+  full: string;
+  thumb: string;
+}
+
+/**
+ * What a slide deck item keeps: the file it came from and its pages, rendered
+ * once at import. A snapshot like a Bible item: no deck table, and the
+ * pictures are media blobs named by their hashes.
+ */
+export interface SlidesItemContent {
+  fileName: string;
+  pages: SlidePage[];
+}
+
+const slidePageSchema = z.object({ full: z.string().regex(MEDIA_HASH), thumb: z.string().regex(MEDIA_HASH) });
+export const slidesItemContentSchema = z.object({
+  fileName: z.string().max(200),
+  pages: z.array(slidePageSchema).max(MAX_SLIDE_PAGES),
+});
+
+/** The content of a slide deck item, or null if it is not one we can read. */
+export function parseSlidesContent(json: string | null): SlidesItemContent | null {
+  if (!json) return null;
+  try {
+    const parsed = slidesItemContentSchema.safeParse(JSON.parse(json));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A slide deck's slides: each page a picture filling the stage, like an image item. */
+export function slideDeckSlides(content: SlidesItemContent): Slide[] {
+  return content.pages.map((page, i) => ({ key: `s${i}`, kind: 'media', text: '', verses: null, image: page.full, label: null, credits: null }));
 }

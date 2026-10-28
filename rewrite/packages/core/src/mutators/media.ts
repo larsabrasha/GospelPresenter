@@ -2,6 +2,7 @@ import { count, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { MEDIA_LIMITS } from '../media.ts';
 import { audios, images, mediaBlobs } from '../schema.ts';
+import { MAX_SLIDE_PAGES, type SlidesItemContent } from '../slides.ts';
 import { id, limit, MutationError, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 import { insertItem, requirePresentation } from './presentations.ts';
 
@@ -166,5 +167,40 @@ export async function addAudioToPresentation(tx: Tx, a: z.output<typeof addAudio
     sourceId: a.audioId,
     arrangementId: null,
     content: null,
+  });
+}
+
+// ------------------------------------------------------------------ slide decks (PRES-R11, D29)
+
+export const addSlidesArgs = z.object({
+  itemId: id,
+  presentationId: id,
+  fileName: z.string().trim().min(1).max(MEDIA_LIMITS.fileName),
+  /** Each page's two pictures, uploaded first (`PUT /media/{hash}`) and recorded in `media_blobs` where this runs. */
+  pages: z.array(z.object({ full: mediaHash, thumb: mediaHash })).min(1).max(MAX_SLIDE_PAGES),
+  afterItemId: id.nullable().optional(),
+});
+/**
+ * Adds a slide deck as an item: one slide per page, each a picture rendered
+ * once at import (D29). A snapshot like a Bible item, kept in `content`; no
+ * deck table, so `sourceId` is the item's own id. Every blob must be known
+ * where this runs, as for `addImage`. The title is the file name (PRES-R11).
+ */
+export async function addSlides(tx: Tx, a: z.output<typeof addSlidesArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  await requirePresentation(tx, a.presentationId);
+  for (const hash of new Set(a.pages.flatMap((p) => [p.full, p.thumb]))) {
+    const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
+    if (!blob) throw new MutationError('media-missing', 'a page has not been uploaded');
+  }
+  const content: SlidesItemContent = { fileName: a.fileName, pages: a.pages.map((p) => ({ full: p.full, thumb: p.thumb })) };
+  await insertItem(tx, a.afterItemId, {
+    id: a.itemId,
+    presentationId: a.presentationId,
+    type: 'slides',
+    title: a.fileName,
+    sourceId: a.itemId,
+    arrangementId: null,
+    content: JSON.stringify(content),
   });
 }

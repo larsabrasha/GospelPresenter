@@ -37,7 +37,8 @@ device sees the row in a pull and downloads, hash and signature checked, the blo
 files a device keeps](#which-files-a-device-keeps)).
 
 **Clean-up.** Mutators never touch the blobs. After a push that can leave blobs unused (`addImage`,
-`purgeImage`, `purgeExpiredTrash`), not after every edit, the server removes the blobs no `images` row names,
+`purgeImage`, `purgeExpiredTrash`, and for audio and slide decks their adds, `purgeAudio`, `removeItem` and
+`purgePresentation`), not after every edit, the server removes the blobs nothing names (`ORPHAN_BLOBS_SQL`),
 and a device does the same in `syncMedia`, but only for blobs older than an hour (`ORPHAN_GRACE_MS`), so a
 blob uploaded just before its `addImage` arrives is never taken away. Uploading a blob the server has already
 starts its hour over, and a device uploads a waiting add's blobs again once half an hour has passed, so an add
@@ -79,12 +80,24 @@ something on the page, and Safari only on an element that has played after such 
 a moment of silence at the operator's first click or key. The e2e shows a controller starting the sound first in
 the desktop app; the browser case, Safari above all, is not tested.
 
+## Slide decks
+
+A slide deck (D29; the import tab is step (c) of [Next steps](next-steps.md)) is a presentation item of type
+`slides` whose `content` is `{ fileName, pages: [{ full, thumb }] }`: each page a WebP picture fitting 1920×1080
+and its thumbnail fitting 400×225, rendered once at import and stored as media blobs like a library picture. It
+is a snapshot like a Bible item: there is no deck table, `sourceId` is the item's own id, and the title is the
+file name. `addSlides` takes 1 to 100 pages and is refused with `media-missing` if a page's blob is unknown
+where it runs; `MediaUploads` uploads a queued deck's blobs before the push, as for `addImage`. A page is
+named only by its item, so removing the item, or purging its presentation, lets the clean-up take its blobs;
+`SLIDE_PAGES_SQL` lists every page, for the clean-up, the files a device keeps, and which pictures a public
+output may serve. Live, each page is one slide showing its picture, like an image item.
+
 ## Which files a device keeps
 
 Every device has every row, but not every file (`syncMedia` and `MediaPolicy` in
 `packages/sync/src/client/media.ts`). Always: every picture's thumbnail, which is small and what the
 library and the pickers show. Ahead of time, on a device that keeps its data (OPFS in a browser, the desktop
-app, later the tablet app): the full pictures and the audio of every presentation dated from today to seven
+app, later the tablet app): the full pictures, the audio and the slide decks' pages (both sizes) of every presentation dated from today to seven
 days ahead, so Sunday's material is on the computer before anyone leaves for church. On demand, on any device:
 what a presentation open on one of its pages needs (the editor, the live page, remote control), fetched at
 once. Kept offline, on a device that keeps its data: every file of a presentation marked "Tillgänglig

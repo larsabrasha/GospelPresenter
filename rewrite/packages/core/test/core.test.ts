@@ -22,7 +22,9 @@ import {
   orgMigrations,
   orgSchemaPlan,
   parsePartIds,
+  parseSlidesContent,
   SCHEMA_VERSION,
+  slideDeckSlides,
   searchSongs,
   songCredits,
   songSlides,
@@ -306,5 +308,35 @@ describe('live pointer', () => {
     const b = { ...a, partIndex: 1, rev: 2 };
     expect(newer(a, b)).toBe(b);
     expect(newer(b, a)).toBe(b);
+  });
+});
+
+describe('slide decks', () => {
+  const page = (n: number) => ({ full: String(n).repeat(64).slice(0, 64), thumb: String(n + 1).repeat(64).slice(0, 64) });
+
+  it('shows each page as a picture filling the stage, in order', () => {
+    const slides = slideDeckSlides({ fileName: 'Predikan.pdf', pages: [page(1), page(3)] });
+
+    expect(slides.map((s) => [s.key, s.kind, s.image, s.text])).toEqual([
+      ['s0', 'media', page(1).full, ''],
+      ['s1', 'media', page(3).full, ''],
+    ]);
+  });
+
+  it('reads stored content back, and nothing from content that is not a deck', () => {
+    const content = { fileName: 'Predikan.pdf', pages: [page(1)] };
+
+    expect(parseSlidesContent(JSON.stringify(content))).toEqual(content);
+    expect(parseSlidesContent('{"translation":"SFB","slides":[]}')).toBeNull();
+    expect(parseSlidesContent('not json')).toBeNull();
+    expect(parseSlidesContent(null)).toBeNull();
+  });
+
+  it('refuses an add of more than 100 pages or of none (PRES-R11)', () => {
+    const args = (n: number) => ({ itemId: 'I', presentationId: 'P', fileName: 'x.pdf', pages: Array.from({ length: n }, () => page(1)) });
+
+    expect(mutators.addSlides.args.safeParse(args(100)).success).toBe(true);
+    expect(mutators.addSlides.args.safeParse(args(101)).success).toBe(false);
+    expect(mutators.addSlides.args.safeParse(args(0)).success).toBe(false);
   });
 });

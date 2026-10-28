@@ -1,4 +1,4 @@
-import { applyLiveChange, bibleItemSlides, IDLE, imageSlide, newer, parseBibleContent, songSlides, type LivePointer, type LivePointerChange, type PresentationItem, type Slide } from '@gp/core';
+import { applyLiveChange, bibleItemSlides, IDLE, imageSlide, newer, parseBibleContent, parseSlidesContent, slideDeckSlides, songSlides, type LivePointer, type LivePointerChange, type PresentationItem, type Slide } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
 import { arrangementsOf, getAudio, getImage, getSong, listLabels, songPartsOf } from '../db/queries.ts';
 
@@ -73,12 +73,18 @@ export interface ItemSlides {
 /**
  * The slides of one item. A song item is a reference: its slides come from
  * the current song in the item's arrangement (spec 03). A Bible item carries
- * its own slides, frozen when it was added (BIBLE-R12).
+ * its own slides, frozen when it was added (BIBLE-R12); a slide deck its
+ * pages, rendered once at import (D29).
  */
 export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
   if (item.type === 'bible') {
     const content = parseBibleContent(item.content);
     const slides = content ? bibleItemSlides(item.title, content) : [];
+    return { slides, problem: slides.length ? null : 'no-parts' };
+  }
+  if (item.type === 'slides') {
+    const content = parseSlidesContent(item.content);
+    const slides = content ? slideDeckSlides(content) : [];
     return { slides, problem: slides.length ? null : 'no-parts' };
   }
   if (item.type === 'audio') {

@@ -48,14 +48,16 @@ export interface Org {
 
 /**
  * The pushes after which blobs may be unused: a purge, the expired trash, and
- * an add (whose upload may have left a refused add's blobs behind), of pictures and of audio.
+ * an add (whose upload may have left a refused add's blobs behind), of pictures,
+ * audio and slide decks. A slide deck's pages are named only by its item, so
+ * removing the item, or purging its presentation, may free them too.
  */
-const MEDIA_GC_MUTATORS: readonly string[] = ['purgeImage', 'purgeExpiredTrash', 'addImage', 'purgeAudio', 'addAudio'];
+const MEDIA_GC_MUTATORS: readonly string[] = ['purgeImage', 'purgeExpiredTrash', 'addImage', 'purgeAudio', 'addAudio', 'addSlides', 'removeItem', 'purgePresentation'];
 
 /**
- * Removes the stored blobs no image names, once they are older than the grace
- * period: what a purged image leaves behind, and what an upload whose
- * `addImage` never came leaves. Run inside the organisation's queue.
+ * Removes the stored blobs nothing names, once they are older than the grace
+ * period: what a purged image or a removed slide deck leaves behind, and what
+ * an upload whose add never came leaves. Run inside the organisation's queue.
  */
 async function collectMedia(org: Org, orgId: string, media: MediaStorage, graceMs: number) {
   const orphans = org.store.query(ORPHAN_BLOBS_SQL, [Date.now() - graceMs]) as { hash: string }[];

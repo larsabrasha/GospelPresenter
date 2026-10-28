@@ -53,7 +53,7 @@ const presentation = (r: Row): Presentation => ({
 const item = (r: Row): PresentationItem => ({
   id: String(r.id),
   presentationId: String(r.presentation_id),
-  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' ? r.type : 'song',
+  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' || r.type === 'slides' ? r.type : 'song',
   title: String(r.title),
   sourceId: String(r.source_id),
   sort: Number(r.sort),

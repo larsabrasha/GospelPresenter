@@ -68,20 +68,22 @@ export const presentations = sqliteTable('presentations', {
  * current song when shown, in the item's arrangement. A Bible item is a
  * snapshot: `sourceId` names the translation it came from, and `content`
  * holds its slides, split once when it was added (BIBLE-R12, D25). An image
- * item is a reference too: `sourceId` names the library image.
+ * item is a reference too: `sourceId` names the library image. A slide deck
+ * is a snapshot: `content` holds its pages' picture hashes, and `sourceId`
+ * is the item's own id, as there is no deck table (`SlidesItemContent`).
  */
 export const presentationItems = sqliteTable('presentation_items', {
   id: text('id').primaryKey(),
   presentationId: text('presentation_id')
     .notNull()
     .references(() => presentations.id),
-  type: text('type', { enum: ['song', 'bible', 'image', 'audio'] }).notNull(),
+  type: text('type', { enum: ['song', 'bible', 'image', 'audio', 'slides'] }).notNull(),
   title: text('title').notNull(),
   sourceId: text('source_id').notNull(),
   sort: integer('sort').notNull(),
   /** The song arrangement to show; null means the song's first one (SONG-R19). */
   arrangementId: text('arrangement_id'),
-  /** A Bible item's translation and slides (`BibleItemContent` as JSON); null for a song. */
+  /** A Bible item's translation and slides (`BibleItemContent`), or a slide deck's pages (`SlidesItemContent`), as JSON; null for a song. */
   content: text('content'),
   /** The overlay that switches on when the item goes live and off when it leaves (TODO.md "Overlays"); null for none. */
   overlayId: text('overlay_id'),

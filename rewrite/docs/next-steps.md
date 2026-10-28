@@ -25,11 +25,12 @@ this order:
      need a WASM WebP encoder or another format. Converting PowerPoint can come back later (local LibreOffice
      first, then Gotenberg on Lars's server; Cloudflare Containers need Workers Paid) without changing how pages
      are stored.
-   - (b) **Core and sync**, no UI: item type `slides`, `content` is JSON
-     `{ fileName, pages: [{ full, thumb }] }` with media hashes, a snapshot like a Bible item, no deck table.
-     `addSlides` is refused with `media-missing` for an unknown hash; at most 100 pages, PRES-R10's quotas;
-     the pages shown as pictures in `slides.ts`; `ORPHAN_BLOBS_SQL` counts them as used; `MediaUploads` uploads
-     a waiting `addSlides`'s blobs before the push.
+   - (b) **Core and sync**, done on 2026-10-28 (see [Slide decks](media-and-files.md#slide-decks)): item type
+     `slides`, `content` is `{ fileName, pages: [{ full, thumb }] }`, `addSlides` (1–100 pages, `media-missing`
+     for an unknown hash), the pages as pictures live, the clean-up, the files a device keeps, the uploads
+     before a push, and a public output serving a shown page. The running order shows the old app's
+     RectangleStack icon, and the editor's slides come from `slidesOf` as an image item's do; neither is
+     tried in the app, as nothing can add a deck before (c).
    - (c) **The PowerPoint tab**: PDF through pdf.js, loaded only when the tab opens; the old app's markup
      (`SlidesTab.razor`) and texts, which now say to save the deck as PDF first; 50 MB and 100 pages; an e2e
      test.
