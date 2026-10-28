@@ -139,6 +139,25 @@ test('the song saves 500 ms after typing, says "Sparad", and keeps what was type
   await expect(page.getByLabel('CCLI')).toHaveValue('12345');
 });
 
+test('a blank name or a year out of range is not saved, and the field shows the stored value again when left', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Behålls', [['Verse 1', 'Ett']]);
+  const name = page.getByLabel('Namn', { exact: true });
+  const year = page.getByLabel('År');
+  await year.fill('1998');
+  await year.blur();
+
+  await name.fill('');
+  await name.blur();
+  await year.fill('12345');
+  await year.blur();
+
+  await expect(name).toHaveValue('Behålls');
+  await expect(year).toHaveValue('1998');
+});
+
 test('arrangements: made in the song, chosen per item, and shown live in their order', async () => {
   host = await launch();
   const page = host.page;

@@ -37,8 +37,9 @@ export function useSavedIndicator(): { node: ReactNode; show: () => void } {
  * that until the stored value changes, it shows what the user typed rather
  * than the stored value, so neither its own save nor a sync arriving
  * meanwhile moves the cursor or takes back a letter. `onSave` returns the
- * write, or nothing when there is nothing to write; `onSaved` hears of each
- * write that succeeded.
+ * write, or nothing when the value is not to be written (a blank name, say):
+ * the field then shows the stored value again once the user leaves it.
+ * `onSaved` hears of each write that succeeded.
  */
 export function AutoSaveField({
   label,
@@ -60,12 +61,19 @@ export function AutoSaveField({
   const [focused, setFocused] = useState(false);
   const [saver] = useState(() => new Debounced<string>());
   const [baseline] = useState(() => new SaveBaseline());
+  // Whether `onSave` turned down the last value; read after a flush, so refs rather than state.
+  const refused = useRef(false);
+  const hasFocus = useRef(false);
   useEffect(() => {
     saver.use(
       (v) => {
         // Typed back to what is stored (or to this field's last write): nothing to write.
-        if (baseline.unchanged(v, value)) return undefined;
+        if (baseline.unchanged(v, value)) {
+          refused.current = false;
+          return undefined;
+        }
         const write = onSave(v);
+        refused.current = !write;
         if (write) baseline.wrote(v, value);
         return write;
       },
@@ -95,6 +103,7 @@ export function AutoSaveField({
 
   const shown = draft ?? value;
   const onFocus = () => {
+    hasFocus.current = true;
     setFocused(true);
     setDraft(shown);
   };
@@ -103,8 +112,11 @@ export function AutoSaveField({
     saver.schedule(e.currentTarget.value);
   };
   const onBlur = () => {
+    hasFocus.current = false;
     setFocused(false);
-    void saver.flush();
+    void saver.flush().then(() => {
+      if (refused.current && !hasFocus.current) setDraft(null);
+    });
   };
   // A part's text has no visible label, as in the current app; its name is for screen readers and tests.
   return multiline ? (
