@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { TestBrowser } from '../../server/test/fake-google.ts';
-import { browserPasskey, fakeGoogle, launch, opened, passkeyBrowser, type Desktop, type PasskeyBrowser } from './apps.ts';
+import { browserPasskey, fakeGoogle, launch, opened, passkeyBrowser, testPort, type Desktop, type PasskeyBrowser } from './apps.ts';
 import { ANNA, setUpHost, signInWithGoogle, signOut } from './flows.ts';
 
 let host: Desktop | undefined;
@@ -122,7 +122,7 @@ test('desktop host: a Google user adds a passkey in the system browser, then sig
 
 /** `pnpm --filter @gp/desktop serve` with passkeys on: the server alone, no pairing, on localhost. */
 async function serve(): Promise<{ url: string; setupToken: string }> {
-  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const port = testPort();
   const setupToken = 'gpst_e2e-setup-token';
   server = spawn(process.execPath, ['dist/serve.mjs'], {
     env: {

@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
+import { launch, testPort, type Desktop } from './apps.ts';
 import { createPresentation, createUser, openAdmin, pair, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
@@ -97,7 +97,7 @@ test('a picture is imported, added to a presentation and shown on the output; tr
 });
 
 test('a picture imported while the host is down is kept, and reaches the host and its other devices when it is back', async () => {
-  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const port = testPort();
   host = await launch({ port });
   await setUpHost(host);
   await createUser(host.page, 'Bo', 'bo@kyrkan.se', 'Admin');

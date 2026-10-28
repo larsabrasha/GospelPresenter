@@ -27,7 +27,11 @@ pnpm install
 pnpm build
 pnpm lint && pnpm typecheck && pnpm test   # unit and sync tests, on Node, node:sqlite and local workerd, and the host's own
                                            # (lint also refuses a REPLACE in a mutator: see Assumptions)
-pnpm e2e                                   # milestones 1–6 in Electron, windows hidden
+pnpm e2e                                   # milestones 1–6 in Electron, windows hidden, half the cores as workers
+                                           # (GP_E2E_WORKERS=n); some specs: pnpm e2e -- drag watch; without turbo,
+                                           # playwright test drag builds first (apps/desktop/e2e/global-setup.ts)
+pnpm check:quick [-- e2e/drag.spec.ts]     # while working: typecheck, lint, unit tests with the server on Node only
+                                           # (SYNC_ADAPTERS=node), then the given e2e specs; agents: see AGENTS.md
 
 export GP_GOOGLE_CLIENT_ID=… GP_GOOGLE_CLIENT_SECRET=…   # the host's Google client (see "Sign-in")
 pnpm --filter @gp/desktop start            # the desktop app: the host, on 127.0.0.1:47800

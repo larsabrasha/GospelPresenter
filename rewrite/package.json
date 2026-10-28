@@ -8,7 +8,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "oxlint --deny-warnings && node scripts/check-mutator-sql.mjs",
-    "e2e": "turbo run e2e"
+    "e2e": "turbo run e2e",
+    "check:quick": "node scripts/check-quick.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

@@ -19,7 +19,9 @@
         "^typecheck"
       ],
       "env": [
-        "GP_REAL_BIBLE_ZIP"
+        "GP_REAL_BIBLE_ZIP",
+        "SYNC_ADAPTERS",
+        "SYNC_REMOTE_URL"
       ]
     },
     "e2e": {
@@ -27,7 +29,11 @@
         "build",
         "^build"
       ],
-      "cache": false
+      "cache": false,
+      "passThroughEnv": [
+        "GP_E2E_WORKERS",
+        "GP_E2E_VISIBLE"
+      ]
     }
   }
 }

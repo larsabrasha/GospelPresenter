@@ -3,7 +3,7 @@
 // internet. Two desktop apps run on this machine: the host with the embedded
 // server, and a second client that syncs through it.
 import { expect, test } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
+import { launch, testPort, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, createUser, openAdmin, pair, setUpHost } from './flows.ts';
 
 let host: Desktop;
@@ -87,7 +87,7 @@ test('a song made on one client is presented on the other client\'s second scree
 });
 
 test('the second client keeps working while the host is down, and its edits land when the host is back', async () => {
-  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const port = testPort();
   const [first, other] = await hostAndSecond(port);
   await createSong(other.page, 'Blott en dag', [['Verse 1', 'Blott en dag']]);
   await expect(other.page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });

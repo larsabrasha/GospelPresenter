@@ -4,7 +4,7 @@
 // the theme's picture come with the app.
 import { expect, test, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
-import { launch, type Desktop } from './apps.ts';
+import { launch, testPort, type Desktop } from './apps.ts';
 import { createPresentation, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
@@ -113,7 +113,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
 });
 
 test('a Bible imported while the host is down is kept, and reaches the host when it is back', async () => {
-  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const port = testPort();
   host = await launch({ port });
   await setUpHost(host);
   await createUser(host.page, 'Bo', 'bo@kyrkan.se', 'Admin');
@@ -147,7 +147,7 @@ test('a Bible imported while the host is down is kept, and reaches the host when
 });
 
 test('a second computer keeps a Bible offline only when asked, and can remove the copy (BIBLE-A16)', async () => {
-  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const port = testPort();
   host = await launch({ port });
   await setUpHost(host);
   await createUser(host.page, 'Bo', 'bo@kyrkan.se', 'Admin');

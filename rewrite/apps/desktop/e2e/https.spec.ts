@@ -9,7 +9,7 @@ import { networkInterfaces, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
-import { launch, type Desktop } from './apps.ts';
+import { launch, testPort, type Desktop } from './apps.ts';
 import { createSong, openAdmin, pair, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
@@ -43,7 +43,7 @@ function certificate(ip: string) {
 test('a device that trusts the host\'s certificate keeps its data through a reload, over https on the LAN', async () => {
   test.skip(!lan, 'this machine has no LAN address');
   const tls = certificate(lan!);
-  const tlsPort = 20_000 + Math.floor(Math.random() * 20_000);
+  const tlsPort = testPort();
   host = await launch({ lan: true, env: { GP_TLS_CERT: tls.cert, GP_TLS_KEY: tls.key, GP_TLS_PORT: String(tlsPort) } });
   await setUpHost(host);
   // Plain http is on this machine only now: the LAN gets https.
@@ -108,8 +108,8 @@ function nextBuild() {
 test('a device over https on the LAN starts the app with the host gone, and takes the host\'s next build', async () => {
   test.skip(!lan, 'this machine has no LAN address');
   const tls = certificate(lan!);
-  const tlsPort = 20_000 + Math.floor(Math.random() * 20_000);
-  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const tlsPort = testPort();
+  const port = testPort();
   const env = { GP_TLS_CERT: tls.cert, GP_TLS_KEY: tls.key, GP_TLS_PORT: String(tlsPort) };
   host = await launch({ lan: true, port, env });
   await setUpHost(host);
@@ -159,8 +159,8 @@ test('a device over https on the LAN starts the app with the host gone, and take
 
 test('GP_TLS=self-signed: the host makes its own certificate once and keeps it; a browser that accepts the warning gets in', async () => {
   test.skip(!lan, 'this machine has no LAN address');
-  const tlsPort = 20_000 + Math.floor(Math.random() * 20_000);
-  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  const tlsPort = testPort();
+  const port = testPort();
   host = await launch({ lan: true, port, env: { GP_TLS: 'self-signed', GP_TLS_PORT: String(tlsPort) } });
   await setUpHost(host);
   const certFile = join(host.dataDir, 'tls', 'cert.pem');
