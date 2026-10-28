@@ -2,7 +2,7 @@ import { Hono, type Context } from 'hono';
 import { can, SCREEN_ID, SCREEN_PIN, SCREEN_TOKEN, type LiveScreen } from '@gp/core';
 import { watchLocked, type Org } from './app.ts';
 import type { Caller } from './auth.ts';
-import { THROTTLE, type Accounts } from './global.ts';
+import { THROTTLE, type Accounts } from './global/index.ts';
 import type { ScreenRegistry } from './screens.ts';
 
 // Pairing a temporary screen (spec 04 §5, §8; LIVE-R28). The TV asks for its

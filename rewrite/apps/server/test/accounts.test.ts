@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ACCOUNT_LIMITS } from '@gp/core';
 import { newDigits, pkceChallenge, sha256 } from '../src/crypto.ts';
-import { Accounts, LOGIN_FLOW, migrateGlobal, PASSKEY_FLOW, THROTTLE, type NewLogin } from '../src/global.ts';
+import { Accounts, LOGIN_FLOW, migrateGlobal, PASSKEY_FLOW, THROTTLE, type NewLogin } from '../src/global/index.ts';
 import { decodeCbor, derToRaw, Passkeys } from '../src/webauthn.ts';
 import { nodeGlobalSql, openSqlite, type NodeDriver } from '@gp/server/node';
 

@@ -1,6 +1,6 @@
 import { SCREEN_ID, SCREEN_PAIRING_MS, SCREEN_PIN, SCREEN_TOKEN } from '@gp/core';
 import { b64url } from './crypto.ts';
-import type { GlobalSql } from './global.ts';
+import type { GlobalSql } from './global/index.ts';
 
 // Temporary screens (spec 04 §5, LIVE-R28). A TV that opens `/display` gets
 // an id, its only credential, and a four-digit code to show. An operator who

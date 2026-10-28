@@ -5,7 +5,7 @@ import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type
 import { outputRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
 import { authenticate, authRoutes, isApiPath, WS_PROTOCOL } from './auth.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
-import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
+import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { r2Storage, type R2Like } from './media.ts';
 import { Passkeys } from './webauthn.ts';

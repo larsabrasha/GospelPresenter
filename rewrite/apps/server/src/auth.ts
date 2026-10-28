@@ -38,7 +38,7 @@ import {
   type SignInResponse,
 } from '@gp/core';
 import { constantTimeEqual, newDigits, newSecret } from './crypto.ts';
-import { LOGIN_FLOW, PASSKEY_FLOW, THROTTLE, type Accounts, type NewLogin } from './global.ts';
+import { LOGIN_FLOW, PASSKEY_FLOW, THROTTLE, type Accounts, type NewLogin } from './global/index.ts';
 import type { GoogleOidc } from './google.ts';
 import { parseClientData, type Passkeys } from './webauthn.ts';
 

@@ -1,4 +1,4 @@
-import { THROTTLE, type Accounts, type GlobalSql } from './global.ts';
+import { THROTTLE, type Accounts, type GlobalSql } from './global/index.ts';
 
 // Public output codes across organisations (spec 04 §6, LIVE-R30). An
 // organisation's outputs are synced rows in its own database; an anonymous
