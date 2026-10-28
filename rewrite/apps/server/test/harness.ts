@@ -38,6 +38,8 @@ export interface AdapterOptions {
   mediaGraceMs?: number;
   /** Workers only: bundle as `pnpm build:worker` does for a deploy, where a test issuer is not allowed. */
   deployBuild?: boolean;
+  /** A built web app to serve beside the API (Node's `webRoot`, the Worker's static assets). */
+  webRoot?: string;
 }
 
 export async function startAdapter(name: AdapterName, opts: AdapterOptions = {}): Promise<Harness> {
@@ -108,6 +110,17 @@ export async function startAdapter(name: AdapterName, opts: AdapterOptions = {})
         ? { GOOGLE_CLIENT_ID: opts.google.clientId, GOOGLE_CLIENT_SECRET: opts.google.clientSecret, GOOGLE_TEST_ISSUER: opts.google.url }
         : {}),
     },
+    // As wrangler.toml's [assets] with `run_worker_first`: the Worker answers every request.
+    ...(opts.webRoot
+      ? {
+          assets: {
+            directory: opts.webRoot,
+            binding: 'ASSETS',
+            routerConfig: { has_user_worker: true, invoke_user_worker_ahead_of_assets: true },
+            assetConfig: { html_handling: 'none' as const },
+          },
+        }
+      : {}),
     host: '127.0.0.1',
     port: 0,
   });

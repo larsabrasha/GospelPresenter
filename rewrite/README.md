@@ -650,12 +650,75 @@ Everything the server answers itself is under `/api/`, so no page can collide wi
 path is a JSON 404, never the app. An unknown page address is the start page. The one fragment left is an invite's token, `/invite#{token}`, because a
 fragment never reaches a server and so never a log. The Node server (and so the desktop host) answers any
 GET with no file extension outside `/api/` with `index.html`; a missing file (`/assets/x.js`) is a 404. The
-Worker serves no static files yet, so there a reload on a page gives 404, as the web sign-in already did.
+Worker does the same from Workers static assets (see "On Cloudflare"), except that an unknown `/api/…` path is a
+plain-text 404 there, not JSON.
 Links are ordinary `<a href>`: one click handler (`installLinkHandler`) turns same-origin clicks into
 History navigation. For `pnpm dev` the Vite proxy forwards `/api` (and its WebSocket) to the server.
 
 **Moving the API under `/api/` changed the Google redirect URI** to `{origin}/api/auth/google/callback`:
 a real Google client registered with the old one must get the new one.
+
+### On Cloudflare
+
+**The Worker serves the web app** from Workers static assets: `[assets]` in `wrangler.toml` points at
+`apps/web/dist`, so `pnpm build` comes before `wrangler deploy`. With `run_worker_first` every request reaches
+the Worker, which leaves `/api/…` alone and otherwise asks the `ASSETS` binding: a path with no file extension
+gets `index.html`, as on Node. It adds the same headers as the Node server (`apps/server/src/static.ts`): the CSP
+on every file, and `no-cache` on everything outside `/assets/`, so `index.html` and `/sw.js` are asked again
+every time. `html_handling = "none"`, because the default redirects `/index.html` to `/`, and the service worker
+keeps `/index.html` under that name: a kept redirect would break a navigation offline.
+`apps/server/test/static.test.ts` checks this on Node and in local workerd (Miniflare's assets).
+
+**A trial on a real account (2026-10-28).** With Lars's go-ahead the Worker ran on
+`https://gp-trial-gospel.lars-arvidsson.workers.dev`, with D1 `gp-trial-global` (region WEUR) and R2
+`gp-trial-media`. It is kept for Lars to try, and deleted afterwards. The repo's `wrangler.toml` was not used:
+the trial's own config named the real IDs and put every debug route behind a token. Measured from a Mac in Sweden
+(Cloudflare's ARN), with the server suites' remote adapter (`SYNC_ADAPTERS=remote SYNC_REMOTE_URL=<url>`) and a few
+trial-only tests:
+
+- **Migrating an existing Durable Object and D1.** The Worker of commit `a383615` (organisation schema 2,
+  global schema 2 with `users.password_hash`) was deployed, wrote a song, a part, a label, a presentation and
+  an item, and a password hash was set in D1. Then the current Worker was deployed over it. Its first request
+  (431 ms) brought D1 from 2 to 6 in one batch, `ALTER TABLE users DROP COLUMN password_hash` included: the
+  column is gone, and the users, sessions and memberships stayed. The organisation's object went from schema 2
+  to 10 on its first request: every row kept, the new columns null. A current client pulled the old rows, and its
+  edits to an old table (`songs`) and a new one (`displays`) were logged by the triggers.
+- **Ed25519 passkeys.** Setup with an Ed25519 passkey, then sign-in, both verified by WebCrypto in the Worker;
+  invites accepted with ES256 (packed attestation), Ed25519 and RS256 passkeys; a spoiled signature, a counter
+  that goes back, a wrong origin and a wrong RP ID refused. A ceremony's finish takes 270–320 ms.
+- **R2 as the media storage.** `media.test.ts` passes on R2 (with `MEDIA_GRACE_MS=0` for that run, so the blobs
+  of a purge go at once), except its two checks of `mediaKeys()`, which the remote harness cannot read; the
+  bucket held the keys. A 10 MiB picture and a 20 MiB sound went up in 1.5–1.6 s and came back byte for byte in
+  1.1 s; one byte more is a 413.
+- **Live sockets in a hibernating Durable Object.** Two live sockets (an owner and a phone) and a poke socket,
+  then 20 s and 70 s with nothing sent: the object was constructed again (it had hibernated), no socket closed,
+  a command from the phone reached the owner in 41–46 ms (8–11 ms before the pause), the session was still
+  there, and a push poked the poke socket in about 590 ms. With an open public output stream an object does
+  not hibernate (see "Not done yet").
+- **The suites.** `sync.test.ts` 32 passed (twice), and `live`, `screens`, `bibles` and `watch` passed. `watch`
+  needs a clean D1 between runs: its output codes are fixed and unique across organisations, and its lockout
+  test locks the address that runs it for 15 minutes.
+
+| Measure (hosted, 2026-10-28) | |
+|---|---|
+| Sync push of 1 mutation, p50 / p90 (20 in a row) | 77–82 / 86–90 ms |
+| Sync pull, p50 / p90 | 52–53 / 61–66 ms |
+| A client's sync (push, pull, rebase), p50 / p90 | 127–131 / 137–152 ms |
+| First request to a new organisation's object (created, schema made) | 487–575 ms |
+| First request after a deploy (new isolate) | 431 ms with D1 migrated 2 → 6; 228 ms without |
+| `/api/auth/state` after that (D1 only) | 66–230 ms |
+| Poke latency, push → row in the other client | 598–788 ms |
+| Push of 1,200 mutations in one request | 849–1,014 ms |
+| First pull of 1,200 rows (3 pages) | 229–232 ms |
+| Full-size Bible: upload; first pull + download and store | 1,343 ms; 54 + 383 ms |
+
+The sync spike measured 588–677 ms, 824–955 ms and 194–248 ms for the last three on 2026-10-26. Wrangler
+reported a startup time of 20–43 ms for the bundle.
+
+**Not proven.** Google sign-in: it needs a real Google client, which only Lars can make. The grace period of
+unused blobs on R2 (`media.test.ts` ran with none). The web app in a browser on Cloudflare: its files and
+headers were checked with curl, not by opening it, so the service worker there is not tried. Behaviour under
+load, and where the objects were placed.
 
 ### Look
 
@@ -780,12 +843,11 @@ on 2026-10-27, are built (see "Overlays"), and so are the second, starting the a
 this order:
 
 1. **PDF and PowerPoint import** (ADR 0007 (10), D29) and templates.
-2. **A trial deploy to Cloudflare**, only with Lars's go-ahead: a temporary Worker and D1, measured and then
-   deleted, as the sync spike did. Still unproven there: migrating an existing Durable Object (schema and
-   triggers), `ALTER TABLE … DROP COLUMN` on D1, Ed25519 passkeys, Google sign-in against a real Google client,
-   R2 as the media storage (tested against Miniflare's R2 only), live sockets in a hibernating Durable Object,
-   and the Worker serving the web app (it serves no static files yet; when it does, `/sw.js` and index.html
-   need `no-cache` there too).
+2. **The trial deploy to Cloudflare** ran on 2026-10-28 and is kept for Lars to try (see "On Cloudflare"):
+   migrating a Durable Object and D1 (`DROP COLUMN` included), Ed25519 passkeys, R2, hibernating live sockets
+   and the Worker serving the web app are proven there. Left: Google sign-in against a real Google client
+   (Lars makes the client; its redirect URI is `{origin}/api/auth/google/callback`), opening the app there in a
+   browser, and deleting the trial when Lars is done.
 3. **Getting there** (ADR 0007 (13)): the one-way import from the current app, packaging and updates per D32
    (the desktop app for macOS, Windows and Linux, and the Docker image), and the Capacitor app for tablets
    (ADR 0007 (7)), Android first and iOS later. Lars has said the Capacitor app need not come early: https on
@@ -802,8 +864,8 @@ The smaller gaps below can be taken along the way.
 
 ## Not done yet
 
-Slide-deck pages, profile pictures and logos, templates, English text, mobile, and deploying to
-Cloudflare. The Workers adapter is tested in local workerd only.
+Slide-deck pages, profile pictures and logos, templates, English text, mobile, and a real deploy to
+Cloudflare. The Workers adapter is tested in local workerd, and once on a real account (see "On Cloudflare").
 
 From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,
 so an install that wants S3 cannot yet); organisation images as a theme's background (a theme's image is
@@ -826,14 +888,14 @@ a newer build is waiting while the app runs from its kept copy; the sync's updat
 fetches it. The worker is tested in Chromium only: whether Safari lets it answer the database worker's fetch of
 wa-sqlite's wasm (a dedicated worker inherits its page's service worker in Chromium) is not known. A device
 whose new build ran from the host, and whose new worker then failed to install before the host went, starts the
-older kept build against a database the newer one may have migrated; that is not handled or tested. The Worker
-on Cloudflare serves no static files, so there is no worker there yet.
+older kept build against a database the newer one may have migrated; that is not handled or tested. On
+Cloudflare the Worker serves `/sw.js` with `no-cache`, but the service worker there was not tried in a browser.
 
 From audio: HTTP Range on `/api/media`
 (MEDIA-R9: clients play their own copies, so nothing asks for it yet); an item with several files.
 
-From spec 04's public outputs: the Worker serves no static files yet, so on Cloudflare
-`/watch/{code}` and `/display` have no page, though its API works; a viewer whose network is slow gets every event in turn
+From spec 04's public outputs: on Cloudflare `/watch/{code}` and `/display` get the app's
+`index.html` as on Node, not opened in a browser there; a viewer whose network is slow gets every event in turn
 rather than only the newest (the stream is not a one-slot queue); the 500-viewer cap is not tested; texts are
 Swedish only, not per Accept-Language. A Durable Object with open streams does not hibernate; spec 04 and
 ADR 0007 leave a Durable Object per output for when that matters.
@@ -1040,8 +1102,8 @@ Milestone 3 (sign-in, membership, pairing):
   in the callback URL's fragment (spec 01), which no server sees.
 - **The static app has a strict CSP** (`default-src 'self'`, plus `'wasm-unsafe-eval'` for wa-sqlite
   and inline styles for React) on the Node server. The sign-in pages the server renders have their own
-  (`default-src 'none'; script-src 'self'`). The Worker serves no static files yet, so a web sign-in
-  there comes back to a page it cannot serve.
+  (`default-src 'none'; script-src 'self'`). The Worker sends the app with the same headers
+  (`apps/server/src/static.ts`).
 - **`SPIKE_DEBUG` left `wrangler.toml`**: the debug routes (which mint sessions) and `SETUP_TOKEN`
   belong in `.dev.vars` or secrets, never in a file that ships with a deploy. Without `SETUP_TOKEN`
   the Worker refuses setup.

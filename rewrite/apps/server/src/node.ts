@@ -24,6 +24,7 @@ import type { MediaStorage } from './media.ts';
 import { forwardedClient, trustedProxies } from './proxy.ts';
 import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
 import { ScreenRegistry } from './screens.ts';
+import { isAppPage, staticHeaders } from './static.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
@@ -152,20 +153,6 @@ export function nodeGlobalSql(f: SqliteFile): GlobalSql {
     },
   };
 }
-
-/**
- * Headers for the static app: a strict CSP (ADR 0007, decision 6). wa-sqlite
- * compiles WebAssembly, React sets inline style attributes, and pictures and
- * sounds play from this device's own copies as blob: URLs. `worker-src 'self'`
- * covers the database worker and the service worker (`/sw.js`).
- */
-const STATIC_HEADERS = {
-  'content-security-policy':
-    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; " +
-    "connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
-  'x-content-type-options': 'nosniff',
-  'referrer-policy': 'no-referrer',
-};
 
 export interface NodeServerOptions {
   dataDir: string;
@@ -330,13 +317,10 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     app.use('/*', async (c, next) => {
       if (isApiPath(c.req.path)) return c.json({ error: 'not-found' }, 404);
       await next();
-      for (const [k, v] of Object.entries(STATIC_HEADERS)) c.header(k, v);
-      // index.html and sw.js keep their names from build to build: always asked again, so a new build is seen at once.
-      if (!c.req.path.startsWith('/assets/')) c.header('cache-control', 'no-cache');
+      for (const [k, v] of Object.entries(staticHeaders(c.req.path))) c.header(k, v);
     });
     app.use('/*', serveStatic({ root: opts.webRoot }));
-    // An address with no file behind it is a page of the app: the client's router draws it.
-    app.get('*', (c, next) => (/\.[a-z0-9]+$/i.test(c.req.path) ? next() : serveStatic({ root: opts.webRoot, path: 'index.html' })(c, next)));
+    app.get('*', (c, next) => (isAppPage(c.req.path) ? serveStatic({ root: opts.webRoot, path: 'index.html' })(c, next) : next()));
   }
 
   const listening = (srv: ServerType) => new Promise<void>((resolve) => (srv.listening ? resolve() : srv.once('listening', () => resolve())));

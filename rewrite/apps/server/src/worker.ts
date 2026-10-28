@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { outputRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
-import { authenticate, authRoutes, WS_PROTOCOL } from './auth.ts';
+import { authenticate, authRoutes, isApiPath, WS_PROTOCOL } from './auth.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
@@ -12,6 +12,7 @@ import { Passkeys } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
 import { ScreenRegistry } from './screens.ts';
+import { isAppPage, staticHeaders } from './static.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
 
 interface Env {
@@ -38,6 +39,8 @@ interface Env {
   PASSKEY_ORIGINS?: string;
   /** Tests only: how young a session must be to add a login. */
   FRESH_SIGN_IN_MS?: string;
+  /** The built web app (Workers static assets, wrangler.toml's [assets]). Without it, only the API answers. */
+  ASSETS?: Fetcher;
 }
 
 function passkeysOf(env: Env): Passkeys | null {
@@ -330,6 +333,19 @@ worker.post('/api/screen', async (c) => {
   const { accounts } = await globals(c.env);
   screenStart ??= screenStartRoutes({ screens: new ScreenRegistry(d1Sql(c.env.DB)), accounts, clientAddress: (x) => x.req.header('cf-connecting-ip') ?? 'unknown' });
   return screenStart.fetch(c.req.raw);
+});
+
+// The web app, as the Node server serves it (node.ts): every request reaches the Worker first
+// (`run_worker_first`), so the app gets its CSP and index.html and /sw.js get `no-cache`.
+worker.all('*', async (c, next) => {
+  const assets = c.env.ASSETS;
+  if (!assets || isApiPath(c.req.path)) return next();
+  // With `html_handling = "none"` /index.html is served as it is, never redirected to `/`: the
+  // service worker keeps it under that name, and a kept redirect would break navigation offline.
+  const res = await assets.fetch(isAppPage(c.req.path) ? new Request(new URL('/index.html', c.req.url), c.req.raw) : c.req.raw);
+  const out = new Response(res.body, res);
+  for (const [k, v] of Object.entries(staticHeaders(c.req.path))) out.headers.set(k, v);
+  return out;
 });
 
 worker.all('*', async (c) => {
