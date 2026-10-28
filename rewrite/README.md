@@ -70,6 +70,6 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 
 ## Next steps
 
-Where to pick up, in order: PDF and PowerPoint import and templates; finishing the trial deploy to Cloudflare
+Where to pick up, in order: PDF import (PowerPoint is saved as PDF first) and templates; finishing the trial deploy to Cloudflare
 (Google sign-in against a real client, then deleting the trial); getting there (the import from the current app,
 packaging and updates, the Capacitor app). The details are in [docs/next-steps.md](docs/next-steps.md).
