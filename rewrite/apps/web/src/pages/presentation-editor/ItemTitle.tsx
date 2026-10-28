@@ -1,10 +1,13 @@
 import type { PresentationItem } from '@gp/core';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
+import { useSaveFailed } from '../../ui/AutoSave.tsx';
+import { afterWrite } from '../../ui/debounce.ts';
 
 /** The selected item's title: click or F2 to rename; Enter or leaving saves, Escape cancels (PRES-A18). */
 export function ItemTitle({ item, editing, setEditing }: { item: PresentationItem; editing: boolean; setEditing: (on: boolean) => void }) {
   const db = useDb();
+  const saveFailed = useSaveFailed();
   if (!editing) {
     return (
       <h2 className="text-xl/7 font-semibold cursor-pointer hover:text-sky-500 truncate min-w-0" onClick={() => setEditing(true)} title={t('presentation.rename')}>
@@ -14,7 +17,7 @@ export function ItemTitle({ item, editing, setEditing }: { item: PresentationIte
   }
   const save = (v: string) => {
     setEditing(false);
-    if (v.trim() && v.trim() !== item.title) void db.mutate('renameItem', { itemId: item.id, title: v });
+    if (v.trim() && v.trim() !== item.title) afterWrite(db.mutate('renameItem', { itemId: item.id, title: v }), () => {}, saveFailed);
   };
   return (
     <input

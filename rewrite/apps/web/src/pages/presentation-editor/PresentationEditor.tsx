@@ -4,6 +4,8 @@ import { useData, useDb } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { slidesOf, type ItemSlides } from '../../live/live.ts';
+import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
+import { afterWrite } from '../../ui/debounce.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useKeepOffline } from '../../ui/MediaReadiness.tsx';
 import { navigate } from '../../ui/router.ts';
@@ -17,8 +19,12 @@ import { SideMenu } from './SideMenu.tsx';
 /** The presentation editor (spec 03 2): the running order on the left, the selected item on the right. */
 export function PresentationEditor({ id }: { id: string }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
+  const saveFailed = useSaveFailed();
+  // "Kunde inte spara" when a write is refused.
+  const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
   const data = useData(
     async (d) => {
       const items = await itemsOf(d, id);
@@ -51,7 +57,7 @@ export function PresentationEditor({ id }: { id: string }) {
 
   const removeItem = async (item: PresentationItem) => {
     const ok = await ask({ title: t('presentation.removeTitle'), text: t('presentation.removeConfirm', { title: item.title }), confirm: t('common.delete') });
-    if (ok) void db.mutate('removeItem', { itemId: item.id });
+    if (ok) failing(db.mutate('removeItem', { itemId: item.id }));
   };
 
   // Page shortcuts (spec 03 section 6). A dialog stops its keys, so these never fire behind one.
@@ -62,7 +68,7 @@ export function PresentationEditor({ id }: { id: string }) {
       // Alt+↑/↓ moves the selected item one place: the keyboard's way to do what the drag handle does.
       if (!selected) return;
       e.preventDefault();
-      void db.mutate('moveItem', { itemId: selected.id, by: e.key === 'ArrowUp' ? -1 : 1 });
+      failing(db.mutate('moveItem', { itemId: selected.id, by: e.key === 'ArrowUp' ? -1 : 1 }));
       return;
     }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
@@ -88,7 +94,7 @@ export function PresentationEditor({ id }: { id: string }) {
 
   const trash = async () => {
     // To the trash without a dialog, with a toast that says where it went (PRES-R29).
-    await db.mutate('trashPresentation', { id, at: Date.now() });
+    if (!(await trySave(db.mutate('trashPresentation', { id, at: Date.now() })))) return;
     toast(t('presentation.trashed', { name: presentation.name }));
     navigate({ page: 'presentations' });
   };

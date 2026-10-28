@@ -99,3 +99,33 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await expect(overlay).toHaveText('Välkommen hit');
   await expect(stage.getByTestId('overlay-on')).toHaveCount(1);
 });
+
+test('a refused overlay save says "Kunde inte spara", in the overlay and on an item', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createOverlay(page, 'Kollekt', 'Swish 123 45');
+  const failed = page.getByRole('alert').getByText('Kunde inte spara');
+
+  // The text is at most 2 000 characters; without the field's own limit, the write is refused.
+  const content = page.getByLabel('Textinnehåll');
+  await content.evaluate((el) => el.removeAttribute('maxlength'));
+  await content.fill('x'.repeat(2001));
+  await content.blur();
+  await expect(failed).toBeVisible();
+  await expect(page.getByTestId('slide-overlay')).toHaveText('Swish 123 45');
+
+  // An overlay that does not exist, chosen for an item: refused, and the item carries none.
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+  await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: 'Sång A', exact: true }).click();
+  await expect(failed).toHaveCount(0, { timeout: 6000 });
+  const select = page.getByRole('combobox', { name: 'Overlay' });
+  await select.evaluate((el) => {
+    (el as HTMLSelectElement).options[1]!.value = 'no-such-overlay';
+  });
+  await select.selectOption({ index: 1 });
+  await expect(failed).toBeVisible();
+  await expect(select).toHaveValue('');
+});

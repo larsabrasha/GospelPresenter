@@ -6,6 +6,7 @@ import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { processImage, ImageRefused, type ImageProblem } from '../media/process.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
@@ -45,6 +46,7 @@ export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'th
  */
 export function Images({ role }: { role: Role }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const images = useData(listImages, []);
   const [query, setQuery] = useState('');
@@ -72,7 +74,7 @@ export function Images({ role }: { role: Role }) {
   };
 
   const remove = async (image: LibraryImage) => {
-    await db.mutate('trashImage', { id: image.id, at: Date.now() });
+    if (!(await trySave(db.mutate('trashImage', { id: image.id, at: Date.now() })))) return;
     toast(t('images.trashed', { name: image.fileName }));
   };
 

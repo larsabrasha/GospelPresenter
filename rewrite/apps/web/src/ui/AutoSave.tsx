@@ -11,6 +11,24 @@ export function useSaveFailed(): () => void {
   return useCallback(() => toast(t('common.saveFailed'), 'warning'), [toast]);
 }
 
+/** Waits for a write the next step depends on: true once it went through; false, logged and "Kunde inte spara" when it was refused. */
+export function useTrySave(): (write: Promise<unknown>) => Promise<boolean> {
+  const saveFailed = useSaveFailed();
+  return useCallback(
+    async (write) => {
+      try {
+        await write;
+        return true;
+      } catch (e) {
+        console.error('save failed', e);
+        saveFailed();
+        return false;
+      }
+    },
+    [saveFailed],
+  );
+}
+
 /**
  * The fading "✓ Sparad" at the right of a detail page's header
  * (Components/AutoSaveIndicator.razor): shown at each `show()`, faded after 2 s

@@ -5,6 +5,7 @@ import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { PlusIcon, SpeakerWaveIcon } from '../ui/icons.tsx';
 import { EmptyTab, SearchField } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -12,6 +13,7 @@ import { useToast } from '../ui/Toast.tsx';
 /** The add-item modal's audio tab (spec 03 2d): one file per item, each added from its own row (AddItem/Audio/AudioTab.razor). */
 export function AudioTab({ presentationId, afterItemId, onAdded }: { presentationId: string; afterItemId: string | null; onAdded: (itemId: string) => void }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const audios = useData(listAudios, []);
   const [query, setQuery] = useState('');
@@ -20,7 +22,7 @@ export function AudioTab({ presentationId, afterItemId, onAdded }: { presentatio
 
   const add = async (a: LibraryAudio) => {
     const itemId = newId();
-    await db.mutate('addAudioToPresentation', { itemId, presentationId, audioId: a.id, afterItemId });
+    if (!(await trySave(db.mutate('addAudioToPresentation', { itemId, presentationId, audioId: a.id, afterItemId })))) return;
     toast(t('presentation.added', { name: a.fileName }));
     onAdded(itemId);
   };

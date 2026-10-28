@@ -5,6 +5,7 @@ import { listImages } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { CheckIcon, PhotoIcon } from '../ui/icons.tsx';
 import { AddFooter, EmptyTab, SearchField } from '../ui/Picker.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -22,6 +23,7 @@ function PickThumb({ image }: { image: LibraryImage }) {
 /** The add-item modal's picture tab: the library, to add one picture as an item (spec 03 2d, spec 05). */
 export function ImageTab({ presentationId, afterItemId, onAdded }: { presentationId: string; afterItemId: string | null; onAdded: (itemId: string) => void }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const images = useData(listImages, []);
   const [query, setQuery] = useState('');
@@ -32,7 +34,7 @@ export function ImageTab({ presentationId, afterItemId, onAdded }: { presentatio
 
   const add = async (image: LibraryImage) => {
     const itemId = newId();
-    await db.mutate('addImageToPresentation', { itemId, presentationId, imageId: image.id, afterItemId });
+    if (!(await trySave(db.mutate('addImageToPresentation', { itemId, presentationId, imageId: image.id, afterItemId })))) return;
     toast(t('presentation.added', { name: image.fileName }));
     onAdded(itemId);
     setSelectedId(null);

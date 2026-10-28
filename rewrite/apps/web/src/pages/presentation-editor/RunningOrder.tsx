@@ -3,6 +3,8 @@ import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { useSaveFailed } from '../../ui/AutoSave.tsx';
+import { afterWrite } from '../../ui/debounce.ts';
 import { Dropdown, MENU_ITEM } from '../../ui/Dropdown.tsx';
 import { EllipsisOutlineIcon, ItemIcon, MenuIcon, PlusIcon, TrashIcon, WarningIcon } from '../../ui/icons.tsx';
 import { useSortable } from '../../ui/sortable.ts';
@@ -26,8 +28,11 @@ export function RunningOrder({
   onAdd: () => void;
 }) {
   const db = useDb();
+  const saveFailed = useSaveFailed();
   // Dragged by the handle (Sidebar.razor), saved by the same mutator as Alt+↑/↓.
-  const { listRef, rowStyle, handle, dragging } = useSortable<HTMLOListElement>((from, to) => void db.mutate('moveItem', { itemId: items[from]!.id, by: to - from }));
+  const { listRef, rowStyle, handle, dragging } = useSortable<HTMLOListElement>((from, to) =>
+    afterWrite(db.mutate('moveItem', { itemId: items[from]!.id, by: to - from }), () => {}, saveFailed),
+  );
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">

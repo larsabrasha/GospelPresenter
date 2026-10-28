@@ -5,6 +5,7 @@ import { searchableSongs } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
@@ -17,13 +18,17 @@ import { href, navigate } from '../ui/router.ts';
 /** "Skapa sång": a name, then the editor (spec 02, SONG-A1, A2; Components/Presentations/NameDialog.razor). */
 export function CreateSongDialog({ initial = '', onClose, onCreated }: { initial?: string; onClose: () => void; onCreated: (id: string) => void }) {
   const db = useDb();
+  const trySave = useTrySave();
   const [name, setName] = useState(initial);
   const [saving, setSaving] = useState(false);
   const save = async () => {
     if (!name.trim() || saving) return;
     setSaving(true);
     const id = newId();
-    await db.mutate('createSong', { id, name });
+    if (!(await trySave(db.mutate('createSong', { id, name })))) {
+      setSaving(false);
+      return;
+    }
     onCreated(id);
   };
   return (

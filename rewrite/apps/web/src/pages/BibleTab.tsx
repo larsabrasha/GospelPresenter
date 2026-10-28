@@ -18,6 +18,7 @@ import { bibleBooks, listBibles } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { BookOpenIcon, ChevronDownIcon, ChevronLeftIcon } from '../ui/icons.tsx';
 import { AddFooter, EmptyTab, SearchField } from '../ui/Picker.tsx';
@@ -167,6 +168,7 @@ export function BibleTab({
   onAdded: (itemId: string) => void;
 }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
   const bibles = useData(listBibles, []);
@@ -213,14 +215,17 @@ export function BibleTab({
       if (!ok) return;
     }
     const itemId = newId();
-    await db.mutate('addBibleToPresentation', {
-      itemId,
-      presentationId,
-      bibleId: bible.id,
-      translation: bible.abbreviation,
-      verses: chosen.map(({ b, c, v, t: text }) => ({ b, c, v, t: text })),
-      afterItemId,
-    });
+    const added = await trySave(
+      db.mutate('addBibleToPresentation', {
+        itemId,
+        presentationId,
+        bibleId: bible.id,
+        translation: bible.abbreviation,
+        verses: chosen.map(({ b, c, v, t: text }) => ({ b, c, v, t: text })),
+        afterItemId,
+      }),
+    );
+    if (!added) return;
     toast(t('presentation.added', { name: bibleTitle(chosen) }));
     onAdded(itemId);
     reset();

@@ -67,7 +67,8 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
   useEffect(() => {
     if (!all || purgedOnOpen.current) return;
     purgedOnOpen.current = true;
-    if (all.some((e) => e.deletedAt <= now - TRASH_RETENTION_MS)) void db.mutate('purgeExpiredTrash', { now });
+    // Not asked for by the user, so a refusal is only logged; the entries stay in the list.
+    if (all.some((e) => e.deletedAt <= now - TRASH_RETENTION_MS)) db.mutate('purgeExpiredTrash', { now }).catch((e: unknown) => console.error('save failed', e));
   }, [all, db, now]);
 
   const kinds = TRASH_KINDS.filter((k) => entries.some((e) => e.kind === k));

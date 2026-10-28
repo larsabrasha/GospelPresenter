@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { useSaveFailed } from '../../ui/AutoSave.tsx';
+import { afterWrite } from '../../ui/debounce.ts';
 import { Dialog, DialogButtons } from '../../ui/Dialog.tsx';
 import { FloatingInput, FloatingSelect } from '../../ui/Floating.tsx';
 
@@ -21,6 +23,7 @@ export function DetailsDialog({
   onClose: () => void;
 }) {
   const db = useDb();
+  const saveFailed = useSaveFailed();
   const [name, setName] = useState(initialName);
   const [date, setDate] = useState(eventDate ?? '');
   const [theme, setTheme] = useState(themeId ?? '');
@@ -31,7 +34,8 @@ export function DetailsDialog({
         onSubmit={(e) => {
           e.preventDefault();
           if (!name.trim()) return;
-          void db.mutate('updatePresentation', { id, name, eventDate: date || null, themeId: theme || null });
+          // Closes at once; a refused write says so after the dialog is gone.
+          afterWrite(db.mutate('updatePresentation', { id, name, eventDate: date || null, themeId: theme || null }), () => {}, saveFailed);
           onClose();
         }}
       >

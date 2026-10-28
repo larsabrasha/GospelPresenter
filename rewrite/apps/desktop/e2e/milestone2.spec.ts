@@ -194,6 +194,61 @@ test('a refused save says "Kunde inte spara", not "Sparad", and the field keeps 
   await expect(page.getByLabel('CCLI')).toHaveValue('');
 });
 
+test('a refused rename of an item or of a presentation says "Kunde inte spara"', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+  const order = page.getByRole('list', { name: 'Programpunkter' });
+  await order.getByRole('button', { name: 'Sång A', exact: true }).click();
+  const failed = page.getByRole('alert').getByText('Kunde inte spara');
+  const tooLong = 'x'.repeat(201);
+
+  // A name is at most 200 characters; without the field's own limit, the write is refused.
+  await page.keyboard.press('F2');
+  const title = page.getByLabel('Byt namn på programpunkten');
+  await title.evaluate((el) => el.removeAttribute('maxlength'));
+  await title.fill(tooLong);
+  await title.press('Enter');
+  await expect(failed).toBeVisible();
+  await expect(order.getByRole('button', { name: 'Sång A', exact: true })).toBeVisible();
+
+  await expect(failed).toHaveCount(0, { timeout: 6000 });
+  await page.getByRole('button', { name: 'Alternativ' }).click();
+  await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
+  const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
+  const name = details.getByLabel('Namn');
+  await name.evaluate((el) => el.removeAttribute('maxlength'));
+  await name.fill(tooLong);
+  await details.getByRole('button', { name: 'Spara' }).click();
+  await expect(failed).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Söndag' })).toBeVisible();
+});
+
+test('a refused create says "Kunde inte spara", and the dialog stays to try again', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await openPresentations(page);
+  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
+  const name = dialog.getByLabel('Namn');
+
+  // A name is at most 200 characters; without the field's own limit, the write is refused.
+  await name.evaluate((el) => el.removeAttribute('maxlength'));
+  await name.fill('x'.repeat(201));
+  await name.press('Enter');
+  await expect(page.getByRole('alert').getByText('Kunde inte spara')).toBeVisible();
+  await expect(dialog).toBeVisible();
+
+  await name.fill('Söndag');
+  await name.press('Enter');
+  await expect(dialog).toHaveCount(0);
+});
+
 test('arrangements: made in the song, chosen per item, and shown live in their order', async () => {
   host = await launch();
   const page = host.page;

@@ -4,6 +4,8 @@ import { useBlobUrl, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
+import { afterWrite } from '../../ui/debounce.ts';
 import { ChevronDownIcon, WarningIcon } from '../../ui/icons.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { ArrangementPills, SlideGrid } from './SlideGrid.tsx';
@@ -50,7 +52,10 @@ export function SelectedItem({
   theme: Theme;
 }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
+  const saveFailed = useSaveFailed();
+  const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
   return (
     <>
       {selectedSlides?.problem === 'song-trashed' && (
@@ -59,7 +64,7 @@ export function SelectedItem({
             <AppButton
               variant="secondary"
               onClick={async () => {
-                await db.mutate('restoreSong', { id: selected.sourceId });
+                if (!(await trySave(db.mutate('restoreSong', { id: selected.sourceId })))) return;
                 toast(t('presentation.songRestored', { name: selectedSong?.name ?? selected.title }));
               }}
             >
@@ -80,7 +85,7 @@ export function SelectedItem({
             <ArrangementPills
               arrangements={selectedArrangements}
               chosen={selected.arrangementId ?? selectedArrangements[0]?.id ?? null}
-              onChoose={(arrangementId) => void db.mutate('setItemArrangement', { itemId: selected.id, arrangementId })}
+              onChoose={(arrangementId) => failing(db.mutate('setItemArrangement', { itemId: selected.id, arrangementId }))}
             />
           )}
           {!!overlays.length && (
@@ -90,7 +95,7 @@ export function SelectedItem({
                 <select
                   aria-label={t('overlays.itemOverlay')}
                   value={selected.overlayId ?? ''}
-                  onChange={(e) => void db.mutate('setItemOverlay', { itemId: selected.id, overlayId: e.target.value || null })}
+                  onChange={(e) => failing(db.mutate('setItemOverlay', { itemId: selected.id, overlayId: e.target.value || null }))}
                   className="appearance-none py-1.5 pl-3 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
                 >
                   <option value="">{t('overlays.itemNone')}</option>

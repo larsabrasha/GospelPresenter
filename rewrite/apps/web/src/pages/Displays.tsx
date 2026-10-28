@@ -6,6 +6,7 @@ import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
@@ -39,11 +40,12 @@ export function viewersText(n: number): string {
 
 function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made: Display | null) => void }) {
   const db = useDb();
+  const trySave = useTrySave();
   const [name, setName] = useState('');
   const submit = async () => {
     if (!name.trim()) return;
     const made = { id: newId(), name: name.trim(), code: newDisplayCode(), kind };
-    await db.mutate('createDisplay', made);
+    if (!(await trySave(db.mutate('createDisplay', made)))) return;
     onClose(made);
   };
   return (
@@ -139,6 +141,7 @@ export async function copyLink(url: string, done: () => void) {
  */
 export function Displays({ link }: { link: LiveLink }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
   const all = useData(listDisplays, []);
@@ -158,14 +161,14 @@ export function Displays({ link }: { link: LiveLink }) {
   // As Displays.razor's: the old code's dialog closes, since its link and QR code no longer work.
   const renew = async (d: Display) => {
     if (!(await ask({ title: t('displays.newCode'), text: t('displays.newCodeConfirm', { name: d.name }), confirm: t('displays.newCode') }))) return;
-    await db.mutate('newDisplayCode', { id: d.id, code: newDisplayCode() });
+    if (!(await trySave(db.mutate('newDisplayCode', { id: d.id, code: newDisplayCode() })))) return;
     setShowing(null);
     toast(t('displays.newCodeDone'));
   };
 
   const remove = async (d: Display) => {
     if (!(await ask({ title: t('displays.delete'), text: t('displays.deleteConfirm', { name: d.name }), confirm: t('displays.delete') }))) return;
-    await db.mutate('deleteDisplay', { id: d.id });
+    await trySave(db.mutate('deleteDisplay', { id: d.id }));
   };
 
   /** A section's add button: in its heading once the list has something, in the empty card before that. */

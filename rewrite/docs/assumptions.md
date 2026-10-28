@@ -24,13 +24,14 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 - **Limits on the server**: 5 000 songs, 50 parts per song, 10 arrangements per song, 100 items per
   presentation (spec 02, 03), and 500 chips per arrangement (the spec limits the JSON to 5 000
   characters instead).
-- **A save refused by the database says so in the song editor** (02 Q10, for the editor only): a
-  warning toast "Kunde inte spara", the amber kind the current app's toasts have. The field keeps
-  what the user typed, so it can be put right and saved again; it shows the stored value again only
-  when a sync moves it. A value the editor itself does not write (a blank name, a year out of
-  0–9999) gets no toast, and the field shows the stored value again when left, as before. Every
-  write in the editor says so when refused (moving, adding and removing parts, trashing the song
-  too), and a warning already showing is replaced rather than stacked.
+- **A save refused by the database says so** (02 Q10): a warning toast "Kunde inte spara", the amber
+  kind the current app's toasts have. In the song editor, the field keeps what the user typed, so it
+  can be put right and saved again; it shows the stored value again only when a sync moves it. A
+  value the editor itself does not write (a blank name, a year out of 0–9999) gets no toast, and the
+  field shows the stored value again when left, as before. Every write the user makes says so when
+  refused; one that a next step waits for (create, then open; trash, then go back) stops there, and a
+  create dialog stays open. The trash's and the themes' buttons keep their "Något gick fel". The trash's lazy purge of expired entries, which the user did not ask
+  for, only logs a refusal. A warning already showing is replaced rather than stacked.
 - **The arrangement name field shows only with two or more arrangements** (SONG-A9, as the current
   app does).
 - **A purged song's items stay** in their presentations and say the song is gone.

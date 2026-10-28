@@ -5,6 +5,7 @@ import { listPresentations, pinnedIds } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { PlusIcon, TrashIcon } from '../ui/icons.tsx';
@@ -17,6 +18,7 @@ import { dateLabel, fullDate, groupPresentations, localToday } from './dashboard
 /** "Skapa presentation": name (prefilled) and date; Enter saves (spec 03, PRES-A2). */
 function CreatePresentationDialog({ onClose }: { onClose: () => void }) {
   const db = useDb();
+  const trySave = useTrySave();
   const [name, setName] = useState(t('presentations.defaultName'));
   const [date, setDate] = useState('');
   const [saving, setSaving] = useState(false);
@@ -29,7 +31,10 @@ function CreatePresentationDialog({ onClose }: { onClose: () => void }) {
           if (!name.trim() || saving) return;
           setSaving(true);
           const id = newId();
-          await db.mutate('createPresentation', { id, name, eventDate: date || null });
+          if (!(await trySave(db.mutate('createPresentation', { id, name, eventDate: date || null })))) {
+            setSaving(false);
+            return;
+          }
           navigate({ page: 'presentation', id });
         }}
       >

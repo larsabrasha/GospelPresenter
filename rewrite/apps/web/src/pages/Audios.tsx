@@ -6,6 +6,7 @@ import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
@@ -45,6 +46,7 @@ const failedText: Record<Problem, Parameters<typeof t>[0]> = { type: 'audios.fai
  */
 export function Audios({ role }: { role: Role }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const audios = useData(listAudios, []);
   const [query, setQuery] = useState('');
@@ -76,7 +78,7 @@ export function Audios({ role }: { role: Role }) {
   };
 
   const remove = async (a: LibraryAudio) => {
-    await db.mutate('trashAudio', { id: a.id, at: trashedAt() });
+    if (!(await trySave(db.mutate('trashAudio', { id: a.id, at: trashedAt() })))) return;
     toast(t('audios.trashed', { name: a.fileName }));
   };
 

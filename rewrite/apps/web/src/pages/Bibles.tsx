@@ -4,6 +4,7 @@ import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { listBibles, type InstalledBible } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useTrySave } from '../ui/AutoSave.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { ArrowDownTrayIcon, BookOpenOutlineIcon, CheckIcon, TrashIcon } from '../ui/icons.tsx';
@@ -22,6 +23,7 @@ type Message = { ok: boolean; text: string } | null;
  */
 export function Bibles() {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
   const bibles = useData(listBibles, []);
@@ -64,7 +66,7 @@ export function Bibles() {
 
   const remove = async (b: InstalledBible) => {
     if (!(await ask({ title: t('bibles.deleteTitle'), text: t('bibles.deleteConfirm', { name: b.name }), confirm: t('common.delete') }))) return;
-    await db.mutate('deleteBible', { id: b.id });
+    if (!(await trySave(db.mutate('deleteBible', { id: b.id })))) return;
     toast(t('bibles.deleted'));
   };
 

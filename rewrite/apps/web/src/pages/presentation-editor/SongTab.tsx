@@ -5,6 +5,7 @@ import { arrangementsOf, getSong, listLabels, searchableSongs, songPartsOf } fro
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Highlight } from '../../ui/Highlight.tsx';
 import { CloseIcon, MusicalNoteOutlineIcon, PlusIcon } from '../../ui/icons.tsx';
 import { AddFooter, EmptyTab, SearchField } from '../../ui/Picker.tsx';
@@ -22,6 +23,7 @@ const isPhone = () => matchMedia('(max-width: 767.98px)').matches;
  */
 export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProps) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const songs = useData(searchableSongs, []);
   const [query, setQuery] = useState('');
@@ -58,7 +60,7 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
     if (!selected) return;
     const itemId = newId();
     // No pick stores null: the item then follows the song's first arrangement, whatever it becomes.
-    await db.mutate('addSongToPresentation', { itemId, presentationId, songId: selected.id, arrangementId, afterItemId });
+    if (!(await trySave(db.mutate('addSongToPresentation', { itemId, presentationId, songId: selected.id, arrangementId, afterItemId })))) return;
     toast(t('presentation.added', { name: selected.name }));
     onAdded(itemId);
     setQuery('');

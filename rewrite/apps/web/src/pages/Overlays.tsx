@@ -5,6 +5,8 @@ import { getImage, getOverlay, listImages, listOverlays } from '../db/queries.ts
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { useSaveFailed, useTrySave } from '../ui/AutoSave.tsx';
+import { afterWrite } from '../ui/debounce.ts';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput, FloatingTextarea } from '../ui/Floating.tsx';
@@ -19,6 +21,7 @@ import { ImageThumb } from './Images.tsx';
 /** "Skapa overlay": a title, then the overlay's page (Components/Presentations/NameDialog.razor). */
 function CreateDialog({ onClose }: { onClose: () => void }) {
   const db = useDb();
+  const trySave = useTrySave();
   const [title, setTitle] = useState('');
   return (
     <Dialog title={t('overlays.createTitle')} onClose={onClose} maxWidthClass="max-w-2xl">
@@ -28,7 +31,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
           e.preventDefault();
           if (!title.trim()) return;
           const id = newId();
-          await db.mutate('createOverlay', { id, title });
+          if (!(await trySave(db.mutate('createOverlay', { id, title })))) return;
           navigate({ page: 'overlay', id });
         }}
       >
@@ -136,8 +139,10 @@ function ImagePicker({ onPick, onClose }: { onPick: (image: LibraryImage) => voi
  */
 export function OverlayEditor({ id }: { id: string }) {
   const db = useDb();
+  const trySave = useTrySave();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
+  const saveFailed = useSaveFailed();
   const data = useData(
     async (d) => {
       const overlay = await getOverlay(d, id);
@@ -155,11 +160,11 @@ export function OverlayEditor({ id }: { id: string }) {
       </PageContainer>
     );
 
-  const save = (fields: { title?: string; content?: string | null; imageId?: string | null }) => void db.mutate('updateOverlay', { id, ...fields });
+  const save = (fields: { title?: string; content?: string | null; imageId?: string | null }) => afterWrite(db.mutate('updateOverlay', { id, ...fields }), () => {}, saveFailed);
   const remove = async () => {
     const ok = await ask({ title: t('overlays.removeTitle'), text: t('overlays.removeConfirm', { title: overlay.title }), confirm: t('common.delete') });
     if (!ok) return;
-    await db.mutate('deleteOverlay', { id });
+    if (!(await trySave(db.mutate('deleteOverlay', { id })))) return;
     toast(t('overlays.removed', { title: overlay.title }));
     navigate({ page: 'overlays' });
   };
