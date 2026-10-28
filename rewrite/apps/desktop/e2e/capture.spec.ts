@@ -157,7 +157,22 @@ test('capture every page', async () => {
     await p.getByRole('button', { name: 'Lägg till', exact: true }).click();
     if (key) await p.keyboard.press(key);
   };
-  const goLive = (p: Page) => p.getByRole('button', { name: 'Härlig är jorden 1' }).click();
+  // On a phone the floating live panel can cover the slide: fold it for the click, then open it again for the picture.
+  const goLive = async (p: Page) => {
+    const slide = p.getByRole('button', { name: 'Härlig är jorden 1' });
+    await slide.waitFor();
+    const fold = p.getByRole('button', { name: 'Fäll in eller ut live-vyn' });
+    const phone = p.viewportSize()!.width < 1024 && (await fold.isVisible());
+    if (phone) {
+      await fold.click();
+      await expect(fold).toHaveAttribute('aria-expanded', 'false');
+    }
+    await slide.click();
+    if (phone) {
+      await fold.click();
+      await expect(fold).toHaveAttribute('aria-expanded', 'true');
+    }
+  };
   const stopLive = (p: Page) => p.getByRole('button', { name: 'Avsluta' }).click();
   // On a phone the admin menu covers the page at first; tap the dimmed page to close it.
   const closeAdminMenu = async (p: Page) => {
@@ -445,8 +460,10 @@ test('capture every page', async () => {
     [
       'watch-slide',
       async (theme, width, height) => {
+        // The links first: reading them leaves the live page, and makes Mobiler when watch has not run.
+        const { watch } = await outputLinks();
         await liveWithOverlay('Mobiler');
-        const phone = await beside((await outputLinks()).watch, theme, width, height);
+        const phone = await beside(watch, theme, width, height);
         await phone.getByTestId('watch-overlay').waitFor();
         return phone;
       },
