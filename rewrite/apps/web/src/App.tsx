@@ -17,7 +17,7 @@ import { Images } from './pages/Images.tsx';
 import { Live } from './pages/Live.tsx';
 import { Logins } from './pages/Logins.tsx';
 import { Output } from './pages/Output.tsx';
-import { PresentationEditor } from './pages/PresentationEditor.tsx';
+import { PresentationEditor } from './pages/presentation-editor/index.ts';
 import { Presentations } from './pages/Presentations.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';

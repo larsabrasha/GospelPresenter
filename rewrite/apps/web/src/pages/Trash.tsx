@@ -12,7 +12,7 @@ import { SearchField } from '../ui/Picker.tsx';
 import { PillTab, PillTabs } from '../ui/PillTabs.tsx';
 import { href, TRASH_KINDS, type TrashKind } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { formatEventDate } from './PresentationEditor.tsx';
+import { formatEventDate } from './presentation-editor/index.ts';
 
 const manages: Record<TrashKind, Parameters<typeof can>[1]> = { Presentation: 'ManagePresentations', Song: 'ManageSongs', Image: 'ManageImages', Audio: 'ManageAudios' };
 const restoreMutator = { Presentation: 'restorePresentation', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio' } as const;
