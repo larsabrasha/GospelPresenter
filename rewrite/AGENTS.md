@@ -22,7 +22,6 @@ pnpm --filter @gp/desktop start        # the desktop host on 127.0.0.1:47800 (Go
 GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start   # on the LAN, over https (docs/lan-https-and-addresses.md)
 GP_CAPTURE=/tmp/new pnpm --filter @gp/desktop exec playwright test capture   # pictures of every page
 GP_CAPTURE_ONLY=setup,login pnpm …     # only the named pictures (docs/look.md, last paragraph)
-node scripts/compare-old-app.mjs /tmp/cmp home,songs   # old app and new, same names, into /tmp/cmp/{old,new}
 ```
 
 e2e runs the BUILT app (`apps/desktop/dist`, `apps/web/dist`), windows hidden, files side by side: each test
@@ -32,8 +31,8 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
 
 ## UI rules
 
-- `AppButton` (`apps/web/src/ui/AppButton.tsx`) is the only place a `<button>` is made; the lint enforces it.
-- Never `cursor-not-allowed`; use `cursor-default`.
+- `pnpm lint` enforces: `<button>` only in `AppButton` (`apps/web/src/ui/AppButton.tsx`); never `cursor-not-allowed`
+  (use `cursor-default`).
 - Every screen works light and dark, desktop and phone (390 px wide).
 - Take the old app's Tailwind classes; the look follows the old app (docs/look.md).
 - UI strings are Swedish, in `apps/web/src/i18n.ts`.
@@ -47,16 +46,13 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
 
 ## The old app: the reference
 
-The Blazor app on `origin/main` is what the rewrite must match. A reference worktree is at
-`../../GospelPresenter-main-ref` (next to this checkout). If missing:
-`git worktree add --detach ../GospelPresenter-main-ref origin/main` (from the repo root).
-Mock mode, from its `GospelPresenter/GospelPresenter.Web`:
-`ASPNETCORE_ENVIRONMENT=Development dotnet run --no-launch-profile --urls=http://127.0.0.1:5299`.
-Pictures of it: `node scripts/capture-old-app.mjs http://127.0.0.1:5299 /tmp/old [name,…]`.
-Never build the MAUI iOS/Android targets.
+The Blazor app on `origin/main` is what the rewrite must match; how to run and compare it: the `old-app-compare`
+skill (`../.claude/skills/old-app-compare/SKILL.md`). Never build the MAUI iOS/Android targets.
 
 ## Workflow
 
 - Ask before changing behaviour; the spec and `docs/` say what the app does.
 - A spec change is committed together with the code it describes.
 - Commit only after the full checks pass, and only when asked.
+- A Stop hook (`../.claude/hooks/check-rewrite.mjs`) runs `pnpm check:quick` when `rewrite/` has changes and
+  sends failures back; it does not replace the full checks.
