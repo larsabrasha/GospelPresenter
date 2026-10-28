@@ -87,7 +87,7 @@ function Row({ p, today, showDate, withYear, live, pinned }: { p: Presentation; 
   const date = showDate && p.eventDate;
   return (
     <ListLinkRow
-      href={href({ page: 'presentation', id: p.id })}
+      href={href(live ? { page: 'live', id: p.id } : { page: 'presentation', id: p.id })}
       title={p.name}
       subtitle={date ? dateLabel(date, today, withYear) : null}
       subtitleTitle={date ? fullDate(date) : undefined}

@@ -118,6 +118,28 @@ test('Extern skärm is a switch: on opens the output, off closes it, and closing
   await expect(page.getByRole('checkbox', { name: 'Extern skärm' })).toBeChecked();
 });
 
+test('a presentation shown live opens its live page from the list, the others their editor', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createPresentation(page, 'Lördag');
+  await createPresentation(page, 'Söndag');
+  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await expect(page).toHaveURL(/\/live\//);
+  const liveUrl = page.url();
+
+  await page.getByRole('link', { name: 'Gospel Presenter' }).click();
+  const shown = page.getByRole('link', { name: /Söndag/ });
+  await expect(shown.getByText('Live')).toBeVisible();
+  await shown.click();
+  await expect(page).toHaveURL(liveUrl);
+  await expect(page.getByRole('button', { name: 'Avsluta' })).toBeVisible();
+
+  await page.getByRole('link', { name: 'Gospel Presenter' }).click();
+  await page.getByRole('link', { name: /Lördag/ }).click();
+  await expect(page).toHaveURL(/\/presentations\//);
+});
+
 test('addresses are plain paths: links navigate without a reload, a reload or a pasted link lands on the same page', async () => {
   host = await launch();
   const page = host.page;
