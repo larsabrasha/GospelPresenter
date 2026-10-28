@@ -11,6 +11,7 @@ import { ChevronDownIcon, ChevronLeftIcon, CloseIcon, ItemIcon, SpeakerOutlineIc
 import { LiveBadge } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
 import { OverlayToggles } from './OverlayToggles.tsx';
+import { stageKey } from './stageKeys.ts';
 
 /**
  * Scenläge (spec 04 §3): a full-screen dark view for a worship leader or a
@@ -73,25 +74,32 @@ export function StageView({
     } else if (slides.get(i.id)?.slides.length) show(i.id, 0);
   };
 
+  // Whether Tab, rather than a click or tap, last moved focus: only then do Enter and Space press the focused button.
+  const tabbed = useRef(false);
   useEffect(() => {
-    // Foot pedals and clickers are HID keyboards, so every mode they ship with counts (utils.js installStageKeys).
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-      if (e.key === 'Escape') {
+      if (e.key === 'Tab') tabbed.current = true;
+      const el = e.target instanceof HTMLElement ? e.target : null;
+      const target = el && { tagName: el.tagName, isContentEditable: el.isContentEditable, role: el.getAttribute('role'), tabbedTo: tabbed.current };
+      const action = stageKey({ key: e.key, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, target });
+      if (action === 'escape') {
         if (overlaySheet) setOverlaySheet(false);
         else if (picking) setPicking(false);
         else onLeave();
-      } else if (picking || overlaySheet) return;
-      else if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) go(1);
-      else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) go(-1);
-      else if (['.', 'b', 'B'].includes(e.key)) live.set({ black: true }); // as Rensa: only blanks
-      else return;
+      } else if (!action || picking || overlaySheet) return;
+      else if (action === 'next') go(1);
+      else if (action === 'previous') go(-1);
+      else live.set({ black: true }); // as Rensa: only blanks
       e.preventDefault();
       e.stopPropagation();
     };
+    const onPointer = () => (tabbed.current = false);
     addEventListener('keydown', onKey, true); // before the page's own shortcuts, which stage mode suppresses
-    return () => removeEventListener('keydown', onKey, true);
+    addEventListener('pointerdown', onPointer, true);
+    return () => {
+      removeEventListener('keydown', onKey, true);
+      removeEventListener('pointerdown', onPointer, true);
+    };
   });
 
   const current = item && !pointer.black ? (parts[pointer.partIndex] ?? null) : null;

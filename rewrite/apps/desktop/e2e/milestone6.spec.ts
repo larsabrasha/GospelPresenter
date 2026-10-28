@@ -74,6 +74,16 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   await expect(stage).toHaveCount(0);
   await page.getByRole('button', { name: 'Scenläge' }).click();
 
+  // Enter on a button reached from the keyboard presses it rather than stepping.
+  const leave = stage.getByRole('button', { name: 'Lämna scenläge' });
+  await leave.focus();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expect(leave).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(stage).toHaveCount(0);
+  await page.getByRole('button', { name: 'Scenläge' }).click();
+
   await stage.getByRole('button', { name: 'Lämna scenläge' }).click();
   await expect(stage).toHaveCount(0);
 
