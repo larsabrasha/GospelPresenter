@@ -9,6 +9,8 @@ interface Window {
     outputOpen(): Promise<boolean>;
     /** Called whenever the output window opens or closes, however it closed. Returns an unsubscribe. */
     onOutputChanged(cb: (open: boolean) => void): () => void;
+    /** This app runs the host (the embedded server), rather than being a client of another machine's server. */
+    isHost: boolean;
     /** This machine's name, for the server's device lists. */
     deviceName: string;
     /** The host's first-run setup token, while setup is pending on this machine's own server. */

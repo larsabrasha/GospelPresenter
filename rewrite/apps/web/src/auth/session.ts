@@ -70,6 +70,7 @@ export function workerSession(s: StoredSession): Session {
     token: s.token,
     device: deviceToken(),
     ...(memoryOnly() ? { storage: 'memory' as const } : {}),
+    ...(window.gpDesktop?.isHost ? { keepsEveryBible: true as const } : {}),
   };
 }
 

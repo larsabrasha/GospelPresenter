@@ -176,7 +176,8 @@ export function BibleTab({
   const search = useRef<HTMLInputElement>(null);
 
   const bible = bibles?.find((b) => b.id === bibleId) ?? bibles?.[0] ?? null;
-  const books = useData((d) => (bible ? bibleBooks(d, bible.contentHash) : Promise.resolve(null)), [bible?.contentHash, bible?.stored]);
+  // A translation this device does not keep is fetched now, for this window only (README, "Bibles").
+  const books = useData((d) => (bible ? bibleBooks(d, bible.contentHash, (hash) => db.fetchBibleText(hash)) : Promise.resolve(null)), [bible?.contentHash, bible?.stored]);
 
   if (!bibles) return null;
   if (!bibles.length || !bible) {
@@ -267,7 +268,8 @@ export function BibleTab({
       </div>
       <div className="mt-3 flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
         <div className="w-full md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto md:pr-3">
-          {!books && <p className="py-8 text-center text-sm text-neutral-400">{t('bible.downloading')}</p>}
+          {books === undefined && <p className="py-8 text-center text-sm text-neutral-400">{t('bible.downloading')}</p>}
+          {books === null && <p className="py-8 text-center text-sm text-neutral-400">{t('bible.unavailable')}</p>}
           {books && query.trim() && !found.length && (
             <div className="text-center text-neutral-400 text-sm py-2">
               <p>{t('bible.noHits')}</p>

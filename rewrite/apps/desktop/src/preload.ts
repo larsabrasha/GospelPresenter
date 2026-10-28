@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('gpDesktop', {
     ipcRenderer.on('output-changed', on);
     return () => void ipcRenderer.off('output-changed', on);
   },
+  isHost: Boolean(ipcRenderer.sendSync('is-host')),
   deviceName: String(ipcRenderer.sendSync('device-name')),
   setupToken: () => ipcRenderer.invoke('setup-token') as Promise<string | null>,
   lanUrls: () => ipcRenderer.invoke('lan-urls') as Promise<string[]>,

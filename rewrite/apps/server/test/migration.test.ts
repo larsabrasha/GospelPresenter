@@ -115,6 +115,30 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     f.close();
   });
 
+  it('migrates a schema 9 file: the translations whose text it has become kept, the others not', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+    dirs.push(dir);
+    const file = join(dir, 'org.sqlite');
+    const old = openSqlite(file, driver);
+    const schema9 = orgDdl.filter((s) => !s.includes('kept_bibles'));
+    for (const s of [
+      ...schema9,
+      schemaMetaDdl,
+      `INSERT INTO _schema (one, version) VALUES (1, 9)`,
+      `INSERT INTO bibles (id, name, abbreviation, verse_count, content_hash) VALUES ('bible:web', 'WEB', 'WEB', 4, 'h1'), ('bible:kj', 'KJ', 'KJ', 4, 'h2')`,
+      `INSERT INTO bible_blobs (hash, verse_count) VALUES ('h1', 4)`,
+    ])
+      old.exec(s);
+    old.close();
+
+    const f = openSqlite(file, driver);
+    nodeOrgStore(f);
+
+    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
+    expect(f.query('SELECT id FROM kept_bibles')).toEqual([{ id: 'bible:web' }]);
+    f.close();
+  });
+
   it('a new file gets the current DDL and its version', () => {
     const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
     dirs.push(dir);
@@ -151,8 +175,8 @@ describe('client (wa-sqlite)', () => {
     await client.mutate('setItemArrangement', { itemId: 'I1', arrangementId: 'A' });
     const [undo] = await client.query("SELECT before FROM _undo WHERE tbl = 'presentation_items'");
     expect(JSON.parse(String(undo!.before))).toMatchObject({ id: 'I1', arrangement_id: null, sort: 0 });
-    // Every table is made by the DDL: the synced ones, and the four that do not sync (Bible texts, media blobs, pins).
-    expect(orgDdl.length).toBe(tableInfo.length + 4);
+    // Every table is made by the DDL: the synced ones, and the five that do not sync (Bible texts, media blobs, pins, kept Bibles).
+    expect(orgDdl.length).toBe(tableInfo.length + 5);
     await client.close();
   });
 });

@@ -16,6 +16,10 @@ import {
   storeBibleText,
   storeMediaBlob,
   DEFAULT_MEDIA_POLICY,
+  dropBible,
+  fetchBibleText,
+  keepBible,
+  setBibleKept,
   setPinned,
   syncBibleTexts,
   syncMedia,
@@ -199,12 +203,24 @@ function syncBibles() {
   void serialStore(async () => {
     bibleSyncQueued = false;
     if (await uploads.retryRefused(client!)) void client!.requestSync().then(reportStatus);
-    const r = await syncBibleTexts(client!, async (hash) => {
-      const res = await fetch(`/api/bibles/${hash}`, { headers: credentials() });
-      return res.ok ? res.text() : null;
-    });
+    const r = await syncBibleTexts(client!, downloadBibleText, session!.keepsEveryBible ? 'all' : 'chosen');
     if (r.downloaded.length || r.removed) notifyChanged();
   }).catch(() => undefined); // offline: the next change or poll tries again
+}
+
+async function downloadBibleText(hash: string): Promise<string | null> {
+  const res = await fetch(`/api/bibles/${hash}`, { headers: credentials() });
+  return res.ok ? res.text() : null;
+}
+
+/** "Gör tillgänglig offline" or "Ta bort den nedladdade kopian", in turn with imports and the other downloads. */
+function keepBibleHere(id: string, on: boolean): Promise<boolean> {
+  return serialStore(async () => {
+    if (session!.keepsEveryBible) return true; // a host keeps every text
+    const ok = on ? await keepBible(client!, id, downloadBibleText) : (await dropBible(client!, id, downloadBibleText), true);
+    notifyChanged();
+    return ok;
+  });
 }
 
 /**
@@ -217,6 +233,8 @@ function importBible(data: Uint8Array): Promise<BibleImportResult> {
     const { hash } = await storeBibleText(client!, bible.books);
     const id = bibleId(bible.abbreviation);
     const replaced = (await client!.query('SELECT 1 FROM bibles WHERE id = ?', [id])).length > 0;
+    // Imported here, so kept here: its text stays once the import has been uploaded.
+    await setBibleKept(client!, id, true);
     await client!.mutate('importBible', { name: bible.name, abbreviation: bible.abbreviation, language: bible.language, contentHash: hash });
     await client!.requestSync();
     void reportStatus();
@@ -286,6 +304,10 @@ async function handle(call: DbCall): Promise<unknown> {
     case 'closeMedia':
       openMedia.delete(call.key);
       return;
+    case 'keepBible':
+      return keepBibleHere(call.bibleId, call.on);
+    case 'fetchBibleText':
+      return fetchBibleText(downloadBibleText, call.hash);
     case 'setPinned':
       await setPinned(client!, call.presentationId, call.on);
       notifyChanged();

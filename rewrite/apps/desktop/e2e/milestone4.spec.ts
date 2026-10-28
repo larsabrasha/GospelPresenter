@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, type Desktop } from './apps.ts';
-import { createPresentation, createUser, openAdmin, pair, setUpHost } from './flows.ts';
+import { createPresentation, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -144,4 +144,90 @@ test('a Bible imported while the host is down is kept, and reaches the host when
   await expect(host.page.getByText('WEB · 15 verser')).toBeVisible({ timeout: 10_000 });
   await expect(host.page.getByText('Tillgänglig offline')).toBeVisible({ timeout: 10_000 });
   await expect(page.getByText('Servern tog inte emot en ändring', { exact: false })).toHaveCount(0);
+});
+
+test('a second computer keeps a Bible offline only when asked, and can remove the copy (BIBLE-A16)', async () => {
+  const port = 20_000 + Math.floor(Math.random() * 20_000);
+  host = await launch({ port });
+  await setUpHost(host);
+  await createUser(host.page, 'Bo', 'bo@kyrkan.se', 'Admin');
+  await openAdmin(host.page, 'Biblar');
+  await host.page.getByTestId('bible-file').setInputFiles({ name: 'web.zip', mimeType: 'application/zip', buffer: Buffer.from(sampleDblZip()) });
+  await expect(host.page.getByText('WEB · 15 verser')).toBeVisible();
+  await createPresentation(host.page, 'Gudstjänst', '2026-11-01');
+
+  second = await launch({ server: host.base });
+  await pair(host.page, second.page, 'Andra datorn', 'Bo');
+  const page = second.page;
+  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+
+  // The host keeps every Bible and offers no choice.
+  await openAdmin(host.page, 'Biblar');
+  await expect(host.page.getByText('Tillgänglig offline')).toBeVisible();
+  await expect(host.page.getByRole('button', { name: /tillgänglig offline/i })).toHaveCount(0);
+
+  // The second computer keeps none until asked.
+  await openAdmin(page, 'Biblar');
+  const makeOffline = page.getByRole('button', { name: 'Gör tillgänglig offline' });
+  const kept = page.getByRole('button', { name: 'Tillgänglig offline', exact: true });
+  await expect(makeOffline).toBeVisible();
+  await expect(kept).toHaveCount(0);
+
+  const picker = page.getByRole('dialog', { name: 'Lägg till' });
+  const search = picker.getByLabel('Sök bok, kapitel och vers (t.ex. Joh 3:16 eller Psaltaren 23)');
+  const searchJohn = async () => {
+    await openPresentations(page);
+    await page.getByRole('link', { name: /Gudstjänst/ }).click();
+    await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+    await page.keyboard.press('Control+2');
+    await search.fill('Joh 3:16');
+    await expect(picker.getByRole('list', { name: 'Verser' }).getByRole('listitem')).toHaveText([/^Johannes 3:16 For God so loved/]);
+    await picker.getByRole('button', { name: 'Stäng' }).click();
+  };
+
+  // With the host away, a Bible not kept cannot be had, and cannot be made available.
+  const hostData = host.dataDir;
+  await host.app.close();
+  host = undefined;
+  await expect(page.getByTestId('status')).toContainText('Offline', { timeout: 5_000 });
+  await openPresentations(page);
+  await page.getByRole('link', { name: /Gudstjänst/ }).click();
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.keyboard.press('Control+2');
+  await expect(picker.getByText('Bibeltexten finns inte på den här enheten och kan inte hämtas utan anslutning.', { exact: false })).toBeVisible();
+  await picker.getByRole('button', { name: 'Stäng' }).click();
+  await openAdmin(page, 'Biblar');
+  await makeOffline.click();
+  await expect(page.getByRole('status').getByText('Nedladdningen misslyckades. Kontrollera uppkopplingen och försök igen.')).toBeVisible();
+  await expect(makeOffline).toBeVisible();
+
+  // The host is back: the text is fetched when a page needs it, without keeping it.
+  host = await launch({ port, dataDir: hostData });
+  await host.page.getByTestId('status').waitFor();
+  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await searchJohn();
+  await openAdmin(page, 'Biblar');
+  await expect(makeOffline).toBeVisible();
+
+  // Gör tillgänglig offline: downloaded at once, and the button turns grey with a check.
+  await makeOffline.click();
+  await expect(page.getByRole('status').getByText('Översättningen är tillgänglig offline')).toBeVisible();
+  await expect(kept).toBeVisible();
+  await expect(kept).toHaveAttribute('title', 'Ta bort den nedladdade kopian');
+  await expect(makeOffline).toHaveCount(0);
+
+  // A fresh window, then the host goes away again: the kept Bible is searched from this computer.
+  await page.reload();
+  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await host.app.close();
+  host = undefined;
+  await expect(page.getByTestId('status')).toContainText('Offline', { timeout: 5_000 });
+  await searchJohn();
+
+  // Removing the copy: the button is back.
+  await openAdmin(page, 'Biblar');
+  await kept.click();
+  await expect(page.getByRole('status').getByText('Den nedladdade kopian togs bort')).toBeVisible();
+  await expect(makeOffline).toBeVisible();
+  await expect(kept).toHaveCount(0);
 });

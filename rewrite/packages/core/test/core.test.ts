@@ -48,9 +48,9 @@ describe('schema', () => {
 
   it('a new database gets the current DDL; a milestone 1 database (no version row) gets the migrations', () => {
     expect(orgSchemaPlan(null, false)).toEqual([...orgDdl, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(null, true)).toEqual([...orgMigrations[2]!, ...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(2, true)).toEqual([...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(3, true)).toEqual([...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+    expect(orgSchemaPlan(null, true)).toEqual([...orgMigrations[2]!, ...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, ...orgMigrations[9]!, ...orgMigrations[10]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+    expect(orgSchemaPlan(2, true)).toEqual([...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, ...orgMigrations[9]!, ...orgMigrations[10]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+    expect(orgSchemaPlan(3, true)).toEqual([...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, ...orgMigrations[9]!, ...orgMigrations[10]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
     expect(orgSchemaPlan(SCHEMA_VERSION, true)).toEqual([]);
     expect(() => orgSchemaPlan(SCHEMA_VERSION + 1, true)).toThrow(/newer than this app/);
     for (let v = 2; v <= SCHEMA_VERSION; v++) expect(orgMigrations[v], `migration to ${v}`).toBeDefined();

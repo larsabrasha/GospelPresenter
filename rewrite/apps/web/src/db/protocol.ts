@@ -12,6 +12,8 @@ export interface Session {
   device: string | null;
   /** 'memory' keeps the database in memory even where OPFS exists (development and tests). */
   storage?: 'memory';
+  /** A desktop host's own window: it keeps every Bible text, whatever was chosen (README, "Bibles"). */
+  keepsEveryBible?: true;
 }
 
 export interface DbStatus {
@@ -47,7 +49,11 @@ export type DbCall =
   | { op: 'openMedia'; key: string; presentationId: string; audio: boolean }
   | { op: 'closeMedia'; key: string }
   /** Keeps a presentation's files on this device whatever its date ("Tillgänglig offline"), or stops. */
-  | { op: 'setPinned'; presentationId: string; on: boolean };
+  | { op: 'setPinned'; presentationId: string; on: boolean }
+  /** "Gör tillgänglig offline" (true: false if the text could not be downloaded) or "Ta bort den nedladdade kopian". */
+  | { op: 'keepBible'; bibleId: string; on: boolean }
+  /** A translation's text from the server, checked and not stored: for one this device does not keep. Null if it cannot be had. */
+  | { op: 'fetchBibleText'; hash: string };
 
 export type DbMessage =
   | { type: 'reply'; id: number; ok: true; value: unknown }

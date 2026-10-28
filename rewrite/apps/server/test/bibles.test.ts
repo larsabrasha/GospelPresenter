@@ -4,7 +4,7 @@
 // (generated) translation for the README.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { bibleId, bibleTextHash, BIBLE_LIMITS, parseBibleContent, serializeBibleText, type BibleBookText } from '@gp/core';
-import { BibleTextUploads, loadBibleText, storeBibleText, syncBibleTexts, type SyncClient } from '@gp/sync/client';
+import { BibleTextUploads, dropBible, fetchBibleText, keepBible, loadBibleText, setBibleKept, storeBibleText, syncBibleTexts, type SyncClient } from '@gp/sync/client';
 import { device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
@@ -124,6 +124,119 @@ describe.each(adapters)('%s adapter: Bibles and themes', (adapterName) => {
     expect(await loadBibleText(bob.client, hash)).toEqual(SAMPLE);
     // Once is enough.
     expect(await syncBibleTexts(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [], missing: [], removed: 0 });
+  });
+
+  describe('a device that keeps the translations it chose (BIBLE-R15, README "Bibles")', () => {
+    const KJ: BibleBookText[] = [{ code: 'JHN', verses: [[3, 16, 'For God so loved the world.']] }];
+
+    /** WEB and KJ imported by Alice and synced to Bob, who has no text yet. */
+    async function twoTranslations() {
+      const web = await upload(h, org, alice, SAMPLE);
+      const kj = await upload(h, org, alice, KJ);
+      await alice.client.mutate('importBible', importArgs(web));
+      await alice.client.mutate('importBible', importArgs(kj, 'KJ', 'King James'));
+      await alice.client.sync();
+      await bob.client.sync();
+      return { web, kj };
+    }
+
+    it('downloads only the texts of the translations it keeps', async () => {
+      const { web } = await twoTranslations();
+      await setBibleKept(bob.client, bibleId('WEB'), true);
+
+      const r = await syncBibleTexts(bob.client, downloader(h, org, 'bob'), 'chosen');
+
+      expect(r).toEqual({ downloaded: [web], missing: [], removed: 0 });
+    });
+
+    it('keeps every text when it keeps all, whatever it chose', async () => {
+      const { web, kj } = await twoTranslations();
+
+      const r = await syncBibleTexts(bob.client, downloader(h, org, 'bob'), 'all');
+
+      expect(r.downloaded.toSorted()).toEqual([web, kj].toSorted());
+    });
+
+    it('"Gör tillgänglig offline" downloads the text at once', async () => {
+      const { web } = await twoTranslations();
+
+      const ok = await keepBible(bob.client, bibleId('WEB'), downloader(h, org, 'bob'));
+
+      expect(ok).toBe(true);
+      expect(await loadBibleText(bob.client, web)).toEqual(SAMPLE);
+    });
+
+    it('"Gör tillgänglig offline" without a connection fails and leaves the translation not kept', async () => {
+      await twoTranslations();
+
+      const ok = await keepBible(bob.client, bibleId('WEB'), offline);
+
+      expect(ok).toBe(false);
+      expect(await bob.client.query('SELECT id FROM kept_bibles')).toEqual([]);
+    });
+
+    it('removing the copy drops the text from the device', async () => {
+      const { web } = await twoTranslations();
+      await keepBible(bob.client, bibleId('WEB'), downloader(h, org, 'bob'));
+
+      await dropBible(bob.client, bibleId('WEB'), downloader(h, org, 'bob'));
+
+      expect(await loadBibleText(bob.client, web)).toBeNull();
+    });
+
+    it('removing the copy keeps a text a queued import still has to upload', async () => {
+      const { hash } = await storeBibleText(alice.client, SAMPLE);
+      await alice.client.mutate('importBible', importArgs(hash)); // queued: not pushed
+
+      await dropBible(alice.client, bibleId('WEB'), offline);
+
+      expect(await loadBibleText(alice.client, hash)).toEqual(SAMPLE);
+    });
+
+    it('a kept translation that is re-imported gets its new text, and the old one goes', async () => {
+      const { web } = await twoTranslations();
+      await keepBible(bob.client, bibleId('WEB'), downloader(h, org, 'bob'));
+      const fixed = await upload(h, org, alice, KJ);
+      await alice.client.mutate('importBible', importArgs(fixed));
+      await alice.client.sync();
+      await bob.client.sync();
+
+      const r = await syncBibleTexts(bob.client, downloader(h, org, 'bob'), 'chosen');
+
+      expect(r).toEqual({ downloaded: [fixed], missing: [], removed: 1 });
+      expect(await loadBibleText(bob.client, web)).toBeNull();
+    });
+
+    it('a reading added from a translation it does not keep stays on the item when nothing is stored', async () => {
+      await twoTranslations();
+      await alice.client.mutate('createPresentation', { id: 'P', name: 'Sunday' });
+      await alice.client.sync();
+      await bob.client.sync();
+      const verses = SAMPLE[1]!.verses.map(([c, v, t]) => ({ b: 'JHN', c, v, t }));
+      await bob.client.mutate('addBibleToPresentation', { itemId: 'I1', presentationId: 'P', bibleId: bibleId('WEB'), translation: 'WEB', verses });
+
+      await syncBibleTexts(bob.client, downloader(h, org, 'bob'), 'chosen');
+
+      const [item] = (await bob.client.dump()).presentation_items;
+      expect(parseBibleContent(item!.content as string)?.slides.flat().map((s) => s.n)).toEqual([16, 17]);
+    });
+
+    it('a text fetched for a page is checked against its hash and not stored', async () => {
+      const { web } = await twoTranslations();
+
+      const books = await fetchBibleText(downloader(h, org, 'bob'), web);
+
+      expect(books).toEqual(SAMPLE);
+      expect(await loadBibleText(bob.client, web)).toBeNull();
+    });
+
+    it('a fetched text that does not match its hash is refused', async () => {
+      const { web } = await twoTranslations();
+
+      const books = await fetchBibleText(async () => serializeBibleText(KJ), web);
+
+      expect(books).toBeNull();
+    });
   });
 
   it('a Bible reading is added, synced and kept as slides with its translation (BIBLE-R12, D12, D25)', async () => {

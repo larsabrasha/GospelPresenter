@@ -193,7 +193,7 @@ hash of its text), which syncs like any other row, and its text, which does not.
 immutable document, `{"v":1,"books":[{"code":"GEN","verses":[[1,1,"…"],…]},…]}`, named by the
 SHA-256 of exactly that JSON. It is kept one row per book in `bible_texts`, plus a row in
 `bible_blobs` that says the text is complete, on the server (in the organisation's database or
-Durable Object) and on every device. Import reads the zip on the device (USX from a DBL zip, or
+Durable Object) and on each device that keeps it (below). Import reads the zip on the device (USX from a DBL zip, or
 USFM; `packages/core/src/bible-import.ts`), stores the text there and runs the `importBible`
 mutation, online or not. Before that mutation is pushed, the device uploads the text once
 (`PUT /api/bibles/{hash}`, Admin; `BibleTextUploads` in `packages/sync/src/client/bibles.ts`, as the
@@ -204,10 +204,21 @@ that import and the mutations after it (the ones before go); the server refusing
 lets the import through to be refused with a reason. A queued import's text is never dropped. If the
 server still lacks the text when the import arrives (`bible-text-missing`), the device queues the
 import once more while it still has the text, which uploads it again; refused a second time, it
-stays refused. Every other device sees the row arrive in a pull and downloads the text
-once (`GET /api/bibles/{hash}`, any member, only from its own organisation), checks the hash, and keeps
-it; a text that no translation names any more is dropped on the next sync. Searching and adding
-verses then needs no network. An added reading is split into slides when it is added and kept on the
+stays refused. Every other device sees the row arrive in a pull. Which texts a device keeps is its
+own choice, as in the current app (BIBLE-R15): Biblar has "Gör tillgänglig offline" per translation,
+and a kept one shows a grey "✓ Tillgänglig offline" that removes the copy ("Ta bort den nedladdade
+kopian"). The choice is a local, unsynced table, `kept_bibles` (by translation id, so a re-import stays
+kept; organisation schema version 10, which marks every text a device already had as kept, so the
+update drops nothing). A kept text is downloaded once (`GET /api/bibles/{hash}`, any member, only from
+its own organisation), its hash checked, and kept; searching and adding verses then needs no network.
+"Gör tillgänglig offline" downloads at once, and without a connection says so and keeps nothing. A
+translation imported on a device is kept there. One not kept is fetched when Bibeltexter needs it, held
+in that window only and never stored; offline it cannot be had, and Bibeltexter says so. A text no kept
+translation names is dropped on the next sync, unless a queued import still has to upload it. A desktop
+host keeps every text whatever was chosen and shows no button (it serves the LAN, as the current app's
+server, which had none); neither does a device that keeps nothing between reloads, which says why.
+`syncBibleTexts`, `keepBible` and `dropBible` are in `packages/sync/src/client/bibles.ts`, tested in
+`apps/server/test/bibles.test.ts`; the button's states in `apps/desktop/e2e/milestone4.spec.ts`. An added reading is split into slides when it is added and kept on the
 item (`content`), so re-importing or deleting the translation leaves it as it was.
 
 Why not rows in the change log: 31 000 verses would be 31 000 changes for every device's first pull,
@@ -787,9 +798,6 @@ To try it with a tablet: `GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop 
 `https://<the Mac's LAN address>:47843` on the tablet, accept the certificate warning once, and pair it under
 Enheter → Anslut enhet.
 
-Look work left for later, as the current app does it: a "Gör tillgänglig offline" button per Bible, which needs
-each device to choose its Bibles (4.10).
-
 The smaller gaps below can be taken along the way.
 
 ## Not done yet
@@ -858,8 +866,8 @@ From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 
 the Teman page lists the built-ins and sets the default), the stage view and the public output, and
 the theme's Media style (there are no media slides). BIBLE-R16's device-local Bibles (a translation
 that never leaves the device) are not built, by decision D30: an import made offline is queued and goes
-to the server (see "Bibles"). The Biblar page has no per-row "Gör tillgänglig offline": every
-device keeps every translation, which shows as "Tillgänglig offline" or "Hämtas...".
+to the server (see "Bibles"). Two translations with exactly the same text share it on a device, so
+keeping one shows the other as "Tillgänglig offline" too (the current app's "imported here" text).
 
 From spec 01 and milestone 3: OIDC providers other than Google, which are not planned (ADR 0007
 (12)); passkey autofill (conditional mediation: the sign-in page has a button, no username field);

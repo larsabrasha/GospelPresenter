@@ -1,4 +1,4 @@
-import type { MutatorArgs, MutatorName } from '@gp/core';
+import type { BibleBookText, MutatorArgs, MutatorName } from '@gp/core';
 import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session } from './protocol.ts';
 import type { ReadDb } from './share.ts';
 
@@ -67,6 +67,16 @@ export class Db implements ReadDb {
 
   setPinned(presentationId: string, on: boolean): Promise<void> {
     return this.call({ op: 'setPinned', presentationId, on });
+  }
+
+  /** Keeps a translation's text on this device, downloaded now (false if it could not be), or removes the copy. */
+  keepBible(bibleId: string, on: boolean): Promise<boolean> {
+    return this.call({ op: 'keepBible', bibleId, on });
+  }
+
+  /** A translation's text this device does not keep, fetched from the server and not stored; null offline. */
+  fetchBibleText(hash: string): Promise<BibleBookText[] | null> {
+    return this.call({ op: 'fetchBibleText', hash });
   }
 
   closeMedia(key: string): Promise<void> {

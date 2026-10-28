@@ -223,6 +223,17 @@ export const pinnedPresentations = sqliteTable('pinned_presentations', {
   pinnedAt: integer('pinned_at').notNull(),
 });
 
+/**
+ * Not synced. The translations this device keeps the text of ("Tillgänglig
+ * offline", README "Bibles"): a choice for this device, not for the
+ * organisation. By id, so a re-imported translation stays kept. A desktop
+ * host keeps every text whatever this says.
+ */
+export const keptBibles = sqliteTable('kept_bibles', {
+  id: text('id').primaryKey(),
+  keptAt: integer('kept_at').notNull(),
+});
+
 export const schema = {
   labels,
   songs,
@@ -240,6 +251,7 @@ export const schema = {
   bibleBlobs,
   mediaBlobs,
   pinnedPresentations,
+  keptBibles,
 };
 
 /** Synced tables in parent-before-child order. */
@@ -258,7 +270,7 @@ export type LibraryAudio = typeof audios.$inferSelect;
 export type Overlay = typeof overlays.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
 const bibleDdl = [
@@ -297,6 +309,9 @@ const overlayDdl = [
      sort INTEGER NOT NULL)`,
 ];
 
+/** The table version 10 added: the translations this device keeps offline (not synced). */
+const keptBibleDdl = [`CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`];
+
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
 // brought up to date by `orgMigrations` instead (see `orgSchemaPlan`).
@@ -321,6 +336,7 @@ export const orgDdl: string[] = [
   ...audioDdl,
   ...pinDdl,
   ...overlayDdl,
+  ...keptBibleDdl,
 ];
 
 /** The statements that take a database from version `n - 1` to `n`. */
@@ -338,6 +354,8 @@ export const orgMigrations: Record<number, string[]> = {
   8: [...overlayDdl, `ALTER TABLE presentation_items ADD COLUMN overlay_id TEXT`],
   // Saved screens are `displays` of kind 'screen': no new column, but an older app would list them as public outputs.
   9: [],
+  // Before 10 a device kept every text: it goes on keeping the ones it has, so none is dropped by the update.
+  10: [...keptBibleDdl, `INSERT OR IGNORE INTO kept_bibles (id, kept_at) SELECT id, 0 FROM bibles WHERE content_hash IN (SELECT hash FROM bible_blobs)`],
 };
 
 /** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */

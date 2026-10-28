@@ -1,7 +1,7 @@
 // Bible texts on a client (README, "Bibles"): a translation's verses are an
 // immutable text named by its hash, kept in tables that do not sync. Only the
-// `bibles` row syncs; this fetches each text it names once and keeps it, and
-// drops texts no translation names any more.
+// `bibles` row syncs; this fetches the text of each translation the device
+// keeps once and keeps it, and drops texts it no longer keeps.
 import {
   bibleTextHash,
   bibleTextSchema,
@@ -38,30 +38,37 @@ export async function loadBibleText(client: SyncClient, hash: string): Promise<B
 
 export interface BibleTextSync {
   downloaded: string[];
-  /** Named by a translation, but the server did not have it or the download failed. */
+  /** Named by a kept translation, but the server did not have it or the download failed. */
   missing: string[];
   removed: number;
 }
 
 /**
- * Downloads every text a translation names that this device lacks, then
- * removes texts nothing names (keeping any a queued `importBible` names).
- * `download` returns the text's JSON, or null if the server has none.
+ * Which texts a device keeps: 'all' on a desktop host, which serves the LAN
+ * and must have every text; 'chosen' elsewhere, only those of the translations
+ * in `kept_bibles` ("Tillgänglig offline"). The others are fetched when a page
+ * needs them (`fetchBibleText`) and not stored.
+ */
+export type BibleKeeping = 'all' | 'chosen';
+
+/**
+ * Downloads every text a kept translation names that this device lacks, then
+ * removes texts no kept translation names (keeping any a queued `importBible`
+ * names). `download` returns the text's JSON, or null if the server has none.
  * Callers serialise this with their own imports.
  */
-export async function syncBibleTexts(client: SyncClient, download: (hash: string) => Promise<string | null>): Promise<BibleTextSync> {
+export async function syncBibleTexts(
+  client: SyncClient,
+  download: (hash: string) => Promise<string | null>,
+  keeping: BibleKeeping = 'all',
+): Promise<BibleTextSync> {
   const result: BibleTextSync = { downloaded: [], missing: [], removed: 0 };
-  const wanted = (await client.query(
-    'SELECT DISTINCT content_hash AS hash FROM bibles WHERE content_hash NOT IN (SELECT hash FROM bible_blobs)',
-  )) as { hash: string }[];
+  const kept = keeping === 'all' ? 'SELECT content_hash FROM bibles' : 'SELECT content_hash FROM bibles WHERE id IN (SELECT id FROM kept_bibles)';
+  const wanted = (await client.query(`SELECT DISTINCT content_hash AS hash FROM (${kept}) WHERE content_hash NOT IN (SELECT hash FROM bible_blobs)`)) as {
+    hash: string;
+  }[];
   for (const { hash } of wanted) {
-    let json: string | null = null;
-    try {
-      json = await download(hash);
-    } catch {
-      json = null;
-    }
-    const books = json === null ? null : await verified(json, hash);
+    const books = await fetchBibleText(download, hash);
     if (!books) {
       result.missing.push(hash);
       continue;
@@ -71,7 +78,7 @@ export async function syncBibleTexts(client: SyncClient, download: (hash: string
   }
 
   const queued = (await client.pending()).filter((m) => m.name === 'importBible').map((m) => String(JSON.parse(m.args).contentHash));
-  const unused = (await client.query('SELECT hash FROM bible_blobs WHERE hash NOT IN (SELECT content_hash FROM bibles)')) as { hash: string }[];
+  const unused = (await client.query(`SELECT hash FROM bible_blobs WHERE hash NOT IN (${kept})`)) as { hash: string }[];
   const drop = unused.map((u) => u.hash).filter((h) => !queued.includes(h));
   if (drop.length) {
     await client.localWrite(
@@ -83,6 +90,53 @@ export async function syncBibleTexts(client: SyncClient, download: (hash: string
   }
   result.removed = drop.length;
   return result;
+}
+
+/** Keeps a translation's text on this device, or stops doing so ("Tillgänglig offline"). Run `syncBibleTexts` after. */
+export async function setBibleKept(client: SyncClient, bibleId: string, on: boolean, now = Date.now()): Promise<void> {
+  await client.localWrite([
+    on
+      ? { sql: 'INSERT INTO kept_bibles (id, kept_at) VALUES (?, ?) ON CONFLICT (id) DO NOTHING', params: [bibleId, now] }
+      : { sql: 'DELETE FROM kept_bibles WHERE id = ?', params: [bibleId] },
+  ]);
+}
+
+/**
+ * "Gör tillgänglig offline": keeps the translation and downloads its text
+ * now. If the text cannot be had (offline, or the server lacks it), the
+ * choice is taken back and this returns false, as the current app's download.
+ */
+export async function keepBible(client: SyncClient, bibleId: string, download: (hash: string) => Promise<string | null>): Promise<boolean> {
+  await setBibleKept(client, bibleId, true);
+  await syncBibleTexts(client, download, 'chosen');
+  const stored = await client.query('SELECT 1 FROM bibles b JOIN bible_blobs t ON t.hash = b.content_hash WHERE b.id = ?', [bibleId]);
+  if (stored.length) return true;
+  await setBibleKept(client, bibleId, false);
+  return false;
+}
+
+/**
+ * Removes the device's copy of a translation's text ("Ta bort den nedladdade
+ * kopian"). A text a queued import still names stays until it is uploaded.
+ */
+export async function dropBible(client: SyncClient, bibleId: string, download: (hash: string) => Promise<string | null>): Promise<void> {
+  await setBibleKept(client, bibleId, false);
+  await syncBibleTexts(client, download, 'chosen');
+}
+
+/**
+ * A text fetched with `download` and checked against its hash, without
+ * storing it: what a page uses for a translation this device does not keep.
+ * Null if it cannot be had.
+ */
+export async function fetchBibleText(download: (hash: string) => Promise<string | null>, hash: string): Promise<BibleBookText[] | null> {
+  let json: string | null = null;
+  try {
+    json = await download(hash);
+  } catch {
+    json = null;
+  }
+  return json === null ? null : verified(json, hash);
 }
 
 /** The text, if it parses and is what `hash` names. */

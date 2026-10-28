@@ -155,6 +155,10 @@ the Shared assembly as `Themes/aurora/background.webp`.
     kopian") → removes local verses; toast "Den nedladdade kopian togs bort".
   - `ImportedLocally`: static text "Tillgänglig offline".
   - Only one download/remove at a time (all buttons disabled while one runs).
+  - *In the rewrite* the "device apps" are every device except a desktop host: the host serves the LAN, as
+    the current web server, so it keeps every text and shows no button (only the state text). A device
+    that keeps nothing between reloads shows no button and says why. A translation imported on a device
+    is kept there (shown as the `Downloaded` button, removable), since D30 sends every import to the server.
 - Web import posts the file to `/api/upload/import-bible`; device apps import in-process (no server
   needed) (`…/Bibles.razor:215-235, 300-324`).
 
@@ -360,6 +364,10 @@ presentationer.", "Inga ljudfiler matchar din sökning", "{n} fil(er) kunde inte
   once; download never changes the row's `ModifiedAt`; remove sets verses back to `[]` and drops the pin
   (`GospelPresenter/GospelPresenter.Client/Bibles/BibleOfflineService.cs:47-149`,
   `GospelPresenter/GospelPresenter.UnitTests/Client/BibleOfflineTests.cs`).
+  *In the rewrite* the text is an immutable document named by its hash (`GET /api/bibles/{hash}`); the pin
+  is a local table `kept_bibles` by translation id, so a re-import is fetched after the sync that brings the
+  new hash and the old text is dropped. A translation not kept is fetched when the add-item tab needs it,
+  held in that window only; offline the tab says it cannot be had. A desktop host keeps every text.
 - **BIBLE-R16** Bibles are never pushed from devices: a Bible imported on a device stays local
   (`ImportedLocally`) (push request has no Bible collection,
   `GospelPresenter/GospelPresenter.Shared/Sync/SyncService.cs:360-380`).

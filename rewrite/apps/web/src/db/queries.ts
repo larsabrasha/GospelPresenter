@@ -184,26 +184,34 @@ const bible = (r: Row): Bible => ({
 export interface InstalledBible extends Bible {
   /** Its text is on this device, so it can be searched offline. */
   stored: boolean;
+  /** This device has chosen to keep its text ("Tillgänglig offline"). A desktop host keeps every text regardless. */
+  kept: boolean;
 }
 
 /** The organisation's translations, by name (BIBLE-R8). */
 export async function listBibles(db: ReadDb): Promise<InstalledBible[]> {
-  const rows = await db.query('SELECT b.*, EXISTS (SELECT 1 FROM bible_blobs t WHERE t.hash = b.content_hash) AS stored FROM bibles b');
+  const rows = await db.query(
+    'SELECT b.*, EXISTS (SELECT 1 FROM bible_blobs t WHERE t.hash = b.content_hash) AS stored, EXISTS (SELECT 1 FROM kept_bibles k WHERE k.id = b.id) AS kept FROM bibles b',
+  );
   return rows
-    .map((r) => ({ ...bible(r), stored: Boolean(r.stored) }))
+    .map((r) => ({ ...bible(r), stored: Boolean(r.stored), kept: Boolean(r.kept) }))
     .toSorted((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id));
 }
 
 /** Parsed texts, by hash: a text never changes, so it is read and parsed once per window. */
 const texts = new Map<string, Promise<BibleBookText[] | null>>();
 
-/** A translation's books, or null while this device does not have the text yet. */
-export function bibleBooks(db: ReadDb, hash: string): Promise<BibleBookText[] | null> {
+/**
+ * A translation's books, or null while this device does not have the text.
+ * `fetch` gets a text the device does not keep from the server, unstored
+ * (`Db.fetchBibleText`); it is then held in this window only.
+ */
+export function bibleBooks(db: ReadDb, hash: string, fetch?: (hash: string) => Promise<BibleBookText[] | null>): Promise<BibleBookText[] | null> {
   let p = texts.get(hash);
   if (!p) {
     p = (async () => {
       const rows = await db.query<{ code: string; chunk: string }>(LOAD_BIBLE_TEXT_SQL, [hash]);
-      if (!rows.length) return null;
+      if (!rows.length) return fetch ? fetch(hash) : null;
       return rows.map((r) => ({ code: r.code, verses: JSON.parse(r.chunk) as BibleBookText['verses'] }));
     })();
     texts.set(hash, p);

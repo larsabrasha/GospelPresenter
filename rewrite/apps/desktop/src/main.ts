@@ -223,6 +223,7 @@ app.whenReady().then(async () => {
   ipcMain.on('open-output', openOutput);
   ipcMain.on('close-output', closeOutput);
   ipcMain.handle('output-open', () => !!output && !output.isDestroyed());
+  ipcMain.on('is-host', (e) => (e.returnValue = !process.env.GP_SERVER));
   ipcMain.on('device-name', (e) => (e.returnValue = hostname()));
   // Only on the host, and only if no user existed at start: the window that sets the host up gets the token.
   ipcMain.handle('setup-token', () => setupToken);
