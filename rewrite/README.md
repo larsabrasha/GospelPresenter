@@ -676,7 +676,9 @@ keeps `/index.html` under that name: a kept redirect would break a navigation of
 **A trial on a real account (2026-10-28).** With Lars's go-ahead the Worker ran on
 `https://gp-trial-gospel.lars-arvidsson.workers.dev`, with D1 `gp-trial-global` (region WEUR) and R2
 `gp-trial-media`. It is kept for Lars to try, and deleted afterwards. The repo's `wrangler.toml` was not used:
-the trial's own config named the real IDs and put every debug route behind a token. Measured from a Mac in Sweden
+the trial's own config named the real IDs and put every debug route behind a token. That config (as a
+template), the token gate, the trial's tests and the setup and teardown scripts are in `scripts/cf-trial/` (its
+README says how to run them). Measured from a Mac in Sweden
 (Cloudflare's ARN), with the server suites' remote adapter (`SYNC_ADAPTERS=remote SYNC_REMOTE_URL=<url>`) and a few
 trial-only tests:
 
@@ -835,6 +837,11 @@ rest of the app's look does.
 current app's from `node scripts/capture-old-app.mjs <url> <dir>` with that app running in mock mode.
 `GP_CAPTURE_ONLY=setup,login,…` takes only the named pictures. Pages with no counterpart in the current app
 (setup, which mock mode skips, and Anslut till värddatorn) are taken in the new app only.
+`node scripts/compare-old-app.mjs <dir> [name,…]` does both in one go: it adds the reference worktree
+`../GospelPresenter-main-ref` if it is missing (detached at `origin/main`, after a fetch; one that is there is
+used as it is), runs the current app in mock mode on a free port, takes its pictures into `<dir>/old`, stops it
+(also on Ctrl-C), takes the new app's into `<dir>/new`, and lists the names found on one side only. Three pages
+took 71 s, 4 s of it starting the current app after an earlier build.
 
 ## Next steps
 

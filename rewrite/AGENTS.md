@@ -20,6 +20,7 @@ pnpm --filter @gp/desktop start        # the desktop host on 127.0.0.1:47800 (Go
 GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start   # on the LAN, over https (README "https on the LAN")
 GP_CAPTURE=/tmp/new pnpm --filter @gp/desktop exec playwright test capture   # pictures of every page
 GP_CAPTURE_ONLY=setup,login pnpm …     # only the named pictures (README "Look", last paragraph)
+node scripts/compare-old-app.mjs /tmp/cmp home,songs   # old app and new, same names, into /tmp/cmp/{old,new}
 ```
 
 e2e runs the BUILT app (`apps/desktop/dist`, `apps/web/dist`), windows hidden, files side by side: each test

@@ -8,3 +8,6 @@ dist-electron/
 test-results/
 playwright-report/
 .data/
+
+# The Cloudflare trial's filled config and tokens (scripts/cf-trial/setup.sh)
+scripts/cf-trial/.local/
