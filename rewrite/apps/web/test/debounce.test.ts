@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Debounced, SaveBaseline, type SaveResult } from '../src/ui/debounce.ts';
+import { afterWrite, Debounced, SaveBaseline, type SaveResult } from '../src/ui/debounce.ts';
 
 /** A Debounced whose writes and results are recorded; `run` may be swapped per test. */
 function recorder(run?: (v: string) => Promise<unknown> | undefined) {
@@ -165,3 +165,25 @@ describe('telling whether a field has changed', () => {
   });
 });
 
+describe('a write made at once', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('reports a write that went through', async () => {
+    const onSaved = vi.fn();
+
+    afterWrite(Promise.resolve(), onSaved);
+    await vi.waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+  });
+
+  it('logs a refused write as a failed save, as the fields do, and does not call it saved', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const onSaved = vi.fn();
+    const refusal = new Error('refused');
+
+    afterWrite(Promise.reject(refusal), onSaved);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(error).toHaveBeenCalledWith('save failed', refusal);
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+});

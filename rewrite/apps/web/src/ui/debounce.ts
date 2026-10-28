@@ -91,3 +91,10 @@ export class SaveBaseline {
   }
 }
 
+/**
+ * Calls `onSaved` once a write that is not debounced (a choice in a menu, say)
+ * has gone through; a refused write is logged as `Debounced` logs one.
+ */
+export function afterWrite(write: Promise<unknown>, onSaved: () => void): void {
+  write.then(onSaved, (e: unknown) => console.error('save failed', e));
+}

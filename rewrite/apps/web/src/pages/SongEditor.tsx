@@ -6,6 +6,7 @@ import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
+import { afterWrite } from '../ui/debounce.ts';
 import { useConfirm } from '../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
@@ -205,7 +206,7 @@ export function SongEditor({ id }: { id: string }) {
 
   const update = (fields: Record<string, string | number | null>) => db.mutate('updateSong', { id, ...fields });
   // "Sparad" after the writes the current app flags: fields, a part's text and label, and arrangements.
-  const saving = (write: Promise<void>) => void write.then(saved.show);
+  const saving = (write: Promise<void>) => afterWrite(write, saved.show);
   const labelChoices: Label[] = [
     ...DEFAULT_LABELS.map((l) => ({ id: labelId(l.text), ...l })).filter((l) => !labels.has(l.id)),
     ...labels.values(),
