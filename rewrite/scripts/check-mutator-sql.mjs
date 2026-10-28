@@ -2,10 +2,22 @@
 // REPLACE INTO) deletes the row it conflicts with without firing the delete
 // triggers, so the client's undo log keeps no pre-image of it and a rebase
 // would lose the row (packages/core/src/sync-sql.ts). Upserts are fine.
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const files = process.argv.length > 2 ? process.argv.slice(2) : [fileURLToPath(new URL('../packages/core/src/mutators.ts', import.meta.url))];
+// Every .ts file under packages/core/src/mutators/, so a new domain file is checked too.
+const dir = fileURLToPath(new URL('../packages/core/src/mutators/', import.meta.url));
+const files =
+  process.argv.length > 2
+    ? process.argv.slice(2)
+    : readdirSync(dir, { recursive: true })
+        .filter((f) => f.endsWith('.ts'))
+        .map((f) => join(dir, f));
+if (!files.length) {
+  console.error(`no mutator files found in ${dir}`);
+  process.exit(1);
+}
 const forbidden = [
   [/\bOR\s+REPLACE\b/i, 'INSERT OR REPLACE'],
   [/\bREPLACE\s+INTO\b/i, 'REPLACE INTO'],

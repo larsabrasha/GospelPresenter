@@ -62,7 +62,7 @@ Milestone 4 (Bibles and themes):
   inserts it again. A server database gets the new triggers when it opens. `INSERT OR REPLACE` and
   `REPLACE INTO` stay out of mutators, because a replace deletes the old row without firing the delete
   trigger, so a rebase cannot bring it back: `pnpm lint` runs `scripts/check-mutator-sql.mjs`, which
-  refuses one in `packages/core/src/mutators.ts`. `apps/server/test/triggers.test.ts` shows both, and
+  refuses one in `packages/core/src/mutators/`. `apps/server/test/triggers.test.ts` shows both, and
   `setDefaultTheme`, an upsert, is rebased and refused in `apps/server/test/bibles.test.ts`.
 - **Bibles are imported and deleted by admins only** (D24); everyone can search and add verses. At most
   10 per organisation; a translation is known by its abbreviation (case-insensitive), so importing one
