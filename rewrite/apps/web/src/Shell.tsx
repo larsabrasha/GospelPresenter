@@ -26,6 +26,7 @@ import {
   SquaresOverlapIcon,
   UserIcon,
   UsersIcon,
+  ViewGridIcon,
   WarningIcon,
 } from './ui/icons.tsx';
 import { href, type Route } from './ui/router.ts';
@@ -210,7 +211,10 @@ function adminLinks(me: Me, host: boolean): AdminLink[][] {
       can(me.role, 'ViewImages') && { route: { page: 'images' }, label: 'nav.images', icon: PhotoIcon, pages: ['images'] },
       can(me.role, 'ViewAudios') && { route: { page: 'audios' }, label: 'nav.audios', icon: SpeakerWaveIcon, pages: ['audios'] },
     ],
-    [can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', icon: SquaresOverlapIcon, pages: ['overlays', 'overlay'] }],
+    [
+      can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', icon: SquaresOverlapIcon, pages: ['overlays', 'overlay'] },
+      can(me.role, 'ManageTemplates') && { route: { page: 'templates' }, label: 'nav.templates', icon: ViewGridIcon, pages: ['templates'] },
+    ],
     [
       can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', icon: DesktopIcon, pages: ['displays'] },
       { route: { page: 'themes' }, label: 'nav.themes', icon: BarsIcon, pages: ['themes'] },

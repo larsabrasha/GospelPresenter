@@ -23,6 +23,7 @@ import {
   orgSchemaPlan,
   parsePartIds,
   parseSlidesContent,
+  SCHEMA_BASELINE,
   SCHEMA_VERSION,
   slideDeckSlides,
   searchSongs,
@@ -48,14 +49,25 @@ describe('schema', () => {
     }
   });
 
-  it('a new database gets the current DDL; a milestone 1 database (no version row) gets the migrations', () => {
+  it('a new database gets the current DDL and its version', () => {
     expect(orgSchemaPlan(null, false)).toEqual([...orgDdl, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(null, true)).toEqual([...orgMigrations[2]!, ...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, ...orgMigrations[9]!, ...orgMigrations[10]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(2, true)).toEqual([...orgMigrations[3]!, ...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, ...orgMigrations[9]!, ...orgMigrations[10]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
-    expect(orgSchemaPlan(3, true)).toEqual([...orgMigrations[4]!, ...orgMigrations[5]!, ...orgMigrations[6]!, ...orgMigrations[7]!, ...orgMigrations[8]!, ...orgMigrations[9]!, ...orgMigrations[10]!, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`]);
+  });
+
+  it('a current database is left as it is', () => {
     expect(orgSchemaPlan(SCHEMA_VERSION, true)).toEqual([]);
+  });
+
+  it('a database from before the baseline is refused, with or without a version row', () => {
+    expect(() => orgSchemaPlan(null, true)).toThrow(/made before this app's first/);
+    expect(() => orgSchemaPlan(SCHEMA_BASELINE - 1, true)).toThrow(/made before this app's first/);
+  });
+
+  it('a database newer than the app is refused', () => {
     expect(() => orgSchemaPlan(SCHEMA_VERSION + 1, true)).toThrow(/newer than this app/);
-    for (let v = 2; v <= SCHEMA_VERSION; v++) expect(orgMigrations[v], `migration to ${v}`).toBeDefined();
+  });
+
+  it('every version above the baseline has its migration', () => {
+    for (let v = SCHEMA_BASELINE + 1; v <= SCHEMA_VERSION; v++) expect(orgMigrations[v], `migration to ${v}`).toBeDefined();
   });
 });
 

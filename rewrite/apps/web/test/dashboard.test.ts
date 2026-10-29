@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest';
 import type { Presentation } from '@gp/core';
 import { dateLabel, groupPresentations, localToday } from '../src/pages/dashboard.ts';
 
-const p = (name: string, eventDate: string | null): Presentation => ({ id: name, name, eventDate, deletedAt: null, themeId: null });
+const p = (name: string, eventDate: string | null): Presentation => ({
+  id: name,
+  name,
+  eventDate,
+  deletedAt: null,
+  themeId: null,
+  isTemplate: false,
+  weekday: null,
+  time: null,
+  location: null,
+  lastUsedAt: null,
+});
 
 describe('the start page', () => {
   it('splits into today, upcoming soonest first, and the rest newest first with the undated last', () => {

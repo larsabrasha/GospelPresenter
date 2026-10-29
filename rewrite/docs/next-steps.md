@@ -35,9 +35,10 @@ this order:
      only, through pdf.js loaded at import, the old app's markup and texts saying to save as PDF first, 50 MB
      and 100 pages, ADR 0007 (10) and PRES-R11 rewritten, an e2e test (`slides.spec.ts`). Not tried in
      Safari or on an iPad: the JPEG fallback there is untested.
-   - (d) **Templates**, as spec 03 has them (admin list, `/templates/{id}`, the picker on create, "Spara som
-     mall", the trash). Slide decks go along on "Spara som mall" (PRES-R31 changes; with content-addressed
-     pages a copy costs nothing).
+   - (d) **Templates**, done on 2026-10-29 (see [Assumptions](assumptions.md), "Templates"): the admin list,
+     `/templates/{id}` under a sky banner, the picker on create, "Spara som mall", and their own trash. Slide
+     decks and arrangements go along on "Spara som mall" (D10, PRES-R31 changed); only admins edit templates
+     (D24). Tested in `apps/server/test/sync.test.ts`, `media.test.ts` and `e2e/templates.spec.ts`.
 2. **The trial deploy to Cloudflare** ran on 2026-10-28 and is kept for Lars to try (see [On Cloudflare](cloudflare.md)):
    migrating a Durable Object and D1 (`DROP COLUMN` included), Ed25519 passkeys, R2, hibernating live sockets
    and the Worker serving the web app are proven there. Left: Google sign-in against a real Google client

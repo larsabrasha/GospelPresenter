@@ -58,8 +58,8 @@ the operator window's database, like everything else, so it works without OPFS.
 
 ## Audio
 
-An audio file is a synced row in `audios` (file name, type, hash, size, `created_at`, `deleted_at`; organisation
-schema version 6) and one blob, stored byte for byte as it was picked (MEDIA-R5), through the same storage, upload
+An audio file is a synced row in `audios` (file name, type, hash, size, `created_at`, `deleted_at`)
+and one blob, stored byte for byte as it was picked (MEDIA-R5), through the same storage, upload
 and clean-up as pictures. The server takes a blob it recognises by its first bytes as MP3, WAV, Ogg, MP4/M4A or
 WebM, up to 20 MiB, and serves it with that type; a picture stays limited to 10 MiB. A device fetches an audio
 file as it does a full picture: for a presentation that is open or coming (see [Which files a device keeps](#which-files-a-device-keeps)). Ljud
@@ -88,7 +88,9 @@ and its thumbnail fitting 400×225, rendered once at import and stored as media 
 is a snapshot like a Bible item: there is no deck table, `sourceId` is the item's own id, and the title is the
 file name. `addSlides` takes 1 to 100 pages and is refused with `media-missing` if a page's blob is unknown
 where it runs; `MediaUploads` uploads a queued deck's blobs before the push, as for `addImage`. A page is
-named only by its item, so removing the item, or purging its presentation, lets the clean-up take its blobs;
+named only by its items, so removing the item, or purging its presentation, lets the clean-up take its blobs
+unless another item names them too: a template saved from the presentation, or a presentation made from a
+template, copies the item with the same pages (D10);
 `SLIDE_PAGES_SQL` lists every page, for the clean-up, the files a device keeps, and which pictures a public
 output may serve. Live, each page is one slide showing its picture, like an image item.
 
@@ -112,7 +114,7 @@ days ahead, so Sunday's material is on the computer before anyone leaves for chu
 what a presentation open on one of its pages needs (the editor, the live page, remote control), fetched at
 once. Kept offline, on a device that keeps its data: every file of a presentation marked "Tillgänglig
 offline på den här enheten" in the editor, whatever its date, including what is added to it later (a local,
-unsynced table, `pinned_presentations`, organisation schema version 7; the list marks them "Offline"). A device
+unsynced table, `pinned_presentations`; the list marks them "Offline"). A device
 that keeps nothing between reloads shows the choice switched off and says why. Never: audio for a presentation the device only controls, since it plays on the presenting computer.
 A device that keeps its data only in memory (a tablet over plain http) fetches nothing ahead, as it would lose
 it at the next reload. Files no open or coming presentation needs are kept within 2 GiB (MEDIA-R14), the

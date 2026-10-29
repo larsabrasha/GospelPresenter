@@ -1,18 +1,18 @@
-// A database made by milestone 1 (schema 1, no version row) is brought to the
-// current schema on open, on the server and on a client, keeping its rows. The
-// server's global database has its own version (see the end).
+// An organisation database is made from one DDL (SCHEMA_BASELINE): one made
+// before then is refused, on the server and on a client. The server's global
+// database has its own version (see the end).
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SCHEMA_VERSION, orgDdl, orgMigrations, schemaMetaDdl, tableInfo } from '@gp/core';
+import { SCHEMA_VERSION, orgDdl, schemaMetaDdl, tableInfo } from '@gp/core';
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';
 import { sha256 } from '../src/crypto.ts';
 import { nodeGlobalSql, nodeOrgStore, openSqlite, type NodeDriver } from '@gp/server/node';
 
-/** The organisation DDL milestone 1 shipped (schema 1), as it was. */
+/** The organisation DDL milestone 1 shipped, with no version row: from before the baseline. */
 const milestone1Ddl = [
   `CREATE TABLE IF NOT EXISTS labels (id TEXT PRIMARY KEY NOT NULL, text TEXT NOT NULL, color TEXT NOT NULL,
      sort INTEGER NOT NULL)`,
@@ -33,15 +33,6 @@ const milestone1Rows = [
   `INSERT INTO presentation_items (id, presentation_id, type, title, source_id, sort) VALUES ('I1', 'P', 'song', 'Härlig är jorden', 'S1', 0)`,
 ];
 
-/** A milestone 2 and 3 file (schema 2): arrangements, no themes or Bibles. */
-const milestone2 = [
-  ...milestone1Ddl,
-  ...orgMigrations[2]!,
-  schemaMetaDdl,
-  `INSERT INTO _schema (one, version) VALUES (1, 2)`,
-  ...milestone1Rows,
-];
-
 const dirs: string[] = [];
 afterAll(() => {
   for (const d of dirs) rmSync(d, { recursive: true, force: true });
@@ -52,132 +43,82 @@ function columnsOf(query: (sql: string) => Record<string, unknown>[]) {
   return Object.fromEntries(tableInfo.map((t) => [t.name, query(`SELECT name FROM pragma_table_info('${t.name}')`).map((r) => r.name)]));
 }
 
+/** A new SQLite file, holding `statements`. */
+function fileWith(driver: NodeDriver, statements: string[]): string {
+  const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
+  dirs.push(dir);
+  const file = join(dir, 'org.sqlite');
+  const old = openSqlite(file, driver);
+  for (const s of statements) old.exec(s);
+  old.close();
+  return file;
+}
+
 describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driver) => {
-  it('migrates a milestone 1 file and keeps its rows; opening it again changes nothing', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
-    dirs.push(dir);
-    const file = join(dir, 'org.sqlite');
-    const old = openSqlite(file, driver);
-    for (const s of [...milestone1Ddl, ...milestone1Rows]) old.exec(s);
-    old.close();
+  it('a new file gets the current DDL and its version; opening it again changes nothing', () => {
+    const file = fileWith(driver, []);
 
     const f = openSqlite(file, driver);
     nodeOrgStore(f);
-    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
-    expect(columnsOf(f.query)).toEqual(Object.fromEntries(tableInfo.map((t) => [t.name, t.columns])));
-    expect(f.query('SELECT id, arrangement_id FROM presentation_items')).toEqual([{ id: 'I1', arrangement_id: null }]);
-    f.close();
-
-    const again = openSqlite(file, driver);
-    nodeOrgStore(again); // must not try ALTER TABLE a second time
-    expect(again.query('SELECT count(*) AS n FROM songs')).toEqual([{ n: 1 }]);
-    again.close();
-  });
-
-  it('migrates a schema 2 file: themes and Bibles appear, rows stay', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
-    dirs.push(dir);
-    const file = join(dir, 'org.sqlite');
-    const old = openSqlite(file, driver);
-    for (const s of milestone2) old.exec(s);
-    old.close();
-
-    const f = openSqlite(file, driver);
-    nodeOrgStore(f);
-    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
-    expect(columnsOf(f.query)).toEqual(Object.fromEntries(tableInfo.map((t) => [t.name, t.columns])));
-    expect(f.query('SELECT id, theme_id FROM presentations')).toEqual([{ id: 'P', theme_id: null }]);
-    expect(f.query('SELECT id, type, content FROM presentation_items')).toEqual([{ id: 'I1', type: 'song', content: null }]);
-    // The stored texts, which do not sync.
-    expect(f.query(`SELECT count(*) AS n FROM bible_texts`)).toEqual([{ n: 0 }]);
-    expect(f.query(`SELECT count(*) AS n FROM bible_blobs`)).toEqual([{ n: 0 }]);
+    f.exec(`INSERT INTO songs (id, name) VALUES ('S1', 'Härlig är jorden')`);
     f.close();
     const again = openSqlite(file, driver);
     nodeOrgStore(again);
+
+    expect(again.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
+    expect(columnsOf(again.query)).toEqual(Object.fromEntries(tableInfo.map((t) => [t.name, t.columns])));
+    expect(again.query('SELECT id FROM songs')).toEqual([{ id: 'S1' }]);
     again.close();
   });
 
-  it('migrates a schema 3 file: the media library appears, rows stay', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
-    dirs.push(dir);
-    const file = join(dir, 'org.sqlite');
-    const old = openSqlite(file, driver);
-    for (const s of [...milestone2.slice(0, -4), ...orgMigrations[3]!, `INSERT INTO _schema (one, version) VALUES (1, 3)`, ...milestone1Rows]) old.exec(s);
-    old.close();
+  it('a milestone 1 file (no version row) is refused and left as it was', () => {
+    const file = fileWith(driver, [...milestone1Ddl, ...milestone1Rows]);
 
     const f = openSqlite(file, driver);
-    nodeOrgStore(f);
-    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
-    expect(columnsOf(f.query)).toEqual(Object.fromEntries(tableInfo.map((t) => [t.name, t.columns])));
+    expect(() => nodeOrgStore(f)).toThrow(/made before this app's first/);
+
     expect(f.query('SELECT id FROM presentation_items')).toEqual([{ id: 'I1' }]);
-    expect(f.query('SELECT count(*) AS n FROM images')).toEqual([{ n: 0 }]);
-    expect(f.query('SELECT count(*) AS n FROM media_blobs')).toEqual([{ n: 0 }]);
     f.close();
   });
 
-  it('migrates a schema 9 file: the translations whose text it has become kept, the others not', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
-    dirs.push(dir);
-    const file = join(dir, 'org.sqlite');
-    const old = openSqlite(file, driver);
-    const schema9 = orgDdl.filter((s) => !s.includes('kept_bibles'));
-    for (const s of [
-      ...schema9,
-      schemaMetaDdl,
-      `INSERT INTO _schema (one, version) VALUES (1, 9)`,
-      `INSERT INTO bibles (id, name, abbreviation, verse_count, content_hash) VALUES ('bible:web', 'WEB', 'WEB', 4, 'h1'), ('bible:kj', 'KJ', 'KJ', 4, 'h2')`,
-      `INSERT INTO bible_blobs (hash, verse_count) VALUES ('h1', 4)`,
-    ])
-      old.exec(s);
-    old.close();
+  it('a file of a version before the baseline is refused', () => {
+    const file = fileWith(driver, [...milestone1Ddl, schemaMetaDdl, `INSERT INTO _schema (one, version) VALUES (1, 10)`]);
 
     const f = openSqlite(file, driver);
-    nodeOrgStore(f);
-
-    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
-    expect(f.query('SELECT id FROM kept_bibles')).toEqual([{ id: 'bible:web' }]);
-    f.close();
-  });
-
-  it('a new file gets the current DDL and its version', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'gp-migrate-'));
-    dirs.push(dir);
-    const f = openSqlite(join(dir, 'org.sqlite'), driver);
-    nodeOrgStore(f);
-    expect(f.query('SELECT version FROM _schema')).toEqual([{ version: SCHEMA_VERSION }]);
-    expect(columnsOf(f.query)).toEqual(Object.fromEntries(tableInfo.map((t) => [t.name, t.columns])));
+    expect(() => nodeOrgStore(f)).toThrow(/schema 10, made before this app's first/);
     f.close();
   });
 });
 
 describe('client (wa-sqlite)', () => {
-  it('migrates a milestone 1 database, and its undo triggers capture the new columns', async () => {
+  it('a new database gets the current DDL, and its undo triggers capture every column', async () => {
     const sqlite = await openWaSqlite();
-    for (const s of [...milestone1Ddl, ...milestone1Rows]) await sqlite.query(s);
-    // Milestone 1 triggers, which name the old columns only.
-    await sqlite.query(`CREATE TABLE _sync_meta (one INTEGER PRIMARY KEY CHECK (one = 1), client_id TEXT NOT NULL, cookie TEXT,
-      last_mutation_id INTEGER NOT NULL DEFAULT 0, next_mutation_id INTEGER NOT NULL DEFAULT 1, capture INTEGER NOT NULL DEFAULT 1)`);
-    await sqlite.query(`CREATE TABLE _undo (tbl TEXT NOT NULL, pk TEXT NOT NULL, before TEXT, PRIMARY KEY (tbl, pk))`);
-    await sqlite.query(`CREATE TRIGGER undo_presentation_items_upd BEFORE UPDATE ON presentation_items BEGIN
-      INSERT OR IGNORE INTO _undo (tbl, pk, before) VALUES ('presentation_items', OLD.id, json_object('id', OLD.id)); END`);
 
     const client = await SyncClient.open(sqlite, {
       transport: { post: async () => ({ status: 503, body: {} }) as never },
       ctx: { userId: 'u', role: 'admin' },
     });
-    const dump = await client.dump();
-    expect(dump.presentation_items).toEqual([
-      { id: 'I1', presentation_id: 'P', type: 'song', title: 'Härlig är jorden', source_id: 'S1', sort: 0, arrangement_id: null, content: null, overlay_id: null },
-    ]);
-    expect(dump.song_arrangements).toEqual([]);
 
-    await client.mutate('createArrangement', { id: 'A', songId: 'S1', partIds: [] });
-    await client.mutate('setItemArrangement', { itemId: 'I1', arrangementId: 'A' });
-    const [undo] = await client.query("SELECT before FROM _undo WHERE tbl = 'presentation_items'");
-    expect(JSON.parse(String(undo!.before))).toMatchObject({ id: 'I1', arrangement_id: null, sort: 0 });
+    await client.mutate('createSong', { id: 'S1', name: 'Härlig är jorden' });
+    await client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    await client.mutate('addSongToPresentation', { itemId: 'I1', presentationId: 'P', songId: 'S1' });
+    const [trigger] = await client.query("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'undo_presentation_items_upd'");
+    expect(String(trigger!.sql)).toContain('overlay_id');
     // Every table is made by the DDL: the synced ones, and the five that do not sync (Bible texts, media blobs, pins, kept Bibles).
     expect(orgDdl.length).toBe(tableInfo.length + 5);
     await client.close();
+  });
+
+  it('a copy from before the baseline is refused, as on the server', async () => {
+    const sqlite = await openWaSqlite();
+    for (const s of [...milestone1Ddl, ...milestone1Rows]) await sqlite.query(s);
+
+    const open = SyncClient.open(sqlite, {
+      transport: { post: async () => ({ status: 503, body: {} }) as never },
+      ctx: { userId: 'u', role: 'admin' },
+    });
+
+    await expect(open).rejects.toThrow(/made before this app's first/);
   });
 });
 

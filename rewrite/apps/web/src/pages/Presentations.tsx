@@ -1,26 +1,30 @@
 import type { Presentation } from '@gp/core';
 import { useState } from 'react';
 import { useData, useDb } from '../db/react.tsx';
-import { listPresentations, pinnedIds } from '../db/queries.ts';
+import { itemsOf, listPresentations, pinnedIds, recentTemplates } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
-import { PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { DocumentIcon, DocumentTextIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD, ListCard, ListLinkRow, ListSection } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
 import { dateLabel, fullDate, groupPresentations, localToday } from './dashboard.ts';
+import { nextDate, templateDetails } from './templates.ts';
 
-/** "Skapa presentation": name (prefilled) and date; Enter saves (spec 03, PRES-A2). */
-function CreatePresentationDialog({ onClose }: { onClose: () => void }) {
+/**
+ * "Skapa presentation": name (prefilled) and date; Enter saves (spec 03, PRES-A2).
+ * From a template, its name and the next date of its weekday (PRES-A3).
+ */
+function CreatePresentationDialog({ template, onClose }: { template: Presentation | null; onClose: () => void }) {
   const db = useDb();
   const trySave = useTrySave();
-  const [name, setName] = useState(t('presentations.defaultName'));
-  const [date, setDate] = useState('');
+  const [name, setName] = useState(template?.name ?? t('presentations.defaultName'));
+  const [date, setDate] = useState(() => (template ? nextDate(template) : ''));
   const [saving, setSaving] = useState(false);
   return (
     <Dialog title={t('presentations.createTitle')} onClose={onClose} showClose>
@@ -31,7 +35,13 @@ function CreatePresentationDialog({ onClose }: { onClose: () => void }) {
           if (!name.trim() || saving) return;
           setSaving(true);
           const id = newId();
-          if (!(await trySave(db.mutate('createPresentation', { id, name, eventDate: date || null })))) {
+          const eventDate = date || null;
+          // From a template: its items as they are now, each copy with an id of its own.
+          const items = template ? (await itemsOf(db, template.id)).map((item) => ({ from: item.id, id: newId() })) : [];
+          const write = template
+            ? db.mutate('createFromTemplate', { id, templateId: template.id, name, eventDate, items, at: Date.now() })
+            : db.mutate('createPresentation', { id, name, eventDate });
+          if (!(await trySave(write))) {
             setSaving(false);
             return;
           }
@@ -49,6 +59,33 @@ function CreatePresentationDialog({ onClose }: { onClose: () => void }) {
           </AppButton>
         </DialogButtons>
       </form>
+    </Dialog>
+  );
+}
+
+const PICK =
+  'flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-left text-inherit cursor-pointer transition-colors';
+
+/** The first step of Skapa when there are templates: a blank presentation, or one of the last used templates (Dashboard.razor). */
+function TemplatePicker({ templates, onPick, onClose }: { templates: Presentation[]; onPick: (template: Presentation | null) => void; onClose: () => void }) {
+  return (
+    <Dialog title={t('presentations.createTitle')} onClose={onClose} showClose>
+      <AppButton variant="plain" className={PICK} onClick={() => onPick(null)}>
+        <DocumentIcon className="size-5 shrink-0 text-neutral-400 dark:text-neutral-500" />
+        <span className="text-sm font-medium">{t('templates.blank')}</span>
+      </AppButton>
+      <div className="text-xs font-medium text-neutral-400 dark:text-neutral-500 uppercase tracking-wide pt-2">{t('templates.pickerTitle')}</div>
+      <div className="flex flex-col gap-2">
+        {templates.map((tp) => (
+          <AppButton key={tp.id} variant="plain" className={PICK} onClick={() => onPick(tp)}>
+            <DocumentTextIcon className="size-5 shrink-0 text-neutral-400 dark:text-neutral-500" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">{tp.name}</div>
+              {templateDetails(tp) && <div className="text-xs text-neutral-400 dark:text-neutral-500">{templateDetails(tp)}</div>}
+            </div>
+          </AppButton>
+        ))}
+      </div>
     </Dialog>
   );
 }
@@ -117,8 +154,11 @@ function Row({ p, today, showDate, withYear, live, pinned }: { p: Presentation; 
 export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const presentations = useData(listPresentations, []);
   const pinned = useData(pinnedIds, []);
+  const templates = useData(recentTemplates, []);
   const { sessions } = useLiveSessions(link);
-  const [creating, setCreating] = useState(false);
+  const [picking, setPicking] = useState(false);
+  // Skapa: the details dialog, blank (null) or from a template; first the picker when there are templates.
+  const [creating, setCreating] = useState<{ template: Presentation | null } | null>(null);
   const today = localToday();
   const groups = presentations && groupPresentations(presentations, today);
   const livePresentation = sessions.find((s) => s.id === ownSessionId)?.presentationId;
@@ -126,7 +166,7 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
     <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} pinned={!!pinned?.has(p.id)} />
   );
   const create = (
-    <AppButton onClick={() => setCreating(true)} className="flex items-center">
+    <AppButton onClick={() => (templates?.length ? setPicking(true) : setCreating({ template: null }))} className="flex items-center">
       <PlusIcon className="size-4 mr-2" />
       {t('presentations.create')}
     </AppButton>
@@ -136,7 +176,17 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
     <PageContainer>
       <PageHeader title={t('nav.presentations')}>{!!presentations?.length && create}</PageHeader>
       <LiveNow link={link} ownSessionId={ownSessionId} />
-      {creating && <CreatePresentationDialog onClose={() => setCreating(false)} />}
+      {picking && templates && (
+        <TemplatePicker
+          templates={templates}
+          onClose={() => setPicking(false)}
+          onPick={(template) => {
+            setPicking(false);
+            setCreating({ template });
+          }}
+        />
+      )}
+      {creating && <CreatePresentationDialog template={creating.template} onClose={() => setCreating(null)} />}
       {presentations && !presentations.length && (
         <div className={CARD}>
           <div className="flex flex-col items-center justify-center text-center px-6 py-12 select-none">

@@ -1,4 +1,4 @@
-import { and, inArray, isNotNull, lte } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lte } from 'drizzle-orm';
 import { z } from 'zod';
 import { can } from '../permissions.ts';
 import { audios, images, presentationItems, presentations, songs } from '../schema.ts';
@@ -21,11 +21,16 @@ export async function purgeExpiredTrash(tx: Tx, a: z.output<typeof purgeExpiredT
     const expired = await tx.select({ id: songs.id }).from(songs).where(and(isNotNull(songs.deletedAt), lte(songs.deletedAt, cutoff)));
     for (const s of expired) await deleteSongRows(tx, s.id);
   }
-  if (can(ctx.role, 'ManagePresentations')) {
+  // Presentations and templates are separate kinds, each purged by those who manage it (PRES-R24, R28).
+  for (const [isTemplate, permission] of [
+    [false, 'ManagePresentations'],
+    [true, 'ManageTemplates'],
+  ] as const) {
+    if (!can(ctx.role, permission)) continue;
     const expired = await tx
       .select({ id: presentations.id })
       .from(presentations)
-      .where(and(isNotNull(presentations.deletedAt), lte(presentations.deletedAt, cutoff)));
+      .where(and(eq(presentations.isTemplate, isTemplate), isNotNull(presentations.deletedAt), lte(presentations.deletedAt, cutoff)));
     const ids = expired.map((p) => p.id);
     if (ids.length) {
       await tx.delete(presentationItems).where(inArray(presentationItems.presentationId, ids));

@@ -17,9 +17,10 @@ export async function createPresentation(tx: Tx, a: z.output<typeof createPresen
 }
 
 export const renamePresentationArgs = z.object({ id, name });
+/** Renames a presentation; a template is renamed with `updateTemplate`. */
 export async function renamePresentation(tx: Tx, a: z.output<typeof renamePresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await tx.update(presentations).set({ name: a.name }).where(eq(presentations.id, a.id));
+  await tx.update(presentations).set({ name: a.name }).where(and(eq(presentations.id, a.id), eq(presentations.isTemplate, false)));
 }
 
 /** A theme the organisation can use; anything else is "Theme not found." (PRES-R6, THEME-R4). */
@@ -43,7 +44,7 @@ export async function updatePresentation(tx: Tx, a: z.output<typeof updatePresen
   }
   const { id: presentationId, ...fields } = a;
   const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
-  if (Object.keys(set).length) await tx.update(presentations).set(set).where(eq(presentations.id, presentationId));
+  if (Object.keys(set).length) await tx.update(presentations).set(set).where(and(eq(presentations.id, presentationId), eq(presentations.isTemplate, false)));
 }
 
 /** The arrangement if it is one of the song's, else null: the item then shows the song's default. */
@@ -91,9 +92,22 @@ export async function insertItem(
   return true;
 }
 
-export async function requirePresentation(tx: Tx, presentationId: string) {
-  const [p] = await tx.select({ id: presentations.id }).from(presentations).where(eq(presentations.id, presentationId));
+/**
+ * The presentation an item is added to, or a template, which only those who
+ * manage templates may edit (D24, spec 03 Q3).
+ */
+export async function requirePresentation(tx: Tx, presentationId: string, ctx: MutatorCtx) {
+  const [p] = await tx.select({ isTemplate: presentations.isTemplate }).from(presentations).where(eq(presentations.id, presentationId));
   if (!p) throw new MutationError('not-found', 'presentation not found');
+  if (p.isTemplate) requirePermission(ctx, 'ManageTemplates');
+}
+
+/** The same for an item, by its id: false when the item is gone. */
+async function requireItem(tx: Tx, itemId: string, ctx: MutatorCtx): Promise<boolean> {
+  const [item] = await tx.select({ presentationId: presentationItems.presentationId }).from(presentationItems).where(eq(presentationItems.id, itemId));
+  if (!item) return false;
+  await requirePresentation(tx, item.presentationId, ctx);
+  return true;
 }
 
 export const addSongToPresentationArgs = z.object({
@@ -111,7 +125,7 @@ export const addSongToPresentationArgs = z.object({
  */
 export async function addSongToPresentation(tx: Tx, a: z.output<typeof addSongToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await requirePresentation(tx, a.presentationId);
+  await requirePresentation(tx, a.presentationId, ctx);
   const [s] = await tx.select({ name: songs.name }).from(songs).where(eq(songs.id, a.songId));
   if (!s) throw new MutationError('not-found', 'song not found');
   await insertItem(tx, a.afterItemId, {
@@ -153,7 +167,7 @@ export const addBibleToPresentationArgs = z.object({
 export async function addBibleToPresentation(tx: Tx, a: z.output<typeof addBibleToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   requirePermission(ctx, 'ViewBibles');
-  await requirePresentation(tx, a.presentationId);
+  await requirePresentation(tx, a.presentationId, ctx);
   const content: BibleItemContent = { translation: a.translation, slides: splitBibleSlides(a.verses) };
   await insertItem(tx, a.afterItemId, {
     id: a.itemId,
@@ -170,6 +184,7 @@ export const renameItemArgs = z.object({ itemId: id, title: name });
 /** Renames an item; the song keeps its name (PRES-R36). */
 export async function renameItem(tx: Tx, a: z.output<typeof renameItemArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
+  if (!(await requireItem(tx, a.itemId, ctx))) return;
   await tx.update(presentationItems).set({ title: a.title }).where(eq(presentationItems.id, a.itemId));
 }
 
@@ -182,6 +197,7 @@ export async function setItemArrangement(tx: Tx, a: z.output<typeof setItemArran
     .from(presentationItems)
     .where(eq(presentationItems.id, a.itemId));
   if (!item) return; // removed meanwhile
+  await requireItem(tx, a.itemId, ctx);
   if (item.type !== 'song') throw new MutationError('not-a-song', 'only a song item has an arrangement');
   const arrangementId = await ownArrangement(tx, item.songId, a.arrangementId);
   if (a.arrangementId !== null && arrangementId === null) throw new MutationError('not-found', 'arrangement not found');
@@ -196,6 +212,7 @@ export const setItemOverlayArgs = z.object({ itemId: id, overlayId: id.nullable(
 export async function setItemOverlay(tx: Tx, a: z.output<typeof setItemOverlayArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   requirePermission(ctx, 'ViewOverlays');
+  if (!(await requireItem(tx, a.itemId, ctx))) return;
   if (a.overlayId !== null) {
     const [o] = await tx.select({ id: overlays.id }).from(overlays).where(eq(overlays.id, a.overlayId));
     if (!o) throw new MutationError('not-found', 'overlay not found');
@@ -207,6 +224,7 @@ export const reorderItemsArgs = z.object({ presentationId: id, itemIds: z.array(
 /** Puts the named items first, in the given order; other items keep their order after them. */
 export async function reorderItems(tx: Tx, a: z.output<typeof reorderItemsArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
+  await requirePresentation(tx, a.presentationId, ctx);
   const current = await tx
     .select({ id: presentationItems.id })
     .from(presentationItems)
@@ -229,6 +247,7 @@ export async function moveItem(tx: Tx, a: z.output<typeof moveItemArgs>, ctx: Mu
   requirePermission(ctx, 'ManagePresentations');
   const [item] = await tx.select({ presentationId: presentationItems.presentationId }).from(presentationItems).where(eq(presentationItems.id, a.itemId));
   if (!item) return;
+  await requirePresentation(tx, item.presentationId, ctx);
   const order = (
     await tx
       .select({ id: presentationItems.id })
@@ -251,28 +270,48 @@ export const removeItemArgs = z.object({ itemId: id });
 /** Deletes exactly the named item; a no-op if it is already gone. */
 export async function removeItem(tx: Tx, a: z.output<typeof removeItemArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
+  if (!(await requireItem(tx, a.itemId, ctx))) return;
   await tx.delete(presentationItems).where(eq(presentationItems.id, a.itemId));
 }
+
+// The trash of presentations and that of templates are two (PRES-R24): each
+// mutator touches only its own kind, so a presentation's delete never trashes
+// a template, and the other way round.
 
 export const trashPresentationArgs = z.object({ id, at: z.number().int() });
 export async function trashPresentation(tx: Tx, a: z.output<typeof trashPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await tx.update(presentations).set({ deletedAt: a.at }).where(eq(presentations.id, a.id));
+  await setDeletedAt(tx, a.id, false, a.at);
 }
 
 export const restorePresentationArgs = z.object({ id });
 export async function restorePresentation(tx: Tx, a: z.output<typeof restorePresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await tx.update(presentations).set({ deletedAt: null }).where(eq(presentations.id, a.id));
+  await setDeletedAt(tx, a.id, false, null);
 }
 
 export const purgePresentationArgs = z.object({ id });
 /** Permanent delete (D14): only of a presentation that is in the trash where this runs. */
 export async function purgePresentation(tx: Tx, a: z.output<typeof purgePresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  const [p] = await tx.select({ deletedAt: presentations.deletedAt }).from(presentations).where(eq(presentations.id, a.id));
-  if (!p) return; // already gone: nothing to do
-  if (p.deletedAt === null) throw new MutationError('not-in-trash', 'presentation is not in the trash');
-  await tx.delete(presentationItems).where(eq(presentationItems.presentationId, a.id));
-  await tx.delete(presentations).where(eq(presentations.id, a.id));
+  await purgeRows(tx, a.id, false);
+}
+
+export async function setDeletedAt(tx: Tx, presentationId: string, isTemplate: boolean, deletedAt: number | null) {
+  await tx
+    .update(presentations)
+    .set({ deletedAt })
+    .where(and(eq(presentations.id, presentationId), eq(presentations.isTemplate, isTemplate)));
+}
+
+/** Deletes a trashed presentation or template and its items; its slide decks' pages go with the next clean-up. */
+export async function purgeRows(tx: Tx, presentationId: string, isTemplate: boolean) {
+  const [p] = await tx
+    .select({ deletedAt: presentations.deletedAt })
+    .from(presentations)
+    .where(and(eq(presentations.id, presentationId), eq(presentations.isTemplate, isTemplate)));
+  if (!p) return; // already gone (or of the other kind): nothing to do
+  if (p.deletedAt === null) throw new MutationError('not-in-trash', `${isTemplate ? 'template' : 'presentation'} is not in the trash`);
+  await tx.delete(presentationItems).where(eq(presentationItems.presentationId, presentationId));
+  await tx.delete(presentations).where(eq(presentations.id, presentationId));
 }

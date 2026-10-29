@@ -52,8 +52,9 @@ trash under `DetailHeader` with its pill tabs. Inloggningsmetoder (`/logins`) is
 new pages do more or less than the current ones (the user row's actions, the overlay's preview), they keep
 what they do and only take the look. A public output's row is the current one's: the name, "Sänder från …"
 under it while it sends, the viewer count ("0 enheter" too), Visa QR-kod and Ta bort; its link, the copy
-button and Ny kod (under a line saying what it is for; the dialog closes after it) are in the QR dialog. The current app's user page,
-templates, labels, CCLI report, API keys and super-admin pages have no counterpart yet.
+button and Ny kod (under a line saying what it is for; the dialog closes after it) are in the QR dialog. The templates page and its
+dialogs (`pages/Templates.tsx`), the picker on Skapa and the editor's sky banner take the current app's markup.
+The current app's user page, labels, CCLI report, API keys and super-admin pages have no counterpart yet.
 
 Sign-in, setup, the invite and pairing (step 5) are `Login.razor`, `Setup.razor` and `InvitePage.razor`
 (`pages/AuthCard.tsx`): the logo and the two-blue name, the fields as floating fields and the wide sky Kom igång;

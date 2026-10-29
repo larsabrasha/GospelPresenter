@@ -125,8 +125,12 @@ one. A passkey on the host needs no internet.
 
 ## Schema versions
 
-A database records its schema version in `_schema`. One made by an older version (milestone 1 has no
-row: version 1) is migrated when it is opened, on the server and on clients; a client then pulls
+A database records its schema version in `_schema`. The organisation database's migrations were dropped
+before the first release (2026-10-29): it is made from one DDL, `orgDdl`, which is version 11
+(`SCHEMA_BASELINE`; the numbering goes on, so an older file is never taken for a current one). A server or a
+client refuses an organisation database older than that, with "delete it and start again": on a device,
+clear the site's data. A change after the
+baseline is a migration in `orgMigrations` again, run when the database is opened; a client then pulls
 everything again, because the schema is part of the pull cookie. The server's global database has
 its own version (`GLOBAL_SCHEMA_VERSION`, now 4): the placeholder memberships of milestones 1 and 2
 are dropped when it migrates, so data made by the old desktop host belongs to no account afterwards.
@@ -135,6 +139,4 @@ Version 3 drops milestone 3's passwords and its per-account lockout, and adds `u
 again and finishes the existing SuperAdmin and church; other users need a new invite, or on a host a
 new pairing. Version 4 adds passkeys: columns for the key, counter, transports and name in
 `user_logins`, the link columns in `login_flows`, and `passkey_flows`. Every login and session stays.
-Organisation schema version 3 (milestone 4) adds `presentations.theme_id`, `presentation_items.content`,
-the synced tables `bibles` and `org_settings`, and the local tables `bible_texts` and `bible_blobs`.
-Version 4 (milestone 5) adds the synced table `images` and the local table `media_blobs`; nothing existing changes.
+The global database keeps its migrations.

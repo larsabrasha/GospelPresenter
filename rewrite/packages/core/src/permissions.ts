@@ -8,6 +8,7 @@ export type Permission =
   | 'ManagePresentations'
   | 'ViewSongs'
   | 'ManageSongs'
+  | 'ViewTemplates'
   | 'ManageTemplates'
   | 'ViewBibles'
   | 'ManageBibles'
@@ -25,8 +26,8 @@ export type Permission =
   | 'ManageOrganizations'
   | 'AssignSuperAdminRole';
 
-const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes', 'ViewImages', 'ManageImages', 'ViewAudios', 'ManageAudios', 'ViewOverlays', 'ManageOverlays'];
-/** Importing and deleting Bibles is for admins (D24); everyone uses them. */
+const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewTemplates', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes', 'ViewImages', 'ManageImages', 'ViewAudios', 'ManageAudios', 'ViewOverlays', 'ManageOverlays'];
+/** Importing and deleting Bibles, and making and editing templates, is for admins (D24); everyone uses them. */
 const admin: Permission[] = [...everyone, 'ManageTemplates', 'ManageBibles', 'ManageThemes', 'ViewUsers', 'ManageUsers', 'ManageRemoteDisplays'];
 
 const grants: Record<Role, ReadonlySet<Permission>> = {

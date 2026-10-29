@@ -255,7 +255,18 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     alice.net.online = true;
     await syncAll(alice, carol);
     expect(alice.client.rejected.map((r) => r.error)).toEqual(['not-in-trash']);
-    for (const d of [alice, carol]) expect(await presentation(d)).toEqual({ id: 'P', name: 'Rescued', event_date: null, deleted_at: null, theme_id: null });
+    for (const d of [alice, carol]) expect(await presentation(d)).toEqual({
+        id: 'P',
+        name: 'Rescued',
+        event_date: null,
+        deleted_at: null,
+        theme_id: null,
+        is_template: 0,
+        weekday: null,
+        time: null,
+        location: null,
+        last_used_at: null,
+      });
     await alice.client.mutate('renamePresentation', { id: 'P', name: 'Alice can push again' });
     await syncAll(alice, carol);
     expect((await presentation(carol))!.name).toBe('Alice can push again');
@@ -522,6 +533,152 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect(d.songs.map((r) => r.id)).toEqual(['S2', 'S3', 'S4']); // the server kept the 10-day-old one
     expect(d.presentations).toEqual([]);
     expect(d.presentation_items).toEqual([]);
+    await expectConverged(alice, bob);
+  });
+
+  // ------------------------------------------------------------ templates (spec 03)
+
+  /** Copies of P's seeded items into template T, and of T's into presentation N, with the ids the caller makes. */
+  const fromP = [
+    { from: 'I1', id: 'T-I1' },
+    { from: 'I2', id: 'T-I2' },
+  ];
+  const fromT = [
+    { from: 'T-I1', id: 'N-I1' },
+    { from: 'T-I2', id: 'N-I2' },
+  ];
+
+  it('a copy holds the items the user copied: one added to the source meanwhile is left out, one removed is skipped', async () => {
+    await seed();
+    alice.net.online = false;
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
+    await carol.client.mutate('addSongToPresentation', { itemId: 'I3', presentationId: 'P', songId: 'S3' });
+    await carol.client.mutate('removeItem', { itemId: 'I1' });
+    await carol.client.sync();
+    alice.net.online = true;
+
+    await syncAll(alice, carol);
+
+    expect((await items(alice, 'T')).map((r) => [r.id, r.source_id, r.sort])).toEqual([['T-I2', 'S2', 0]]);
+    await expectConverged(alice, carol);
+  });
+
+  it('PRES-R31, D10: save as template copies the items, their arrangements and the theme, without a schedule', async () => {
+    await seed();
+    await alice.client.mutate('createArrangement', { id: 'A1', songId: 'S2', partIds: [] });
+    await alice.client.mutate('setItemArrangement', { itemId: 'I2', arrangementId: 'A1' });
+    await alice.client.mutate('updatePresentation', { id: 'P', themeId: 'midnight', eventDate: '2026-11-01' });
+
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
+    await syncAll(alice, bob);
+
+    expect(await presentation(bob, 'T')).toMatchObject({ name: 'Söndag', is_template: 1, theme_id: 'midnight', event_date: null, weekday: null, time: null, location: null });
+    expect((await items(bob, 'T')).map((r) => [r.type, r.title, r.source_id, r.sort, r.arrangement_id])).toEqual([
+      ['song', 'Song 1', 'S1', 0, null],
+      ['song', 'Song 2', 'S2', 1, 'A1'],
+    ]);
+    // Made from the ids on both ends, as a UUID of version 8 (RFC 9562), so client and server agree.
+    expect((await items(bob, 'T')).map((r) => r.id)).toEqual(['T-I1', 'T-I2']); // the ids the caller made
+    await expectConverged(alice, bob);
+  });
+
+  it('PRES-R30: a presentation made from a template gets its items and theme, and the template its last use', async () => {
+    await seed();
+    await alice.client.mutate('createTemplate', { id: 'T', name: 'Söndag', weekday: 0, time: '11:00', location: 'Kyrkan' });
+    await alice.client.mutate('updatePresentation', { id: 'P', themeId: 'midnight' }); // a presentation's theme: not the template's
+    await alice.client.mutate('addSongToPresentation', { itemId: 'TI1', presentationId: 'T', songId: 'S3' });
+    await alice.client.mutate('addSongToPresentation', { itemId: 'TI2', presentationId: 'T', songId: 'S4' });
+    await syncAll(alice, bob);
+
+    await bob.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag 1 nov', eventDate: '2026-11-01', items: [{ from: 'TI1', id: 'N1' }, { from: 'TI2', id: 'N2' }], at: 1000 });
+    await syncAll(bob, alice);
+
+    expect(await presentation(alice, 'N')).toMatchObject({ name: 'Söndag 1 nov', is_template: 0, event_date: '2026-11-01', theme_id: null });
+    expect((await items(alice, 'N')).map((r) => r.source_id)).toEqual(['S3', 'S4']);
+    expect(await presentation(alice, 'T')).toMatchObject({ last_used_at: 1000, weekday: 0, time: '11:00', location: 'Kyrkan' });
+    await expectConverged(alice, bob);
+  });
+
+  it('PRES-A4: removing an item of a presentation made from a template leaves the template as it was', async () => {
+    await seed();
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
+    await alice.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag', items: fromT, at: 1 });
+    const [first] = await items(alice, 'N');
+
+    await alice.client.mutate('removeItem', { itemId: String(first!.id) });
+    await syncAll(alice, bob);
+
+    expect((await items(bob, 'N')).map((r) => r.source_id)).toEqual(['S2']);
+    expect((await items(bob, 'T')).map((r) => r.source_id)).toEqual(['S1', 'S2']);
+    await expectConverged(alice, bob);
+  });
+
+  it('D24: a user makes presentations from a template, but may not make, edit or delete one', async () => {
+    await seed();
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
+    await syncAll(alice, bob);
+    const [item] = await items(bob, 'T');
+
+    await expect(bob.client.mutate('createTemplate', { id: 'T2', name: 'Fredag' })).rejects.toThrow('may not ManageTemplates');
+    await expect(bob.client.mutate('saveAsTemplate', { id: 'T3', presentationId: 'P', name: 'Kopia', items: [] })).rejects.toThrow('may not ManageTemplates');
+    await expect(bob.client.mutate('addSongToPresentation', { itemId: 'X', presentationId: 'T', songId: 'S3' })).rejects.toThrow('may not ManageTemplates');
+    await expect(bob.client.mutate('renameItem', { itemId: String(item!.id), title: 'Annat' })).rejects.toThrow('may not ManageTemplates');
+    await expect(bob.client.mutate('removeItem', { itemId: String(item!.id) })).rejects.toThrow('may not ManageTemplates');
+    await expect(bob.client.mutate('trashTemplate', { id: 'T', at: 1 })).rejects.toThrow('may not ManageTemplates');
+    await bob.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag', items: fromT, at: 1 });
+    await syncAll(bob, alice);
+
+    expect((await items(alice, 'N')).length).toBe(2);
+    expect((await items(alice, 'T')).length).toBe(2);
+    await expectConverged(alice, bob);
+  });
+
+  it('PRES-R24: the trash of presentations and that of templates are separate', async () => {
+    await seed();
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
+
+    await alice.client.mutate('trashPresentation', { id: 'T', at: 5 });
+    await alice.client.mutate('trashTemplate', { id: 'P', at: 5 });
+    await alice.client.mutate('updatePresentation', { id: 'T', name: 'Annat' });
+    await syncAll(alice);
+
+    expect(await presentation(alice, 'T')).toMatchObject({ name: 'Söndag', deleted_at: null });
+    expect(await presentation(alice, 'P')).toMatchObject({ deleted_at: null });
+    await alice.client.mutate('trashTemplate', { id: 'T', at: 5 });
+    await alice.client.mutate('purgePresentation', { id: 'T' }); // not a presentation: nothing happens
+    await syncAll(alice);
+    expect(await presentation(alice, 'T')).toMatchObject({ deleted_at: 5 });
+    await alice.client.mutate('purgeTemplate', { id: 'T' });
+    await syncAll(alice);
+    expect(await presentation(alice, 'T')).toBeUndefined();
+    expect(await items(alice, 'T')).toEqual([]);
+    await expectConverged(alice);
+  });
+
+  it('PRES-R23: a template in the trash cannot be used', async () => {
+    await seed();
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
+    await alice.client.mutate('trashTemplate', { id: 'T', at: 5 });
+
+    await expect(alice.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag', items: fromT, at: 1 })).rejects.toThrow('Template not found.');
+    await expect(alice.client.mutate('createFromTemplate', { id: 'N', templateId: 'P', name: 'Söndag', items: [], at: 1 })).rejects.toThrow('Template not found.');
+  });
+
+  it("PRES-R28: a user's purge of expired trash leaves expired templates, which an admin's purges", async () => {
+    await seed();
+    const day = 86_400_000;
+    const now = Date.now();
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
+    await alice.client.mutate('trashTemplate', { id: 'T', at: now - 40 * day });
+    await alice.client.mutate('trashPresentation', { id: 'P', at: now - 40 * day });
+    await syncAll(alice, bob);
+
+    await bob.client.mutate('purgeExpiredTrash', { now });
+    await syncAll(bob, alice);
+    expect((await alice.client.dump()).presentations.map((r) => r.id)).toEqual(['T']);
+    await alice.client.mutate('purgeExpiredTrash', { now });
+    await syncAll(alice, bob);
+    expect((await bob.client.dump()).presentations).toEqual([]);
     await expectConverged(alice, bob);
   });
 

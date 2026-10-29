@@ -724,6 +724,22 @@ describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName)
     expect(await h.mediaKeys()).not.toContain(mediaKey(org, deck[0]!.thumb));
   });
 
+  it('keeps the pages of a deck saved as a template when the presentation drops it, until the template does too (D10)', async () => {
+    const deck = await pages(alice, 'template', 1);
+    await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' });
+    await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: [{ from: 'I1', id: 'T1' }] });
+    await alice.client.mutate('removeItem', { itemId: 'I1' });
+    await alice.client.sync();
+    expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(200);
+
+    await alice.client.mutate('trashTemplate', { id: 'T', at: 1 });
+    await alice.client.mutate('purgeTemplate', { id: 'T' });
+    await alice.client.sync();
+
+    expect((await get(h, org, 'alice', deck[0]!.full)).status).toBe(404);
+  });
+
   it('uploads the pages of a deck added offline before the add is pushed', async () => {
     const uploads = new MediaUploads(async (hash, b) => (await put(h, org, 'alice', hash, b)).status);
     const d = await device(h, org, 'alice', 'admin', { beforePush: uploads.beforePush });

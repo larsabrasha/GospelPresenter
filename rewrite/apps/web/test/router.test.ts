@@ -63,7 +63,7 @@ describe('routes', () => {
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {
-    for (const page of ['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays'] as const) {
+    for (const page of ['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'templates', 'themes', 'displays'] as const) {
       const path = href({ page });
       expect(path).toBe(`/admin/${page}`);
       expect(path).not.toMatch(/^\/api/);
@@ -72,6 +72,12 @@ describe('routes', () => {
     // The admin pages start at the songs, as in the current app (Pages/Admin/Admin.razor).
     expect(read('/admin')).toEqual({ page: 'songs' });
     expect(read('/admin/nowhere')).toEqual({ page: 'songs' });
+  });
+
+  it('a template opens in the editor at /templates/{id}, as in the current app (spec 03 screen 2)', () => {
+    expect(href({ page: 'template', id: 'T 1' })).toBe('/templates/T%201');
+    expect(read('/templates/T%201')).toEqual({ page: 'template', id: 'T 1' });
+    expect(read('/admin/templates')).toEqual({ page: 'templates' });
   });
 
   it('the song addresses from before the admin menu still open them', () => {
@@ -83,7 +89,8 @@ describe('routes', () => {
     expect(read('/trash?kind=presentation')).toEqual({ page: 'trash', kind: 'Presentation' });
     expect(read('/trash?kind=IMAGE')).toEqual({ page: 'trash', kind: 'Image' });
     expect(read('/trash?kind=audio')).toEqual({ page: 'trash', kind: 'Audio' });
-    expect(read('/trash?kind=Template')).toEqual({ page: 'trash', kind: null }); // templates are not built yet
+    expect(read('/trash?kind=Template')).toEqual({ page: 'trash', kind: 'Template' });
+    expect(read('/trash?kind=nothing')).toEqual({ page: 'trash', kind: null });
     expect(read('/trash?kind=')).toEqual({ page: 'trash', kind: null });
   });
 

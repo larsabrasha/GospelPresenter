@@ -1,6 +1,6 @@
 # Not done yet
 
-Slide-deck pages, profile pictures and logos, templates, English text, mobile, and a real deploy to
+Slide-deck pages, profile pictures and logos, English text, mobile, and a real deploy to
 Cloudflare. The Workers adapter is tested in local workerd, and once on a real account (see [On Cloudflare](cloudflare.md)).
 
 From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,
@@ -12,6 +12,10 @@ by when a file was last used (it is by when it arrived); live and public URLs
 file input is used, also in Electron); dropping files onto the add dialog. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.
+
+From templates: their time and place reach a new presentation only as its date, as presentations have no
+event time or place yet; the `n` shortcut on the start page and the keyboard in the picker; the templates page
+is ordered by name, not by when a template was last changed; a template is not pictured by the capture script.
 
 From overlays: the picture on a public output (only the text is sent); reordering (spec 03 Q11, as there);
 saving 500 ms after typing with "Sparad" in the header, as songs do now (a field saves when it loses focus); dropping a file onto the

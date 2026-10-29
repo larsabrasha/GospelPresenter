@@ -4,7 +4,7 @@
 
 Text, a picture, or both, shown above the live slide (spec 03 §4, spec 04 LIVE-R15). An overlay is a synced row in
 `overlays` (title, text up to 2 000 characters, the id of a library picture, `sort` in the order of creation), and an
-item names the one it carries in `presentation_items.overlay_id` (organisation schema version 8). Everyone may make,
+item names the one it carries in `presentation_items.overlay_id`. Everyone may make,
 change and delete them (ManageOverlays is every role's, as in spec 01), at most 200. Overlays (`/admin/overlays`)
 lists them with a preview; one overlay's page has Titel, Textinnehåll and a picture chosen from Bilder, each saved
 when the field loses focus, a preview, and Radera, which asks first and is permanent (no trash). Deleting one

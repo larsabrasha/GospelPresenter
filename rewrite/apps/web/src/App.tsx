@@ -23,6 +23,7 @@ import { Settings } from './pages/Settings.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
 import { Themes } from './pages/Themes.tsx';
 import { Songs } from './pages/Songs.tsx';
+import { Templates } from './pages/Templates.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { Users } from './pages/Users.tsx';
 import { AdminLayout, TopBar } from './Shell.tsx';
@@ -71,6 +72,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <Refused text={t('audios.forbidden')} />)}
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
+      {route.page === 'templates' && (can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />)}
       {route.page === 'themes' && <Themes role={me.role} />}
       {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
     </>
@@ -83,7 +85,14 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       ) : route.page === 'settings' ? (
         <Settings />
       ) : route.page === 'presentation' ? (
-        <PresentationEditor id={route.id} />
+        <PresentationEditor key={route.id} id={route.id} role={me.role} />
+      ) : route.page === 'template' ? (
+        // Editing a template is for admins (D24): a user who has the link is told so.
+        can(me.role, 'ManageTemplates') ? (
+          <PresentationEditor key={route.id} id={route.id} role={me.role} template />
+        ) : (
+          <Refused text={t('templates.forbidden')} />
+        )
       ) : route.page === 'live' ? (
         <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} />
       ) : ADMIN_PAGES.has(route.page) ? (
@@ -100,7 +109,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
 }
 
 /** The pages under the admin menu (Layout/AdminLayout.razor). */
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'themes', 'displays']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'templates', 'themes', 'displays']);
 
 /** A page the user may not open: why, where the page would be. */
 function Refused({ text }: { text: string }) {

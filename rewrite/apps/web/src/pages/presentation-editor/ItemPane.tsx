@@ -22,6 +22,7 @@ export function ItemPane({
   selectedSlides,
   overlays,
   theme,
+  canStart,
   onShowMenu,
 }: {
   id: string;
@@ -34,6 +35,8 @@ export function ItemPane({
   selectedSlides: ItemSlides | undefined;
   overlays: Overlay[];
   theme: Theme;
+  /** Starta presentation: not in a template's editor. */
+  canStart: boolean;
   onShowMenu: () => void;
 }) {
   return (
@@ -57,14 +60,16 @@ export function ItemPane({
           ) : (
             <span />
           )}
-          <AppButton
-            variant="plain"
-            href={href({ page: 'live', id })}
-            className="absolute bottom-3 right-3 z-30 lg:static shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
-          >
-            <PlayIcon className="size-5" />
-            <span className="text-sm font-medium">{t('presentation.start')}</span>
-          </AppButton>
+          {canStart && (
+            <AppButton
+              variant="plain"
+              href={href({ page: 'live', id })}
+              className="absolute bottom-3 right-3 z-30 lg:static shrink-0 px-4 py-2.5 rounded-full flex items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600"
+            >
+              <PlayIcon className="size-5" />
+              <span className="text-sm font-medium">{t('presentation.start')}</span>
+            </AppButton>
+          )}
         </div>
         <div className="flex-1 flex flex-col gap-3 px-3 pb-24 lg:pb-3">
           {!items.length && (

@@ -36,6 +36,30 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
   app does).
 - **A purged song's items stay** in their presentations and say the song is gone.
 
+Templates (spec 03 "Template", screen 3):
+
+- **A template is a row of `presentations`** with `is_template` set, as in the current app: the editor, its
+  items and the clean-up of slide pages serve both. Every list and mutator keeps the two kinds apart: the start
+  page lists presentations only, the templates page templates only, and a presentation's trash, restore and
+  purge never touch a template, nor the other way round (PRES-R24). A template's id under `/presentations/` (or a
+  presentation's under `/templates/`) is not found.
+- **Editing a template is for admins** (D24): every item mutator asks for `ManageTemplates` when the item's
+  presentation is a template, and `/templates/{id}` tells a user it is for admins. Everyone has
+  `ViewTemplates` and may make a presentation from a template (PRES-R5).
+- **A copy keeps the arrangement and the slide decks** (D10, PRES-R31 as changed on 2026-10-28): a song item
+  keeps its `arrangementId`, a deck item its pages, which are content-addressed, so the copy names the same
+  blobs and the clean-up keeps them while any item names them. A copied item's overlay goes along too.
+- **A copy holds what the user saw**: the client lists the items to copy, each with a new id it makes, so the
+  client and the server make the same rows. An item added to the source by someone else before the copy
+  reaches the server is left out; one removed meanwhile is skipped.
+- **The picker shows the 10 last used, never-used last** (03 Q7, PRES-E12), then by name. The templates page
+  lists by name: there is no "last changed" in the rewrite. `UseCount` is left out: nothing shows it.
+- **A template's time and place prefill nothing but the date**: presentations have no event time or place yet
+  (see [Not done yet](not-done-yet.md)), so a presentation made from a template gets its name, the date of its
+  next weekday, its items and its theme.
+- **Weekdays start on Monday** in the details dialog, Sweden's first day of the week; the old app took it from
+  the culture.
+
 Milestone 5 (media library):
 
 - **A blob is named by the hash of its bytes, and an image has two** (`full`, `thumb`); spec 05 names objects

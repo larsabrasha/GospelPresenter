@@ -5,7 +5,7 @@ import { listTrash, type TrashEntry } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
-import { MapIcon, MusicalNoteOutlineIcon, PhotoOutlineIcon, SpeakerOutlineIcon, TrashIcon } from '../ui/icons.tsx';
+import { DocumentTextIcon, MapIcon, MusicalNoteOutlineIcon, PhotoOutlineIcon, SpeakerOutlineIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
@@ -13,10 +13,17 @@ import { PillTab, PillTabs } from '../ui/PillTabs.tsx';
 import { href, TRASH_KINDS, type TrashKind } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { formatEventDate } from './presentation-editor/index.ts';
+import { templateDetails } from './templates.ts';
 
-const manages: Record<TrashKind, Parameters<typeof can>[1]> = { Presentation: 'ManagePresentations', Song: 'ManageSongs', Image: 'ManageImages', Audio: 'ManageAudios' };
-const restoreMutator = { Presentation: 'restorePresentation', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio' } as const;
-const purgeMutator = { Presentation: 'purgePresentation', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio' } as const;
+const manages: Record<TrashKind, Parameters<typeof can>[1]> = {
+  Presentation: 'ManagePresentations',
+  Template: 'ManageTemplates',
+  Song: 'ManageSongs',
+  Image: 'ManageImages',
+  Audio: 'ManageAudios',
+};
+const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio' } as const;
+const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio' } as const;
 
 /** Each kind's icon at the start of its row (Trash.razor). */
 function KindIcon({ kind }: { kind: TrashKind }) {
@@ -24,6 +31,8 @@ function KindIcon({ kind }: { kind: TrashKind }) {
   switch (kind) {
     case 'Presentation':
       return <MapIcon className={className} />;
+    case 'Template':
+      return <DocumentTextIcon className={className} />;
     case 'Song':
       return <MusicalNoteOutlineIcon className={className} strokeWidth={1.5} />;
     case 'Image':
@@ -168,7 +177,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
             <ul aria-label={t('trash.title')}>
               {shown.map((e) => {
                 const days = daysRemaining(e.deletedAt, now);
-                const detail = e.kind === 'Presentation' && e.detail ? formatEventDate(e.detail) : e.detail;
+                const detail = e.kind === 'Presentation' && e.detail ? formatEventDate(e.detail) : e.template ? templateDetails(e.template) : e.detail;
                 return (
                   <li key={`${e.kind}:${e.id}`} className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0" aria-label={e.name}>
                     <div className="shrink-0 text-neutral-400 dark:text-neutral-500" title={t(`trash.one.${e.kind}`)}>

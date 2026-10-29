@@ -48,6 +48,11 @@ const presentation = (r: Row): Presentation => ({
   eventDate: (r.event_date as string | null) ?? null,
   deletedAt: (r.deleted_at as number | null) ?? null,
   themeId: (r.theme_id as string | null) ?? null,
+  isTemplate: Boolean(r.is_template),
+  weekday: (r.weekday as number | null) ?? null,
+  time: (r.time as string | null) ?? null,
+  location: (r.location as string | null) ?? null,
+  lastUsedAt: (r.last_used_at as number | null) ?? null,
 });
 
 const item = (r: Row): PresentationItem => ({
@@ -98,7 +103,7 @@ export async function arrangementsOf(db: ReadDb, songIds: string[]): Promise<Son
   return rows.map(arrangement);
 }
 
-/** The presentations (not in the trash) that have an item showing the song (D17). */
+/** The presentations and templates (not in the trash) that have an item showing the song (D17). */
 export async function presentationsUsing(db: ReadDb, songId: string): Promise<Presentation[]> {
   const rows = await db.query(
     `SELECT DISTINCT p.* FROM presentations p JOIN presentation_items i ON i.presentation_id = p.id
@@ -132,10 +137,22 @@ export async function listLabels(db: ReadDb): Promise<Map<string, Label>> {
 /** Presentations, newest event first; those without a date last (milestone 1 has no "last changed"). */
 export async function listPresentations(db: ReadDb): Promise<Presentation[]> {
   const rows = await db.query(
-    'SELECT * FROM presentations WHERE deleted_at IS NULL ORDER BY event_date IS NULL, event_date DESC, name',
+    'SELECT * FROM presentations WHERE deleted_at IS NULL AND is_template = 0 ORDER BY event_date IS NULL, event_date DESC, name',
   );
   return rows.map(presentation);
 }
+
+/** The templates page's list (spec 03 screen 3), by name: a template has no "last changed" here. */
+export async function listTemplates(db: ReadDb): Promise<Presentation[]> {
+  return (await db.query('SELECT * FROM presentations WHERE deleted_at IS NULL AND is_template = 1')).map(presentation).toSorted(byPresentationName);
+}
+
+/** The templates the "Skapa presentation" picker offers (PRES-R32): the 10 last used, never-used ones last (03 Q7), then by name. */
+export async function recentTemplates(db: ReadDb): Promise<Presentation[]> {
+  return (await listTemplates(db)).toSorted((a, b) => (b.lastUsedAt ?? -1) - (a.lastUsedAt ?? -1)).slice(0, 10);
+}
+
+const byPresentationName = (a: Presentation, b: Presentation) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id);
 
 export async function getPresentation(db: ReadDb, id: string): Promise<Presentation | null> {
   const [r] = await db.query('SELECT * FROM presentations WHERE id = ?', [id]);
@@ -143,11 +160,13 @@ export async function getPresentation(db: ReadDb, id: string): Promise<Presentat
 }
 
 export interface TrashEntry {
-  kind: 'Presentation' | 'Song' | 'Image' | 'Audio';
+  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio';
   id: string;
   name: string;
   /** The event date of a presentation, the author of a song. */
   detail: string | null;
+  /** A template's, for its weekday, time and place. */
+  template?: Presentation;
   deletedAt: number;
 }
 
@@ -160,7 +179,11 @@ export async function listTrash(db: ReadDb): Promise<TrashEntry[]> {
   const entries: TrashEntry[] = [
     ...trashedImages.map((i) => ({ kind: 'Image' as const, id: i.id, name: i.fileName, detail: null, deletedAt: i.deletedAt! })),
     ...trashedAudios.map((a) => ({ kind: 'Audio' as const, id: a.id, name: a.fileName, detail: null, deletedAt: a.deletedAt! })),
-    ...presentations.map((p) => ({ kind: 'Presentation' as const, id: p.id, name: p.name, detail: p.eventDate, deletedAt: p.deletedAt! })),
+    ...presentations.map((p) =>
+      p.isTemplate
+        ? { kind: 'Template' as const, id: p.id, name: p.name, detail: null, template: p, deletedAt: p.deletedAt! }
+        : { kind: 'Presentation' as const, id: p.id, name: p.name, detail: p.eventDate, deletedAt: p.deletedAt! },
+    ),
     ...songs.map((s) => ({ kind: 'Song' as const, id: s.id, name: s.name, detail: s.author, deletedAt: s.deletedAt! })),
   ];
   return entries.toSorted((a, b) => b.deletedAt - a.deletedAt || a.id.localeCompare(b.id));

@@ -60,6 +60,20 @@ export const presentations = sqliteTable('presentations', {
   deletedAt: integer('deleted_at'),
   /** The presentation's own theme; null follows the organisation's default (THEME-R1). */
   themeId: text('theme_id'),
+  /**
+   * A template (spec 03 "Template"): a starting point for presentations, in
+   * the same table with its own lists and permissions (PRES-R4, R24). It has
+   * a weekly slot and a place instead of a date.
+   */
+  isTemplate: integer('is_template', { mode: 'boolean' }).notNull().default(false),
+  /** A template's day of the week, 0 = Sunday … 6 = Saturday. */
+  weekday: integer('weekday'),
+  /** A template's time of day, `HH:MM`. */
+  time: text('time'),
+  /** A template's place. */
+  location: text('location'),
+  /** When a presentation was last created from this template: the picker shows the latest first (PRES-R32). */
+  lastUsedAt: integer('last_used_at'),
 });
 
 /**
@@ -272,47 +286,15 @@ export type LibraryAudio = typeof audios.$inferSelect;
 export type Overlay = typeof overlays.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
-/** The tables version 3 added: Bibles, settings, and the (unsynced) store of Bible texts. */
-const bibleDdl = [
-  `CREATE TABLE IF NOT EXISTS bibles (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, abbreviation TEXT NOT NULL,
-     language TEXT, verse_count INTEGER NOT NULL, content_hash TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS org_settings (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS bible_texts (hash TEXT NOT NULL, book TEXT NOT NULL, sort INTEGER NOT NULL, chunk TEXT NOT NULL,
-     PRIMARY KEY (hash, book))`,
-  `CREATE TABLE IF NOT EXISTS bible_blobs (hash TEXT PRIMARY KEY NOT NULL, verse_count INTEGER NOT NULL)`,
-];
-
-/** The tables version 4 added: the media library, and the (unsynced) record of media blobs. */
-const mediaDdl = [
-  `CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
-     full_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
-     created_at INTEGER NOT NULL, deleted_at INTEGER)`,
-  `CREATE TABLE IF NOT EXISTS media_blobs (hash TEXT PRIMARY KEY NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL,
-     bytes BLOB, received_at INTEGER NOT NULL)`,
-];
-
-/** The table version 5 added: outputs. */
-const displayDdl = [`CREATE TABLE IF NOT EXISTS displays (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL, kind TEXT NOT NULL)`];
-
-/** The table version 6 added: audio files. */
-const audioDdl = [
-  `CREATE TABLE IF NOT EXISTS audios (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
-     hash TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`,
-];
-
-/** The table version 7 added: presentations this device keeps offline (not synced). */
-const pinDdl = [`CREATE TABLE IF NOT EXISTS pinned_presentations (id TEXT PRIMARY KEY NOT NULL, pinned_at INTEGER NOT NULL)`];
-
-/** The table version 8 added: overlays. Items name theirs in a new column. */
-const overlayDdl = [
-  `CREATE TABLE IF NOT EXISTS overlays (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT, image_id TEXT,
-     sort INTEGER NOT NULL)`,
-];
-
-/** The table version 10 added: the translations this device keeps offline (not synced). */
-const keptBibleDdl = [`CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`];
+/**
+ * The first version `orgDdl` makes. The migrations from milestone 1 on were
+ * dropped before the first release (2026-10-29): a database made before then
+ * is not brought up to date. The numbering goes on from there rather than
+ * starting again at 1, so such a database is never taken for a current one.
+ */
+export const SCHEMA_BASELINE = 11;
 
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
@@ -328,39 +310,36 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS song_arrangements (id TEXT PRIMARY KEY NOT NULL,
      song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS presentations (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, event_date TEXT,
-     deleted_at INTEGER, theme_id TEXT)`,
+     deleted_at INTEGER, theme_id TEXT, is_template INTEGER NOT NULL DEFAULT 0, weekday INTEGER, time TEXT,
+     location TEXT, last_used_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS presentation_items (id TEXT PRIMARY KEY NOT NULL,
      presentation_id TEXT NOT NULL REFERENCES presentations(id), type TEXT NOT NULL, title TEXT NOT NULL,
      source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT, overlay_id TEXT)`,
-  ...bibleDdl,
-  ...mediaDdl,
-  ...displayDdl,
-  ...audioDdl,
-  ...pinDdl,
-  ...overlayDdl,
-  ...keptBibleDdl,
+  `CREATE TABLE IF NOT EXISTS bibles (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, abbreviation TEXT NOT NULL,
+     language TEXT, verse_count INTEGER NOT NULL, content_hash TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS org_settings (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
+     full_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
+     created_at INTEGER NOT NULL, deleted_at INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS displays (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL, kind TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS audios (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
+     hash TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS overlays (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT, image_id TEXT,
+     sort INTEGER NOT NULL)`,
+  // Not synced: what this database keeps for itself (see the tables above).
+  `CREATE TABLE IF NOT EXISTS bible_texts (hash TEXT NOT NULL, book TEXT NOT NULL, sort INTEGER NOT NULL, chunk TEXT NOT NULL,
+     PRIMARY KEY (hash, book))`,
+  `CREATE TABLE IF NOT EXISTS bible_blobs (hash TEXT PRIMARY KEY NOT NULL, verse_count INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS media_blobs (hash TEXT PRIMARY KEY NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL,
+     bytes BLOB, received_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS pinned_presentations (id TEXT PRIMARY KEY NOT NULL, pinned_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`,
 ];
 
-/** The statements that take a database from version `n - 1` to `n`. */
-export const orgMigrations: Record<number, string[]> = {
-  2: [
-    `CREATE TABLE IF NOT EXISTS song_arrangements (id TEXT PRIMARY KEY NOT NULL,
-       song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
-    `ALTER TABLE presentation_items ADD COLUMN arrangement_id TEXT`,
-  ],
-  3: [`ALTER TABLE presentations ADD COLUMN theme_id TEXT`, `ALTER TABLE presentation_items ADD COLUMN content TEXT`, ...bibleDdl],
-  4: mediaDdl,
-  5: displayDdl,
-  6: audioDdl,
-  7: pinDdl,
-  8: [...overlayDdl, `ALTER TABLE presentation_items ADD COLUMN overlay_id TEXT`],
-  // Saved screens are `displays` of kind 'screen': no new column, but an older app would list them as public outputs.
-  9: [],
-  // Before 10 a device kept every text: it goes on keeping the ones it has, so none is dropped by the update.
-  10: [...keptBibleDdl, `INSERT OR IGNORE INTO kept_bibles (id, kept_at) SELECT id, 0 FROM bibles WHERE content_hash IN (SELECT hash FROM bible_blobs)`],
-};
+/** The statements that take a database from version `n - 1` to `n`, for every `n` above SCHEMA_BASELINE. */
+export const orgMigrations: Record<number, string[]> = {};
 
-/** Where a database records its schema version. Milestone 1 databases have no row: they are version 1. */
+/** Where a database records its schema version. One made before versions were recorded has no row. */
 export const schemaMetaDdl = `CREATE TABLE IF NOT EXISTS _schema (one INTEGER PRIMARY KEY CHECK (one = 1), version INTEGER NOT NULL)`;
 
 /**
@@ -369,12 +348,14 @@ export const schemaMetaDdl = `CREATE TABLE IF NOT EXISTS _schema (one INTEGER PR
  * and `hasTables` whether the synced tables exist yet.
  */
 export function orgSchemaPlan(version: number | null, hasTables: boolean): string[] {
-  const from = version ?? (hasTables ? 1 : 0);
-  if (from > SCHEMA_VERSION) throw new Error(`the database has schema ${from}, newer than this app's ${SCHEMA_VERSION}`);
+  if (version === null && !hasTables) return [...orgDdl, `INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`];
+  if (version === null || version < SCHEMA_BASELINE)
+    throw new Error(`the database has schema ${version ?? 'from before versions were recorded'}, made before this app's first, ${SCHEMA_BASELINE}: delete it and start again`);
+  if (version > SCHEMA_VERSION) throw new Error(`the database has schema ${version}, newer than this app's ${SCHEMA_VERSION}`);
+  if (version === SCHEMA_VERSION) return [];
   const steps: string[] = [];
-  if (from === 0) steps.push(...orgDdl);
-  else for (let v = from + 1; v <= SCHEMA_VERSION; v++) steps.push(...orgMigrations[v]!);
-  if (from !== SCHEMA_VERSION) steps.push(`INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`);
+  for (let v = version + 1; v <= SCHEMA_VERSION; v++) steps.push(...orgMigrations[v]!);
+  steps.push(`INSERT OR REPLACE INTO _schema (one, version) VALUES (1, ${SCHEMA_VERSION})`);
   return steps;
 }
 

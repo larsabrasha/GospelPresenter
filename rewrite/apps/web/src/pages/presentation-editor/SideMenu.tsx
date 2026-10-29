@@ -3,13 +3,15 @@ import type { ReactNode } from 'react';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { Dropdown, MENU_ITEM } from '../../ui/Dropdown.tsx';
-import { EllipsisOutlineIcon, PencilIcon, TrashIcon } from '../../ui/icons.tsx';
+import { DocumentDuplicateIcon, EllipsisOutlineIcon, PencilIcon, TrashIcon } from '../../ui/icons.tsx';
 import { KeepOfflineItem, MediaReadiness, OfflinePill, type useKeepOffline } from '../../ui/MediaReadiness.tsx';
+import { scheduleLine } from '../templates.ts';
 import { formatEventDate } from './eventDate.ts';
 
 /**
  * The left side: the presentation's name, date and ⋯ menu above the running order
- * (`children`). Below `lg` a drawer from the left over a dimmed page.
+ * (`children`), or a template's weekday, time and place. Below `lg` a drawer from
+ * the left over a dimmed page. "Spara som mall" is there when `onSaveAsTemplate` is.
  */
 export function SideMenu({
   presentation,
@@ -17,6 +19,7 @@ export function SideMenu({
   menuVisible,
   onHideMenu,
   onEditDetails,
+  onSaveAsTemplate,
   onTrash,
   children,
 }: {
@@ -25,6 +28,7 @@ export function SideMenu({
   menuVisible: boolean;
   onHideMenu: () => void;
   onEditDetails: () => void;
+  onSaveAsTemplate?: () => void;
   onTrash: () => void;
   children: ReactNode;
 }) {
@@ -61,11 +65,17 @@ export function SideMenu({
                 <PencilIcon className="size-4" />
                 {t('presentation.editDetails')}
               </AppButton>
-              <KeepOfflineItem keep={keep} />
+              {onSaveAsTemplate && (
+                <AppButton variant="plain" role="menuitem" className={MENU_ITEM} onClick={onSaveAsTemplate}>
+                  <DocumentDuplicateIcon className="size-4" />
+                  {t('templates.saveAs')}
+                </AppButton>
+              )}
+              {!presentation.isTemplate && <KeepOfflineItem keep={keep} />}
               <div className="border-t-[0.5px] border-neutral-200 dark:border-neutral-600" />
               <AppButton variant="plain" role="menuitem" className={`${MENU_ITEM} text-red-500! dark:text-red-400!`} onClick={onTrash}>
                 <TrashIcon className="size-4" strokeWidth={1.5} />
-                {t('presentation.trash')}
+                {t(presentation.isTemplate ? 'templates.trash' : 'presentation.trash')}
               </AppButton>
             </Dropdown>
           </div>
@@ -73,6 +83,12 @@ export function SideMenu({
             <p className="px-1 -mt-1 text-xs text-neutral-500 dark:text-neutral-400" data-testid="schedule">
               {formatEventDate(presentation.eventDate)}
             </p>
+          )}
+          {presentation.isTemplate && (scheduleLine(presentation) || presentation.location) && (
+            <div className="px-1 -mt-1" data-testid="schedule">
+              {scheduleLine(presentation) && <div className="text-xs text-neutral-500 dark:text-neutral-400">{scheduleLine(presentation)}</div>}
+              {presentation.location && <div className="text-xs text-neutral-400 dark:text-neutral-500">{presentation.location}</div>}
+            </div>
           )}
           <div className="px-1">
             <MediaReadiness presentationId={presentation.id} audio />

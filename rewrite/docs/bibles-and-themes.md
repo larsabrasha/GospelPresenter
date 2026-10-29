@@ -22,8 +22,7 @@ stays refused. Every other device sees the row arrive in a pull. Which texts a d
 own choice, as in the current app (BIBLE-R15): Biblar has "Gör tillgänglig offline" per translation,
 and a kept one shows a grey "✓ Tillgänglig offline" that removes the copy ("Ta bort den nedladdade
 kopian"). The choice is a local, unsynced table, `kept_bibles` (by translation id, so a re-import stays
-kept; organisation schema version 10, which marks every text a device already had as kept, so the
-update drops nothing). A kept text is downloaded once (`GET /api/bibles/{hash}`, any member, only from
+kept). A kept text is downloaded once (`GET /api/bibles/{hash}`, any member, only from
 its own organisation), its hash checked, and kept; searching and adding verses then needs no network.
 "Gör tillgänglig offline" downloads at once, and without a connection says so and keeps nothing. A
 translation imported on a device is kept there. One not kept is fetched when Bibeltexter needs it, held

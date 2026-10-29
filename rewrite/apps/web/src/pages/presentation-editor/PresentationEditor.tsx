@@ -1,4 +1,4 @@
-import { sortedArrangements, type PresentationItem } from '@gp/core';
+import { can, sortedArrangements, type PresentationItem, type Role } from '@gp/core';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { useData, useDb } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
@@ -9,15 +9,22 @@ import { afterWrite } from '../../ui/debounce.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useKeepOffline } from '../../ui/MediaReadiness.tsx';
 import { navigate } from '../../ui/router.ts';
+import { EditTemplateDialog } from '../Templates.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { AddItemDialog } from './AddItemDialog.tsx';
 import { DetailsDialog } from './DetailsDialog.tsx';
 import { ItemPane } from './ItemPane.tsx';
 import { RunningOrder } from './RunningOrder.tsx';
+import { SaveAsTemplateDialog } from './SaveAsTemplateDialog.tsx';
 import { SideMenu } from './SideMenu.tsx';
 
-/** The presentation editor (spec 03 2): the running order on the left, the selected item on the right. */
-export function PresentationEditor({ id }: { id: string }) {
+/**
+ * The presentation editor (spec 03 2): the running order on the left, the
+ * selected item on the right. With `template`, a template's editor
+ * (`/templates/{id}`): a banner says so, and there is no Starta presentation
+ * and no Spara som mall.
+ */
+export function PresentationEditor({ id, role, template = false }: { id: string; role: Role; template?: boolean }) {
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
@@ -47,6 +54,7 @@ export function PresentationEditor({ id }: { id: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [details, setDetails] = useState(false);
+  const [savingAsTemplate, setSavingAsTemplate] = useState(false);
   const keep = useKeepOffline(id);
   const [renaming, setRenaming] = useState(false);
   // Below `lg` the running order is a drawer from the left, open when the page opens (Presentation.razor).
@@ -90,13 +98,15 @@ export function PresentationEditor({ id }: { id: string }) {
 
   if (!data) return null;
   const { presentation, slides, songs, theme, overlays } = data;
-  if (!presentation || presentation.deletedAt !== null) return <p className="p-6 text-center text-sm text-neutral-500 dark:text-neutral-400">{t('presentation.notFound')}</p>;
+  // A template's id under /presentations, or the other way round, is not found either.
+  if (!presentation || presentation.deletedAt !== null || presentation.isTemplate !== template)
+    return <p className="p-6 text-center text-sm text-neutral-500 dark:text-neutral-400">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>;
 
   const trash = async () => {
     // To the trash without a dialog, with a toast that says where it went (PRES-R29).
-    if (!(await trySave(db.mutate('trashPresentation', { id, at: Date.now() })))) return;
+    if (!(await trySave(db.mutate(template ? 'trashTemplate' : 'trashPresentation', { id, at: Date.now() })))) return;
     toast(t('presentation.trashed', { name: presentation.name }));
-    navigate({ page: 'presentations' });
+    navigate({ page: template ? 'templates' : 'presentations' });
   };
 
   const selectedSong = selected?.type === 'song' ? songs.get(selected.sourceId) : undefined;
@@ -104,40 +114,56 @@ export function PresentationEditor({ id }: { id: string }) {
   const selectedSlides = selected ? slides.get(selected.id) : undefined;
 
   return (
-    <section className="flex-1 min-h-0 flex relative">
-      {dialog}
-      <SideMenu presentation={presentation} keep={keep} menuVisible={menuVisible} onHideMenu={() => setMenuVisible(false)} onEditDetails={() => setDetails(true)} onTrash={() => void trash()}>
-        <RunningOrder
+    <div className="flex-1 min-h-0 flex flex-col">
+      {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
+      <section className="flex-1 min-h-0 flex relative">
+        {dialog}
+        <SideMenu
+          presentation={presentation}
+          keep={keep}
+          menuVisible={menuVisible}
+          onHideMenu={() => setMenuVisible(false)}
+          onEditDetails={() => setDetails(true)}
+          onSaveAsTemplate={!template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined}
+          onTrash={() => void trash()}
+        >
+          <RunningOrder
+            items={items}
+            slides={slides}
+            overlays={overlays}
+            selectedId={selectedId}
+            onSelect={(itemId) => {
+              setSelectedId(itemId);
+              setRenaming(false);
+              setMenuVisible(false);
+            }}
+            onRemove={(item) => void removeItem(item)}
+            onAdd={() => setAdding(true)}
+          />
+        </SideMenu>
+        <ItemPane
+          id={id}
           items={items}
-          slides={slides}
+          selected={selected}
+          renaming={renaming}
+          setRenaming={setRenaming}
+          selectedSong={selectedSong}
+          selectedArrangements={selectedArrangements}
+          selectedSlides={selectedSlides}
           overlays={overlays}
-          selectedId={selectedId}
-          onSelect={(itemId) => {
-            setSelectedId(itemId);
-            setRenaming(false);
-            setMenuVisible(false);
-          }}
-          onRemove={(item) => void removeItem(item)}
-          onAdd={() => setAdding(true)}
+          theme={theme}
+          canStart={!template}
+          onShowMenu={() => setMenuVisible(true)}
         />
-      </SideMenu>
-      <ItemPane
-        id={id}
-        items={items}
-        selected={selected}
-        renaming={renaming}
-        setRenaming={setRenaming}
-        selectedSong={selectedSong}
-        selectedArrangements={selectedArrangements}
-        selectedSlides={selectedSlides}
-        overlays={overlays}
-        theme={theme}
-        onShowMenu={() => setMenuVisible(true)}
-      />
-      {adding && <AddItemDialog presentationId={id} afterItemId={selectedId} theme={theme} onAdded={setSelectedId} onClose={() => setAdding(false)} />}
-      {details && (
-        <DetailsDialog id={id} name={presentation.name} eventDate={presentation.eventDate} themeId={presentation.themeId} onClose={() => setDetails(false)} />
-      )}
-    </section>
+        {adding && <AddItemDialog presentationId={id} afterItemId={selectedId} theme={theme} onAdded={setSelectedId} onClose={() => setAdding(false)} />}
+        {details &&
+          (template ? (
+            <EditTemplateDialog template={presentation} onClose={() => setDetails(false)} />
+          ) : (
+            <DetailsDialog id={id} name={presentation.name} eventDate={presentation.eventDate} themeId={presentation.themeId} onClose={() => setDetails(false)} />
+          ))}
+        {savingAsTemplate && <SaveAsTemplateDialog presentation={presentation} items={items} onClose={() => setSavingAsTemplate(false)} />}
+      </section>
+    </div>
   );
 }

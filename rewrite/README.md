@@ -16,7 +16,7 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 
 | Package | What it is |
 |---|---|
-| `packages/core` | Schema and its migrations, mutators with Zod-validated arguments, permissions, slides, song search, live pointer |
+| `packages/core` | Schema, mutators with Zod-validated arguments, permissions, slides, song search, live pointer |
 | `packages/sync` | The sync engine: client (rebase, pokes) and server (push, pull, change log) |
 | `apps/server` | Hono server on Node (one SQLite file per organisation) and on Workers (a Durable Object per organisation) |
 | `apps/web` | React + Vite client: wa-sqlite on OPFS in a worker |
@@ -70,6 +70,6 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 
 ## Next steps
 
-Where to pick up, in order: PDF import (PowerPoint is saved as PDF first) and templates; finishing the trial deploy to Cloudflare
+Where to pick up, in order: finishing the trial deploy to Cloudflare
 (Google sign-in against a real client, then deleting the trial); getting there (the import from the current app,
 packaging and updates, the Capacitor app). The details are in [docs/next-steps.md](docs/next-steps.md).

@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 // fragment, which no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
-export const TRASH_KINDS = ['Presentation', 'Song', 'Image', 'Audio'] as const;
+export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio'] as const;
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
 export type Route =
@@ -17,6 +17,10 @@ export type Route =
   | { page: 'song'; id: string }
   | { page: 'presentations' }
   | { page: 'presentation'; id: string }
+  /** The templates page, under the admin menu (spec 03 screen 3). */
+  | { page: 'templates' }
+  /** A template in the presentation editor (`/templates/{id}`, spec 03 screen 2). */
+  | { page: 'template'; id: string }
   /** The live view: this window's own session, or with `remote` a session elsewhere (spec 04 §2), `session` naming which. */
   | { page: 'live'; id: string; remote?: boolean; session?: string | null }
   | { page: 'trash'; kind: TrashKind | null }
@@ -79,6 +83,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'images') return { page: 'images' };
     if (second === 'audios') return { page: 'audios' };
     if (second === 'overlays') return third ? { page: 'overlay', id: third } : { page: 'overlays' };
+    if (second === 'templates') return { page: 'templates' };
     if (second === 'themes') return { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
     return { page: 'songs' };
@@ -91,6 +96,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   }
   if (first === 'songs' && id) return { page: 'song', id };
   if (first === 'presentations' && id) return { page: 'presentation', id };
+  if (first === 'templates' && id) return { page: 'template', id };
   if (first === 'live' && id) {
     if (query.get('remote') !== '1') return { page: 'live', id };
     return { page: 'live', id, remote: true, session: query.get('session') };
@@ -107,7 +113,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays']);
+const ADMIN_PAGES = new Set(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'templates', 'themes', 'displays']);
 
 export function href(r: Route): string {
   switch (r.page) {
@@ -119,6 +125,8 @@ export function href(r: Route): string {
       return `/presentations/${encodeURIComponent(r.id)}`;
     case 'overlay':
       return `/admin/overlays/${encodeURIComponent(r.id)}`;
+    case 'template':
+      return `/templates/${encodeURIComponent(r.id)}`;
     case 'live': {
       const path = `/live/${encodeURIComponent(r.id)}`;
       if (!r.remote) return path;

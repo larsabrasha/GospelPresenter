@@ -88,7 +88,7 @@ export const addImageToPresentationArgs = z.object({
 export async function addImageToPresentation(tx: Tx, a: z.output<typeof addImageToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   requirePermission(ctx, 'ViewImages');
-  await requirePresentation(tx, a.presentationId);
+  await requirePresentation(tx, a.presentationId, ctx);
   const [i] = await tx.select({ fileName: images.fileName }).from(images).where(eq(images.id, a.imageId));
   if (!i) throw new MutationError('not-found', 'image not found');
   await insertItem(tx, a.afterItemId, {
@@ -156,7 +156,7 @@ export const addAudioToPresentationArgs = z.object({ itemId: id, presentationId:
 export async function addAudioToPresentation(tx: Tx, a: z.output<typeof addAudioToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   requirePermission(ctx, 'ViewAudios');
-  await requirePresentation(tx, a.presentationId);
+  await requirePresentation(tx, a.presentationId, ctx);
   const [f] = await tx.select({ fileName: audios.fileName }).from(audios).where(eq(audios.id, a.audioId));
   if (!f) throw new MutationError('not-found', 'audio file not found');
   await insertItem(tx, a.afterItemId, {
@@ -188,7 +188,7 @@ export const addSlidesArgs = z.object({
  */
 export async function addSlides(tx: Tx, a: z.output<typeof addSlidesArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await requirePresentation(tx, a.presentationId);
+  await requirePresentation(tx, a.presentationId, ctx);
   for (const hash of new Set(a.pages.flatMap((p) => [p.full, p.thumb]))) {
     const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
     if (!blob) throw new MutationError('media-missing', 'a page has not been uploaded');

@@ -407,9 +407,12 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 - PRES-R30 Create-from-template copies, in one transaction: items (type, title, sourceId, sortOrder)
   and parts, `ThemeId`; each Slides item gets a *new* deck row and the deck's files are copied in
   storage after commit; event date/time/location/description come from the dialog; template
-  `LastUsedAt = now`, `UseCount += 1` (`PresentationService.cs:894-1004`).
+  `LastUsedAt = now`, `UseCount += 1` (`PresentationService.cs:894-1004`). New app: song arrangements go
+  along too, and a deck's pages are shared rather than copied (D10).
 - PRES-R31 Save-as-template copies items and parts and `ThemeId`; no schedule; slide decks are *not*
-  duplicated (see Open questions) (`:826-892`).
+  duplicated (see Open questions) (`:826-892`). New app: slide decks and song arrangements go along
+  (D10); the pages are content-addressed, so the copy names the same files and they stay while any item
+  names them.
 - PRES-R32 The dashboard picker shows at most 10 templates (`:763-777`).
 
 **Editor**
@@ -458,6 +461,7 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 - PRES-E10 Templates: a User (ViewTemplates only) can open `/templates/{id}` by URL and edit its items
   and rename it, because item mutations and rename only require ManagePresentations and do not check
   `IsTemplate` (`PresentationService.cs:305-321, 271-303`). Delete is refused (ManageTemplates).
+  New app: editing a template's items requires ManageTemplates too (D24).
 - PRES-E11 Dashboard "today" is computed on the server (Blazor Server) with `DateTime.Today`, i.e. the
   server's time zone (`Dashboard.razor:288`).
 - PRES-E12 Recent templates sort by `LastUsedAt` desc; never-used templates (NULL) sort first on
