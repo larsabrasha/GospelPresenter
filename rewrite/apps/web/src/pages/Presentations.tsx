@@ -13,6 +13,7 @@ import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { useRovingList } from '../ui/listNav.ts';
 import { usePageKeys } from '../ui/shortcuts.ts';
+import { useShortcutGroup, type ShortcutGroup } from '../ui/ShortcutHelp.tsx';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
 import { dateLabel, fullDate, groupPresentations, localToday } from './dashboard.ts';
 import { nextDate, templateDetails } from './templates.ts';
@@ -176,6 +177,17 @@ function Row({
 const PAGE_SIZE = 20;
 
 /** The start page, Presentationer (Components/Dashboard.razor). `n` starts Skapa. */
+
+/** The start page's keys in the help dialog (Dashboard.razor's scope). */
+const KEYS: ShortcutGroup = {
+  title: t('shortcuts.group.dashboard'),
+  lines: [
+    { keys: ['n'], text: t('shortcuts.newPresentation') },
+    { keys: ['ArrowDown'], text: t('shortcuts.moveThroughList') },
+    { keys: ['Enter'], text: t('shortcuts.openPresentation') },
+  ],
+};
+
 export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const presentations = useData(listPresentations, []);
   const pinned = useData(pinnedIds, []);
@@ -197,6 +209,7 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
     <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} pinned={!!pinned?.has(p.id)} nav={list.item(index)} />
   );
   const startCreating = () => (templates?.length ? setPicking(true) : setCreating({ template: null }));
+  useShortcutGroup(KEYS);
   usePageKeys((e) => {
     if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !picking && !creating) {
       e.preventDefault();

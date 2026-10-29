@@ -81,20 +81,29 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (name
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('user');
   const [error, setError] = useState<string | null>(null);
+  /** What is wrong with the address, under its field (Users.razor): not an address, or another user's. */
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const roles = assignableRoles(me.role);
   return (
     <Dialog title={t('users.createTitle')} onClose={onClose} maxWidthClass="max-w-lg">
+      {/* noValidate: a bad address gets the app's own text under the field, not the browser's bubble. */}
       <form
         className="space-y-4"
+        noValidate
         onSubmit={async (e) => {
           e.preventDefault();
           if (!name.trim() || saving) return;
-          if (!emailSchema.safeParse(email).success) return setError(t('error.invalid-email')); // ORG-A2
+          setError(null);
+          setEmailError(null);
+          if (!emailSchema.safeParse(email).success) return setEmailError(t('error.invalid-email')); // ORG-A2
           setSaving(true);
           try {
+            // The server refuses a taken address before it creates anyone.
             const r = await api<{ inviteToken: string }>('POST', '/api/users', { name, email, role });
             if (!r.error) return onCreated(name.trim(), r.body.inviteToken);
-            setError(errorText(r));
+            if (r.error === 'email-taken') setEmailError(errorText(r));
+            else setError(errorText(r));
           } catch {
             setError(t('auth.offline'));
           }
@@ -102,17 +111,31 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (name
         }}
       >
         <FloatingInput label={t('users.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
-        <FloatingInput label={t('users.email')} type="email" maxLength={320} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div>
+          <FloatingInput label={t('users.email')} type="email" maxLength={320} hasError={!!emailError} value={email} onChange={(e) => setEmail(e.target.value)} />
+          {emailError && (
+            <p className="text-sm text-red-500 dark:text-red-400 mt-1" role="alert">
+              {emailError}
+            </p>
+          )}
+        </div>
         <div>
           {/* ORG-A3: SuperAdmin is offered only to a SuperAdmin. */}
           <FloatingSelect label={t('users.role')} value={role} onChange={(e) => setRole(e.target.value as Role)}>
-            {assignableRoles(me.role).map((r) => (
+            {roles.map((r) => (
               <option key={r} value={r}>
                 {t(`role.${r}`)}
               </option>
             ))}
           </FloatingSelect>
-          <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">{t(`role.${role}.description`)}</p>
+          {/* Every role offered, with what it may do (Users.razor). */}
+          <div className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 space-y-1" data-testid="role-descriptions">
+            {roles.map((r) => (
+              <div key={r}>
+                <span className="font-medium">{t(`role.${r}`)}:</span> {t(`role.${r}.description`)}
+              </div>
+            ))}
+          </div>
         </div>
         {error && (
           <p className="text-sm text-red-500 dark:text-red-400" role="alert">
@@ -200,8 +223,9 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
       <PageHeader title={t('users.title')}>{manage && !empty && create}</PageHeader>
       {typeof users === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{users}</p>}
       <div className={CARD}>
+        {users === null && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {empty && (
-          <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')}>
+          <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} text={t('users.emptyText')}>
             {manage && create}
           </EmptyPicture>
         )}

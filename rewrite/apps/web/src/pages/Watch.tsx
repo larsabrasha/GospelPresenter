@@ -63,7 +63,12 @@ export function PublicSlideView({ imageBase, slide }: { imageBase: string; slide
     <div className="fixed inset-0 flex flex-col overflow-hidden" style={stageCss(theme, slide.kind)} data-testid="watch-slide" data-theme={theme.id}>
       {/* Text taller than the screen scrolls, as PublicSlideView.razor; "safe" keeps its top reachable. */}
       <div className="flex-1 min-w-0 min-h-0 flex items-center-safe justify-center overflow-y-auto" data-testid="watch-text-area">
-        <div className="w-full px-[5vw] py-[4vh] break-words whitespace-pre-wrap" data-testid="watch-text" style={{ ...main, fontSize: fluid(Number.parseFloat(String(main.fontSize)), 18) }}>
+        {/* A song keeps its lines; Bible text flows (PublicSlideView.razor). */}
+        <div
+          className={`w-full px-[5vw] py-[4vh] break-words${slide.verses ? '' : ' whitespace-pre-wrap'}`}
+          data-testid="watch-text"
+          style={{ ...main, fontSize: fluid(Number.parseFloat(String(main.fontSize)), 18) }}
+        >
           {slide.verses
             ? slide.verses.map((v, i) => (
                 <span key={i}>
@@ -97,10 +102,21 @@ export function Watch({ code }: { code: string }) {
   const [names, setNames] = useState<{ orgName: string; outputName: string } | null>(null);
 
   useEffect(() => {
-    const robots = document.createElement('meta');
-    robots.name = 'robots';
-    robots.content = 'noindex';
-    document.head.append(robots);
+    // The page's head and colours as PublicWatchPage.razor: black under the browser's bars, and as a web app on an iPhone.
+    const metas = Object.entries({
+      robots: 'noindex',
+      'theme-color': '#000000',
+      'apple-mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    }).map(([name, content]) => {
+      const meta = document.createElement('meta');
+      meta.name = name;
+      meta.content = content;
+      document.head.append(meta);
+      return meta;
+    });
+    const roots = [document.documentElement, document.body];
+    for (const el of roots) el.style.backgroundColor = '#000';
     const stop = followStream(
       `/api/watch/${encodeURIComponent(code)}/stream?v=${viewerId()}`,
       {
@@ -122,7 +138,8 @@ export function Watch({ code }: { code: string }) {
     );
     return () => {
       stop();
-      robots.remove();
+      for (const meta of metas) meta.remove();
+      for (const el of roots) el.style.backgroundColor = '';
     };
   }, [code]);
 

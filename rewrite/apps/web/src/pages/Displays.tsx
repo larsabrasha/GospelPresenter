@@ -49,7 +49,7 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
     onClose({ ...made, createdAt: null });
   };
   return (
-    <Dialog title={kind === 'screen' ? t('screens.add') : t('displays.create')} onClose={() => onClose(null)} maxWidthClass="max-w-lg">
+    <Dialog title={kind === 'screen' ? t('screens.addTitle') : t('displays.create')} onClose={() => onClose(null)} maxWidthClass="max-w-lg">
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -67,7 +67,7 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
             {t('common.cancel')}
           </AppButton>
           <AppButton type="submit" disabled={!name.trim()} title="Ctrl+Enter">
-            {t('common.create')}
+            {kind === 'screen' ? t('screens.add') : t('common.create')}
           </AppButton>
         </DialogButtons>
       </form>
@@ -184,10 +184,10 @@ export function Displays({ link }: { link: LiveLink }) {
     <PageContainer>
       {dialog}
       <PageHeader title={t('displays.title')}>{!!screens?.length && add('screen')}</PageHeader>
-      <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400">{t('screens.text')}</p>
       <div className={CARD}>
+        {!all && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {screens && !screens.length && (
-          <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')}>
+          <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} text={t('screens.text')}>
             {add('screen')}
           </EmptyPicture>
         )}
@@ -217,10 +217,10 @@ export function Displays({ link }: { link: LiveLink }) {
         <h2 className="text-xl/7 font-bold dark:text-neutral-100">{t('displays.public')}</h2>
         {!!displays?.length && add('public')}
       </div>
-      <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400">{t('displays.publicText')}</p>
       <div className={CARD}>
+        {!all && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {displays && !displays.length && (
-          <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')}>
+          <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} text={t('displays.publicText')}>
             {add('public')}
           </EmptyPicture>
         )}

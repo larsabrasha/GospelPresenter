@@ -276,6 +276,30 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     expect(await screen.next((e) => e.type === 'canvas' || e.type === 'idle', from)).toEqual({ type: 'canvas', canvas: null });
   });
 
+  it('a saved screen draws black when its session ends, and waits with its name when it is switched off (Display.razor)', async () => {
+    await admin.client.mutate('createDisplay', { id: 'K2', name: 'Foajé', code: 'fajesky', kind: 'screen' });
+    await admin.client.sync();
+    expect(admin.client.rejected).toEqual([]);
+    const owner = track(await Window.open(h, org, 'anna'));
+    owner.send({ type: 'own', state: ownState('S1') });
+    await owner.sessions((s) => s.length === 1);
+    const page = track(await Viewer.open(h, 'fajesky', undefined, 'display'));
+    expect(page.status).toBe(200);
+    await latest(owner, (m) => m.online.includes('K2'));
+    owner.send({ type: 'own', state: ownState('S1', { outputs: ['K2'], slide: slide('Före'), canvas: canvas('Före') }) });
+    await page.next((e) => e.type === 'canvas' && e.canvas !== null);
+    owner.send({ type: 'own', state: ownState('S1', { outputs: [], slide: slide('Före'), canvas: canvas('Före') }) });
+    await page.next((e) => e.type === 'idle');
+    const off = page.events.length;
+    owner.send({ type: 'own', state: ownState('S1', { outputs: ['K2'], slide: slide('Före'), canvas: canvas('Före') }) });
+    await page.next((e) => e.type === 'canvas' && e.canvas !== null, off);
+    const from = page.events.length;
+
+    owner.send({ type: 'end', sessionId: 'S1' });
+
+    expect(await page.next((e) => e.type === 'canvas' || e.type === 'idle', from)).toEqual({ type: 'canvas', canvas: null });
+  });
+
   it("serves the overlay's picture to a screen only while that overlay is switched on, and never to a public output (LIVE-R34)", async () => {
     await publicOutput('qrstuvw');
     const shownHash = await picture('IMG1', 51);

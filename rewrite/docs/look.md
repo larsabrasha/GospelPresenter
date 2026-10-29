@@ -43,6 +43,22 @@ queues a few more mutations, which the sync sends together; nothing keeps a snap
 and CCLI reports are not built). Tested in `apps/web/test/debounce.test.ts` (the wait, flushing, failures, order)
 and e2e in `milestone2.spec.ts` (Sparad, typing on through a save, leaving at once, reloading at once, a blank name).
 
+A clash in a part (D18; the old app had none to copy): when a part's stored text changes from elsewhere while the
+user has typed in it since giving it focus, and is not what they have, nothing more is written, and an amber
+box under the part says "Någon annan ändrade den här texten medan du skrev. Deras text:" with the other text,
+"Behåll min text" (written at once) and "Använd deras" (`warnOnClash` on `AutoSaveField`). Within the sync as it
+is: the server keeps the last write, so whoever is still typing when the other's write arrives is the one
+warned; one who already left the part is not, and the later write wins silently. Tested in
+`e2e/song-clash.spec.ts` (two computers of one user, both choices).
+
+The keyboard help (`ui/ShortcutHelp.tsx`, `KeyboardShortcuts.razor` and `ShortcutHelpDialog.razor`): `?` outside
+a text field opens "Kortkommandon", with the old dialog's look and texts: the group of what is on screen, then
+"Överallt" with `?`; `?`, Esc or × closes it. Groups: Startsidan (n, ↓, ↵), Presentation (a, F2, Del, ↑ ↓, and the
+new Alt+↑ ↓), Lägg till (⌘/Ctrl+1–5, ⌘/Ctrl+↵, ↓; it hides the editor's group, whose keys are off behind it), and
+the new Live (→ Space PageDown, ← PageUp, ↓, ↑, B) and Scenläge (its pedal keys; it hides Live's). The old
+editor's → and ↵ through the slides are not listed: the new editor has no such keys. Keys with ⌘ and ⌥ on a Mac,
+Ctrl+ and Alt+ elsewhere. Tested in `apps/web/test/shortcutHelp.test.ts` and `e2e/shortcuts.spec.ts`.
+
 The admin pages (step 4) are `Pages/Admin/*.razor`, `Trash.razor` and `Profile.razor`: each a title row and
 light cards (Biblar, Bilder, Ljud, Overlays, Teman, Skärmar, Användare, Enheter, the trash), the current app's
 large grey pictures and small icons when a list is empty (`ui/Empty.tsx`), the dashed sky frame while files hover

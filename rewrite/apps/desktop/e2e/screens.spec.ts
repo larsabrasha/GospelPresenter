@@ -48,9 +48,11 @@ test('a saved screen is online while its page is open, shows the slide when swit
   const origin = new URL(page.url()).origin;
   await openAdmin(page, 'Skärmar');
   await expect(page.getByText('Inga skärmar tillagda')).toBeVisible();
+  // The explanation is inside the empty card only, in the current app's words (Displays.razor).
+  await expect(page.getByText(/^En skärm är en extern enhet/)).toBeVisible();
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Lägg till' }).getByLabel('Namn').fill('Kyrksal');
-  await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Skapa' }).click();
+  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByLabel('Namn').fill('Kyrksal');
+  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByRole('button', { name: 'Lägg till' }).click();
   const shown = page.getByRole('dialog', { name: 'Kyrksal' });
   const url = await shown.getByLabel('Länk').inputValue();
   expect(url).toMatch(new RegExp(`^${origin}/display\\?id=[a-z2-9]{7}&name=Kyrksal$`));
@@ -58,6 +60,7 @@ test('a saved screen is online while its page is open, shows the slide when swit
   await shown.getByRole('button', { name: 'Stäng' }).click();
   const row = page.getByRole('list', { name: 'Skärmar' }).getByRole('listitem', { name: 'Kyrksal' });
   await expect(row).toContainText('Offline');
+  await expect(page.getByText(/^En skärm är en extern enhet/)).toHaveCount(0);
 
   // The TV opens its link: its name, no code; the admin page shows it online.
   const screen = await tv(url);
@@ -82,6 +85,29 @@ test('a saved screen is online while its page is open, shows the slide when swit
   await screen.close();
   await expect(outputs.getByLabel('Kyrksal')).not.toBeChecked({ timeout: 20_000 });
   await expect(outputs.getByLabel('Kyrksal')).toBeDisabled();
+});
+
+test('a saved screen whose session ended draws black, and its name again once its page is opened anew (Display.razor)', async () => {
+  const page = await presenting();
+  await openAdmin(page, 'Skärmar');
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByLabel('Namn').fill('Kyrksal');
+  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByRole('button', { name: 'Lägg till' }).click();
+  const url = await page.getByRole('dialog', { name: 'Kyrksal' }).getByLabel('Länk').inputValue();
+  await page.getByRole('dialog', { name: 'Kyrksal' }).getByRole('button', { name: 'Stäng' }).click();
+  const screen = await tv(url);
+  await expect(page.getByRole('list', { name: 'Skärmar' }).getByRole('listitem', { name: 'Kyrksal' })).toContainText('Online', { timeout: 5_000 });
+  await page.goBack();
+  await page.goBack();
+  await page.getByRole('list', { name: 'Utgångar' }).getByLabel('Kyrksal').check();
+  await expect(screen.getByTestId('slide-text')).toHaveText('A ett', { timeout: 5_000 });
+
+  await page.getByRole('button', { name: 'Avsluta presentation' }).click();
+
+  await expect(screen.getByTestId('display-black')).toBeVisible({ timeout: 5_000 });
+  await expect(screen.getByTestId('display-idle')).toHaveCount(0);
+  await screen.reload();
+  await expect(screen.getByTestId('display-idle')).toContainText('Kyrksal');
 });
 
 test('a TV shows a code; typed in "Anslut tillfällig skärm" it shows the session; ✕ gives it a new code (LIVE-A17, A19)', async () => {
@@ -112,6 +138,21 @@ test('a TV shows a code; typed in "Anslut tillfällig skärm" it shows the sessi
   await outputs.getByRole('button', { name: 'Koppla bort tillfällig skärm (1)' }).click();
   await expect(pin).toHaveText(/^\d{4}$/, { timeout: 10_000 });
   await expect(outputs.getByText('Tillfällig skärm (1)')).toHaveCount(0);
+});
+
+test('a temporary screen opened with ?name= shows its name above the code (Display.razor)', async () => {
+  host = await launch();
+  await setUpHost(host);
+  const origin = new URL(host.page.url()).origin;
+
+  const screen = await tv(`${origin}/display?name=Foajé`);
+
+  const pairing = screen.getByTestId('display-pairing');
+  await expect(screen.getByTestId('display-pin')).toHaveText(/^\d{4}$/);
+  await expect(pairing.getByText('Foajé')).toBeVisible();
+  const nameBox = (await pairing.getByText('Foajé').boundingBox())!;
+  const pinBox = (await screen.getByTestId('display-pin').boundingBox())!;
+  expect(nameBox.y).toBeLessThan(pinBox.y);
 });
 
 test('a TV that opens the QR link pairs at once, and its address becomes /display (LIVE-A18)', async () => {

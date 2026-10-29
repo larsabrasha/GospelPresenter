@@ -45,6 +45,12 @@ test('a public output follows the presentation in a browser without signing in; 
   await phone.goto(url);
   await expect(phone.getByTestId('watch-waiting')).toContainText('Kyrkkaffet');
   await expect(phone.getByTestId('watch-waiting')).toContainText('Väntar på att sändningen ska börja');
+  // Black under the browser's bars and as a web app on an iPhone (PublicWatchPage.razor).
+  await expect(phone.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#000000');
+  await expect(phone.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content', 'yes');
+  await expect(phone.locator('meta[name="apple-mobile-web-app-status-bar-style"]')).toHaveAttribute('content', 'black-translucent');
+  await expect(phone.locator('html')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await expect(phone.locator('body')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
 
   // The host presents and switches the output on: the phone is counted.
   await createSong(page, 'Sång A', [
@@ -53,8 +59,8 @@ test('a public output follows the presentation in a browser without signing in; 
   ]);
   await openAdmin(page, 'Overlays');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Titel').fill('Kollekt');
-  await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Titel').press('Enter');
+  await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').fill('Kollekt');
+  await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').press('Enter');
   await page.getByLabel('Textinnehåll').fill('Swish 123 45');
   await page.getByLabel('Textinnehåll').blur();
   await createPresentation(page, 'Söndag');
@@ -75,6 +81,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await page.getByRole('button', { name: 'Sång A 2' }).click();
   await expect(phone.getByTestId('watch-text')).toHaveText('A två', { timeout: 5_000 });
   await expect(phone.getByTestId('watch-slide')).toHaveAttribute('data-theme', 'classic');
+  await expect(phone.getByTestId('watch-text')).toHaveCSS('white-space', 'pre-wrap'); // a song keeps its lines; Bible text does not
   await expect(phone.getByText('Chorus')).toHaveCount(0); // the part label is the operator's
   await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(phone.getByTestId('watch-waiting')).toBeVisible({ timeout: 5_000 });

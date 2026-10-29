@@ -4,6 +4,7 @@ import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import { slidesOf, type LiveChannel } from '../live/live.ts';
 import { useLivePointer } from '../live/useLive.ts';
 import { SlideView } from '../ui/SlideView.tsx';
+import { askFullScreen } from '../ui/fullScreen.ts';
 
 /**
  * An output window: renders its own copy of the content plus the live pointer
@@ -46,8 +47,8 @@ export function Output({ live }: { live: LiveChannel }) {
   }, []);
   return (
     // A click asks for full screen (Live.razor).
-    <div className="fixed inset-0 bg-black cursor-none" data-testid="output" onClick={() => void document.documentElement.requestFullscreen?.().catch(() => {})}>
-      <SlideView slide={pointer.black ? null : (shown?.slide ?? null)} theme={shown?.theme} label={false} overlay={pointer.black ? null : overlay} />
+    <div className="fixed inset-0 bg-black cursor-none" data-testid="output" onClick={askFullScreen}>
+      <SlideView slide={shown?.slide ?? null} theme={shown?.theme} label={false} overlay={overlay} black={pointer.black} />
     </div>
   );
 }

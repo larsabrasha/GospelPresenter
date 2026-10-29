@@ -21,7 +21,7 @@ test('a presentation kept offline on a computer has its pictures there, fetched 
   await createUser(host.page, 'Bo', 'bo@kyrkan.se');
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Bo');
-  await expect(second.page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+  await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
   // A presentation with no date: nothing would fetch its files ahead.
   await createPresentation(host.page, 'Konsert');
@@ -49,7 +49,7 @@ test('a presentation kept offline on a computer has its pictures there, fetched 
   await picker.getByRole('button', { name: 'Lägg till Affisch.png' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
   // Give the second computer time to sync and fetch, without opening the presentation.
-  await expect(second.page.getByTestId('status')).toHaveText(/^Ansluten$/);
+  await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/);
   await second.page.waitForTimeout(3000);
 
   // The host goes away; the presentation opens with its picture, from this computer alone.

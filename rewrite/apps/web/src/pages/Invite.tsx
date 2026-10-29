@@ -3,7 +3,7 @@ import type { AuthState, InviteState, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { t } from '../i18n.ts';
 import { AUTH_TEXT, AuthCard } from './AuthCard.tsx';
-import { methodsText, SignInChoices } from './SignIn.tsx';
+import { SignInChoices } from './SignIn.tsx';
 
 /** A translation with `{value}` in it, the value in bold (LocalizedEmphasis.razor). */
 function Emphasis({ text, value }: { text: string; value: string }) {
@@ -91,12 +91,15 @@ export function Invite({ token, methods, onSignedIn }: { token: string; methods:
       titleClassName="text-lg/7 font-normal dark:text-neutral-100 text-center px-4"
       invite={token}
       methods={methods}
+      firstOnly
       onSignedIn={onSignedIn}
     >
-      <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400 text-center">
-        <Emphasis text={t('invite.org', { org: '{value}' })} value={state.orgName} />
-      </p>
-      <p className={AUTH_TEXT}>{methodsText(methods, 'invite')}</p>
+      {state.orgName.trim() && (
+        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400 text-center" data-testid="invite-org">
+          <Emphasis text={t('invite.org', { org: '{value}' })} value={state.orgName} />
+        </p>
+      )}
+      <p className="mt-4 mb-2 text-sm text-neutral-500 dark:text-neutral-400 text-center">{t('invite.choose')}</p>
     </SignInChoices>
   );
 }

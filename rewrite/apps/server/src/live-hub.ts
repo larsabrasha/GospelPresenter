@@ -268,7 +268,9 @@ export class LiveHub {
     this.store.query('DELETE FROM live_sessions WHERE id = ?', [id]);
     // Its temporary screens go with it (LIVE-R24: the screen disconnects itself).
     this.releaseScreens((this.store.query('SELECT id FROM live_screens WHERE session_id = ?', [id]) as { id: string }[]).map((x) => x.id));
-    for (const d of bound) this.pushTo(d);
+    // A saved screen whose session ended draws black, not its name (Display.razor keeps the pairing when the
+    // presentation stops); its name comes back when its page is opened again.
+    for (const d of bound) this.pushTo(d, true);
   }
 
   // ------------------------------------------------------------ temporary screens (spec 04 §5)
@@ -450,13 +452,13 @@ export class LiveHub {
     this.broadcast();
   }
 
-  private pushTo(displayId: string) {
+  private pushTo(displayId: string, ended = false) {
     const set = this.viewers.get(displayId);
     if (!set?.size) return; // nobody watching: nothing to send (LIVE-R37)
     const events = new Map<boolean, WatchEvent>();
     for (const v of set.values()) {
       let e = events.get(v.screen);
-      if (!e) events.set(v.screen, (e = this.shown(displayId, v.screen)));
+      if (!e) events.set(v.screen, (e = ended && v.screen ? { type: 'canvas', canvas: null } : this.shown(displayId, v.screen)));
       v.viewer.send(e);
     }
   }

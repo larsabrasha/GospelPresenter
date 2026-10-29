@@ -17,9 +17,7 @@ From templates: their time and place reach a new presentation only as its date, 
 event time or place yet; the `n` shortcut on the start page and the keyboard in the picker; the templates page
 is ordered by name, not by when a template was last changed; a template is not pictured by the capture script.
 
-From overlays: the picture on a public output (only the text is sent); reordering (spec 03 Q11, as there);
-saving 500 ms after typing with "Sparad" in the header, as songs do now (a field saves when it loses focus); dropping a file onto the
-overlay page (the picture comes from Bilder); the 500 ms fade of the black screen, which would cover the overlay.
+From overlays: the picture on a public output (only the text is sent); reordering (spec 03 Q11, as there).
 An overlay deleted while it is shown disappears from the outputs at once (spec 04 keeps it until toggled). The
 picture in an overlay is tested in the unit tests (which files are fetched), not drawn in an e2e test.
 
@@ -40,15 +38,15 @@ rather than only the newest (the stream is not a one-slot queue); the 500-viewer
 Swedish only, not per Accept-Language. A Durable Object with open streams does not hibernate; spec 04 and
 ADR 0007 leave a Durable Object per output for when that matters.
 
-From spec 04's paired screens: the 4-hour idle unbinding of LIVE-R43; a saved screen whose session has
-ended shows its name rather than plain black; a `/display` page of an older build, still open when the server
+From spec 04's paired screens: the 4-hour idle unbinding of LIVE-R43; a saved screen whose session the
+2-hour rule ended (LIVE-R50) draws black, where the old app showed its name once the session expired; a `/display` page of an older build, still open when the server
 is updated, does not know the `canvas` event and waits until it is reloaded. In local workerd a closed stream is
 never noticed, not even when a ping is written: a saved screen stays Online and a public output's viewer stays
 counted after the page has closed (on Node both go at once); whether Cloudflare itself notices is not known. A
 four-digit code is unique across every organisation on the server: 8 999 at a time, plenty on a desktop host,
 few on a shared cloud. Not tested on a real TV browser.
 
-From spec 04's remote control: `?stage=true` in the link; the
+From spec 04's remote control: the
 4-hour idle eviction of LIVE-R42 (only an abandoned session, 2 hours without its owner, is ended); the
 superadmin's Aktiva sessioner. A session id is per window
 (kept for the tab's life), also in the desktop app, rather than derived from the device token (spec 04): a
@@ -57,8 +55,7 @@ pass. Two operator windows on one machine share their pointer (one BroadcastChan
 sessions that move together. The 2-second warning is written but not tested.
 
 From spec 04: the stage view (Scenläge, a button on the live page, `pages/StageView.tsx`) is built for the
-operator's own session and a controller's, with the Overlays button; no `?stage=true` in
-the URL. Next and previous stay within the selected
+operator's own session and a controller's, with the Overlays button; `?stage=true` opens it. Next and previous stay within the selected
 item (LIVE-R41); the page's own step keys, which cross items, are off while it is open. Its keys are a pedal's
 or clicker's, as `utils.js`'s: → ↓ PageDown Space Enter next, ← ↑ PageUp previous, `.` `b` `B` blank (only
 blank, as Rensa), Esc closes an open sheet or else the view; none of them in a text field. It is tested in
@@ -89,6 +86,6 @@ and its next sync is refused); behind a reverse proxy, `X-Forwarded-Proto` and `
 
 From spec 02 and 03 in particular: song history (SONG-R20–R24, D9), the labels page, CCLI, ProPresenter
 import, the dashboard's Idag/Kommande sections and "last changed" order, event time, place,
-description and theme, multi-select removal, the keyboard help dialog, the song editor inside the add
-dialog, the clash warning of D18, and dropping files (reordering items and arrangement chips by dragging is
+description and theme, multi-select removal, the song editor inside the add
+dialog, and dropping files (reordering items and arrangement chips by dragging is
 built, see `e2e/drag.spec.ts`).

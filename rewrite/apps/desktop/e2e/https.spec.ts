@@ -55,7 +55,7 @@ test('a device that trusts the host\'s certificate keeps its data through a relo
   await tablet.goto(`https://${lan}:${tlsPort}/`);
   expect(await tablet.evaluate(() => isSecureContext)).toBe(true);
   await pair(host.page, tablet, 'Surfplattan');
-  await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 }); // no "only in memory"
+  await expect(tablet.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 }); // no "only in memory"
 
   await createSong(host.page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
   await openAdmin(tablet, 'Sånger');
@@ -70,7 +70,7 @@ test('a device that trusts the host\'s certificate keeps its data through a relo
     });
   expect(await opfs()).toEqual(expect.arrayContaining([expect.stringMatching(/^gp-.*\.db$/)]));
   await tablet.reload();
-  await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(tablet.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   expect(await opfs()).toEqual(expect.arrayContaining([expect.stringMatching(/^gp-.*\.db$/)]));
   await openAdmin(tablet, 'Sånger');
   await expect(tablet.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible();
@@ -122,7 +122,7 @@ test('a device over https on the LAN starts the app with the host gone, and take
   const app = `https://${lan}:${tlsPort}`;
   await tablet.goto(`${app}/`);
   await pair(host.page, tablet, 'Surfplattan');
-  await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(tablet.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await createSong(host.page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
   await openAdmin(tablet, 'Sånger');
   await expect(tablet.getByRole('link', { name: 'Härlig är jorden' })).toBeVisible({ timeout: 5_000 });
@@ -146,7 +146,7 @@ test('a device over https on the LAN starts the app with the host gone, and take
   host = await launch({ lan: true, port, dataDir, env: { ...env, GP_WEB_ROOT: nextBuild() } });
   await tablet.goto(`${app}/songs`);
   await expect(tablet.locator('meta[name="gp-build"]')).toHaveCount(1);
-  await expect(tablet.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(tablet.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await expect.poll(() => appCaches(tablet), { timeout: 15_000 }).toEqual(['gp-app-e2e0next0build00']);
 
   await host.app.close();
@@ -173,7 +173,7 @@ test('GP_TLS=self-signed: the host makes its own certificate once and keeps it; 
   const tablet = await context.newPage();
   await tablet.goto(`https://${lan}:${tlsPort}/`);
   await pair(host.page, tablet, 'Surfplattan');
-  await expect(tablet.getByTestId('status')).toContainText('Ansluten', { timeout: 10_000 });
+  await expect(tablet.getByTestId('status')).toContainText('Synkad', { timeout: 10_000 });
 
   // A restart keeps the same certificate, so the device need not accept it again.
   const dataDir = host.dataDir;

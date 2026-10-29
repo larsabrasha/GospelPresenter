@@ -5,6 +5,7 @@ import { CheckIcon, ComputerIcon, MoonIcon, SunIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { getTheme, setTheme, type ThemeChoice } from '../ui/theme.ts';
+import { appVersion } from '../version.ts';
 
 const THEMES: { value: ThemeChoice; label: TextKey; icon: typeof SunIcon }[] = [
   { value: 'system', label: 'settings.themeSystem', icon: ComputerIcon },
@@ -12,9 +13,10 @@ const THEMES: { value: ThemeChoice; label: TextKey; icon: typeof SunIcon }[] = [
   { value: 'dark', label: 'settings.themeDark', icon: MoonIcon },
 ];
 
-/** "Mina inställningar" (Pages/Settings.razor): the colour theme of this device. */
+/** "Mina inställningar" (Pages/Settings.razor): the colour theme of this device, and the app's version under "Om". */
 export function Settings() {
   const [current, setCurrent] = useState(getTheme);
+  const version = appVersion();
   return (
     <PageContainer>
       <PageHeader title={t('nav.settings')} />
@@ -47,6 +49,14 @@ export function Settings() {
             );
           })}
         </div>
+      </div>
+      <div className={`${CARD} p-5`}>
+        <h2 className="block text-sm/5 font-medium mb-1">{t('settings.about')}</h2>
+        {version && (
+          <span className="block text-xs text-neutral-500 dark:text-neutral-400 select-text" data-testid="app-version">
+            {version}
+          </span>
+        )}
       </div>
     </PageContainer>
   );

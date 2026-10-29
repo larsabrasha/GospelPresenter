@@ -35,6 +35,18 @@ describe('saving while the user types', () => {
     expect(written).toEqual([]);
   });
 
+  it('writes nothing after cancel, not even on a flush', async () => {
+    const { saver, written } = recorder();
+    saver.schedule('a');
+
+    saver.cancel();
+    await vi.advanceTimersByTimeAsync(500);
+    await saver.flush();
+
+    expect(written).toEqual([]);
+    expect(saver.busy).toBe(false);
+  });
+
   it('writes only the latest value once 500 ms pass after the last change', async () => {
     const { saver, written } = recorder();
 

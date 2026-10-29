@@ -152,8 +152,19 @@ test('in a browser: setup with a passkey in the page, a second passkey from anot
 
   await expect(page.getByRole('heading', { name: 'Välkommen!' })).toBeVisible();
   await expect(page.getByText('Sedan skapar du en passkey, som blir superanvändarens sätt att logga in.')).toBeVisible(); // no Google here
+  // Setup.razor's list of three, and its help under the code.
+  await expect(page.getByRole('listitem')).toHaveText(['Skapa och hantera organisationer', 'Hantera alla användare och behörigheter', 'Konfigurera systeminställningar']);
+  await expect(page.getByText('Den SETUP_TOKEN du har konfigurerat, eller engångskoden som skrivs i serverloggen om ingen är konfigurerad.')).toBeVisible();
+  // One message at a time: the first thing missing.
+  const error = page.getByRole('alert');
+  await page.getByRole('button', { name: 'Kom igång' }).click();
+  await expect(error).toHaveText('Namn måste fyllas i.');
   await page.getByLabel('Ditt namn').fill('Bo');
+  await page.getByRole('button', { name: 'Kom igång' }).click();
+  await expect(error).toHaveText('Organisationens namn måste fyllas i.');
   await page.getByLabel('Församlingens eller organisationens namn').fill('Stora Kyrkan');
+  await page.getByRole('button', { name: 'Kom igång' }).click();
+  await expect(error).toHaveText('Installationskoden måste fyllas i.');
   await page.getByLabel('Installationskod').fill(s.setupToken);
   await page.getByRole('button', { name: 'Kom igång' }).click();
   await expect(page.getByRole('button', { name: 'Logga in med Google' })).toHaveCount(0);

@@ -69,7 +69,7 @@ export function LivePanel({
           <span className="flex items-center gap-3">
             {collapsed && (
               <span className="block w-16 aspect-video rounded overflow-hidden">
-                <SlideView slide={pointer.black ? null : current} theme={theme} label={false} overlay={pointer.black ? null : overlay} />
+                <SlideView slide={current} theme={theme} label={false} overlay={overlay} black={pointer.black} />
               </span>
             )}
             <ChevronDownIcon className={`size-4 text-neutral-400 dark:text-neutral-500 transition-transform duration-300 ${collapsed ? 'rotate-180' : ''}`} />
@@ -84,7 +84,7 @@ export function LivePanel({
           <div className="overflow-hidden flex flex-col min-h-0">
             <div className="flex flex-col gap-3 min-h-0 px-1 -mx-1 grow overflow-y-auto">
               <div className="w-48 mx-auto lg:w-auto lg:mx-0 aspect-video rounded-lg overflow-hidden">
-                <SlideView slide={pointer.black ? null : current} theme={theme} label={false} overlay={pointer.black ? null : overlay} />
+                <SlideView slide={current} theme={theme} label={false} overlay={overlay} black={pointer.black} />
               </div>
               {/* Rensa only blanks, and is gone while the screen is black: a slide brings the picture back (LivePanel.razor). */}
               <div className={`mx-1 ${pointer.black ? 'invisible pointer-events-none' : ''}`}>

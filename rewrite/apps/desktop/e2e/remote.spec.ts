@@ -21,7 +21,7 @@ async function hostWithSecond(): Promise<{ owner: Desktop; other: Desktop }> {
   await createUser(host.page, 'Bo', 'bo@kyrkan.se');
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Bo');
-  await expect(second.page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+  await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
   return { owner: host, other: second };
 }
 
@@ -96,6 +96,36 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(secondApp.page.getByTestId('remote-state')).toHaveText('Ingen aktiv presentation just nu', { timeout: 5_000 });
 });
 
+test('a remote link with ?stage=true opens straight in the stage view, and the address follows the stage view (Presentation.razor)', async () => {
+  const { owner: hostApp, other: secondApp } = await hostWithSecond();
+  const page = hostApp.page;
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Sång A 1' }).click();
+  await (await remoteSwitch(page)).check();
+  const info = page.getByRole('dialog', { name: 'Fjärrstyr presentationen' });
+  await info.getByRole('button', { name: 'Kopiera länken' }).click();
+  const link = new URL(await info.getByLabel('Länk för fjärrstyrning').inputValue());
+  await info.getByRole('button', { name: 'Stäng' }).click();
+  const remote = secondApp.page;
+  await openPresentations(remote);
+  await expect(remote.getByRole('link', { name: 'Söndag' })).toBeVisible({ timeout: 5_000 });
+
+  await remote.goto(new URL(`${link.pathname}${link.search}&stage=true`, remote.url()).href);
+
+  const stage = remote.getByTestId('stage-view');
+  await expect(stage).toBeVisible({ timeout: 5_000 });
+  await expect(remote.getByText('Fjärrstyrningsläge – du styr en aktiv presentation')).toBeAttached();
+  await stage.getByRole('button', { name: 'Lämna scenläge' }).click();
+  await expect(stage).toHaveCount(0);
+  expect(new URL(remote.url()).searchParams.get('stage')).toBeNull();
+  await remote.getByRole('button', { name: 'Scenläge' }).click();
+  await expect(stage).toBeVisible();
+  expect(new URL(remote.url()).searchParams.get('stage')).toBe('true');
+});
+
 test('when the presenting computer drops out, the session freezes and someone else may end it (LIVE-R50)', async () => {
   const { owner: hostApp, other: secondApp } = await hostWithSecond();
   await createSong(hostApp.page, 'Sång A', [['Verse 1', 'A ett']]);
@@ -113,10 +143,15 @@ test('when the presenting computer drops out, the session freezes and someone el
   const card = hostApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
   await card.getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 5_000 });
   await expect(hostApp.page.getByRole('button', { name: 'Sång A 1' })).toHaveAttribute('aria-pressed', 'true');
+  // Bo switches remote control off before his computer drops out.
+  await (await remoteSwitch(secondApp.page)).uncheck();
+  await expect(hostApp.page.getByTestId('remote-state')).toHaveText('Fjärrstyrning är inte aktiverad av presentatören', { timeout: 5_000 });
 
+  // Gone wins over "inte aktiverad" (Presentation.razor), with the hint above the button.
   await secondApp.app.close();
   second = undefined; // closed already
   await expect(hostApp.page.getByTestId('remote-state')).toContainText('Datorn som presenterar har tappat kontakten', { timeout: 5_000 });
+  await expect(hostApp.page.getByText('Om datorn inte kommer tillbaka kan du avsluta presentationen härifrån.', { exact: false })).toBeVisible();
   await hostApp.page.getByRole('button', { name: 'Avsluta presentationen' }).click();
   await expect(hostApp.page.getByTestId('remote-state')).toHaveText('Ingen aktiv presentation just nu', { timeout: 5_000 });
 });
@@ -137,7 +172,7 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     await phone.goto(`http://${lan}:${host.port}/`);
     expect(await phone.evaluate(() => isSecureContext)).toBe(false); // as on a real phone over the LAN
     await pair(host.page, phone, 'Telefonen');
-    await expect(phone.getByTestId('status')).toContainText('Ansluten', { timeout: 10_000 });
+    await expect(phone.getByTestId('status')).toContainText('Synkad', { timeout: 10_000 });
 
     // A picture imported on the host reaches the phone: fetched and checked without Web Crypto.
     await openAdmin(host.page, 'Bilder');

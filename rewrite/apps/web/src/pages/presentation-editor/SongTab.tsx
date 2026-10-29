@@ -1,5 +1,5 @@
 import { searchSongs, songSlides, sortedArrangements } from '@gp/core';
-import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useData, useDb } from '../../db/react.tsx';
 import { arrangementsOf, getSong, listLabels, searchableSongs, songPartsOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
@@ -29,10 +29,20 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
   const toast = useToast();
   const songs = useData(searchableSongs, []);
   const [query, setQuery] = useState('');
+  // Search prepares each song's text once (about 0.1 ms a hymn): done here in small steps, so the first keystroke is not the one that waits.
+  useEffect(() => {
+    if (!songs) return;
+    let at = 0;
+    let timer = setTimeout(function step() {
+      searchSongs(songs.slice(at, (at += 200)), 'a');
+      if (at < songs.length) timer = setTimeout(step, 0);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [songs]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [arrangementId, setArrangementId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  // On a phone a tapped song opens its preview full screen, with the add button there (SongTab.razor).
+  // On a phone a tapped song opens its preview over the add dialog, with the add button there (SongTab.razor).
   const [fullScreen, setFullScreen] = useState(false);
   const search = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLUListElement>(null);
@@ -197,6 +207,7 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
                 theme={theme}
                 label={shownPreview.song.name}
                 slides={songSlides(shownPreview.song, shownPreview.parts, shownPreview.labels, shownPreview.arrangements, chosen)}
+                highlight={query}
               />
             </>
           )}
@@ -205,9 +216,10 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
       <div className="hidden md:block">
         <AddFooter hint={t('presentation.addHint', { key: ctrlLabel('Enter') })} name={selected?.name} label={selected ? t('presentation.addSong', { name: selected.name }) : undefined} onAdd={selected ? () => void add() : undefined} />
       </div>
+      {/* On a phone the preview covers the add dialog, a sheet over the dimmed page: the old dialog's transform made its `fixed inset-0` the dialog's box (SongTab.razor). */}
       {fullScreen && shownPreview && selected && (
         <div
-          className="md:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800"
+          className="md:hidden absolute inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800"
           role="dialog"
           aria-modal="true"
           aria-label={shownPreview.song.name}

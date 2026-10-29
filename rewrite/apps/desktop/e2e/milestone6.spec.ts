@@ -41,6 +41,16 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   // The preview has no credits, and the part label shows on the stage only.
   await expect(stage.getByTestId('slide-credits')).toHaveCount(0);
   await expect(stage.getByText('Chorus').first()).toBeVisible();
+  // As StageView.razor: the current part's label in capitals, every tile in the strip with its label, 110 px high.
+  await expect(stage.getByTestId('stage-current-label')).toHaveCSS('text-transform', 'uppercase');
+  const strip = stage.getByRole('list', { name: 'Delar' });
+  await expect(strip.getByRole('button', { name: 'Sång A 1' })).toContainText('Verse 1');
+  await expect(strip.getByRole('button', { name: 'Sång A 2' })).toContainText('Chorus');
+  expect(Math.abs((await strip.getByRole('button', { name: 'Sång A 1' }).locator('span').first().boundingBox())!.height - 110)).toBeLessThan(1);
+  // The current slide sized from the window as ComputeScales: 58 % of the width side by side, or the height left.
+  const view = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
+  const expected = Math.min((view.w - 48) * 0.58, ((view.h - 240) * 16) / 9, 1728);
+  expect(Math.abs((await stage.getByTestId('stage-current').boundingBox())!.width - expected)).toBeLessThan(1);
 
   // Rensa blacks the output and hides itself; picking a part brings it back.
   await stage.getByRole('button', { name: 'Rensa' }).click();

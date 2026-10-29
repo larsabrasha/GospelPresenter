@@ -215,7 +215,15 @@ export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) 
   useEffect(() => {
     if (missing) leave();
   }, [missing]);
-  if (!data) return null;
+  const Frame = onBack ? EmbeddedFrame : PageFrame;
+  const back = onBack ? { onBack } : { backHref: href({ page: 'songs' }) };
+  if (!data)
+    return (
+      <Frame>
+        <DetailHeader {...back} title="" className={onBack ? 'shrink-0' : 'px-5'} />
+        <div className="px-7 text-neutral-400">{t('common.loading')}</div>
+      </Frame>
+    );
   const { song, parts, arrangements, labels } = data;
   if (!song || song.deletedAt !== null) return null;
 
@@ -324,6 +332,7 @@ export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) 
           value={p.content}
           maxLength={5000}
           multiline
+          warnOnClash
           onSave={(content) => db.mutate('updateSongPart', { id: p.id, content })}
           onSaved={saved.show}
         />
@@ -336,11 +345,10 @@ export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) 
     );
   };
 
-  const Frame = onBack ? EmbeddedFrame : PageFrame;
   return (
     <Frame>
       {dialog}
-      <DetailHeader {...(onBack ? { onBack } : { backHref: href({ page: 'songs' }) })} title={song.name} saved={saved.node} className={onBack ? 'shrink-0' : 'px-5'} />
+      <DetailHeader {...back} title={song.name} saved={saved.node} className={onBack ? 'shrink-0' : 'px-5'} />
       <div className="space-y-4">
         <div className={`${CARD} p-5 space-y-4`}>
           {/* A blank name is not saved (spec 02). */}

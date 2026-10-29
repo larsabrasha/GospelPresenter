@@ -95,8 +95,9 @@ export function Audios({ role }: { role: Role }) {
         <div className={CARD.replace(' overflow-hidden', '')}>
           <div className="px-5 pt-4 pb-2 space-y-3">
             <h2 className="text-base/6 font-semibold">{t('audios.all', { n: audios?.length ?? 0 })}</h2>
-            {!!audios?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} compact />}
+            {!!audios?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact />}
           </div>
+          {!audios && <div className="px-5 py-4 text-neutral-400 text-sm">{t('audios.loading')}</div>}
           {audios && !audios.length && (
             <EmptySmall icon={<SpeakerWaveIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />} title={t('audios.empty')} text={t('audios.emptyText')} />
           )}

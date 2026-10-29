@@ -61,7 +61,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await createUser(page, 'Bo', 'bo@kyrkan.se');
   second = await launch({ server: host.base });
   await pair(page, second.page, 'Andra datorn', 'Bo');
-  await expect(second.page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+  await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
   await openAdmin(page, 'Ljud');
   await page.getByTestId('audio-file').setInputFiles({ name: 'Preludium.wav', mimeType: 'audio/wav', buffer: toneWav(20) });

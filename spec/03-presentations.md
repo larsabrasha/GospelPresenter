@@ -516,7 +516,8 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 - PRES-A9 Given "Lägg till fler" is checked, when the user clicks **Lägg till**, then the modal stays
   open and the tab is reset.
 - PRES-A10 Given the Add modal is open, when the user presses `a`, `Delete` or `?`, then nothing
-  happens behind the modal; Ctrl+3 switches to Bilder.
+  happens behind the modal; Ctrl+3 switches to Bilder. (The rewrite: `?` outside the search field opens
+  "Kortkommandon" with the modal's own group, "Lägg till", and not the page's; Lars, 2026-10-29.)
 - PRES-A11 Given the Bibeltexter tab, when the user types "Joh 3:16-18", then three verses are listed and
   the button reads "Lägg till Joh 3:16-18"; adding creates an item titled "Joh 3:16-18" whose slides
   carry superscript verse numbers.

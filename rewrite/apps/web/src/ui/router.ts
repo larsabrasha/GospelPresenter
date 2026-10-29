@@ -21,8 +21,11 @@ export type Route =
   | { page: 'templates' }
   /** A template in the presentation editor (`/templates/{id}`, spec 03 screen 2). */
   | { page: 'template'; id: string }
-  /** The live view: this window's own session, or with `remote` a session elsewhere (spec 04 §2), `session` naming which. */
-  | { page: 'live'; id: string; remote?: boolean; session?: string | null }
+  /**
+   * The live view: this window's own session, or with `remote` a session elsewhere (spec 04 §2), `session` naming which.
+   * `stage` opens it in the stage view (`?stage=true`, as Presentation.razor), so a phone's link or a reload lands there.
+   */
+  | { page: 'live'; id: string; remote?: boolean; session?: string | null; stage?: boolean }
   | { page: 'trash'; kind: TrashKind | null }
   | { page: 'users' }
   | { page: 'devices' }
@@ -101,8 +104,9 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   if (first === 'presentations' && id) return { page: 'presentation', id };
   if (first === 'templates' && id) return { page: 'template', id };
   if (first === 'live' && id) {
-    if (query.get('remote') !== '1') return { page: 'live', id };
-    return { page: 'live', id, remote: true, session: query.get('session') };
+    const stage = query.get('stage') === 'true' ? { stage: true } : {};
+    if (query.get('remote') !== '1') return { page: 'live', id, ...stage };
+    return { page: 'live', id, remote: true, session: query.get('session'), ...stage };
   }
   if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decode(hash.slice(1)) };
   if (first === 'signed-in') return { page: 'signedIn' };
@@ -131,9 +135,11 @@ export function href(r: Route): string {
     case 'template':
       return `/templates/${encodeURIComponent(r.id)}`;
     case 'live': {
-      const path = `/live/${encodeURIComponent(r.id)}`;
-      if (!r.remote) return path;
-      return r.session ? `${path}?remote=1&session=${encodeURIComponent(r.session)}` : `${path}?remote=1`;
+      const q = new URLSearchParams();
+      if (r.remote) q.set('remote', '1');
+      if (r.remote && r.session) q.set('session', r.session);
+      if (r.stage) q.set('stage', 'true');
+      return q.size ? `/live/${encodeURIComponent(r.id)}?${q}` : `/live/${encodeURIComponent(r.id)}`;
     }
     case 'trash':
       return r.kind ? `/trash?kind=${r.kind}` : '/trash';

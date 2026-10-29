@@ -6,6 +6,7 @@ import { Modal } from '../../ui/Dialog.tsx';
 import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon } from '../../ui/icons.tsx';
 import { PillTabs } from '../../ui/PillTabs.tsx';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
+import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
 import { AudioTab } from '../AudioTab.tsx';
 import { BibleTab } from '../BibleTab.tsx';
 import { ImageTab } from '../ImageTab.tsx';
@@ -32,8 +33,24 @@ const ORDER: Tab[] = ['songs', 'bible', 'images', 'audio', 'slides'];
  * hides them). It never closes after an add (D15). The new item goes after the selected one and
  * becomes selected. A song's pencil opens its editor here, with a way back to the list.
  */
+/** The add dialog's keys in the help dialog (AddItemModal.razor's scope); the editor's are off behind it. */
+const KEYS: ShortcutGroup = {
+  title: t('shortcuts.group.addItem'),
+  blocks: true,
+  lines: [
+    { keys: ['Ctrl+1'], text: t('shortcuts.tab.songs') },
+    { keys: ['Ctrl+2'], text: t('shortcuts.tab.bible') },
+    { keys: ['Ctrl+3'], text: t('shortcuts.tab.images') },
+    { keys: ['Ctrl+4'], text: t('shortcuts.tab.audio') },
+    { keys: ['Ctrl+5'], text: t('shortcuts.tab.slides') },
+    { keys: ['Ctrl+Enter'], text: t('shortcuts.add') },
+    { keys: ['ArrowDown'], text: t('shortcuts.moveThroughResults') },
+  ],
+};
+
 export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> & { toItemId?: string }) {
   // Adding pictures to an image item opens on Bilder.
+  useShortcutGroup(KEYS);
   const [tab, setTab] = useState<Tab>(toItemId ? 'images' : 'songs');
   const [editingSongId, setEditingSongId] = useState<string | null>(null);
   const onKey = useEffectEvent((e: KeyboardEvent) => {

@@ -1,5 +1,5 @@
 // The presentation on a phone (390×844), as the current app's: the running order in a drawer
-// from the left, the live panel as a floating box that folds, and Lägg till's song preview full screen.
+// from the left, the live panel as a floating box that folds, and Lägg till's song preview over the add dialog.
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
@@ -22,7 +22,7 @@ async function onScreen(l: Locator) {
   return box;
 }
 
-test('on a phone the running order is a drawer, Lägg till previews a song full screen, and the live panel floats and folds', async () => {
+test('on a phone the running order is a drawer, Lägg till previews a song over the dialog, and the live panel floats and folds', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -58,7 +58,7 @@ test('on a phone the running order is a drawer, Lägg till previews a song full 
   await page.mouse.click(370, 400);
   await expect(order).toBeHidden();
 
-  // Lägg till: the songs' preview is not beside the list; a tapped song opens it full screen.
+  // Lägg till: the songs' preview is not beside the list; a tapped song opens it over the dialog.
   await menu.click();
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
@@ -66,9 +66,10 @@ test('on a phone the running order is a drawer, Lägg till previews a song full 
   const preview = page.getByRole('dialog', { name: 'Sång B' });
   await expect(preview).toBeVisible();
   await expect(preview.getByRole('list', { name: 'Sång B' }).getByRole('listitem')).toHaveCount(1);
-  const full = await onScreen(preview);
-  expect(full.width).toBe(PHONE.width);
-  expect(full.height).toBe(PHONE.height);
+  // It covers the add dialog, a sheet over the dimmed page, not the whole screen (SongTab.razor).
+  const sheet = await onScreen(preview);
+  expect(sheet).toEqual((await picker.boundingBox())!);
+  expect(sheet.height).toBeLessThan(PHONE.height);
   // Escape (or ✕) closes the preview only; the add dialog stays.
   await page.keyboard.press('Escape');
   await expect(preview).toBeHidden();
@@ -103,8 +104,9 @@ test('on a phone the running order is a drawer, Lägg till previews a song full 
   await expect(panel.getByRole('button', { name: 'Avsluta' })).not.toBeInViewport();
   const content = page.locator(`[id="${await fold.getAttribute('aria-controls')}"]`);
   await expect(content).toHaveAttribute('inert');
+  // The fold is a 300 ms transition: wait for it to end before measuring.
+  await expect.poll(async () => (await panel.boundingBox())!.height).toBeLessThan(100);
   const folded = await onScreen(panel);
-  expect(folded.height).toBeLessThan(100);
   expect(folded.y + folded.height).toBeGreaterThan(PHONE.height - 30);
   await fold.click();
   await expect(panel.getByRole('button', { name: 'Avsluta' })).toBeInViewport();

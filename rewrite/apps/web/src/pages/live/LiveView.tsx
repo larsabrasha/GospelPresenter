@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react';
 import { useData, useShownOverlay } from '../../db/react.tsx';
+import { t } from '../../i18n.ts';
 import { getPresentation, itemsOf, listOverlays, themeOf } from '../../db/queries.ts';
 import type { AudioControl } from '../../live/audio.ts';
 import { slidesOf, type ItemSlides } from '../../live/live.ts';
@@ -7,6 +8,7 @@ import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { MediaReadiness } from '../../ui/MediaReadiness.tsx';
 import { usePageKeys } from '../../ui/shortcuts.ts';
+import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
 import { StageView } from '../StageView.tsx';
 import { ItemRow } from './ItemRow.tsx';
 import { LivePanel } from './LivePanel.tsx';
@@ -24,10 +26,43 @@ function useWide(): boolean {
   );
 }
 
+/** The live page's keys in the help dialog: ProPresenter's (Lars, 2026-10-29). */
+const KEYS: ShortcutGroup = {
+  title: t('shortcuts.group.live'),
+  lines: [
+    { keys: ['ArrowRight', ' ', 'PageDown'], text: t('shortcuts.nextSlide') },
+    { keys: ['ArrowLeft', 'PageUp'], text: t('shortcuts.previousSlide') },
+    { keys: ['ArrowDown'], text: t('shortcuts.nextItem') },
+    { keys: ['ArrowUp'], text: t('shortcuts.previousItem') },
+    { keys: ['B'], text: t('shortcuts.black') },
+  ],
+};
+
 /** The operator's view of a running presentation (spec 04): the owner's own, or a controller's. */
-export function LiveView({ id, live, audio, owner, link }: { id: string; live: LiveControl; audio: AudioControl; owner: { sessionId: string } | null; link: LiveLink }) {
+export function LiveView({
+  id,
+  live,
+  audio,
+  owner,
+  link,
+  stage: openInStage = false,
+}: {
+  id: string;
+  live: LiveControl;
+  audio: AudioControl;
+  owner: { sessionId: string } | null;
+  link: LiveLink;
+  stage?: boolean;
+}) {
   const pointer = useLivePointer(live);
-  const [stage, setStage] = useState(false);
+  const [stage, setStage] = useState(openInStage);
+  // The address says whether the stage view is open (`?stage=true`, as Presentation.razor), so a reload or a copied link opens it again.
+  useEffect(() => {
+    const url = new URL(location.href);
+    if (stage) url.searchParams.set('stage', 'true');
+    else url.searchParams.delete('stage');
+    if (url.href !== location.href) history.replaceState(history.state, '', url);
+  }, [stage]);
   // Below `lg` the panel floats at the bottom right and folds to its caption (LivePanel.razor's Collapsible).
   const [folded, setFolded] = useState(false);
   const wide = useWide();
@@ -76,6 +111,7 @@ export function LiveView({ id, live, audio, owner, link }: { id: string; live: L
   // The keys follow ProPresenter (Lars, 2026-10-29): → Space PageDown the next slide, ← PageUp the
   // previous, ↓ ↑ the next or previous item; `b` blanks, as Rensa. Not in a field or behind a
   // dialog (ui/shortcuts.ts); the stage view has its own.
+  useShortcutGroup(KEYS);
   usePageKeys((e) => {
     if (stage || e.ctrlKey || e.metaKey || e.altKey) return;
     if (['ArrowRight', 'PageDown', ' '].includes(e.key)) step(1);

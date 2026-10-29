@@ -21,6 +21,8 @@ export interface DbStatus {
   storage: string;
   /** The poke socket is open, so changes arrive within a second. */
   connected: boolean;
+  /** A sync with the server is under way. */
+  syncing: boolean;
   pending: number;
   updateRequired: boolean;
   /** The server refused this device's credentials: sync has stopped and local edits wait (SYNC-A15). */

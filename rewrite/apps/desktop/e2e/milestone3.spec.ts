@@ -22,7 +22,7 @@ test('sign-in: Google in the system browser; signing out and in again; a strange
   const page = host.page;
   await setUpHost(host);
   // The host window's poke socket is open: its requests carry the host token, the socket's too.
-  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/);
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/);
   await createSong(page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
 
   await signOut(page);
@@ -52,7 +52,7 @@ test('sign-in: Google in the system browser; signing out and in again; a strange
   host = await launch({ dataDir, port });
   await expect(host.page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
   await expect(host.page.getByRole('heading', { name: 'Logga in' })).toHaveCount(0);
-  await expect(host.page.getByTestId('status')).toHaveText(/^Ansluten$/);
+  await expect(host.page.getByTestId('status')).toHaveText(/^Synkad$/);
   expect(google.tokens.ok).toBe(before);
   expect(host.events.filter((e) => e.event === 'blocked-request')).toEqual([]); // the window itself never left for Google
 });
@@ -107,7 +107,7 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
   await device.getByRole('button', { name: 'Anslut igen' }).click();
   await pair(host.page, device, 'Andra datorn igen', 'Cia');
   await expect(device.getByTestId('me')).toHaveAccessibleName(/Cia/);
-  await expect(device.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(device.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await openAdmin(host.page, 'Sånger');
   await host.page.getByRole('link', { name: 'Blott en dag' }).click();
   await expect(host.page.getByLabel('Delar 2', { exact: true })).toHaveValue('Ett ögonblick i sänder');
@@ -138,7 +138,7 @@ test('membership: a removed user is signed out on their device; a demoted Admin 
   await expect(host.page.getByRole('list', { name: 'Användare' }).getByText('Dan')).toHaveCount(0);
   await createSong(second.page, 'Efter borttagningen', [['Verse 1', 'Text']]);
   await expect(second.page.getByTestId('sync-warnings')).toContainText('Logga in igen för att synka', { timeout: 10_000 });
-  await second.page.getByRole('button', { name: 'Logga in igen' }).click();
+  await second.page.getByTestId('sync-warnings').getByRole('button', { name: 'Logga in igen' }).click();
   await expect(second.page.getByRole('heading', { name: 'Anslut till värddatorn' })).toBeVisible();
   await expect(second.page.getByText('Be någon vid värddatorn om en ny kod')).toBeVisible();
   // Dan cannot be chosen any more.
@@ -158,6 +158,11 @@ test('invites on the host: the invited person signs in with Google here, and the
   await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
   await host.page.getByRole('dialog', { name: 'Inbjudningslänk' }).getByRole('button', { name: 'Logga in som Eva här' }).click();
   await expect(host.page.getByRole('heading', { name: 'Välkommen Eva!' })).toBeVisible();
+  // InvitePage.razor: the organisation, "Välj hur du vill logga in", the first way and the rest behind "Fler alternativ".
+  await expect(host.page.getByTestId('invite-org')).toHaveText('Du har bjudits in till Lilla Kyrkan.');
+  await expect(host.page.getByText('Välj hur du vill logga in')).toBeVisible();
+  await expect(host.page.getByRole('button', { name: 'Skapa passkey' })).toHaveCount(0);
+  await expect(host.page.getByRole('button', { name: 'Fler alternativ' })).toBeVisible();
   await host.page.getByRole('button', { name: 'Logga in med Google' }).click();
   const eva = { sub: 'google-eva', email: 'eva.private@gmail.com' };
   await browserSignIn(host, eva);
@@ -165,4 +170,29 @@ test('invites on the host: the invited person signs in with Google here, and the
   await signOut(host.page);
   await signInWithGoogle(host, eva);
   await expect(host.page.getByTestId('me')).toHaveAccessibleName('Eva · Lilla Kyrkan');
+});
+
+test('creating a user: every role is described, and a bad or taken address is said under its field before anyone is created', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createUser(page, 'Eva', 'eva@kyrkan.se');
+  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Skapa användare' });
+  // The roles this SuperAdmin may give, each with its bold label (Users.razor).
+  await expect(dialog.getByTestId('role-descriptions').locator('div')).toHaveText([
+    'Användare: Kan skapa presentationer och hantera sånger och overlays.',
+    'Admin: Allt en användare kan göra, plus hantera mallar och användare.',
+    'Superadmin: Full åtkomst, inklusive hantering av organisationer.',
+  ]);
+  await expect(dialog.getByTestId('role-descriptions').locator('.font-medium')).toHaveText(['Användare:', 'Admin:', 'Superadmin:']);
+  await dialog.getByLabel('Namn').fill('Eva igen');
+  await dialog.getByLabel('E-post').fill('inte-en-adress');
+  await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Ogiltig e-postadress');
+  await dialog.getByLabel('E-post').fill('eva@kyrkan.se');
+  await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('E-postadressen används redan av en annan användare');
+  await dialog.getByRole('button', { name: 'Avbryt' }).click();
+  await expect(page.getByRole('list', { name: 'Användare' }).getByRole('listitem')).toHaveCount(2);
 });

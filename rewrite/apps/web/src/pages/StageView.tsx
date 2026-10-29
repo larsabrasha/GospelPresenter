@@ -13,6 +13,15 @@ import { SlideView } from '../ui/SlideView.tsx';
 import { AudioPlayer } from './live/AudioPlayer.tsx';
 import { OverlayToggles } from './OverlayToggles.tsx';
 import { stageKey } from './stageKeys.ts';
+import { helpOpen, useShortcutGroup, type ShortcutGroup } from '../ui/ShortcutHelp.tsx';
+
+/*
+ * The sizes of StageView.razor's ComputeScales, from the window: 240 px of its height and 48 px of its width are the
+ * bars, strip and gaps. Side by side (from 640 px) the current slide takes 58 % of the width, the next 36 %; stacked on a
+ * phone, 62 % and 30 % of the height. At most 0.9 and 0.5 of the 1920 px canvas. The strip's tiles are 110 px high.
+ */
+const CURRENT_WIDTH = 'w-[min(100vw_-_48px,(100dvh_-_240px)_*_0.62_*_16_/_9,1728px)] sm:w-[min((100vw_-_48px)_*_0.58,(100dvh_-_240px)_*_16_/_9,1728px)]';
+const NEXT_WIDTH = 'w-[min((100vw_-_48px)_*_0.85,(100dvh_-_240px)_*_0.3_*_16_/_9,960px)] sm:w-[min((100vw_-_48px)_*_0.36,(100dvh_-_240px)_*_0.85_*_16_/_9,960px)]';
 
 /**
  * Scenläge (spec 04 §3): a full-screen dark view for a worship leader or a
@@ -20,6 +29,18 @@ import { stageKey } from './stageKeys.ts';
  * ends (LIVE-R41); picking an item puts its first part live. The bar's
  * Overlays button has a dot while one is on, and opens their toggles.
  */
+/** The stage view's keys in the help dialog (stageKeys.ts); the live page's are off while it is open. */
+const KEYS: ShortcutGroup = {
+  title: t('shortcuts.group.stage'),
+  blocks: true,
+  lines: [
+    { keys: ['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'], text: t('shortcuts.nextSlide') },
+    { keys: ['ArrowLeft', 'ArrowUp', 'PageUp'], text: t('shortcuts.previousSlide') },
+    { keys: ['.', 'B'], text: t('shortcuts.black') },
+    { keys: ['Escape'], text: t('shortcuts.leaveStage') },
+  ],
+};
+
 export function StageView({
   items,
   slides,
@@ -37,6 +58,7 @@ export function StageView({
   audio: AudioControl;
   onLeave: () => void;
 }) {
+  useShortcutGroup(KEYS);
   const pointer = useLivePointer(live);
   const sound = useAudio(audio);
   const item = items.find((i) => i.id === pointer.itemId) ?? null;
@@ -86,6 +108,7 @@ export function StageView({
   const tabbed = useRef(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (helpOpen()) return; // the keyboard help is open above the stage: its keys are its own
       if (e.key === 'Tab') tabbed.current = true;
       const el = e.target instanceof HTMLElement ? e.target : null;
       const target = el && { tagName: el.tagName, isContentEditable: el.isContentEditable, role: el.getAttribute('role'), tabbedTo: tabbed.current };
@@ -184,64 +207,63 @@ export function StageView({
         </Sheet>
       )}
       <div className="flex-1 min-h-0 flex flex-col sm:flex-row gap-3 p-3 overflow-hidden">
-        <section className="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-center gap-2">
-          <div className="flex-1 min-h-0 w-full flex items-center justify-center [container-type:size]">
-            <div className="flex flex-col gap-2 w-[min(100cqw,calc((100cqh-1.5rem)*16/9))]">
-              <h2 className={caption}>{t('stage.nowShowing')}</h2>
-              <div className="relative aspect-video rounded-lg shadow-2xl overflow-hidden">
-                <SlideView slide={current} theme={theme} label={false} credits={false} overlay={pointer.black ? null : overlay} />
-                {/* An audio item: its icon and its player, so it is played, paused and faded from here. */}
-                {audioItem && item ? (
-                  <div className="absolute inset-0 z-[3] flex flex-col items-center justify-center gap-3 p-4 text-neutral-400">
+        <section className="flex-1 min-h-0 min-w-0 flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <h2 className={`${caption} self-start`}>{t('stage.nowShowing')}</h2>
+            <div className={`relative aspect-video rounded-lg shadow-2xl overflow-hidden ${CURRENT_WIDTH}`} data-testid="stage-current">
+              <SlideView slide={current} theme={theme} label={false} credits={false} overlay={pointer.black ? null : overlay} />
+              {/* An audio item: its icon and its player, so it is played, paused and faded from here. */}
+              {audioItem && item ? (
+                <div className="absolute inset-0 z-[3] flex flex-col items-center justify-center gap-3 p-4 text-neutral-400">
+                  <SpeakerOutlineIcon className="size-12 opacity-70" />
+                  {sound?.playing && sound.itemId === item.id && <p className="text-xs">{t('stage.audioPlaying')}</p>}
+                  <AudioPlayer control={audio} itemId={item.id} name={audioItem.fileName} />
+                </div>
+              ) : (
+                pointer.black &&
+                sound?.playing && (
+                  <div className="absolute inset-0 z-[3] flex flex-col items-center justify-center gap-2 text-neutral-400 pointer-events-none">
                     <SpeakerOutlineIcon className="size-12 opacity-70" />
-                    {sound?.playing && sound.itemId === item.id && <p className="text-xs">{t('stage.audioPlaying')}</p>}
-                    <AudioPlayer control={audio} itemId={item.id} name={audioItem.fileName} />
+                    <p className="text-xs">{t('stage.audioPlaying')}</p>
                   </div>
-                ) : (
-                  pointer.black &&
-                  sound?.playing && (
-                    <div className="absolute inset-0 z-[3] flex flex-col items-center justify-center gap-2 text-neutral-400 pointer-events-none">
-                      <SpeakerOutlineIcon className="size-12 opacity-70" />
-                      <p className="text-xs">{t('stage.audioPlaying')}</p>
-                    </div>
-                  )
-                )}
-                {current?.label && (
-                  <span
-                    className="absolute top-2 right-2 z-[3] text-xs font-semibold uppercase tracking-wide rounded-full px-3 py-1 pointer-events-none shadow-md text-white"
-                    style={{ background: current.label.color }}
-                  >
-                    {current.label.text}
-                  </span>
-                )}
-              </div>
+                )
+              )}
+              {current?.label && (
+                <span
+                  className="absolute top-2 right-2 z-[3] text-xs font-semibold uppercase tracking-wide rounded-full px-3 py-1 pointer-events-none shadow-md text-white"
+                  style={{ background: current.label.color }}
+                  data-testid="stage-current-label"
+                >
+                  {current.label.text}
+                </span>
+              )}
             </div>
+            <AppButton
+              variant="plain"
+              className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shrink-0 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 mt-1 ${pointer.black ? 'invisible' : ''}`}
+              tabIndex={pointer.black ? -1 : 0}
+              title={t('stage.clear')}
+              onClick={() => live.set({ black: true })}
+            >
+              <CloseIcon className="size-4" />
+              <span>{t('stage.clear')}</span>
+            </AppButton>
           </div>
-          <AppButton
-            variant="plain"
-            className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shrink-0 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 mt-1 ${pointer.black ? 'invisible' : ''}`}
-            tabIndex={pointer.black ? -1 : 0}
-            title={t('stage.clear')}
-            onClick={() => live.set({ black: true })}
-          >
-            <CloseIcon className="size-4" />
-            <span>{t('stage.clear')}</span>
-          </AppButton>
         </section>
         <section className="shrink-0 flex flex-col items-center sm:justify-center sm:w-2/5 lg:w-1/3">
           <h2 className={`${caption} mb-2 self-start`}>{t('stage.next')}</h2>
           {next ? (
             <AppButton
               variant="plain"
-              className="block w-full aspect-video shrink-0 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-sky-400 transition-all p-0"
+              className={`block aspect-video shrink-0 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-sky-400 transition-all p-0 ${NEXT_WIDTH}`}
               aria-label={t('stage.next')}
               onClick={() => go(1)}
             >
-              <SlideView slide={next} theme={theme} label={false} credits={false} />
+              <SlideView slide={next} theme={theme} credits={false} />
             </AppButton>
           ) : (
             // Nothing after it: an empty box (StageView.razor).
-            <div className="w-full aspect-video" />
+            <div className={`aspect-video shrink-0 ${NEXT_WIDTH}`} />
           )}
         </section>
       </div>
@@ -259,17 +281,13 @@ export function StageView({
                     aria-label={`${item!.title} ${i + 1}`}
                     aria-pressed={isLive}
                     onClick={() => show(item!.id, i)}
-                    className={`block w-48 cursor-pointer rounded-md transition-opacity p-0.5 outline-3 ${isLive ? 'outline-red-500' : held ? 'outline-transparent ring-2 ring-sky-400' : 'outline-transparent opacity-70 hover:opacity-100'}`}
+                    className={`block cursor-pointer rounded-md transition-opacity p-0.5 outline-3 ${isLive ? 'outline-red-500' : held ? 'outline-transparent ring-2 ring-sky-400' : 'outline-transparent opacity-70 hover:opacity-100'}`}
                   >
-                    <span className="block aspect-video rounded overflow-hidden">
-                      <SlideView slide={slide} theme={theme} label={false} credits={false} />
+                    <span className="block h-[110px] aspect-video rounded overflow-hidden">
+                      <SlideView slide={slide} theme={theme} credits={false} />
                     </span>
                   </AppButton>
-                  {isLive && (
-                    <LiveBadge small>
-                      {t('stage.live')}
-                    </LiveBadge>
-                  )}
+                  {isLive && <LiveBadge small>{t('stage.live')}</LiveBadge>}
                 </li>
               );
             })}

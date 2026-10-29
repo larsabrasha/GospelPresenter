@@ -106,8 +106,8 @@ export function SignInChoices({
   );
 }
 
-/** The text that says how to sign in, for what the server offers. */
-export function methodsText(methods: Pick<AuthState, 'google' | 'passkeys'> | null, kind: 'invite' | 'setup'): string {
+/** Setup's text that says how the superuser will sign in, for what the server offers. */
+export function methodsText(methods: Pick<AuthState, 'google' | 'passkeys'> | null, kind: 'setup'): string {
   const { google, passkeys } = methods ?? FALLBACK;
   const which = google && passkeys ? 'both' : passkeys ? 'passkey' : 'google';
   return t(`${kind}.methods.${which}`);
@@ -129,7 +129,7 @@ export function SignIn({ error, methods, onSignedIn }: { error: string | null; m
       initialError={error}
       centered
       firstOnly
-      footer={version && <p className="pt-12 text-xs text-neutral-400 dark:text-neutral-500 text-center">{version}</p>}
+      footer={version && <p className="pt-16 text-xs text-neutral-400 dark:text-neutral-500 text-center">{version}</p>}
       onSignedIn={onSignedIn}
     >
       {window.gpDesktop && <p className="text-xs text-neutral-400 dark:text-neutral-500 leading-relaxed text-center">{t('auth.onceOnline')}</p>}

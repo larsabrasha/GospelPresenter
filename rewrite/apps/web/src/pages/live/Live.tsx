@@ -15,6 +15,7 @@ export function Live({
   sessionId,
   remote,
   session,
+  stage,
 }: {
   id: string;
   live: LiveControl;
@@ -23,7 +24,9 @@ export function Live({
   sessionId: string;
   remote?: boolean;
   session?: string | null;
+  /** Opened in the stage view (`?stage=true`). */
+  stage?: boolean;
 }) {
-  if (remote) return <RemoteLive id={id} link={link} ownSessionId={sessionId} wanted={session ?? null} />;
-  return <LiveView id={id} live={live} audio={audio} owner={{ sessionId }} link={link} />;
+  if (remote) return <RemoteLive id={id} link={link} ownSessionId={sessionId} wanted={session ?? null} stage={!!stage} />;
+  return <LiveView id={id} live={live} audio={audio} owner={{ sessionId }} link={link} stage={!!stage} />;
 }

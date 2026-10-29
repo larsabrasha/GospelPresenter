@@ -123,8 +123,8 @@ test('capture every page', async () => {
   ] as const) {
     await page.goto(`${host.base}/admin/overlays`);
     await page.getByRole('button', { name: 'Skapa', exact: true }).click();
-    await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Titel').fill(title);
-    await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Titel').press('Enter');
+    await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').fill(title);
+    await page.getByRole('dialog', { name: 'Skapa overlay' }).getByLabel('Namn').press('Enter');
     await page.getByLabel('Textinnehåll').fill(content);
     await page.getByLabel('Textinnehåll').blur();
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
@@ -368,7 +368,7 @@ test('capture every page', async () => {
           if (await p.getByRole('listitem', { name }).count()) continue;
           await p.getByRole('button', { name: add, exact: true }).first().click();
           await p.getByRole('dialog').getByLabel('Namn').fill(name);
-          await p.getByRole('dialog').getByRole('button', { name: 'Skapa' }).click();
+          await p.getByRole('dialog').getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
           await p.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
         }
       },
@@ -421,7 +421,7 @@ test('capture every page', async () => {
       if (await page.getByRole('listitem', { name }).count()) continue;
       await page.getByRole('button', { name: add, exact: true }).first().click();
       await page.getByRole('dialog').getByLabel('Namn').fill(name);
-      await page.getByRole('dialog').getByRole('button', { name: 'Skapa' }).click();
+      await page.getByRole('dialog').getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
       await page.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
     }
     await page.getByRole('button', { name: 'Visa länk', exact: true }).first().click();

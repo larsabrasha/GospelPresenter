@@ -49,7 +49,21 @@ interface Prepared {
   allFolded: string;
 }
 
+/**
+ * Each song's lowered and folded texts, kept while the song object lives: the
+ * normalising is most of a search's time (about 0.1 ms a hymn), and a library
+ * is searched again on every keystroke. A song object is never changed in
+ * place; a changed song is a new object.
+ */
+const prepared = new WeakMap<SearchableSong, Prepared>();
+
 function prepare(s: SearchableSong): Prepared {
+  let p = prepared.get(s);
+  if (!p) prepared.set(s, (p = prepareNow(s)));
+  return p;
+}
+
+function prepareNow(s: SearchableSong): Prepared {
   const title = lower(s.name).trim();
   const first = lower(s.firstPart);
   const all = lower([s.name, s.author ?? '', s.lyrics].join('\n'));

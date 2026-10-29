@@ -1,8 +1,9 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CANVAS, CLASSIC, type Slide, type Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
 import type { ShownOverlay } from '../db/queries.ts';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
+import { Highlight } from './Highlight.tsx';
 
 export const STAGE_WIDTH = CANVAS.width;
 export const STAGE_HEIGHT = CANVAS.height;
@@ -53,6 +54,32 @@ function OverlayLayer({ overlay, media }: { overlay: ShownOverlay; media: Media 
   );
 }
 
+/** How long the black screen takes to fade in or out (LiveDisplay.razor's `duration-500`). */
+export const BLACK_FADE_MS = 500;
+
+/**
+ * What a stage draws while `black` fades in: the slide and overlay of the last
+ * render that was not black, for BLACK_FADE_MS, then nothing, so a blacked-out
+ * output holds no slide. Not black, what it is given.
+ */
+function useBlackFade(black: boolean, slide: Slide | null, overlay: ShownOverlay | null): { slide: Slide | null; overlay: ShownOverlay | null } {
+  const [last, setLast] = useState({ slide, overlay });
+  const [fading, setFading] = useState(false);
+  const [wasBlack, setWasBlack] = useState(black);
+  if (black !== wasBlack) {
+    setWasBlack(black);
+    setFading(black);
+  }
+  if (!black && (last.slide !== slide || last.overlay !== overlay)) setLast({ slide, overlay });
+  useEffect(() => {
+    if (!fading) return;
+    const timer = setTimeout(() => setFading(false), BLACK_FADE_MS);
+    return () => clearTimeout(timer);
+  }, [fading]);
+  if (!black) return { slide, overlay };
+  return fading ? last : { slide: null, overlay: null };
+}
+
 /**
  * One slide on a fixed 1920×1080 stage, scaled to fit its container (ADR 0007,
  * decision 8), and centred in a box that is not 16:9, as the output window
@@ -62,14 +89,19 @@ function OverlayLayer({ overlay, media }: { overlay: ShownOverlay; media: Media 
  * be. The part label is for the operator: tiles show it, outputs never do (LIVE-R20). The stage view draws its preview without credits (spec 04 §3).
  * `overlay` is drawn above the slide, also when no slide is selected.
  * `media` gives a picture's URL on a page with no database (a paired screen).
+ * `highlight` marks a search's words in a song's text: the add dialog's preview only, never an output.
+ * `black`, given on outputs and the live preview, is the black screen: a black cover above the slide and the
+ * overlay that fades in and out over 500 ms (LiveDisplay.razor); what was shown stays under it while it fades in.
  */
 export function SlideView({
-  slide,
+  slide: given,
   theme = CLASSIC,
   label = true,
   credits = true,
-  overlay = null,
+  overlay: givenOverlay = null,
   media,
+  highlight,
+  black,
 }: {
   slide: Slide | null;
   theme?: Theme;
@@ -77,7 +109,11 @@ export function SlideView({
   credits?: boolean;
   overlay?: ShownOverlay | null;
   media?: (hash: string) => string;
+  highlight?: string;
+  black?: boolean;
 }) {
+  const shown = useBlackFade(!!black, given, givenOverlay);
+  const { slide, overlay } = black === undefined ? { slide: given, overlay: givenOverlay } : shown;
   const box = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState({ scale: 0, x: 0, y: 0 });
   useLayoutEffect(() => {
@@ -108,8 +144,9 @@ export function SlideView({
             ) : (
               <>
                 <div className="slide-content">
-                  <div className="slide-text" data-testid="slide-text" style={mainCss(theme, slide.kind)}>
-                    {slide.verses ? <BibleText slide={slide} /> : slide.text}
+                  {/* Bible text flows as HTML does, with no kept line breaks (BibleTextSlide.razor); a song keeps its lines. */}
+                  <div className="slide-text" data-testid="slide-text" style={slide.verses ? { ...mainCss(theme, slide.kind), whiteSpace: 'normal' } : mainCss(theme, slide.kind)}>
+                    {slide.verses ? <BibleText slide={slide} /> : highlight ? <Highlight text={slide.text} query={highlight} /> : slide.text}
                   </div>
                 </div>
                 {credits && slide.credits && (
@@ -122,6 +159,9 @@ export function SlideView({
           </>
         )}
         {overlay && <OverlayLayer overlay={overlay} media={media} />}
+        {black !== undefined && (
+          <div className={`absolute inset-0 z-60 bg-black transition-opacity duration-500 ease-in-out ${black ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} data-testid="black-cover" />
+        )}
       </div>
     </div>
   );

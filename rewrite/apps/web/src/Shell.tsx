@@ -3,11 +3,12 @@ import { can, type Me } from '@gp/core';
 import { api } from './auth/api.ts';
 import { forgetSession, saveDeviceToken } from './auth/session.ts';
 import { REPAIR_KEY } from './Boot.tsx';
-import { useDbStatus } from './db/react.tsx';
+import { useDb, useDbStatus } from './db/react.tsx';
 import { t, type TextKey } from './i18n.ts';
 import { AppButton } from './ui/AppButton.tsx';
 import { Dropdown, MENU_ITEM } from './ui/Dropdown.tsx';
 import {
+  ArrowPathIcon,
   BarsIcon,
   BookOpenIcon,
   CloudCheckIcon,
@@ -30,6 +31,7 @@ import {
   WarningIcon,
 } from './ui/icons.tsx';
 import { href, type Route } from './ui/router.ts';
+import { useToast } from './ui/Toast.tsx';
 
 // The frame around the signed-in app, as the current app's Layout/MainLayout.razor
 // and Layout/AdminLayout.razor: a bar at the top, and a menu at the side of the admin pages.
@@ -55,37 +57,73 @@ function pairAgain() {
   location.reload();
 }
 
+/** How long a sync runs before the spinner shows (SyncStatusIndicator.razor's SpinnerDelay): a device syncs within a moment of every save. */
+const SPINNER_DELAY_MS = 1500;
+
+/** How many refused changes this page has told of; the worker's list only grows, and outlives a remount of the bar. */
+let rejectionsToasted = 0;
+
 /**
  * How the sync stands, as a cloud in the bar (Components/SyncStatusIndicator.razor):
- * synced, offline, or a warning, with a dot while changes wait. The words
- * are there for screen readers, and are what the tests read.
+ * synced, offline, or a warning, with a dot while changes wait, and a spinner
+ * once a sync has run for 1.5 s. A click syncs now. A change the server
+ * refused is told in a toast. The words are there for screen readers, and
+ * are what the tests read.
  */
 function SyncStatus() {
+  const db = useDb();
   const s = useDbStatus();
+  const toast = useToast();
+  const syncing = s?.syncing ?? false;
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    if (!syncing) return;
+    const timer = setTimeout(() => setRevealed(true), SPINNER_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      setRevealed(false);
+    };
+  }, [syncing]);
+  const spinning = syncing && revealed;
+  const rejected = s?.rejected.length ?? 0;
+  useEffect(() => {
+    if (rejected <= rejectionsToasted) return;
+    rejectionsToasted = rejected;
+    toast(t('status.rejected'), 'warning');
+  }, [rejected, toast]);
   if (!s) return null;
-  const warn = s.authError === 'device-not-paired' || s.authError === 'unauthenticated' || s.authError === 'not-a-member' || s.rejected.length > 0;
-  const connection = t(s.connected ? 'status.connected' : 'status.offline');
+  const authNeeded = s.authError !== null;
+  const warn = authNeeded || s.updateRequired;
+  const state = t(authNeeded ? 'status.authNeeded' : s.updateRequired ? 'status.error' : syncing ? 'status.syncing' : s.connected ? 'status.idle' : 'status.offline');
   const pending = s.pending > 0 ? t('status.pending', { n: s.pending }) : null;
   return (
-    <div data-testid="status" className="relative size-8 flex items-center justify-center" title={[connection, pending].filter(Boolean).join(' · ')}>
-      {warn ? (
+    <AppButton
+      variant="icon"
+      data-testid="status"
+      className="relative"
+      title={[state, pending, t('status.syncNow')].filter(Boolean).join(' · ')}
+      onClick={() => void db.syncNow()}
+    >
+      {spinning ? (
+        <ArrowPathIcon className="size-5 animate-spin text-sky-500" />
+      ) : warn ? (
         <WarningIcon className="size-5 text-amber-500" />
       ) : s.connected ? (
         <CloudCheckIcon className="size-5 text-neutral-400 dark:text-neutral-500" />
       ) : (
         <CloudOffIcon className="size-5 text-neutral-400 dark:text-neutral-500" />
       )}
-      {pending && <span className="absolute top-0.5 right-0.5 size-2.5 rounded-full bg-sky-500" />}
-      <span className="sr-only">{connection}</span>
+      {pending && !spinning && <span className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-sky-500" />}
+      <span className="sr-only">{state}</span>
       {pending && <span className="sr-only">{pending}</span>}
-    </div>
+    </AppButton>
   );
 }
 
 /**
- * What needs the user's attention (sign in again, pair again, a refused
- * change, data only in memory), in a strip under the bar until it is dealt
- * with. In the page's flow, so it never covers a button.
+ * What needs the user's attention (sign in again, pair again, data only in
+ * memory), in a strip under the bar until it is dealt with. In the page's
+ * flow, so it never covers a button.
  */
 function SyncWarnings() {
   const s = useDbStatus();
@@ -110,8 +148,6 @@ function SyncWarnings() {
         </AppButton>
       </>,
     );
-  const last = s?.rejected.at(-1);
-  if (last) warnings.push(t('status.rejected', { error: last.error }));
   if (!warnings.length) return null;
   return (
     <div data-testid="sync-warnings" className="shrink-0 px-4 py-2 space-y-1 bg-amber-50 dark:bg-amber-950/40 border-b-[0.5px] border-amber-200 dark:border-amber-900 text-sm text-neutral-800 dark:text-neutral-100">

@@ -90,7 +90,7 @@ test('the second client keeps working while the host is down, and its edits land
   const port = testPort();
   const [first, other] = await hostAndSecond(port);
   await createSong(other.page, 'Blott en dag', [['Verse 1', 'Blott en dag']]);
-  await expect(other.page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+  await expect(other.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
   // The host goes away. The second client keeps editing, and says what is waiting.
   const hostData = first.dataDir;
@@ -106,7 +106,16 @@ test('the second client keeps working while the host is down, and its edits land
   // Its pairing and its session survive the restart; the host's own window is still signed in.
   host = await launch({ port, dataDir: hostData });
   await host.page.getByTestId('status').waitFor();
-  await expect(other.page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(other.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await host.page.getByRole('link', { name: 'Blott en dag' }).click();
   await expect(host.page.getByLabel('Delar 2', { exact: true })).toHaveValue('Ett ögonblick i sänder');
+});
+
+test('Mina inställningar says the app\'s version under "Om" (Settings.razor)', async () => {
+  host = await launch();
+  await setUpHost(host);
+  await host.page.getByTestId('me').click();
+  await host.page.getByRole('menuitem', { name: 'Mina inställningar' }).click();
+  await expect(host.page.getByRole('heading', { name: 'Om' })).toBeVisible();
+  await expect(host.page.getByTestId('app-version')).toHaveText(/^Version [0-9a-f]{7}$/);
 });

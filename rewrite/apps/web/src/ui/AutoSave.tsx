@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { t } from '../i18n.ts';
+import { AppButton } from './AppButton.tsx';
 import { Debounced, SaveBaseline } from './debounce.ts';
 import { FloatingInput, FloatingTextarea } from './Floating.tsx';
 import { TickIcon } from './icons.tsx';
@@ -66,6 +67,9 @@ export function useSavedIndicator(): { node: ReactNode; show: () => void } {
  * the field then shows the stored value again once the user leaves it.
  * `onSaved` hears of each write that succeeded; a refused write shows
  * "Kunde inte spara", and the field keeps what the user typed.
+ * With `warnOnClash` (a song part, D18), a stored value that changes from elsewhere while the user is typing in
+ * the field, to something else than they have, stops the saving and shows a warning with the other text, and the
+ * choice to keep theirs (written at once) or take the other.
  */
 export function AutoSaveField({
   label,
@@ -73,6 +77,9 @@ export function AutoSaveField({
   onSave,
   onSaved,
   multiline,
+  warnOnClash,
+  rows = 8,
+  showLabel,
   className,
   maxLength,
   type,
@@ -84,6 +91,12 @@ export function AutoSaveField({
   onSave: (v: string) => Promise<unknown> | undefined;
   onSaved?: () => void;
   multiline?: boolean;
+  /** Warns when another device changes the value while the user types in it (D18). */
+  warnOnClash?: boolean;
+  /** A multiline field's height in rows. */
+  rows?: number;
+  /** Shows a multiline field's label in the box, as other fields do; a part's text has none. */
+  showLabel?: boolean;
   className?: string;
   /** The field's limits (AppConstraints): its length, and for a number its type and range. */
   maxLength?: number;
@@ -100,6 +113,11 @@ export function AutoSaveField({
   // Whether `onSave` turned down the last value; read after a flush, so refs rather than state.
   const refused = useRef(false);
   const hasFocus = useRef(false);
+  // The values this field wrote since it got focus, which come back as the stored value and are no clash;
+  // whether the user typed since; and the other text while a clash waits for the user's choice.
+  const [own] = useState(() => new Set<string>());
+  const [typed, setTyped] = useState(false);
+  const [clash, setClash] = useState<string | null>(null);
   useEffect(() => {
     saver.use(
       (v) => {
@@ -110,7 +128,10 @@ export function AutoSaveField({
         }
         const write = onSave(v);
         refused.current = !write;
-        if (write) baseline.wrote(v, value);
+        if (write) {
+          baseline.wrote(v, value);
+          own.add(v);
+        }
         return write;
       },
       (result) => {
@@ -128,7 +149,11 @@ export function AutoSaveField({
   const [seen, setSeen] = useState(value);
   if (value !== seen) {
     setSeen(value);
-    if (!focused && !saver.busy) setDraft(null);
+    if (warnOnClash && !own.has(value) && (focused || saver.busy || clash !== null) && typed && draft !== null && draft !== value) {
+      // Changed elsewhere while the user types here: nothing more is written until they choose.
+      saver.cancel();
+      setClash(value);
+    } else if (!focused && !saver.busy && clash === null) setDraft(null);
   }
 
   useEffect(() => {
@@ -147,22 +172,58 @@ export function AutoSaveField({
     hasFocus.current = true;
     setFocused(true);
     setDraft(shown);
+    if (clash === null) {
+      own.clear();
+      setTyped(false);
+    }
   };
   const onChange = (e: { currentTarget: { value: string } }) => {
     setDraft(e.currentTarget.value);
-    saver.schedule(e.currentTarget.value);
+    setTyped(true);
+    if (clash === null) saver.schedule(e.currentTarget.value);
   };
   const onBlur = () => {
     hasFocus.current = false;
     setFocused(false);
+    const waiting = clash !== null;
     void saver.flush().then(() => {
-      if (refused.current && !hasFocus.current) setDraft(null);
+      if (refused.current && !hasFocus.current && !waiting) setDraft(null);
     });
   };
+  const keepMine = () => {
+    setClash(null);
+    saver.schedule(shown);
+    void saver.flush();
+  };
+  const takeTheirs = () => {
+    setClash(null);
+    setTyped(false);
+    setDraft(focused ? value : null);
+  };
   // A part's text has no visible label, as in the current app; its name is for screen readers and tests.
-  return multiline ? (
-    <FloatingTextarea label="" aria-label={label} rows={8} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+  const field = multiline ? (
+    <FloatingTextarea label={showLabel ? label : ''} aria-label={showLabel ? undefined : label} rows={rows} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   ) : (
     <FloatingInput label={label} type={type} min={min} max={max} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+  );
+  if (clash === null) return field;
+  return (
+    <>
+      {field}
+      <div role="alert" className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-2 text-sm text-amber-800 dark:text-amber-200">
+        <p className="font-medium">{t('autosave.clash')}</p>
+        <p className="max-h-32 overflow-y-auto whitespace-pre-line text-neutral-700 dark:text-neutral-300" data-testid="clash-theirs">
+          {clash}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <AppButton variant="secondary" onClick={keepMine}>
+            {t('autosave.keepMine')}
+          </AppButton>
+          <AppButton variant="neutral" onClick={takeTheirs}>
+            {t('autosave.takeTheirs')}
+          </AppButton>
+        </div>
+      </div>
+    </>
   );
 }

@@ -108,8 +108,9 @@ export function Images({ role }: { role: Role }) {
         <div className={CARD.replace(' overflow-hidden', '')}>
           <div className="px-5 pt-4 pb-2 space-y-3">
             <h2 className="text-base/6 font-semibold">{t('images.all', { n: images?.length ?? 0 })}</h2>
-            {!!images?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} compact />}
+            {!!images?.length && <SearchField value={query} onChange={setQuery} label={t('images.search')} placeholder={t('images.searchPlaceholder')} compact />}
           </div>
+          {!images && <div className="px-5 py-4 text-neutral-400 text-sm">{t('presentation.loadingImages')}</div>}
           {images && !images.length && (
             <EmptySmall icon={<PhotoOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />} title={t('images.empty')} text={t('images.emptyText')} />
           )}

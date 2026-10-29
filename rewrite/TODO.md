@@ -17,6 +17,10 @@ the `n` shortcut and the keyboard in the template picker; the templates page ord
 time, place and description; multi-select removal; the keyboard help dialog; the song editor inside the add
 dialog; the clash warning of D18; `?stage=true` in the remote link; a saved screen whose session ended showing
 its name rather than black. Larger, and not small differences: the labels page, song history, CCLI, profiles.
+_Done 2026-10-29: the keyboard help dialog (`?`, docs/look.md; `?` in the add dialog lists its keys, where the
+old app did nothing, PRES-A10: to confirm), the clash warning of D18 (only for the one still typing, docs/look.md),
+the 500 ms fade of the black screen, `?stage=true` (the link a phone gets is unchanged, as the old dialog's; the
+address takes it), and a saved screen whose session ended drawing black._
 
 ### The inventory (2026-10-29)
 
@@ -76,18 +80,28 @@ user detail page, the invite as `#token`, passkeys, the Församlingen page.
 till "{output}"` (LivePanel.razor:483).
 
 **Shell, top bar** (Layout/MainLayout.razor, Components/SyncStatusIndicator.razor → `Shell.tsx`)
-- [ ] The sync icon is a button, a click syncs now; new: a plain div. S
-- [ ] A spinner after 1.5 s of syncing; new: none, and `useDbStatus` has no syncing state. M
-- [ ] Tooltip "Synkad / Synkar… / Offline / Logga in igen för att synka / Synkfel · N ändringar väntar · Synka nu";
-  new: "Ansluten"/"Offline", no "Synka nu". S
-- [ ] The pending dot at `-top-0.5 -right-0.5`, hidden while spinning; new: `top-0.5 right-0.5`. S
-- [ ] Five conflict toasts (merged, output code replaced, song version saved, server version kept, change
-  rejected); new: one yellow line with the server's raw error code. M–L, **ask**
+- [x] The sync icon is a button, a click syncs now; new: a plain div. S
+- [x] A spinner after 1.5 s of syncing; new: none, and `useDbStatus` has no syncing state. M _`DbStatus.syncing`,
+  from `SyncClient.busy`/`onBusy`._
+- [x] Tooltip "Synkad / Synkar… / Offline / Logga in igen för att synka / Synkfel · N ändringar väntar · Synka nu";
+  new: "Ansluten"/"Offline", no "Synka nu". S _"Logga in igen för att synka" also for an unpaired device (the
+  strip under the bar says "Anslut igen"); "Synkfel" when the server wants a newer app. A failed sync over the
+  network reads "Offline", as there is no other error state._
+- [x] The pending dot at `-top-0.5 -right-0.5`, hidden while spinning; new: `top-0.5 right-0.5`. S
+- [x] Five conflict toasts (merged, output code replaced, song version saved, server version kept, change
+  rejected); new: one yellow line with the server's raw error code. M–L, **ask** _Only "En ändring kunde inte
+  synkas.", as a warning toast (the old app showed it with the green tick), once per refused change; the yellow
+  line is gone. The rest have no counterpart: the server reruns each change on its rows, so offline edits always
+  merge and nothing is worth a "merged" toast; there are no song versions; a taken output code is refused
+  (`code-taken`), not replaced. The nearest to "server version kept" is a change to a presentation purged
+  elsewhere, refused as `not-found`, but a refusal does not say which row was missing, so it gets the generic
+  text. Whether to name that case is open._
 - [ ] "Starta om för att uppdatera" (UpdateAvailableIndicator.razor), hidden while presenting; new: none. L, **ask**
   (needs an updater in Electron)
 - [x] Unhandled errors: a yellow bar at the bottom, "Ett oväntat fel har inträffat." with Ladda om; new: the raw
   text in the top bar, no reload. S, **ask**
-- [ ] The account menu adds the organisation as a third line, and the button has a tooltip; old: neither. S, **ask**
+- [x] The account menu adds the organisation as a third line, and the button has a tooltip; old: neither. S, **ask**
+  _Kept: Lars's answer keeps what the new app adds (the organisation in the account menu)._
 
 **Dialogs, menus, buttons, toasts** (Dialog.razor, Modal.razor, Dropdown.razor, AppButton.razor,
 ToastContainer.razor, utils.js → `ui/`)
@@ -99,7 +113,7 @@ ToastContainer.razor, utils.js → `ui/`)
 - [x] A dropdown flips up or shrinks when it does not fit (utils.js:563); new: always down, always `right-0`. M
 - [x] One toast at a time, 3 s, 200 ms fade out; new: stacked, 4 s, no fade. S
 - [ ] Cancel and Danger buttons have no disabled style in the old app; new: every pill dims. S _Left as is: a disabled Avbryt or Radera that does not look disabled reads as a bug._
-- [ ] "Laddar..." while a list loads (start page, Bilder, Ljud, Overlays, Mallar, Skärmar, Användare, Papperskorg, _Done on the start page and Mallar; the others with their pages._
+- [x] "Laddar..." while a list loads (start page, Bilder, Ljud, Overlays, Mallar, Skärmar, Användare, Papperskorg, _Done on the start page, Mallar, Bilder ("Laddar bilder..."), Ljud ("Laddar ljudfiler..."), Overlays and one overlay, Skärmar, Användare, Papperskorg and a song; in the add dialog Bilder and Ljud, as the old tabs (Sånger and Bibeltexter show none there either). Not in e2e: the text shows only until the local read answers._
   the add dialog's tabs, a song); new: nothing. S
 - [x] The keyboard rules of utils.js:1269 (no auto-repeat, not during IME, in a text field only Ctrl/Cmd keys and _Built as `ui/shortcuts.ts` (`usePageKeys`), used by the start page and the editor._
   Esc, Cmd = Ctrl) as one shared mechanism; needed with `n` and `?`. M
@@ -169,8 +183,15 @@ ToastContainer.razor, utils.js → `ui/`)
 - [x] Empty library: "Hantera sånger" next to Skapa, centred over the whole tab, no preview. S
 - [x] Clearing the search selects the first song; the arrows scroll the row into view; a new search scrolls both
   panes to the top. S
-- [ ] The list is virtualised (`Virtualize`, 56 px). M, **ask** _Not measured yet._
-- [ ] The preview highlights the search terms in title, author and slide text. S–M _Title and author done; the slide text not (SlideView has no highlight)._
+- [x] The list is virtualised (`Virtualize`, 56 px). M, **ask** _Not virtualised: measured with 3 000 hymn-sized
+  songs (`e2e/performance.spec.ts`), a keystroke took about 400 ms, nearly all of it search preparing every
+  song's text again. Search now keeps that per song (`searchSongs`, and `searchableSongs` gives an unchanged song
+  as the same object), and the tab prepares it in steps on load. Now, from keystroke to the list laid out: the
+  first letter (all 3 000 hit) about 105 ms, the next letters 20–35 ms, back to one letter 75 ms, cleared 65–80 ms;
+  a scroll step 5 ms. With the CPU 4× slower: 80–150 ms per letter, but 260–420 ms where the whole list is
+  drawn (one letter, cleared): that is where virtualising would help._
+- [x] The preview highlights the search terms in title, author and slide text. S–M _The slide text through
+  `SlideView`'s `highlight`, only in the add dialog's preview (not the phone sheet, as in the old app)._
 - [x] The footer only when a song is selected (D15 shows the tip always). **ask**
 
 **Add dialog, Bibeltexter** (Bible/*.razor → `pages/BibleTab.tsx`)
@@ -242,61 +263,68 @@ ToastContainer.razor, utils.js → `ui/`)
   still goes live at part 0. S
 
 **Paired and public screens** (Display.razor, PublicWatchPage.razor → `Display.tsx`, `Watch.tsx`)
-- [ ] A temporary screen with `?name=` shows the name above the code; `webkitRequestFullscreen` fallback. S
-- [ ] `/watch`: `theme-color #000`, Apple web-app metas, black `html`/`body`; Bible text without
-  `whitespace-pre-wrap`. S
+- [x] A temporary screen with `?name=` shows the name above the code; `webkitRequestFullscreen` fallback. S
+- [x] `/watch`: `theme-color #000`, Apple web-app metas, black `html`/`body`; Bible text without
+  `whitespace-pre-wrap`. S _The output and tiles' Bible text lost its `pre-wrap` too, as BibleTextSlide.razor._
 
 **Remote control** (Presentation.razor remote part → `RemoteLive.tsx`, `RemotePanel.tsx`)
-- [ ] The hint under the button when the presenting computer is gone ("Om datorn inte kommer tillbaka…"), and
+- [x] The hint under the button when the presenting computer is gone ("Om datorn inte kommer tillbaka…"), and
   that state checked before "inte aktiverad". S
-- [ ] Status text colours swapped; session picker Primary Filled; "inte bekräftat" as a warning toast. S
+- [x] Status text colours swapped; session picker Primary Filled; "inte bekräftat" as a warning toast. S
 
 **Bilder, Ljud, Biblar** (Pages/Admin/Images.razor, Audios.razor, Bibles.razor)
-- [ ] ⋯ menu "Radera"; new "Ta bort". Search "Sök..."; new "Sök". S
-- [ ] New adds a toast "{n} bild(er) importerade"; old has none. S, **ask**
+- [x] ⋯ menu "Radera"; new "Ta bort". Search "Sök..."; new "Sök". S _"Radera" was there already; "Sök..." is the placeholder, the field's name stays "Sök"._
+- [x] New adds a toast "{n} bild(er) importerade"; old has none. S, **ask** _Kept by Lars's answer._
 - [x] The drop zone has no `min-h-[60vh]` in the old app. S
 - [x] Ljud: a too long file name gives an image error text (`images.failedName`, `images.failedOther`). S
-- [ ] Biblar: `<code>.zip</code>`; verse count "31102" (new "31 102"); delete title "Radera"; order undefined in
-  the old app, new by name. S
+- [x] Biblar: `<code>.zip</code>`; verse count "31102" (new "31 102"); delete title "Radera"; order undefined in
+  the old app, new by name. S _"Radera" was there already; the order by name is kept by Lars's answer. The count without a space is in the import message too; e2e's sample Bible has 15 verses, so the space is not tested._
 
 **Overlays** (Pages/Admin/Overlays.razor, OverlayDetail.razor)
-- [ ] The create field is "Namn"; new "Titel". The list shows the whole text cut short; new: the first line. S
-- [ ] Unknown id goes back to the list; new: "Overlayen finns inte.". A delete shows no toast. S, **ask**
+- [x] The create field is "Namn"; new "Titel". The list shows the whole text cut short; new: the first line. S
+- [x] Unknown id goes back to the list; new: "Overlayen finns inte.". A delete shows no toast. S, **ask**
+- [x] Known: saving 500 ms after typing with "Sparad" (OverlayEditor.razor), and a picture dropped on the picture's
+  area. S _The dropped picture is imported into Bilder and chosen, as the picture comes from Bilder; a choice from the
+  picker or "Ta bort bild" shows "Sparad" too._
 
 **Mallar** (Pages/Admin/Templates.razor)
 - [x] The trash button is Neutral (grey background); new `cancel`. S
 
 **Skärmar** (Pages/Admin/Displays.razor → `Displays.tsx`)
-- [ ] Ordered by when created; new by name. S
-- [ ] The explanations only inside the empty card, other words; new: always above the card. S, **ask**
-- [ ] The add button "Lägg till"; new "Skapa". Row delete "Radera"; new "Ta bort". S
-- [ ] Each section only when the host can (`PairedDisplays`, `PublicOutput`). M, **ask**
+- [x] Ordered by when created; new by name. S
+- [x] The explanations only inside the empty card, other words; new: always above the card. S, **ask**
+- [x] The add button "Lägg till"; new "Skapa". Row delete "Radera"; new "Ta bort". S _The screen dialog is "Lägg till skärm" with "Lägg till", as the old one; the rest was there already._
+- [ ] Each section only when the host can (`PairedDisplays`, `PublicOutput`). M, **ask** _Open: the new app has no
+  knowledge of what a host can (no capabilities in the web app, the server or `/api/auth/state`); every host now
+  serves both screens and `/watch`. Needs the host to say so, and the outputs panel to use it too._
 
 **Användare** (Pages/Admin/Users.razor, UserDetail.razor → `Users.tsx`)
 - [ ] Name and e-mail of an existing user cannot be changed in the new app. L, **ask**
-- [ ] All three role texts with bold labels, and other words; new: only the chosen role's. S, **ask**
-- [ ] The empty text "Lägg till användare i din organisation…". "E-postadressen används redan…" checked
-  before creating. S
-- [ ] New shows e-mail, invite state and "Du kan inte ändra din egen roll" on the row. **ask** (keep?)
+- [x] All three role texts with bold labels, and other words; new: only the chosen role's. S, **ask** _Superadmin's only for a SuperAdmin, as the old one._
+- [x] The empty text "Lägg till användare i din organisation…". "E-postadressen används redan…" checked
+  before creating. S _The server refuses a taken address before it creates anyone; that and "Ogiltig e-postadress"
+  now show under the e-mail field, as the old ones._
+- [x] New shows e-mail, invite state and "Du kan inte ändra din egen roll" on the row. **ask** (keep?) _Kept by Lars's answer._
 
 **Papperskorg** (Pages/Trash.razor)
 - [x] "Radera permanent" with "Raderar..."; new "Radera". S
-- [ ] Permanent delete texts for a presentation and a picture differ. S, **ask**
-- [ ] Återställ locks only its own row; new: all. S
+- [x] Permanent delete texts for a presentation and a picture differ. S, **ask** _They are the old ones already (Trash.ConfirmPurge.*)._
+- [x] Återställ locks only its own row; new: all. S _Radera permanent and Töm no longer wait on it either, as the old page. Not in e2e: a local restore is too quick to see._
 - [x] Töm is one call; new: one mutation per entry. M, **ask**
 
 **Mina inställningar, Setup, Inbjudan, Logga in**
-- [ ] Settings: "Om" with the app version. S
-- [ ] Setup: the description ends in a list of three; other help text under the code; one error at a time and
-  "Installationskoden måste fyllas i.". S, **ask**
-- [ ] Invite: "Välj hur du vill logga in", the first way with the rest behind "Fler alternativ", the
-  organisation line only when known. S, **ask**
-- [ ] Sign-in: `pt-16` above the version; new `pt-12`. S
+- [x] Settings: "Om" with the app version. S
+- [x] Setup: the description ends in a list of three; other help text under the code; one error at a time and
+  "Installationskoden måste fyllas i.". S, **ask** _The line on how the superuser signs in stays under the list. A wrong
+  code says "Installationskoden är inte korrekt.", as the old one._
+- [x] Invite: "Välj hur du vill logga in", the first way with the rest behind "Fler alternativ", the
+  organisation line only when known. S, **ask** _"Välj hur du vill logga in" replaces the longer text on passkeys and Google._
+- [x] Sign-in: `pt-16` above the version; new `pt-12`. S
 
 **Seen in the pictures** (`scripts/compare-old-app.mjs`, light, desktop and phone, ten pages looked at)
-- [ ] Stage view: the old current slide is smaller with more room around it, and its label is upper case
-  ("VERS"); the strip's tiles show their labels. S
-- [ ] On a phone the add dialog's song preview is a sheet over the dimmed page; new: full screen white. S
+- [x] Stage view: the old current slide is smaller with more room around it, and its label is upper case
+  ("VERS"); the strip's tiles show their labels. S _Nästa shows its label too, as the old one (the same render)._
+- [x] On a phone the add dialog's song preview is a sheet over the dimmed page; new: full screen white. S
 - The label texts differ ("Vers" against "Verse 1") because the old mock data is Swedish; not a code difference.
 
 **Not settled by reading:** the pages not looked at side by side (dialogs, admin pages, dark mode); whether a deleted

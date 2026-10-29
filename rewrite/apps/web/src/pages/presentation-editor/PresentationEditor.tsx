@@ -10,6 +10,7 @@ import { useConfirm } from '../../ui/Dialog.tsx';
 import { useKeepOffline } from '../../ui/MediaReadiness.tsx';
 import { navigate } from '../../ui/router.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
+import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
 import type { LiveControl } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { EditTemplateDialog } from '../Templates.tsx';
@@ -33,6 +34,18 @@ const OWN_WRITE_MS = 10_000;
  * (`/templates/{id}`): a banner says so, and there is no Starta presentation
  * and no Spara som mall.
  */
+/** The editor's keys in the help dialog (Presentation.razor's scope); ↑ ↓ wherever focus is, as ProPresenter's. */
+const KEYS: ShortcutGroup = {
+  title: t('shortcuts.group.presentation'),
+  lines: [
+    { keys: ['a'], text: t('shortcuts.addItem') },
+    { keys: ['F2'], text: t('shortcuts.renameItem') },
+    { keys: ['Delete'], text: t('shortcuts.removeItem') },
+    { keys: ['ArrowUp', 'ArrowDown'], text: t('shortcuts.moveThroughItems') },
+    { keys: ['Alt+ArrowUp', 'Alt+ArrowDown'], text: t('shortcuts.moveItem') },
+  ],
+};
+
 export function PresentationEditor({ id, role, live, template = false }: { id: string; role: Role; live: LiveControl; template?: boolean }) {
   const db = useDb();
   const trySave = useTrySave();
@@ -102,6 +115,7 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
 
   // Page shortcuts (spec 03 section 6), as ProPresenter's: ↑ ↓ change item wherever focus is, outside text
   // fields; never behind a dialog (PRES-R37), never a held key repeating (ui/shortcuts.ts).
+  useShortcutGroup(KEYS);
   usePageKeys((e) => {
     if (ticking) return;
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {

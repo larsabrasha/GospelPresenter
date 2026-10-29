@@ -5,7 +5,7 @@ import { t } from './i18n.ts';
 declare const GP_COMMIT: string | null | undefined;
 
 /**
- * "Version abc1234" for the sign-in page (PLAT-R11): the commit, shortened to
+ * "Version abc1234" for the sign-in page and Mina inställningar (PLAT-R11): the commit, shortened to
  * seven characters, and "(utvecklingsbygge)" from the dev server. There is no
  * release number yet; null when the build knows no commit.
  */

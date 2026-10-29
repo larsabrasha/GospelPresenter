@@ -103,6 +103,7 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
           <SearchField inputRef={search} label={t('presentation.searchImages')} value={query} onChange={setQuery} />
         </div>
         <div className="flex-1 min-h-0 overflow-y-auto">
+          {!audios && <p className="flex items-center justify-center py-12 text-neutral-400 text-sm">{t('audios.loading')}</p>}
           {audios && !audios.length && (
             <EmptyTab icon={<SpeakerWaveIcon className="size-12 text-neutral-300 dark:text-neutral-600" />}>
               <p>{t('presentation.noAudios')}</p>

@@ -94,6 +94,11 @@ export class Db implements ReadDb {
     return this.call({ op: 'closeMedia', key });
   }
 
+  /** Syncs with the server now (the sync icon's click); answers with the status after it. */
+  syncNow(): Promise<DbStatus> {
+    return this.call({ op: 'syncNow' });
+  }
+
   status(): Promise<DbStatus> {
     return this.call({ op: 'status' });
   }

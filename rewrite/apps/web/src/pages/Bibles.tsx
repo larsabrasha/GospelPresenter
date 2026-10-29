@@ -55,7 +55,7 @@ export function Bibles() {
     setMessage(null);
     try {
       const r = await db.importBible(new Uint8Array(await file.arrayBuffer()));
-      const done = t(r.replaced ? 'bibles.updated' : 'bibles.imported', { name: r.name, n: r.verses.toLocaleString('sv-SE') });
+      const done = t(r.replaced ? 'bibles.updated' : 'bibles.imported', { name: r.name, n: r.verses });
       setMessage({ ok: true, text: r.queued ? `${done} ${t('bibles.queued')}` : done });
     } catch (e) {
       setMessage({ ok: false, text: t('bibles.failed', { error: e instanceof Error ? e.message : String(e) }) });
@@ -78,7 +78,11 @@ export function Bibles() {
         <PageHeader title={t('bibles.title')} />
         <div className={`${CARD} p-5 space-y-4`}>
           <h2 className="text-base/6 font-semibold">{t('bibles.importTitle')}</h2>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('bibles.importText')}</p>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            {t('bibles.importText').split('{zip}')[0]}
+            <code>.zip</code>
+            {t('bibles.importText').split('{zip}')[1]}
+          </p>
           <AppButton asLabel disabled={busy} className="inline-flex items-center gap-2">
             <ArrowDownTrayIcon className="size-4" />
             {busy ? t('bibles.importing') : t('bibles.chooseFile')}
@@ -125,7 +129,7 @@ export function Bibles() {
               <li key={b.id} className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{b.name}</div>
-                  <div className="text-xs text-neutral-400 truncate">{t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount.toLocaleString('sv-SE') })}</div>
+                  <div className="text-xs text-neutral-400 truncate">{t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount })}</div>
                 </div>
                 {host ? (
                   b.stored ? (

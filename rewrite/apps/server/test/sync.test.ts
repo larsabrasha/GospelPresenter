@@ -719,6 +719,19 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     await expectConverged(alice, carol);
   });
 
+  it('a sync run is busy from its start to its end, and says so at both', async () => {
+    const seen: boolean[] = [];
+    alice.client.onBusy(() => seen.push(alice.client.busy));
+
+    const run = alice.client.requestSync();
+    const during = alice.client.busy;
+    await run;
+
+    expect(during).toBe(true);
+    expect(alice.client.busy).toBe(false);
+    expect(seen).toEqual([true, false]);
+  });
+
   it('a rejected mutation disappears from the client with its optimistic rows', async () => {
     await seed();
     await carol.client.mutate('createPresentation', { id: 'GONE', name: 'Soon purged' });

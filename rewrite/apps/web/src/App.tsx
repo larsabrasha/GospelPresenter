@@ -29,6 +29,7 @@ import { Templates } from './pages/Templates.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { Users } from './pages/Users.tsx';
 import { AdminLayout, TopBar } from './Shell.tsx';
+import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
 import { PageContainer } from './ui/PageContainer.tsx';
 import { useRoute, type Route } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
@@ -85,6 +86,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   return (
     <ToastProvider>
       <TopBar me={me} />
+      <ShortcutHelp />
       {route.page === 'presentations' ? (
         <Presentations link={link} ownSessionId={sessionId} />
       ) : route.page === 'settings' ? (
@@ -99,7 +101,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           <Refused text={t('templates.forbidden')} />
         )
       ) : route.page === 'live' ? (
-        <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} />
+        <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} stage={route.stage} />
       ) : ADMIN_PAGES.has(route.page) ? (
         <AdminLayout me={me} host={host} route={route}>
           {admin}

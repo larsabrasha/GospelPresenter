@@ -63,6 +63,7 @@ async function status(): Promise<DbStatus> {
   return {
     storage,
     connected,
+    syncing: client?.busy ?? false, // read before the await below, so the report is of this moment
     pending: client ? (await client.pending()).length : 0,
     updateRequired: client?.updateRequired ?? false,
     authError: client?.authError ?? null,
@@ -279,6 +280,7 @@ async function handle(call: DbCall): Promise<unknown> {
         post({ type: 'changed' });
         share.changed();
       };
+      c.onBusy(() => void reportStatus());
       c.onChange(() => {
         notifyChanged();
         syncBibles();

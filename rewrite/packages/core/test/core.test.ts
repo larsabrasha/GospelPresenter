@@ -229,6 +229,16 @@ describe('search (SONG-R30–R33)', () => {
     expect(names('vi')).toEqual(['Vi vill se Gud', 'Majestät']);
   });
 
+  it('a song changed after a search, as a new object, is searched by its new text', () => {
+    const before = [lib[2]!];
+    searchSongs(before, 'majestät');
+    const after = [{ ...lib[2]!, name: 'Konung', firstPart: 'Konung', lyrics: 'Konung' }];
+
+    const hits = searchSongs(after, 'majestät');
+
+    expect(hits).toEqual([]);
+  });
+
   it('decomposed (macOS) text matches composed queries', () => {
     expect(searchSongs([{ ...lib[1]!, name: 'Högst av allt'.normalize('NFD') }], 'högst')).toHaveLength(1);
   });

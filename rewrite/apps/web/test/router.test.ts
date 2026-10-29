@@ -18,6 +18,8 @@ describe('routes', () => {
       { page: 'live', id: 'P1' },
       { page: 'live', id: 'P1', remote: true, session: null },
       { page: 'live', id: 'P1', remote: true, session: 'S 1' },
+      { page: 'live', id: 'P1', stage: true },
+      { page: 'live', id: 'P1', remote: true, session: 'S1', stage: true },
       { page: 'trash', kind: null },
       { page: 'trash', kind: 'Song' },
       { page: 'trash', kind: 'Image' },
@@ -61,6 +63,8 @@ describe('routes', () => {
     // A saved screen's link, and a temporary screen's (spec 04 §5, §8).
     expect(href({ page: 'display', id: 'abcdefg', name: 'Kyrksal', token: null })).toBe('/display?id=abcdefg&name=Kyrksal');
     expect(href({ page: 'display', id: null, name: null, token: null })).toBe('/display');
+    // A remote link straight into the stage view, in the current app's words (Presentation.razor).
+    expect(href({ page: 'live', id: 'P1', remote: true, session: 'S1', stage: true })).toBe('/live/P1?remote=1&session=S1&stage=true');
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {

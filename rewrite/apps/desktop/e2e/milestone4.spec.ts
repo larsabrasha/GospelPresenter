@@ -81,6 +81,8 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   const stage = output.getByTestId('slide-stage');
   await expect(output.getByTestId('slide-text')).toContainText('16 For God so loved the world');
   await expect(output.getByTestId('slide-credits')).toHaveText('Johannes 3:16-17 · WEB');
+  // Bible text flows, with no kept line breaks (BibleTextSlide.razor).
+  await expect(output.getByTestId('slide-text')).toHaveCSS('white-space', 'normal');
   await expect(stage).toHaveAttribute('data-theme', 'aurora');
   await expect(stage).toHaveAttribute('data-kind', 'bible');
 
@@ -120,7 +122,7 @@ test('a Bible imported while the host is down is kept, and reaches the host when
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Bo');
   const page = second.page;
-  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
   // The host goes away; Bo imports a translation on the second computer all the same.
   const hostData = host.dataDir;
@@ -139,11 +141,11 @@ test('a Bible imported while the host is down is kept, and reaches the host when
   // The host comes back on the same port: the text is uploaded, then the import pushed.
   host = await launch({ port, dataDir: hostData });
   await host.page.getByTestId('status').waitFor();
-  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await openAdmin(host.page, 'Biblar');
   await expect(host.page.getByText('WEB · 15 verser')).toBeVisible({ timeout: 10_000 });
   await expect(host.page.getByText('Tillgänglig offline')).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText('Servern tog inte emot en ändring', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('En ändring kunde inte synkas.')).toHaveCount(0);
 });
 
 test('a second computer keeps a Bible offline only when asked, and can remove the copy (BIBLE-A16)', async () => {
@@ -159,7 +161,7 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Bo');
   const page = second.page;
-  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
   // The host keeps every Bible and offers no choice.
   await openAdmin(host.page, 'Biblar');
@@ -204,7 +206,7 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
   // The host is back: the text is fetched when a page needs it, without keeping it.
   host = await launch({ port, dataDir: hostData });
   await host.page.getByTestId('status').waitFor();
-  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await searchJohn();
   await openAdmin(page, 'Biblar');
   await expect(makeOffline).toBeVisible();
@@ -218,7 +220,7 @@ test('a second computer keeps a Bible offline only when asked, and can remove th
 
   // A fresh window, then the host goes away again: the kept Bible is searched from this computer.
   await page.reload();
-  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await host.app.close();
   host = undefined;
   await expect(page.getByTestId('status')).toContainText('Offline', { timeout: 5_000 });

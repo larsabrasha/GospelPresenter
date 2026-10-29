@@ -6,9 +6,10 @@ Text, a picture, or both, shown above the live slide (spec 03 §4, spec 04 LIVE-
 `overlays` (title, text up to 2 000 characters, the id of a library picture, `sort` in the order of creation), and an
 item names the one it carries in `presentation_items.overlay_id`. Everyone may make,
 change and delete them (ManageOverlays is every role's, as in spec 01), at most 200. Overlays (`/admin/overlays`)
-lists them with a preview; one overlay's page has Titel, Textinnehåll and a picture chosen from Bilder, each saved
-when the field loses focus, a preview, and Radera, which asks first and is permanent (no trash). Deleting one
-leaves no item carrying it.
+lists them with a preview; one overlay's page has Titel, Textinnehåll and a picture chosen from Bilder (or dropped
+on it, which imports it into Bilder first), each saved 500 ms after typing with "Sparad" in the header, a preview,
+and Radera, which asks first and is permanent (no trash), then goes back to the list. Deleting one leaves no item
+carrying it.
 
 **During live.** The live pointer carries `overlayId`, so the overlay travels with the slide in the same message
 and every output draws it above the slide (text top left, 40 px, 60 % white; the picture over the whole stage,
@@ -24,6 +25,11 @@ stage view has the same behind its Overlays button. The rules are one pure funct
 - "Svart skärm" and stopping switch the overlay off (a change from LIVE-R16, TODO.md 2026-10-27). Back from
   black on the same item, it stays off, as after a manual off.
 - Switching an overlay on while black ends the black screen, as selecting a slide does (LIVE-R11).
+- The black screen fades in and out over 500 ms on the outputs, the paired screens and the live preview, as
+  `LiveDisplay.razor`: a black cover above the slide and the overlay (`black` on `SlideView`). The old app kept the
+  overlay under the cover; here black switches it off, so the slide and the overlay of the moment before stay
+  under the cover while it fades in, then go. Tested in `e2e/overlays.spec.ts` (the cover's opacity, duration
+  and z-index), not frame by frame.
 
 A controller sends `overlayId` only when it toggles; its slide commands leave the overlay to the presenting
 window. A public output gets the overlay's text with the slide, centred near the top (spec 04 §6), but not its
@@ -81,7 +87,9 @@ pictures come through its own path (`/api/screen/{id}/image/{hash}`, `/api/displ
 slide's under the public output's rule (LIVE-R32), and the overlay's only while that overlay is the one the
 session's pointer has on and has that picture (LIVE-R34). An owner of an older build sends no canvas: its screens
 draw the public slide on the canvas, without the overlay's picture. A screen that is bound draws black while the
-session is black, rather than waiting with its name, as `Display.razor`. The live socket has no version number:
+session is black, rather than waiting with its name, as `Display.razor`. So does a saved screen whose session
+ended (the hub sends it a null canvas, not `idle`): the old app kept the pairing when the presentation stopped.
+It shows its name again once switched off, or when its page is opened anew. The live socket has no version number:
 the field is optional, as every field added before it, and the largest report is now 192 KiB, as it carries the
 slide twice.
 
@@ -124,7 +132,8 @@ sockets are now tagged `poke` in the Durable Object, so a poke never goes to a l
 presentationer"). On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) has a QR code
 button beside it, grey while off; under "Alltid" a line says everyone may take control in place of the switch,
 and under "Aldrig" the section is gone. The QR code button opens the "Fjärrstyr presentationen" dialog
-(`RemoteControlInfoDialog.razor`): the link, `/live/{id}?remote=1&session={id}`, as a QR code, and folded under it the link to copy and how to take
+(`RemoteControlInfoDialog.razor`): the link, `/live/{id}?remote=1&session={id}` (with `&stage=true` it opens in
+the stage view, as `Presentation.razor`; the address follows the stage view, so a reload keeps it), as a QR code, and folded under it the link to copy and how to take
 control from the app. The first time it is switched on on a live page, the dialog opens by itself. On a desktop
 host the link has its LAN address. Under Presentationer every other
 window of the organisation sees "Visas just nu · {name}" with "Ta kontroll" for each session that allows it

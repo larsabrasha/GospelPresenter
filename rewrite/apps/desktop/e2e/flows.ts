@@ -18,6 +18,20 @@ export async function dragTo(page: Page, handle: Locator, target: Locator, where
   await page.mouse.up();
 }
 
+/** Drops files on `target` as a file manager would: a dragover, then the drop. */
+export async function dropFiles(target: Locator, files: { name: string; mimeType: string; buffer: Buffer }[]) {
+  const data = await target.evaluateHandle(
+    (_, list) => {
+      const dt = new DataTransfer();
+      for (const f of list) dt.items.add(new File([Uint8Array.from(atob(f.base64), (c) => c.charCodeAt(0))], f.name, { type: f.mimeType }));
+      return dt;
+    },
+    files.map((f) => ({ name: f.name, mimeType: f.mimeType, base64: f.buffer.toString('base64') })),
+  );
+  await target.dispatchEvent('dragover', { dataTransfer: data });
+  await target.dispatchEvent('drop', { dataTransfer: data });
+}
+
 /** The admin menu at the side, opened with the cog in the bar unless an admin page is open already. */
 export async function adminMenu(page: Page) {
   const menu = page.getByRole('navigation', { name: 'Administration' });

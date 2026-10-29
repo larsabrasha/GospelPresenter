@@ -336,9 +336,28 @@ export class SyncClient {
         } while (this.again);
       } finally {
         this.syncing = undefined;
+        this.busyChanged();
       }
     })();
+    this.busyChanged();
     return this.syncing;
+  }
+
+  private busyListeners = new Set<() => void>();
+
+  /** A sync run (`requestSync`) is under way, queued ones included. */
+  get busy(): boolean {
+    return this.syncing !== undefined;
+  }
+
+  /** Calls `fn` when a sync run starts and when it ends (`busy`). Returns an unsubscribe. */
+  onBusy(fn: () => void): () => void {
+    this.busyListeners.add(fn);
+    return () => this.busyListeners.delete(fn);
+  }
+
+  private busyChanged() {
+    for (const fn of this.busyListeners) fn();
   }
 
   async close() {

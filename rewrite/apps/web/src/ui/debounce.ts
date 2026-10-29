@@ -65,6 +65,13 @@ export class Debounced<T> {
     return this.chain;
   }
 
+  /** Drops the waiting value, unsaved. */
+  cancel(): void {
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    this.next = undefined;
+  }
+
   /** True while a value waits or a save runs. */
   get busy(): boolean {
     return this.next !== undefined || this.running > 0;

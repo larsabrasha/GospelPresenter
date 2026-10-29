@@ -300,6 +300,8 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await search.fill('pilgrim');
   await picker.getByRole('button', { name: 'Kort' }).click();
   await expect(picker.getByRole('list', { name: 'Pilgrimsfärd' }).getByRole('listitem')).toHaveCount(3);
+  // The preview marks the search's words in the slides' text too (SongTab.razor's Highlight(part.Content)).
+  await expect(picker.getByRole('list', { name: 'Pilgrimsfärd' }).getByTestId('slide-text').locator('mark')).toHaveText(['Pilgrim', 'Pilgrim']);
   await search.press('Enter'); // a plain Enter does not add (D15) ...
   await search.press('Shift+Enter'); // ... nor Shift+Enter
   await expect(page.getByRole('status').getByText('har lagts till')).toHaveCount(0);

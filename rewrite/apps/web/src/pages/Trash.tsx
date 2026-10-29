@@ -59,7 +59,8 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
   const [kind, setKind] = useState<TrashKind | null>(initialKind);
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
-  const [busy, setBusy] = useState(false);
+  /** The entry being restored: only its own Återställ waits (Trash.razor). */
+  const [restoring, setRestoring] = useState<string | null>(null);
   const purgedOnOpen = useRef(false);
   const [now] = useState(Date.now); // days remaining count from when the page opened
 
@@ -87,21 +88,27 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
   );
 
   const run = async (fn: () => Promise<void>) => {
-    setBusy(true);
     try {
       await fn();
     } catch {
       toast(t('common.error'));
-    } finally {
-      setBusy(false);
     }
   };
 
-  const restore = (e: TrashEntry) =>
-    run(async () => {
-      await db.mutate(restoreMutator[e.kind], { id: e.id });
-      toast(t('trash.restored', { name: e.name }));
-    });
+  /** Kind and id together: two kinds could share an id. */
+  const key = (e: TrashEntry) => `${e.kind}:${e.id}`;
+  const restore = async (e: TrashEntry) => {
+    if (restoring) return;
+    setRestoring(key(e));
+    try {
+      await run(async () => {
+        await db.mutate(restoreMutator[e.kind], { id: e.id });
+        toast(t('trash.restored', { name: e.name }));
+      });
+    } finally {
+      setRestoring(null);
+    }
+  };
 
   const purge = async (e: TrashEntry) => {
     await ask({ title: t('trash.purge'), text: t(`trash.purgeConfirm.${e.kind}`, { name: e.name }), bold: e.name, confirm: t('trash.purge'), busy: t('common.deleting'), run: () => run(() => db.mutate(purgeMutator[e.kind], { id: e.id })) });
@@ -124,6 +131,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
       {dialog}
       <DetailHeader backHref={href({ page: 'presentations' })} title={t('trash.title')} className="px-5" />
       <div className={CARD}>
+        {!all && <div className="px-5 py-4 text-neutral-400 text-sm">{t('common.loading')}</div>}
         {all && !entries.length && (
           <div className="flex flex-col items-center justify-center py-16 text-neutral-400">
             <TrashIcon className="size-12 mb-3" strokeWidth={1.5} />
@@ -144,7 +152,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
                     </>
                   )}
                 </div>
-                <AppButton variant="danger" disabled={busy} onClick={() => void empty()}>
+                <AppButton variant="danger" onClick={() => void empty()}>
                   {t('trash.empty')}
                 </AppButton>
               </div>
@@ -180,7 +188,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
                 // A presentation's date as the Swedish short date, "2026-11-01" (Trash.razor).
                 const detail = e.template ? templateDetails(e.template) : e.detail;
                 return (
-                  <li key={`${e.kind}:${e.id}`} className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0" aria-label={e.name}>
+                  <li key={key(e)} className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0" aria-label={e.name}>
                     <div className="shrink-0 text-neutral-400 dark:text-neutral-500" title={t(`trash.one.${e.kind}`)}>
                       <KindIcon kind={e.kind} />
                     </div>
@@ -192,10 +200,10 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
                         <span className={days <= 1 ? 'text-red-500 dark:text-red-400' : undefined}>{daysText(days)}</span>
                       </div>
                     </div>
-                    <AppButton variant="secondary" disabled={busy} onClick={() => void restore(e)}>
+                    <AppButton variant="secondary" disabled={restoring === key(e)} onClick={() => void restore(e)}>
                       {t('common.restore')}
                     </AppButton>
-                    <AppButton variant="danger" disabled={busy} title={t('trash.purge')} aria-label={`${t('trash.purge')} ${e.name}`} onClick={() => void purge(e)}>
+                    <AppButton variant="danger" title={t('trash.purge')} aria-label={`${t('trash.purge')} ${e.name}`} onClick={() => void purge(e)}>
                       <TrashIcon className="size-4" />
                     </AppButton>
                   </li>

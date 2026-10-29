@@ -98,7 +98,28 @@ export async function searchableSongs(db: ReadDb): Promise<LibrarySong[]> {
   );
   const lyrics = new Map<string, string[]>();
   for (const p of parts) (lyrics.get(p.song_id) ?? lyrics.set(p.song_id, []).get(p.song_id)!).push(p.content);
-  return (await listSongs(db)).map((s) => ({ ...s, firstPart: lyrics.get(s.id)?.[0] ?? '', lyrics: (lyrics.get(s.id) ?? []).join('\n') }));
+  const next = new Map<string, LibrarySong>();
+  const out = (await listSongs(db)).map((s) => {
+    const fresh: LibrarySong = { ...s, firstPart: lyrics.get(s.id)?.[0] ?? '', lyrics: (lyrics.get(s.id) ?? []).join('\n') };
+    const kept = lastLibrary.get(s.id);
+    const same = kept && sameFields(kept, fresh) ? kept : fresh;
+    next.set(s.id, same);
+    return same;
+  });
+  lastLibrary = next;
+  return out;
+}
+
+/**
+ * The songs the last load gave, by id. An unchanged song is given again as
+ * the same object, so search keeps what it prepared for it (`searchSongs`
+ * caches by object): a sync then costs no new preparing of a whole library.
+ */
+let lastLibrary = new Map<string, LibrarySong>();
+
+function sameFields<T extends object>(a: T, b: T): boolean {
+  const keys = Object.keys(a) as (keyof T)[];
+  return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k]);
 }
 
 /** A song's arrangements, in order: the first is the default (SONG-R19). */

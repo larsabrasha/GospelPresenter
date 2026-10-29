@@ -53,7 +53,8 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   await expect.poll(() => storedBlobs(host!.dataDir).length).toBe(2);
   for (const blob of storedBlobs(host.dataDir)) expect([blob.subarray(0, 4).toString(), blob.subarray(8, 12).toString()]).toEqual(['RIFF', 'WEBP']);
 
-  // Search by file name, any case (MEDIA-A7).
+  // Search by file name, any case (MEDIA-A7); "Sök..." in the empty field, as the current app.
+  await expect(page.getByLabel('Sök', { exact: true })).toHaveAttribute('placeholder', 'Sök...');
   await page.getByLabel('Sök', { exact: true }).fill('LOGO');
   await expect(page.getByTestId('image-card')).toHaveCount(1);
   await page.getByLabel('Sök', { exact: true }).fill('zzz');
@@ -104,7 +105,7 @@ test('a picture imported while the host is down is kept, and reaches the host an
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Bo');
   const page = second.page;
-  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 5_000 });
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
 
   const hostData = host.dataDir;
   await host.app.close();
@@ -118,11 +119,11 @@ test('a picture imported while the host is down is kept, and reaches the host an
   // The host comes back on the same port: the blobs are uploaded, then the add is pushed.
   host = await launch({ port, dataDir: hostData });
   await host.page.getByTestId('status').waitFor();
-  await expect(page.getByTestId('status')).toHaveText(/^Ansluten$/, { timeout: 10_000 });
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 10_000 });
   await openAdmin(host.page, 'Bilder');
   const onHost = host.page.getByTestId('image-card').getByRole('img', { name: 'Kors.png' });
   await expect(onHost).toBeVisible({ timeout: 10_000 });
   // The host fetched the picture's bytes from its own media folder, not just the row.
   await expect.poll(() => onHost.evaluate((img: HTMLImageElement) => img.naturalWidth), { timeout: 10_000 }).toBeGreaterThan(0);
-  await expect(page.getByText('Servern tog inte emot en ändring', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('En ändring kunde inte synkas.')).toHaveCount(0);
 });

@@ -1,9 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { resolveTheme, type Canvas } from '@gp/core';
 import { followStream } from '../live/watch-stream.ts';
 import { t } from '../i18n.ts';
 import { LogoIcon } from '../ui/icons.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
+import { askFullScreen } from '../ui/fullScreen.ts';
 import { viewerId } from './Watch.tsx';
 
 // A paired screen (spec 04 §5): a TV or a PC that shows a session, with no
@@ -82,15 +83,23 @@ function follow(base: string, on: { shown: (s: Shown) => void; name?: (n: string
   );
 }
 
-/** The projector's canvas, as the output window draws it (`Output.tsx`): black while unbound or black. */
+/**
+ * The projector's canvas, as the output window draws it (`Output.tsx`): black while unbound or black. A canvas
+ * that goes null fades to black over 500 ms, as the output window's black screen (LiveDisplay.razor); the
+ * last canvas is kept for it, since a null canvas no longer says what was shown.
+ */
 function Slide({ base, shown }: { base: string; shown: Shown }) {
   const canvas = shown.kind === 'canvas' ? shown.canvas : null;
-  if (!canvas) return <div className="fixed inset-0 bg-black cursor-none" data-testid="display-black" />;
-  const slide = canvas.slide && { ...canvas.slide, key: '', label: null };
-  const overlay = canvas.overlay && { content: canvas.overlay.text, imageHash: canvas.overlay.image };
+  const [last, setLast] = useState(canvas);
+  if (canvas && canvas !== last) setLast(canvas);
+  const drawn = canvas ?? last;
+  // The same objects while the canvas is the same, as the fade compares them.
+  const slide = useMemo(() => (drawn?.slide ? { ...drawn.slide, key: '', label: null } : null), [drawn]);
+  const overlay = useMemo(() => (drawn?.overlay ? { content: drawn.overlay.text, imageHash: drawn.overlay.image } : null), [drawn]);
   return (
-    <div className="fixed inset-0 bg-black cursor-none" data-testid="output">
-      <SlideView slide={slide} theme={resolveTheme(canvas.themeId, null)} label={false} overlay={overlay} media={(hash) => `${base}/image/${hash}`} />
+    // One element throughout, so the cover is there to fade when the canvas comes back.
+    <div className="fixed inset-0 bg-black cursor-none" data-testid={canvas ? 'output' : 'display-black'}>
+      <SlideView slide={slide} theme={resolveTheme(drawn?.themeId ?? null, null)} label={false} overlay={overlay} black={!canvas} media={(hash) => `${base}/image/${hash}`} />
     </div>
   );
 }
@@ -127,7 +136,7 @@ function SavedScreen({ code, name }: { code: string; name: string | null }) {
 type Temporary = { kind: 'starting' } | { kind: 'code'; id: string; pin: string } | { kind: 'paired'; id: string };
 
 /** A temporary screen (LIVE-R28): a code to type, or the operator's QR token; then the session, until it lets the screen go. */
-function TemporaryScreen({ token }: { token: string | null }) {
+function TemporaryScreen({ token, name }: { token: string | null; name: string | null }) {
   const [state, setState] = useState<Temporary>({ kind: 'starting' });
   const [shown, setShown] = useState<Shown>({ kind: 'idle' });
   const [round, setRound] = useState(0);
@@ -137,7 +146,8 @@ function TemporaryScreen({ token }: { token: string | null }) {
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let qr = round === 0 ? token : null;
-    if (qr) history.replaceState(null, '', '/display'); // the token is single use: no reload should send it again
+    // The token is single use: no reload should send it again. The name stays.
+    if (qr) history.replaceState(null, '', name ? `/display?${new URLSearchParams({ name })}` : '/display');
     const ask = async () => {
       try {
         const res = await (qr ? askWithToken(qr) : askScreen({ id: keptScreen() }));
@@ -159,7 +169,7 @@ function TemporaryScreen({ token }: { token: string | null }) {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [token, round]);
+  }, [token, name, round]);
 
   const pairedId = state.kind === 'paired' ? state.id : null;
   useEffect(() => {
@@ -178,6 +188,7 @@ function TemporaryScreen({ token }: { token: string | null }) {
   if (pairedId) return <Slide base={`/api/screen/${pairedId}`} shown={shown} />;
   return (
     <Waiting testId="display-pairing">
+      {name && <div className="text-neutral-300 text-[3vw] font-semibold">{name}</div>}
       {state.kind === 'code' && (
         <>
           <div className="text-neutral-400 text-[2.5vw] tracking-widest uppercase">{t('display.code')}</div>
@@ -193,9 +204,5 @@ function TemporaryScreen({ token }: { token: string | null }) {
 
 /** `/display` (spec 04 §5): a click asks for full screen. */
 export function Display({ id, name, token }: { id: string | null; name: string | null; token: string | null }) {
-  return (
-    <div onClick={() => void document.documentElement.requestFullscreen?.().catch(() => undefined)}>
-      {id ? <SavedScreen code={id} name={name} /> : <TemporaryScreen token={token} />}
-    </div>
-  );
+  return <div onClick={askFullScreen}>{id ? <SavedScreen code={id} name={name} /> : <TemporaryScreen token={token} name={name} />}</div>;
 }
