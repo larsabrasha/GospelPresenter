@@ -36,6 +36,25 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
   app does).
 - **A purged song's items stay** in their presentations and say the song is gone.
 
+Remote control for the whole organisation (LIVE-R38 and R39 as changed on 2026-10-29):
+
+- **The policy is a row of `org_settings`**, `remoteControl` = `never`, `presenter` or `always`; no row (or a
+  value this build does not know) is `presenter`, today's behaviour. It is set by `setRemoteControl`, which needs
+  `ManageOrganizationSettings`, a new permission that Admin and SuperAdmin have. Spec 01 ORG-R8 has settings
+  written with `ManageUsers`; a permission of its own keeps it apart from managing users.
+- **The server decides**: the live hub reads the row on every command and every sessions list, so a window
+  that reports "Tillåt fjärrstyrning" under "Aldrig" is still refused, and one that does not under "Alltid" is
+  still driven. After a push of `setRemoteControl` the hub sends the sessions to everyone, so a running session
+  follows at once. The window keeps reporting its own toggle, and keeps it: back under "Presentatören väljer",
+  each window is as its presenter left it.
+- **The live page follows the policy**: under "Aldrig" the Fjärrstyrning section is gone; under "Alltid" it
+  says "Alla i församlingen kan fjärrstyra presentationen." in place of the switch, and the QR code button is
+  always there. A controller refused under "Aldrig" sees the same "Fjärrstyrning är inte aktiverad av
+  presentatören" as today.
+- **The page is new**: the current app has no organisation settings page. "Församlingen" in the admin menu
+  (`/admin/settings`, "Församlingens inställningar"), for those with the permission; it looks like "Mina
+  inställningar". It is not called "Inställningar", which the admin button in the top bar is already called.
+
 Templates (spec 03 "Template", screen 3):
 
 - **A template is a row of `presentations`** with `is_template` set, as in the current app: the editor, its

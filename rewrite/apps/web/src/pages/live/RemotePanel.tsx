@@ -12,29 +12,39 @@ import { RemoteInfoDialog } from './RemoteInfoDialog.tsx';
 /**
  * "Tillåt fjärrstyrning" and, beside it, the button for the link a phone opens
  * (spec 04 §1, §9); closed at first, as LivePanel.razor's. The first time it is
- * switched on here, the link's dialog opens by itself.
+ * switched on here, the link's dialog opens by itself. Under the organisation's
+ * "Alltid" there is no toggle: a line says so, and the link is always there.
+ * The window's own toggle is kept meanwhile, for when the policy changes back.
  */
-export function RemotePanel({ id, sessionId, name }: { id: string; sessionId: string; name: string | undefined }) {
-  const [on, setOn] = useState(remoteAllowed);
+export function RemotePanel({ id, sessionId, name, always }: { id: string; sessionId: string; name: string | undefined; always: boolean }) {
+  const [toggle, setToggle] = useState(remoteAllowed);
+  const on = always || toggle;
   const [info, setInfo] = useState(false);
   const [autoShown, setAutoShown] = useState(false);
   return (
     <PanelSection title={t('live.remote')} hint={t('live.remoteHint')} open={false}>
       <div className="flex items-center gap-2">
         <div className="flex-1 min-w-0">
-          <ToggleRow
-            label={t('remote.allow')}
-            icon={<RemoteIcon className="size-4 shrink-0" />}
-            checked={on}
-            onChange={(v) => {
-              setOn(v);
-              setRemoteAllowed(v);
-              if (v && !autoShown) {
-                setAutoShown(true);
-                setInfo(true);
-              }
-            }}
-          />
+          {always ? (
+            <p className="flex items-center gap-2 text-sm text-neutral-600 dark:text-neutral-300">
+              <RemoteIcon className="size-4 shrink-0" />
+              {t('remote.always')}
+            </p>
+          ) : (
+            <ToggleRow
+              label={t('remote.allow')}
+              icon={<RemoteIcon className="size-4 shrink-0" />}
+              checked={toggle}
+              onChange={(v) => {
+                setToggle(v);
+                setRemoteAllowed(v);
+                if (v && !autoShown) {
+                  setAutoShown(true);
+                  setInfo(true);
+                }
+              }}
+            />
+          )}
         </div>
         <AppButton
           variant="plain"

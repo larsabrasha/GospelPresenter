@@ -150,6 +150,7 @@ calendar subscriptions (`GospelPresenter/GospelPresenter.Shared/Services/IAppCap
 | `/admin/organizations`, `/admin/organizations/{id}` | ManageOrganizations (SuperAdmin) | |
 | `/admin/api-keys` | ManageMcpApiKeys (SuperAdmin) | |
 | `/admin/sessions` | ManageOrganizations | live sessions, all organizations |
+| `/admin/settings` | ManageOrganizationSettings (Admin+) | rewrite only (2026-10-29): the organisation's settings, remote control so far (LIVE-R38) |
 | `/admin/connected-users` | ManageOrganizations | |
 | Other admin pages (other areas) | `/admin/songs`, `/admin/labels`, `/admin/songs/{id}`, `/admin/songs/{id}/history`: ManageSongs; `/admin/bibles`: ManageBibles; `/admin/images`: ManageOrganizationImages; `/admin/audios`: ManageOrganizationAudios; `/admin/overlays`, `/admin/overlays/{id}`: ManageOverlays; `/admin/templates`: ManageTemplates; `/admin/themes`: ManageThemes; `/admin/ccli-report`: ViewCcliReport; `/admin/displays`: ManageRemoteDisplays; `/presentations/{id}`, `/templates/{id}`, `/trash`: signed in | `@attribute [Authorize(Policy=…)]` in each page |
 | `/live`, `/display`, `/watch/*` | anonymous | Live/public output area |

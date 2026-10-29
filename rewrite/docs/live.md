@@ -102,7 +102,9 @@ no server-side slide and no second kind of session. Each operator window keeps o
 (LIVE-R47): presentation, device name, "Tillåt fjärrstyrning" and the pointer. Every member's window gets the
 organisation's sessions as they change. A controller sends an absolute command (item, part, black); the server
 forwards it to the owner's socket only, never queued (LIVE-R48), and refuses it while remote control is off or
-the owner is gone. The owner applies it if it still makes sense (presenting, item exists, not already showing;
+the owner is gone. Whether it is off is the organisation's policy first (`org_settings` row `remoteControl`:
+"Aldrig", "Presentatören väljer", the default, or "Alltid"), and the window's toggle only under "Presentatören
+väljer"; the sessions everyone gets carry that result. The owner applies it if it still makes sense (presenting, item exists, not already showing;
 LIVE-R49), whichever page is open (`apps/web/src/live/owner.ts`), and its next report is what everyone sees.
 A controller's own click shows at once; if the owner has not confirmed it within 2 s, it warns once.
 
@@ -114,12 +116,15 @@ mutation's transaction. Only the user who first reported a session id may report
 freezes the session (LIVE-R50): it stays, cannot be driven, and anyone in the organisation may then end it
 ("Avsluta presentationen"); after 2 hours without its owner it is ended when the sessions are next read.
 Starting and controlling need `ManagePresentations` (ADR 0007 decision 5), which every role has, so any
-member may control, as LIVE-R38 says. The poke sockets are now tagged `poke` in the Durable Object, so a
-poke never goes to a live socket.
+member may control, as LIVE-R38 says. The hub reads the policy on every command and every sessions list; after
+a push of `setRemoteControl` it sends the sessions to everyone, so a running session follows at once. The poke
+sockets are now tagged `poke` in the Durable Object, so a poke never goes to a live socket.
 
-**In the app.** On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) has a QR code
-button beside it, grey while off, for the "Fjärrstyr presentationen" dialog (`RemoteControlInfoDialog.razor`):
-the link, `/live/{id}?remote=1&session={id}`, as a QR code, and folded under it the link to copy and how to take
+**In the app.** An admin sets the policy under Församlingen (`/admin/settings`, "Fjärrstyrning av
+presentationer"). On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) has a QR code
+button beside it, grey while off; under "Alltid" a line says everyone may take control in place of the switch,
+and under "Aldrig" the section is gone. The QR code button opens the "Fjärrstyr presentationen" dialog
+(`RemoteControlInfoDialog.razor`): the link, `/live/{id}?remote=1&session={id}`, as a QR code, and folded under it the link to copy and how to take
 control from the app. The first time it is switched on on a live page, the dialog opens by itself. On a desktop
 host the link has its LAN address. Under Presentationer every other
 window of the organisation sees "Visas just nu · {name}" with "Ta kontroll" for each session that allows it

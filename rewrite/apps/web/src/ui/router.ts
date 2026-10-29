@@ -41,6 +41,8 @@ export type Route =
    */
   | { page: 'display'; id: string | null; name: string | null; token: string | null }
   | { page: 'themes' }
+  /** The organisation's settings (`/admin/settings`): remote control so far. */
+  | { page: 'orgSettings' }
   /** The user's own settings on this device: the colour theme. */
   | { page: 'settings' }
   /** The signed-in user's own ways to sign in; `error` when linking Google was refused. */
@@ -86,6 +88,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'templates') return { page: 'templates' };
     if (second === 'themes') return { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
+    if (second === 'settings') return { page: 'orgSettings' };
     return { page: 'songs' };
   }
   const id = second;
@@ -149,6 +152,8 @@ export function href(r: Route): string {
       return '/signed-in';
     case 'signIn':
       return r.error ? `/signin?error=${encodeURIComponent(r.error)}` : '/signin';
+    case 'orgSettings':
+      return '/admin/settings';
     case 'logins':
       return r.error ? `/logins?error=${encodeURIComponent(r.error)}` : '/logins';
     default:

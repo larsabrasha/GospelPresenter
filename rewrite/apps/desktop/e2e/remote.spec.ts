@@ -166,3 +166,35 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     await browser.close();
   }
 });
+
+test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldrig" takes control away at once', async () => {
+  const { owner: hostApp, other: secondApp } = await hostWithSecond();
+  const page = hostApp.page;
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+
+  // Anna, an admin, lets everyone take control.
+  await openAdmin(page, 'Församlingen');
+  await expect(page.getByRole('heading', { name: 'Församlingens inställningar' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /^Presentatören väljer/ })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('radio', { name: /^Alltid/ }).click();
+  await expect(page.getByRole('radio', { name: /^Alltid/ })).toHaveAttribute('aria-checked', 'true');
+
+  // She presents without switching anything on; Bo may take control.
+  await openPresentations(page);
+  await page.getByRole('link', { name: 'Söndag' }).click();
+  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Fjärrstyrning', exact: true }).click();
+  await expect(page.getByText('Alla i församlingen kan fjärrstyra presentationen.')).toBeVisible();
+  await expect(page.getByLabel('Tillåt fjärrstyrning')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Visa info om fjärrstyrning' })).toBeEnabled();
+  await openPresentations(secondApp.page);
+  const card = secondApp.page.getByRole('list', { name: 'Visas just nu' }).getByRole('listitem');
+  await expect(card.getByRole('link', { name: 'Ta kontroll' })).toBeVisible({ timeout: 5_000 });
+
+  // "Aldrig", set while she presents: the card goes on Bo's computer without a reload.
+  await openAdmin(page, 'Församlingen');
+  await page.getByRole('radio', { name: /^Aldrig/ }).click();
+  await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0, { timeout: 5_000 });
+});

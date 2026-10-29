@@ -222,6 +222,7 @@ function adminLinks(me: Me, host: boolean): AdminLink[][] {
     [
       can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', icon: UsersIcon, pages: ['users'] },
       host && can(me.role, 'ManageUsers') && { route: { page: 'devices' }, label: 'nav.devices', icon: DevicesIcon, pages: ['devices'] },
+      can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', icon: CogIcon, pages: ['orgSettings'] },
     ],
   ];
   return groups.map((g) => g.filter((l): l is AdminLink => !!l)).filter((g) => g.length > 0);

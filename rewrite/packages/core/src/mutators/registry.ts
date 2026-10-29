@@ -121,6 +121,10 @@ import {
   setDefaultTheme,
 } from './bibles-and-themes.ts';
 import {
+  setRemoteControlArgs,
+  setRemoteControl,
+} from './org-settings.ts';
+import {
   createDisplayArgs,
   createDisplay,
   newDisplayCodeArgs,
@@ -195,6 +199,7 @@ export const mutators = {
   importBible: m(importBibleArgs, importBible),
   deleteBible: m(deleteBibleArgs, deleteBible),
   setDefaultTheme: m(setDefaultThemeArgs, setDefaultTheme),
+  setRemoteControl: m(setRemoteControlArgs, setRemoteControl),
   addImage: m(addImageArgs, addImage),
   trashImage: m(trashImageArgs, trashImage),
   restoreImage: m(restoreImageArgs, restoreImage),

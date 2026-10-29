@@ -1,6 +1,8 @@
 import {
   DEFAULT_THEME_SETTING,
   LOAD_BIBLE_TEXT_SQL,
+  REMOTE_CONTROL_SETTING,
+  remoteControlPolicy,
   resolveTheme,
   type Bible,
   type BibleBookText,
@@ -11,6 +13,7 @@ import {
   type Overlay,
   type Presentation,
   type PresentationItem,
+  type RemoteControlPolicy,
   type SearchableSong,
   type Song,
   type SongArrangement,
@@ -247,6 +250,12 @@ export function bibleBooks(db: ReadDb, hash: string, fetch?: (hash: string) => P
 export async function orgDefaultThemeId(db: ReadDb): Promise<string | null> {
   const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [DEFAULT_THEME_SETTING]);
   return r?.value ?? null;
+}
+
+/** The organisation's remote control policy; no row is the presenter's choice. */
+export async function orgRemoteControl(db: ReadDb): Promise<RemoteControlPolicy> {
+  const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [REMOTE_CONTROL_SETTING]);
+  return remoteControlPolicy(r?.value);
 }
 
 /** The theme a presentation shows: its own, else the organisation's default, else Classic (THEME-R1). */

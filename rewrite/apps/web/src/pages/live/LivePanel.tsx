@@ -1,5 +1,6 @@
 import type { LivePointer, Overlay, Slide, Theme } from '@gp/core';
-import type { ShownOverlay } from '../../db/queries.ts';
+import { orgRemoteControl, type ShownOverlay } from '../../db/queries.ts';
+import { useData } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -47,6 +48,8 @@ export function LivePanel({
   onToggle: () => void;
   onStage: () => void;
 }) {
+  // Under "Aldrig" the organisation allows no remote control: no section at all.
+  const remotePolicy = useData(orgRemoteControl, []);
   return (
     <aside
       className="absolute bottom-3 right-3 z-30 w-72 max-w-[calc(100%-1.5rem)] max-h-[calc(100dvh-7rem)] flex flex-col overflow-hidden rounded-2xl shadow-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm lg:static lg:max-w-none lg:max-h-none lg:shrink-0 lg:rounded-none lg:bg-white lg:dark:bg-neutral-800 lg:backdrop-blur-none lg:block lg:overflow-y-auto"
@@ -99,9 +102,9 @@ export function LivePanel({
                   <OverlaysPanel overlays={overlays} pointer={pointer} live={live} />
                 </div>
               )}
-              {owner && (
+              {owner && remotePolicy && remotePolicy !== 'never' && (
                 <div className="mt-3">
-                  <RemotePanel id={id} sessionId={owner.sessionId} name={name} />
+                  <RemotePanel id={id} sessionId={owner.sessionId} name={name} always={remotePolicy === 'always'} />
                 </div>
               )}
               <AppButton variant="secondary" onClick={onStage} className="mt-3 flex items-center justify-center gap-2">

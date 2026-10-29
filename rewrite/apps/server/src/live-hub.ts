@@ -5,6 +5,9 @@ import {
   LIVE_MESSAGE_MAX,
   liveClientMessageSchema,
   MAX_VIEWERS,
+  REMOTE_CONTROL_SETTING,
+  remoteControlAllowed,
+  remoteControlPolicy,
   SLIDE_PAGES_SQL,
   type Canvas,
   type LiveOwnState,
@@ -17,7 +20,8 @@ import {
 } from '@gp/core';
 
 // An organisation's live sessions (spec 04, ADR 0004): which window presents
-// what, and whether phones may drive it. The same code on Node (in process)
+// what, and whether phones may drive it (the window's toggle, under the
+// organisation's remote control policy). The same code on Node (in process)
 // and in the organisation's Durable Object, which may hibernate between
 // messages: so the sessions are rows in a server-only table, and which socket
 // owns which session is kept on the socket (an attachment in a Durable Object).
@@ -172,7 +176,7 @@ export class LiveHub {
       return this.broadcast();
     }
     // A command (LIVE-R48): only with remote control on and the owner there; never queued.
-    if (!row.remote) return reply(s, { type: 'error', error: 'remote-off' });
+    if (!this.remoteAllowed(row)) return reply(s, { type: 'error', error: 'remote-off' });
     const owners = this.sockets().filter((o) => o.owns.includes(row.id));
     if (!owners.length) return reply(s, { type: 'error', error: 'owner-offline' });
     const command = JSON.stringify(
@@ -484,6 +488,24 @@ export class LiveHub {
     return this.store.query('SELECT * FROM live_sessions WHERE id = ?', [id])[0] as Row | undefined;
   }
 
+  /**
+   * The organisation's remote control policy changed: everyone sees at once
+   * which sessions may be driven now. Commands read it on every message.
+   */
+  remoteControlChanged() {
+    this.broadcast();
+  }
+
+  private policy() {
+    const [r] = this.store.query('SELECT value FROM org_settings WHERE id = ?', [REMOTE_CONTROL_SETTING]) as { value: string }[];
+    return remoteControlPolicy(r?.value);
+  }
+
+  /** The policy decides; the window's own toggle counts only when the policy leaves it to the presenter. */
+  private remoteAllowed(r: Row, policy = this.policy()): boolean {
+    return remoteControlAllowed(policy, r.remote === 1);
+  }
+
   private ownerOnline(id: string): boolean {
     return this.sockets().some((o) => o.owns.includes(id));
   }
@@ -492,6 +514,7 @@ export class LiveHub {
   sessions(): LiveSessionInfo[] {
     const online = new Set(this.sockets().flatMap((o) => o.owns));
     const rows = this.store.query('SELECT * FROM live_sessions ORDER BY id') as unknown as Row[];
+    const policy = this.policy();
     const out: LiveSessionInfo[] = [];
     for (const r of rows) {
       if (!online.has(r.id) && r.owner_seen_at < this.now() - ABANDONED_SESSION_MS) {
@@ -506,7 +529,7 @@ export class LiveHub {
         presentationId: r.presentation_id,
         presentationName: r.presentation_name,
         deviceName: r.device_name,
-        remote: r.remote === 1,
+        remote: this.remoteAllowed(r, policy),
         ownerOnline: online.has(r.id),
         pointer: JSON.parse(r.pointer) as LiveSessionInfo['pointer'],
         outputs,

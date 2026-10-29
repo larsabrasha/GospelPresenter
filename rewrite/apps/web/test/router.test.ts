@@ -31,6 +31,7 @@ describe('routes', () => {
       { page: 'overlay', id: 'O 1/2' },
       { page: 'themes' },
       { page: 'displays' },
+      { page: 'orgSettings' },
       { page: 'settings' },
       { page: 'watch', code: 'abcdefg' },
       { page: 'display', id: null, name: null, token: null },

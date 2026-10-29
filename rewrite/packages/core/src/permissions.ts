@@ -23,12 +23,16 @@ export type Permission =
   | 'ViewUsers'
   | 'ManageUsers'
   | 'ManageRemoteDisplays'
+  | 'ManageOrganizationSettings'
   | 'ManageOrganizations'
   | 'AssignSuperAdminRole';
 
 const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewTemplates', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes', 'ViewImages', 'ManageImages', 'ViewAudios', 'ManageAudios', 'ViewOverlays', 'ManageOverlays'];
-/** Importing and deleting Bibles, and making and editing templates, is for admins (D24); everyone uses them. */
-const admin: Permission[] = [...everyone, 'ManageTemplates', 'ManageBibles', 'ManageThemes', 'ViewUsers', 'ManageUsers', 'ManageRemoteDisplays'];
+/**
+ * Importing and deleting Bibles, and making and editing templates, is for admins (D24); everyone uses them.
+ * The organisation's settings (remote control so far) are for admins too.
+ */
+const admin: Permission[] = [...everyone, 'ManageTemplates', 'ManageBibles', 'ManageThemes', 'ViewUsers', 'ManageUsers', 'ManageRemoteDisplays', 'ManageOrganizationSettings'];
 
 const grants: Record<Role, ReadonlySet<Permission>> = {
   user: new Set(everyone),

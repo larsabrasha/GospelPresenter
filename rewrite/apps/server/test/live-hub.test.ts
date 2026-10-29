@@ -14,6 +14,7 @@ function store() {
   const { DatabaseSync: Db } = require('node:sqlite') as { DatabaseSync: typeof DatabaseSync };
   const db = new Db(':memory:');
   db.exec('CREATE TABLE displays (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL, kind TEXT NOT NULL)');
+  db.exec('CREATE TABLE org_settings (id TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL)');
   return { query: (sql: string, params: unknown[] = []) => db.prepare(sql).all(...(params as never[])) as Record<string, unknown>[] };
 }
 

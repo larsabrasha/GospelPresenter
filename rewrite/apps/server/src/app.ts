@@ -8,6 +8,7 @@ import {
   can,
   DISPLAY_CODE,
   DISPLAY_MUTATORS,
+  REMOTE_CONTROL_MUTATORS,
   joinBibleText,
   LOAD_BIBLE_TEXT_SQL,
   MEDIA_HASH,
@@ -105,6 +106,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
         await watch.sync(caller.orgId, org.store.query('SELECT id, code FROM displays') as { id: string; code: string }[]);
         org.live?.displaysChanged(); // a deleted output, or a new code, disconnects its viewers at once
       }
+      if (after > before && body.mutations.some((m) => REMOTE_CONTROL_MUTATORS.includes(m.name))) org.live?.remoteControlChanged();
       return res;
     });
     return c.json(result.body, result.status);

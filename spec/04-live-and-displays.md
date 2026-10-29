@@ -166,7 +166,9 @@ Not available on `/templates/{id}` (template mode never shows live controls).
   5. **Fjärrstyrning** (collapsed by default; hidden in remote mode and on hosts without the
      capability): toggle **Tillåt fjärrstyrning**; the first time it is switched on in this panel
      instance the *Fjärrstyr presentationen* dialog (§9) opens automatically; an info button re-opens
-     it (disabled while off).
+     it (disabled while off). (Rewrite, LIVE-R38: hidden under the policy Aldrig; under Alltid the
+     toggle is replaced by "Alla i församlingen kan fjärrstyra presentationen." and the info button is
+     always enabled.)
   6. Hidden `<audio>` elements for the session's audio (operator only).
   7. **Scenläge** button → stage mode (§3).
   8. **Avsluta presentation** (red) — or, when stopping is not allowed (controller of a device-owned
@@ -474,8 +476,14 @@ Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default
   on. No role/permission beyond org membership (any `User` can control). Off ⇒ "Fjärrstyrning är inte
   aktiverad av presentatören". Controller cannot manage the presenter's outputs or remote toggle.
   `Presentation.razor:566-609`; ADR `adr/0004-mirrored-desktop-live-sessions.md` (Authorization)
+  (Rewrite, 2026-10-29: an admin sets a policy for the whole organisation under `/admin/settings`,
+  "Fjärrstyrning av presentationer": **Aldrig** (no toggle; every command refused), **Presentatören väljer**
+  (the default; the toggle as above) or **Alltid** (no toggle; every session may be driven). The server
+  applies it whatever a window reports, and a change reaches running sessions at once; it needs
+  `ManageOrganizationSettings`, Admin and SuperAdmin. Refused under Aldrig shows the same text as off.)
 - **LIVE-R39** The remote-control toggle persists across Stop→Start in the same session; it is reset
-  only by switching it off or session eviction. `SharedAppState.cs:247-250`, `:533`
+  only by switching it off or session eviction. `SharedAppState.cs:247-250`, `:533` (Rewrite: it is kept
+  under Aldrig and Alltid too, and counts again when the policy goes back to Presentatören väljer.)
 
 ### Keyboard
 - **LIVE-R40** Arrow keys in the slide grid never put a slide live; only Enter/click does.

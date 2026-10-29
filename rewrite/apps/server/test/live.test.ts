@@ -2,7 +2,8 @@
 // owner reports, a controller's command reaches the owner only, and losing
 // the owner freezes the session until it reports again or someone ends it.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { setRole, startAdapter, type AdapterName, type Harness } from './harness.ts';
+import { PROTOCOL_VERSION, SCHEMA_VERSION, type RemoteControlPolicy } from '@gp/core';
+import { api, setRole, startAdapter, type AdapterName, type Harness } from './harness.ts';
 import { ownState, Window } from './live-window.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
@@ -17,6 +18,13 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
     const w = await Window.open(h, inOrg, user);
     open.push(w);
     return w;
+  };
+
+  /** An admin sets the organisation's remote control policy, as the settings page does. */
+  const setPolicy = async (policy: RemoteControlPolicy) => {
+    const body = { protocol: PROTOCOL_VERSION, schemaVersion: SCHEMA_VERSION, clientId: crypto.randomUUID(), mutations: [{ id: 1, name: 'setRemoteControl', v: 1, args: { policy } }] };
+    const r = await api<{ results: unknown[] }>(h, 'POST', '/api/sync/push', { user: 'anna', org, body });
+    expect(r.body.results).toEqual([]);
   };
 
   beforeAll(async () => {
@@ -73,6 +81,52 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
     await phone.sessions((s) => s[0]?.remote === true);
     phone.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 1, black: false } });
     expect(await owner.next((m) => m.type === 'command')).toMatchObject({ change: { partIndex: 1 } });
+  });
+
+  it('under "Aldrig" refuses a command even when the window allows it', async () => {
+    const owner = await win('anna');
+    const phone = await win('bo');
+    await setPolicy('never');
+    owner.send({ type: 'own', state: state('S1', { remote: true }) });
+    const [seen] = await phone.sessions((s) => s.length === 1);
+    phone.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 1, black: false } });
+    expect([seen!.remote, await phone.error()]).toEqual([false, 'remote-off']);
+  });
+
+  it('under "Alltid" lets a command through even when the window does not allow it', async () => {
+    const owner = await win('anna');
+    const phone = await win('bo');
+    await setPolicy('always');
+    owner.send({ type: 'own', state: state('S1', { remote: false }) });
+    const [seen] = await phone.sessions((s) => s.length === 1);
+    phone.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 1, black: false } });
+    expect(seen!.remote).toBe(true);
+    expect(await owner.next((m) => m.type === 'command')).toMatchObject({ change: { partIndex: 1 } });
+  });
+
+  it('a change of policy reaches a running session at once, and back to "Presentatören väljer" the window decides again', async () => {
+    const owner = await win('anna');
+    const phone = await win('bo');
+    owner.send({ type: 'own', state: state('S1', { remote: true }) });
+    await phone.sessions((s) => s[0]?.remote === true);
+
+    // The broadcast comes before the push's answer: wait for it from before the push.
+    const off = phone.sessions((s) => s[0]?.remote === false);
+    await setPolicy('never');
+    await off;
+    const on = phone.sessions((s) => s[0]?.remote === true);
+    await setPolicy('presenter');
+    const [back] = await on;
+
+    expect(back!.id).toBe('S1');
+  });
+
+  it('a user may not set the policy', async () => {
+    const body = { protocol: PROTOCOL_VERSION, schemaVersion: SCHEMA_VERSION, clientId: crypto.randomUUID(), mutations: [{ id: 1, name: 'setRemoteControl', v: 1, args: { policy: 'never' } }] };
+
+    const r = await api<{ results: { error: string }[] }>(h, 'POST', '/api/sync/push', { user: 'bo', org, body });
+
+    expect(r.body.results.map((x) => x.error)).toEqual(['forbidden']);
   });
 
   it('a lost owner freezes the session: no commands; only then may another member end it; the owner can come back (LIVE-R50)', async () => {

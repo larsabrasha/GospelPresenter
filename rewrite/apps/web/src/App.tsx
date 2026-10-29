@@ -19,6 +19,7 @@ import { Logins } from './pages/Logins.tsx';
 import { Output } from './pages/Output.tsx';
 import { PresentationEditor } from './pages/presentation-editor/index.ts';
 import { Presentations } from './pages/Presentations.tsx';
+import { OrgSettings } from './pages/OrgSettings.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
 import { Themes } from './pages/Themes.tsx';
@@ -75,6 +76,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'templates' && (can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />)}
       {route.page === 'themes' && <Themes role={me.role} />}
       {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
+      {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings /> : <Refused text={t('orgSettings.forbidden')} />)}
     </>
   );
   return (
@@ -109,7 +111,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
 }
 
 /** The pages under the admin menu (Layout/AdminLayout.razor). */
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'templates', 'themes', 'displays']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'templates', 'themes', 'displays', 'orgSettings']);
 
 /** A page the user may not open: why, where the page would be. */
 function Refused({ text }: { text: string }) {
