@@ -3,7 +3,7 @@
 // `images` row syncs; this uploads the blobs of a queued `addImage` (or
 // `addAudio`, `addSlides`) before it is pushed, downloads what the library names and this device lacks, and
 // removes what nothing names.
-import { MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia } from '@gp/core';
+import { ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
 export interface MediaBlob {
@@ -91,8 +91,8 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
   }
   for (const { presentationId, audio } of order) {
     const items = (await client.query(
-      `SELECT i.full_hash AS hash FROM presentation_items p JOIN images i ON i.id = p.source_id
-         WHERE p.presentation_id = ? AND p.type = 'image'
+      `SELECT i.full_hash AS hash FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id
+         WHERE p.presentation_id = ?
        UNION ALL
        SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id
          WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
@@ -179,7 +179,7 @@ export async function presentationMediaState(
 ): Promise<{ needed: number; present: number }> {
   const rows = (await client.query(
     `SELECT h.hash, EXISTS (SELECT 1 FROM media_blobs b WHERE b.hash = h.hash AND b.bytes IS NOT NULL) AS present FROM (
-       SELECT i.full_hash AS hash FROM presentation_items p JOIN images i ON i.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'image'
+       SELECT i.full_hash AS hash FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id WHERE p.presentation_id = ?
        UNION SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
        UNION SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
        UNION SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id) h`,

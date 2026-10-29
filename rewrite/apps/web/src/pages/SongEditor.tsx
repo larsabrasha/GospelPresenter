@@ -1,5 +1,5 @@
 import { DEFAULT_LABELS, labelId, LIMITS, parsePartIds, type Label, type SongArrangement, type SongPart } from '@gp/core';
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { arrangementsOf, getSong, listLabels, presentationsUsing, songPartsOf } from '../db/queries.ts';
 import { t } from '../i18n.ts';
@@ -7,7 +7,7 @@ import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
-import { useConfirm } from '../ui/Dialog.tsx';
+import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { SelectMenu } from '../ui/SelectMenu.tsx';
@@ -29,7 +29,7 @@ function partName(p: SongPart, labels: Map<string, Label>): string {
   const label = p.labelId ? labels.get(p.labelId) : undefined;
   if (label) return label.text;
   const line = p.content.split('\n')[0]!.trim();
-  return line.length > 20 ? `${line.slice(0, 20)}...` : line || '...';
+  return line.length > 20 ? `${line.slice(0, 20)}...` : line;
 }
 
 function PartPill({ part, labels }: { part: SongPart; labels: Map<string, Label> }) {
@@ -96,6 +96,7 @@ function ArrangementCard({
         <div className="flex gap-4">
           <AutoSaveField
             label={t('song.name')}
+            maxLength={100}
             value={arrangement.name ?? ''}
             onSave={(name) => db.mutate('updateArrangement', { id: arrangement.id, name })}
             onSaved={showSaved}
@@ -169,8 +170,7 @@ function ArrangementCard({
           aria-label={t('song.removeArrangement')}
           title={t('song.removeArrangement')}
           onClick={async () => {
-            const ok = await ask({ title: t('song.removeArrangement'), text: t('song.removeArrangementConfirm'), confirm: t('common.delete') });
-            if (ok) saving(db.mutate('removeArrangement', { id: arrangement.id }));
+            await ask(deleteAsk(t('song.removeArrangementConfirm'), undefined, async () => saving(db.mutate('removeArrangement', { id: arrangement.id }))));
           }}
         >
           <TrashIcon className="size-4" />
@@ -180,8 +180,12 @@ function ArrangementCard({
   );
 }
 
-/** The song editor (spec 02, `/admin/songs/{id}`; Pages/Admin/SongDetail.razor). */
-export function SongEditor({ id }: { id: string }) {
+/**
+ * The song editor (spec 02, `/admin/songs/{id}`; Pages/Admin/SongDetail.razor). With `onBack`,
+ * inside the add dialog (EditSong.razor): its back button returns to the song list there, and
+ * so does moving the song to the trash.
+ */
+export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) {
   const db = useDb();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
@@ -196,14 +200,24 @@ export function SongEditor({ id }: { id: string }) {
     }),
     [id],
   );
+  // "Lägg till del" brings the new part into view once it is there (SongEditor.razor's scrollToElement).
+  const scrollTo = useRef<string | null>(null);
+  useEffect(() => {
+    if (!scrollTo.current) return;
+    const target = document.querySelector(`[data-part-id="${CSS.escape(scrollTo.current)}"]`);
+    if (!target) return;
+    scrollTo.current = null;
+    target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  // A song that is not there (gone, or in the trash) sends back to the list (SongDetail.razor).
+  const missing = !!data && (!data.song || data.song.deletedAt !== null);
+  const leave = useEffectEvent(() => (onBack ? onBack() : navigate({ page: 'songs' })));
+  useEffect(() => {
+    if (missing) leave();
+  }, [missing]);
   if (!data) return null;
   const { song, parts, arrangements, labels } = data;
-  if (!song || song.deletedAt !== null)
-    return (
-      <PageContainer>
-        <p className="px-5 text-neutral-500 dark:text-neutral-400">{t('song.notFound')}</p>
-      </PageContainer>
-    );
+  if (!song || song.deletedAt !== null) return null;
 
   const update = (fields: Record<string, string | number | null>) => db.mutate('updateSong', { id, ...fields });
   // "Sparad" after the writes the current app flags: fields, a part's text and label, and arrangements;
@@ -218,8 +232,7 @@ export function SongEditor({ id }: { id: string }) {
 
   const removePart = async (p: SongPart) => {
     const label = p.labelId ? (labels.get(p.labelId)?.text ?? t('song.noLabel')) : t('song.noLabel');
-    const ok = await ask({ title: t('song.removePart'), text: t('song.removePartConfirm', { label }), confirm: t('common.delete') });
-    if (ok) failing(db.mutate('removeSongPart', { id: p.id }));
+    await ask(deleteAsk(t('song.removePartConfirm', { label }), label, async () => failing(db.mutate('removeSongPart', { id: p.id }))));
   };
 
   const trash = async () => {
@@ -228,7 +241,7 @@ export function SongEditor({ id }: { id: string }) {
     const text = [t('song.trashConfirm', { name: song.name }), using.length ? t('song.usedIn', { names: using.map((p) => p.name).join(', ') }) : '']
       .filter(Boolean)
       .join(' ');
-    if (!(await ask({ title: t('song.trash'), text, confirm: t('song.trash') }))) return;
+    if (!(await ask({ title: t('common.delete'), text, bold: song.name, confirm: t('common.delete') }))) return;
     try {
       await db.mutate('trashSong', { id, at: Date.now() });
     } catch (e) {
@@ -238,13 +251,14 @@ export function SongEditor({ id }: { id: string }) {
       return;
     }
     toast(t('song.trashed', { name: song.name }));
-    navigate({ page: 'songs' });
+    if (onBack) onBack();
+    else navigate({ page: 'songs' });
   };
 
   const partRow = (p: SongPart, i: number) => {
     const label = p.labelId ? labelChoices.find((l) => l.id === p.labelId) : undefined;
     return (
-      <li key={p.id} className={`${CARD} p-4 space-y-3`}>
+      <li key={p.id} data-part-id={p.id} className={`${CARD} p-4 space-y-3`}>
         <div className="flex items-center gap-2">
           <SelectMenu
             label={t('song.label')}
@@ -308,6 +322,7 @@ export function SongEditor({ id }: { id: string }) {
         <AutoSaveField
           label={`${t('song.parts')} ${i + 1}`}
           value={p.content}
+          maxLength={5000}
           multiline
           onSave={(content) => db.mutate('updateSongPart', { id: p.id, content })}
           onSaved={saved.show}
@@ -321,21 +336,25 @@ export function SongEditor({ id }: { id: string }) {
     );
   };
 
+  const Frame = onBack ? EmbeddedFrame : PageFrame;
   return (
-    <PageContainer className="pb-8">
+    <Frame>
       {dialog}
-      <DetailHeader backHref={href({ page: 'songs' })} title={song.name} saved={saved.node} className="px-5" />
+      <DetailHeader {...(onBack ? { onBack } : { backHref: href({ page: 'songs' }) })} title={song.name} saved={saved.node} className={onBack ? 'shrink-0' : 'px-5'} />
       <div className="space-y-4">
         <div className={`${CARD} p-5 space-y-4`}>
           {/* A blank name is not saved (spec 02). */}
-          <AutoSaveField label={t('song.name')} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
+          <AutoSaveField label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
           <div className="flex gap-4">
-            <AutoSaveField label={t('song.author')} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} className="flex-1" />
-            <AutoSaveField label={t('song.publisher')} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} onSaved={saved.show} className="flex-1" />
+            <AutoSaveField label={t('song.author')} maxLength={200} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} className="flex-1" />
+            <AutoSaveField label={t('song.publisher')} maxLength={200} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} onSaved={saved.show} className="flex-1" />
           </div>
           <div className="flex gap-4">
             <AutoSaveField
               label={t('song.year')}
+              type="number"
+              min={0}
+              max={9999}
               value={song.year === null ? '' : String(song.year)}
               onSave={(v) => {
                 const year = v.trim() === '' ? null : Number(v);
@@ -344,7 +363,7 @@ export function SongEditor({ id }: { id: string }) {
               onSaved={saved.show}
               className="flex-1"
             />
-            <AutoSaveField label={t('song.ccli')} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} onSaved={saved.show} className="flex-1" />
+            <AutoSaveField label={t('song.ccli')} maxLength={20} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} onSaved={saved.show} className="flex-1" />
           </div>
         </div>
         {/* The current app shows no heading over the parts; this one is for screen readers. */}
@@ -354,7 +373,11 @@ export function SongEditor({ id }: { id: string }) {
           variant="secondary"
           className="flex items-center gap-1.5 self-start"
           disabled={parts.length >= LIMITS.partsPerSong}
-          onClick={() => failing(db.mutate('addSongPart', { id: newId(), songId: id, labelText: null, content: '' }))}
+          onClick={() => {
+            const partId = newId();
+            scrollTo.current = partId;
+            failing(db.mutate('addSongPart', { id: partId, songId: id, labelText: null, content: '' }));
+          }}
         >
           <PlusIcon className="size-4" />
           {t('song.addPart')}
@@ -389,6 +412,15 @@ export function SongEditor({ id }: { id: string }) {
           </AppButton>
         </div>
       </div>
-    </PageContainer>
+    </Frame>
   );
+}
+
+function PageFrame({ children }: { children: ReactNode }) {
+  return <PageContainer className="pb-8">{children}</PageContainer>;
+}
+
+/** Inside the add dialog: its own scrolling column, with the dialog's padding (EditSong.razor). */
+function EmbeddedFrame({ children }: { children: ReactNode }) {
+  return <div className="flex-1 min-h-0 overflow-y-auto flex flex-col space-y-5 pb-6">{children}</div>;
 }

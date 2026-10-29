@@ -1,20 +1,15 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { presentationItems, presentations } from '../schema.ts';
-import { id, LIMITS, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
-import { purgeRows, setDeletedAt } from './presentations.ts';
+import { id, LIMITS, MutationError, name, requirePermission, type MutatorCtx, type Tx } from './base.ts';
+import { changedAt, eventDescription, eventLocation, eventTime, purgeRows, setDeletedAt } from './presentations.ts';
 
 // ------------------------------------------------------------------ templates (spec 03 "Template")
 
 /** A day of the week, 0 = Sunday … 6 = Saturday (spec 03 `ScheduledDayOfWeek`). */
 const weekday = z.number().int().min(0).max(6).nullable();
-/** A time of day, `HH:MM`. */
-const time = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-  .nullable();
-/** spec 03: `EventLocation` ≤ 100. */
-const location = optionalText(100);
+const time = eventTime;
+const location = eventLocation;
 
 /**
  * The items to copy, each with the id its copy gets: the caller makes the ids
@@ -63,7 +58,7 @@ export async function createTemplate(tx: Tx, a: z.output<typeof createTemplateAr
   requirePermission(ctx, 'ManageTemplates');
   await tx
     .insert(presentations)
-    .values({ id: a.id, name: a.name, isTemplate: true, weekday: a.weekday ?? null, time: a.time ?? null, location: a.location ?? null })
+    .values({ id: a.id, name: a.name, isTemplate: true, weekday: a.weekday ?? null, time: a.time ?? null, location: a.location ?? null, updatedAt: changedAt(ctx) })
     .onConflictDoNothing();
 }
 
@@ -76,7 +71,7 @@ export async function updateTemplate(tx: Tx, a: z.output<typeof updateTemplateAr
   if (Object.keys(set).length) {
     await tx
       .update(presentations)
-      .set(set)
+      .set({ ...set, updatedAt: changedAt(ctx) })
       .where(and(eq(presentations.id, templateId), eq(presentations.isTemplate, true)));
   }
 }
@@ -91,7 +86,7 @@ export async function saveAsTemplate(tx: Tx, a: z.output<typeof saveAsTemplateAr
   if (await exists(tx, a.id)) return; // a replay of a save that already landed
   const [source] = await tx.select({ themeId: presentations.themeId }).from(presentations).where(eq(presentations.id, a.presentationId));
   if (!source) throw new MutationError('not-found', 'presentation not found');
-  await tx.insert(presentations).values({ id: a.id, name: a.name, isTemplate: true, themeId: source.themeId });
+  await tx.insert(presentations).values({ id: a.id, name: a.name, isTemplate: true, themeId: source.themeId, updatedAt: changedAt(ctx) });
   await copyItems(tx, a.presentationId, a.id, a.items);
 }
 
@@ -100,6 +95,9 @@ export const createFromTemplateArgs = z.object({
   templateId: id,
   name,
   eventDate: z.iso.date().nullable().optional(),
+  time: time.optional(),
+  location: location.optional(),
+  description: eventDescription.optional(),
   items: copiedItems,
   /** When it was made: the template's "last used" (PRES-R30). */
   at: z.number().int(),
@@ -117,7 +115,16 @@ export async function createFromTemplate(tx: Tx, a: z.output<typeof createFromTe
     .from(presentations)
     .where(and(eq(presentations.id, a.templateId), eq(presentations.isTemplate, true)));
   if (!template || template.deletedAt !== null) throw new MutationError('not-found', 'Template not found.');
-  await tx.insert(presentations).values({ id: a.id, name: a.name, eventDate: a.eventDate ?? null, themeId: template.themeId });
+  await tx.insert(presentations).values({
+    id: a.id,
+    name: a.name,
+    eventDate: a.eventDate ?? null,
+    time: a.time ?? null,
+    location: a.location ?? null,
+    description: a.description ?? null,
+    themeId: template.themeId,
+    updatedAt: changedAt(ctx),
+  });
   await copyItems(tx, a.templateId, a.id, a.items);
   await tx.update(presentations).set({ lastUsedAt: a.at }).where(eq(presentations.id, a.templateId));
 }

@@ -140,6 +140,14 @@ export const ORPHAN_GRACE_MS = 60 * 60 * 1000;
 export const SLIDE_PAGES_SQL = `SELECT p.presentation_id, json_extract(j.value, '$.full') AS full_hash, json_extract(j.value, '$.thumb') AS thumb_hash
   FROM presentation_items p, json_each(p.content, '$.pages') j WHERE p.type = 'slides'`;
 
+/**
+ * Every picture of every image item, with its presentation: the `sourceId` of one with a single
+ * picture, the content's list of one with several (slides.ts `imageItemIds`).
+ */
+export const ITEM_IMAGES_SQL = `SELECT p.presentation_id, p.source_id AS image_id FROM presentation_items p WHERE p.type = 'image' AND p.content IS NULL
+  UNION ALL
+  SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL`;
+
 /** The blobs no image, audio file or slide deck names, older than the grace period: what a clean-up may remove. */
 export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
   WHERE received_at < ?

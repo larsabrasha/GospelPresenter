@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useData, useShownOverlay } from '../db/react.tsx';
 import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import { slidesOf, type LiveChannel } from '../live/live.ts';
@@ -24,8 +25,28 @@ export function Output({ live }: { live: LiveChannel }) {
     [pointer.presentationId, pointer.itemId, pointer.partIndex],
   );
   const overlay = useShownOverlay(pointer.overlayId);
+  // The window is named after the presentation, as the current app's `?title` (Live.razor).
+  const name = useData(async (db) => (pointer.presentationId ? ((await getPresentation(db, pointer.presentationId))?.name ?? null) : null), [pointer.presentationId]);
+  useEffect(() => {
+    if (name) document.title = name;
+  }, [name]);
+  // The screen stays awake, and takes the lock again when the window shows (Live.razor).
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    const take = () => {
+      if (document.visibilityState === 'visible') void navigator.wakeLock.request('screen').then((l) => (lock = l), () => {});
+    };
+    take();
+    document.addEventListener('visibilitychange', take);
+    return () => {
+      document.removeEventListener('visibilitychange', take);
+      void lock?.release();
+    };
+  }, []);
   return (
-    <div className="fixed inset-0 bg-black cursor-none" data-testid="output">
+    // A click asks for full screen (Live.razor).
+    <div className="fixed inset-0 bg-black cursor-none" data-testid="output" onClick={() => void document.documentElement.requestFullscreen?.().catch(() => {})}>
       <SlideView slide={pointer.black ? null : (shown?.slide ?? null)} theme={shown?.theme} label={false} overlay={pointer.black ? null : overlay} />
     </div>
   );

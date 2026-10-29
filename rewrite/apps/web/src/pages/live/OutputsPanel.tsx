@@ -7,7 +7,7 @@ import { useLiveSessions, type LiveLink } from '../../live/remote.ts';
 import { outputWindow } from '../../live/outputWindow.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
-import { CloseIcon, DesktopIcon, PlusIcon } from '../../ui/icons.tsx';
+import { CloseIcon, DesktopIcon, PlusIcon, QrCodeIcon } from '../../ui/icons.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { ToggleRow } from '../../ui/Toggle.tsx';
 import { viewersText } from '../Displays.tsx';
@@ -49,7 +49,8 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
         icon={<DesktopIcon className="size-4 shrink-0" />}
       />
       <ul className="flex flex-col gap-3" aria-label={t('live.outputs')}>
-        {displays?.map((d) => {
+        {/* Saved screens, then public outputs, each in the order they were made (LivePanel.razor). */}
+        {displays?.toSorted((a, b) => (a.kind === b.kind ? 0 : a.kind === 'screen' ? -1 : 1)).map((d) => {
           const elsewhere = sessions.find((s) => s.id !== sessionId && s.outputs.some((o) => o.id === d.id));
           const viewers = mine?.outputs.find((o) => o.id === d.id)?.viewers;
           const offline = d.kind === 'screen' && !online.includes(d.id);
@@ -58,7 +59,9 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
             if (on && elsewhere) {
               const ok = await ask({
                 title: t('live.takeOverTitle'),
-                text: t('live.takeOverText', { output: d.name, presentation: elsewhere.presentationName }),
+                text: elsewhere.presentationName
+                  ? t('live.takeOverText', { output: d.name, presentation: elsewhere.presentationName })
+                  : t('live.takeOverTextUnknown', { output: d.name }),
                 confirm: t('live.takeOver'),
               });
               if (!ok) return;
@@ -72,11 +75,19 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
                 label={d.name}
                 checked={sending}
                 disabled={offline}
+                noSwitch={offline}
                 onChange={(v) => void toggle(v)}
-                icon={<DesktopIcon className={`size-4 shrink-0 ${sending ? 'text-green-500' : 'text-neutral-400 dark:text-neutral-500'}`} />}
-                sub={offline ? t('screens.offline') : elsewhere ? t('displays.sending', { name: elsewhere.presentationName }) : undefined}
+                icon={
+                  d.kind === 'public' ? (
+                    <QrCodeIcon className={`size-4 shrink-0 ${sending ? 'text-green-500' : 'text-neutral-400 dark:text-neutral-500'}`} />
+                  ) : (
+                    <DesktopIcon off={offline} className={`size-4 shrink-0 ${sending ? 'text-green-500' : offline ? 'text-neutral-300 dark:text-neutral-500' : 'text-neutral-500 dark:text-neutral-400'}`} />
+                  )
+                }
+                sub={elsewhere && !offline ? t('displays.sending', { name: elsewhere.presentationName }) : undefined}
                 extra={
                   d.kind === 'public' &&
+                  sending &&
                   viewers !== undefined && <span className={`text-[11px] ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-neutral-400 dark:text-neutral-500'}`}>{viewersText(viewers)}</span>
                 }
               />
@@ -92,7 +103,7 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
             <AppButton
               variant="plain"
               aria-label={t('screens.disconnect', { n: x.n })}
-              title={t('screens.disconnect', { n: x.n })}
+              title={t('screens.disconnectShort')}
               onClick={() => setOutput(x.id, false)}
               className="cursor-pointer text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400"
             >

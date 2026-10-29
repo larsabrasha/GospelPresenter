@@ -89,12 +89,6 @@ function SyncStatus() {
  */
 function SyncWarnings() {
   const s = useDbStatus();
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    const on = (e: PromiseRejectionEvent) => setError(e.reason instanceof Error ? e.reason.message : String(e.reason));
-    addEventListener('unhandledrejection', on);
-    return () => removeEventListener('unhandledrejection', on);
-  }, []);
   const warnings: ReactNode[] = [];
   if (s && s.storage !== 'opfs') warnings.push(t('status.memory', { reason: s.storage }));
   if (s?.updateRequired) warnings.push(t('status.updateRequired'));
@@ -118,7 +112,6 @@ function SyncWarnings() {
     );
   const last = s?.rejected.at(-1);
   if (last) warnings.push(t('status.rejected', { error: last.error }));
-  if (error) warnings.push(<span role="alert">{error}</span>);
   if (!warnings.length) return null;
   return (
     <div data-testid="sync-warnings" className="shrink-0 px-4 py-2 space-y-1 bg-amber-50 dark:bg-amber-950/40 border-b-[0.5px] border-amber-200 dark:border-amber-900 text-sm text-neutral-800 dark:text-neutral-100">
@@ -128,6 +121,35 @@ function SyncWarnings() {
           <div className="min-w-0 break-words">{w}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * An error nothing caught: the current app's yellow bar at the bottom with Ladda
+ * om (MainLayout.razor's blazor-error-ui). What went wrong is in the console.
+ */
+function UnexpectedError() {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    // An ErrorEvent without an error is the browser's own notice, such as ResizeObserver's loop limit.
+    const on = (e: Event) => {
+      if (!(e instanceof ErrorEvent) || e.error) setFailed(true);
+    };
+    addEventListener('unhandledrejection', on);
+    addEventListener('error', on);
+    return () => {
+      removeEventListener('unhandledrejection', on);
+      removeEventListener('error', on);
+    };
+  }, []);
+  if (!failed) return null;
+  return (
+    <div role="alert" className="fixed left-0 bottom-0 w-full z-[1000] p-3 bg-yellow-50 dark:bg-yellow-950 text-neutral-900 dark:text-neutral-100">
+      {t('layout.unexpectedError')}
+      <a href="." className="bg-green-500 text-white mx-3 px-3 py-2 rounded-xl no-underline">
+        {t('layout.reload')}
+      </a>
     </div>
   );
 }
@@ -190,6 +212,7 @@ export function TopBar({ me }: { me: Me }) {
         </div>
       </nav>
       <SyncWarnings />
+      <UnexpectedError />
     </>
   );
 }

@@ -167,7 +167,8 @@ test('a refused save says "Kunde inte spara", not "Sparad", and the field keeps 
   await expect(saved).toHaveCount(0); // gone 2.3 s after the last save of creating the song
   const ccli = page.getByLabel('CCLI');
 
-  // A CCLI number is at most 20 characters; the field takes more, and the write is refused.
+  // A CCLI number is at most 20 characters; without the field's own limit, the write is refused.
+  await ccli.evaluate((el) => el.removeAttribute('maxlength'));
   await ccli.fill('1'.repeat(21));
   await ccli.blur();
 
@@ -292,14 +293,17 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
 
   // A dated presentation; the songs go in through the picker, Kort chosen for the first.
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
-  await expect(page.getByTestId('schedule')).toContainText('1 nov');
+  await expect(page.getByTestId('schedule')).toHaveText('2026-11-01');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   const search = picker.getByLabel('Sök på titel, författare eller textrad');
   await search.fill('pilgrim');
   await picker.getByRole('button', { name: 'Kort' }).click();
   await expect(picker.getByRole('list', { name: 'Pilgrimsfärd' }).getByRole('listitem')).toHaveCount(3);
-  await search.press('Shift+Enter'); // D15: adds, stays open, starts over
+  await search.press('Enter'); // a plain Enter does not add (D15) ...
+  await search.press('Shift+Enter'); // ... nor Shift+Enter
+  await expect(page.getByRole('status').getByText('har lagts till')).toHaveCount(0);
+  await search.press('Control+Enter'); // D15: adds, stays open, starts over
   await expect(page.getByRole('status').getByText('"Pilgrimsfärd" har lagts till')).toBeVisible();
   await expect(search).toHaveValue('');
   await expect(search).toBeFocused();
@@ -336,12 +340,23 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await page.getByLabel('Byt namn på programpunkten').press('Enter');
   await expect(order).toHaveText([/Blott en dag/, /Inledning/]);
 
-  // The event date changes after create.
+  // The date, time, place and description change after create; the side menu and the start page show them.
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
-  await page.getByRole('dialog', { name: 'Redigera detaljer' }).getByLabel('Datum').fill('2026-11-08');
-  await page.getByRole('dialog', { name: 'Redigera detaljer' }).getByRole('button', { name: 'Spara' }).click();
-  await expect(page.getByTestId('schedule')).toContainText('8 nov');
+  const details = page.getByRole('dialog', { name: 'Redigera detaljer' });
+  await details.getByLabel('Datum').fill('2026-11-08');
+  await details.getByLabel('Tid').fill('10:00');
+  await details.getByLabel('Plats').fill('Stora salen');
+  await details.getByLabel('Beskrivning').fill('Med nattvard');
+  await details.getByRole('button', { name: 'Spara' }).click();
+  await expect(page.getByTestId('schedule')).toHaveText('2026-11-08 10:00Stora salen');
+  await page.getByRole('button', { name: 'Alternativ' }).click();
+  await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
+  await expect(details.getByLabel('Beskrivning')).toHaveValue('Med nattvard');
+  await details.getByRole('button', { name: 'Avbryt' }).click();
+  await openPresentations(page);
+  await expect(page.getByRole('link', { name: /Gudstjänst/ })).toContainText('10:00 · Stora salen');
+  await page.getByRole('link', { name: /Gudstjänst/ }).click();
 
   // Live, the item shows Kort's order on the output.
   await page.getByRole('link', { name: 'Starta presentation' }).click();
@@ -367,9 +382,9 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await openAdmin(page, 'Sånger');
   await page.getByRole('link', { name: 'Amazing Grace' }).click();
   await page.getByRole('button', { name: 'Ta bort sång' }).click();
-  const confirm = page.getByRole('dialog', { name: 'Ta bort sång' });
+  const confirm = page.getByRole('dialog', { name: 'Radera' });
   await expect(confirm).toContainText('Sången raderas permanent efter 30 dagar. Sången används i: Kväll.');
-  await confirm.getByRole('button', { name: 'Ta bort sång' }).click();
+  await confirm.getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByRole('status').getByText('Amazing Grace flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Alla sånger (0)' })).toBeVisible();
 
@@ -386,7 +401,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await openAdmin(page, 'Sånger');
   await page.getByRole('link', { name: 'Amazing Grace' }).click();
   await page.getByRole('button', { name: 'Ta bort sång' }).click();
-  await page.getByRole('dialog', { name: 'Ta bort sång' }).getByRole('button', { name: 'Ta bort sång' }).click();
+  await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await openPresentations(page);
   await page.getByRole('link', { name: 'Kväll' }).click();
   await page.getByRole('button', { name: 'Alternativ' }).click();
@@ -394,8 +409,12 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   await expect(page.getByRole('status').getByText('Kväll flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Kväll' })).toHaveCount(0);
 
-  // The trash, opened for presentations: one of two, with 30 days left.
+  // The start page has no trash link once nothing is left there (Dashboard.razor): in by Sånger's, then to presentations.
+  await expect(page.getByRole('link', { name: 'Papperskorg' })).toHaveCount(0);
+  await openAdmin(page, 'Sånger');
   await page.getByRole('link', { name: 'Papperskorg' }).click();
+  await page.getByRole('button', { name: 'Presentationer' }).click();
+  // One of two, with 30 days left.
   const rows = page.getByRole('list', { name: 'Papperskorg' }).getByRole('listitem');
   await expect(rows).toHaveCount(1);
   await expect(page.getByTestId('trash-count')).toHaveText('1 sak av 2');

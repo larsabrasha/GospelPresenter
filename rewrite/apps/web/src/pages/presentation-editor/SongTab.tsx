@@ -7,8 +7,10 @@ import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Highlight } from '../../ui/Highlight.tsx';
-import { CloseIcon, MusicalNoteOutlineIcon, PlusIcon } from '../../ui/icons.tsx';
-import { AddFooter, EmptyTab, SearchField } from '../../ui/Picker.tsx';
+import { AdjustmentsIcon, CloseIcon, MusicalNoteOutlineIcon, PencilIcon, PlusIcon } from '../../ui/icons.tsx';
+import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../../ui/Picker.tsx';
+import { href } from '../../ui/router.ts';
+import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useToast } from '../../ui/Toast.tsx';
 import { CreateSongDialog } from '../Songs.tsx';
 import type { TabProps } from './AddItemDialog.tsx';
@@ -18,10 +20,10 @@ import { ArrangementPills, SlideGrid } from './SlideGrid.tsx';
 const isPhone = () => matchMedia('(max-width: 767.98px)').matches;
 
 /**
- * The song tab: Ctrl/Cmd+Enter and Shift+Enter add, and the search starts
- * over for the next song.
+ * The song tab: Ctrl/⌘+Enter adds, and the search starts over for the next song. The arrows move
+ * through the hits and keep the chosen one in view; the pencil opens the song's editor (SongTab.razor).
  */
-export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProps) {
+export function SongTab({ presentationId, afterItemId, theme, onAdded, active, onEditSong }: TabProps & { onEditSong: (songId: string) => void }) {
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
@@ -33,6 +35,10 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
   // On a phone a tapped song opens its preview full screen, with the add button there (SongTab.razor).
   const [fullScreen, setFullScreen] = useState(false);
   const search = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const previewPane = useRef<HTMLDivElement>(null);
+  const adding = useRef(false);
+  useFocusWhenShown(search, active);
   const shown = songs ? searchSongs(songs, query) : [];
   // Typing selects the first hit, also when the library loads after the typing.
   const selected = shown.find((s) => s.id === selectedId) ?? (query.trim() ? (shown[0] ?? null) : null);
@@ -54,23 +60,36 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
   const select = (id: string | null) => {
     setSelectedId(id);
     setArrangementId(null); // the first arrangement is preselected (SONG-R19)
+    previewPane.current?.scrollTo(0, 0);
+  };
+  // A new search, or a cleared one, starts both lists at the top and selects the first hit.
+  const searchFor = (v: string) => {
+    setQuery(v);
+    select(v.trim() ? null : (songs ? searchSongs(songs, v) : [])[0]?.id ?? null);
+    list.current?.scrollTo(0, 0);
   };
 
   const add = async () => {
-    if (!selected) return;
-    const itemId = newId();
-    // No pick stores null: the item then follows the song's first arrangement, whatever it becomes.
-    if (!(await trySave(db.mutate('addSongToPresentation', { itemId, presentationId, songId: selected.id, arrangementId, afterItemId })))) return;
-    toast(t('presentation.added', { name: selected.name }));
-    onAdded(itemId);
-    setQuery('');
-    select(null);
-    setFullScreen(false);
-    search.current?.focus();
+    // Once at a time: a double click or a held key adds one item, not two (SongTab.razor's isAdding).
+    if (!selected || adding.current) return;
+    adding.current = true;
+    try {
+      const itemId = newId();
+      // No pick stores null: the item then follows the song's first arrangement, whatever it becomes.
+      if (!(await trySave(db.mutate('addSongToPresentation', { itemId, presentationId, songId: selected.id, arrangementId, afterItemId })))) return;
+      toast(t('presentation.added', { name: selected.name }));
+      onAdded(itemId);
+      setQuery('');
+      select(null);
+      setFullScreen(false);
+      search.current?.focus();
+    } finally {
+      adding.current = false;
+    }
   };
 
   const onKeyDown = (e: ReactKeyboardEvent) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || e.shiftKey)) {
+    if (isAddKey(e)) {
       e.preventDefault();
       void add();
     } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && shown.length && !e.altKey && !e.ctrlKey && !e.metaKey) {
@@ -78,6 +97,7 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
       const at = shown.findIndex((s) => s.id === effectiveId);
       const next = at === -1 ? (e.key === 'ArrowDown' ? 0 : shown.length - 1) : Math.min(shown.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)));
       select(shown[next]!.id);
+      list.current?.querySelectorAll('li')[next]?.scrollIntoView({ block: 'nearest' });
     }
   };
 
@@ -88,29 +108,35 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
     </AppButton>
   );
 
+  // An empty library: the line, Hantera sånger (every role manages songs) and Skapa, in the middle of the whole tab.
+  if (songs && !songs.length)
+    return (
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center text-center text-sm gap-3 select-none">
+        <MusicalNoteOutlineIcon className="size-12 mb-1 text-neutral-300 dark:text-neutral-600" />
+        <p className="text-neutral-400 dark:text-neutral-500">{t('songs.emptyTitle')}</p>
+        <AppButton variant="secondary" href={href({ page: 'songs' })} className="flex items-center gap-1.5">
+          <AdjustmentsIcon className="size-4" />
+          {t('presentation.manageSongs')}
+        </AppButton>
+        {create}
+        {creating && <CreateSongDialog initial={query} onClose={() => setCreating(false)} onCreated={(id) => (setCreating(false), select(id))} />}
+      </div>
+    );
+
   return (
     <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
       <div className="shrink-0 flex">
-        <SearchField
-          inputRef={search}
-          autoFocus
-          label={t('presentation.searchSongs')}
-          value={query}
-          onChange={(v) => {
-            setQuery(v);
-            select(null);
-          }}
-        />
+        <SearchField inputRef={search} label={t('presentation.searchSongs')} value={query} onChange={searchFor} />
       </div>
       <div className="mt-3 flex-1 min-h-0 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden">
         <div className="w-full md:w-1/2 min-w-0 flex flex-col md:pr-3 md:min-h-0">
           {songs && !shown.length && (
             <EmptyTab icon={<MusicalNoteOutlineIcon className="size-12 mb-1 text-neutral-300 dark:text-neutral-600" />}>
-              <p>{songs.length ? t('songs.noHits') : t('songs.emptyTitle')}</p>
+              <p>{t('songs.noHits')}</p>
               {create}
             </EmptyTab>
           )}
-          <ul className="md:flex-1 md:min-h-0 md:overflow-y-auto" aria-label={t('nav.songs')}>
+          <ul ref={list} className="md:flex-1 md:min-h-0 md:overflow-y-auto" aria-label={t('nav.songs')}>
             {shown.map((s) => (
               <li key={s.id}>
                 <AppButton
@@ -135,7 +161,7 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
           {/* Under the list whenever it has songs, as the current app's; an empty list has its own. */}
           {!!shown.length && <div className="shrink-0 pt-3">{create}</div>}
         </div>
-        <div className="hidden md:block md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3">
+        <div ref={previewPane} className="hidden md:block md:w-1/2 min-w-0 md:min-h-0 md:overflow-y-auto overflow-x-hidden md:pl-3">
           {!shownPreview && (
             <div className="flex flex-col items-center justify-center h-full py-8 text-sm text-neutral-400 dark:text-neutral-500 select-none">
               <MusicalNoteOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />
@@ -144,9 +170,26 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
           )}
           {shownPreview && (
             <>
-              <div className="mb-4 px-1">
-                <h3 className="font-semibold text-sm/5">{shownPreview.song.name}</h3>
-                {shownPreview.song.author && <p className="text-xs text-neutral-400">{shownPreview.song.author}</p>}
+              <div className="mb-4 px-1 flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm/5">
+                    <Highlight text={shownPreview.song.name} query={query} />
+                  </h3>
+                  {shownPreview.song.author && (
+                    <p className="text-xs text-neutral-400">
+                      <Highlight text={shownPreview.song.author} query={query} />
+                    </p>
+                  )}
+                </div>
+                <AppButton
+                  variant="icon"
+                  className="shrink-0 size-7! text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200"
+                  title={t('presentation.editSong')}
+                  aria-label={t('presentation.editSong')}
+                  onClick={() => onEditSong(shownPreview.song.id)}
+                >
+                  <PencilIcon className="size-4" />
+                </AppButton>
               </div>
               <ArrangementPills arrangements={shownPreview.arrangements} chosen={chosen} onChoose={setArrangementId} className="mb-3 px-1" />
               <SlideGrid
@@ -160,7 +203,7 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
         </div>
       </div>
       <div className="hidden md:block">
-        <AddFooter hint={t('presentation.addHint')} name={selected?.name} label={selected ? t('presentation.addSong', { name: selected.name }) : undefined} onAdd={selected ? () => void add() : undefined} />
+        <AddFooter hint={t('presentation.addHint', { key: ctrlLabel('Enter') })} name={selected?.name} label={selected ? t('presentation.addSong', { name: selected.name }) : undefined} onAdd={selected ? () => void add() : undefined} />
       </div>
       {fullScreen && shownPreview && selected && (
         <div
@@ -183,6 +226,9 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded }: TabProp
               <h3 className="font-semibold text-sm truncate">{shownPreview.song.name}</h3>
               {shownPreview.song.author && <p className="text-xs text-neutral-400 truncate">{shownPreview.song.author}</p>}
             </div>
+            <AppButton variant="icon" className="shrink-0" title={t('presentation.editSong')} aria-label={t('presentation.editSong')} onClick={() => onEditSong(shownPreview.song.id)}>
+              <PencilIcon className="size-4" />
+            </AppButton>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
             <ArrangementPills arrangements={shownPreview.arrangements} chosen={chosen} onChoose={setArrangementId} className="mb-3" />

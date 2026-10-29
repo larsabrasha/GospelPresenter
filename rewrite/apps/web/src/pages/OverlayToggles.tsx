@@ -25,7 +25,7 @@ export function OverlayToggles({ overlays, pointer, live, stage }: { overlays: O
                 <input type="checkbox" className={SWITCH} aria-label={o.title} checked={on} onChange={(e) => set(o, e.target.checked)} />
               </label>
             ) : (
-              <ToggleRow label={o.title} checked={on} onChange={(v) => set(o, v)} />
+              <ToggleRow label={o.title} title={o.title} checked={on} onChange={(v) => set(o, v)} />
             )}
           </li>
         );

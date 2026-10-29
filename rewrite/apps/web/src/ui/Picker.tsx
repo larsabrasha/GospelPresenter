@@ -1,4 +1,4 @@
-import type { ReactNode, Ref } from 'react';
+import { useEffect, type ReactNode, type RefObject, type Ref } from 'react';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { CloseIcon, SearchIcon } from './icons.tsx';
@@ -53,6 +53,24 @@ export function SearchField({
       )}
     </div>
   );
+}
+
+/**
+ * Puts focus in a tab's search when the tab is shown, so the user can type at once; not below
+ * `md`, where it would bring up a phone's keyboard over the list (SongTab.razor's IsMobileAsync).
+ */
+export function useFocusWhenShown(input: RefObject<HTMLInputElement | null>, active: boolean) {
+  useEffect(() => {
+    if (active && !matchMedia('(max-width: 767.98px)').matches) input.current?.focus();
+  }, [active, input]);
+}
+
+/**
+ * Whether a key press in a tab adds: Ctrl+Enter, ⌘+Enter on a Mac. The dialog never closes after an
+ * add (D15), so one key is enough; a plain Enter does nothing, since a new user may press it to search.
+ */
+export function isAddKey(e: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean }): boolean {
+  return e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
 }
 
 /**

@@ -28,15 +28,16 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
 /**
  * A detail page's heading row (Components/DetailHeader.razor): the round back
  * button at the left, the title in the middle, and `saved` ("✓ Sparad", see
- * ui/AutoSave.tsx) at the right. Without `backHref`, the title alone (Profile.razor).
+ * ui/AutoSave.tsx) at the right. The back button is a link with `backHref`, a
+ * button with `onBack`; with neither, the title alone (Profile.razor).
  */
-export function DetailHeader({ backHref, title, saved, className }: { backHref?: string; title: string; saved?: ReactNode; className?: string }) {
+export function DetailHeader({ backHref, onBack, title, saved, className }: { backHref?: string; onBack?: () => void; title: string; saved?: ReactNode; className?: string }) {
   return (
     <div className={`relative flex items-center justify-center min-h-10 ${className ?? ''}`}>
-      {backHref && (
+      {(backHref || onBack) && (
         <AppButton
           variant="plain"
-          href={backHref}
+          {...(backHref ? { href: backHref } : { onClick: onBack })}
           aria-label={t('common.back')}
           title={t('common.back')}
           className="absolute left-0 cursor-pointer p-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"

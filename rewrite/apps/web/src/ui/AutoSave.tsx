@@ -74,6 +74,10 @@ export function AutoSaveField({
   onSaved,
   multiline,
   className,
+  maxLength,
+  type,
+  min,
+  max,
 }: {
   label: string;
   value: string;
@@ -81,6 +85,11 @@ export function AutoSaveField({
   onSaved?: () => void;
   multiline?: boolean;
   className?: string;
+  /** The field's limits (AppConstraints): its length, and for a number its type and range. */
+  maxLength?: number;
+  type?: 'text' | 'number';
+  min?: number;
+  max?: number;
 }) {
   // What the user has typed, shown in place of `value`; null shows `value`.
   const [draft, setDraft] = useState<string | null>(null);
@@ -152,8 +161,8 @@ export function AutoSaveField({
   };
   // A part's text has no visible label, as in the current app; its name is for screen readers and tests.
   return multiline ? (
-    <FloatingTextarea label="" aria-label={label} rows={8} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+    <FloatingTextarea label="" aria-label={label} rows={8} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   ) : (
-    <FloatingInput label={label} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+    <FloatingInput label={label} type={type} min={min} max={max} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   );
 }

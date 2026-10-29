@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { DISPLAY_CODE, MAX_DISPLAYS } from '../displays.ts';
 import { displays } from '../schema.ts';
 import { id, limit, MutationError, name, requirePermission, type MutatorCtx, type Tx } from './base.ts';
+import { changedAt } from './presentations.ts';
 
 // ------------------------------------------------------------------ outputs (spec 04 §7)
 
@@ -22,7 +23,7 @@ export async function createDisplay(tx: Tx, a: z.output<typeof createDisplayArgs
   const [n] = await tx.select({ n: count() }).from(displays);
   limit((n?.n ?? 0) >= MAX_DISPLAYS, 'outputs');
   await requireFreeCode(tx, a.code, null);
-  await tx.insert(displays).values({ id: a.id, name: a.name, code: a.code, kind: a.kind });
+  await tx.insert(displays).values({ id: a.id, name: a.name, code: a.code, kind: a.kind, createdAt: changedAt(ctx) });
 }
 
 export const newDisplayCodeArgs = z.object({ id, code: displayCode });

@@ -1,10 +1,10 @@
 import { count, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { MEDIA_LIMITS } from '../media.ts';
-import { audios, images, mediaBlobs } from '../schema.ts';
-import { MAX_SLIDE_PAGES, type SlidesItemContent } from '../slides.ts';
+import { audios, images, mediaBlobs, presentationItems } from '../schema.ts';
+import { imageItemIds, MAX_ITEM_IMAGES, MAX_SLIDE_PAGES, type SlidesItemContent } from '../slides.ts';
 import { id, limit, MutationError, requirePermission, type MutatorCtx, type Tx } from './base.ts';
-import { insertItem, requirePresentation } from './presentations.ts';
+import { insertItem, changePresentation } from './presentations.ts';
 
 // ------------------------------------------------------------------ images (spec 05 "Media")
 
@@ -74,32 +74,96 @@ export async function purgeImage(tx: Tx, a: z.output<typeof purgeImageArgs>, ctx
   await tx.delete(images).where(eq(images.id, a.id));
 }
 
+const imageIds = z.array(id).min(1).max(MAX_ITEM_IMAGES);
+
 export const addImageToPresentationArgs = z.object({
   itemId: id,
   presentationId: id,
-  imageId: id,
+  /** The pictures, in order: one slide each (Presentation.razor's AddImages). */
+  imageIds: imageIds.optional(),
+  /** One picture, as clients before several could be picked sent it. */
+  imageId: id.optional(),
+  /** "N bilder" for several, sent by the client in its language; one picture is titled by its file name. */
+  title: z.string().trim().min(1).max(200).optional(),
   afterItemId: id.nullable().optional(),
 });
 /**
- * Adds a library picture as an item: one slide showing it. Like a song it is
- * a reference, so a trashed picture still shows (MEDIA-R8) and a purged one
- * leaves an item that says so. The title is the file name at add time.
+ * Adds library pictures as one item, a slide each. Like a song it is a reference, so a trashed
+ * picture still shows (MEDIA-R8) and a purged one leaves the item without it. One picture is
+ * titled by its file name at add time.
  */
 export async function addImageToPresentation(tx: Tx, a: z.output<typeof addImageToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   requirePermission(ctx, 'ViewImages');
-  await requirePresentation(tx, a.presentationId, ctx);
-  const [i] = await tx.select({ fileName: images.fileName }).from(images).where(eq(images.id, a.imageId));
-  if (!i) throw new MutationError('not-found', 'image not found');
+  const ids = a.imageIds ?? (a.imageId ? [a.imageId] : []);
+  if (!ids.length) throw new MutationError('invalid', 'no images');
+  await changePresentation(tx, a.presentationId, ctx);
+  const [first] = await tx.select({ fileName: images.fileName }).from(images).where(eq(images.id, ids[0]!));
+  if (!first) throw new MutationError('not-found', 'image not found');
   await insertItem(tx, a.afterItemId, {
     id: a.itemId,
     presentationId: a.presentationId,
     type: 'image',
-    title: i.fileName,
-    sourceId: a.imageId,
+    title: ids.length === 1 ? first.fileName : (a.title ?? `${ids.length}`),
+    sourceId: ids[0]!,
     arrangementId: null,
-    content: null,
+    content: ids.length === 1 ? null : JSON.stringify({ images: ids }),
   });
+}
+
+/** An image item, by id, with its pictures; null when it is gone or not an image item. */
+async function imageItem(tx: Tx, itemId: string, ctx: MutatorCtx) {
+  const [item] = await tx
+    .select({ presentationId: presentationItems.presentationId, type: presentationItems.type, sourceId: presentationItems.sourceId, content: presentationItems.content })
+    .from(presentationItems)
+    .where(eq(presentationItems.id, itemId));
+  if (!item || item.type !== 'image') return null;
+  await changePresentation(tx, item.presentationId, ctx);
+  return { ...item, ids: imageItemIds(item) };
+}
+
+/** Writes an image item's pictures; none left removes the item (Presentation.razor's RemoveImagePart). */
+async function setItemImages(tx: Tx, itemId: string, ids: string[]) {
+  if (!ids.length) {
+    await tx.delete(presentationItems).where(eq(presentationItems.id, itemId));
+    return;
+  }
+  await tx
+    .update(presentationItems)
+    .set({ sourceId: ids[0]!, content: ids.length === 1 ? null : JSON.stringify({ images: ids }) })
+    .where(eq(presentationItems.id, itemId));
+}
+
+export const addImagesToItemArgs = z.object({ itemId: id, imageIds });
+/** "Lägg till bilder" on an image item: the pictures go last. */
+export async function addImagesToItem(tx: Tx, a: z.output<typeof addImagesToItemArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  requirePermission(ctx, 'ViewImages');
+  const item = await imageItem(tx, a.itemId, ctx);
+  if (!item) return;
+  limit(item.ids.length + a.imageIds.length > MAX_ITEM_IMAGES, 'images');
+  await setItemImages(tx, a.itemId, [...item.ids, ...a.imageIds]);
+}
+
+export const removeItemImageArgs = z.object({ itemId: id, index: z.number().int().min(0) });
+/** Removes one picture of an image item; the last one takes the item with it. */
+export async function removeItemImage(tx: Tx, a: z.output<typeof removeItemImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  const item = await imageItem(tx, a.itemId, ctx);
+  if (!item || a.index >= item.ids.length) return;
+  await setItemImages(tx, a.itemId, item.ids.filter((_, i) => i !== a.index));
+}
+
+export const moveItemImageArgs = z.object({ itemId: id, from: z.number().int().min(0), to: z.number().int().min(0) });
+/** Moves one picture of an image item to another place (the drag in Redigera). */
+export async function moveItemImage(tx: Tx, a: z.output<typeof moveItemImageArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  const item = await imageItem(tx, a.itemId, ctx);
+  if (!item || a.from >= item.ids.length || a.to >= item.ids.length || a.from === a.to) return;
+  const ids = [...item.ids];
+  const [moved] = ids.splice(a.from, 1);
+  ids.splice(a.to, 0, moved!);
+  await setItemImages(tx, a.itemId, ids);
 }
 
 // ------------------------------------------------------------------ audio (spec 05 "Media")
@@ -156,7 +220,7 @@ export const addAudioToPresentationArgs = z.object({ itemId: id, presentationId:
 export async function addAudioToPresentation(tx: Tx, a: z.output<typeof addAudioToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   requirePermission(ctx, 'ViewAudios');
-  await requirePresentation(tx, a.presentationId, ctx);
+  await changePresentation(tx, a.presentationId, ctx);
   const [f] = await tx.select({ fileName: audios.fileName }).from(audios).where(eq(audios.id, a.audioId));
   if (!f) throw new MutationError('not-found', 'audio file not found');
   await insertItem(tx, a.afterItemId, {
@@ -188,7 +252,7 @@ export const addSlidesArgs = z.object({
  */
 export async function addSlides(tx: Tx, a: z.output<typeof addSlidesArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await requirePresentation(tx, a.presentationId, ctx);
+  await changePresentation(tx, a.presentationId, ctx);
   for (const hash of new Set(a.pages.flatMap((p) => [p.full, p.thumb]))) {
     const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
     if (!blob) throw new MutationError('media-missing', 'a page has not been uploaded');

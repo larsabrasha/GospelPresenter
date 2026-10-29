@@ -6,6 +6,7 @@ import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { ArrowsPointingOutIcon, ChevronDownIcon, CloseIcon, StopIcon } from '../../ui/icons.tsx';
 import { navigate } from '../../ui/router.ts';
+import { outputWindow } from '../../live/outputWindow.ts';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { CAPTION } from '../../ui/Toggle.tsx';
 import { OutputsPanel } from './OutputsPanel.tsx';
@@ -52,10 +53,10 @@ export function LivePanel({
   const remotePolicy = useData(orgRemoteControl, []);
   return (
     <aside
-      className="absolute bottom-3 right-3 z-30 w-72 max-w-[calc(100%-1.5rem)] max-h-[calc(100dvh-7rem)] flex flex-col overflow-hidden rounded-2xl shadow-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm lg:static lg:max-w-none lg:max-h-none lg:shrink-0 lg:rounded-none lg:bg-white lg:dark:bg-neutral-800 lg:backdrop-blur-none lg:block lg:overflow-y-auto"
+      className="absolute bottom-3 right-3 z-30 w-72 max-w-[calc(100%-1.5rem)] max-h-[calc(100dvh-7rem)] flex flex-col overflow-hidden rounded-2xl shadow-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm lg:static lg:max-w-none lg:max-h-none lg:shrink-0 lg:rounded-none lg:bg-white lg:dark:bg-neutral-800 lg:backdrop-blur-none"
       data-testid="live-panel"
     >
-      <div className="p-4 flex flex-col gap-3 min-h-0 lg:min-h-full">
+      <div className="p-4 flex flex-col gap-3 min-h-0 lg:h-full">
         <AppButton
           variant="plain"
           aria-expanded={!collapsed}
@@ -80,8 +81,8 @@ export function LivePanel({
           inert={collapsed}
           className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr] grow min-h-0'}`}
         >
-          <div className="overflow-hidden lg:overflow-visible flex flex-col min-h-0">
-            <div className="flex flex-col gap-3 min-h-0 px-1 -mx-1 grow overflow-y-auto lg:overflow-visible">
+          <div className="overflow-hidden flex flex-col min-h-0">
+            <div className="flex flex-col gap-3 min-h-0 px-1 -mx-1 grow overflow-y-auto">
               <div className="w-48 mx-auto lg:w-auto lg:mx-0 aspect-video rounded-lg overflow-hidden">
                 <SlideView slide={pointer.black ? null : current} theme={theme} label={false} overlay={pointer.black ? null : overlay} />
               </div>
@@ -111,23 +112,27 @@ export function LivePanel({
                 <ArrowsPointingOutIcon className="size-5" />
                 <span className="font-medium">{t('live.stage')}</span>
               </AppButton>
-              <div className="mt-auto pt-4">
-                {owner ? (
-                  <AppButton
-                    variant="plain"
-                    onClick={() => {
-                      live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
-                      navigate({ page: 'presentation', id });
-                    }}
-                    className="w-full px-4 py-2.5 rounded-full flex items-center justify-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
-                  >
-                    <StopIcon className="size-5" />
-                    <span className="text-sm font-medium">{t('live.end')}</span>
-                  </AppButton>
-                ) : (
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">{t('remote.onlyOwnerStops')}</p>
-                )}
-              </div>
+            </div>
+            {/* Outside the part that scrolls, so it is always in view (LivePanel.razor). */}
+            <div className="shrink-0 pt-4">
+              {owner ? (
+                <AppButton
+                  variant="plain"
+                  title={t('live.end')}
+                  onClick={() => {
+                    live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
+                    // The output window closes with the presentation (Live.razor, Lars 2026-10-29).
+                    outputWindow().turn(false);
+                    navigate({ page: 'presentation', id });
+                  }}
+                  className="w-full px-4 py-2.5 rounded-full flex items-center justify-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
+                >
+                  <StopIcon className="size-5" />
+                  <span className="text-sm font-medium">{t('live.end')}</span>
+                </AppButton>
+              ) : (
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 text-center">{t('remote.onlyOwnerStops')}</p>
+              )}
             </div>
           </div>
         </div>

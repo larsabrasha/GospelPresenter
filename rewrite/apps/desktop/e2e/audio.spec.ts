@@ -34,18 +34,21 @@ test('an audio file is imported, added to a presentation and plays in the editor
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await page.keyboard.press('Control+4');
+  await picker.getByRole('button', { name: 'Preludium.wav', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Preludium.wav' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: 'Preludium.wav', exact: true }).click();
   const player = page.getByTestId('audio-preview');
   await expect(player).toBeVisible();
-  // The file is this device's own copy, and it is a real, playable sound of two seconds.
-  await expect.poll(() => player.evaluate((a: HTMLAudioElement) => (Number.isFinite(a.duration) ? Math.round(a.duration) : 0)), { timeout: 5_000 }).toBe(2);
+  // The file is this device's own copy, and it is a real, playable sound of two seconds, in the live page's player.
+  await player.getByRole('button', { name: 'Spela' }).click();
+  await expect(player.getByTestId('audio-duration')).toHaveText('0:02', { timeout: 5_000 });
+  await player.getByRole('button', { name: 'Pausa' }).click();
 
   await openAdmin(page, 'Ljud');
-  // Ta bort is in the ⋯ menu.
+  // Radera is in the ⋯ menu.
   await page.getByRole('button', { name: 'Fler val för Preludium.wav' }).click();
-  await page.getByRole('menuitem', { name: 'Ta bort' }).click();
+  await page.getByRole('menuitem', { name: 'Radera' }).click();
   await expect(page.getByText('Inga ljudfiler än')).toBeVisible();
   await page.getByRole('link', { name: 'Papperskorg' }).click();
   await expect(page.getByRole('list', { name: 'Papperskorg' }).getByRole('listitem')).toHaveText([/Preludium\.wav.*Ljudfil/]);
@@ -68,6 +71,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await page.keyboard.press('Control+4');
+  await picker.getByRole('button', { name: 'Preludium.wav', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Preludium.wav' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await addSongs(page, ['Sång A']);
@@ -92,7 +96,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await expect(mirror).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
   // It plays here, and what is shown stays (LIVE-R6).
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
-  await expect.poll(async () => (await player.getByTestId('audio-time').textContent())?.startsWith('0:00'), { timeout: 5_000 }).toBe(false);
+  await expect.poll(async () => (await player.getByTestId('audio-time').textContent()) === '0:00', { timeout: 5_000 }).toBe(false);
   // What is shown changes; the sound plays on (LIVE-A31).
   await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
@@ -111,13 +115,17 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   // Tona ut: five seconds, then it stops and rewinds (LIVE-A31).
   await player.getByRole('button', { name: 'Tona ut' }).click();
   await expect(player).toHaveAttribute('data-playing', 'false', { timeout: 8_000 });
-  await expect(player.getByTestId('audio-time')).toHaveText(/^0:00 \//);
+  await expect(player.getByTestId('audio-time')).toHaveText('0:00');
 
   // Stage view: picking the audio item blacks the screen and plays (LIVE-A29).
   await page.getByRole('button', { name: 'Scenläge' }).click();
   const stage = page.getByTestId('stage-view');
   await stage.getByRole('button', { name: 'Sång A', exact: true }).click(); // the bar names the selected item and opens the picker
-  await stage.getByRole('dialog', { name: 'Välj programpunkt' }).getByRole('button', { name: 'Preludium.wav' }).click();
+  await stage.getByRole('dialog', { name: 'Välj', exact: true }).getByRole('button', { name: 'Preludium.wav' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await expect(stage.getByText('Ljud spelas')).toBeVisible();
+  // The audio item is the item now, and its player is there to pause it without leaving the view.
+  await expect(stage.getByRole('button', { name: 'Preludium.wav', exact: true })).toBeVisible();
+  await stage.getByTestId('audio-player').getByRole('button', { name: 'Pausa' }).click();
+  await expect(stage.getByTestId('audio-player')).toHaveAttribute('data-playing', 'false');
 });

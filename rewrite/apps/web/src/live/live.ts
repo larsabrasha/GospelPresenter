@@ -1,4 +1,19 @@
-import { applyLiveChange, bibleItemSlides, IDLE, imageSlide, newer, parseBibleContent, parseSlidesContent, slideDeckSlides, songSlides, type LivePointer, type LivePointerChange, type PresentationItem, type Slide } from '@gp/core';
+import {
+  applyLiveChange,
+  bibleItemSlides,
+  IDLE,
+  imageItemIds,
+  imageSlide,
+  newer,
+  parseBibleContent,
+  parseSlidesContent,
+  slideDeckSlides,
+  songSlides,
+  type LivePointer,
+  type LivePointerChange,
+  type PresentationItem,
+  type Slide,
+} from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
 import { arrangementsOf, getAudio, getImage, getSong, listLabels, songPartsOf } from '../db/queries.ts';
 
@@ -92,9 +107,11 @@ export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<Item
     return audio ? { slides: [], problem: null, audio: { hash: audio.hash, fileName: audio.fileName } } : { slides: [], problem: 'audio-missing' };
   }
   if (item.type === 'image') {
-    // A reference like a song, but a trashed picture still shows (MEDIA-R8); a purged one is gone.
-    const image = await getImage(db, item.sourceId);
-    return image ? { slides: [imageSlide(image.fullHash)], problem: null } : { slides: [], problem: 'image-missing' };
+    // A slide per picture. A reference like a song, but a trashed picture still shows (MEDIA-R8); a purged one is gone.
+    const ids = imageItemIds(item);
+    const found = await Promise.all(ids.map((id) => getImage(db, id)));
+    const slides = found.flatMap((image, i) => (image ? [imageSlide(image.fullHash, `image${i}`)] : []));
+    return slides.length ? { slides, problem: null } : { slides: [], problem: 'image-missing' };
   }
   const song = await getSong(db, item.sourceId);
   if (!song) return { slides: [], problem: 'song-missing' };

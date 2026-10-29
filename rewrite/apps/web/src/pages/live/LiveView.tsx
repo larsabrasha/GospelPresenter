@@ -6,6 +6,7 @@ import { slidesOf, type ItemSlides } from '../../live/live.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { MediaReadiness } from '../../ui/MediaReadiness.tsx';
+import { usePageKeys } from '../../ui/shortcuts.ts';
 import { StageView } from '../StageView.tsx';
 import { ItemRow } from './ItemRow.tsx';
 import { LivePanel } from './LivePanel.tsx';
@@ -64,19 +65,42 @@ export function LiveView({ id, live, audio, owner, link }: { id: string; live: L
     [steps, pointer.itemId, pointer.partIndex, live],
   );
 
+  /** ↓ and ↑: the first slide of the next or previous item that has slides. */
+  const stepItem = (delta: number) => {
+    const withSlides = data?.items.filter((item) => data.slides.get(item.id)?.slides.length) ?? [];
+    const at = withSlides.findIndex((item) => item.id === pointer.itemId);
+    const next = withSlides[at === -1 ? (delta > 0 ? 0 : withSlides.length - 1) : at + delta];
+    if (next) live.set({ itemId: next.id, partIndex: 0, black: false });
+  };
+
+  // The keys follow ProPresenter (Lars, 2026-10-29): → Space PageDown the next slide, ← PageUp the
+  // previous, ↓ ↑ the next or previous item; `b` blanks, as Rensa. Not in a field or behind a
+  // dialog (ui/shortcuts.ts); the stage view has its own.
+  usePageKeys((e) => {
+    if (stage || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) step(1);
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) step(-1);
+    else if (e.key === 'ArrowDown') stepItem(1);
+    else if (e.key === 'ArrowUp') stepItem(-1);
+    else if (e.key === 'b' || e.key === 'B') live.set({ black: true }); // only blanks, as Rensa; a slide shows again
+    else return;
+    e.preventDefault();
+  });
+
+  // The screen stays awake while this computer presents (Presentation.razor's wake lock), and takes it again when the page shows.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (stage) return; // the stage view has its own keys
-      if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(e.key)) step(1);
-      else if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) step(-1);
-      else if (e.key === 'b' || e.key === 'B') live.set({ black: true }); // only blanks, as Rensa; a slide shows again
-      else return;
-      e.preventDefault();
+    if (!owner || !('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    const take = () => {
+      if (document.visibilityState === 'visible') void navigator.wakeLock.request('screen').then((l) => (lock = l), () => {});
     };
-    addEventListener('keydown', onKey);
-    return () => removeEventListener('keydown', onKey);
-  }, [step, live, stage]);
+    take();
+    document.addEventListener('visibilitychange', take);
+    return () => {
+      document.removeEventListener('visibilitychange', take);
+      void lock?.release();
+    };
+  }, [owner]);
 
   if (!data) return null;
   const current = pointer.itemId ? data.slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null : null;

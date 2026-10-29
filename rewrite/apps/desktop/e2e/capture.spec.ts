@@ -173,7 +173,7 @@ test('capture every page', async () => {
       await expect(fold).toHaveAttribute('aria-expanded', 'true');
     }
   };
-  const stopLive = (p: Page) => p.getByRole('button', { name: 'Avsluta' }).click();
+  const stopLive = (p: Page) => p.getByRole('button', { name: 'Avsluta presentation' }).click();
   // On a phone the admin menu covers the page at first; tap the dimmed page to close it.
   const closeAdminMenu = async (p: Page) => {
     if (p.viewportSize()!.width < 1024 && (await p.locator('aside:visible').count())) await p.mouse.click(370, 400);

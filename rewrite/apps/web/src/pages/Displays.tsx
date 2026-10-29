@@ -8,7 +8,7 @@ import { useLiveSessions, type LiveLink } from '../live/remote.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
-import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
+import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { ArrowDownTrayIcon, LinkIcon, PlusIcon, PublicOutputsPicture, QrCodeIcon, ScreenIcon, ScreensPicture } from '../ui/icons.tsx';
@@ -46,7 +46,7 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
     if (!name.trim()) return;
     const made = { id: newId(), name: name.trim(), code: newDisplayCode(), kind };
     if (!(await trySave(db.mutate('createDisplay', made)))) return;
-    onClose(made);
+    onClose({ ...made, createdAt: null });
   };
   return (
     <Dialog title={kind === 'screen' ? t('screens.add') : t('displays.create')} onClose={() => onClose(null)} maxWidthClass="max-w-lg">
@@ -167,8 +167,7 @@ export function Displays({ link }: { link: LiveLink }) {
   };
 
   const remove = async (d: Display) => {
-    if (!(await ask({ title: t('displays.delete'), text: t('displays.deleteConfirm', { name: d.name }), confirm: t('displays.delete') }))) return;
-    await trySave(db.mutate('deleteDisplay', { id: d.id }));
+    await ask(deleteAsk(t('displays.deleteConfirm', { name: d.name }), d.name, () => trySave(db.mutate('deleteDisplay', { id: d.id }))));
   };
 
   /** A section's add button: in its heading once the list has something, in the empty card before that. */

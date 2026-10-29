@@ -27,7 +27,7 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   await page.getByRole('button', { name: 'Scenläge' }).click();
   const stage = page.getByTestId('stage-view');
   // Nothing selected and a running order: the item picker is open. Picking puts the first part live.
-  await stage.getByRole('dialog', { name: 'Välj programpunkt' }).getByRole('button', { name: 'Sång A' }).click();
+  await stage.getByRole('dialog', { name: 'Välj', exact: true }).getByRole('button', { name: 'Sång A' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
   await expect(stage.getByText('LIVE')).toHaveCount(1);
   await expect(stage.getByRole('button', { name: 'Nästa' })).toBeVisible();
@@ -66,9 +66,9 @@ test('stage view: the picker opens by itself, next stays within the item, and th
 
   // Esc closes an open sheet first, and only then the stage view.
   await stage.getByRole('button', { name: 'Sång A', exact: true }).click();
-  await expect(stage.getByRole('dialog', { name: 'Välj programpunkt' })).toBeVisible();
+  await expect(stage.getByRole('dialog', { name: 'Välj', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(stage.getByRole('dialog', { name: 'Välj programpunkt' })).toHaveCount(0);
+  await expect(stage.getByRole('dialog', { name: 'Välj', exact: true })).toHaveCount(0);
   await expect(stage).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(stage).toHaveCount(0);
@@ -92,7 +92,7 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   if (process.env.GP_E2E_VISIBLE !== '1') expect(windows).toEqual([{ visible: false, fullScreen: false }, { visible: false, fullScreen: false }]);
 });
 
-test('Extern skärm is a switch: on opens the output, off closes it, and closing the window turns it off', async () => {
+test('Extern skärm is a switch: on opens the output, off closes it, closing the window turns it off, and Avsluta closes it', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -126,6 +126,10 @@ test('Extern skärm is a switch: on opens the output, off closes it, and closing
   await third.getByTestId('output').waitFor();
   await page.reload();
   await expect(page.getByRole('checkbox', { name: 'Extern skärm' })).toBeChecked();
+
+  // Avsluta presentation closes it, as the current app does (Live.razor).
+  await Promise.all([third.waitForEvent('close'), page.getByRole('button', { name: 'Avsluta presentation' }).click()]);
+  await expect.poll(windowCount).toBe(1);
 });
 
 test('a presentation shown live opens its live page from the list, the others their editor', async () => {

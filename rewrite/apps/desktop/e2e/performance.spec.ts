@@ -40,6 +40,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await page.keyboard.press('Control+4');
+  await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Lång.wav', exact: true }).click();
   await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Lägg till Lång.wav' }).click();
   await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Stäng' }).click();
   await addSongs(page, ['Sång A']);

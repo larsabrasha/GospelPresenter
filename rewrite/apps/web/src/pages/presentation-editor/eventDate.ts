@@ -1,5 +1,10 @@
-/** "lör 1 nov. 2026" in the viewer's (Swedish) calendar; the date is a plain day, not an instant. */
-export function formatEventDate(date: string): string {
-  const [y, m, d] = date.split('-').map(Number);
-  return new Date(y!, m! - 1, d!).toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+import type { Presentation } from '@gp/core';
+
+/**
+ * A presentation's date and time as the side menu shows them, "2026-11-01 10:00"
+ * (Sidebar.razor: the Swedish short date, then the time), or null with neither.
+ */
+export function eventLine(p: Pick<Presentation, 'eventDate' | 'time'>): string | null {
+  const parts = [p.eventDate, p.time].filter(Boolean);
+  return parts.length ? parts.join(' ') : null;
 }

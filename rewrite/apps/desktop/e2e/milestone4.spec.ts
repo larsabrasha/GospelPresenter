@@ -51,7 +51,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await createPresentation(page, 'Gudstjänst', '2026-11-01');
   await chooseTheme(page, 'Norrsken');
 
-  // Bibeltexter: a reference search, added with Shift+Enter (D15: stays open, starts over) ...
+  // Bibeltexter: a reference search, added with Ctrl+Enter (D15: stays open, starts over) ...
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await page.keyboard.press('Control+2');
@@ -59,15 +59,15 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await search.fill('Joh 3:16-17');
   await expect(picker.getByRole('list', { name: 'Verser' }).getByRole('listitem')).toHaveText([/^Johannes 3:16 For God so loved/, /^Johannes 3:17 /]);
   await expect(picker.getByRole('button', { name: 'Lägg till Johannes 3:16-17' })).toBeVisible();
-  await search.press('Shift+Enter');
+  await search.press('Control+Enter');
   await expect(page.getByRole('status').getByText('"Johannes 3:16-17" har lagts till')).toBeVisible();
   await expect(search).toHaveValue('');
 
   // ... and by browsing: Psaltaren, chapter 23, verses 1 to 3.
   await picker.getByRole('button', { name: 'Psaltaren' }).click();
   await picker.getByRole('group', { name: 'Välj startkapitel' }).getByRole('button', { name: '23' }).click();
-  await picker.getByRole('group', { name: 'Välj startvers' }).getByRole('button', { name: '1', exact: true }).click();
-  await picker.getByRole('group', { name: 'Välj slutvers' }).getByRole('button', { name: '3', exact: true }).click();
+  await picker.getByRole('group', { name: 'Välj startvers' }).getByRole('button', { name: /^1 / }).click();
+  await picker.getByRole('group', { name: 'Välj slutvers' }).getByRole('button', { name: /^3 / }).click();
   await picker.getByRole('button', { name: 'Lägg till Psaltaren 23:1-3' }).click();
   await expect(page.getByRole('status').getByText('"Psaltaren 23:1-3" har lagts till')).toBeVisible();
   await picker.getByRole('button', { name: 'Stäng' }).click();

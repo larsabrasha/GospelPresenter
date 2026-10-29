@@ -16,7 +16,7 @@ import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
-import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
+import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput, FloatingSelect } from '../ui/Floating.tsx';
 import { ChevronDownIcon, PlusIcon, UserIcon, UsersPicture } from '../ui/icons.tsx';
@@ -265,8 +265,7 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
                       variant="danger"
                       className="text-xs"
                       onClick={async () => {
-                        const ok = await ask({ title: t('users.remove'), text: t('users.removeConfirm', { name: u.name }), confirm: t('common.delete') });
-                        if (ok) await act(() => api('DELETE', `/api/users/${encodeURIComponent(u.id)}`), t('users.removed', { name: u.name }));
+                        await ask(deleteAsk(t('users.removeConfirm', { name: u.name }), u.name, () => act(() => api('DELETE', `/api/users/${encodeURIComponent(u.id)}`), t('users.removed', { name: u.name }))));
                       }}
                     >
                       {t('users.remove')}

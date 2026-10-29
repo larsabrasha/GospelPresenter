@@ -55,6 +55,8 @@ const presentation = (r: Row): Presentation => ({
   weekday: (r.weekday as number | null) ?? null,
   time: (r.time as string | null) ?? null,
   location: (r.location as string | null) ?? null,
+  description: (r.description as string | null) ?? null,
+  updatedAt: (r.updated_at as number | null) ?? null,
   lastUsedAt: (r.last_used_at as number | null) ?? null,
 });
 
@@ -146,13 +148,21 @@ export async function listPresentations(db: ReadDb): Promise<Presentation[]> {
 }
 
 /** The templates page's list (spec 03 screen 3), by name: a template has no "last changed" here. */
+/** The templates, last changed first (PresentationService.GetAllTemplateSummariesAsync). */
 export async function listTemplates(db: ReadDb): Promise<Presentation[]> {
-  return (await db.query('SELECT * FROM presentations WHERE deleted_at IS NULL AND is_template = 1')).map(presentation).toSorted(byPresentationName);
+  return (await db.query('SELECT * FROM presentations WHERE deleted_at IS NULL AND is_template = 1'))
+    .map(presentation)
+    .toSorted((a, b) => byLastChanged(a, b) || byPresentationName(a, b));
 }
 
-/** The templates the "Skapa presentation" picker offers (PRES-R32): the 10 last used, never-used ones last (03 Q7), then by name. */
+/** The templates the "Skapa presentation" picker offers (PRES-R32): the 10 last used, never-used ones last (03 Q7), then last changed. */
 export async function recentTemplates(db: ReadDb): Promise<Presentation[]> {
   return (await listTemplates(db)).toSorted((a, b) => (b.lastUsedAt ?? -1) - (a.lastUsedAt ?? -1)).slice(0, 10);
+}
+
+/** Latest change first; one never stamped (made before schema 12) after those that were. */
+export function byLastChanged(a: Pick<Presentation, 'updatedAt'>, b: Pick<Presentation, 'updatedAt'>): number {
+  return (b.updatedAt ?? -1) - (a.updatedAt ?? -1);
 }
 
 const byPresentationName = (a: Presentation, b: Presentation) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id);
@@ -309,11 +319,12 @@ export async function blobUrl(db: ReadDb, hash: string): Promise<string | null> 
 // ------------------------------------------------------------------ outputs
 
 /** The organisation's outputs, by name (spec 04 §7). */
+/** The outputs in the order they were made, as Skärmar lists them (RemoteDisplayService.cs); those from before schema 12 first, by name. */
 export async function listDisplays(db: ReadDb): Promise<Display[]> {
-  const rows = await db.query<{ id: string; name: string; code: string; kind: string }>('SELECT id, name, code, kind FROM displays');
+  const rows = await db.query<{ id: string; name: string; code: string; kind: string; created_at: number | null }>('SELECT id, name, code, kind, created_at FROM displays');
   return rows
-    .map((r) => ({ id: r.id, name: r.name, code: r.code, kind: r.kind === 'screen' ? ('screen' as const) : ('public' as const) }))
-    .toSorted((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id));
+    .toSorted((a, b) => (a.created_at ?? -1) - (b.created_at ?? -1) || a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id))
+    .map((r) => ({ id: r.id, name: r.name, code: r.code, kind: r.kind === 'screen' ? ('screen' as const) : ('public' as const), createdAt: r.created_at }));
 }
 
 // ------------------------------------------------------------------ audio

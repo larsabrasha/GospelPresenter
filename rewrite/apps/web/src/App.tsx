@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDropGuard } from './ui/DropZone.tsx';
 import { can, type Me, type PairStatus } from '@gp/core';
 import { api } from './auth/api.ts';
 import { updateMe } from './auth/session.ts';
@@ -60,6 +61,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       .catch(() => undefined);
   }, []);
 
+  // A file dropped outside a drop zone must not make the browser open it and leave the app.
+  useDropGuard();
   const viewUsers = can(me.role, 'ViewUsers');
   const admin = (
     <>
@@ -87,11 +90,11 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       ) : route.page === 'settings' ? (
         <Settings />
       ) : route.page === 'presentation' ? (
-        <PresentationEditor key={route.id} id={route.id} role={me.role} />
+        <PresentationEditor key={route.id} id={route.id} role={me.role} live={live} />
       ) : route.page === 'template' ? (
         // Editing a template is for admins (D24): a user who has the link is told so.
         can(me.role, 'ManageTemplates') ? (
-          <PresentationEditor key={route.id} id={route.id} role={me.role} template />
+          <PresentationEditor key={route.id} id={route.id} role={me.role} live={live} template />
         ) : (
           <Refused text={t('templates.forbidden')} />
         )

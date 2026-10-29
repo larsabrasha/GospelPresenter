@@ -134,7 +134,7 @@ test('membership: a removed user is signed out on their device; a demoted Admin 
 
   // Removed: the device keeps working on its own data, and asks to sign in again (SYNC-A15), which on a host is pairing.
   await host.page.getByRole('button', { name: 'Radera användare' }).click();
-  await host.page.getByRole('dialog', { name: 'Radera användare' }).getByRole('button', { name: 'Radera' }).click();
+  await host.page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(host.page.getByRole('list', { name: 'Användare' }).getByText('Dan')).toHaveCount(0);
   await createSong(second.page, 'Efter borttagningen', [['Verse 1', 'Text']]);
   await expect(second.page.getByTestId('sync-warnings')).toContainText('Logga in igen för att synka', { timeout: 10_000 });

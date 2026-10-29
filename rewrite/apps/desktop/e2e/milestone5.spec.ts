@@ -65,7 +65,7 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await page.keyboard.press('Control+3');
-  await picker.getByRole('button', { name: /Logotyp\.png/ }).click();
+  await picker.getByRole('button', { name: 'Logotyp.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Logotyp.png' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveText([/Logotyp\.png/]);
@@ -86,7 +86,7 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   await openAdmin(page, 'Bilder');
   // Ta bort is in the ⋯ menu.
   await page.getByRole('button', { name: 'Fler val för Logotyp.png' }).click();
-  await page.getByRole('menuitem', { name: 'Ta bort' }).click();
+  await page.getByRole('menuitem', { name: 'Radera' }).click();
   await expect(page.getByRole('status').getByText('Logotyp.png flyttad till papperskorgen')).toBeVisible();
   await expect(page.getByText('Inga bilder än')).toBeVisible();
   await expect(shown).toBeVisible();

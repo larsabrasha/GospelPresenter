@@ -7,7 +7,7 @@ import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useSaveFailed, useTrySave } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
-import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
+import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput, FloatingTextarea } from '../ui/Floating.tsx';
 import { OverlaysPicture, PhotoOutlineIcon, PlusIcon } from '../ui/icons.tsx';
@@ -162,9 +162,9 @@ export function OverlayEditor({ id }: { id: string }) {
 
   const save = (fields: { title?: string; content?: string | null; imageId?: string | null }) => afterWrite(db.mutate('updateOverlay', { id, ...fields }), () => {}, saveFailed);
   const remove = async () => {
-    const ok = await ask({ title: t('overlays.removeTitle'), text: t('overlays.removeConfirm', { title: overlay.title }), confirm: t('common.delete') });
-    if (!ok) return;
-    if (!(await trySave(db.mutate('deleteOverlay', { id })))) return;
+    let saved = false;
+    const ok = await ask(deleteAsk(t('overlays.removeConfirm', { title: overlay.title }), overlay.title, async () => (saved = await trySave(db.mutate('deleteOverlay', { id })))));
+    if (!ok || !saved) return;
     toast(t('overlays.removed', { title: overlay.title }));
     navigate({ page: 'overlays' });
   };

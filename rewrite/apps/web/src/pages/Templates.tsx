@@ -9,7 +9,8 @@ import { useSaveFailed, useTrySave } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
-import { FloatingInput, FloatingSelect } from '../ui/Floating.tsx';
+import { FloatingInput } from '../ui/Floating.tsx';
+import { SimpleInput, SimpleSelect } from '../ui/SimpleInput.tsx';
 import { PlusIcon, TemplatesPicture, TrashIcon } from '../ui/icons.tsx';
 import { CARD, ListCard, ListLinkRow } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
@@ -26,18 +27,20 @@ export interface TemplateFields {
 /**
  * A template's name, weekday, time and place (TemplateDetailsDialog.razor):
  * "Skapa mall" on the templates page, "Redigera detaljer" in its editor.
- * Enter in a field saves; Skapa waits for `onSave`, Spara does not.
+ * Enter in the name saves; with `savingText`, the button says so until `onSave` ends.
  */
 export function TemplateDetailsDialog({
   title,
   initial,
   saveText,
+  savingText,
   onSave,
   onClose,
 }: {
   title: string;
   initial: TemplateFields;
   saveText: string;
+  savingText?: string;
   onSave: (fields: TemplateFields) => Promise<void> | void;
   onClose: () => void;
 }) {
@@ -46,43 +49,53 @@ export function TemplateDetailsDialog({
   const [time, setTime] = useState(initial.time ?? '');
   const [location, setLocation] = useState(initial.location ?? '');
   const [saving, setSaving] = useState(false);
+  const save = async () => {
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    try {
+      await onSave({ name: name.trim(), weekday: weekday === '' ? null : Number(weekday), time: time || null, location: location.trim() || null });
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <Dialog title={title} onClose={onClose} maxWidthClass="max-w-2xl">
-      <form
-        className="space-y-3"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (!name.trim() || saving) return;
-          setSaving(true);
-          try {
-            await onSave({ name, weekday: weekday === '' ? null : Number(weekday), time: time || null, location: location.trim() || null });
-          } finally {
-            setSaving(false);
-          }
-        }}
-      >
-        <FloatingInput label={t('presentation.name')} autoFocus maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="space-y-3">
+        <FloatingInput
+          label={t('presentation.name')}
+          hideLabel
+          autoFocus
+          maxLength={200}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void save();
+            }
+          }}
+        />
         <div className="flex gap-2 flex-wrap">
-          <FloatingSelect label={t('schedule.day')} className="flex-1 min-w-36" value={weekday} onChange={(e) => setWeekday(e.target.value)}>
+          <SimpleSelect aria-label={t('schedule.day')} value={weekday} onChange={(e) => setWeekday(e.target.value)}>
             <option value="">{t('schedule.noDay')}</option>
             {WEEKDAYS.map((d) => (
               <option key={d} value={d}>
                 {weekdayName(d)}
               </option>
             ))}
-          </FloatingSelect>
-          <FloatingInput label={t('schedule.time')} className="flex-1 min-w-28" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-          <FloatingInput label={t('schedule.location')} className="flex-2 min-w-40" maxLength={100} value={location} onChange={(e) => setLocation(e.target.value)} />
+          </SimpleSelect>
+          <SimpleInput type="time" aria-label={t('schedule.time')} value={time} onChange={(e) => setTime(e.target.value)} />
+          <SimpleInput placeholder={t('schedule.location')} aria-label={t('schedule.location')} maxLength={100} value={location} onChange={(e) => setLocation(e.target.value)} />
         </div>
         <DialogButtons>
           <AppButton variant="cancel" onClick={onClose}>
             {t('common.cancel')}
           </AppButton>
-          <AppButton type="submit" disabled={!name.trim() || saving}>
-            {saveText}
+          <AppButton disabled={!name.trim() || saving} onClick={() => void save()}>
+            {saving && savingText ? savingText : saveText}
           </AppButton>
         </DialogButtons>
-      </form>
+      </div>
     </Dialog>
   );
 }
@@ -96,6 +109,7 @@ function CreateTemplateDialog({ onClose }: { onClose: () => void }) {
       title={t('templates.createTitle')}
       initial={{ name: '', weekday: null, time: null, location: null }}
       saveText={t('common.create')}
+      savingText={t('common.creating')}
       onClose={onClose}
       onSave={async (fields) => {
         const id = newId();
@@ -142,13 +156,18 @@ export function Templates() {
       <PageHeader title={t('nav.templates')}>
         <div className="flex items-center gap-2">
           {/* Always here: whoever has just deleted the wrong template needs the way back in view (Templates.razor). */}
-          <AppButton variant="cancel" href={href({ page: 'trash', kind: 'Template' })} className="flex items-center gap-1.5">
+          <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Template' })} className="flex items-center gap-1.5">
             <TrashIcon className="size-4" />
             {t('nav.trash')}
           </AppButton>
           {!!templates?.length && create}
         </div>
       </PageHeader>
+      {!templates && (
+        <div className={CARD}>
+          <div className="px-5 py-4 text-neutral-400 text-sm">{t('common.loading')}</div>
+        </div>
+      )}
       {templates && !templates.length && (
         <div className={CARD}>
           <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} text={t('templates.description')}>

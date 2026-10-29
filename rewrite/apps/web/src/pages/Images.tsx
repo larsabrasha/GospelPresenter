@@ -3,8 +3,7 @@ import { can, type LibraryImage, type Role } from '@gp/core';
 import { useBlobUrl, useData, useDb } from '../db/react.tsx';
 import { listImages } from '../db/queries.ts';
 import { t } from '../i18n.ts';
-import { newId } from '../ids.ts';
-import { processImage, ImageRefused, type ImageProblem } from '../media/process.ts';
+import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
@@ -16,14 +15,6 @@ import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
-
-const failedText: Record<ImageProblem | 'other', Parameters<typeof t>[0]> = {
-  type: 'images.failedType',
-  size: 'images.failedSize',
-  name: 'images.failedName',
-  invalid: 'images.failedInvalid',
-  other: 'images.failedOther',
-};
 
 /**
  * A library picture's thumbnail, from this device's own copy, rounded and at
@@ -50,27 +41,13 @@ export function Images({ role }: { role: Role }) {
   const toast = useToast();
   const images = useData(listImages, []);
   const [query, setQuery] = useState('');
-  const [progress, setProgress] = useState<{ i: number; n: number } | null>(null);
-  const [failures, setFailures] = useState<string[]>([]);
+  const { run, progress, failures } = useMediaImport('image');
   const manage = can(role, 'ManageImages');
 
   const importFiles = async (files: File[]) => {
-    if (!files.length || progress || !manage) return;
-    setFailures([]);
-    const failed: string[] = [];
-    let added = 0;
-    for (const [i, file] of files.entries()) {
-      setProgress({ i: i + 1, n: files.length });
-      try {
-        await db.addImage(await processImage(file, newId()));
-        added++;
-      } catch (e) {
-        failed.push(t(failedText[e instanceof ImageRefused ? e.problem : 'other'], { name: file.name }));
-      }
-    }
-    setProgress(null);
-    setFailures(failed);
-    if (added && !failed.length) toast(t('images.imported', { n: added }));
+    if (!manage) return;
+    const added = await run(files);
+    if (added.length && added.length === files.length) toast(t('images.imported', { n: added.length }));
   };
 
   const remove = async (image: LibraryImage) => {
@@ -83,7 +60,7 @@ export function Images({ role }: { role: Role }) {
 
   return (
     <PageContainer>
-      <DropZone className="flex flex-col space-y-5 min-h-[60vh]" label={t('images.drop')} enabled={manage} onFiles={(files) => void importFiles(files)}>
+      <DropZone className="flex flex-col space-y-5" label={t('images.drop')} accept={IMAGE_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
         <PageHeader title={t('images.title')}>
           <div className="flex items-center gap-3">
             {manage && <DropHint text={t('images.dropAffordance')} />}
@@ -98,7 +75,7 @@ export function Images({ role }: { role: Role }) {
                 {t('images.import')}
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept={IMAGE_ACCEPT}
                   multiple
                   hidden
                   disabled={!!progress}

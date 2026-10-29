@@ -1,65 +1,55 @@
 import type { Presentation } from '@gp/core';
-import { useState } from 'react';
+import { useState, type HTMLAttributes } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { itemsOf, listPresentations, pinnedIds, recentTemplates } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
-import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
-import { FloatingInput } from '../ui/Floating.tsx';
-import { DocumentIcon, DocumentTextIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { Dialog } from '../ui/Dialog.tsx';
+import { CloseIcon, DocumentIcon, DocumentTextIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD, ListCard, ListLinkRow, ListSection } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
+import { useRovingList } from '../ui/listNav.ts';
+import { usePageKeys } from '../ui/shortcuts.ts';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
 import { dateLabel, fullDate, groupPresentations, localToday } from './dashboard.ts';
 import { nextDate, templateDetails } from './templates.ts';
+import { detailsArgs, PresentationDetailsDialog } from './presentation-editor/PresentationDetailsDialog.tsx';
 
 /**
- * "Skapa presentation": name (prefilled) and date; Enter saves (spec 03, PRES-A2).
- * From a template, its name and the next date of its weekday (PRES-A3).
+ * "Skapa presentation": the details dialog, prefilled (spec 03, PRES-A2). From a
+ * template, its name, the next date of its weekday, its time and its place (PRES-A3).
  */
 function CreatePresentationDialog({ template, onClose }: { template: Presentation | null; onClose: () => void }) {
   const db = useDb();
   const trySave = useTrySave();
-  const [name, setName] = useState(template?.name ?? t('presentations.defaultName'));
-  const [date, setDate] = useState(() => (template ? nextDate(template) : ''));
-  const [saving, setSaving] = useState(false);
   return (
-    <Dialog title={t('presentations.createTitle')} onClose={onClose} showClose>
-      <form
-        className="space-y-4"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (!name.trim() || saving) return;
-          setSaving(true);
-          const id = newId();
-          const eventDate = date || null;
-          // From a template: its items as they are now, each copy with an id of its own.
-          const items = template ? (await itemsOf(db, template.id)).map((item) => ({ from: item.id, id: newId() })) : [];
-          const write = template
-            ? db.mutate('createFromTemplate', { id, templateId: template.id, name, eventDate, items, at: Date.now() })
-            : db.mutate('createPresentation', { id, name, eventDate });
-          if (!(await trySave(write))) {
-            setSaving(false);
-            return;
-          }
-          navigate({ page: 'presentation', id });
-        }}
-      >
-        <FloatingInput label={t('presentation.name')} autoFocus maxLength={200} value={name} onFocus={(e) => e.currentTarget.select()} onChange={(e) => setName(e.target.value)} />
-        <FloatingInput label={t('presentation.date')} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        <DialogButtons>
-          <AppButton variant="cancel" onClick={onClose}>
-            {t('common.cancel')}
-          </AppButton>
-          <AppButton type="submit" disabled={!name.trim() || saving}>
-            {t('common.create')}
-          </AppButton>
-        </DialogButtons>
-      </form>
-    </Dialog>
+    <PresentationDetailsDialog
+      title={t('presentations.createTitle')}
+      initial={{
+        name: template?.name ?? t('presentations.defaultName'),
+        date: template ? nextDate(template) : '',
+        time: template?.time ?? '',
+        location: template?.location ?? '',
+        description: '',
+        themeId: '',
+      }}
+      saveText={t('common.create')}
+      savingText={t('common.creating')}
+      onSave={async (d) => {
+        const id = newId();
+        const fields = detailsArgs(d);
+        // From a template: its items as they are now, each copy with an id of its own.
+        const items = template ? (await itemsOf(db, template.id)).map((item) => ({ from: item.id, id: newId() })) : [];
+        const write = template
+          ? db.mutate('createFromTemplate', { id, templateId: template.id, ...fields, items, at: Date.now() })
+          : db.mutate('createPresentation', { id, ...fields });
+        if (await trySave(write)) navigate({ page: 'presentation', id });
+      }}
+      onClose={onClose}
+    />
   );
 }
 
@@ -69,7 +59,16 @@ const PICK =
 /** The first step of Skapa when there are templates: a blank presentation, or one of the last used templates (Dashboard.razor). */
 function TemplatePicker({ templates, onPick, onClose }: { templates: Presentation[]; onPick: (template: Presentation | null) => void; onClose: () => void }) {
   return (
-    <Dialog title={t('presentations.createTitle')} onClose={onClose} showClose>
+    <Dialog title={t('presentations.createTitle')} onClose={onClose}>
+      <AppButton
+        variant="plain"
+        className="absolute top-4 right-4 size-8 flex items-center justify-center rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+        title={t('common.close')}
+        aria-label={t('common.close')}
+        onClick={onClose}
+      >
+        <CloseIcon className="size-5" />
+      </AppButton>
       <AppButton variant="plain" className={PICK} onClick={() => onPick(null)}>
         <DocumentIcon className="size-5 shrink-0 text-neutral-400 dark:text-neutral-500" />
         <span className="text-sm font-medium">{t('templates.blank')}</span>
@@ -97,7 +96,10 @@ function TemplatePicker({ templates, onPick, onClose }: { templates: Presentatio
  */
 function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const { sessions } = useLiveSessions(link);
-  const shown = sessions.filter((s) => s.remote && s.id !== ownSessionId);
+  // By presentation name, then id, so the cards keep their places (Dashboard.razor).
+  const shown = sessions
+    .filter((s) => s.remote && s.id !== ownSessionId)
+    .toSorted((a, b) => (a.presentationName ?? '').localeCompare(b.presentationName ?? '', 'sv', { sensitivity: 'base' }) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   if (!shown.length) return null;
   return (
     <ul className="space-y-5" aria-label={t('remote.nowShowing')}>
@@ -108,16 +110,18 @@ function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string 
               <span className="inline-block size-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
               <div className="min-w-0">
                 <div className="text-xs font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('remote.nowShowing')}</div>
-                <div className="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{s.presentationName}</div>
+                <div className="text-sm font-medium text-neutral-700 dark:text-neutral-200 truncate">{s.presentationName || t('remote.nowShowingUnknown')}</div>
                 <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{s.deviceName}</div>
               </div>
             </div>
-            <a
-              className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 no-underline"
-              href={href({ page: 'live', id: s.presentationId, remote: true, session: s.id })}
-            >
-              {t('remote.takeControl')}
-            </a>
+            {s.presentationId && (
+              <a
+                className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 no-underline"
+                href={href({ page: 'live', id: s.presentationId, remote: true, session: s.id })}
+              >
+                {t('remote.takeControl')}
+              </a>
+            )}
           </div>
         </li>
       ))}
@@ -125,14 +129,33 @@ function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string 
   );
 }
 
-function Row({ p, today, showDate, withYear, live, pinned }: { p: Presentation; today: string; showDate: boolean; withYear: boolean; live: boolean; pinned: boolean }) {
+function Row({
+  p,
+  today,
+  showDate,
+  withYear,
+  live,
+  pinned,
+  nav,
+}: {
+  p: Presentation;
+  today: string;
+  showDate: boolean;
+  withYear: boolean;
+  live: boolean;
+  pinned: boolean;
+  nav: HTMLAttributes<HTMLAnchorElement>;
+}) {
   const date = showDate && p.eventDate;
+  // "mån 4 maj · 11:00 · Stora salen" (PresentationRow.razor).
+  const subtitle = [date ? dateLabel(date, today, withYear) : null, p.time, p.location].filter(Boolean).join(' · ');
   return (
     <ListLinkRow
       href={href(live ? { page: 'live', id: p.id } : { page: 'presentation', id: p.id })}
       title={p.name}
-      subtitle={date ? dateLabel(date, today, withYear) : null}
-      subtitleTitle={date ? fullDate(date) : undefined}
+      subtitle={subtitle || null}
+      subtitleTitle={date ? fullDate(date, withYear) : undefined}
+      nav={nav}
       end={
         <>
           {pinned && (
@@ -150,7 +173,9 @@ function Row({ p, today, showDate, withYear, live, pinned }: { p: Presentation; 
   );
 }
 
-/** The start page, Presentationer (Components/Dashboard.razor). */
+const PAGE_SIZE = 20;
+
+/** The start page, Presentationer (Components/Dashboard.razor). `n` starts Skapa. */
 export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const presentations = useData(listPresentations, []);
   const pinned = useData(pinnedIds, []);
@@ -159,18 +184,33 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
   const [picking, setPicking] = useState(false);
   // Skapa: the details dialog, blank (null) or from a template; first the picker when there are templates.
   const [creating, setCreating] = useState<{ template: Presentation | null } | null>(null);
+  // The rest shows 20 at a time, with "Visa fler" (Dashboard.razor's PageSize).
+  const [restShown, setRestShown] = useState(PAGE_SIZE);
   const today = localToday();
   const groups = presentations && groupPresentations(presentations, today);
+  const rest = groups?.rest.slice(0, restShown) ?? [];
+  // ↑ ↓ Home End run through Idag, Kommande and the rest as one list, Tab stopping once.
+  const navCount = (groups?.today.length ?? 0) + (groups?.upcoming.length ?? 0) + rest.length;
+  const list = useRovingList(navCount);
   const livePresentation = sessions.find((s) => s.id === ownSessionId)?.presentationId;
-  const row = (p: Presentation, showDate: boolean, withYear: boolean) => (
-    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} pinned={!!pinned?.has(p.id)} />
+  const row = (p: Presentation, index: number, showDate: boolean, withYear: boolean) => (
+    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} pinned={!!pinned?.has(p.id)} nav={list.item(index)} />
   );
+  const startCreating = () => (templates?.length ? setPicking(true) : setCreating({ template: null }));
+  usePageKeys((e) => {
+    if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !picking && !creating) {
+      e.preventDefault();
+      startCreating();
+    }
+  });
   const create = (
-    <AppButton onClick={() => (templates?.length ? setPicking(true) : setCreating({ template: null }))} className="flex items-center">
+    <AppButton onClick={startCreating} className="flex items-center" title={`${t('presentations.create')} (N)`}>
       <PlusIcon className="size-4 mr-2" />
       {t('presentations.create')}
     </AppButton>
   );
+  const todayCount = groups?.today.length ?? 0;
+  const restStart = todayCount + (groups?.upcoming.length ?? 0);
 
   return (
     <PageContainer>
@@ -187,6 +227,11 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
         />
       )}
       {creating && <CreatePresentationDialog template={creating.template} onClose={() => setCreating(null)} />}
+      {!presentations && (
+        <div className={CARD}>
+          <div className="px-4 py-3 text-neutral-400">{t('common.loading')}</div>
+        </div>
+      )}
       {presentations && !presentations.length && (
         <div className={CARD}>
           <div className="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
@@ -198,14 +243,25 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
         </div>
       )}
       {groups && (
-        <>
-          {groups.today.length > 0 && <ListSection title={t('presentations.today')}>{groups.today.map((p) => row(p, false, false))}</ListSection>}
-          {groups.upcoming.length > 0 && <ListSection title={t('presentations.upcoming')}>{groups.upcoming.map((p) => row(p, true, false))}</ListSection>}
-          {groups.rest.length > 0 && <ListCard label={t('nav.presentations')}>{groups.rest.map((p) => row(p, true, true))}</ListCard>}
-        </>
+        <div className="space-y-5" onKeyDown={list.onKeyDown}>
+          {groups.today.length > 0 && <ListSection title={t('presentations.today')}>{groups.today.map((p, i) => row(p, i, false, false))}</ListSection>}
+          {groups.upcoming.length > 0 && <ListSection title={t('presentations.upcoming')}>{groups.upcoming.map((p, i) => row(p, todayCount + i, true, false))}</ListSection>}
+          {rest.length > 0 && (
+            <div className="space-y-2">
+              <ListCard label={t('nav.presentations')}>{rest.map((p, i) => row(p, restStart + i, true, true))}</ListCard>
+              {rest.length < groups.rest.length && (
+                <div className="flex justify-center pt-2">
+                  <AppButton variant="cancel" onClick={() => setRestShown((n) => n + PAGE_SIZE)}>
+                    {t('common.showMore')}
+                  </AppButton>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
-      {presentations && (
-        // Always here, also on an empty page (the current app hides it there): whoever has just deleted the last one needs the way back in view.
+      {!!presentations?.length && (
+        // Whoever has just deleted the wrong thing is looking at an emptier page than expected: the way back stays in view (Dashboard.razor).
         <div className="flex justify-center pt-2">
           <AppButton variant="cancel" href={href({ page: 'trash', kind: 'Presentation' })} className="flex items-center gap-1.5">
             <TrashIcon className="size-4" />

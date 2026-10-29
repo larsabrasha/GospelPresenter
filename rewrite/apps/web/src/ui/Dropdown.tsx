@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
 import { AppButton } from './AppButton.tsx';
 
 /**
- * A menu that opens under its button (Components/Dropdown.razor). A click
+ * A menu that opens under its button, or above it when it does not fit
+ * (Components/Dropdown.razor). A click
  * outside, a choice in the menu or Escape closes it. `button` is the
  * button's own attributes: its label, its class. Opened from the keyboard,
  * focus moves to the first choice, the arrows move between the choices, and
@@ -28,6 +29,25 @@ export function Dropdown({
 
   useEffect(() => {
     if (open === 'keyboard') menuRef.current?.querySelector<HTMLElement>(ITEMS)?.focus();
+  }, [open]);
+
+  // A menu that would run off the bottom opens upward when there is more room
+  // above, and is cut to fit and scrolls otherwise (utils.js positionDropdown).
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!open || !menu) return;
+    const margin = 8;
+    const rect = menu.getBoundingClientRect();
+    if (rect.bottom <= window.innerHeight - margin) return;
+    const parent = menu.parentElement!.getBoundingClientRect();
+    const above = parent.top;
+    const below = window.innerHeight - parent.bottom;
+    if (above > below) {
+      Object.assign(menu.style, { top: 'auto', bottom: '100%', marginTop: '0', marginBottom: '0.25rem' });
+      if (rect.height > above - margin) Object.assign(menu.style, { maxHeight: `${above - margin}px`, overflowY: 'auto' });
+    } else {
+      Object.assign(menu.style, { maxHeight: `${below - margin}px`, overflowY: 'auto' });
+    }
   }, [open]);
 
   const close = (refocus: boolean) => {

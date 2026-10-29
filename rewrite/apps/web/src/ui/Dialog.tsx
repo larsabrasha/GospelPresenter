@@ -20,19 +20,42 @@ function CloseButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])';
+
 /**
- * The covered page behind a dialog, and the box. Escape closes it; the first
- * field (or button) gets focus. Keys in the box stay there, so the page's
- * shortcuts do not see them.
+ * The covered page behind a dialog, and the box. Escape, the close button and a
+ * press on the dimmed page close it (utils.js showModal); the first field (or
+ * button) gets focus, and Tab stays in the box, as with the current app's native
+ * `showModal`. Keys in the box stay there, so the page's shortcuts do not see them.
+ * It fades in, not out: a delayed close would undo the page opening it again meanwhile.
  */
-function DialogFrame({ titleId, onClose, className, children }: { titleId: string; onClose: () => void; className: string; children: ReactNode }) {
+function DialogFrame({ titleId, onClose, className, children }: { titleId: string; onClose: () => void; className: string; children: (close: () => void) => ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = box.current!;
     if (!el.contains(document.activeElement)) el.querySelector<HTMLElement>('[autofocus], input, textarea, select, button:not([data-close])')?.focus();
   }, []);
+  const close = onClose;
+  const trapTab = (e: React.KeyboardEvent) => {
+    const all = [...box.current!.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => x.offsetParent !== null || x === document.activeElement);
+    if (all.length === 0) return e.preventDefault();
+    const first = all[0]!;
+    const last = all[all.length - 1]!;
+    if (e.shiftKey && (document.activeElement === first || !box.current!.contains(document.activeElement))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
   return createPortal(
-    <div className="dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/40 p-4">
+    <div
+      className="dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 p-4"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) close();
+      }}
+    >
       <div
         ref={box}
         className={`relative w-full max-h-full overflow-auto rounded-2xl shadow-2xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 ${className}`}
@@ -41,10 +64,11 @@ function DialogFrame({ titleId, onClose, className, children }: { titleId: strin
         aria-labelledby={titleId}
         onKeyDown={(e) => {
           e.stopPropagation(); // keys in a dialog are the dialog's
-          if (e.key === 'Escape') onClose();
+          if (e.key === 'Escape') close();
+          else if (e.key === 'Tab') trapTab(e);
         }}
       >
-        {children}
+        {children(close)}
       </div>
     </div>,
     document.body,
@@ -74,13 +98,17 @@ export function Dialog({
   const titleId = useId();
   return (
     <DialogFrame titleId={titleId} onClose={onClose} className={maxWidthClass ?? (wide ? 'max-w-5xl' : 'max-w-md')}>
-      {showClose && <CloseButton onClick={onClose} />}
-      <div className="p-6 space-y-4">
-        <h2 id={titleId} className={`font-semibold text-lg/7 ${showClose ? 'pr-8' : ''}`}>
-          {title}
-        </h2>
-        {children}
-      </div>
+      {(close) => (
+        <>
+          {showClose && <CloseButton onClick={close} />}
+          <div className="p-6 space-y-4">
+            <h2 id={titleId} className={`font-semibold text-lg/7 ${showClose ? 'pr-8' : ''}`}>
+              {title}
+            </h2>
+            {children}
+          </div>
+        </>
+      )}
     </DialogFrame>
   );
 }
@@ -93,14 +121,18 @@ export function Modal({ title, onClose, children, footer, className }: { title: 
   const titleId = useId();
   return (
     <DialogFrame titleId={titleId} onClose={onClose} className={`rounded-3xl! shadow-lg! ${className ?? 'max-w-2xl'}`}>
-      <CloseButton onClick={onClose} />
-      <div className="p-4 text-center">
-        <h2 id={titleId} className="text-base/6 font-normal">
-          {title}
-        </h2>
-      </div>
-      <div className="px-4 h-[70svh] flex flex-col">{children}</div>
-      <div className="px-4 py-3">{footer}</div>
+      {(close) => (
+        <>
+          <CloseButton onClick={close} />
+          <div className="p-4 text-center">
+            <h2 id={titleId} className="text-base/6 font-normal">
+              {title}
+            </h2>
+          </div>
+          <div className="px-4 h-[70svh] flex flex-col">{children}</div>
+          <div className="px-4 py-3">{footer}</div>
+        </>
+      )}
     </DialogFrame>
   );
 }
@@ -110,33 +142,76 @@ export function DialogButtons({ children }: { children: ReactNode }) {
   return <div className="flex justify-end gap-3">{children}</div>;
 }
 
-interface Ask {
+export interface AskOptions {
   title: string;
   text: string;
   confirm: string;
+  /** A user-authored value in `text` (a name), shown in bold (Components/LocalizedEmphasis.razor). */
+  bold?: string;
+  /** The work done on confirming; the dialog stays open with `busy` on its button until it ends. */
+  run?: () => Promise<unknown>;
+  busy?: string;
+  /** Narrower, with the text at its normal size, as Presentation.razor's removal of an item. */
+  compact?: boolean;
+}
+
+interface Ask extends AskOptions {
   resolve: (ok: boolean) => void;
+}
+
+/** `text` with the first `bold` in it in bold. */
+function emphasised(text: string, bold: string | undefined): ReactNode {
+  const at = bold ? text.indexOf(bold) : -1;
+  if (!bold || at < 0) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <strong>{bold}</strong>
+      {text.slice(at + bold.length)}
+    </>
+  );
+}
+
+/** The options of a delete confirmation (Components/ConfirmDeleteDialog.razor): titled and confirmed "Radera". */
+export function deleteAsk(text: string, bold: string | undefined, run: () => Promise<unknown>): AskOptions {
+  return { title: t('common.delete'), text, bold, confirm: t('common.delete'), busy: t('common.deleting'), run };
 }
 
 /**
  * A confirmation dialog (Components/ConfirmDeleteDialog.razor): `ask`
- * resolves true when the user confirms. Render `dialog` somewhere in the component.
+ * resolves true when the user confirms, after `run` if one is given. Render
+ * `dialog` somewhere in the component.
  */
-export function useConfirm(): { dialog: ReactNode; ask: (o: { title: string; text: string; confirm: string }) => Promise<boolean> } {
+export function useConfirm(): { dialog: ReactNode; ask: (o: AskOptions) => Promise<boolean> } {
   const [open, setOpen] = useState<Ask | null>(null);
-  const ask = useCallback((o: { title: string; text: string; confirm: string }) => new Promise<boolean>((resolve) => setOpen({ ...o, resolve })), []);
+  const [working, setWorking] = useState(false);
+  const ask = useCallback((o: AskOptions) => new Promise<boolean>((resolve) => setOpen({ ...o, resolve })), []);
   const done = (ok: boolean) => {
     open?.resolve(ok);
     setOpen(null);
   };
+  const confirm = async () => {
+    if (!open?.run) return done(true);
+    setWorking(true);
+    try {
+      await open.run();
+    } catch (e) {
+      // The work says itself what went wrong; the dialog only closes.
+      console.error('confirmed work failed', e);
+    } finally {
+      setWorking(false);
+      done(true);
+    }
+  };
   const dialog = open && (
-    <Dialog title={open.title} onClose={() => done(false)}>
-      <p className="text-sm text-neutral-600 dark:text-neutral-300">{open.text}</p>
+    <Dialog title={open.title} onClose={() => done(false)} maxWidthClass={open.compact ? 'max-w-sm' : undefined}>
+      <p className={open.compact ? '' : 'text-sm text-neutral-600 dark:text-neutral-300'}>{emphasised(open.text, open.bold)}</p>
       <DialogButtons>
         <AppButton variant="cancel" onClick={() => done(false)}>
           {t('common.cancel')}
         </AppButton>
-        <AppButton variant="danger" filled onClick={() => done(true)}>
-          {open.confirm}
+        <AppButton variant="danger" filled disabled={working} onClick={() => void confirm()}>
+          {working && open.busy ? open.busy : open.confirm}
         </AppButton>
       </DialogButtons>
     </Dialog>

@@ -28,16 +28,18 @@ export function ArrangementPills({ arrangements, chosen, onChoose, className }: 
 
 /**
  * The slides of an item, or a song in the add dialog; with the overlay the item
- * carries drawn above each. A wrapping grid of tiles (SlideGrid.razor), or with
- * `column` one under the other at full width, as the add dialog's preview.
+ * carries drawn above each, and no credits (SlideGrid.razor gives its tiles none).
+ * A wrapping grid of tiles: one to a row on a phone, three to `lg`, then 384 px
+ * each (SlideGrid.razor's scale); or with `column` one under the other at full
+ * width, as the add dialog's preview.
  */
 export function SlideGrid({ slides, label, theme, overlayId = null, column }: { slides: ItemSlides['slides']; label: string; theme: Theme; overlayId?: string | null; column?: boolean }) {
   const overlay = useShownOverlay(overlayId);
   return (
     <ol className={column ? 'flex flex-col gap-2' : 'flex flex-wrap gap-3'} aria-label={label}>
       {slides.map((s, i) => (
-        <li key={s.key} className={`${tileClass({ interactive: false })} ${column ? '' : 'w-full sm:w-[calc(50%-0.75rem)] lg:w-96 m-1'}`} aria-label={`${label} ${i + 1}`}>
-          <SlideView slide={s} theme={theme} overlay={overlay} />
+        <li key={s.key} className={`${tileClass({ interactive: false })} ${column ? '' : 'w-full md:w-[calc(33.333%-0.75rem)] lg:w-96 m-1'}`} aria-label={`${label} ${i + 1}`}>
+          <SlideView slide={s} theme={theme} overlay={overlay} credits={false} />
         </li>
       ))}
     </ol>

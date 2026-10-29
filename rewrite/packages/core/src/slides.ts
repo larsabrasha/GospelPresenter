@@ -80,9 +80,29 @@ export function bibleItemSlides(title: string, content: BibleItemContent): Slide
   return content.slides.map((verses, i) => ({ key: `b${i}`, kind: 'bible', text: bibleSlideText(verses), verses, image: null, label: null, credits }));
 }
 
-/** The one slide of an image item: the picture, over the theme's media background (spec 05). */
-export function imageSlide(fullHash: string): Slide {
-  return { key: 'image', kind: 'media', text: '', verses: null, image: fullHash, label: null, credits: null };
+/** A slide of an image item: one picture, over the theme's media background (spec 05). */
+export function imageSlide(fullHash: string, key = 'image'): Slide {
+  return { key, kind: 'media', text: '', verses: null, image: fullHash, label: null, credits: null };
+}
+
+/** At most this many pictures in one image item. */
+export const MAX_ITEM_IMAGES = 50;
+
+/**
+ * What an image item keeps: its pictures in order, library ids (Presentation.razor's image parts).
+ * An item made before there could be several has no content and shows its `sourceId` alone.
+ */
+export const imageItemContentSchema = z.object({ images: z.array(z.string().min(1).max(64)).min(1).max(MAX_ITEM_IMAGES) });
+
+/** An image item's pictures, by library id, in order. */
+export function imageItemIds(item: { sourceId: string; content: string | null }): string[] {
+  if (!item.content) return [item.sourceId];
+  try {
+    const parsed = imageItemContentSchema.safeParse(JSON.parse(item.content));
+    return parsed.success ? parsed.data.images : [item.sourceId];
+  } catch {
+    return [item.sourceId];
+  }
 }
 
 // ------------------------------------------------------------------ slide decks (PRES-R11, D29)

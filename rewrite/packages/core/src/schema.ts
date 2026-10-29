@@ -68,12 +68,20 @@ export const presentations = sqliteTable('presentations', {
   isTemplate: integer('is_template', { mode: 'boolean' }).notNull().default(false),
   /** A template's day of the week, 0 = Sunday … 6 = Saturday. */
   weekday: integer('weekday'),
-  /** A template's time of day, `HH:MM`. */
+  /** The time of day, `HH:MM`: a presentation's start, or a template's weekly slot. */
   time: text('time'),
-  /** A template's place. */
+  /** Where it is held (spec 03 `EventLocation`). */
   location: text('location'),
   /** When a presentation was last created from this template: the picker shows the latest first (PRES-R32). */
   lastUsedAt: integer('last_used_at'),
+  /** A presentation's description (spec 03 `EventDescription`). */
+  description: text('description'),
+  /**
+   * When it or its running order was last changed: the start page's undated
+   * list and the templates page put the latest first (Dashboard.razor). The
+   * server's clock once synced; null before schema 12.
+   */
+  updatedAt: integer('updated_at'),
 });
 
 /**
@@ -182,6 +190,8 @@ export const displays = sqliteTable('displays', {
   name: text('name').notNull(),
   code: text('code').notNull(),
   kind: text('kind', { enum: ['public', 'screen'] }).notNull(),
+  /** When it was made: Skärmar and the live panel list outputs in that order (RemoteDisplayService.cs). Null before schema 12. */
+  createdAt: integer('created_at'),
 });
 
 /** The organisation's settings, one row each: `defaultThemeId` so far (THEME-R4). */
@@ -286,7 +296,7 @@ export type LibraryAudio = typeof audios.$inferSelect;
 export type Overlay = typeof overlays.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -311,7 +321,7 @@ export const orgDdl: string[] = [
      song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS presentations (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, event_date TEXT,
      deleted_at INTEGER, theme_id TEXT, is_template INTEGER NOT NULL DEFAULT 0, weekday INTEGER, time TEXT,
-     location TEXT, last_used_at INTEGER)`,
+     location TEXT, last_used_at INTEGER, description TEXT, updated_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS presentation_items (id TEXT PRIMARY KEY NOT NULL,
      presentation_id TEXT NOT NULL REFERENCES presentations(id), type TEXT NOT NULL, title TEXT NOT NULL,
      source_id TEXT NOT NULL, sort INTEGER NOT NULL, arrangement_id TEXT, content TEXT, overlay_id TEXT)`,
@@ -321,7 +331,7 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      full_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
      created_at INTEGER NOT NULL, deleted_at INTEGER)`,
-  `CREATE TABLE IF NOT EXISTS displays (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL, kind TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS displays (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, code TEXT NOT NULL, kind TEXT NOT NULL, created_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS audios (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      hash TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS overlays (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT, image_id TEXT,
@@ -337,7 +347,10 @@ export const orgDdl: string[] = [
 ];
 
 /** The statements that take a database from version `n - 1` to `n`, for every `n` above SCHEMA_BASELINE. */
-export const orgMigrations: Record<number, string[]> = {};
+export const orgMigrations: Record<number, string[]> = {
+  // A presentation's description (spec 03) and when it was last changed; when an output was made.
+  12: ['ALTER TABLE presentations ADD COLUMN description TEXT', 'ALTER TABLE presentations ADD COLUMN updated_at INTEGER', 'ALTER TABLE displays ADD COLUMN created_at INTEGER'],
+};
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */
 export const schemaMetaDdl = `CREATE TABLE IF NOT EXISTS _schema (one INTEGER PRIMARY KEY CHECK (one = 1), version INTEGER NOT NULL)`;

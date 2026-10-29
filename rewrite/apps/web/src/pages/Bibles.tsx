@@ -5,7 +5,7 @@ import { listBibles, type InstalledBible } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
-import { useConfirm } from '../ui/Dialog.tsx';
+import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { ArrowDownTrayIcon, BookOpenOutlineIcon, CheckIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
@@ -65,14 +65,15 @@ export function Bibles() {
   };
 
   const remove = async (b: InstalledBible) => {
-    if (!(await ask({ title: t('bibles.deleteTitle'), text: t('bibles.deleteConfirm', { name: b.name }), confirm: t('common.delete') }))) return;
-    if (!(await trySave(db.mutate('deleteBible', { id: b.id })))) return;
+    let saved = false;
+    if (!(await ask(deleteAsk(t('bibles.deleteConfirm', { name: b.name }), b.name, async () => (saved = await trySave(db.mutate('deleteBible', { id: b.id }))))))) return;
+    if (!saved) return;
     toast(t('bibles.deleted'));
   };
 
   return (
     <PageContainer>
-      <DropZone className="flex flex-col space-y-5 min-h-[60vh]" label={t('bibles.dropHere')} onFiles={(files) => void importFile(files[0])}>
+      <DropZone className="flex flex-col space-y-5" label={t('bibles.dropHere')} accept=".zip" multiple={false} onFiles={(files) => void importFile(files[0])}>
         {dialog}
         <PageHeader title={t('bibles.title')} />
         <div className={`${CARD} p-5 space-y-4`}>

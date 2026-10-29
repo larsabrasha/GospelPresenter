@@ -1,22 +1,43 @@
 import type { Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { AudioEngine } from '../../live/audio.ts';
+import { AudioPlayer } from '../live/AudioPlayer.tsx';
 import { useBlobUrl, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { ChevronDownIcon, WarningIcon } from '../../ui/icons.tsx';
+import { ChevronDownIcon, CloseIcon, PlusIcon, WarningIcon } from '../../ui/icons.tsx';
+import { useConfirm } from '../../ui/Dialog.tsx';
+import { useSortable } from '../../ui/sortable.ts';
+import { tileClass } from '../../ui/SlideTile.tsx';
+import { SlideView } from '../../ui/SlideView.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { ArrangementPills, SlideGrid } from './SlideGrid.tsx';
 
-/** An audio item in the editor: a player for the file (spec 03), once this device has it, in a card (AudioPlayer.razor). */
-function AudioPreview({ hash, name }: { hash: string; name: string }) {
+/**
+ * An audio item in the editor: the player of the live page (AudioPlayer.razor), on a preview of its
+ * own that stops when the item is left; once this device has the file.
+ */
+function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; name: string }) {
   const url = useBlobUrl(hash);
+  if (!url)
+    return (
+      <div className="w-full sm:max-w-lg sm:mx-auto bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-sm space-y-3">
+        <p className="text-sm font-medium truncate">{name}</p>
+        <p className="text-sm text-neutral-400">{t('presentation.audioFetching')}</p>
+      </div>
+    );
+  return <PreviewPlayer key={url} url={url} itemId={itemId} name={name} />;
+}
+
+function PreviewPlayer({ url, itemId, name }: { url: string; itemId: string; name: string }) {
+  const [engine] = useState(() => new AudioEngine(async () => url));
+  useEffect(() => () => engine.stop(), [engine]);
   return (
-    <div className="w-full sm:max-w-lg sm:mx-auto bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-sm space-y-3">
-      <p className="text-sm font-medium truncate">{name}</p>
-      {url ? <audio controls src={url} aria-label={name} data-testid="audio-preview" className="w-full" /> : <p className="text-sm text-neutral-400">{t('presentation.audioFetching')}</p>}
+    <div className="w-full sm:max-w-lg sm:mx-auto">
+      <AudioPlayer control={engine} itemId={itemId} name={name} testId="audio-preview" />
     </div>
   );
 }
@@ -33,8 +54,55 @@ function ItemWarning({ children, action }: { children: ReactNode; action?: React
 }
 
 /**
+ * An image item's pictures in Redigera (SlideGrid.razor's image edit mode): one under the other,
+ * dragged to a new place, each with a red ✕ that removes it after a question, and a dashed tile
+ * that adds more. Removing the last removes the item.
+ */
+function ImageItemEditor({ item, slides, theme, onAddImages }: { item: PresentationItem; slides: ItemSlides['slides']; theme: Theme; onAddImages: () => void }) {
+  const db = useDb();
+  const saveFailed = useSaveFailed();
+  const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
+  const { dialog, ask } = useConfirm();
+  const { listRef, rowStyle, handle } = useSortable<HTMLOListElement>((from, to) => failing(db.mutate('moveItemImage', { itemId: item.id, from, to })));
+  return (
+    <>
+      {dialog}
+      <ol ref={listRef} className="flex flex-col gap-3" aria-label={item.title} data-testid="image-order">
+        {slides.map((s, i) => (
+          <li key={s.key} data-sort-row style={rowStyle(i)} {...handle(i)} className={`${tileClass({ interactive: false })} w-full sm:w-96 m-1 cursor-grab active:cursor-grabbing touch-none select-none`} aria-label={`${item.title} ${i + 1}`}>
+            <SlideView slide={s} theme={theme} credits={false} />
+            <AppButton
+              variant="plain"
+              className="absolute top-2 right-2 z-10 bg-red-500 hover:bg-red-600 text-white rounded-full size-6 flex items-center justify-center cursor-pointer"
+              title={t('common.delete')}
+              aria-label={t('presentation.removeImage', { n: i + 1 })}
+              onClick={async () => {
+                const ok = await ask({ title: t('common.delete'), text: t('presentation.removeImageConfirm'), confirm: t('common.delete'), compact: true });
+                if (ok) failing(db.mutate('removeItemImage', { itemId: item.id, index: i }));
+              }}
+            >
+              <CloseIcon className="size-3.5" />
+            </AppButton>
+          </li>
+        ))}
+      </ol>
+      <AppButton
+        variant="plain"
+        className="aspect-video w-full sm:w-96 m-1 border-2 border-dashed border-neutral-300 dark:border-neutral-600 rounded-2xl flex items-center justify-center cursor-pointer hover:border-sky-500 hover:text-sky-500 text-neutral-400 dark:text-neutral-500 transition-colors"
+        title={t('presentation.addMoreImages')}
+        aria-label={t('presentation.addMoreImages')}
+        onClick={onAddImages}
+      >
+        <PlusIcon className="size-8" />
+      </AppButton>
+    </>
+  );
+}
+
+/**
  * The selected item in the main area: its warnings, the audio player, the
- * arrangement and overlay pickers, and its slides.
+ * arrangement and overlay pickers, and its slides; an image item's pictures to
+ * reorder, remove and add to while `editingImages`.
  */
 export function SelectedItem({
   selected,
@@ -43,7 +111,11 @@ export function SelectedItem({
   selectedSlides,
   overlays,
   theme,
+  editingImages,
+  onAddImages,
 }: {
+  editingImages: boolean;
+  onAddImages: () => void;
   selected: PresentationItem;
   selectedSong: Song | undefined;
   selectedArrangements: SongArrangement[];
@@ -78,7 +150,7 @@ export function SelectedItem({
       {selectedSlides?.problem === 'song-missing' && <ItemWarning>{t('presentation.songMissing')}</ItemWarning>}
       {selectedSlides?.problem === 'image-missing' && <ItemWarning>{t('presentation.imageMissing')}</ItemWarning>}
       {selectedSlides?.problem === 'audio-missing' && <ItemWarning>{t('presentation.audioMissing')}</ItemWarning>}
-      {selectedSlides?.audio && <AudioPreview hash={selectedSlides.audio.hash} name={selectedSlides.audio.fileName} />}
+      {selectedSlides?.audio && <AudioPreview key={selected.id} itemId={selected.id} hash={selectedSlides.audio.hash} name={selectedSlides.audio.fileName} />}
       {(selectedSong?.deletedAt === null || !!overlays.length) && (
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-1 empty:hidden">
           {selectedSong?.deletedAt === null && (
@@ -112,7 +184,11 @@ export function SelectedItem({
           )}
         </div>
       )}
-      {selectedSlides && <SlideGrid theme={theme} label={selected.title} slides={selectedSlides.slides} overlayId={selected.overlayId} />}
+      {selectedSlides && selected.type === 'image' && editingImages ? (
+        <ImageItemEditor item={selected} slides={selectedSlides.slides} theme={theme} onAddImages={onAddImages} />
+      ) : (
+        selectedSlides && <SlideGrid theme={theme} label={selected.title} slides={selectedSlides.slides} overlayId={selected.overlayId} />
+      )}
     </>
   );
 }

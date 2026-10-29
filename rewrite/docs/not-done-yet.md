@@ -90,4 +90,5 @@ and its next sync is refused); behind a reverse proxy, `X-Forwarded-Proto` and `
 From spec 02 and 03 in particular: song history (SONG-R20–R24, D9), the labels page, CCLI, ProPresenter
 import, the dashboard's Idag/Kommande sections and "last changed" order, event time, place,
 description and theme, multi-select removal, the keyboard help dialog, the song editor inside the add
-dialog, the clash warning of D18, and drag and drop (moving is by ↑ and ↓ buttons).
+dialog, the clash warning of D18, and dropping files (reordering items and arrangement chips by dragging is
+built, see `e2e/drag.spec.ts`).

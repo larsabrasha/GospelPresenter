@@ -266,6 +266,9 @@ describe.each(adapters)('%s adapter', (adapterName) => {
         time: null,
         location: null,
         last_used_at: null,
+        description: null,
+        // The rename's time on the server's clock, the same on both devices.
+        updated_at: expect.any(Number),
       });
     await alice.client.mutate('renamePresentation', { id: 'P', name: 'Alice can push again' });
     await syncAll(alice, carol);
@@ -677,6 +680,22 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     await syncAll(bob, alice);
     expect((await alice.client.dump()).presentations.map((r) => r.id)).toEqual(['T']);
     await alice.client.mutate('purgeExpiredTrash', { now });
+    await syncAll(alice, bob);
+    expect((await bob.client.dump()).presentations).toEqual([]);
+    await expectConverged(alice, bob);
+  });
+
+  it("Töm empties a user's kinds of the trash in one change and leaves a template, which only an admin's empties", async () => {
+    await seed();
+    await alice.client.mutate('saveAsTemplate', { id: 'T', presentationId: 'P', name: 'Söndag', items: fromP });
+    await alice.client.mutate('trashTemplate', { id: 'T', at: 5 });
+    await alice.client.mutate('trashPresentation', { id: 'P', at: 5 });
+    await syncAll(alice, bob);
+
+    await bob.client.mutate('emptyTrash', {});
+    await syncAll(bob, alice);
+    expect((await alice.client.dump()).presentations.map((r) => r.id)).toEqual(['T']);
+    await alice.client.mutate('emptyTrash', {});
     await syncAll(alice, bob);
     expect((await bob.client.dump()).presentations).toEqual([]);
     await expectConverged(alice, bob);

@@ -1,5 +1,6 @@
 // The start page's dates and lists (spec 03 screen 1), apart from the page so they can be tested.
 import type { Presentation } from '@gp/core';
+import { byLastChanged } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 
 /** Today's date on this device, `YYYY-MM-DD`, as event dates are stored. */
@@ -26,24 +27,24 @@ function shortDate(iso: string, withYear: boolean): string {
   return [part('weekday').replace(/\.$/, ''), part('day'), part('month'), withYear ? part('year') : ''].filter(Boolean).join(' ');
 }
 
-/** "måndag 4 maj 2026", for the tooltip. */
-export function fullDate(iso: string): string {
-  return dateOf(iso).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+/** "måndag 4 maj 2026", for the tooltip; without the year in Kommande, as the row (PresentationRow.razor). */
+export function fullDate(iso: string, withYear = true): string {
+  return dateOf(iso).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) });
 }
 
 /**
- * The start page's three lists (spec 03 screen 1): today, upcoming (soonest
- * first), and the rest, past and undated. The rest is newest date first, as
- * a presentation has no time it was last changed.
+ * The start page's three lists (spec 03 screen 1, PresentationService.cs):
+ * today by time (no time last), upcoming soonest first, and the rest, past and
+ * undated alike, last changed first.
  */
 export function groupPresentations(all: Presentation[], today: string): { today: Presentation[]; upcoming: Presentation[]; rest: Presentation[] } {
-  const byName = (a: Presentation, b: Presentation) => a.name.localeCompare(b.name, 'sv');
+  const byTime = (a: Presentation, b: Presentation) => (a.time ?? '99:99').localeCompare(b.time ?? '99:99');
+  const byId = (a: Presentation, b: Presentation) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   return {
-    today: all.filter((p) => p.eventDate === today).toSorted(byName),
-    upcoming: all.filter((p) => p.eventDate !== null && p.eventDate > today).toSorted((a, b) => a.eventDate!.localeCompare(b.eventDate!) || byName(a, b)),
-    rest: all
-      .filter((p) => p.eventDate === null || p.eventDate < today)
-      .toSorted((a, b) => (a.eventDate === null ? 1 : 0) - (b.eventDate === null ? 1 : 0) || (b.eventDate ?? '').localeCompare(a.eventDate ?? '') || byName(a, b)),
+    today: all.filter((p) => p.eventDate === today).toSorted((a, b) => byTime(a, b) || byLastChanged(a, b) || byId(a, b)),
+    upcoming: all.filter((p) => p.eventDate !== null && p.eventDate > today).toSorted((a, b) => a.eventDate!.localeCompare(b.eventDate!) || byTime(a, b) || byId(a, b)),
+    // Id last, so the order is total (two saved in the same tick would otherwise swap).
+    rest: all.filter((p) => p.eventDate === null || p.eventDate < today).toSorted((a, b) => byLastChanged(a, b) || byId(a, b)),
   };
 }
 

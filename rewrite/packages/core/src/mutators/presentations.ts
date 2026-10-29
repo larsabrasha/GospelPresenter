@@ -3,16 +3,41 @@ import { z } from 'zod';
 import { BIBLE_LIMITS, bibleTitle, splitBibleSlides, type BibleItemContent } from '../bible.ts';
 import { overlays, presentationItems, presentations, songArrangements, songs } from '../schema.ts';
 import { isKnownTheme } from '../themes.ts';
-import { id, LIMITS, limit, MutationError, name, requirePermission, type MutatorCtx, type Tx } from './base.ts';
+import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
 // ------------------------------------------------------------------ presentations
 
-export const createPresentationArgs = z.object({ id, name, eventDate: z.iso.date().nullable().optional() });
+/** A time of day, `HH:MM`. */
+export const eventTime = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+  .nullable();
+/** spec 03: `EventLocation` ≤ 100, `EventDescription` ≤ 5000 (PRES-R9). */
+export const eventLocation = optionalText(100);
+export const eventDescription = optionalText(5000);
+
+/** When and where, and what it is about: the details dialog's fields (spec 03 2a). */
+const eventFields = {
+  eventDate: z.iso.date().nullable().optional(),
+  time: eventTime.optional(),
+  location: eventLocation.optional(),
+  description: eventDescription.optional(),
+};
+
+export const createPresentationArgs = z.object({ id, name, ...eventFields });
 export async function createPresentation(tx: Tx, a: z.output<typeof createPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   await tx
     .insert(presentations)
-    .values({ id: a.id, name: a.name, eventDate: a.eventDate ?? null })
+    .values({
+      id: a.id,
+      name: a.name,
+      eventDate: a.eventDate ?? null,
+      time: a.time ?? null,
+      location: a.location ?? null,
+      description: a.description ?? null,
+      updatedAt: changedAt(ctx),
+    })
     .onConflictDoNothing();
 }
 
@@ -20,7 +45,10 @@ export const renamePresentationArgs = z.object({ id, name });
 /** Renames a presentation; a template is renamed with `updateTemplate`. */
 export async function renamePresentation(tx: Tx, a: z.output<typeof renamePresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await tx.update(presentations).set({ name: a.name }).where(and(eq(presentations.id, a.id), eq(presentations.isTemplate, false)));
+  await tx
+    .update(presentations)
+    .set({ name: a.name, updatedAt: changedAt(ctx) })
+    .where(and(eq(presentations.id, a.id), eq(presentations.isTemplate, false)));
 }
 
 /** A theme the organisation can use; anything else is "Theme not found." (PRES-R6, THEME-R4). */
@@ -31,11 +59,11 @@ export function requireTheme(themeId: string) {
 export const updatePresentationArgs = z.object({
   id,
   name: name.optional(),
-  eventDate: z.iso.date().nullable().optional(),
+  ...eventFields,
   /** The presentation's own theme; null follows the organisation's default (THEME-A5). */
   themeId: id.nullable().optional(),
 });
-/** The details dialog (spec 03, "Redigera detaljer"): sets the fields it names; a null date clears it. */
+/** The details dialog (spec 03, "Redigera detaljer"): sets the fields it names; a null clears one. */
 export async function updatePresentation(tx: Tx, a: z.output<typeof updatePresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   if (a.themeId !== undefined) {
@@ -44,7 +72,11 @@ export async function updatePresentation(tx: Tx, a: z.output<typeof updatePresen
   }
   const { id: presentationId, ...fields } = a;
   const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
-  if (Object.keys(set).length) await tx.update(presentations).set(set).where(and(eq(presentations.id, presentationId), eq(presentations.isTemplate, false)));
+  if (Object.keys(set).length)
+    await tx
+      .update(presentations)
+      .set({ ...set, updatedAt: changedAt(ctx) })
+      .where(and(eq(presentations.id, presentationId), eq(presentations.isTemplate, false)));
 }
 
 /** The arrangement if it is one of the song's, else null: the item then shows the song's default. */
@@ -92,21 +124,28 @@ export async function insertItem(
   return true;
 }
 
+/** Now, for `updatedAt`: the server's clock when it runs a push, else this device's. */
+export function changedAt(ctx: MutatorCtx): number {
+  return ctx.now ?? Date.now();
+}
+
 /**
- * The presentation an item is added to, or a template, which only those who
- * manage templates may edit (D24, spec 03 Q3).
+ * The presentation whose running order is about to change, or a template,
+ * which only those who manage templates may edit (D24, spec 03 Q3); marks it
+ * changed now.
  */
-export async function requirePresentation(tx: Tx, presentationId: string, ctx: MutatorCtx) {
+export async function changePresentation(tx: Tx, presentationId: string, ctx: MutatorCtx) {
   const [p] = await tx.select({ isTemplate: presentations.isTemplate }).from(presentations).where(eq(presentations.id, presentationId));
   if (!p) throw new MutationError('not-found', 'presentation not found');
   if (p.isTemplate) requirePermission(ctx, 'ManageTemplates');
+  await tx.update(presentations).set({ updatedAt: changedAt(ctx) }).where(eq(presentations.id, presentationId));
 }
 
 /** The same for an item, by its id: false when the item is gone. */
 async function requireItem(tx: Tx, itemId: string, ctx: MutatorCtx): Promise<boolean> {
   const [item] = await tx.select({ presentationId: presentationItems.presentationId }).from(presentationItems).where(eq(presentationItems.id, itemId));
   if (!item) return false;
-  await requirePresentation(tx, item.presentationId, ctx);
+  await changePresentation(tx, item.presentationId, ctx);
   return true;
 }
 
@@ -125,7 +164,7 @@ export const addSongToPresentationArgs = z.object({
  */
 export async function addSongToPresentation(tx: Tx, a: z.output<typeof addSongToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await requirePresentation(tx, a.presentationId, ctx);
+  await changePresentation(tx, a.presentationId, ctx);
   const [s] = await tx.select({ name: songs.name }).from(songs).where(eq(songs.id, a.songId));
   if (!s) throw new MutationError('not-found', 'song not found');
   await insertItem(tx, a.afterItemId, {
@@ -167,7 +206,7 @@ export const addBibleToPresentationArgs = z.object({
 export async function addBibleToPresentation(tx: Tx, a: z.output<typeof addBibleToPresentationArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
   requirePermission(ctx, 'ViewBibles');
-  await requirePresentation(tx, a.presentationId, ctx);
+  await changePresentation(tx, a.presentationId, ctx);
   const content: BibleItemContent = { translation: a.translation, slides: splitBibleSlides(a.verses) };
   await insertItem(tx, a.afterItemId, {
     id: a.itemId,
@@ -224,7 +263,7 @@ export const reorderItemsArgs = z.object({ presentationId: id, itemIds: z.array(
 /** Puts the named items first, in the given order; other items keep their order after them. */
 export async function reorderItems(tx: Tx, a: z.output<typeof reorderItemsArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManagePresentations');
-  await requirePresentation(tx, a.presentationId, ctx);
+  await changePresentation(tx, a.presentationId, ctx);
   const current = await tx
     .select({ id: presentationItems.id })
     .from(presentationItems)
@@ -247,7 +286,7 @@ export async function moveItem(tx: Tx, a: z.output<typeof moveItemArgs>, ctx: Mu
   requirePermission(ctx, 'ManagePresentations');
   const [item] = await tx.select({ presentationId: presentationItems.presentationId }).from(presentationItems).where(eq(presentationItems.id, a.itemId));
   if (!item) return;
-  await requirePresentation(tx, item.presentationId, ctx);
+  await changePresentation(tx, item.presentationId, ctx);
   const order = (
     await tx
       .select({ id: presentationItems.id })

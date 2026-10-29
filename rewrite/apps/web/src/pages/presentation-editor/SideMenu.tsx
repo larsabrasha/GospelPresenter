@@ -3,10 +3,10 @@ import type { ReactNode } from 'react';
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { Dropdown, MENU_ITEM } from '../../ui/Dropdown.tsx';
-import { DocumentDuplicateIcon, EllipsisOutlineIcon, PencilIcon, TrashIcon } from '../../ui/icons.tsx';
+import { CheckboxIcon, DocumentDuplicateIcon, EllipsisOutlineIcon, PencilIcon, TrashIcon } from '../../ui/icons.tsx';
 import { KeepOfflineItem, MediaReadiness, OfflinePill, type useKeepOffline } from '../../ui/MediaReadiness.tsx';
 import { scheduleLine } from '../templates.ts';
-import { formatEventDate } from './eventDate.ts';
+import { eventLine } from './eventDate.ts';
 
 /**
  * The left side: the presentation's name, date and ⋯ menu above the running order
@@ -21,6 +21,8 @@ export function SideMenu({
   onEditDetails,
   onSaveAsTemplate,
   onTrash,
+  ticking,
+  onTicking,
   children,
 }: {
   presentation: Presentation;
@@ -30,6 +32,9 @@ export function SideMenu({
   onEditDetails: () => void;
   onSaveAsTemplate?: () => void;
   onTrash: () => void;
+  /** Select mode (Markera), switched from the menu. */
+  ticking: boolean;
+  onTicking: (on: boolean) => void;
   children: ReactNode;
 }) {
   return (
@@ -53,7 +58,7 @@ export function SideMenu({
             </div>
             <Dropdown
               className="shrink-0"
-              menuClassName="w-64"
+              menuClassName="w-56"
               button={{
                 className: 'p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300',
                 title: t('presentation.options'),
@@ -73,23 +78,28 @@ export function SideMenu({
               )}
               {!presentation.isTemplate && <KeepOfflineItem keep={keep} />}
               <div className="border-t-[0.5px] border-neutral-200 dark:border-neutral-600" />
+              <AppButton variant="plain" role="menuitemcheckbox" aria-checked={ticking} className={MENU_ITEM} onClick={() => onTicking(!ticking)}>
+                <CheckboxIcon checked={ticking} className="size-4" />
+                {t('presentation.tick')}
+              </AppButton>
+              <div className="border-t-[0.5px] border-neutral-200 dark:border-neutral-600" />
               <AppButton variant="plain" role="menuitem" className={`${MENU_ITEM} text-red-500! dark:text-red-400!`} onClick={onTrash}>
                 <TrashIcon className="size-4" strokeWidth={1.5} />
                 {t(presentation.isTemplate ? 'templates.trash' : 'presentation.trash')}
               </AppButton>
             </Dropdown>
           </div>
-          {presentation.eventDate && (
-            <p className="px-1 -mt-1 text-xs text-neutral-500 dark:text-neutral-400" data-testid="schedule">
-              {formatEventDate(presentation.eventDate)}
-            </p>
-          )}
-          {presentation.isTemplate && (scheduleLine(presentation) || presentation.location) && (
-            <div className="px-1 -mt-1" data-testid="schedule">
-              {scheduleLine(presentation) && <div className="text-xs text-neutral-500 dark:text-neutral-400">{scheduleLine(presentation)}</div>}
-              {presentation.location && <div className="text-xs text-neutral-400 dark:text-neutral-500">{presentation.location}</div>}
-            </div>
-          )}
+          {(() => {
+            // "2026-11-01 10:00", or a template's "Söndag 10:00", and the place under it (Sidebar.razor).
+            const line = presentation.isTemplate ? scheduleLine(presentation) : eventLine(presentation);
+            if (!line && !presentation.location) return null;
+            return (
+              <div className="px-1 -mt-1 mb-3" data-testid="schedule">
+                {line && <div className="text-xs text-neutral-500 dark:text-neutral-400">{line}</div>}
+                {presentation.location && <div className="text-xs text-neutral-400 dark:text-neutral-500">{presentation.location}</div>}
+              </div>
+            );
+          })()}
           <div className="px-1">
             <MediaReadiness presentationId={presentation.id} audio />
           </div>

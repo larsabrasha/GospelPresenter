@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { AUDIO_TYPES, audioTypeFromName, can, MEDIA_LIMITS, sniffAudio, type LibraryAudio, type Role } from '@gp/core';
-import type { AudioImport } from '../db/protocol.ts';
+import { can, type LibraryAudio, type Role } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
-import { newId } from '../ids.ts';
+import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
@@ -17,28 +16,8 @@ import { SearchField } from '../ui/Picker.tsx';
 import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 
-type Problem = 'type' | 'size' | 'name';
-
-/**
- * Reads a picked file as an audio import (MEDIA-R1, R2, R5): its type from the
- * browser, else its extension; at most 20 MiB and a 200-character name. The
- * bytes are kept as they are; the type stored is what they say they are.
- */
-export async function readAudio(file: File, id: string): Promise<AudioImport | Problem> {
-  const picked = AUDIO_TYPES.find((x) => x === file.type) ?? (file.type === '' ? audioTypeFromName(file.name) : null);
-  if (!picked) return 'type';
-  if (file.size === 0 || file.size > MEDIA_LIMITS.audioBytes) return 'size';
-  if (file.name.length > MEDIA_LIMITS.fileName) return 'name';
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const contentType = sniffAudio(bytes);
-  if (!contentType) return 'type';
-  return { id, fileName: file.name, contentType, bytes };
-}
-
 /** When a file goes to the trash: this device's clock, as for songs and presentations. */
 const trashedAt = () => Date.now();
-
-const failedText: Record<Problem, Parameters<typeof t>[0]> = { type: 'audios.failedType', size: 'audios.failedSize', name: 'images.failedName' };
 
 /**
  * Ljud (spec 05 `/admin/audios`): the organisation's audio files, as a list.
@@ -50,31 +29,13 @@ export function Audios({ role }: { role: Role }) {
   const toast = useToast();
   const audios = useData(listAudios, []);
   const [query, setQuery] = useState('');
-  const [progress, setProgress] = useState<{ i: number; n: number } | null>(null);
-  const [failures, setFailures] = useState<string[]>([]);
+  const { run, progress, failures } = useMediaImport('audio');
   const manage = can(role, 'ManageAudios');
 
   const importFiles = async (files: File[]) => {
-    if (!files.length || progress || !manage) return;
-    setFailures([]);
-    const failed: string[] = [];
-    let added = 0;
-    for (const [i, file] of files.entries()) {
-      setProgress({ i: i + 1, n: files.length });
-      try {
-        const read = await readAudio(file, newId());
-        if (typeof read === 'string') failed.push(t(failedText[read], { name: file.name }));
-        else {
-          await db.addAudio(read);
-          added++;
-        }
-      } catch {
-        failed.push(t('images.failedOther', { name: file.name }));
-      }
-    }
-    setProgress(null);
-    setFailures(failed);
-    if (added && !failed.length) toast(t('audios.imported', { n: added }));
+    if (!manage) return;
+    const added = await run(files);
+    if (added.length && added.length === files.length) toast(t('audios.imported', { n: added.length }));
   };
 
   const remove = async (a: LibraryAudio) => {
@@ -87,7 +48,7 @@ export function Audios({ role }: { role: Role }) {
 
   return (
     <PageContainer>
-      <DropZone className="flex flex-col space-y-5 min-h-[60vh]" label={t('audios.drop')} enabled={manage} onFiles={(files) => void importFiles(files)}>
+      <DropZone className="flex flex-col space-y-5" label={t('audios.drop')} accept={AUDIO_ACCEPT} enabled={manage} onFiles={(files) => void importFiles(files)}>
         <PageHeader title={t('audios.title')}>
           <div className="flex items-center gap-3">
             {manage && <DropHint text={t('images.dropAffordance')} />}
@@ -101,7 +62,7 @@ export function Audios({ role }: { role: Role }) {
                 {t('images.import')}
                 <input
                   type="file"
-                  accept={AUDIO_TYPES.join(',')}
+                  accept={AUDIO_ACCEPT}
                   multiple
                   hidden
                   disabled={!!progress}

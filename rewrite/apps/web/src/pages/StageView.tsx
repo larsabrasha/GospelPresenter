@@ -10,6 +10,7 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { ChevronDownIcon, ChevronLeftIcon, CloseIcon, ItemIcon, SpeakerOutlineIcon, SquaresOverlapIcon } from '../ui/icons.tsx';
 import { LiveBadge } from '../ui/SlideTile.tsx';
 import { SlideView } from '../ui/SlideView.tsx';
+import { AudioPlayer } from './live/AudioPlayer.tsx';
 import { OverlayToggles } from './OverlayToggles.tsx';
 import { stageKey } from './stageKeys.ts';
 
@@ -45,17 +46,24 @@ export function StageView({
   const overlay = useShownOverlay(pointer.overlayId);
   const liveRef = useRef<HTMLLIElement>(null);
 
-  // The screen stays awake while the view is open.
+  // The screen stays awake while the view is open, and takes the lock again when it shows (utils.js).
   useEffect(() => {
-    let lock: { release(): Promise<void> } | undefined;
-    const nav = navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<{ release(): Promise<void> }> } };
-    void nav.wakeLock?.request('screen').then((l) => (lock = l), () => undefined);
-    return () => void lock?.release();
+    if (!('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    const take = () => {
+      if (document.visibilityState === 'visible') void navigator.wakeLock.request('screen').then((l) => (lock = l), () => {});
+    };
+    take();
+    document.addEventListener('visibilitychange', take);
+    return () => {
+      document.removeEventListener('visibilitychange', take);
+      void lock?.release();
+    };
   }, []);
 
-  // Keeps the live tile centred; cheap, so it runs after every render rather than naming what it reads.
+  // Keeps the live tile centred, scrolling smoothly; cheap, so it runs after every render rather than naming what it reads.
   useEffect(() => {
-    liveRef.current?.scrollIntoView?.({ inline: 'center', block: 'nearest' });
+    liveRef.current?.scrollIntoView?.({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   });
 
   const show = (itemId: string, partIndex: number) => live.set({ itemId, partIndex, black: false });
@@ -68,10 +76,10 @@ export function StageView({
   const pick = (i: PresentationItem) => {
     setPicking(false);
     if (slides.get(i.id)?.audio) {
-      // An audio item in stage mode: the screen goes black and the sound plays (LIVE-R6, LIVE-A29).
-      live.set({ black: true });
+      // An audio item in stage mode: it becomes the item, the screen goes black and the sound plays (LIVE-R6, LIVE-A29).
+      live.set({ itemId: i.id, partIndex: 0, black: true });
       audio.command({ action: 'play', itemId: i.id });
-    } else if (slides.get(i.id)?.slides.length) show(i.id, 0);
+    } else show(i.id, 0); // an item without slides goes live too, at its first place (Presentation.razor)
   };
 
   // Whether Tab, rather than a click or tap, last moved focus: only then do Enter and Space press the focused button.
@@ -86,7 +94,7 @@ export function StageView({
         if (overlaySheet) setOverlaySheet(false);
         else if (picking) setPicking(false);
         else onLeave();
-      } else if (!action || picking || overlaySheet) return;
+      } else if (!action) return;
       else if (action === 'next') go(1);
       else if (action === 'previous') go(-1);
       else live.set({ black: true }); // as Rensa: only blanks
@@ -103,7 +111,9 @@ export function StageView({
   });
 
   const current = item && !pointer.black ? (parts[pointer.partIndex] ?? null) : null;
-  const next = item && !pointer.black ? parts[pointer.partIndex + 1] : undefined;
+  // Nästa shows the slide after the live part, also while the screen is black (StageView.razor).
+  const next = item ? parts[pointer.partIndex + 1] : undefined;
+  const audioItem = item && slides.get(item.id)?.audio;
 
   const caption = 'text-[10px] uppercase tracking-widest text-neutral-500 font-semibold';
 
@@ -123,6 +133,7 @@ export function StageView({
         <AppButton
           variant="plain"
           aria-haspopup="dialog"
+          title={t('stage.switch')}
           onClick={() => setPicking(true)}
           className="cursor-pointer absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[60%] flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-neutral-800"
         >
@@ -133,8 +144,8 @@ export function StageView({
           <AppButton
             variant="plain"
             aria-haspopup="dialog"
-            aria-label={t('overlays.title')}
-            title={t('overlays.title')}
+            aria-label={t('stage.toggleOverlays')}
+            title={t('stage.toggleOverlays')}
             onClick={() => setOverlaySheet(true)}
             className="cursor-pointer ml-auto relative flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg shrink-0 hover:bg-neutral-800 text-neutral-200 text-sm"
           >
@@ -179,11 +190,21 @@ export function StageView({
               <h2 className={caption}>{t('stage.nowShowing')}</h2>
               <div className="relative aspect-video rounded-lg shadow-2xl overflow-hidden">
                 <SlideView slide={current} theme={theme} label={false} credits={false} overlay={pointer.black ? null : overlay} />
-                {pointer.black && sound?.playing && (
-                  <div className="absolute inset-0 z-[3] flex flex-col items-center justify-center gap-2 text-neutral-400 pointer-events-none">
+                {/* An audio item: its icon and its player, so it is played, paused and faded from here. */}
+                {audioItem && item ? (
+                  <div className="absolute inset-0 z-[3] flex flex-col items-center justify-center gap-3 p-4 text-neutral-400">
                     <SpeakerOutlineIcon className="size-12 opacity-70" />
-                    <p className="text-xs">{t('stage.audioPlaying')}</p>
+                    {sound?.playing && sound.itemId === item.id && <p className="text-xs">{t('stage.audioPlaying')}</p>}
+                    <AudioPlayer control={audio} itemId={item.id} name={audioItem.fileName} />
                   </div>
+                ) : (
+                  pointer.black &&
+                  sound?.playing && (
+                    <div className="absolute inset-0 z-[3] flex flex-col items-center justify-center gap-2 text-neutral-400 pointer-events-none">
+                      <SpeakerOutlineIcon className="size-12 opacity-70" />
+                      <p className="text-xs">{t('stage.audioPlaying')}</p>
+                    </div>
+                  )
                 )}
                 {current?.label && (
                   <span
@@ -200,6 +221,7 @@ export function StageView({
             variant="plain"
             className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shrink-0 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 mt-1 ${pointer.black ? 'invisible' : ''}`}
             tabIndex={pointer.black ? -1 : 0}
+            title={t('stage.clear')}
             onClick={() => live.set({ black: true })}
           >
             <CloseIcon className="size-4" />
@@ -218,9 +240,8 @@ export function StageView({
               <SlideView slide={next} theme={theme} label={false} credits={false} />
             </AppButton>
           ) : (
-            <div className="w-full aspect-video flex items-center justify-center text-center px-4">
-              <p className="text-sm text-neutral-500">{item ? t('stage.nextNone') : ''}</p>
-            </div>
+            // Nothing after it: an empty box (StageView.razor).
+            <div className="w-full aspect-video" />
           )}
         </section>
       </div>
@@ -229,6 +250,8 @@ export function StageView({
           <ol className="flex gap-2 items-center" aria-label={t('stage.strip')}>
             {parts.map((slide, i) => {
               const isLive = !pointer.black && i === pointer.partIndex;
+              // While the screen is black, the part it will show again stays marked, in sky (StageView.razor).
+              const held = pointer.black && i === pointer.partIndex;
               return (
                 <li key={slide.key} ref={isLive ? liveRef : undefined} className="relative shrink-0">
                   <AppButton
@@ -236,7 +259,7 @@ export function StageView({
                     aria-label={`${item!.title} ${i + 1}`}
                     aria-pressed={isLive}
                     onClick={() => show(item!.id, i)}
-                    className={`block w-48 cursor-pointer rounded-md transition-opacity p-0.5 outline-3 ${isLive ? 'outline-red-500' : 'outline-transparent opacity-70 hover:opacity-100'}`}
+                    className={`block w-48 cursor-pointer rounded-md transition-opacity p-0.5 outline-3 ${isLive ? 'outline-red-500' : held ? 'outline-transparent ring-2 ring-sky-400' : 'outline-transparent opacity-70 hover:opacity-100'}`}
                   >
                     <span className="block aspect-video rounded overflow-hidden">
                       <SlideView slide={slide} theme={theme} label={false} credits={false} />
@@ -261,7 +284,8 @@ export function StageView({
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
     <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" />
+      {/* A press on the dark backdrop closes the sheet (StageView.razor). */}
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       <div className="relative w-full sm:max-w-lg bg-neutral-900 text-white rounded-t-2xl sm:rounded-2xl max-h-[80vh] flex flex-col shadow-2xl" role="dialog" aria-label={title}>
         <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-neutral-800">
           <h2 className="text-base/6 font-semibold">{title}</h2>

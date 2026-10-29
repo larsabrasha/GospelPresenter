@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 
 // The current app's lists: a light card of rows, with an optional small
 // caption above (Components/Presentations/PresentationSection.razor, PresentationRow.razor).
@@ -25,10 +25,26 @@ export function ListSection({ title, children }: { title: string; children: Reac
 }
 
 /** A row that opens something: a title, a grey line under it, and whatever goes at the end. */
-export function ListLinkRow({ href, title, subtitle, subtitleTitle, end }: { href: string; title: ReactNode; subtitle?: ReactNode; subtitleTitle?: string; end?: ReactNode }) {
+export function ListLinkRow({
+  href,
+  title,
+  subtitle,
+  subtitleTitle,
+  end,
+  nav,
+}: {
+  href: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  subtitleTitle?: string;
+  end?: ReactNode;
+  /** Its place in a roving list (ui/listNav.ts `item(i)`). */
+  nav?: HTMLAttributes<HTMLAnchorElement>;
+}) {
   return (
     <li className="border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
       <a
+        {...nav}
         href={href}
         className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
       >

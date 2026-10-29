@@ -9,6 +9,8 @@ export class Db implements ReadDb {
   private next = 1;
   private changeListeners = new Set<() => void>();
   private statusListeners = new Set<(s: DbStatus) => void>();
+  /** When this window last wrote, so a page can tell its own changes from another session's. */
+  lastWriteAt = 0;
 
   constructor() {
     this.worker.addEventListener('message', (e: MessageEvent<DbMessage>) => {
@@ -38,6 +40,7 @@ export class Db implements ReadDb {
   }
 
   mutate<N extends MutatorName>(name: N, args: MutatorArgs<N>): Promise<void> {
+    this.lastWriteAt = Date.now();
     return this.call({ op: 'mutate', name, args });
   }
 
@@ -52,16 +55,19 @@ export class Db implements ReadDb {
 
   /** Keeps a processed picture here and adds it to the library, online or not; it is uploaded when the server can be reached. */
   addImage(image: ImageImport): Promise<void> {
+    this.lastWriteAt = Date.now();
     return this.call({ op: 'addImage', image });
   }
 
   /** Keeps an audio file here and adds it to the library, online or not. */
   addAudio(audio: AudioImport): Promise<void> {
+    this.lastWriteAt = Date.now();
     return this.call({ op: 'addAudio', audio });
   }
 
   /** Keeps a rendered slide deck's pages here and adds it as an item, online or not. */
   addSlides(slides: SlidesImport): Promise<void> {
+    this.lastWriteAt = Date.now();
     return this.call({ op: 'addSlides', slides });
   }
 

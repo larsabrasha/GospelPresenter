@@ -94,7 +94,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await page.getByRole('button', { name: 'Scenläge' }).click();
   const stage = page.getByTestId('stage-view');
   await expect(stage.getByTestId('overlay-on')).toHaveCount(0);
-  await stage.getByRole('button', { name: 'Overlays' }).click();
+  await stage.getByRole('button', { name: 'Visa/dölj overlays' }).click();
   await stage.getByRole('dialog', { name: 'Overlays' }).getByLabel('Välkommen').check();
   await expect(overlay).toHaveText('Välkommen hit');
   await expect(stage.getByTestId('overlay-on')).toHaveCount(1);

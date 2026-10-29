@@ -83,7 +83,7 @@ desktop app the main process reports each open and close (`output-changed`), and
 (`output-open`); in a browser the popup is checked every 0.5 s, since a page has no event for it, and a reloaded
 page shows it off until it is switched on again, which takes the open popup back by its name. Unlike the
 current app the row is always there (with one display the output is a window) and a browser opens a popup,
-not a Presentation-API receiver; there is no Esc in the output window and Avsluta does not close it, as before.
+not a Presentation-API receiver; there is no Esc in the output window, and Avsluta presentation closes it, as the current app's `Live.razor` does (Lars, 2026-10-29). A click in it asks for full screen, it keeps the screen awake, and it is named after the presentation.
 A blocked popup says "Live-vyn kunde inte öppnas". Tested in e2e in Electron (`milestone6.spec.ts`: on, off,
 closed by the window, a reload) and in unit tests for both kinds (`apps/web/test/outputWindow.test.ts`); the
 browser's popup is not tested in a real browser.

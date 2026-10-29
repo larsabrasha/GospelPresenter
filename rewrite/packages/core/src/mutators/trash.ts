@@ -16,7 +16,17 @@ export const purgeExpiredTrashArgs = z.object({ now: z.number().int() });
  * client clock that runs ahead never purges early.
  */
 export async function purgeExpiredTrash(tx: Tx, a: z.output<typeof purgeExpiredTrashArgs>, ctx: MutatorCtx) {
-  const cutoff = Math.min(a.now, ctx.now ?? a.now) - TRASH_RETENTION_MS;
+  await purgeTrashedUntil(tx, Math.min(a.now, ctx.now ?? a.now) - TRASH_RETENTION_MS, ctx);
+}
+
+export const emptyTrashArgs = z.object({});
+/** "Töm papperskorgen": everything in the trash of the kinds the caller manages, in one change (Trash.razor's EmptyAsync). */
+export async function emptyTrash(tx: Tx, _a: z.output<typeof emptyTrashArgs>, ctx: MutatorCtx) {
+  await purgeTrashedUntil(tx, Number.MAX_SAFE_INTEGER, ctx);
+}
+
+/** Purges what went to the trash at or before `cutoff`, of the kinds the caller manages. */
+async function purgeTrashedUntil(tx: Tx, cutoff: number, ctx: MutatorCtx) {
   if (can(ctx.role, 'ManageSongs')) {
     const expired = await tx.select({ id: songs.id }).from(songs).where(and(isNotNull(songs.deletedAt), lte(songs.deletedAt, cutoff)));
     for (const s of expired) await deleteSongRows(tx, s.id);

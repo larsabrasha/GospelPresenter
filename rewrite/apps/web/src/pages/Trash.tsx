@@ -12,7 +12,6 @@ import { SearchField } from '../ui/Picker.tsx';
 import { PillTab, PillTabs } from '../ui/PillTabs.tsx';
 import { href, TRASH_KINDS, type TrashKind } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { formatEventDate } from './presentation-editor/index.ts';
 import { templateDetails } from './templates.ts';
 
 const manages: Record<TrashKind, Parameters<typeof can>[1]> = {
@@ -105,16 +104,17 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
     });
 
   const purge = async (e: TrashEntry) => {
-    const ok = await ask({ title: t('trash.purge'), text: t(`trash.purgeConfirm.${e.kind}`, { name: e.name }), confirm: t('common.delete') });
-    if (ok) await run(() => db.mutate(purgeMutator[e.kind], { id: e.id }));
+    await ask({ title: t('trash.purge'), text: t(`trash.purgeConfirm.${e.kind}`, { name: e.name }), bold: e.name, confirm: t('trash.purge'), busy: t('common.deleting'), run: () => run(() => db.mutate(purgeMutator[e.kind], { id: e.id })) });
   };
 
   // "Töm papperskorgen" empties everything the user may manage, not just what the filter shows.
   const empty = async () => {
-    const ok = await ask({ title: t('trash.empty'), text: t('trash.emptyConfirm', { n: entries.length }), confirm: t('common.delete') });
-    if (!ok) return;
-    await run(async () => {
-      for (const e of entries) await db.mutate(purgeMutator[e.kind], { id: e.id });
+    await ask({
+      title: t('trash.empty'),
+      text: t('trash.emptyConfirm', { n: entries.length }),
+      confirm: t('trash.purge'),
+      busy: t('common.deleting'),
+      run: () => run(() => db.mutate('emptyTrash', {})),
     });
   };
 
@@ -177,7 +177,8 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
             <ul aria-label={t('trash.title')}>
               {shown.map((e) => {
                 const days = daysRemaining(e.deletedAt, now);
-                const detail = e.kind === 'Presentation' && e.detail ? formatEventDate(e.detail) : e.template ? templateDetails(e.template) : e.detail;
+                // A presentation's date as the Swedish short date, "2026-11-01" (Trash.razor).
+                const detail = e.template ? templateDetails(e.template) : e.detail;
                 return (
                   <li key={`${e.kind}:${e.id}`} className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0" aria-label={e.name}>
                     <div className="shrink-0 text-neutral-400 dark:text-neutral-500" title={t(`trash.one.${e.kind}`)}>

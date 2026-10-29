@@ -8,6 +8,7 @@ import {
   REMOTE_CONTROL_SETTING,
   remoteControlAllowed,
   remoteControlPolicy,
+  ITEM_IMAGES_SQL,
   SLIDE_PAGES_SQL,
   type Canvas,
   type LiveOwnState,
@@ -412,8 +413,8 @@ export class LiveHub {
     if (
       slideImage === hash &&
       this.store.query(
-        `SELECT 1 FROM presentation_items p JOIN images i ON i.id = p.source_id
-         WHERE p.presentation_id = ? AND p.type = 'image' AND i.full_hash = ?
+        `SELECT 1 FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id
+         WHERE p.presentation_id = ? AND i.full_hash = ?
          UNION ALL
          SELECT 1 FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ? AND s.full_hash = ?`,
         [row.presentation_id, hash, row.presentation_id, hash],

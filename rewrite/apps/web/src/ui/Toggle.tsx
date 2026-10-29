@@ -28,7 +28,13 @@ export function ToggleRow({
   icon,
   extra,
   sub,
+  noSwitch,
+  title,
 }: {
+  /** A tooltip on the row, as an overlay's full title (LivePanel.razor). */
+  title?: string;
+  /** No switch at all, as a saved screen whose page is not open (LivePanel.razor). */
+  noSwitch?: boolean;
   label: string;
   checked: boolean;
   disabled?: boolean;
@@ -39,7 +45,7 @@ export function ToggleRow({
   sub?: ReactNode;
 }) {
   return (
-    <label className={rowClass(checked, disabled)}>
+    <label className={rowClass(checked, disabled)} title={title}>
       <span className="flex items-center gap-2 min-w-0">
         {icon}
         <span className="min-w-0 text-left">
@@ -49,7 +55,7 @@ export function ToggleRow({
       </span>
       <span className="flex items-center gap-2 shrink-0">
         {extra}
-        <input type="checkbox" className={SWITCH} aria-label={label} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+        <input type="checkbox" className={`${SWITCH} ${noSwitch ? 'hidden' : ''}`} aria-label={label} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       </span>
     </label>
   );

@@ -45,7 +45,7 @@ test('a presentation kept offline on a computer has its pictures there, fetched 
   await host.page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   await host.page.keyboard.press('Control+3');
   const picker = host.page.getByRole('dialog', { name: 'Lägg till' });
-  await picker.getByRole('button', { name: /Affisch\.png/ }).click();
+  await picker.getByRole('button', { name: 'Affisch.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Affisch.png' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
   // Give the second computer time to sync and fetch, without opening the presentation.
