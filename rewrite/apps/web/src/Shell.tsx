@@ -279,7 +279,7 @@ function adminLinks(me: Me, host: boolean): AdminLink[][] {
       { route: { page: 'themes' }, label: 'nav.themes', icon: BarsIcon, pages: ['themes'] },
     ],
     [
-      can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', icon: UsersIcon, pages: ['users'] },
+      can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', icon: UsersIcon, pages: ['users', 'user'] },
       host && can(me.role, 'ManageUsers') && { route: { page: 'devices' }, label: 'nav.devices', icon: DevicesIcon, pages: ['devices'] },
       can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', icon: CogIcon, pages: ['orgSettings'] },
     ],

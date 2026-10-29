@@ -1,36 +1,26 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  assignableRoles,
-  can,
-  emailSchema,
-  inviteRefusal,
-  removeUserRefusal,
-  roleChangeRefusal,
-  ROLES,
-  type Me,
-  type Role,
-  type UserRow,
-} from '@gp/core';
+import { assignableRoles, can, emailSchema, type Me, type Role, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
-import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
+import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput, FloatingSelect } from '../ui/Floating.tsx';
-import { ChevronDownIcon, PlusIcon, UserIcon, UsersPicture } from '../ui/icons.tsx';
+import { PlusIcon, UserIcon, UsersPicture } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 
 /** Where an invite link points: the address other devices reach this server at (DESK-R8). */
-async function inviteUrl(token: string): Promise<string> {
+export async function inviteUrl(token: string): Promise<string> {
   const [lan] = (await window.gpDesktop?.lanUrls()) ?? [];
   return `${lan ?? location.origin}/invite#${token}`;
 }
 
-function copy(input: HTMLInputElement | null, text: string): Promise<void> {
+export function copy(input: HTMLInputElement | null, text: string): Promise<void> {
   // The clipboard API needs a secure context, which a LAN address over http is not.
   if (navigator.clipboard && isSecureContext) return navigator.clipboard.writeText(text);
   input?.select();
@@ -39,7 +29,7 @@ function copy(input: HTMLInputElement | null, text: string): Promise<void> {
 }
 
 /** Accepts an invite in this window: on a desktop host, Google sign-in happens at the host, in its system browser. */
-function acceptHere(token: string) {
+export function acceptHere(token: string) {
   history.replaceState(null, '', `/invite${location.search}#${token}`);
   location.reload();
 }
@@ -156,18 +146,23 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (name
 }
 
 /** A role's badge colours (Users.razor). */
-const ROLE_BADGE: Record<Role, string> = {
+export const ROLE_BADGE: Record<Role, string> = {
   superAdmin: 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300',
   admin: 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300',
   user: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
 };
 
+/** How long an invite has left: "3 dagar", "1 dag", "mindre än en dag" (UserDetail.razor, days rounded up). */
+export function timeLeft(expiresAt: number): string {
+  const days = Math.ceil((expiresAt - Date.now()) / 86_400_000);
+  return days > 1 ? t('users.days', { n: days }) : days === 1 ? t('users.oneDay') : t('users.lessThanDay');
+}
+
 function inviteStatus(u: UserRow): string {
   if (u.active) return t('users.active');
   if (!u.invite) return t('users.noLogin');
   if (u.invite.expired) return t('users.inviteExpired');
-  const days = Math.ceil((u.invite.expiresAt - Date.now()) / 86_400_000);
-  return t('users.inviteActive', { days: days > 1 ? t('users.days', { n: days }) : days === 1 ? t('users.oneDay') : t('users.lessThanDay') });
+  return t('users.inviteActive', { days: timeLeft(u.invite.expiresAt) });
 }
 
 /** The organisation's users, or why they cannot be shown. */
@@ -182,32 +177,20 @@ async function fetchUsers(): Promise<UserRow[] | string> {
 
 /**
  * The organisation's users (spec 01 `/admin/users`), online only: users are
- * not synced (spec 06). Needs ViewUsers; the actions need ManageUsers, and the
- * server checks each one again.
+ * not synced (spec 06). Needs ViewUsers. Each row links to the user's page
+ * (`UserDetail.tsx`), where they are changed, as in Users.razor; the row also
+ * shows the e-mail and the invite state, which the old one does not.
  */
 export function Users({ me, host }: { me: Me; host: boolean }) {
   const [users, setUsers] = useState<UserRow[] | string | null>(null);
   const [creating, setCreating] = useState(false);
   const [link, setLink] = useState<{ name: string; url: string } | null>(null);
-  const toast = useToast();
-  const { dialog, ask } = useConfirm();
   const manage = can(me.role, 'ManageUsers');
 
   const load = useCallback(() => fetchUsers().then(setUsers), []);
   useEffect(() => {
     void fetchUsers().then(setUsers);
   }, []);
-
-  /** Runs an action and reloads; a refusal is shown as a toast. */
-  const act = async (fn: () => Promise<{ error: string | null; body: unknown }>, done?: string) => {
-    try {
-      const r = await fn();
-      toast(r.error ? errorText(r) : (done ?? ''));
-    } catch {
-      toast(t('auth.offline'));
-    }
-    await load();
-  };
 
   const showLink = async (name: string, token: string) => setLink({ name, url: await inviteUrl(token) });
 
@@ -231,13 +214,9 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
         )}
         <ul aria-label={t('users.title')}>
           {Array.isArray(users) &&
-            users.map((u) => {
-              const self = u.id === me.userId;
-              const roleRefusal = roleChangeRefusal({ id: me.userId, role: me.role }, u, u.role);
-              const roles = ROLES.filter((r) => r === u.role || !roleChangeRefusal({ id: me.userId, role: me.role }, u, r));
-              const locked = !manage || !!roleRefusal;
-              return (
-                <li key={u.id} className="flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+            users.map((u) => (
+              <li key={u.id} className="border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                <a href={href({ page: 'user', id: u.id })} className="flex items-center gap-3 px-7 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer">
                   <span className="size-8 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0 flex items-center justify-center text-neutral-500 dark:text-neutral-400">
                     <UserIcon className="size-4" />
                   </span>
@@ -246,58 +225,11 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
                       <span className="font-medium">{u.name}</span> {u.email && <span className="text-sm text-neutral-400 dark:text-neutral-500">{u.email}</span>}
                     </div>
                     <div className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{inviteStatus(u)}</div>
-                    {self && <div className="text-xs text-neutral-400 dark:text-neutral-500">{t('users.ownRole')}</div>}
                   </div>
-                  {/* The role as the current app's badge; a menu when it may be changed. */}
-                  <span className="relative inline-flex">
-                    <select
-                      aria-label={t('users.roleOf', { name: u.name })}
-                      value={u.role}
-                      disabled={locked}
-                      title={self ? t('users.ownRole') : undefined}
-                      onChange={(e) => void act(() => api('PATCH', `/api/users/${encodeURIComponent(u.id)}`, { role: e.target.value }), t('users.roleSaved'))}
-                      className={`appearance-none text-xs py-0.5 rounded-full border-0 ${locked ? 'pl-2 pr-2 opacity-100' : 'pl-2 pr-6 cursor-pointer'} ${ROLE_BADGE[u.role]} focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500`}
-                    >
-                      {roles.map((r) => (
-                        <option key={r} value={r}>
-                          {t(`role.${r}`)}
-                        </option>
-                      ))}
-                    </select>
-                    {!locked && <ChevronDownIcon className="size-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />}
-                  </span>
-                  {manage && !inviteRefusal({ id: me.userId, role: me.role }, u) && !self && (
-                    <AppButton
-                      variant="neutral"
-                      className="text-xs"
-                      onClick={async () => {
-                        try {
-                          const r = await api<{ inviteToken: string }>('POST', `/api/users/${encodeURIComponent(u.id)}/invites`);
-                          if (r.error) toast(errorText(r));
-                          else await showLink(u.name, r.body.inviteToken);
-                        } catch {
-                          toast(t('auth.offline'));
-                        }
-                        await load();
-                      }}
-                    >
-                      {t('users.newInvite')}
-                    </AppButton>
-                  )}
-                  {manage && !removeUserRefusal({ id: me.userId, role: me.role }, u) && (
-                    <AppButton
-                      variant="danger"
-                      className="text-xs"
-                      onClick={async () => {
-                        await ask(deleteAsk(t('users.removeConfirm', { name: u.name }), u.name, () => act(() => api('DELETE', `/api/users/${encodeURIComponent(u.id)}`), t('users.removed', { name: u.name }))));
-                      }}
-                    >
-                      {t('users.remove')}
-                    </AppButton>
-                  )}
-                </li>
-              );
-            })}
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role]}`}>{t(`role.${u.role}`)}</span>
+                </a>
+              </li>
+            ))}
         </ul>
       </div>
       {creating && (
@@ -312,7 +244,6 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
         />
       )}
       {link && <InviteLinkDialog name={link.name} url={link.url} host={host} onClose={() => setLink(null)} />}
-      {dialog}
     </PageContainer>
   );
 }

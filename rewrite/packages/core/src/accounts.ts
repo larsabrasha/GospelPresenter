@@ -169,7 +169,13 @@ export const googleFinishRequest = z.object({ deviceName });
 
 export const createUserRequest = z.object({ name: personName, email: emailSchema, role: roleSchema });
 
-export const changeRoleRequest = z.object({ role: roleSchema });
+/**
+ * `PATCH /api/users/{id}` (the user detail page): any of the name, the e-mail
+ * (null clears it) and the role. Each field is checked by its own rule.
+ */
+export const updateUserRequest = z
+  .object({ name: personName.optional(), email: emailSchema.nullable().optional(), role: roleSchema.optional() })
+  .refine((a) => a.name !== undefined || a.email !== undefined || a.role !== undefined);
 
 /** A pairing code signs the device in as `userId` (the caller when absent), a member of the caller's organisation. */
 export const pairCodeRequest = z.object({ userId: z.string().min(1).max(200).optional() });
@@ -307,6 +313,15 @@ export function removeUserRefusal(actor: Actor, target: Actor): AuthError | null
  * same holds for pairing a device as `target`, which signs it in as them.
  */
 export function inviteRefusal(actor: Actor, target: Actor): AuthError | null {
+  return userEditRefusal(actor, target);
+}
+
+/**
+ * Why `actor` may not change `target`'s name, e-mail or linked logins, or
+ * null. D21: ManageUsers for anyone, yourself included (the page is an admin
+ * page). D20: an Admin may not change a SuperAdmin's.
+ */
+export function userEditRefusal(actor: Actor, target: Actor): AuthError | null {
   if (!can(actor.role, 'ManageUsers')) return 'forbidden';
   if (target.role === 'superAdmin' && actor.id !== target.id && !can(actor.role, 'AssignSuperAdminRole')) return 'super-admin-only';
   return null;

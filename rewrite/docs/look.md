@@ -65,12 +65,14 @@ large grey pictures and small icons when a list is empty (`ui/Empty.tsx`), the d
 over a page that takes them (`DropZone.razor`, `ui/DropZone.tsx`), the overlay under `DetailHeader` with
 floating fields, the QR dialogs with the grey link field and its copy button (`ui/CopyField.tsx`), and the
 trash under `DetailHeader` with its pill tabs. Inloggningsmetoder (`/logins`) is drawn as Min profil. Where the
-new pages do more or less than the current ones (the user row's actions, the overlay's preview), they keep
+new pages do more or less than the current ones (the user row's e-mail and invite state, the overlay's preview), they keep
 what they do and only take the look. A public output's row is the current one's: the name, "Sänder från …"
 under it while it sends, the viewer count ("0 enheter" too), Visa QR-kod and Ta bort; its link, the copy
 button and Ny kod (under a line saying what it is for; the dialog closes after it) are in the QR dialog. The templates page and its
 dialogs (`pages/Templates.tsx`), the picker on Skapa and the editor's sky banner take the current app's markup.
-The current app's user page, labels, CCLI report, API keys and super-admin pages have no counterpart yet.
+The user page (`/admin/users/{id}`, `pages/UserDetail.tsx`) is `UserDetail.razor` without the profile picture; its
+invite card shows the link only right after Skapa (AUTH-R13), on a host as "Logga in som … här". The current app's
+labels, CCLI report, API keys and super-admin pages have no counterpart yet.
 
 Sign-in, setup, the invite and pairing (step 5) are `Login.razor`, `Setup.razor` and `InvitePage.razor`
 (`pages/AuthCard.tsx`): the logo and the two-blue name, the fields as floating fields and the wide sky Kom igång;

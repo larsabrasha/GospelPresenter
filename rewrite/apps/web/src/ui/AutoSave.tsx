@@ -85,6 +85,7 @@ export function AutoSaveField({
   type,
   min,
   max,
+  hasError,
 }: {
   label: string;
   value: string;
@@ -100,9 +101,11 @@ export function AutoSaveField({
   className?: string;
   /** The field's limits (AppConstraints): its length, and for a number its type and range. */
   maxLength?: number;
-  type?: 'text' | 'number';
+  type?: 'text' | 'number' | 'email';
   min?: number;
   max?: number;
+  /** A red border, for an error shown under the field (an e-mail that is taken). */
+  hasError?: boolean;
 }) {
   // What the user has typed, shown in place of `value`; null shows `value`.
   const [draft, setDraft] = useState<string | null>(null);
@@ -204,7 +207,7 @@ export function AutoSaveField({
   const field = multiline ? (
     <FloatingTextarea label={showLabel ? label : ''} aria-label={showLabel ? undefined : label} rows={rows} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   ) : (
-    <FloatingInput label={label} type={type} min={min} max={max} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+    <FloatingInput label={label} type={type} min={min} max={max} maxLength={maxLength} hasError={hasError} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   );
   if (clash === null) return field;
   return (

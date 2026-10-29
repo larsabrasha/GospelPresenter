@@ -20,9 +20,16 @@ Under Inloggningsmetoder (in the menu behind the user's picture in the top bar) 
 a passkey, links a Google account, renames a passkey and removes any login but the last. Adding needs
 a sign-in from the last 10 minutes, made by the user themselves (not by a pairing); otherwise the page
 asks them to sign out and in again. Linking a Google account that is already another user's is
-refused (`login-taken`). Nothing takes a user id: no one, an admin included, adds or removes another
-user's logins. An admin's new invite is the only way back for someone who lost every login. The same page changes roles and removes users, with spec 01's
-rules (PERM-R4–R6, D20, D21) in `packages/core/src/accounts.ts`, which the server and the UI share.
+refused (`login-taken`). No one adds a login to another user. An admin's new invite is the only way back for someone who lost every login.
+
+Användare lists the users; each row opens the user's page (`/admin/users/{id}`, as UserDetail.razor). There an
+admin changes the name and e-mail (saved 500 ms after typing; the address must be valid and no other user's,
+`PATCH /api/users/{id}`), the role, sees the user's logins and removes one (`GET`/`DELETE
+/api/users/{id}/logins[/{provider}/{id}]`; another user's last login too, after which only a new invite lets them
+in, spec 01 E9; never your own last, and never the last on the server), makes an invite or deletes the unused
+ones (`DELETE /api/users/{id}/invites`), and removes the user. Removing a login ends no session. The rules
+(PERM-R4–R6, D20, D21: an Admin touches no SuperAdmin's name, e-mail, logins or invite) are in
+`packages/core/src/accounts.ts`, which the server and the UI share.
 
 How the sign-in runs (`apps/server/src/google.ts`, `auth/sign-in-routes.ts`): the authorization code flow with PKCE
 (S256), `state` and `nonce`, and `prompt=select_account`. A sign-in in progress is a row in

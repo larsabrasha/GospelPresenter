@@ -63,6 +63,21 @@ export class LoginService {
     }));
   }
 
+  /**
+   * Removes one of another user's logins, for an admin (the user detail
+   * page): the last one too, after which only a new invite lets them in
+   * (spec 01 E9). Never the last login on the server, which would open setup again (AUTH-R12).
+   */
+  async removeOthers(userId: string, provider: string, id: string): Promise<'ok' | 'last-login' | 'not-found'> {
+    const n = await this.sql.run(
+      `DELETE FROM user_logins WHERE provider = ? AND subject = ? AND user_id = ? AND EXISTS (SELECT 1 FROM user_logins WHERE user_id <> ?)`,
+      [provider, id, userId, userId],
+    );
+    if (n === 1) return 'ok';
+    const [r] = await this.sql.all('SELECT 1 FROM user_logins WHERE provider = ? AND subject = ? AND user_id = ?', [provider, id, userId]);
+    return r ? 'last-login' : 'not-found';
+  }
+
   /** Renames one of the user's own passkeys. */
   async renamePasskey(userId: string, id: string, name: string): Promise<boolean> {
     return (await this.sql.run("UPDATE user_logins SET name = ? WHERE provider = 'passkey' AND subject = ? AND user_id = ?", [name, id, userId])) === 1;

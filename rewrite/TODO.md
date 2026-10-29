@@ -30,8 +30,7 @@ or a model or sync change). **ask**: Lars decides before it is built. Old paths 
 `Resources/Localization/SharedResource.sv.resx`. The known items above are not repeated. Left out as
 deliberate (docs, spec decisions or code comments): live as its own page, the song editor as a page, PDF-only
 slides, D13, D15 (the dialog never closes), D17, D24 (Bibles and templates for admins), the popup instead of
-the Presentation API, the remote link's path, the overlay picture from Bilder, the host's Enheter page, no
-user detail page, the invite as `#token`, passkeys, the Församlingen page.
+the Presentation API, the remote link's path, the overlay picture from Bilder, the host's Enheter page, the invite as `#token`, passkeys, the Församlingen page.
 
 **Lars's answers (2026-10-29).** These settle the **ask** marks they touch; the rest are still open.
 - Texts and look follow the old app as they are, with no question per text: "Radera", "Nu visas", "Avsluta
@@ -299,12 +298,16 @@ ToastContainer.razor, utils.js → `ui/`)
   serves both screens and `/watch`. Needs the host to say so, and the outputs panel to use it too._
 
 **Användare** (Pages/Admin/Users.razor, UserDetail.razor → `Users.tsx`)
-- [ ] Name and e-mail of an existing user cannot be changed in the new app. L, **ask**
+- [x] Name and e-mail of an existing user cannot be changed in the new app. L, **ask** _The user page
+  (`/admin/users/{id}`, `pages/UserDetail.tsx`) as UserDetail.razor: name and e-mail, role, logins, invite, Radera
+  användare; the rows link to it, and the role select and buttons moved there from the row. Left out: the profile
+  picture with cropping (profiles are a later piece). The invite link shows only right after Skapa (AUTH-R13);
+  creating a user still shows the link dialog rather than opening the page._
 - [x] All three role texts with bold labels, and other words; new: only the chosen role's. S, **ask** _Superadmin's only for a SuperAdmin, as the old one._
 - [x] The empty text "Lägg till användare i din organisation…". "E-postadressen används redan…" checked
   before creating. S _The server refuses a taken address before it creates anyone; that and "Ogiltig e-postadress"
   now show under the e-mail field, as the old ones._
-- [x] New shows e-mail, invite state and "Du kan inte ändra din egen roll" on the row. **ask** (keep?) _Kept by Lars's answer._
+- [x] New shows e-mail, invite state and "Du kan inte ändra din egen roll" on the row. **ask** (keep?) _E-mail and invite state kept by Lars's answer; "Du kan inte ändra din egen roll" moved to the user page with the role, as the old one._
 
 **Papperskorg** (Pages/Trash.razor)
 - [x] "Radera permanent" with "Raderar..."; new "Radera". S

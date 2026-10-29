@@ -27,6 +27,7 @@ import { Themes } from './pages/Themes.tsx';
 import { Songs } from './pages/Songs.tsx';
 import { Templates } from './pages/Templates.tsx';
 import { Trash } from './pages/Trash.tsx';
+import { UserDetail } from './pages/UserDetail.tsx';
 import { Users } from './pages/Users.tsx';
 import { AdminLayout, TopBar } from './Shell.tsx';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
@@ -71,6 +72,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {/* Keyed by the song, so its fields write their pending saves to it before another song's open. */}
       {route.page === 'song' && <SongEditor key={route.id} id={route.id} />}
       {route.page === 'users' && (viewUsers ? <Users me={me} host={host} /> : <Refused text={t('users.forbidden')} />)}
+      {route.page === 'user' && (viewUsers ? <UserDetail key={route.id} id={route.id} me={me} host={host} /> : <Refused text={t('users.forbidden')} />)}
       {route.page === 'devices' && (host ? <Devices me={me} /> : <Refused text={t('devices.onlyHost')} />)}
       {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <Refused text={t('bibles.forbidden')} />)}
       {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <Refused text={t('images.forbidden')} />)}
@@ -116,7 +118,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
 }
 
 /** The pages under the admin menu (Layout/AdminLayout.razor). */
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'templates', 'themes', 'displays', 'orgSettings']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'user', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'templates', 'themes', 'displays', 'orgSettings']);
 
 /** A page the user may not open: why, where the page would be. */
 function Refused({ text }: { text: string }) {

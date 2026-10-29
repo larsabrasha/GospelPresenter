@@ -10,6 +10,8 @@ import {
   isCallbackScheme,
   removeUserRefusal,
   roleChangeRefusal,
+  updateUserRequest,
+  userEditRefusal,
   daysRemaining,
   DEFAULT_LABELS,
   highlight,
@@ -112,6 +114,19 @@ describe('account policy (spec 01, D20, D21)', () => {
     expect(inviteRefusal(us, us)).toBe('forbidden');
     expect(inviteRefusal(ad, ad)).toBeNull();
     expect(inviteRefusal(su, ad)).toBeNull();
+  });
+
+  it('a name, e-mail or login of a SuperAdmin is changed only by a SuperAdmin or themselves (D20, D21)', () => {
+    expect(userEditRefusal(ad, su)).toBe('super-admin-only');
+    expect(userEditRefusal(us, us)).toBe('forbidden');
+    expect(userEditRefusal(su, su)).toBeNull();
+    expect(userEditRefusal(ad, us)).toBeNull();
+  });
+
+  it('a user update needs at least one field; a null e-mail clears it', () => {
+    expect(updateUserRequest.safeParse({}).success).toBe(false);
+    expect(updateUserRequest.parse({ email: null })).toEqual({ email: null });
+    expect(updateUserRequest.parse({ name: ' Bo ', email: 'Bo@X.se' })).toEqual({ name: 'Bo', email: 'bo@x.se' });
   });
 
   it('emails are trimmed and lower-cased', () => {

@@ -25,6 +25,7 @@ describe('routes', () => {
       { page: 'trash', kind: 'Image' },
       { page: 'output' },
       { page: 'users' },
+      { page: 'user', id: 'U 1/2' },
       { page: 'devices' },
       { page: 'bibles' },
       { page: 'images' },

@@ -782,6 +782,20 @@ export function UsersPicture({ className }: IconProps) {
   );
 }
 
+/** No logins: a key and a plus (UserDetail.razor). */
+export function KeyPicture({ className }: IconProps) {
+  return (
+    <Picture className={className}>
+      <circle cx="80" cy="70" r="24" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <circle cx="80" cy="70" r="10" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.4" />
+      <line x1="104" y1="70" x2="155" y2="70" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line x1="140" y1="70" x2="140" y2="82" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <line x1="150" y1="70" x2="150" y2="78" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <PlusBadge />
+    </Picture>
+  );
+}
+
 /** No devices: a laptop (Devices.razor). */
 export function DevicesPicture({ className }: IconProps) {
   return (

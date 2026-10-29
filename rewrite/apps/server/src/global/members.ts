@@ -157,13 +157,22 @@ export class MemberService {
 
   /** The organisation's users by name (ORG-R11), each with their newest unused invite. */
   async listUsers(orgId: string): Promise<UserRow[]> {
+    return this.userRows(orgId, null);
+  }
+
+  /** One user of `orgId`, as the list shows them; null for anyone else (PERM-R3). */
+  async user(userId: string, orgId: string): Promise<UserRow | null> {
+    return (await this.userRows(orgId, userId))[0] ?? null;
+  }
+
+  private async userRows(orgId: string, userId: string | null): Promise<UserRow[]> {
     const now = this.now();
     const rows = await this.sql.all(
       `SELECT u.id, u.name, u.email, m.role, EXISTS (SELECT 1 FROM user_logins l WHERE l.user_id = u.id) AS active,
          (SELECT max(expires_at) FROM invites i WHERE i.user_id = u.id AND i.org_id = m.org_id AND i.used_at IS NULL) AS invite_expires
        FROM memberships m JOIN users u ON u.id = m.user_id
-       WHERE m.org_id = ? ORDER BY u.name COLLATE NOCASE, u.id`,
-      [orgId],
+       WHERE m.org_id = ? AND (? IS NULL OR u.id = ?) ORDER BY u.name COLLATE NOCASE, u.id`,
+      [orgId, userId, userId],
     );
     return rows.map((r) => ({
       id: String(r.id),
@@ -173,6 +182,36 @@ export class MemberService {
       active: Number(r.active) === 1,
       invite: r.invite_expires === null ? null : { expiresAt: Number(r.invite_expires), expired: Number(r.invite_expires) <= now },
     }));
+  }
+
+  /**
+   * Changes a user's name and/or e-mail (null clears it). An e-mail is one
+   * user's only: another user's is `email-taken`, checked in the statement
+   * itself and by the unique index for a race.
+   */
+  async updateUser(userId: string, a: { name?: string; email?: string | null }): Promise<'ok' | 'email-taken'> {
+    try {
+      if (a.email !== undefined) {
+        const n = await this.sql.run('UPDATE users SET email = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM users WHERE email = ? AND id <> ?)', [
+          a.email,
+          userId,
+          a.email,
+          userId,
+        ]);
+        if (n === 0) return 'email-taken';
+      }
+      // After the e-mail, so a refused address leaves the name as it was too.
+      if (a.name !== undefined) await this.sql.run('UPDATE users SET name = ? WHERE id = ?', [a.name, userId]);
+    } catch (e) {
+      if (/UNIQUE/i.test(String(e))) return 'email-taken';
+      throw e;
+    }
+    return 'ok';
+  }
+
+  /** Deletes a member's unused invites, expired ones included: their links stop working. */
+  async deleteInvites(userId: string, orgId: string): Promise<void> {
+    await this.sql.run('DELETE FROM invites WHERE user_id = ? AND org_id = ? AND used_at IS NULL', [userId, orgId]);
   }
 
   /** A new user in `orgId` with an invite, in one batch (AUTH-R2). */

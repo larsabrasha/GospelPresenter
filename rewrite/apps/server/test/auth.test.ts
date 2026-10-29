@@ -4,7 +4,7 @@
 // Pairing is Node-only (the desktop host) and has its own describe block at the end.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
-import { PROTOCOL_VERSION, SCHEMA_VERSION, type AuthState, type Me, type PairClaimResponse, type PairStatus, type SignInResponse, type UserRow } from '@gp/core';
+import { PROTOCOL_VERSION, SCHEMA_VERSION, type AuthState, type LoginMethod, type Me, type PairClaimResponse, type PairStatus, type SignInResponse, type UserRow } from '@gp/core';
 import { SyncClient, httpTransport, socketProtocols } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { Accounts, migrateGlobal, pairingGuard } from '@gp/server';
@@ -361,6 +361,88 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     expect((await api(h, 'DELETE', `/api/users/${admin.me.userId}`, { token: other })).status).toBe(404);
     expect((await api(h, 'POST', `/api/users/${admin.me.userId}/invites`, { token: other })).status).toBe(404);
     expect((await api<UserRow[]>(h, 'GET', '/api/users', { token: other })).body.map((u) => u.id)).toEqual(['kay']);
+  });
+
+  // ------------------------------------------------------------ the user detail page (/admin/users/{id})
+
+  it('one user: an admin reads them as the list shows them; a User is refused and another organisation finds no one', async () => {
+    const ka = await member('Ka', 'user');
+    const other = await setRole(h, `ko-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
+    expect(await api(h, 'GET', `/api/users/${ka.id}`, as(admin))).toEqual({
+      status: 200,
+      body: { id: ka.id, name: 'Ka', email: ka.email, role: 'user', active: true, invite: null } satisfies UserRow,
+    });
+    expect((await api(h, 'GET', `/api/users/${ka.id}`, as(ka))).status).toBe(403);
+    expect(await api(h, 'GET', `/api/users/${ka.id}`, { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
+  });
+
+  it('name and e-mail: an admin changes them; the address is lower-cased, checked and one user\'s only', async () => {
+    const la = await member('La', 'user');
+    const other = await member('Lo', 'user');
+    expect((await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { name: 'Lars', email: 'Lars@X.se' } })).status).toBe(200);
+    expect((await api<UserRow>(h, 'GET', `/api/users/${la.id}`, as(admin))).body).toMatchObject({ name: 'Lars', email: 'lars@x.se' });
+    expect(await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { email: other.email } })).toEqual({ status: 409, body: { error: 'email-taken' } });
+    expect(await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { email: 'inte-en-adress' } })).toEqual({ status: 400, body: { error: 'invalid-request' } });
+    expect(await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { name: '  ' } })).toEqual({ status: 400, body: { error: 'invalid-request' } });
+    expect((await api(h, 'PATCH', `/api/users/${la.id}`, { ...as(admin), body: { email: null } })).status).toBe(200);
+    expect((await api<UserRow>(h, 'GET', `/api/users/${la.id}`, as(admin))).body).toMatchObject({ name: 'Lars', email: null });
+  });
+
+  it('name and e-mail: a User is refused, an Admin may not change a SuperAdmin\'s, anyone with ManageUsers their own; another organisation finds no one', async () => {
+    const ma = await member('Ma', 'admin');
+    const mu = await member('Mu', 'user');
+    const other = await setRole(h, `mo-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
+    expect(await api(h, 'PATCH', `/api/users/${mu.id}`, { ...as(mu), body: { name: 'Mumin' } })).toEqual({ status: 403, body: { error: 'forbidden' } });
+    expect(await api(h, 'PATCH', `/api/users/${admin.me.userId}`, { ...as(ma), body: { name: 'Not Anna' } })).toEqual({ status: 403, body: { error: 'super-admin-only' } });
+    expect(await api(h, 'PATCH', `/api/users/${ma.id}`, { ...as(ma), body: { name: 'Maja' } })).toEqual({ status: 200, body: { ok: true } });
+    expect(await api(h, 'PATCH', `/api/users/${mu.id}`, { token: other, body: { name: 'X' } })).toEqual({ status: 404, body: { error: 'not-found' } });
+    // A role refused in the same request leaves the name as it was.
+    expect((await api(h, 'PATCH', `/api/users/${ma.id}`, { ...as(ma), body: { name: 'Malin', role: 'user' } })).body).toEqual({ error: 'own-role' });
+    expect((await api<UserRow>(h, 'GET', `/api/users/${ma.id}`, as(admin))).body.name).toBe('Maja');
+  });
+
+  it('logins: an admin lists a user\'s and removes one, the last too, after which they cannot sign in until a new invite', async () => {
+    const na = await member('Na', 'user');
+    const logins = await api<LoginMethod[]>(h, 'GET', `/api/users/${na.id}/logins`, as(admin));
+    expect(logins.body).toEqual([expect.objectContaining({ provider: 'google', id: na.google.sub })]);
+    expect((await api(h, 'DELETE', `/api/users/${na.id}/logins/google/${encodeURIComponent(na.google.sub)}`, as(admin))).status).toBe(200);
+    expect((await api(h, 'GET', `/api/users/${na.id}/logins`, as(admin))).body).toEqual([]);
+    expect((await api<UserRow>(h, 'GET', `/api/users/${na.id}`, as(admin))).body.active).toBe(false);
+    expect(await webSignIn(h, na.google)).toEqual({ error: 'not-linked' });
+    expect(await api(h, 'DELETE', `/api/users/${na.id}/logins/google/${encodeURIComponent(na.google.sub)}`, as(admin))).toEqual({ status: 404, body: { error: 'not-found' } });
+  });
+
+  it('logins: a User is refused, an Admin may not remove a SuperAdmin\'s, nobody their own last; another organisation finds no one', async () => {
+    const oa = await member('Oa', 'admin');
+    const ou = await member('Ou', 'user');
+    const other = await setRole(h, `oo-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
+    const [annaLogin] = (await api<LoginMethod[]>(h, 'GET', `/api/users/${admin.me.userId}/logins`, as(oa))).body;
+    const path = (id: string, l: { google: FakeAccount }) => `/api/users/${id}/logins/google/${encodeURIComponent(l.google.sub)}`;
+    expect(await api(h, 'GET', `/api/users/${ou.id}/logins`, as(ou))).toEqual({ status: 403, body: { error: 'forbidden' } });
+    expect(await api(h, 'DELETE', path(oa.id, oa), as(ou))).toEqual({ status: 403, body: { error: 'forbidden' } });
+    expect(await api(h, 'DELETE', `/api/users/${admin.me.userId}/logins/${annaLogin!.provider}/${encodeURIComponent(annaLogin!.id)}`, as(oa))).toEqual({
+      status: 403,
+      body: { error: 'super-admin-only' },
+    });
+    expect(await api(h, 'DELETE', path(oa.id, oa), as(oa))).toEqual({ status: 409, body: { error: 'last-login' } });
+    expect(await api(h, 'GET', `/api/users/${ou.id}/logins`, { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
+    expect(await api(h, 'DELETE', path(ou.id, ou), { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
+    expect((await api<LoginMethod[]>(h, 'GET', `/api/users/${ou.id}/logins`, as(admin))).body).toHaveLength(1);
+  });
+
+  it('invites: an admin deletes a user\'s unused invite and its link stops working; refused as the other actions are', async () => {
+    const created = await api<{ id: string; inviteToken: string }>(h, 'POST', '/api/users', { ...as(admin), body: { name: 'Pa', email: `pa-${crypto.randomUUID().slice(0, 6)}@x.se`, role: 'user' } });
+    const pu = await member('Pu', 'user');
+    const pa = await member('Pa2', 'admin');
+    const other = await setRole(h, `po-${crypto.randomUUID()}`, `org-${crypto.randomUUID()}`, 'admin');
+    expect(await api(h, 'DELETE', `/api/users/${created.body.id}/invites`, as(pu))).toEqual({ status: 403, body: { error: 'forbidden' } });
+    expect(await api(h, 'DELETE', `/api/users/${admin.me.userId}/invites`, as(pa))).toEqual({ status: 403, body: { error: 'super-admin-only' } });
+    expect(await api(h, 'DELETE', `/api/users/${created.body.id}/invites`, { token: other })).toEqual({ status: 404, body: { error: 'not-found' } });
+    expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: created.body.inviteToken } })).body).toMatchObject({ state: 'valid' });
+
+    expect(await api(h, 'DELETE', `/api/users/${created.body.id}/invites`, as(admin))).toEqual({ status: 200, body: { ok: true } });
+    expect((await api(h, 'POST', '/api/auth/invites/lookup', { body: { token: created.body.inviteToken } })).body).toEqual({ state: 'invalid' });
+    expect((await api<UserRow>(h, 'GET', `/api/users/${created.body.id}`, as(admin))).body.invite).toBeNull();
   });
 
   it('a server that is not a desktop host requires no pairing', async () => {

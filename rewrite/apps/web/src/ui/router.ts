@@ -28,6 +28,8 @@ export type Route =
   | { page: 'live'; id: string; remote?: boolean; session?: string | null; stage?: boolean }
   | { page: 'trash'; kind: TrashKind | null }
   | { page: 'users' }
+  /** A user of the organisation (`/admin/users/{id}`, UserDetail.razor). */
+  | { page: 'user'; id: string }
   | { page: 'devices' }
   | { page: 'bibles' }
   | { page: 'images' }
@@ -82,7 +84,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   const query = new URLSearchParams(search);
   if (first === 'admin') {
     if (second === 'songs') return third ? { page: 'song', id: third } : { page: 'songs' };
-    if (second === 'users') return { page: 'users' };
+    if (second === 'users') return third ? { page: 'user', id: third } : { page: 'users' };
     if (second === 'devices') return { page: 'devices' };
     if (second === 'bibles') return { page: 'bibles' };
     if (second === 'images') return { page: 'images' };
@@ -132,6 +134,8 @@ export function href(r: Route): string {
       return `/presentations/${encodeURIComponent(r.id)}`;
     case 'overlay':
       return `/admin/overlays/${encodeURIComponent(r.id)}`;
+    case 'user':
+      return `/admin/users/${encodeURIComponent(r.id)}`;
     case 'template':
       return `/templates/${encodeURIComponent(r.id)}`;
     case 'live': {

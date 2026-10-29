@@ -75,7 +75,7 @@ all); trusting attestation (which authenticator made a passkey is never checked)
 the desktop app, so its callback scheme is registered by an installer (a development build registers
 `gospelpresenter-local` only with `GP_REGISTER_SCHEME=1`) and its Google client is built in; a login
 hint or profile picture from Google; more than one Google account per user (ORG-R13 allows 5);
-profiles and profile images, `/settings` and the
+profiles and profile images (the user page has no picture), `/settings` and the
 language switch; organisations other than the one setup makes, the SuperAdmin switcher and super admin
 pages; a user in several organisations (D1 leaves it for later); listing and revoking your own
 devices' sessions (D23; removing the user or pairing again are the ways today); `/admin/devices`;

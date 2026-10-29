@@ -125,16 +125,20 @@ test('membership: a removed user is signed out on their device; a demoted Admin 
 
   // ORG-A8: the role changes at once; Dan's device sees it at its next start (or /auth/me refresh).
   await openAdmin(host.page, 'Användare');
-  await host.page.getByRole('combobox', { name: 'Roll för Dan' }).selectOption({ label: 'Användare' });
-  await expect(host.page.getByRole('status').getByText('Rollen sparad')).toBeVisible();
-  await expect(host.page.getByRole('combobox', { name: 'Roll för Anna' })).toBeDisabled(); // ORG-A4
+  await host.page.getByRole('link', { name: /Anna/ }).click();
+  await expect(host.page.getByLabel('Roll')).toBeDisabled(); // ORG-A4
+  await expect(host.page.getByText('Du kan inte ändra din egen roll')).toBeVisible();
+  await host.page.getByRole('link', { name: 'Tillbaka' }).click();
+  await host.page.getByRole('link', { name: /Dan/ }).click();
+  await host.page.getByLabel('Roll').selectOption({ label: 'Användare' });
+  await expect(host.page.getByTestId('saved')).toBeVisible();
   await second.page.reload();
   await expect(second.page.getByTestId('me')).toHaveAccessibleName(/Dan/);
   await expect((await adminMenu(second.page)).getByRole('link', { name: 'Användare' })).toHaveCount(0);
 
   // Removed: the device keeps working on its own data, and asks to sign in again (SYNC-A15), which on a host is pairing.
   await host.page.getByRole('button', { name: 'Radera användare' }).click();
-  await host.page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
+  await host.page.getByRole('dialog', { name: 'Radera användare' }).getByRole('button', { name: 'Radera' }).click();
   await expect(host.page.getByRole('list', { name: 'Användare' }).getByText('Dan')).toHaveCount(0);
   await createSong(second.page, 'Efter borttagningen', [['Verse 1', 'Text']]);
   await expect(second.page.getByTestId('sync-warnings')).toContainText('Logga in igen för att synka', { timeout: 10_000 });
