@@ -90,6 +90,9 @@ export function imageSlide(fullHash: string): Slide {
 /** At most this many pages in one slide deck (PRES-R11). */
 export const MAX_SLIDE_PAGES = 100;
 
+/** The largest PDF the import takes (PRES-R11): 50 MB. */
+export const MAX_SLIDES_SOURCE_BYTES = 50 * 1024 * 1024;
+
 /** One page of a slide deck: the hashes of its two pictures, as a library picture has (MEDIA-R4). */
 export interface SlidePage {
   full: string;

@@ -1,5 +1,5 @@
 import type { BibleBookText, MutatorArgs, MutatorName } from '@gp/core';
-import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session } from './protocol.ts';
+import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
 import type { ReadDb } from './share.ts';
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
@@ -58,6 +58,11 @@ export class Db implements ReadDb {
   /** Keeps an audio file here and adds it to the library, online or not. */
   addAudio(audio: AudioImport): Promise<void> {
     return this.call({ op: 'addAudio', audio });
+  }
+
+  /** Keeps a rendered slide deck's pages here and adds it as an item, online or not. */
+  addSlides(slides: SlidesImport): Promise<void> {
+    return this.call({ op: 'addSlides', slides });
   }
 
   /** Tells the database that a page has a presentation open, so its pictures and audio are fetched now. */

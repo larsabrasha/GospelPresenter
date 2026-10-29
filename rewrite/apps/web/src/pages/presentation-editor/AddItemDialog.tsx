@@ -3,11 +3,12 @@ import { useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } fr
 import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { Modal } from '../../ui/Dialog.tsx';
-import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, SpeakerWaveIcon } from '../../ui/icons.tsx';
+import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon } from '../../ui/icons.tsx';
 import { PillTabs } from '../../ui/PillTabs.tsx';
 import { AudioTab } from '../AudioTab.tsx';
 import { BibleTab } from '../BibleTab.tsx';
 import { ImageTab } from '../ImageTab.tsx';
+import { SlidesTab } from './SlidesTab.tsx';
 import { SongTab } from './SongTab.tsx';
 
 export interface TabProps {
@@ -19,16 +20,17 @@ export interface TabProps {
 }
 
 /**
- * The add-item modal (spec 03 2d): Sånger, Bibeltexter, Bilder and Ljud, Ctrl/⌘+1 to +4
+ * The add-item modal (spec 03 2d): Sånger, Bibeltexter, Bilder, Ljud and PowerPoint, Ctrl/⌘+1 to +5
  * switch. It never closes after an add (D15). The new item goes after the
  * selected one and becomes selected.
  */
 export function AddItemDialog(props: TabProps) {
-  const [tab, setTab] = useState<'songs' | 'bible' | 'images' | 'audio'>('songs');
+  const [tab, setTab] = useState<'songs' | 'bible' | 'images' | 'audio' | 'slides'>('songs');
   const onKeyDown = (e: ReactKeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && ['1', '2', '3', '4'].includes(e.key)) {
+    const byKey = { '1': 'songs', '2': 'bible', '3': 'images', '4': 'audio', '5': 'slides' } as const;
+    if ((e.ctrlKey || e.metaKey) && e.key in byKey) {
       e.preventDefault();
-      setTab(({ '1': 'songs', '2': 'bible', '3': 'images', '4': 'audio' } as const)[e.key as '1' | '2' | '3' | '4']);
+      setTab(byKey[e.key as keyof typeof byKey]);
     }
   };
   const tabs: [typeof tab, string, (p: { className?: string }) => ReactNode][] = [
@@ -36,6 +38,7 @@ export function AddItemDialog(props: TabProps) {
     ['bible', t('bible.tab'), BookOpenIcon],
     ['images', t('presentation.imagesTab'), PhotoIcon],
     ['audio', t('presentation.audioTab'), SpeakerWaveIcon],
+    ['slides', t('slides.tab'), RectangleStackIcon],
   ];
   return (
     <Modal title={t('presentation.addTitle')} onClose={props.onClose} className="max-w-4xl">
@@ -54,6 +57,7 @@ export function AddItemDialog(props: TabProps) {
         {tab === 'bible' && <BibleTab key="bible" {...props} />}
         {tab === 'images' && <ImageTab key="images" {...props} />}
         {tab === 'audio' && <AudioTab key="audio" {...props} />}
+        {tab === 'slides' && <SlidesTab key="slides" {...props} />}
       </div>
     </Modal>
   );

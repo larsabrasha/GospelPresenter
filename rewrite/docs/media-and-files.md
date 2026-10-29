@@ -82,7 +82,7 @@ the desktop app; the browser case, Safari above all, is not tested.
 
 ## Slide decks
 
-A slide deck (D29; the import tab is step (c) of [Next steps](next-steps.md)) is a presentation item of type
+A slide deck (D29) is a presentation item of type
 `slides` whose `content` is `{ fileName, pages: [{ full, thumb }] }`: each page a WebP picture fitting 1920×1080
 and its thumbnail fitting 400×225, rendered once at import and stored as media blobs like a library picture. It
 is a snapshot like a Bible item: there is no deck table, `sourceId` is the item's own id, and the title is the
@@ -91,6 +91,16 @@ where it runs; `MediaUploads` uploads a queued deck's blobs before the push, as 
 named only by its item, so removing the item, or purging its presentation, lets the clean-up take its blobs;
 `SLIDE_PAGES_SQL` lists every page, for the clean-up, the files a device keeps, and which pictures a public
 output may serve. Live, each page is one slide showing its picture, like an image item.
+
+The add dialog's PowerPoint tab (Ctrl/⌘+5, `SlidesTab.tsx`) takes only a PDF, picked or dropped, up to 50 MB
+and 100 pages; a `.pptx` or `.ppt` is refused with how to save it as PDF. `media/slides.ts` renders each page
+with pdf.js, loaded only when an import starts and cached by the service worker like the rest of the build,
+so import works offline: drawn at the scale that fits 1920×1080 (a 960×540-point slide at twice its size),
+then shrunk to the thumbnail. Pages are WebP, or JPEG on a browser whose canvas cannot encode WebP
+(Safari), as a picture is. The database worker keeps the blobs and runs `addSlides` (`addSlides` in
+`db/worker.ts`). pdf.js is given no font or wasm files: a PDF that leaves out its fonts is drawn with the
+system's, and a page with a JPEG 2000 picture may lose it; PowerPoint, Keynote and Google Slides embed their
+fonts and do not use JPEG 2000.
 
 ## Which files a device keeps
 

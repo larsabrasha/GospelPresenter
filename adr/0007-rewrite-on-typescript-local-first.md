@@ -134,18 +134,21 @@ self-hosted container, and run it beside the current app until it has proved its
    self-hosting. Clients compress before upload. Media is
    served `Cache-Control: private, immutable`, which a content-addressed key makes safe (D28).
 
-10. **PDF and PowerPoint import (D29).**
-    - **PDF is converted entirely in the client** with pdf.js, within today's limits (PRES-R11).
-    - **PPTX goes through LibreOffice** (Gotenberg, which converts PowerPoint today): Cloudflare
-      Containers on Cloudflare, an optional sidecar when self-hosted. It returns a PDF, which then
-      takes the PDF path. Without the sidecar PPTX import is unavailable and PDF import still works.
-    - **Text is also extracted from the PPTX XML at import**, for search and the stage display.
+10. **Slide decks are imported as PDF only (D29; changed on 2026-10-28).**
+    - **Every page is rendered once, in the client, by pdf.js**, within today's limits (PRES-R11): a
+      picture fitting 1920×1080 and a thumbnail fitting 400×225, stored as content-addressed media
+      blobs like a library picture (9). Other devices only download the pictures, and import works
+      offline. pdf.js is loaded only when the import tab is opened.
+    - **A PowerPoint, Keynote or Google Slides deck is saved as PDF first**, by the user, in the
+      program that made it, with its own fonts. A picked `.pptx` or `.ppt` is refused with how to do
+      that. No LibreOffice, no Gotenberg and no PowerPoint renderer in the client: a prototype of
+      three open-source PPTX renderers (2026-10-28) drew real decks too poorly, and a converter is a
+      container to run and pay for. Converting PowerPoint can come back later (local LibreOffice
+      first, then a Gotenberg sidecar) without changing how pages are stored.
+    - **Safari's canvas does not encode WebP**, so a deck imported there is stored as JPEG, as a
+      picture is.
     - **Animations, transitions and embedded video are not supported.** This is an explicit, accepted
       loss, and the import screen says so as it does today.
-    - **Cost on Cloudflare.** Containers are included in the $5/month Workers Paid plan: 25 GiB-hours
-      of memory, 375 vCPU-minutes and 200 GB-hours of disk a month. At `standard-1` (1/2 vCPU,
-      4 GiB) and about two minutes awake per import, memory runs out first, at roughly 190 imports a
-      month; after that each costs about $0.0016. These are estimates, to be measured.
     - **Native in-browser PPTX viewers were rejected.** Office Online needs a public URL and cannot
       be driven. The open-source renderers have poor fidelity. The commercial WASM SDKs have licences
       incompatible with GPLv3 self-hosting.
@@ -254,9 +257,9 @@ for the new app; the mechanisms are retired with the stack.
   both (11), and that roughly doubles the server half of every CI run.
 - **Workers limits push heavy work out of the server.** CPU time per request and bundle size rule
   out image processing and document conversion on a Worker, so it moves to clients (compression,
-  PDF rendering) or to containers (PPTX).
-- **PPTX needs a container or a sidecar.** A self-hoster who runs one container gets PDF import and
-  no PPTX import, and the UI must say why.
+  PDF rendering).
+- **PowerPoint is not imported directly.** The user saves the deck as PDF first (10), one step more
+  than in the current app, which converted it through Gotenberg.
 - **Electron installers stay over 100 MB.** Dropping the .NET runtime removes about 150 MB of the
   380 MB, but Electron itself is the rest.
 - **The desktop's open problems remain.** Linux token storage is a plain 0600 file, and macOS still
@@ -276,7 +279,6 @@ for the new app; the mechanisms are retired with the stack.
   spike passed** (`spike/sync/RESULTS.md`): on Node, on hosted
   Cloudflare, in Chromium, WebKit and Firefox on OPFS, and between a Mac and a real iPad on the LAN.
   Still unproven: Durable Object hibernation, load, Safari on iPad with OPFS, and Capacitor.
-- **The PPTX cost figures in (10)** are estimates until measured against real church decks.
 - **D8, decided after this ADR was written:** the embedded LAN server does not replace the server
   field. The desktop and mobile sign-in screen gets a discreet "Other server" link, prefilled with the
   hosted server, so one installed app works against the cloud and any self-hosted server (ADR 0002

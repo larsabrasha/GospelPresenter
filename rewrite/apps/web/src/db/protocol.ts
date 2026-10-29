@@ -38,6 +38,8 @@ export type DbCall =
   | { op: 'addImage'; image: ImageImport }
   /** Adds an audio file to the library, as it was picked (MEDIA-R5): kept here, uploaded before `addAudio` is pushed. */
   | { op: 'addAudio'; audio: AudioImport }
+  /** Adds a rendered slide deck as an item (D29): keep its pages' blobs here, then `addSlides`, uploaded before it is pushed. */
+  | { op: 'addSlides'; slides: SlidesImport }
   /** Imports a Bible zip (spec 05): parse and store here, then `importBible`, uploaded before it is pushed. */
   | { op: 'importBible'; data: Uint8Array }
   | { op: 'syncNow' }
@@ -80,6 +82,16 @@ export interface ImageImport {
   height: number;
   full: Uint8Array;
   thumb: Uint8Array;
+}
+
+/** A PDF the page has rendered (`media/slides.ts`), ready to be kept and added after `afterItemId`. */
+export interface SlidesImport {
+  itemId: string;
+  presentationId: string;
+  afterItemId: string | null;
+  fileName: string;
+  contentType: 'image/jpeg' | 'image/webp';
+  pages: { full: Uint8Array; thumb: Uint8Array }[];
 }
 
 export interface AudioImport {

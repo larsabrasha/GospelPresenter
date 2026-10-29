@@ -243,6 +243,11 @@ med. Filen sparas bara i den här presentationen." While uploading: "Importerar.
 upload endpoints (device apps): "PowerPoint- och PDF-import görs i webbappen…" and no picker. Errors:
 "Filen har för många sidor. Maximum är 100 sidor." or "Kunde inte importera filen. Försök igen.".
 Success always closes the modal (no "add more"), inserts after selection, toast "Lade till {file}".
+**New app (D29, D15):** accept `.pdf` only, drop hint "Släpp en PDF här", and the first help paragraph
+says to save the deck as PDF first ("…i PowerPoint med Arkiv → Spara som → PDF, i Keynote med Arkiv →
+Exportera till → PDF, i Google Presentationer med Arkiv → Ladda ned → PDF-dokument."). Import works on
+every device, offline too, so there is no "görs i webbappen" state. The modal stays open after the add
+(D15); the toast is the add dialog's `"{file}" har lagts till`. Ctrl/⌘+5 opens the tab.
 
 #### 2e. Remove item
 "⋯ → Ta bort" or **Delete** key on the selected item → dialog titled "Radera" / "Vill du ta bort
@@ -338,6 +343,12 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   `/forms/libreoffice/convert`; if PowerPoint and converter not configured → HTTP 503; unreadable PDF →
   400 "Could not read the PDF…"; Gotenberg failure → 400 "Could not convert the PowerPoint file…"
   (`W/UploadEndpoints.cs:130-197`, `S/Services/PdfRenderService.cs:12-47`, `S/Services/PowerPointConverter.cs:36-56`).
+  **New app (D29, 2026-10-28):** only PDF, ≤50 MB, ≤100 pages, rendered in the client by pdf.js, each
+  page to a picture fitting 1920×1080 and a thumbnail fitting 400×225 (WebP, JPEG where the browser
+  cannot encode WebP). A `.pptx` or `.ppt` is refused with "PowerPoint-filer kan inte importeras
+  direkt. Spara bildspelet som PDF i PowerPoint (Arkiv → Spara som → PDF) och importera PDF-filen.";
+  another type with "Bara PDF-filer kan importeras."; an empty or larger file with "Filen är tom eller
+  större än 50 MB."; an unreadable PDF with "Kunde inte importera filen. Försök igen.".
 - PRES-R12 Overlay image upload: jpeg/png/webp/gif, ≤10 MB, overlay must exist in org (404 otherwise);
   replaces any previous image (`W/UploadEndpoints.cs:56-98`).
 - PRES-R13 UI-only: presentation/template/overlay names are trimmed and must be non-blank; the
@@ -517,6 +528,8 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   the file with three page tiles is inserted and the modal closes; uploading a 101-page PDF shows
   "Filen har för många sidor. Maximum är 100 sidor."; uploading a .pptx when Gotenberg is not
   configured shows "Kunde inte importera filen. Försök igen.".
+  New app: the modal stays open (D15), and a .pptx always shows "PowerPoint-filer kan inte importeras
+  direkt…" (D29).
 - PRES-A16 Given a selected item, when the user presses Delete, then the confirm dialog "Vill du ta bort
   **{title}**?" opens; Avbryt keeps it; Radera removes it permanently (not in the trash).
 - PRES-A17 Given multi-select mode, when the user clicks item 1 and Shift+clicks item 3, then items 1–3

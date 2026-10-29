@@ -27,7 +27,7 @@ import {
   type ClientSqlite,
 } from '@gp/sync/client';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
-import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session } from './protocol.ts';
+import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName } from './share.ts';
 
 /** The backstop poll (SYNC-R43): pokes are never load-bearing. */
@@ -192,6 +192,18 @@ function addAudio(a: AudioImport): Promise<void> {
   });
 }
 
+/** Keeps every page's blobs here and adds the deck as an item, online or not. */
+function addSlides(s: SlidesImport): Promise<void> {
+  return serialStore(async () => {
+    const pages: { full: string; thumb: string }[] = [];
+    for (const page of s.pages) {
+      pages.push({ full: await storeMediaBlob(client!, page.full, s.contentType), thumb: await storeMediaBlob(client!, page.thumb, s.contentType) });
+    }
+    await client!.mutate('addSlides', { itemId: s.itemId, presentationId: s.presentationId, fileName: s.fileName, pages, afterItemId: s.afterItemId });
+    void client!.requestSync().then(reportStatus);
+  });
+}
+
 let bibleSyncQueued = false;
 /**
  * Queues again an import the server refused for lack of its text, fetches
@@ -297,6 +309,8 @@ async function handle(call: DbCall): Promise<unknown> {
       return addImage(call.image);
     case 'addAudio':
       return addAudio(call.audio);
+    case 'addSlides':
+      return addSlides(call.slides);
     case 'openMedia':
       openMedia.set(call.key, { presentationId: call.presentationId, audio: call.audio });
       syncMediaBlobs();
