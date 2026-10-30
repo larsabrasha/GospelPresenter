@@ -2,6 +2,26 @@
 
 Smaller things decided or wished for, not yet built. The larger steps are in docs/next-steps.md.
 
+## Code review, second list (from Lars 2026-10-30; not done)
+
+One at a time, with a test that shows the fault first where one can; do not commit; show the diff and what is
+verified, and run `pnpm check:quick`. The first list (1-5: AutoSave's queued save, StageView's Enter/Space and
+modifiers, SongEditor's skipped name or year, a refused arrangement write) is done (8650cee, 630db3c, 0cbe8d8,
+8d00f1f, 654c9ff, c6c811b).
+6. `apps/web/vite.config.ts:51`: GP_COMMIT is baked into the build, but turbo caches `build` on the sources only:
+   a cached dist shows an old commit on the sign-in page, and a rebuild after a new HEAD gives a new service
+   worker hash, so every device fetches the app again. Proposed: the version from the server at run time, so a
+   commit alone does not change the build (rather than the commit in turbo's `env`, which rebuilds every commit).
+7. `apps/desktop/e2e/apps.ts:14`: `testPort` uses `TEST_PARALLEL_INDEX % 10`; with more than 10 workers two
+   share a port range and may collide (EADDRINUSE). Make the ranges unique per worker, or cap the workers.
+8. `../.claude/hooks/check-rewrite.mjs:29`: the Stop hook runs `pnpm check:quick` every turn while rewrite/ has
+   uncommitted changes, also when the turn changed nothing. Run it only when the turn changed files under
+   rewrite/ (compare with a state saved when the turn began). Start here: it costs a minute every turn.
+9. `apps/web/src/db/queries.ts:224`: Bible texts the device does not keep stay in the Map `texts` for good; the
+   memory grows per translation. Keep a few (the last two or three translations).
+10. `apps/server/src/live-hub.ts`: `showing()`/`shown()` read live_bindings and live_sessions two or three times
+   a call and parse JSON again per picture request; use the row already read. Only if it stays simple.
+
 ## Performance (decided with Lars 2026-10-29; done 2026-10-30)
 
 Measured before and after, normal and with the CPU slowed 4×, with limits in `e2e/performance.spec.ts`; the
