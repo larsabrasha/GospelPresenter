@@ -54,5 +54,6 @@ skill (`../.claude/skills/old-app-compare/SKILL.md`). Never build the MAUI iOS/A
 - Ask before changing behaviour; the spec and `docs/` say what the app does.
 - A spec change is committed together with the code it describes.
 - Commit only after the full checks pass, and only when asked.
-- A Stop hook (`../.claude/hooks/check-rewrite.mjs`) runs `pnpm check:quick` when `rewrite/` has changes and
-  sends failures back; it does not replace the full checks.
+- A Stop hook (`../.claude/hooks/check-rewrite.mjs`) runs `pnpm check:quick` when the turn changed files
+  under `rewrite/` (a UserPromptSubmit hook saves their state when the turn begins) and sends failures back; it
+  does not replace the full checks.
