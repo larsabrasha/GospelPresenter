@@ -11,6 +11,7 @@ import { ArrowDownTrayIcon, BookOpenOutlineIcon, CheckIcon, TrashIcon } from '..
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { useToast } from '../ui/Toast.tsx';
+import { isHostWindow } from '../hostWindow.ts';
 
 type Message = { ok: boolean; text: string } | null;
 
@@ -32,7 +33,7 @@ export function Bibles() {
   /** The translation being downloaded or removed: one at a time, as the current app. */
   const [keeping, setKeeping] = useState<string | null>(null);
   const status = useDbStatus();
-  const host = !!window.gpDesktop?.isHost;
+  const host = isHostWindow();
   /** A device that keeps nothing between reloads cannot keep a text offline. */
   const persistent = status?.storage === 'opfs';
 
@@ -132,14 +133,10 @@ export function Bibles() {
                   <div className="text-xs text-neutral-400 truncate">{t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount })}</div>
                 </div>
                 {host ? (
-                  b.stored ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">
-                      <CheckIcon className="size-4 text-green-500" />
-                      {t('bibles.offline')}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-neutral-400">{t('bibles.fetching')}</span>
-                  )
+                  <span className="inline-flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">
+                    <CheckIcon className="size-4 text-green-500" />
+                    {t('bibles.offline')}
+                  </span>
                 ) : (
                   persistent && <OfflineState bible={b} busy={keeping} onKeep={(on) => void keep(b, on)} />
                 )}

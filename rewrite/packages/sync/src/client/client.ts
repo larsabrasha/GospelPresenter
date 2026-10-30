@@ -1,4 +1,6 @@
 import {
+  CHANGED_TABLES,
+  changeTrackingDdl,
   clientSyncDdl,
   clientUndoRestore,
   clientUndoTriggers,
@@ -21,6 +23,7 @@ import {
   type PullResponse,
   type PushRequest,
   type PushResponse,
+  type TableInfo,
   type Tx,
 } from '@gp/core';
 import { drizzleOver, queryObjects, type ClientSqlite } from './sqlite.ts';
@@ -41,6 +44,9 @@ export interface SyncClientOptions {
    */
   beforePush?: (pending: PendingMutation[], client: SyncClient) => Promise<number | undefined>;
 }
+
+/** Most values bound in one statement of a pull: well under SQLite's limit (32 766), and its parsing stays cheap. */
+const MAX_PARAMS = 5000;
 
 /** A queued mutation as stored: its arguments are JSON. */
 export interface PendingMutation {
@@ -70,7 +76,7 @@ export class SyncClient {
   readonly rejected: MutationResult[] = [];
   private lock = new SerialQueue();
   private clientId = '';
-  private listeners = new Set<() => void>();
+  private listeners = new Set<(tables: ReadonlySet<string>) => void>();
 
   private constructor(
     private sqlite: ClientSqlite,
@@ -102,7 +108,7 @@ export class SyncClient {
         }
       },
     );
-    for (const s of [...clientSyncDdl, ...clientUndoTriggers()]) await this.exec(s);
+    for (const s of [...clientSyncDdl, ...clientUndoTriggers(), ...changeTrackingDdl()]) await this.exec(s);
     const id = this.opts.clientId ?? randomId(); // not crypto.randomUUID: missing over plain http on the LAN
     await this.exec('INSERT OR IGNORE INTO _sync_meta (one, client_id) VALUES (1, ?)', [id]);
     this.clientId = String((await this.exec('SELECT client_id FROM _sync_meta')).rows[0]![0]);
@@ -112,14 +118,17 @@ export class SyncClient {
     return this.clientId;
   }
 
-  /** Calls `fn` after every local mutation and every pull that changed rows. Returns an unsubscribe. */
-  onChange(fn: () => void): () => void {
+  /**
+   * Calls `fn` after every local mutation and every pull that changed rows,
+   * with the tables the change wrote. Returns an unsubscribe.
+   */
+  onChange(fn: (tables: ReadonlySet<string>) => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
 
-  private changed() {
-    for (const fn of this.listeners) fn();
+  private changed(tables: ReadonlySet<string>) {
+    for (const fn of this.listeners) fn(tables);
   }
 
   /** Reads the local database. For queries only; writes go through `mutate`. */
@@ -147,14 +156,20 @@ export class SyncClient {
     });
   }
 
-  /** Runs `fn` in one SQLite transaction on the client connection, serialised with every other write. */
-  private transaction<T>(fn: () => Promise<T>): Promise<T> {
+  /**
+   * Runs `fn` in one SQLite transaction on the client connection, serialised
+   * with every other write. Also gives the tables the transaction wrote
+   * (`changeTrackingDdl`), read and forgotten before it commits.
+   */
+  private transaction<T>(fn: () => Promise<T>): Promise<{ result: T; tables: ReadonlySet<string> }> {
     return this.lock.run(async () => {
       await this.exec('BEGIN');
       try {
-        const r = await fn();
+        const result = await fn();
+        const tables = new Set((await this.exec(`SELECT tbl FROM ${CHANGED_TABLES}`)).rows.map((r) => String(r[0])));
+        if (tables.size) await this.exec(`DELETE FROM ${CHANGED_TABLES}`);
         await this.exec('COMMIT');
-        return r;
+        return { result, tables };
       } catch (e) {
         await this.exec('ROLLBACK');
         throw e;
@@ -168,13 +183,13 @@ export class SyncClient {
    */
   async mutate<N extends MutatorName>(name: N, args: MutatorArgs<N>): Promise<void> {
     const mut = getMutator(name)!;
-    await this.transaction(async () => {
+    const { tables } = await this.transaction(async () => {
       const { next_mutation_id: id } = await this.meta();
       await this.exec('UPDATE _sync_meta SET next_mutation_id = ?', [id + 1]);
       await this.exec('INSERT INTO _mutation (id, name, v, args) VALUES (?, ?, ?, ?)', [id, name, mut.v, JSON.stringify(args)]);
       await runMutator(mut, this.db, args, this.opts.ctx);
     });
-    this.changed();
+    this.changed(tables);
   }
 
   async pending(): Promise<PendingMutation[]> {
@@ -256,22 +271,36 @@ export class SyncClient {
    */
   private async rebase(pages: PullResponse[]) {
     const last = pages[pages.length - 1]!;
-    await this.transaction(async () => {
+    const { tables } = await this.transaction(async () => {
       await this.exec('PRAGMA defer_foreign_keys = ON');
       await this.exec('UPDATE _sync_meta SET capture = 0');
       for (const s of clientUndoRestore()) await this.exec(s);
       await this.exec('DELETE FROM _undo');
 
       if (pages[0]!.clear) for (const t of tableInfo.toReversed()) await this.exec(`DELETE FROM ${t.name}`);
+      // Puts in a row to one table go in one statement: a statement per row made a first pull of a library take a second.
+      let run = null as { t: TableInfo; params: unknown[]; rows: number } | null;
+      const flush = async () => {
+        if (run) await this.exec(upsertSql(run.t, run.rows), run.params);
+        run = null;
+      };
       for (const page of pages) {
         for (const op of page.patch) {
           const t = tableByName.get(op.tbl);
           if (!t) continue; // a table this client does not know yet
-          if (op.op === 'del') await this.exec(`DELETE FROM ${t.name} WHERE id = ?`, [op.pk]);
-          else await this.exec(upsertSql(t), t.columns.map((c) => op.row[c] ?? null));
+          if (op.op === 'del') {
+            await flush();
+            await this.exec(`DELETE FROM ${t.name} WHERE id = ?`, [op.pk]);
+            continue;
+          }
+          if (run?.t !== t || (run.rows + 1) * t.columns.length > MAX_PARAMS) await flush();
+          run ??= { t, params: [], rows: 0 };
+          for (const c of t.columns) run.params.push(op.row[c] ?? null);
+          run.rows++;
         }
         this.rejected.push(...page.results);
       }
+      await flush();
 
       await this.exec('DELETE FROM _mutation WHERE id <= ?', [last.lastMutationId]);
       await this.exec('UPDATE _sync_meta SET cookie = ?, last_mutation_id = ?, capture = 1', [last.cookie, last.lastMutationId]);
@@ -290,7 +319,7 @@ export class SyncClient {
         }
       }
     });
-    if (pages.some((p) => p.clear || p.patch.length || p.results.length)) this.changed();
+    if (pages.some((p) => p.clear || p.patch.length || p.results.length)) this.changed(tables);
   }
 
   /** Every synced table, sorted by id: the same shape as the server's debug dump. */

@@ -3,20 +3,8 @@
 // organisation plus D1, in workerd through Miniflare). Clients run wa-sqlite.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { labelId, PROTOCOL_VERSION, SCHEMA_VERSION } from '@gp/core';
-import {
-  api,
-  device,
-  POKE_WINDOW_MS,
-  pokeProtocols,
-  pokeUrl,
-  serverDump,
-  setRole,
-  startAdapter,
-  waitFor,
-  type AdapterName,
-  type Device,
-  type Harness,
-} from './harness.ts';
+import { PULL_PAGE } from '@gp/sync/server';
+import { api, device, POKE_WINDOW_MS, pokeProtocols, pokeUrl, serverDump, setRole, startAdapter, waitFor, type AdapterName, type Device, type Harness } from './harness.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
 
@@ -51,8 +39,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     devices.push(alice, bob, carol);
   });
 
-  const items = async (d: Device, p = 'P') =>
-    (await d.client.dump()).presentation_items.filter((r) => r.presentation_id === p).toSorted((a, b) => Number(a.sort) - Number(b.sort));
+  const items = async (d: Device, p = 'P') => (await d.client.dump()).presentation_items.filter((r) => r.presentation_id === p).toSorted((a, b) => Number(a.sort) - Number(b.sort));
   const presentation = async (d: Device, id = 'P') => (await d.client.dump()).presentations.find((r) => r.id === id);
   const server = () => serverDump(h, org, 'alice');
 
@@ -255,7 +242,8 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     alice.net.online = true;
     await syncAll(alice, carol);
     expect(alice.client.rejected.map((r) => r.error)).toEqual(['not-in-trash']);
-    for (const d of [alice, carol]) expect(await presentation(d)).toEqual({
+    for (const d of [alice, carol])
+      expect(await presentation(d)).toEqual({
         id: 'P',
         name: 'Rescued',
         event_date: null,
@@ -593,7 +581,17 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     await alice.client.mutate('addSongToPresentation', { itemId: 'TI2', presentationId: 'T', songId: 'S4' });
     await syncAll(alice, bob);
 
-    await bob.client.mutate('createFromTemplate', { id: 'N', templateId: 'T', name: 'Söndag 1 nov', eventDate: '2026-11-01', items: [{ from: 'TI1', id: 'N1' }, { from: 'TI2', id: 'N2' }], at: 1000 });
+    await bob.client.mutate('createFromTemplate', {
+      id: 'N',
+      templateId: 'T',
+      name: 'Söndag 1 nov',
+      eventDate: '2026-11-01',
+      items: [
+        { from: 'TI1', id: 'N1' },
+        { from: 'TI2', id: 'N2' },
+      ],
+      at: 1000,
+    });
     await syncAll(bob, alice);
 
     expect(await presentation(alice, 'N')).toMatchObject({ name: 'Söndag 1 nov', is_template: 0, event_date: '2026-11-01', theme_id: null });
@@ -796,7 +794,13 @@ describe.each(adapters)('%s adapter', (adapterName) => {
   });
 
   it('a first sync larger than one pull page is staged and applied in one rebase', async () => {
-    for (let i = 0; i < 1200; i++) await alice.client.mutate('createSong', { id: `S${String(i).padStart(4, '0')}`, name: `Song ${i}` });
+    // Two pages and part of a third: songs of nine parts, ten rows each (songs are capped at 5 000).
+    const n = 2 * PULL_PAGE + 200;
+    for (let i = 0; i < n / 10; i++) {
+      const id = `S${String(i).padStart(4, '0')}`;
+      await alice.client.mutate('createSong', { id, name: `Song ${i}` });
+      for (let k = 0; k < 9; k++) await alice.client.mutate('addSongPart', { id: `${id}-${k}`, songId: id, labelText: null, content: `Rad ${k}` });
+    }
     let start = performance.now();
     await alice.client.push();
     const pushMs = performance.now() - start;
@@ -805,11 +809,12 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     start = performance.now();
     await fresh.client.pull();
     const pullMs = performance.now() - start;
-    expect((await fresh.client.dump()).songs).toHaveLength(1200);
-    expect(fresh.net.requests.filter((p) => p === '/api/sync/pull')).toHaveLength(3); // pages of 500
+    const dump = await fresh.client.dump();
+    expect(dump.songs.length + dump.song_parts!.length).toBe(n);
+    expect(fresh.net.requests.filter((p) => p === '/api/sync/pull')).toHaveLength(3);
     await alice.client.pull();
     await expectConverged(alice, fresh);
-    console.log(`[measure] ${adapterName} push 1200 mutations: ${Math.round(pushMs)} ms; first pull of 1200 rows (3 pages): ${Math.round(pullMs)} ms`);
+    console.log(`[measure] ${adapterName} push ${n} mutations: ${Math.round(pushMs)} ms; first pull of ${n} rows (3 pages): ${Math.round(pullMs)} ms`);
   });
 
   it('an old client is refused with "update required" and keeps its queue', async () => {

@@ -14,13 +14,12 @@ import {
   type Presentation,
   type PresentationItem,
   type RemoteControlPolicy,
-  type SearchableSong,
   type Song,
   type SongArrangement,
   type SongPart,
   type Theme,
 } from '@gp/core';
-import type { ReadDb } from './share.ts';
+import type { MediaBytes, ReadDb } from './share.ts';
 
 // Reads from the local database, mapped to the core row types. The column
 // names are SQLite's (snake_case); the core types are Drizzle's (camelCase).
@@ -82,44 +81,14 @@ const arrangement = (r: Row): SongArrangement => ({
 
 const label = (r: Row): Label => ({ id: String(r.id), text: String(r.text), color: String(r.color), sort: Number(r.sort) });
 
-const byName = (a: Song, b: Song) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' });
+/** `localeCompare(…, 'sv', { sensitivity: 'base' })`, made once: making it per call cost 86 ms to sort 3 000 songs. */
+const svCompare = new Intl.Collator('sv', { sensitivity: 'base' }).compare;
+
+const byName = (a: Song, b: Song) => svCompare(a.name, b.name);
 
 /** The library, by name, without the trash (spec 02: culture-aware, case-insensitive). */
 export async function listSongs(db: ReadDb): Promise<Song[]> {
   return (await db.query('SELECT * FROM songs WHERE deleted_at IS NULL')).map(song).toSorted(byName);
-}
-
-export type LibrarySong = Song & SearchableSong;
-
-/** The library with each song's lyrics, for search (SONG-R31: name, author and lyrics). */
-export async function searchableSongs(db: ReadDb): Promise<LibrarySong[]> {
-  const parts = await db.query<{ song_id: string; content: string }>(
-    'SELECT p.song_id, p.content FROM song_parts p JOIN songs s ON s.id = p.song_id WHERE s.deleted_at IS NULL ORDER BY p.song_id, p.sort, p.id',
-  );
-  const lyrics = new Map<string, string[]>();
-  for (const p of parts) (lyrics.get(p.song_id) ?? lyrics.set(p.song_id, []).get(p.song_id)!).push(p.content);
-  const next = new Map<string, LibrarySong>();
-  const out = (await listSongs(db)).map((s) => {
-    const fresh: LibrarySong = { ...s, firstPart: lyrics.get(s.id)?.[0] ?? '', lyrics: (lyrics.get(s.id) ?? []).join('\n') };
-    const kept = lastLibrary.get(s.id);
-    const same = kept && sameFields(kept, fresh) ? kept : fresh;
-    next.set(s.id, same);
-    return same;
-  });
-  lastLibrary = next;
-  return out;
-}
-
-/**
- * The songs the last load gave, by id. An unchanged song is given again as
- * the same object, so search keeps what it prepared for it (`searchSongs`
- * caches by object): a sync then costs no new preparing of a whole library.
- */
-let lastLibrary = new Map<string, LibrarySong>();
-
-function sameFields<T extends object>(a: T, b: T): boolean {
-  const keys = Object.keys(a) as (keyof T)[];
-  return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k]);
 }
 
 /** A song's arrangements, in order: the first is the default (SONG-R19). */
@@ -162,9 +131,7 @@ export async function listLabels(db: ReadDb): Promise<Map<string, Label>> {
 
 /** Presentations, newest event first; those without a date last (milestone 1 has no "last changed"). */
 export async function listPresentations(db: ReadDb): Promise<Presentation[]> {
-  const rows = await db.query(
-    'SELECT * FROM presentations WHERE deleted_at IS NULL AND is_template = 0 ORDER BY event_date IS NULL, event_date DESC, name',
-  );
+  const rows = await db.query('SELECT * FROM presentations WHERE deleted_at IS NULL AND is_template = 0 ORDER BY event_date IS NULL, event_date DESC, name');
   return rows.map(presentation);
 }
 
@@ -186,7 +153,7 @@ export function byLastChanged(a: Pick<Presentation, 'updatedAt'>, b: Pick<Presen
   return (b.updatedAt ?? -1) - (a.updatedAt ?? -1);
 }
 
-const byPresentationName = (a: Presentation, b: Presentation) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id);
+const byPresentationName = (a: Presentation, b: Presentation) => svCompare(a.name, b.name) || a.id.localeCompare(b.id);
 
 export async function getPresentation(db: ReadDb, id: string): Promise<Presentation | null> {
   const [r] = await db.query('SELECT * FROM presentations WHERE id = ?', [id]);
@@ -250,9 +217,7 @@ export async function listBibles(db: ReadDb): Promise<InstalledBible[]> {
   const rows = await db.query(
     'SELECT b.*, EXISTS (SELECT 1 FROM bible_blobs t WHERE t.hash = b.content_hash) AS stored, EXISTS (SELECT 1 FROM kept_bibles k WHERE k.id = b.id) AS kept FROM bibles b',
   );
-  return rows
-    .map((r) => ({ ...bible(r), stored: Boolean(r.stored), kept: Boolean(r.kept) }))
-    .toSorted((a, b) => a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id));
+  return rows.map((r) => ({ ...bible(r), stored: Boolean(r.stored), kept: Boolean(r.kept) })).toSorted((a, b) => svCompare(a.name, b.name) || a.id.localeCompare(b.id));
 }
 
 /** Parsed texts, by hash: a text never changes, so it is read and parsed once per window. */
@@ -273,7 +238,10 @@ export function bibleBooks(db: ReadDb, hash: string, fetch?: (hash: string) => P
     })();
     texts.set(hash, p);
     // Not there yet: ask again next time rather than remember the absence.
-    void p.then((books) => books ?? texts.delete(hash), () => texts.delete(hash));
+    void p.then(
+      (books) => books ?? texts.delete(hash),
+      () => texts.delete(hash),
+    );
   }
   return p;
 }
@@ -322,17 +290,27 @@ export async function getImage(db: ReadDb, id: string): Promise<LibraryImage | n
 /** Object URLs of blobs, by hash: a blob never changes, so one URL per window serves every use of it. */
 const blobUrls = new Map<string, string>();
 
+/** Fetches from the server under way, by hash: many slides may show one picture. */
+const fetching = new Map<string, Promise<MediaBytes | null>>();
+
 /**
- * A blob from this device's own copy as an object URL, or null while this
- * device does not have it yet (the next database change asks again). Works in
+ * A blob as an object URL: from this device's own copy, or, in a desktop
+ * host's own window, which keeps none, from the server (`ReadDb.fetchMedia`).
+ * Null while it cannot be had (the next database change asks again). Works in
  * the output window too, which reads through the operator window.
  */
 export async function blobUrl(db: ReadDb, hash: string): Promise<string | null> {
   const known = blobUrls.get(hash);
   if (known) return known;
   const [r] = await db.query<{ content_type: string; bytes: Uint8Array | null }>('SELECT content_type, bytes FROM media_blobs WHERE hash = ? AND bytes IS NOT NULL', [hash]);
-  if (!r?.bytes) return null;
-  const url = blobUrls.get(hash) ?? URL.createObjectURL(new Blob([r.bytes as BlobPart], { type: r.content_type }));
+  let blob: MediaBytes | null = r?.bytes ? { contentType: r.content_type, bytes: r.bytes } : null;
+  if (!blob) {
+    let p = fetching.get(hash);
+    if (!p) fetching.set(hash, (p = db.fetchMedia(hash).finally(() => fetching.delete(hash))));
+    blob = await p;
+  }
+  if (!blob) return null;
+  const url = blobUrls.get(hash) ?? URL.createObjectURL(new Blob([blob.bytes as BlobPart], { type: blob.contentType }));
   blobUrls.set(hash, url);
   return url;
 }
@@ -344,7 +322,7 @@ export async function blobUrl(db: ReadDb, hash: string): Promise<string | null> 
 export async function listDisplays(db: ReadDb): Promise<Display[]> {
   const rows = await db.query<{ id: string; name: string; code: string; kind: string; created_at: number | null }>('SELECT id, name, code, kind, created_at FROM displays');
   return rows
-    .toSorted((a, b) => (a.created_at ?? -1) - (b.created_at ?? -1) || a.name.localeCompare(b.name, 'sv', { sensitivity: 'base' }) || a.id.localeCompare(b.id))
+    .toSorted((a, b) => (a.created_at ?? -1) - (b.created_at ?? -1) || svCompare(a.name, b.name) || a.id.localeCompare(b.id))
     .map((r) => ({ id: r.id, name: r.name, code: r.code, kind: r.kind === 'screen' ? ('screen' as const) : ('public' as const), createdAt: r.created_at }));
 }
 

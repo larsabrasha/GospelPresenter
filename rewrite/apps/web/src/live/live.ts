@@ -10,12 +10,16 @@ import {
   slideDeckSlides,
   songSlides,
   type LivePointer,
+  type Label,
   type LivePointerChange,
   type PresentationItem,
   type Slide,
+  type Song,
+  type SongArrangement,
+  type SongPart,
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
-import { arrangementsOf, getAudio, getImage, getSong, listLabels, songPartsOf } from '../db/queries.ts';
+import { arrangementsOf, getAudio, getImage, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'hello' };
 
@@ -92,6 +96,33 @@ export interface ItemSlides {
  * pages, rendered once at import (D29).
  */
 export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<ItemSlides> {
+  return (await slidesOfItems(db, [item])).get(item.id)!;
+}
+
+/** What song items read, for every song of a running order at once. */
+interface SongData {
+  songs: Map<string, Song>;
+  parts: SongPart[];
+  labels: Map<string, Label>;
+  arrangements: SongArrangement[];
+}
+
+/**
+ * `slidesOf` for every item of a running order, by item id. The songs are read
+ * together, in four queries rather than four an item: a running order of 30
+ * songs waited on 120 answers in turn after every change.
+ */
+export async function slidesOfItems(db: ReadDb, items: PresentationItem[]): Promise<Map<string, ItemSlides>> {
+  const songIds = [...new Set(items.filter((i) => i.type === 'song').map((i) => i.sourceId))];
+  const songs: SongData | null = songIds.length
+    ? { songs: await songsById(db, songIds), parts: await songPartsOf(db, songIds), labels: await listLabels(db), arrangements: await arrangementsOf(db, songIds) }
+    : null;
+  const out = new Map<string, ItemSlides>();
+  for (const item of items) out.set(item.id, await itemSlides(db, item, songs));
+  return out;
+}
+
+async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData | null): Promise<ItemSlides> {
   if (item.type === 'bible') {
     const content = parseBibleContent(item.content);
     const slides = content ? bibleItemSlides(item.title, content) : [];
@@ -113,9 +144,9 @@ export async function slidesOf(db: ReadDb, item: PresentationItem): Promise<Item
     const slides = found.flatMap((image, i) => (image ? [imageSlide(image.fullHash, `image${i}`)] : []));
     return slides.length ? { slides, problem: null } : { slides: [], problem: 'image-missing' };
   }
-  const song = await getSong(db, item.sourceId);
+  const song = songData?.songs.get(item.sourceId);
   if (!song) return { slides: [], problem: 'song-missing' };
   if (song.deletedAt !== null) return { slides: [], problem: 'song-trashed' }; // D17: skipped live
-  const slides = songSlides(song, await songPartsOf(db, [song.id]), await listLabels(db), await arrangementsOf(db, [song.id]), item.arrangementId);
+  const slides = songSlides(song, songData!.parts, songData!.labels, songData!.arrangements, item.arrangementId);
   return { slides, problem: slides.length ? null : 'no-parts' };
 }

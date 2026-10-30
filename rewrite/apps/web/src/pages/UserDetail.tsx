@@ -12,7 +12,7 @@ import { KeyPicture, LinkIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { acceptHere, copy, inviteUrl, timeLeft } from './Users.tsx';
+import { acceptHere, copy, forgetInvite, freshInvite, inviteUrl, timeLeft } from './Users.tsx';
 
 const CARD = 'bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-5 space-y-4';
 const ERROR = 'text-sm text-red-500 dark:text-red-400';
@@ -42,8 +42,8 @@ async function fetchDetail(path: string): Promise<Detail> {
 export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean }) {
   const [user, setUser] = useState<UserRow | string | null>(null);
   const [logins, setLogins] = useState<LoginMethod[] | string | null>(null);
-  /** The new invite's link, shown once (AUTH-R13): only until the page is left. */
-  const [link, setLink] = useState<string | null>(null);
+  /** The new invite's link, shown once (AUTH-R13): only until the page is left. A user just made comes with theirs. */
+  const [link, setLink] = useState<string | null>(() => freshInvite(id));
   const [emailError, setEmailError] = useState<string | null>(null);
   const [roleError, setRoleError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -63,6 +63,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
   useEffect(() => {
     void fetchDetail(path).then(apply);
   }, [path, apply]);
+  useEffect(() => () => forgetInvite(id), [id]);
 
   /** Runs a change and reloads; a refusal is a toast. True when it went through. */
   const act = async (method: string, url: string): Promise<boolean> => {
@@ -112,8 +113,16 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
     }
   };
 
-  const createInvite = async () => {
+  /** A new invite; `replace` deletes the user's other invites first, so the link that got lost stops working. */
+  const createInvite = async (replace = false) => {
     try {
+      if (replace) {
+        const d = await api('DELETE', `${path}/invites`);
+        if (d.error) {
+          toast(errorText(d));
+          return;
+        }
+      }
       const r = await api<{ inviteToken: string }>('POST', `${path}/invites`);
       if (r.error) toast(errorText(r));
       else setLink(await inviteUrl(r.body.inviteToken));
@@ -203,7 +212,10 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
         {Array.isArray(logins) && logins.length > 0 && (
           <ul aria-label={t('userDetail.login')} className="space-y-4">
             {logins.map((l) => (
-              <li key={`${l.provider}:${l.id}`} className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600">
+              <li
+                key={`${l.provider}:${l.id}`}
+                className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600"
+              >
                 <div className="min-w-0">
                   <div className="font-medium text-sm">{providerName(l)}</div>
                   <div className="text-xs text-neutral-500 dark:text-neutral-400 font-mono break-all">{l.id}</div>
@@ -243,7 +255,10 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
               </div>
             )}
             {invite && (
-              <div data-testid="invite" className={`p-4 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}>
+              <div
+                data-testid="invite"
+                className={`p-4 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <LinkIcon className="size-4 text-neutral-400" />
@@ -251,7 +266,9 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                     {invite.expired ? (
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400">{t('userDetail.expired')}</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">{t('userDetail.active')}</span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400">
+                        {t('userDetail.active')}
+                      </span>
                     )}
                   </div>
                   {!inviteRefusal(actor, user) && (
@@ -279,13 +296,22 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                     <div className="text-xs text-neutral-500 dark:text-neutral-400">{t('userDetail.expiresIn', { time: timeLeft(invite.expiresAt) })}</div>
                     {/* The link exists only in this page, from when it was made (AUTH-R13); on a host it is accepted here (Users.tsx). */}
                     {link && !host && (
-                      <CopyField
-                        inputRef={setInput}
-                        value={link}
-                        label={t('userDetail.inviteLink')}
-                        copyLabel={t('userDetail.copy')}
-                        onCopy={() => void copy(input, link).then(() => toast(t('users.copied')))}
-                      />
+                      <div className="space-y-2">
+                        <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('users.inviteText', { name: user.name })}</p>
+                        <CopyField
+                          inputRef={setInput}
+                          value={link}
+                          label={t('userDetail.inviteLink')}
+                          copyLabel={t('userDetail.copy')}
+                          onCopy={() => void copy(input, link).then(() => toast(t('users.copied')))}
+                        />
+                        {/* Where the system's share sheet exists (phones, Safari): to send it in a message. */}
+                        {'share' in navigator && (
+                          <AppButton variant="secondary" onClick={() => void navigator.share({ title: t('userDetail.inviteLink'), url: link }).catch(() => undefined)}>
+                            {t('userDetail.share')}
+                          </AppButton>
+                        )}
+                      </div>
                     )}
                     {link && host && (
                       <div className="space-y-2">
@@ -295,7 +321,16 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                         </AppButton>
                       </div>
                     )}
-                    {!link && <div className="text-xs text-neutral-500 dark:text-neutral-400">{t('userDetail.linkShownOnce')}</div>}
+                    {!link && (
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-xs text-neutral-500 dark:text-neutral-400">{t('userDetail.linkShownOnce')}</div>
+                        {!inviteRefusal(actor, user) && (
+                          <AppButton variant="secondary" onClick={() => void createInvite(true)}>
+                            {t('userDetail.newLink')}
+                          </AppButton>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -314,7 +349,14 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
           <AppButton
             variant="danger"
             onClick={() =>
-              void ask({ title: t('users.remove'), text: t('users.removeConfirm', { name: user.name }), bold: user.name, confirm: t('common.delete'), busy: t('common.deleting'), run: deleteUser })
+              void ask({
+                title: t('users.remove'),
+                text: t('users.removeConfirm', { name: user.name }),
+                bold: user.name,
+                confirm: t('common.delete'),
+                busy: t('common.deleting'),
+                run: deleteUser,
+              })
             }
           >
             {t('users.remove')}

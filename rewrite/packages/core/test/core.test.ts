@@ -254,6 +254,18 @@ describe('search (SONG-R30–R33)', () => {
     expect(hits).toEqual([]);
   });
 
+  it('a phrase that runs over a line break in the lyrics ranks as a phrase', () => {
+    // Both have every word in the first part; only one has them as the phrase, over its line break.
+    const songs = [
+      { name: 'Annan', author: null, firstPart: 'Ett ord i sänder\nett ögonblick', lyrics: 'Ett ord i sänder\nett ögonblick' },
+      { name: 'Blott en dag', author: null, firstPart: 'Blott en dag, ett\nögonblick i sänder', lyrics: 'Blott en dag, ett\nögonblick i sänder' },
+    ];
+
+    const hits = searchSongs(songs, 'ett ögonblick i sänder').map((s) => s.name);
+
+    expect(hits).toEqual(['Blott en dag', 'Annan']);
+  });
+
   it('decomposed (macOS) text matches composed queries', () => {
     expect(searchSongs([{ ...lib[1]!, name: 'Högst av allt'.normalize('NFD') }], 'högst')).toHaveLength(1);
   });

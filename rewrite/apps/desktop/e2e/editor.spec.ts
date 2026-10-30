@@ -86,3 +86,51 @@ test('several pictures make one image item; Redigera removes one and adds more',
   await page.getByRole('button', { name: 'Klar', exact: true }).click();
   await expect(order.getByRole('listitem')).toHaveCount(1);
 });
+
+test('Skapa in Lägg till opens a new song named as the search: Lägg till adds it, Avbryt and closing throw it away', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  // A library with a song: an empty one shows Skapa without a search.
+  await createSong(page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
+  await createPresentation(page, 'Söndag');
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: 'Lägg till' });
+  const search = picker.getByLabel('Sök på titel, författare eller textrad');
+
+  // Not found: Skapa opens the editor, named as the search, typing in its first part; Ctrl+Enter adds it.
+  await search.fill('Blott en dag');
+  await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await expect(picker.getByRole('heading', { name: 'Ny sång' })).toBeVisible();
+  await expect(picker.getByRole('textbox', { name: 'Namn', exact: true })).toHaveValue('Blott en dag');
+  await expect(picker.getByLabel('Delar 1')).toBeFocused();
+  await page.keyboard.type('Blott en dag, ett ögonblick i sänder');
+  await page.keyboard.press('Control+Enter');
+  await expect(page.getByText('"Blott en dag" har lagts till')).toBeVisible();
+  await expect(picker.getByRole('heading', { name: 'Ny sång' })).toHaveCount(0);
+  await expect(search).toHaveValue('');
+  await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: 'Blott en dag', exact: true })).toBeVisible();
+
+  // Avbryt after typing asks, then the song is gone: not in the library, not in the trash.
+  await search.fill('Kastad');
+  await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await expect(picker.getByLabel('Delar 1')).toBeFocused();
+  await page.keyboard.type('Något');
+  await picker.getByRole('button', { name: 'Avbryt' }).click();
+  await page.getByRole('dialog', { name: 'Släng sången?' }).getByRole('button', { name: 'Släng' }).click();
+  await expect(picker.getByRole('heading', { name: 'Ny sång' })).toHaveCount(0);
+
+  // Closing the dialog while a new song is open throws it away too; with nothing searched, it starts in the name.
+  await search.fill('');
+  await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await expect(picker.getByRole('textbox', { name: 'Namn', exact: true })).toBeFocused();
+  await expect(picker.getByRole('textbox', { name: 'Namn', exact: true })).toHaveValue('Ny sång');
+  await page.keyboard.press('Escape');
+  await expect(picker).toHaveCount(0);
+
+  await openAdmin(page, 'Sånger');
+  await expect(page.getByText('Alla sånger (2)')).toBeVisible();
+  // Thrown away, not trashed.
+  await page.getByRole('link', { name: 'Papperskorg' }).click();
+  await expect(page.getByText('Papperskorgen är tom.')).toBeVisible();
+});

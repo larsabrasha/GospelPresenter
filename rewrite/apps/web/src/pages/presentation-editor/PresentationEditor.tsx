@@ -3,7 +3,7 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useData, useDb } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
-import { slidesOf, type ItemSlides } from '../../live/live.ts';
+import { slidesOfItems } from '../../live/live.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
@@ -58,8 +58,7 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
     async (d) => {
       const items = await itemsOf(d, id);
       const songIds = [...new Set(items.filter((i) => i.type === 'song').map((i) => i.sourceId))];
-      const slides = new Map<string, ItemSlides>();
-      for (const item of items) slides.set(item.id, await slidesOf(d, item));
+      const slides = await slidesOfItems(d, items);
       const presentation = await getPresentation(d, id);
       return {
         presentation,

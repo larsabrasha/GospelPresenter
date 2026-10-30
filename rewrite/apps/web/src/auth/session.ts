@@ -1,5 +1,6 @@
 import type { Me, Role, SignInResponse } from '@gp/core';
 import type { Session } from '../db/protocol.ts';
+import { isHostWindow } from '../hostWindow.ts';
 
 // Who is signed in on this device. The session token and the identity the
 // server last gave are kept in localStorage, so a signed-in device opens
@@ -70,11 +71,11 @@ export function workerSession(s: StoredSession): Session {
     token: s.token,
     device: deviceToken(),
     ...(memoryOnly() ? { storage: 'memory' as const } : {}),
-    ...(window.gpDesktop?.isHost ? { keepsEveryBible: true as const } : {}),
+    ...(isHostWindow() ? { hostWindow: true as const } : {}),
   };
 }
 
 /** A name for this device in the server's lists. */
 export function deviceName(): string {
-  return window.gpDesktop?.deviceName ?? (navigator.userAgent.match(/iPad|iPhone|Android|Macintosh|Windows|Linux/)?.[0] ?? 'Webbläsare');
+  return window.gpDesktop?.deviceName ?? navigator.userAgent.match(/iPad|iPhone|Android|Macintosh|Windows|Linux/)?.[0] ?? 'Webbläsare';
 }

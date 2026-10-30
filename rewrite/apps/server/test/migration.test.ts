@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { SCHEMA_VERSION, orgDdl, schemaMetaDdl, tableInfo } from '@gp/core';
+import { SCHEMA_VERSION, orgDdl, orgIndexes, schemaMetaDdl, tableInfo } from '@gp/core';
 import { SyncClient } from '@gp/sync/client';
 import { openWaSqlite } from '@gp/sync/wa-sqlite-node';
 import { Accounts, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, migrateGlobal } from '@gp/server';
@@ -41,6 +41,11 @@ afterAll(() => {
 /** Every table's columns, as SQLite reports them. */
 function columnsOf(query: (sql: string) => Record<string, unknown>[]) {
   return Object.fromEntries(tableInfo.map((t) => [t.name, query(`SELECT name FROM pragma_table_info('${t.name}')`).map((r) => r.name)]));
+}
+
+/** The organisation tables' indexes, by name, as SQLite reports them. */
+function indexesOf(query: (sql: string) => Record<string, unknown>[]) {
+  return query("SELECT name, tbl_name, sql FROM sqlite_master WHERE type = 'index' AND sql IS NOT NULL ORDER BY name");
 }
 
 /** A new SQLite file, holding `statements`. */
@@ -88,6 +93,38 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
     expect(() => nodeOrgStore(f)).toThrow(/schema 10, made before this app's first/);
     f.close();
   });
+
+  it('a version 11 file gets the columns and the indexes of 12, as a new file has them', () => {
+    // Version 11: today's tables without what 12 added, and no indexes.
+    const v11 = orgDdl
+      .filter((s) => !orgIndexes.includes(s))
+      .map((s) => s.replace(', description TEXT, updated_at INTEGER', '').replace(', created_at INTEGER)', ')'));
+    const file = fileWith(driver, [...v11, schemaMetaDdl, 'INSERT INTO _schema (one, version) VALUES (1, 11)']);
+    const fresh = openSqlite(fileWith(driver, []), driver);
+    nodeOrgStore(fresh);
+
+    const f = openSqlite(file, driver);
+    nodeOrgStore(f);
+
+    expect(columnsOf(f.query)).toEqual(columnsOf(fresh.query));
+    expect(indexesOf(f.query)).toEqual(indexesOf(fresh.query));
+    expect(indexesOf(f.query)).toHaveLength(orgIndexes.length);
+    f.close();
+    fresh.close();
+  });
+
+  it("the editor's reads use the indexes: a presentation's items, a song's parts and arrangements", () => {
+    const f = openSqlite(fileWith(driver, []), driver);
+    nodeOrgStore(f);
+
+    const plan = (sql: string) => f.query(`EXPLAIN QUERY PLAN ${sql}`).map((r) => String(r.detail)).join('\n');
+
+    expect(plan("SELECT * FROM presentation_items WHERE presentation_id = 'P' ORDER BY sort, id")).toContain('USING INDEX presentation_items_by_presentation');
+    expect(plan("SELECT * FROM song_parts WHERE song_id IN ('S1', 'S2') ORDER BY sort, id")).toContain('USING INDEX song_parts_by_song');
+    expect(plan("SELECT * FROM song_arrangements WHERE song_id IN ('S1') ORDER BY sort, id")).toContain('USING INDEX song_arrangements_by_song');
+    expect(plan("SELECT * FROM presentation_items WHERE type = 'song' AND source_id = 'S1'")).toContain('USING INDEX presentation_items_by_source');
+    f.close();
+  });
 });
 
 describe('client (wa-sqlite)', () => {
@@ -105,7 +142,7 @@ describe('client (wa-sqlite)', () => {
     const [trigger] = await client.query("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'undo_presentation_items_upd'");
     expect(String(trigger!.sql)).toContain('overlay_id');
     // Every table is made by the DDL: the synced ones, and the five that do not sync (Bible texts, media blobs, pins, kept Bibles).
-    expect(orgDdl.length).toBe(tableInfo.length + 5);
+    expect(orgDdl.filter((s) => s.startsWith('CREATE TABLE')).length).toBe(tableInfo.length + 5);
     await client.close();
   });
 

@@ -1,13 +1,13 @@
 import type { BibleBookText, MutatorArgs, MutatorName } from '@gp/core';
 import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
-import type { ReadDb } from './share.ts';
+import type { MediaBytes, ReadDb } from './share.ts';
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
 export class Db implements ReadDb {
   private worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   private waiting = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private next = 1;
-  private changeListeners = new Set<() => void>();
+  private changeListeners = new Set<(tables?: ReadonlySet<string>) => void>();
   private statusListeners = new Set<(s: DbStatus) => void>();
   /** When this window last wrote, so a page can tell its own changes from another session's. */
   lastWriteAt = 0;
@@ -15,8 +15,10 @@ export class Db implements ReadDb {
   constructor() {
     this.worker.addEventListener('message', (e: MessageEvent<DbMessage>) => {
       const m = e.data;
-      if (m.type === 'changed') for (const fn of this.changeListeners) fn();
-      else if (m.type === 'status') for (const fn of this.statusListeners) fn(m.status);
+      if (m.type === 'changed') {
+        const tables = m.tables && new Set(m.tables);
+        for (const fn of this.changeListeners) fn(tables);
+      } else if (m.type === 'status') for (const fn of this.statusListeners) fn(m.status);
       else {
         const w = this.waiting.get(m.id);
         this.waiting.delete(m.id);
@@ -46,6 +48,11 @@ export class Db implements ReadDb {
 
   query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
     return this.call({ op: 'query', sql, params });
+  }
+
+  /** Song search in the database's worker: the ids of the hits, best first (SONG-R30–R33). */
+  searchSongs(query: string): Promise<string[]> {
+    return this.call({ op: 'searchSongs', query });
   }
 
   /** Imports a Bible zip; rejects with a message to show (in Swedish) if it cannot. */
@@ -85,6 +92,11 @@ export class Db implements ReadDb {
     return this.call({ op: 'keepBible', bibleId, on });
   }
 
+  /** A host's own window: a media blob from the server, not stored (`ReadDb.fetchMedia`). */
+  fetchMedia(hash: string): Promise<MediaBytes | null> {
+    return this.call({ op: 'fetchMedia', hash });
+  }
+
   /** A translation's text this device does not keep, fetched from the server and not stored; null offline. */
   fetchBibleText(hash: string): Promise<BibleBookText[] | null> {
     return this.call({ op: 'fetchBibleText', hash });
@@ -103,7 +115,7 @@ export class Db implements ReadDb {
     return this.call({ op: 'status' });
   }
 
-  onChange(fn: () => void): () => void {
+  onChange(fn: (tables?: ReadonlySet<string>) => void): () => void {
     this.changeListeners.add(fn);
     return () => this.changeListeners.delete(fn);
   }

@@ -1,5 +1,5 @@
 import { getTableConfig, type SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { syncedTables } from './schema.ts';
+import { bibleBlobs, bibleTexts, keptBibles, mediaBlobs, pinnedPresentations, syncedTables } from './schema.ts';
 
 // SQL shared by both ends of the sync protocol, generated from the Drizzle
 // schema so no table can be forgotten.
@@ -14,7 +14,8 @@ export const tableInfo: TableInfo[] = syncedTables.map((t: SQLiteTable) => {
   return { name: c.name, columns: c.columns.map((col) => col.name) };
 });
 
-export type SyncedTableName = 'labels' | 'songs' | 'song_parts' | 'song_arrangements' | 'presentations' | 'presentation_items' | 'bibles' | 'org_settings' | 'images' | 'displays' | 'audios' | 'overlays';
+export type SyncedTableName =
+  'labels' | 'songs' | 'song_parts' | 'song_arrangements' | 'presentations' | 'presentation_items' | 'bibles' | 'org_settings' | 'images' | 'displays' | 'audios' | 'overlays';
 
 /** Every synced table's rows, sorted by id: what "byte for byte" compares. */
 export type Dump = Record<SyncedTableName, Record<string, unknown>[]>;
@@ -123,8 +124,36 @@ export function clientUndoRestore(): string[] {
   ]);
 }
 
-/** An upsert of one row by its column values, used to apply a pull patch. */
-export function upsertSql(t: TableInfo): string {
-  return `INSERT INTO ${t.name} (${t.columns.join(', ')}) VALUES (${t.columns.map(() => '?').join(', ')})
+/**
+ * An upsert of `rows` rows by their column values, used to apply a pull patch.
+ * Rows are applied in order, so a later row of the same id wins.
+ */
+export function upsertSql(t: TableInfo, rows = 1): string {
+  const values = `(${t.columns.map(() => '?').join(', ')})`;
+  return `INSERT INTO ${t.name} (${t.columns.join(', ')}) VALUES ${Array.from({ length: rows }, () => values).join(', ')}
     ON CONFLICT (id) DO UPDATE SET ${t.columns.map((c) => `${c} = excluded.${c}`).join(', ')}`;
+}
+
+/** The tables whose changes a page hears of: the synced ones, and those of the device's own the pages read. */
+export const watchedTables: string[] = [...syncedTables, bibleTexts, bibleBlobs, mediaBlobs, pinnedPresentations, keptBibles].map((t: SQLiteTable) => getTableConfig(t).name);
+
+/** Where a client connection notes the tables a transaction wrote, until it commits (`changeTrackingDdl`). */
+export const CHANGED_TABLES = 'temp.changed_tables';
+
+/**
+ * A client connection's own record of which tables the open transaction
+ * wrote, so a change can say what it changed and a page reload only what
+ * read it. TEMP: per connection, never in the file; a trigger per table and
+ * kind of write (a trigger body names its table unqualified: the temp one). Made on every open.
+ */
+export function changeTrackingDdl(): string[] {
+  return [
+    `CREATE TEMP TABLE IF NOT EXISTS changed_tables (tbl TEXT PRIMARY KEY NOT NULL)`,
+    ...watchedTables.flatMap((name) =>
+      (['INSERT', 'UPDATE', 'DELETE'] as const).map(
+        (op) => `CREATE TEMP TRIGGER IF NOT EXISTS changed_${name}_${op.toLowerCase()} AFTER ${op} ON main.${name} BEGIN
+           INSERT INTO changed_tables (tbl) SELECT '${name}' WHERE NOT EXISTS (SELECT 1 FROM changed_tables WHERE tbl = '${name}'); END`,
+      ),
+    ),
+  ];
 }

@@ -32,6 +32,7 @@ import {
 } from './ui/icons.tsx';
 import { href, type Route } from './ui/router.ts';
 import { useToast } from './ui/Toast.tsx';
+import { isHostWindow } from './hostWindow.ts';
 
 // The frame around the signed-in app, as the current app's Layout/MainLayout.razor
 // and Layout/AdminLayout.razor: a bar at the top, and a menu at the side of the admin pages.
@@ -97,13 +98,7 @@ function SyncStatus() {
   const state = t(authNeeded ? 'status.authNeeded' : s.updateRequired ? 'status.error' : syncing ? 'status.syncing' : s.connected ? 'status.idle' : 'status.offline');
   const pending = s.pending > 0 ? t('status.pending', { n: s.pending }) : null;
   return (
-    <AppButton
-      variant="icon"
-      data-testid="status"
-      className="relative"
-      title={[state, pending, t('status.syncNow')].filter(Boolean).join(' · ')}
-      onClick={() => void db.syncNow()}
-    >
+    <AppButton variant="icon" data-testid="status" className="relative" title={[state, pending, t('status.syncNow')].filter(Boolean).join(' · ')} onClick={() => void db.syncNow()}>
       {spinning ? (
         <ArrowPathIcon className="size-5 animate-spin text-sky-500" />
       ) : warn ? (
@@ -128,7 +123,7 @@ function SyncStatus() {
 function SyncWarnings() {
   const s = useDbStatus();
   const warnings: ReactNode[] = [];
-  if (s && s.storage !== 'opfs') warnings.push(t('status.memory', { reason: s.storage }));
+  if (s && s.storage !== 'opfs' && !isHostWindow()) warnings.push(t('status.memory', { reason: s.storage }));
   if (s?.updateRequired) warnings.push(t('status.updateRequired'));
   if (s?.authError === 'device-not-paired')
     warnings.push(
@@ -150,7 +145,10 @@ function SyncWarnings() {
     );
   if (!warnings.length) return null;
   return (
-    <div data-testid="sync-warnings" className="shrink-0 px-4 py-2 space-y-1 bg-amber-50 dark:bg-amber-950/40 border-b-[0.5px] border-amber-200 dark:border-amber-900 text-sm text-neutral-800 dark:text-neutral-100">
+    <div
+      data-testid="sync-warnings"
+      className="shrink-0 px-4 py-2 space-y-1 bg-amber-50 dark:bg-amber-950/40 border-b-[0.5px] border-amber-200 dark:border-amber-900 text-sm text-neutral-800 dark:text-neutral-100"
+    >
       {warnings.map((w, i) => (
         <div key={i} className="flex items-center gap-2">
           <WarningIcon className="size-5 shrink-0 text-amber-500" />

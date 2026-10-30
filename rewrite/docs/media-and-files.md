@@ -122,3 +122,15 @@ oldest dropped first; what is coming, open, kept offline or waiting to be upload
 page say whether everything is on the device ("Alla bilder och ljud finns på den här enheten") or how much is
 being fetched, and, offline, how many files are missing and cannot be. A presentation without a date is
 fetched only when it is opened; "coming" is decided by this device's own calendar day.
+
+## The host's own window
+
+The desktop host's own window (`hostWindow` in the worker's session) keeps its database in memory and no
+files: the server beside it, on the same machine, holds every row, picture, audio file and Bible text, so a
+copy in the window would be the same data twice on one disk (decided with Lars 2026-10-29). On start it pulls
+everything before the first page shows (about 0.7 s for 3 000 songs and 50 presentations, see
+[Performance](performance.md)); a picture, an audio file or a Bible text is fetched from the server when a
+page needs it and held in that window only (`fetchMedia`, `fetchBibleText`). What it uploads (an import) is
+kept until the server has it. It shows no "Data sparas bara i minnet" warning and no offline choices: the
+editor's media line and Biblar say everything is there. A desktop paired to another host is not a host and
+keeps its copy on disk, as a browser does.

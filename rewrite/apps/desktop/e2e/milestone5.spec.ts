@@ -48,6 +48,10 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   const thumb = page.getByTestId('image-card').getByRole('img', { name: 'Logotyp.png' });
   await expect(thumb).toBeVisible();
   await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight])).toEqual([400, 225]);
+  // The host's own window keeps no copy (docs/media-and-files.md, "The host's own window"): reloaded, its
+  // database in memory starts empty, and the picture comes from the server beside it.
+  await page.reload();
+  await expect.poll(() => thumb.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight])).toEqual([400, 225]);
 
   // The host keeps both blobs in its media folder, as WebP, as the PNG had transparency (MEDIA-A3).
   await expect.poll(() => storedBlobs(host!.dataDir).length).toBe(2);

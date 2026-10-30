@@ -2,6 +2,15 @@
 
 Smaller things decided or wished for, not yet built. The larger steps are in docs/next-steps.md.
 
+## Performance (decided with Lars 2026-10-29; done 2026-10-30)
+
+Measured before and after, normal and with the CPU slowed 4×, with limits in `e2e/performance.spec.ts`; the
+numbers and what changed are in [Performance](docs/performance.md). Open, for Lars to decide:
+- The host window's start is 0.67 s (was 0.16 s on OPFS), as it now pulls everything at each start. A snapshot
+  to start from would cut it; not built.
+- A change from another device shows after about 0.5 s: the server's poke waits for the end of its 500 ms
+  window (SYNC-R38). Poking at the start of the window (and at most once more at its end) would make it ~20 ms.
+
 ## The small differences from the current app
 
 Lars wants every small difference between the rewrite and the Blazor app on `origin/main` fixed (2026-10-29),
@@ -17,6 +26,7 @@ the `n` shortcut and the keyboard in the template picker; the templates page ord
 time, place and description; multi-select removal; the keyboard help dialog; the song editor inside the add
 dialog; the clash warning of D18; `?stage=true` in the remote link; a saved screen whose session ended showing
 its name rather than black. Larger, and not small differences: the labels page, song history, CCLI, profiles.
+_Done 2026-10-30: the song editor inside the add dialog, also for a new song (docs/assumptions.md)._
 _Done 2026-10-29: the keyboard help dialog (`?`, docs/look.md; `?` in the add dialog lists its keys, where the
 old app did nothing, PRES-A10: to confirm), the clash warning of D18 (only for the one still typing, docs/look.md),
 the 500 ms fade of the black screen, `?stage=true` (the link a phone gets is unchanged, as the old dialog's; the
@@ -62,8 +72,7 @@ the Presentation API, the remote link's path, the overlay picture from Bilder, t
 - Skärmar shows each section only when the host can (`PairedDisplays`, `PublicOutput`), as in the old app.
 - Töm empties the trash in one change, not one per entry.
 - Spara som mall waits for the write, as now (a local write is too quick to notice).
-- The add dialog's song list: measure with about 3 000 songs first, and virtualise only if typing or scrolling
-  is slow.
+- The add dialog's song list is not virtualised (measured, then decided 2026-10-30).
 
 - Skapa on Sånger stays visible always, as now.
 - The add dialog's footer shows always, as now. Only Ctrl/⌘+Enter adds; Shift+Enter goes (the dialog no longer
@@ -94,7 +103,7 @@ till "{output}"` (LivePanel.razor:483).
   merge and nothing is worth a "merged" toast; there are no song versions; a taken output code is refused
   (`code-taken`), not replaced. The nearest to "server version kept" is a change to a presentation purged
   elsewhere, refused as `not-found`, but a refusal does not say which row was missing, so it gets the generic
-  text. Whether to name that case is open._
+  text. Lars, 2026-10-30: the generic text is enough._
 - [ ] "Starta om för att uppdatera" (UpdateAvailableIndicator.razor), hidden while presenting; new: none. L, **ask**
   (needs an updater in Electron)
 - [x] Unhandled errors: a yellow bar at the bottom, "Ett oväntat fel har inträffat." with Ladda om; new: the raw
@@ -188,7 +197,7 @@ ToastContainer.razor, utils.js → `ui/`)
   as the same object), and the tab prepares it in steps on load. Now, from keystroke to the list laid out: the
   first letter (all 3 000 hit) about 105 ms, the next letters 20–35 ms, back to one letter 75 ms, cleared 65–80 ms;
   a scroll step 5 ms. With the CPU 4× slower: 80–150 ms per letter, but 260–420 ms where the whole list is
-  drawn (one letter, cleared): that is where virtualising would help._
+  drawn (one letter, cleared): that is where virtualising would help. Lars, 2026-10-30: not virtualised._
 - [x] The preview highlights the search terms in title, author and slide text. S–M _The slide text through
   `SlideView`'s `highlight`, only in the add dialog's preview (not the phone sheet, as in the old app)._
 - [x] The footer only when a song is selected (D15 shows the tip always). **ask**
@@ -302,7 +311,8 @@ ToastContainer.razor, utils.js → `ui/`)
   (`/admin/users/{id}`, `pages/UserDetail.tsx`) as UserDetail.razor: name and e-mail, role, logins, invite, Radera
   användare; the rows link to it, and the role select and buttons moved there from the row. Left out: the profile
   picture with cropping (profiles are a later piece). The invite link shows only right after Skapa (AUTH-R13);
-  creating a user still shows the link dialog rather than opening the page._
+  creating a user still shows the link dialog rather than opening the page. Lars, 2026-10-30: an admin removing
+  a superadmin's logins keeps the old app's rule._
 - [x] All three role texts with bold labels, and other words; new: only the chosen role's. S, **ask** _Superadmin's only for a SuperAdmin, as the old one._
 - [x] The empty text "Lägg till användare i din organisation…". "E-postadressen används redan…" checked
   before creating. S _The server refuses a taken address before it creates anyone; that and "Ogiltig e-postadress"

@@ -63,6 +63,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [live.md](docs/live.md) | Overlays, paired screens (`/display`) and the QR codes, remote control, and public outputs (`/watch`) |
 | [lan-https-and-addresses.md](docs/lan-https-and-addresses.md) | A tablet over plain http, https on the LAN, the service worker that starts the app without the host, a reverse proxy, and the app's addresses |
 | [cloudflare.md](docs/cloudflare.md) | The Worker serving the web app, and the trial on a real Cloudflare account with its measurements |
+| [performance.md](docs/performance.md) | How fast the most used flows are, measured before and after, and what made them so |
 | [look.md](docs/look.md) | How the web app follows the current Blazor app's look, page by page, the autosave, the output window switch, dragging, and the screenshot scripts |
 | [next-steps.md](docs/next-steps.md) | Where to pick up, in order |
 | [not-done-yet.md](docs/not-done-yet.md) | The smaller gaps, per area |

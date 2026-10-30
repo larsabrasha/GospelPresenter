@@ -5,6 +5,7 @@ import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { MENU_ITEM } from './Dropdown.tsx';
 import { CheckIcon } from './icons.tsx';
+import { isHostWindow } from '../hostWindow.ts';
 
 /**
  * Whether the pictures and audio a presentation needs are on this device
@@ -44,6 +45,7 @@ export function useKeepOffline(presentationId: string) {
   const [clicked, setClicked] = useState<{ value: boolean; over: boolean | undefined } | null>(null);
   const pinned = clicked && clicked.over === saved ? clicked.value : saved;
   const persistent = status?.storage === 'opfs';
+  if (isHostWindow()) return { kept: true, unavailable: false, ready: false, set() {} };
   return {
     kept: !!pinned && persistent,
     /** Known only once the database has answered; an unknown device cannot keep anything. */
@@ -79,6 +81,8 @@ export function KeepOfflineItem({ keep }: { keep: ReturnType<typeof useKeepOffli
 /** The grey pill by the title of a presentation kept offline, as on Presentationer. */
 export function OfflinePill() {
   return (
-    <span className="shrink-0 inline-flex items-center rounded-full bg-neutral-200 dark:bg-neutral-700 px-2 py-0.5 text-xs text-neutral-600 dark:text-neutral-300">{t('media.offlineBadge')}</span>
+    <span className="shrink-0 inline-flex items-center rounded-full bg-neutral-200 dark:bg-neutral-700 px-2 py-0.5 text-xs text-neutral-600 dark:text-neutral-300">
+      {t('media.offlineBadge')}
+    </span>
   );
 }

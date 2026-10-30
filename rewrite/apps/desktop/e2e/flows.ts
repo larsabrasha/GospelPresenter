@@ -139,7 +139,9 @@ export async function createUser(page: Page, name: string, email: string, role: 
   await dialog.getByLabel('E-post').fill(email);
   await dialog.getByLabel('Roll').selectOption({ label: role });
   await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Inbjudningslänk' }).getByRole('button', { name: 'Stäng' }).click();
+  // The new user's page, with their invite.
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+  await expect(page.getByTestId('invite')).toBeVisible();
 }
 
 /**

@@ -1,18 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { assignableRoles, can, emailSchema, type Me, type Role, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { CopyField } from '../ui/CopyField.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput, FloatingSelect } from '../ui/Floating.tsx';
 import { PlusIcon, UserIcon, UsersPicture } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
-import { href } from '../ui/router.ts';
-import { useToast } from '../ui/Toast.tsx';
+import { href, navigate } from '../ui/router.ts';
 
 /** Where an invite link points: the address other devices reach this server at (DESK-R8). */
 export async function inviteUrl(token: string): Promise<string> {
@@ -28,45 +26,31 @@ export function copy(input: HTMLInputElement | null, text: string): Promise<void
   return Promise.resolve();
 }
 
+/**
+ * A new user's invite link, for their page to show (AUTH-R13: once). Held in
+ * this window only, until that page is left (`forgetInvite`).
+ */
+const freshInvites = new Map<string, string>();
+
+export function showInviteOnce(userId: string, url: string) {
+  freshInvites.set(userId, url);
+}
+
+export function freshInvite(userId: string): string | null {
+  return freshInvites.get(userId) ?? null;
+}
+
+export function forgetInvite(userId: string) {
+  freshInvites.delete(userId);
+}
+
 /** Accepts an invite in this window: on a desktop host, Google sign-in happens at the host, in its system browser. */
 export function acceptHere(token: string) {
   history.replaceState(null, '', `/invite${location.search}#${token}`);
   location.reload();
 }
 
-/**
- * The link, shown once (AUTH-R13): it is not stored in a form that could
- * show it again. On a desktop host the invited person accepts it at the
- * host; other devices join by pairing, never by Google against the host.
- */
-function InviteLinkDialog({ name, url, host, onClose }: { name: string; url: string; host: boolean; onClose: () => void }) {
-  const toast = useToast();
-  const [input, setInput] = useState<HTMLInputElement | null>(null);
-  if (host) {
-    return (
-      <Dialog title={t('users.inviteTitle')} onClose={onClose} maxWidthClass="max-w-lg">
-        <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('users.inviteHost', { name })}</p>
-        <DialogButtons>
-          <AppButton variant="secondary" onClick={() => acceptHere(url.slice(url.indexOf('#') + 1))}>
-            {t('users.acceptHere', { name })}
-          </AppButton>
-          <AppButton onClick={onClose}>{t('common.close')}</AppButton>
-        </DialogButtons>
-      </Dialog>
-    );
-  }
-  return (
-    <Dialog title={t('users.inviteTitle')} onClose={onClose} maxWidthClass="max-w-lg">
-      <p className="text-sm text-neutral-600 dark:text-neutral-300">{t('users.inviteText', { name })}</p>
-      <CopyField inputRef={setInput} value={url} label={t('users.inviteLink')} copyLabel={t('users.copy')} onCopy={() => void copy(input, url).then(() => toast(t('users.copied')))} />
-      <DialogButtons>
-        <AppButton onClick={onClose}>{t('common.close')}</AppButton>
-      </DialogButtons>
-    </Dialog>
-  );
-}
-
-function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (name: string, token: string) => void; onClose: () => void }) {
+function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (id: string, token: string) => void; onClose: () => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('user');
@@ -90,8 +74,8 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (name
           setSaving(true);
           try {
             // The server refuses a taken address before it creates anyone.
-            const r = await api<{ inviteToken: string }>('POST', '/api/users', { name, email, role });
-            if (!r.error) return onCreated(name.trim(), r.body.inviteToken);
+            const r = await api<{ id: string; inviteToken: string }>('POST', '/api/users', { name, email, role });
+            if (!r.error) return onCreated(r.body.id, r.body.inviteToken);
             if (r.error === 'email-taken') setEmailError(errorText(r));
             else setError(errorText(r));
           } catch {
@@ -179,20 +163,17 @@ async function fetchUsers(): Promise<UserRow[] | string> {
  * The organisation's users (spec 01 `/admin/users`), online only: users are
  * not synced (spec 06). Needs ViewUsers. Each row links to the user's page
  * (`UserDetail.tsx`), where they are changed, as in Users.razor; the row also
- * shows the e-mail and the invite state, which the old one does not.
+ * shows the e-mail and the invite state, which the old one does not. A new
+ * user's page opens with their invite link, shown that once (spec 01).
  */
-export function Users({ me, host }: { me: Me; host: boolean }) {
+export function Users({ me }: { me: Me }) {
   const [users, setUsers] = useState<UserRow[] | string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [link, setLink] = useState<{ name: string; url: string } | null>(null);
   const manage = can(me.role, 'ManageUsers');
 
-  const load = useCallback(() => fetchUsers().then(setUsers), []);
   useEffect(() => {
     void fetchUsers().then(setUsers);
   }, []);
-
-  const showLink = async (name: string, token: string) => setLink({ name, url: await inviteUrl(token) });
 
   const empty = Array.isArray(users) && !users.length;
   const create = (
@@ -236,14 +217,12 @@ export function Users({ me, host }: { me: Me; host: boolean }) {
         <CreateUserDialog
           me={me}
           onClose={() => setCreating(false)}
-          onCreated={async (name, token) => {
-            setCreating(false);
-            await showLink(name, token);
-            await load();
+          onCreated={async (id, token) => {
+            showInviteOnce(id, await inviteUrl(token));
+            navigate({ page: 'user', id });
           }}
         />
       )}
-      {link && <InviteLinkDialog name={link.name} url={link.url} host={host} onClose={() => setLink(null)} />}
     </PageContainer>
   );
 }

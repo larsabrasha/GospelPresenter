@@ -12,12 +12,16 @@ export interface Session {
   device: string | null;
   /** 'memory' keeps the database in memory even where OPFS exists (development and tests). */
   storage?: 'memory';
-  /** A desktop host's own window: it keeps every Bible text, whatever was chosen (docs/bibles-and-themes.md, "Bibles"). */
-  keepsEveryBible?: true;
+  /**
+   * A desktop host's own window (docs/media-and-files.md, "The host's own window"): its server
+   * on this machine holds everything, so the window keeps its database in memory and takes
+   * pictures and audio from the server rather than keeping copies.
+   */
+  hostWindow?: true;
 }
 
 export interface DbStatus {
-  /** 'opfs', or 'memory' with the reason OPFS was not available. */
+  /** 'opfs'; 'host' for a host's own window, in memory by design; or 'memory' with the reason OPFS was not available. */
   storage: string;
   /** The poke socket is open, so changes arrive within a second. */
   connected: boolean;
@@ -35,6 +39,8 @@ export type DbCall =
   | { op: 'open'; session: Session }
   | { op: 'mutate'; name: string; args: unknown }
   | { op: 'query'; sql: string; params: unknown[] }
+  /** The ids of the songs that match, best first; all of them in library order for a blank query (SONG-R30–R33). */
+  | { op: 'searchSongs'; query: string }
   | { op: 'status' }
   /** Adds a processed picture to the library (spec 05 "Media"): keep its blobs here, then `addImage`, uploaded before it is pushed. */
   | { op: 'addImage'; image: ImageImport }
@@ -57,12 +63,15 @@ export type DbCall =
   /** "Gör tillgänglig offline" (true: false if the text could not be downloaded) or "Ta bort den nedladdade kopian". */
   | { op: 'keepBible'; bibleId: string; on: boolean }
   /** A translation's text from the server, checked and not stored: for one this device does not keep. Null if it cannot be had. */
-  | { op: 'fetchBibleText'; hash: string };
+  | { op: 'fetchBibleText'; hash: string }
+  /** A host's own window only: a picture or audio file from the server, not stored. Null elsewhere, or if the server has none. */
+  | { op: 'fetchMedia'; hash: string };
 
 export type DbMessage =
   | { type: 'reply'; id: number; ok: true; value: unknown }
   | { type: 'reply'; id: number; ok: false; error: string }
-  | { type: 'changed' }
+  /** The database changed; `tables` are those it wrote, or every one when not given. */
+  | { type: 'changed'; tables?: string[] }
   | { type: 'status'; status: DbStatus };
 
 export interface BibleImportResult {

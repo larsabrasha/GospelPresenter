@@ -160,7 +160,7 @@ test('invites on the host: the invited person signs in with Google here, and the
   await dialog.getByLabel('Namn').fill('Eva');
   await dialog.getByLabel('E-post').fill('eva@kyrkan.se');
   await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await host.page.getByRole('dialog', { name: 'Inbjudningslänk' }).getByRole('button', { name: 'Logga in som Eva här' }).click();
+  await host.page.getByTestId('invite').getByRole('button', { name: 'Logga in som Eva här' }).click();
   await expect(host.page.getByRole('heading', { name: 'Välkommen Eva!' })).toBeVisible();
   // InvitePage.razor: the organisation, "Välj hur du vill logga in", the first way and the rest behind "Fler alternativ".
   await expect(host.page.getByTestId('invite-org')).toHaveText('Du har bjudits in till Lilla Kyrkan.');
@@ -181,6 +181,7 @@ test('creating a user: every role is described, and a bad or taken address is sa
   const page = host.page;
   await setUpHost(host);
   await createUser(page, 'Eva', 'eva@kyrkan.se');
+  await openAdmin(page, 'Användare');
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa användare' });
   // The roles this SuperAdmin may give, each with its bold label (Users.razor).

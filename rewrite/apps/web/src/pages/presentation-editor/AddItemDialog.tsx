@@ -1,12 +1,17 @@
 import type { Theme } from '@gp/core';
 import { useEffect, useEffectEvent, useState, type ReactNode } from 'react';
+import type { Db } from '../../db/db.ts';
+import { useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
+import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
+import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Modal } from '../../ui/Dialog.tsx';
 import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon } from '../../ui/icons.tsx';
 import { PillTabs } from '../../ui/PillTabs.tsx';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
+import { useToast } from '../../ui/Toast.tsx';
 import { AudioTab } from '../AudioTab.tsx';
 import { BibleTab } from '../BibleTab.tsx';
 import { ImageTab } from '../ImageTab.tsx';
@@ -48,11 +53,50 @@ const KEYS: ShortcutGroup = {
   ],
 };
 
+/** A song made in the dialog and not added: thrown away, not to the trash, as it was only ever a draft there. */
+function discardSong(db: Db, id: string) {
+  void db.mutate('trashSong', { id, at: Date.now() }).then(
+    () => db.mutate('purgeSong', { id }),
+    () => undefined,
+  );
+}
+
 export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> & { toItemId?: string }) {
   // Adding pictures to an image item opens on Bilder.
   useShortcutGroup(KEYS);
   const [tab, setTab] = useState<Tab>(toItemId ? 'images' : 'songs');
-  const [editingSongId, setEditingSongId] = useState<string | null>(null);
+  const db = useDb();
+  const trySave = useTrySave();
+  const toast = useToast();
+  /** The song open in the editor here; `isNew` when it was just made here, to be added or thrown away. */
+  const [editing, setEditing] = useState<{ id: string; isNew: boolean; focusName?: boolean } | null>(null);
+  const editingSongId = editing?.id ?? null;
+  /** Counts the songs added from the new song's editor: the song tab starts over, its search empty. */
+  const [addedNew, setAddedNew] = useState(0);
+
+  // Skapa in the song tab: a song named as the search, with an empty first part to type in, opened here.
+  const newSong = async (query: string) => {
+    const id = newId();
+    const name = query || t('song.newTitle');
+    if (!(await trySave(db.mutate('createSong', { id, name })))) return;
+    await trySave(db.mutate('addSongPart', { id: newId(), songId: id, labelText: null, content: '' }));
+    setEditing({ id, isNew: true, focusName: !query });
+  };
+  const discard = (id: string) => discardSong(db, id);
+  const addNew = async (id: string, name: string) => {
+    const itemId = newId();
+    if (!(await trySave(db.mutate('addSongToPresentation', { itemId, presentationId: props.presentationId, songId: id, arrangementId: null, afterItemId: props.afterItemId }))))
+      return;
+    toast(t('presentation.added', { name }));
+    props.onAdded(itemId);
+    setEditing(null);
+    setAddedNew((n) => n + 1);
+  };
+  // Closed while a new song is open: it goes, as with Avbryt.
+  const close = () => {
+    if (editing?.isNew) discard(editing.id);
+    props.onClose();
+  };
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     const at = Number(e.key) - 1;
     if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || !(at >= 0 && at < ORDER.length) || editingSongId) return;
@@ -72,19 +116,41 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
     ['slides', t('slides.tab'), RectangleStackIcon],
   ];
   const shown = (key: Tab) => (!editingSongId && tab === key ? 'flex-1 min-h-0 flex flex-col' : 'hidden');
-  const tabProps = (key: Tab): TabProps => ({ ...props, active: !editingSongId && tab === key });
+  const tabProps = (key: Tab): TabProps => ({ ...props, onClose: close, active: !editingSongId && tab === key });
   return (
-    <Modal title={t('presentation.addTitle')} onClose={props.onClose} className="max-w-4xl">
+    <Modal title={t('presentation.addTitle')} onClose={close} className="max-w-4xl">
       <div className="flex-1 min-h-0 flex flex-col">
         {editingSongId && (
           <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800 px-4 py-3 md:static md:inset-auto md:z-auto md:p-0 md:flex-1 md:min-h-0">
-            <SongEditor id={editingSongId} onBack={() => setEditingSongId(null)} />
+            {editing?.isNew ? (
+              <SongEditor
+                id={editing.id}
+                onBack={() => setEditing(null)}
+                adding={{
+                  onAdd: (name) => void addNew(editing.id, name),
+                  onCancel: () => {
+                    discard(editing.id);
+                    setEditing(null);
+                  },
+                  focusName: !!editing.focusName,
+                }}
+              />
+            ) : (
+              <SongEditor id={editingSongId} onBack={() => setEditing(null)} />
+            )}
           </div>
         )}
         <div className={editingSongId ? 'hidden' : 'mb-4 md:flex md:justify-center'}>
           <PillTabs role="tablist">
             {tabs.map(([key, label, Icon], i) => (
-              <AppButton key={key} variant={tab === key ? 'pillActive' : 'pill'} role="tab" aria-selected={tab === key} title={`${label} (${ctrlLabel(String(i + 1))})`} onClick={() => setTab(key)}>
+              <AppButton
+                key={key}
+                variant={tab === key ? 'pillActive' : 'pill'}
+                role="tab"
+                aria-selected={tab === key}
+                title={`${label} (${ctrlLabel(String(i + 1))})`}
+                onClick={() => setTab(key)}
+              >
                 <Icon className="hidden md:block size-4" />
                 {label}
               </AppButton>
@@ -92,7 +158,7 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
           </PillTabs>
         </div>
         <div className={shown('songs')}>
-          <SongTab {...tabProps('songs')} onEditSong={setEditingSongId} />
+          <SongTab key={addedNew} {...tabProps('songs')} onEditSong={(id) => setEditing({ id, isNew: false })} onNewSong={(q) => void newSong(q)} />
         </div>
         <div className={shown('bible')}>
           <BibleTab {...tabProps('bible')} />

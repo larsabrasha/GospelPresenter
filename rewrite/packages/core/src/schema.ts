@@ -306,6 +306,18 @@ export const SCHEMA_VERSION = 12;
  */
 export const SCHEMA_BASELINE = 11;
 
+/**
+ * The indexes of the reads that run most: a presentation's items, a song's
+ * parts and arrangements (the editor, live, and the foreign key checks when a
+ * song or presentation is deleted), and the items that show a song (D17).
+ */
+export const orgIndexes: string[] = [
+  'CREATE INDEX IF NOT EXISTS presentation_items_by_presentation ON presentation_items (presentation_id, sort)',
+  'CREATE INDEX IF NOT EXISTS presentation_items_by_source ON presentation_items (source_id)',
+  'CREATE INDEX IF NOT EXISTS song_parts_by_song ON song_parts (song_id, sort)',
+  'CREATE INDEX IF NOT EXISTS song_arrangements_by_song ON song_arrangements (song_id, sort)',
+];
+
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
 // brought up to date by `orgMigrations` instead (see `orgSchemaPlan`).
@@ -344,12 +356,13 @@ export const orgDdl: string[] = [
      bytes BLOB, received_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS pinned_presentations (id TEXT PRIMARY KEY NOT NULL, pinned_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`,
+  ...orgIndexes,
 ];
 
 /** The statements that take a database from version `n - 1` to `n`, for every `n` above SCHEMA_BASELINE. */
 export const orgMigrations: Record<number, string[]> = {
-  // A presentation's description (spec 03) and when it was last changed; when an output was made.
-  12: ['ALTER TABLE presentations ADD COLUMN description TEXT', 'ALTER TABLE presentations ADD COLUMN updated_at INTEGER', 'ALTER TABLE displays ADD COLUMN created_at INTEGER'],
+  // A presentation's description (spec 03) and when it was last changed; when an output was made; the indexes (`orgIndexes`).
+  12: ['ALTER TABLE presentations ADD COLUMN description TEXT', 'ALTER TABLE presentations ADD COLUMN updated_at INTEGER', 'ALTER TABLE displays ADD COLUMN created_at INTEGER', ...orgIndexes],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

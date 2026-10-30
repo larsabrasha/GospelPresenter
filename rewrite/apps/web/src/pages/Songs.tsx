@@ -1,7 +1,5 @@
-import { searchSongs } from '@gp/core';
 import { useState } from 'react';
-import { useData, useDb } from '../db/react.tsx';
-import { searchableSongs } from '../db/queries.ts';
+import { useDb, useSongSearch } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -56,10 +54,9 @@ export function CreateSongDialog({ initial = '', onClose, onCreated }: { initial
 
 /** The song library (spec 02, `/admin/songs`; Pages/Admin/Songs.razor). */
 export function Songs() {
-  const songs = useData(searchableSongs, []);
   const [query, setQuery] = useState('');
+  const { songs, shown, shownQuery } = useSongSearch(query);
   const [creating, setCreating] = useState(false);
-  const shown = songs && searchSongs(songs, query);
 
   return (
     <PageContainer>
@@ -98,10 +95,10 @@ export function Songs() {
                 href={href({ page: 'song', id: s.id })}
                 title={
                   <span className="font-medium">
-                    <Highlight text={s.name} query={query} />
+                    <Highlight text={s.name} query={shownQuery} />
                   </span>
                 }
-                subtitle={s.author ? <Highlight text={s.author} query={query} /> : ' '}
+                subtitle={s.author ? <Highlight text={s.author} query={shownQuery} /> : ' '}
               />
             ))}
           </ul>

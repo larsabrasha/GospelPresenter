@@ -10,10 +10,12 @@ import { afterWrite } from '../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
+import { isAddKey } from '../ui/Picker.tsx';
 import { SelectMenu } from '../ui/SelectMenu.tsx';
 import { useSortable } from '../ui/sortable.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { href, navigate } from '../ui/router.ts';
+import { ctrlLabel } from '../ui/shortcuts.ts';
 
 // The song editor's look is Components/SongEditor.razor and the parts it is made of:
 // SongFieldsEditor, SongPartsEditor and SongArrangementEditor.
@@ -105,11 +107,7 @@ function ArrangementCard({
           <div className="flex-1" />
         </div>
       )}
-      <ol
-        ref={listRef}
-        className="flex flex-col gap-1 max-w-[50%]"
-        aria-label={t('song.arrangementParts')}
-      >
+      <ol ref={listRef} className="flex flex-col gap-1 max-w-[50%]" aria-label={t('song.arrangementParts')}>
         {visible.map((i, v) => {
           const id = ids[i]!;
           const part = byId.get(id)!;
@@ -180,12 +178,21 @@ function ArrangementCard({
   );
 }
 
+/** A song just made in the add dialog: added, or thrown away (the song goes too). */
+export interface NewSong {
+  onAdd: (name: string) => void;
+  onCancel: () => void;
+  /** The name is a stand-in (nothing was searched for): start there rather than in the first part. */
+  focusName: boolean;
+}
+
 /**
  * The song editor (spec 02, `/admin/songs/{id}`; Pages/Admin/SongDetail.razor). With `onBack`,
  * inside the add dialog (EditSong.razor): its back button returns to the song list there, and
- * so does moving the song to the trash.
+ * so does moving the song to the trash. With `adding`, a song just made there: Avbryt, "Ny sång"
+ * and Lägg till (Ctrl+Enter) in place of the back button, and no Flytta till papperskorgen.
  */
-export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) {
+export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => void; adding?: NewSong }) {
   const db = useDb();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
@@ -209,6 +216,25 @@ export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) 
     scrollTo.current = null;
     target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
+  // A new song starts in its first part, or in its name when that is a stand-in.
+  const focused = useRef(false);
+  /** Something was typed in the editor (a new song's Avbryt asks then). */
+  const typed = useRef(false);
+  useEffect(() => {
+    if (!adding || focused.current || !data?.song) return;
+    focused.current = true;
+    document.querySelector<HTMLElement>(adding.focusName ? `[data-song-name] input` : `[data-part-id] textarea`)?.focus();
+  });
+  const addKey = useEffectEvent((e: KeyboardEvent) => {
+    if (!adding || !data?.song || !isAddKey(e)) return;
+    e.preventDefault();
+    adding.onAdd(data.song.name);
+  });
+  useEffect(() => {
+    if (!adding) return;
+    addEventListener('keydown', addKey, true);
+    return () => removeEventListener('keydown', addKey, true);
+  }, [adding]);
   // A song that is not there (gone, or in the trash) sends back to the list (SongDetail.razor).
   const missing = !!data && (!data.song || data.song.deletedAt !== null);
   const leave = useEffectEvent(() => (onBack ? onBack() : navigate({ page: 'songs' })));
@@ -233,10 +259,9 @@ export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) 
   const saving = (write: Promise<void>) => afterWrite(write, saved.show, saveFailed);
   // The writes it does not flag ("Sparad") still say when they are refused.
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
-  const labelChoices: Label[] = [
-    ...DEFAULT_LABELS.map((l) => ({ id: labelId(l.text), ...l })).filter((l) => !labels.has(l.id)),
-    ...labels.values(),
-  ].toSorted((a, b) => a.sort - b.sort || a.text.localeCompare(b.text, 'sv'));
+  const labelChoices: Label[] = [...DEFAULT_LABELS.map((l) => ({ id: labelId(l.text), ...l })).filter((l) => !labels.has(l.id)), ...labels.values()].toSorted(
+    (a, b) => a.sort - b.sort || a.text.localeCompare(b.text, 'sv'),
+  );
 
   const removePart = async (p: SongPart) => {
     const label = p.labelId ? (labels.get(p.labelId)?.text ?? t('song.noLabel')) : t('song.noLabel');
@@ -246,9 +271,7 @@ export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) 
   const trash = async () => {
     // D17: say where the song is used before it goes.
     const using = await presentationsUsing(db, id);
-    const text = [t('song.trashConfirm', { name: song.name }), using.length ? t('song.usedIn', { names: using.map((p) => p.name).join(', ') }) : '']
-      .filter(Boolean)
-      .join(' ');
+    const text = [t('song.trashConfirm', { name: song.name }), using.length ? t('song.usedIn', { names: using.map((p) => p.name).join(', ') }) : ''].filter(Boolean).join(' ');
     if (!(await ask({ title: t('common.delete'), text, bold: song.name, confirm: t('common.delete') }))) return;
     try {
       await db.mutate('trashSong', { id, at: Date.now() });
@@ -345,17 +368,48 @@ export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) 
     );
   };
 
+  // What was typed is asked about before it goes, saved yet or not; an untouched new song just goes.
+  const cancel = async () => {
+    if (!adding) return;
+    if (typed.current && !(await ask({ title: t('song.discardTitle'), text: t('song.discardText'), confirm: t('song.discard') }))) return;
+    adding.onCancel();
+  };
+
   return (
     <Frame>
       {dialog}
-      <DetailHeader {...back} title={song.name} saved={saved.node} className={onBack ? 'shrink-0' : 'px-5'} />
-      <div className="space-y-4">
+      {adding ? (
+        <div className="flex items-center justify-between gap-3 min-h-10 shrink-0">
+          <AppButton variant="cancel" onClick={() => void cancel()}>
+            {t('common.cancel')}
+          </AppButton>
+          <h1 className="text-xl/7 font-bold dark:text-neutral-100 truncate">{t('song.newTitle')}</h1>
+          <div className="flex items-center gap-3">
+            <span className="relative w-16 h-5">{saved.node}</span>
+            <AppButton title={ctrlLabel('Enter')} onClick={() => adding.onAdd(song.name)}>
+              {t('presentation.add')}
+            </AppButton>
+          </div>
+        </div>
+      ) : (
+        <DetailHeader {...back} title={song.name} saved={saved.node} className={onBack ? 'shrink-0' : 'px-5'} />
+      )}
+      <div className="space-y-4" onInput={() => (typed.current = true)}>
         <div className={`${CARD} p-5 space-y-4`}>
           {/* A blank name is not saved (spec 02). */}
-          <AutoSaveField label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
+          <div data-song-name>
+            <AutoSaveField label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
+          </div>
           <div className="flex gap-4">
             <AutoSaveField label={t('song.author')} maxLength={200} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} className="flex-1" />
-            <AutoSaveField label={t('song.publisher')} maxLength={200} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} onSaved={saved.show} className="flex-1" />
+            <AutoSaveField
+              label={t('song.publisher')}
+              maxLength={200}
+              value={song.publisher ?? ''}
+              onSave={(v) => update({ publisher: v })}
+              onSaved={saved.show}
+              className="flex-1"
+            />
           </div>
           <div className="flex gap-4">
             <AutoSaveField
@@ -413,12 +467,14 @@ export function SongEditor({ id, onBack }: { id: string; onBack?: () => void }) 
           </div>
         </div>
         {/* The current app has Historik at the left; the history is not built yet. */}
-        <div className="flex items-center justify-between">
-          <div />
-          <AppButton variant="danger" onClick={() => void trash()}>
-            {t('song.trash')}
-          </AppButton>
-        </div>
+        {!adding && (
+          <div className="flex items-center justify-between">
+            <div />
+            <AppButton variant="danger" onClick={() => void trash()}>
+              {t('song.trash')}
+            </AppButton>
+          </div>
+        )}
       </div>
     </Frame>
   );

@@ -547,6 +547,21 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     expect(await hasMediaBlob(bob.client, p.thumb)).toBe(true);
   });
 
+  it("a host's own window fetches nothing, and keeps its own import only until it is uploaded", async () => {
+    const p = await presentation('HOST', null, 'host'); // alice's import, pushed: its blobs are on the server
+    await alice.client.mutate('createPresentation', { id: 'Q', name: 'Q' });
+    const waiting = await storeMediaBlob(alice.client, jpeg('waiting'), 'image/jpeg');
+    await alice.client.mutate('addImage', imageArgs('WAIT', waiting, waiting)); // not pushed yet
+    const host = policy({ prefetch: false, fetch: false, budget: 0, open: [{ presentationId: 'HOST', audio: true }] });
+
+    const r = await syncMedia(alice.client, downloader(h, org, 'alice'), Date.now(), host);
+
+    expect(r.downloaded).toEqual([]);
+    expect(r.removed).toBe(3);
+    for (const hash of [p.full, p.thumb, p.sound]) expect(await hasMediaBlob(alice.client, hash)).toBe(false);
+    expect(await hasMediaBlob(alice.client, waiting)).toBe(true);
+  });
+
   it("fetches every overlay's picture once a presentation is open, and counts it as needed for live", async () => {
     const p = await presentation('P', null, 'with-overlay');
     const o = await uploaded(h, org, alice, 'overlay');

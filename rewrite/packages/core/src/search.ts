@@ -9,20 +9,36 @@ export interface SearchableSong {
   lyrics: string;
 }
 
+/** Each code point's `lower` and `fold`, worked out once: a library has few distinct ones, and normalising each anew was most of preparing it. */
+const lowerOf = new Map<string, string>();
+const foldOf = new Map<string, string>();
+
 /** Lower case and NFC, one code point for one code point, so positions match the NFC text. */
 function lower(s: string): string {
-  return Array.from(s.normalize('NFC'), (c) => {
-    const l = c.toLowerCase();
-    return [...l].length === 1 ? l : c;
-  }).join('');
+  let out = '';
+  for (const c of s.normalize('NFC')) {
+    let l = lowerOf.get(c);
+    if (l === undefined) {
+      const x = c.toLowerCase();
+      lowerOf.set(c, (l = [...x].length === 1 ? x : c));
+    }
+    out += l;
+  }
+  return out;
 }
 
 /** Each code point without its accents ("ä" → "a"), keeping the length. */
 function fold(s: string): string {
-  return Array.from(s, (c) => {
-    const base = c.normalize('NFD').replace(/\p{M}/gu, '');
-    return [...base].length === 1 ? base : c;
-  }).join('');
+  let out = '';
+  for (const c of s) {
+    let base = foldOf.get(c);
+    if (base === undefined) {
+      const x = c.normalize('NFD').replace(/\p{M}/gu, '');
+      foldOf.set(c, (base = [...x].length === 1 ? x : c));
+    }
+    out += base;
+  }
+  return out;
 }
 
 const wordChar = /[\p{L}\p{N}]/u;
@@ -40,38 +56,53 @@ function terms(query: string): string[] {
   return lower(query).trim().split(/\s+/).filter(Boolean);
 }
 
-interface Prepared {
+/**
+ * A song's texts as search reads them: lowered (NFC), and folded without
+ * accents. Preparing is most of a search's time, so a device keeps them
+ * until the songs change (`SongSearch`, packages/sync's song-search.ts).
+ */
+export interface PreparedSong {
+  /** The name. */
   title: string;
   titleFolded: string;
+  /** The first part. */
   first: string;
   firstFolded: string;
+  /** The name, the author and every part. */
   all: string;
   allFolded: string;
 }
 
 /**
- * Each song's lowered and folded texts, kept while the song object lives: the
- * normalising is most of a search's time (about 0.1 ms a hymn), and a library
- * is searched again on every keystroke. A song object is never changed in
- * place; a changed song is a new object.
+ * Each song's prepared texts, kept while the song object lives, for a library
+ * searched again on every keystroke. A song object is never changed in place;
+ * a changed song is a new object.
  */
-const prepared = new WeakMap<SearchableSong, Prepared>();
+const prepared = new WeakMap<SearchableSong, PreparedSong>();
 
-function prepare(s: SearchableSong): Prepared {
+function prepare(s: SearchableSong): PreparedSong {
   let p = prepared.get(s);
-  if (!p) prepared.set(s, (p = prepareNow(s)));
+  if (!p) prepared.set(s, (p = prepareSong(s)));
   return p;
 }
 
-function prepareNow(s: SearchableSong): Prepared {
-  const title = lower(s.name).trim();
-  const first = lower(s.firstPart);
-  const all = lower([s.name, s.author ?? '', s.lyrics].join('\n'));
+/**
+ * Every run of white space as one space: a phrase typed as it is sung, over a
+ * line break of the lyrics, is then found as a phrase. Not in the old app; the
+ * marking (`highlight`) reads the text itself, so it is not affected.
+ */
+const spaced = (s: string) => s.replace(/\s+/g, ' ');
+
+/** What search reads of a song (`PreparedSong`). */
+export function prepareSong(s: SearchableSong): PreparedSong {
+  const title = spaced(lower(s.name).trim());
+  const first = spaced(lower(s.firstPart));
+  const all = spaced(lower([s.name, s.author ?? '', s.lyrics].join('\n')));
   return { title, titleFolded: fold(title), first, firstFolded: fold(first), all, allFolded: fold(all) };
 }
 
 /** The score of one term: the first rule that applies (SONG-R33), or null if the term is nowhere. */
-function termScore(p: Prepared, term: string): number | null {
+function termScore(p: PreparedSong, term: string): number | null {
   const folded = fold(term);
   const inTitle = wordPrefixes(p.title, term);
   if (inTitle.length) return 10 + (inTitle[0] === 0 ? 5 : 0);
@@ -85,7 +116,7 @@ function termScore(p: Prepared, term: string): number | null {
 }
 
 /** The whole-query bonuses (SONG-R33). */
-function bonus(p: Prepared, ts: string[]): number {
+function bonus(p: PreparedSong, ts: string[]): number {
   const phrase = ts.join(' ');
   const folded = fold(phrase);
   let b = 0;
@@ -107,11 +138,16 @@ function bonus(p: Prepared, ts: string[]): number {
  * order, which ties keep. A blank query returns them all (SONG-R30).
  */
 export function searchSongs<T extends SearchableSong>(songs: T[], query: string): T[] {
+  return rankSongs(songs, prepare, query);
+}
+
+/** `searchSongs` over songs whose texts are prepared already: `texts` gives each one's. */
+export function rankSongs<T>(songs: T[], texts: (song: T) => PreparedSong, query: string): T[] {
   const ts = terms(query);
   if (!ts.length) return songs;
   const hits: { song: T; score: number }[] = [];
   for (const song of songs) {
-    const p = prepare(song);
+    const p = texts(song);
     let score = 0;
     let all = true;
     for (const term of ts) {

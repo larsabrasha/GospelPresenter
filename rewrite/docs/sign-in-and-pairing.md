@@ -11,8 +11,12 @@ answers with an invite for the new SuperAdmin, which they accept by making a pas
 with Google. Setup is done when that link exists; until then it can be done again, and finishes the
 same SuperAdmin rather than making a second church. The host window gets the setup token from the main process; a server
 without one prints it (`Setup token: …`) and the setup form asks for it (D19). After that every
-account comes from an admin: Användare → Skapa makes the user and an invite link, shown once, valid
-for 7 days and once (AUTH-R1). The invited person opens it and makes a passkey or signs in with
+account comes from an admin: Användare → Skapa makes the user and an invite link, valid for 7 days and once
+(AUTH-R1), and opens the new user's page, where the invite card shows the link with Kopiera and, where the system
+can share, Dela (`navigator.share`). The link is shown only there and then (AUTH-R13: the server keeps only its
+hash); once the page is left the card says the invite is active and when it expires, and "Skapa ny länk"
+deletes the user's invites and makes a new one, so a lost link stops working. On a host the card has "Logga in
+som … här" instead, as the invited person accepts there (`users.spec.ts`). The invited person opens it and makes a passkey or signs in with
 Google, and that becomes their way in. A new invite for a user is the reset: the login that accepts it
 replaces every login the user had, passkeys and Google alike, and the user's sessions end.
 

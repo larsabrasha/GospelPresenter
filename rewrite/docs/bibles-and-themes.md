@@ -29,7 +29,8 @@ translation imported on a device is kept there. One not kept is fetched when Bib
 in that window only and never stored; offline it cannot be had, and Bibeltexter says so. A text no kept
 translation names is dropped on the next sync, unless a queued import still has to upload it. A desktop
 host keeps every text whatever was chosen and shows no button (it serves the LAN, as the current app's
-server, which had none); neither does a device that keeps nothing between reloads, which says why.
+server, which had none); its server holds them, and its own window fetches one when it needs it
+([The host's own window](media-and-files.md#the-hosts-own-window)); neither does a device that keeps nothing between reloads, which says why.
 `syncBibleTexts`, `keepBible` and `dropBible` are in `packages/sync/src/client/bibles.ts`, tested in
 `apps/server/test/bibles.test.ts`; the button's states in `apps/desktop/e2e/milestone4.spec.ts`. An added reading is split into slides when it is added and kept on the
 item (`content`), so re-importing or deleting the translation leaves it as it was.

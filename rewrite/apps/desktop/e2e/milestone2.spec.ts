@@ -11,11 +11,20 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('without OPFS the output still shows the slide, read through the operator window', async () => {
-  host = await launch({ memory: true });
+test("the host's own window keeps its database in memory, and the output still shows the slide, read through it", async () => {
+  host = await launch();
   const page = host.page;
   await setUpHost(host);
-  await expect(page.getByTestId('sync-warnings')).toContainText('Data sparas bara i minnet');
+  // In memory by design (docs/media-and-files.md, "The host's own window"): no file in OPFS, and no warning.
+  await expect(page.getByTestId('status')).toHaveText(/^Synkad$/);
+  await expect(page.getByTestId('sync-warnings')).toHaveCount(0);
+  expect(
+    await page.evaluate(async () => {
+      const names: string[] = [];
+      for await (const name of (await navigator.storage.getDirectory() as unknown as { keys(): AsyncIterable<string> }).keys()) names.push(name);
+      return names.filter((n) => n.endsWith('.db'));
+    }),
+  ).toEqual([]);
   await createSong(page, 'Blott en dag', [
     ['Verse 1', 'Blott en dag'],
     ['Chorus', 'Ett ögonblick i sänder'],

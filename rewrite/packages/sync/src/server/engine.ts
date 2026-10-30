@@ -22,7 +22,11 @@ export { SerialQueue };
 
 /** Oldest wire protocol this server still serves. */
 export const MIN_PROTOCOL = 1;
-export const PULL_PAGE = 500;
+/** Changes per pull page. A fresh device's first pull of a library is tens of thousands; pages of 500 made it 40 round trips. */
+export const PULL_PAGE = 5000;
+
+/** Ids named in one read of a page's rows: a Durable Object binds at most 100 values a statement. */
+const READ_CHUNK = 100;
 
 type Row = Record<string, unknown>;
 
@@ -59,9 +63,7 @@ export function currentSeq(store: OrgStore): number {
 }
 
 function clientRow(store: OrgStore, clientId: string) {
-  return store.query('SELECT user_id, last_mutation_id FROM sync_client WHERE client_id = ?', [clientId])[0] as
-    | { user_id: string; last_mutation_id: number }
-    | undefined;
+  return store.query('SELECT user_id, last_mutation_id FROM sync_client WHERE client_id = ?', [clientId])[0] as { user_id: string; last_mutation_id: number } | undefined;
 }
 
 /**
@@ -81,16 +83,11 @@ export async function handlePush(store: OrgStore, ctx: MutatorCtx, req: PushRequ
   const existing = clientRow(store, req.clientId);
   if (existing && existing.user_id !== ctx.userId) return { status: 403, body: { error: 'client-belongs-to-another-user' } };
   if (!existing) {
-    store.query('INSERT INTO sync_client (client_id, user_id, last_mutation_id, last_seen) VALUES (?, ?, 0, ?)', [
-      req.clientId,
-      ctx.userId,
-      Date.now(),
-    ]);
+    store.query('INSERT INTO sync_client (client_id, user_id, last_mutation_id, last_seen) VALUES (?, ?, 0, ?)', [req.clientId, ctx.userId, Date.now()]);
   }
   let last = existing?.last_mutation_id ?? 0;
   const results: MutationResult[] = [];
-  const setLast = (id: number) =>
-    store.query('UPDATE sync_client SET last_mutation_id = ?, last_seen = ? WHERE client_id = ?', [id, Date.now(), req.clientId]);
+  const setLast = (id: number) => store.query('UPDATE sync_client SET last_mutation_id = ?, last_seen = ? WHERE client_id = ?', [id, Date.now(), req.clientId]);
 
   for (const m of req.mutations) {
     if (m.id <= last) continue; // already applied: a retry after a lost response
@@ -106,11 +103,7 @@ export async function handlePush(store: OrgStore, ctx: MutatorCtx, req: PushRequ
     } catch (e) {
       const error = e instanceof MutationError ? e.code : `error: ${(e as Error).message}`;
       await store.transaction(async () => {
-        store.query('INSERT OR REPLACE INTO sync_mutation_result (client_id, mutation_id, error) VALUES (?, ?, ?)', [
-          req.clientId,
-          m.id,
-          error,
-        ]);
+        store.query('INSERT OR REPLACE INTO sync_mutation_result (client_id, mutation_id, error) VALUES (?, ?, ?)', [req.clientId, m.id, error]);
         setLast(m.id);
       });
       results.push({ id: m.id, error });
@@ -134,12 +127,28 @@ export function handlePull(store: OrgStore, ctx: MutatorCtx, req: PullRequest): 
   const clear = cookieScope !== scope;
   const since = clear ? 0 : Number(seqText);
 
-  const changes = store.query('SELECT seq, tbl, pk, op FROM sync_change WHERE seq > ? ORDER BY seq LIMIT ?', [
-    since,
-    PULL_PAGE + 1,
-  ]) as { seq: number; tbl: string; pk: string; op: 'put' | 'del' }[];
+  const changes = store.query('SELECT seq, tbl, pk, op FROM sync_change WHERE seq > ? ORDER BY seq LIMIT ?', [since, PULL_PAGE + 1]) as {
+    seq: number;
+    tbl: string;
+    pk: string;
+    op: 'put' | 'del';
+  }[];
   const more = changes.length > PULL_PAGE;
   const page = changes.slice(0, PULL_PAGE);
+
+  // Each put sends the row as it is now (none if deleted since): read with one query per table and chunk, not one per row.
+  const wanted = new Map<string, Set<string>>();
+  for (const c of page) if (c.op === 'put' && tableByName.has(c.tbl)) (wanted.get(c.tbl) ?? wanted.set(c.tbl, new Set()).get(c.tbl)!).add(c.pk);
+  const rows = new Map<string, Map<string, Row>>();
+  for (const [tbl, ids] of wanted) {
+    const byId = new Map<string, Row>();
+    const all = [...ids];
+    for (let at = 0; at < all.length; at += READ_CHUNK) {
+      const chunk = all.slice(at, at + READ_CHUNK);
+      for (const row of store.query(`SELECT * FROM ${tbl} WHERE id IN (${chunk.map(() => '?').join(', ')})`, chunk)) byId.set(String(row.id), row);
+    }
+    rows.set(tbl, byId);
+  }
 
   const patch: PatchOp[] = [];
   for (const c of page) {
@@ -149,15 +158,15 @@ export function handlePull(store: OrgStore, ctx: MutatorCtx, req: PullRequest): 
       if (!clear) patch.push({ op: 'del', tbl: c.tbl, pk: c.pk });
       continue;
     }
-    const row = store.query(`SELECT * FROM ${c.tbl} WHERE id = ?`, [c.pk])[0];
+    const row = rows.get(c.tbl)?.get(c.pk);
     if (row) patch.push({ op: 'put', tbl: c.tbl, row });
   }
 
   const lastMutationId = clientRow(store, req.clientId)?.last_mutation_id ?? 0;
-  const results = store.query(
-    'SELECT mutation_id AS id, error FROM sync_mutation_result WHERE client_id = ? AND mutation_id > ? ORDER BY mutation_id',
-    [req.clientId, req.lastMutationId ?? 0],
-  ) as unknown as MutationResult[];
+  const results = store.query('SELECT mutation_id AS id, error FROM sync_mutation_result WHERE client_id = ? AND mutation_id > ? ORDER BY mutation_id', [
+    req.clientId,
+    req.lastMutationId ?? 0,
+  ]) as unknown as MutationResult[];
   const endSeq = page.length ? page[page.length - 1]!.seq : since;
   return { status: 200, body: { cookie: `${endSeq}:${scope}`, lastMutationId, clear, patch, more, results } };
 }

@@ -35,6 +35,14 @@ Where the spec and ADR 0007 leave a choice open, the conservative one, written d
 - **The arrangement name field shows only with two or more arrangements** (SONG-A9, as the current
   app does).
 - **A purged song's items stay** in their presentations and say the song is gone.
+- **Skapa in Lägg till opens the new song's editor there** (decided with Lars on 2026-10-30; the current app
+  asks for a name first): the song is named as the search ("Ny sång" when nothing was searched for) and has an
+  empty first part, where typing starts. Its header has Avbryt, "Ny sång" and Lägg till (Ctrl+Enter), which adds
+  it as any song and starts the search over. Avbryt, or closing the dialog, throws the song away for good (not
+  to the trash); Avbryt asks first when anything was typed (`e2e/editor.spec.ts`).
+- **Song search reads a line break as a space** (SONG-R33 as changed with Lars on 2026-10-30): a phrase typed as
+  it is sung, over a line break of the lyrics, gets the phrase bonus; the current app gives it none. Otherwise
+  the search is the current app's, rule for rule and point for point (`packages/core/src/search.ts`).
 
 Remote control for the whole organisation (LIVE-R38 and R39 as changed on 2026-10-29):
 

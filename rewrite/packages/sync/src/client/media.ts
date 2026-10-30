@@ -53,6 +53,12 @@ export interface MediaPolicy {
   days: number;
   /** Most bytes kept of files no open or coming presentation needs (MEDIA-R14: 2 GiB). */
   budget: number;
+  /**
+   * False where the files are shown from elsewhere (a desktop host's own window, from its
+   * server): nothing is wanted, so nothing is fetched, and with a budget of 0 only what
+   * waits to be uploaded is kept.
+   */
+  fetch?: boolean;
 }
 
 export const DEFAULT_MEDIA_POLICY = { open: [], prefetch: true, days: 7, budget: 2 * 1024 * 1024 * 1024 } as const;
@@ -69,6 +75,7 @@ export function addDays(date: string, days: number): string {
  * need, then those kept offline on this device, then the coming ones.
  */
 export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Promise<string[]> {
+  if (policy.fetch === false) return [];
   const thumbs = (await client.query('SELECT thumb_hash AS hash FROM images ORDER BY created_at DESC')) as { hash: string }[];
   const coming = policy.prefetch
     ? ((await client.query('SELECT id FROM presentations WHERE deleted_at IS NULL AND event_date >= ? AND event_date <= ? ORDER BY event_date', [

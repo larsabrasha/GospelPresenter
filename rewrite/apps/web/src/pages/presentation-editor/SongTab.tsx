@@ -1,7 +1,7 @@
-import { searchSongs, songSlides, sortedArrangements } from '@gp/core';
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useData, useDb } from '../../db/react.tsx';
-import { arrangementsOf, getSong, listLabels, searchableSongs, songPartsOf } from '../../db/queries.ts';
+import { songSlides, sortedArrangements, type Song } from '@gp/core';
+import { memo, useCallback, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useData, useDb, useSongSearch } from '../../db/react.tsx';
+import { arrangementsOf, getSong, listLabels, songPartsOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
@@ -12,9 +12,32 @@ import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '.
 import { href } from '../../ui/router.ts';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useToast } from '../../ui/Toast.tsx';
-import { CreateSongDialog } from '../Songs.tsx';
+import { useStepped } from '../../ui/useStepped.ts';
 import type { TabProps } from './AddItemDialog.tsx';
 import { ArrangementPills, SlideGrid } from './SlideGrid.tsx';
+
+const NONE: Song[] = [];
+
+/** A hit in the song list; drawn again only when its song, its choice or the query changes. */
+const SongRow = memo(function SongRow({ song: s, chosen, query, onPick }: { song: Song; chosen: boolean; query: string; onPick: (id: string) => void }) {
+  return (
+    <li>
+      <AppButton
+        variant="plain"
+        aria-pressed={chosen}
+        onClick={() => onPick(s.id)}
+        className={`w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm ${
+          chosen ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600'
+        }`}
+      >
+        <span className="block truncate w-full">
+          <Highlight text={s.name} query={query} />
+        </span>
+        <span className="block text-xs text-neutral-400 truncate w-full">{s.author ? <Highlight text={s.author} query={query} /> : '\u00a0'}</span>
+      </AppButton>
+    </li>
+  );
+});
 
 /** Below `md`, as SongTab.razor's `window.innerWidth < 768`. */
 const isPhone = () => matchMedia('(max-width: 767.98px)').matches;
@@ -23,25 +46,23 @@ const isPhone = () => matchMedia('(max-width: 767.98px)').matches;
  * The song tab: Ctrl/⌘+Enter adds, and the search starts over for the next song. The arrows move
  * through the hits and keep the chosen one in view; the pencil opens the song's editor (SongTab.razor).
  */
-export function SongTab({ presentationId, afterItemId, theme, onAdded, active, onEditSong }: TabProps & { onEditSong: (songId: string) => void }) {
+export function SongTab({
+  presentationId,
+  afterItemId,
+  theme,
+  onAdded,
+  active,
+  onEditSong,
+  onNewSong,
+}: TabProps & { onEditSong: (songId: string) => void; /** Skapa: a new song named as the search, in its editor. */ onNewSong: (query: string) => void }) {
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
-  const songs = useData(searchableSongs, []);
   const [query, setQuery] = useState('');
-  // Search prepares each song's text once (about 0.1 ms a hymn): done here in small steps, so the first keystroke is not the one that waits.
-  useEffect(() => {
-    if (!songs) return;
-    let at = 0;
-    let timer = setTimeout(function step() {
-      searchSongs(songs.slice(at, (at += 200)), 'a');
-      if (at < songs.length) timer = setTimeout(step, 0);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [songs]);
+  // Searched in the database's worker: `shown` answers `shownQuery`, which trails `query` until it has answered.
+  const { songs, shown: found, shownQuery } = useSongSearch(query);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [arrangementId, setArrangementId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   // On a phone a tapped song opens its preview over the add dialog, with the add button there (SongTab.razor).
   const [fullScreen, setFullScreen] = useState(false);
   const search = useRef<HTMLInputElement>(null);
@@ -49,10 +70,25 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
   const previewPane = useRef<HTMLDivElement>(null);
   const adding = useRef(false);
   useFocusWhenShown(search, active);
-  const shown = songs ? searchSongs(songs, query) : [];
-  // Typing selects the first hit, also when the library loads after the typing.
-  const selected = shown.find((s) => s.id === selectedId) ?? (query.trim() ? (shown[0] ?? null) : null);
+  const shown = found ?? NONE;
+  // Typing selects the first hit, also when the library loads after the typing; never a hit of an earlier search.
+  const selected = shown.find((s) => s.id === selectedId) ?? (query.trim() && shownQuery === query ? (shown[0] ?? null) : null);
   const effectiveId = selected?.id ?? null;
+  // A long list is drawn in steps: 3 000 rows at once (a cleared search, after an add) held up the running order 300 ms.
+  const rows = useStepped(shown);
+  // Stable, so a row is not drawn again for a new handler.
+  const select = useCallback((id: string | null) => {
+    setSelectedId(id);
+    setArrangementId(null); // the first arrangement is preselected (SONG-R19)
+    previewPane.current?.scrollTo(0, 0);
+  }, []);
+  const onPick = useCallback(
+    (id: string) => {
+      select(id);
+      if (isPhone()) setFullScreen(true);
+    },
+    [select],
+  );
 
   const preview = useData(
     async (d) => {
@@ -67,15 +103,10 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
   const shownPreview = preview?.song.id === effectiveId ? preview : null;
   const chosen = arrangementId ?? shownPreview?.arrangements[0]?.id ?? null;
 
-  const select = (id: string | null) => {
-    setSelectedId(id);
-    setArrangementId(null); // the first arrangement is preselected (SONG-R19)
-    previewPane.current?.scrollTo(0, 0);
-  };
   // A new search, or a cleared one, starts both lists at the top and selects the first hit.
   const searchFor = (v: string) => {
     setQuery(v);
-    select(v.trim() ? null : (songs ? searchSongs(songs, v) : [])[0]?.id ?? null);
+    select(v.trim() ? null : (songs?.[0]?.id ?? null));
     list.current?.scrollTo(0, 0);
   };
 
@@ -112,7 +143,7 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
   };
 
   const create = (
-    <AppButton variant="secondary" onClick={() => setCreating(true)} className="flex items-center gap-1.5">
+    <AppButton variant="secondary" onClick={() => onNewSong(query.trim())} className="flex items-center gap-1.5">
       <PlusIcon className="size-4" />
       {t('common.create')}
     </AppButton>
@@ -129,7 +160,6 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
           {t('presentation.manageSongs')}
         </AppButton>
         {create}
-        {creating && <CreateSongDialog initial={query} onClose={() => setCreating(false)} onCreated={(id) => (setCreating(false), select(id))} />}
       </div>
     );
 
@@ -147,25 +177,8 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
             </EmptyTab>
           )}
           <ul ref={list} className="md:flex-1 md:min-h-0 md:overflow-y-auto" aria-label={t('nav.songs')}>
-            {shown.map((s) => (
-              <li key={s.id}>
-                <AppButton
-                  variant="plain"
-                  aria-pressed={s.id === effectiveId}
-                  onClick={() => {
-                    select(s.id);
-                    if (isPhone()) setFullScreen(true);
-                  }}
-                  className={`w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm ${
-                    s.id === effectiveId ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600'
-                  }`}
-                >
-                  <span className="block truncate w-full">
-                    <Highlight text={s.name} query={query} />
-                  </span>
-                  <span className="block text-xs text-neutral-400 truncate w-full">{s.author ? <Highlight text={s.author} query={query} /> : '\u00a0'}</span>
-                </AppButton>
-              </li>
+            {rows.map((s) => (
+              <SongRow key={s.id} song={s} chosen={s.id === effectiveId} query={shownQuery} onPick={onPick} />
             ))}
           </ul>
           {/* Under the list whenever it has songs, as the current app's; an empty list has its own. */}
@@ -214,7 +227,12 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
         </div>
       </div>
       <div className="hidden md:block">
-        <AddFooter hint={t('presentation.addHint', { key: ctrlLabel('Enter') })} name={selected?.name} label={selected ? t('presentation.addSong', { name: selected.name }) : undefined} onAdd={selected ? () => void add() : undefined} />
+        <AddFooter
+          hint={t('presentation.addHint', { key: ctrlLabel('Enter') })}
+          name={selected?.name}
+          label={selected ? t('presentation.addSong', { name: selected.name }) : undefined}
+          onAdd={selected ? () => void add() : undefined}
+        />
       </div>
       {/* On a phone the preview covers the add dialog, a sheet over the dimmed page: the old dialog's transform made its `fixed inset-0` the dialog's box (SongTab.razor). */}
       {fullScreen && shownPreview && selected && (
@@ -238,7 +256,13 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
               <h3 className="font-semibold text-sm truncate">{shownPreview.song.name}</h3>
               {shownPreview.song.author && <p className="text-xs text-neutral-400 truncate">{shownPreview.song.author}</p>}
             </div>
-            <AppButton variant="icon" className="shrink-0" title={t('presentation.editSong')} aria-label={t('presentation.editSong')} onClick={() => onEditSong(shownPreview.song.id)}>
+            <AppButton
+              variant="icon"
+              className="shrink-0"
+              title={t('presentation.editSong')}
+              aria-label={t('presentation.editSong')}
+              onClick={() => onEditSong(shownPreview.song.id)}
+            >
               <PencilIcon className="size-4" />
             </AppButton>
           </div>
@@ -257,17 +281,6 @@ export function SongTab({ presentationId, afterItemId, theme, onAdded, active, o
             </AppButton>
           </div>
         </div>
-      )}
-      {creating && (
-        <CreateSongDialog
-          initial={query}
-          onClose={() => setCreating(false)}
-          onCreated={(id) => {
-            setCreating(false);
-            setQuery('');
-            select(id);
-          }}
-        />
       )}
     </div>
   );

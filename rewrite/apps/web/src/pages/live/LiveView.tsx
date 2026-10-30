@@ -3,7 +3,7 @@ import { useData, useShownOverlay } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import { getPresentation, itemsOf, listOverlays, themeOf } from '../../db/queries.ts';
 import type { AudioControl } from '../../live/audio.ts';
-import { slidesOf, type ItemSlides } from '../../live/live.ts';
+import { slidesOfItems } from '../../live/live.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { MediaReadiness } from '../../ui/MediaReadiness.tsx';
@@ -71,8 +71,7 @@ export function LiveView({
   const data = useData(
     async (db) => {
       const items = await itemsOf(db, id);
-      const slides = new Map<string, ItemSlides>();
-      for (const item of items) slides.set(item.id, await slidesOf(db, item));
+      const slides = await slidesOfItems(db, items);
       const presentation = await getPresentation(db, id);
       return { presentation, theme: await themeOf(db, presentation), items, slides, overlays: await listOverlays(db) };
     },
@@ -86,10 +85,7 @@ export function LiveView({
   }, [id, live, owner]);
 
   /** Every slide of the running order, in order: what next and previous step through. */
-  const steps = useMemo(
-    () => (data ? data.items.flatMap((item) => (data.slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex }))) : []),
-    [data],
-  );
+  const steps = useMemo(() => (data ? data.items.flatMap((item) => (data.slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex }))) : []), [data]);
 
   const step = useCallback(
     (delta: number) => {
@@ -118,7 +114,8 @@ export function LiveView({
     else if (['ArrowLeft', 'PageUp'].includes(e.key)) step(-1);
     else if (e.key === 'ArrowDown') stepItem(1);
     else if (e.key === 'ArrowUp') stepItem(-1);
-    else if (e.key === 'b' || e.key === 'B') live.set({ black: true }); // only blanks, as Rensa; a slide shows again
+    else if (e.key === 'b' || e.key === 'B')
+      live.set({ black: true }); // only blanks, as Rensa; a slide shows again
     else return;
     e.preventDefault();
   });
@@ -128,7 +125,11 @@ export function LiveView({
     if (!owner || !('wakeLock' in navigator)) return;
     let lock: WakeLockSentinel | null = null;
     const take = () => {
-      if (document.visibilityState === 'visible') void navigator.wakeLock.request('screen').then((l) => (lock = l), () => {});
+      if (document.visibilityState === 'visible')
+        void navigator.wakeLock.request('screen').then(
+          (l) => (lock = l),
+          () => {},
+        );
     };
     take();
     document.addEventListener('visibilitychange', take);
@@ -139,7 +140,7 @@ export function LiveView({
   }, [owner]);
 
   if (!data) return null;
-  const current = pointer.itemId ? data.slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null : null;
+  const current = pointer.itemId ? (data.slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
 
   return (
     <section className="flex-1 min-h-0 flex flex-col">

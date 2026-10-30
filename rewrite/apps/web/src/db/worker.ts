@@ -23,12 +23,13 @@ import {
   setPinned,
   syncBibleTexts,
   syncMedia,
+  SongSearch,
   SyncClient,
   type ClientSqlite,
 } from '@gp/sync/client';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
 import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
-import { dbFileName, serveReads, shareChannelName } from './share.ts';
+import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
 
 /** The backstop poll (SYNC-R43): pokes are never load-bearing. */
 const POLL_MS = 5 * 60_000;
@@ -38,15 +39,25 @@ let client: SyncClient | undefined;
 let session: Session | undefined;
 let storage = '';
 let connected = false;
-let notifyChanged = () => {};
+let songSearch: SongSearch | undefined;
+/** Tells this window's page and the other windows that the database changed: `tables` are those written, or every one when not given. */
+let notifyChanged: (tables?: Iterable<string>) => void = () => {};
+
+/** The tables of the device's own a Bible download, keep or drop writes. */
+const BIBLE_TABLES = ['bible_texts', 'bible_blobs', 'kept_bibles'];
 
 const post = (m: DbMessage) => self.postMessage(m);
 
-async function openDb(file: string, forceMemory: boolean): Promise<ClientSqlite> {
+async function openDb(file: string, s: Session): Promise<ClientSqlite> {
   const module = await SQLiteESMFactory({ locateFile: () => wasmUrl });
   const sqlite3 = SQLite.Factory(module);
+  if (s.hostWindow) {
+    // The server beside it holds everything: a copy on disk would be the same data twice.
+    storage = 'host';
+    return waSqliteConnection(sqlite3, await sqlite3.open_v2(':memory:'));
+  }
   try {
-    if (forceMemory) throw new Error('?storage=memory');
+    if (s.storage === 'memory') throw new Error('?storage=memory');
     // OPFS needs a secure context (https or localhost) and is missing in Safari's private browsing.
     if (!self.isSecureContext) throw new Error('not a secure context');
     await navigator.storage.getDirectory();
@@ -159,9 +170,11 @@ function syncMediaBlobs() {
         // Only a device that keeps its data fetches coming presentations ahead: in memory it would be lost at the next reload.
         prefetch: storage === 'opfs',
         today: new Date().toLocaleDateString('sv-SE'), // YYYY-MM-DD, this device's own calendar day
+        // A host's own window fetches nothing and keeps only what waits to be uploaded: it shows the server's files (`fetchMedia`).
+        ...(session!.hostWindow ? { fetch: false, budget: 0 } : {}),
       },
     );
-    if (r.downloaded.length || r.removed) notifyChanged();
+    if (r.downloaded.length || r.removed) notifyChanged(['media_blobs']);
   }).catch(() => undefined); // offline: the next change or poll tries again
 }
 
@@ -216,9 +229,20 @@ function syncBibles() {
   void serialStore(async () => {
     bibleSyncQueued = false;
     if (await uploads.retryRefused(client!)) void client!.requestSync().then(reportStatus);
-    const r = await syncBibleTexts(client!, downloadBibleText, session!.keepsEveryBible ? 'all' : 'chosen');
-    if (r.downloaded.length || r.removed) notifyChanged();
+    const r = await syncBibleTexts(client!, downloadBibleText, 'chosen');
+    if (r.downloaded.length || r.removed) notifyChanged(BIBLE_TABLES);
   }).catch(() => undefined); // offline: the next change or poll tries again
+}
+
+/** A host's own window: a media blob from the server beside it, not stored; null elsewhere, or if the server has none. */
+async function fetchMediaHere(hash: string): Promise<MediaBytes | null> {
+  if (!session?.hostWindow) return null;
+  try {
+    const res = await fetch(`/api/media/${hash}`, { headers: credentials() });
+    return res.ok ? { contentType: res.headers.get('content-type') ?? 'application/octet-stream', bytes: new Uint8Array(await res.arrayBuffer()) } : null;
+  } catch {
+    return null;
+  }
 }
 
 async function downloadBibleText(hash: string): Promise<string | null> {
@@ -229,9 +253,9 @@ async function downloadBibleText(hash: string): Promise<string | null> {
 /** "Gör tillgänglig offline" or "Ta bort den nedladdade kopian", in turn with imports and the other downloads. */
 function keepBibleHere(id: string, on: boolean): Promise<boolean> {
   return serialStore(async () => {
-    if (session!.keepsEveryBible) return true; // a host keeps every text
+    if (session!.hostWindow) return true; // the host's server keeps every text
     const ok = on ? await keepBible(client!, id, downloadBibleText) : (await dropBible(client!, id, downloadBibleText), true);
-    notifyChanged();
+    notifyChanged(BIBLE_TABLES);
     return ok;
   });
 }
@@ -261,7 +285,7 @@ async function handle(call: DbCall): Promise<unknown> {
     case 'open': {
       if (client) return client.id;
       const s = call.session;
-      const sqlite = await openDb(dbFileName(s), s.storage === 'memory');
+      const sqlite = await openDb(dbFileName(s), s);
       const c = await SyncClient.open(sqlite, {
         transport: httpTransport({ baseUrl: location.origin, token: s.token, device: s.device }),
         ctx: { userId: s.userId, role: s.role },
@@ -269,24 +293,33 @@ async function handle(call: DbCall): Promise<unknown> {
       });
       client = c;
       session = s;
+      const search = (songSearch = new SongSearch(c));
       // Other windows of this machine read through this worker (the output), or
       // share the OPFS file (a second operator window): tell them about changes.
       const share = serveReads(
         new BroadcastChannel(shareChannelName(s)),
         (sql, params) => c.query(sql, params),
-        () => post({ type: 'changed' }),
+        (tables) => {
+          search.forget(); // that window wrote the same file, which this client does not hear of
+          post({ type: 'changed', ...(tables ? { tables } : {}) });
+        },
+        fetchMediaHere,
       );
-      notifyChanged = () => {
-        post({ type: 'changed' });
-        share.changed();
+      notifyChanged = (tables) => {
+        const list = tables && [...tables];
+        post({ type: 'changed', ...(list ? { tables: list } : {}) });
+        share.changed(list);
       };
       c.onBusy(() => void reportStatus());
-      c.onChange(() => {
-        notifyChanged();
+      c.onChange((tables) => {
+        notifyChanged(tables);
         syncBibles();
         syncMediaBlobs();
         void reportStatus();
       });
+      // In memory, the database is empty until it is pulled: the window opens on the data, not on empty pages
+      // (a song's page that finds no song goes back to the list). The server is on this machine.
+      if (s.hostWindow) await c.requestSync();
       startSync(c, s);
       syncBibles();
       syncMediaBlobs();
@@ -298,6 +331,8 @@ async function handle(call: DbCall): Promise<unknown> {
       return;
     case 'query':
       return client!.query(call.sql, call.params);
+    case 'searchSongs':
+      return songSearch!.search(call.query);
     case 'status':
       return status();
     case 'syncNow':
@@ -324,9 +359,11 @@ async function handle(call: DbCall): Promise<unknown> {
       return keepBibleHere(call.bibleId, call.on);
     case 'fetchBibleText':
       return fetchBibleText(downloadBibleText, call.hash);
+    case 'fetchMedia':
+      return fetchMediaHere(call.hash);
     case 'setPinned':
       await setPinned(client!, call.presentationId, call.on);
-      notifyChanged();
+      notifyChanged(['pinned_presentations']);
       syncMediaBlobs();
       return;
   }
