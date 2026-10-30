@@ -380,7 +380,7 @@ interface Flows {
   bibleBook: number;
   /** A chapter picked (23), until its verses show. */
   bibleChapter: number;
-  /** A song added to the open presentation by another device, from its push until the running order shows it. */
+  /** A song added to the open presentation by another device, from its push until the running order shows it; a change on its own. */
   syncOne: number;
 }
 
@@ -527,7 +527,10 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
   await expect(picker).toHaveCount(0);
 
   // One change from another device, while the presentation is open.
+  // One change at a time: the server pokes the first change of a quiet spell at once, and what follows within
+  // 500 ms at the end of that window (SYNC-R38), so each change waits out the last one's window first.
   f.syncOne = await median(runs, async () => {
+    await page.waitForTimeout(600);
     const n = await page.locator('ol[aria-label="Programpunkter"] > li').count();
     const itemId = `perf-sync-${Date.now()}`;
     await page.evaluate((before) => window.gpArm(() => document.querySelectorAll('ol[aria-label="Programpunkter"] > li').length === before + 1), n);
@@ -606,11 +609,94 @@ test('the most used flows with 3 000 songs, 50 presentations and a whole Bible, 
     bibleSearch: [50, 100],
     bibleBook: [100, 250],
     bibleChapter: [50, 150],
-    // The server's poke comes 500 ms after a change (SYNC-R38).
-    syncOne: [1200, 1500],
+    syncOne: [150, 300],
   };
   for (const k of Object.keys(limits) as (keyof Flows)[]) {
     expect.soft(normal[k], `${k}, normal`).toBeLessThan(limits[k][0]);
     expect.soft(slow[k], `${k}, CPU 4x slower`).toBeLessThan(limits[k][1]);
   }
+});
+
+/** Arms `page` to note when its shown slide's text becomes `text`, as wall-clock ms (`performance.timeOrigin` based). */
+async function armSlide(page: Page, text: string) {
+  await page.evaluate((want) => {
+    const w = window as unknown as { gpSlideAt: Promise<number> };
+    const now = () => performance.timeOrigin + performance.now();
+    const shown = () => [...document.querySelectorAll('[data-testid="slide-text"]')].some((e) => e.textContent?.trim() === want);
+    w.gpSlideAt = new Promise((resolve) => {
+      if (shown()) return resolve(now());
+      const mo = new MutationObserver(() => {
+        if (!shown()) return;
+        mo.disconnect();
+        resolve(now());
+      });
+      mo.observe(document, { childList: true, subtree: true, characterData: true });
+    });
+  }, text);
+}
+
+const slideAt = (page: Page) => page.evaluate(() => (window as unknown as { gpSlideAt: Promise<number> }).gpSlideAt);
+
+test('a slide step reaches the output window and a paired screen at once, measured', async () => {
+  test.setTimeout(120_000);
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  const labels = ['Verse 1', 'Verse 2', 'Verse 3', 'Verse 4', 'Verse 5', 'Verse 6', 'Chorus', 'Chorus 1', 'Chorus 2', 'Bridge', 'Tag', 'Ending'];
+  const parts = labels.map((l, i): [string, string] => [l, `Del ${i + 1}`]);
+  await createSong(page, 'Sång A', parts);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+
+  // A paired screen, switched on under Utgångar.
+  await openAdmin(page, 'Skärmar');
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByLabel('Namn').fill('Kyrksal');
+  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByRole('button', { name: 'Lägg till' }).click();
+  const url = await page.getByRole('dialog', { name: 'Kyrksal' }).getByLabel('Länk').inputValue();
+  await page.getByRole('dialog', { name: 'Kyrksal' }).getByRole('button', { name: 'Stäng' }).click();
+  browser = await chromium.launch();
+  const screen = await browser.newPage();
+  await screen.goto(url);
+  await expect(screen.getByTestId('display-idle')).toBeVisible();
+
+  await openPresentations(page);
+  await page.getByRole('link', { name: /Söndag/ }).click();
+  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Sång A 1', exact: true }).click();
+  await page.getByRole('list', { name: 'Utgångar' }).getByLabel('Kyrksal').check();
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  await expect(output.getByTestId('slide-text')).toHaveText('Del 1', { timeout: 10_000 });
+  await expect(screen.getByTestId('slide-text')).toHaveText('Del 1', { timeout: 10_000 });
+  await page.getByRole('button', { name: 'Sång A 1', exact: true }).focus();
+  await page.evaluate(pageHelpers);
+
+  let at = 1;
+  /** → on the live page; ms from its keydown until the output window and the screen show the next slide. */
+  const step = async () => {
+    at++;
+    await Promise.all([armSlide(output, `Del ${at}`), armSlide(screen, `Del ${at}`)]);
+    await page.keyboard.press('ArrowRight');
+    const pressed = await page.evaluate(() => performance.timeOrigin + window.gpKeyAt);
+    return { output: (await slideAt(output)) - pressed, screen: (await slideAt(screen)) - pressed };
+  };
+  const run = async (n: number) => {
+    const samples: { output: number; screen: number }[] = [];
+    for (let i = 0; i < n; i++) samples.push(await step());
+    const mid = (k: 'output' | 'screen') => Math.round(samples.map((s) => s[k]).toSorted((a, b) => a - b)[Math.floor(n / 2)]!);
+    return { output: mid('output'), screen: mid('screen') };
+  };
+  const normal = await run(5);
+  // The receivers slowed as a tablet or a TV's browser would be.
+  const slowed = await Promise.all([output, screen].map(async (p) => (await p.context().newCDPSession(p)).send('Emulation.setCPUThrottlingRate', { rate: 4 })));
+  expect(slowed).toHaveLength(2);
+  const slow = await run(5);
+  console.log(`slide step, median ms, normal / receivers 4x slower: output window ${normal.output} / ${slow.output}, paired screen ${normal.screen} / ${slow.screen}`);
+  test.info().annotations.push({ type: 'measured', description: JSON.stringify({ normal, slow }) });
+  // Measured 2 / 7 ms and 15 / 14 ms on 2026-10-30 (docs/performance.md): a slide must show at once, so the
+  // bounds are tight, with room for a busy machine.
+  expect.soft(normal.output, 'output window').toBeLessThan(50);
+  expect.soft(normal.screen, 'paired screen').toBeLessThan(100);
+  expect.soft(slow.output, 'output window, 4x').toBeLessThan(100);
+  expect.soft(slow.screen, 'paired screen, 4x').toBeLessThan(150);
 });

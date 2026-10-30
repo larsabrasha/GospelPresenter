@@ -190,7 +190,8 @@ export interface NewSong {
  * The song editor (spec 02, `/admin/songs/{id}`; Pages/Admin/SongDetail.razor). With `onBack`,
  * inside the add dialog (EditSong.razor): its back button returns to the song list there, and
  * so does moving the song to the trash. With `adding`, a song just made there: Avbryt, "Ny sång"
- * and Lägg till (Ctrl+Enter) in place of the back button, and no Flytta till papperskorgen.
+ * and Lägg till (Ctrl+Enter) in place of the back button, and no Flytta till papperskorgen. There, Escape
+ * is the back button, or Avbryt.
  */
 export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => void; adding?: NewSong }) {
   const db = useDb();
@@ -245,7 +246,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   const back = onBack ? { onBack } : { backHref: href({ page: 'songs' }) };
   if (!data)
     return (
-      <Frame>
+      <Frame onEscape={adding?.onCancel ?? onBack}>
         <DetailHeader {...back} title="" className={onBack ? 'shrink-0' : 'px-5'} />
         <div className="px-7 text-neutral-400">{t('common.loading')}</div>
       </Frame>
@@ -376,7 +377,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   };
 
   return (
-    <Frame>
+    <Frame onEscape={adding ? () => void cancel() : onBack}>
       {dialog}
       {adding ? (
         <div className="flex items-center justify-between gap-3 min-h-10 shrink-0">
@@ -480,11 +481,24 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   );
 }
 
-function PageFrame({ children }: { children: ReactNode }) {
+function PageFrame({ children }: { children: ReactNode; onEscape?: () => void }) {
   return <PageContainer className="pb-8">{children}</PageContainer>;
 }
 
 /** Inside the add dialog: its own scrolling column, with the dialog's padding (EditSong.razor). */
-function EmbeddedFrame({ children }: { children: ReactNode }) {
-  return <div className="flex-1 min-h-0 overflow-y-auto flex flex-col space-y-5 pb-6">{children}</div>;
+function EmbeddedFrame({ children, onEscape }: { children: ReactNode; onEscape?: () => void }) {
+  return (
+    <div
+      className="flex-1 min-h-0 overflow-y-auto flex flex-col space-y-5 pb-6"
+      onKeyDown={(e) => {
+        // Escape goes back one step, to the song list; a second one closes the add dialog. A menu or question
+        // open in the editor takes its own Escape first.
+        if (e.key !== 'Escape' || !onEscape) return;
+        e.stopPropagation();
+        onEscape();
+      }}
+    >
+      {children}
+    </div>
+  );
 }

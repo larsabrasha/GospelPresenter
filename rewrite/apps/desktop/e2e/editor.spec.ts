@@ -120,12 +120,34 @@ test('Skapa in Lägg till opens a new song named as the search: Lägg till adds 
   await page.getByRole('dialog', { name: 'Släng sången?' }).getByRole('button', { name: 'Släng' }).click();
   await expect(picker.getByRole('heading', { name: 'Ny sång' })).toHaveCount(0);
 
-  // Closing the dialog while a new song is open throws it away too; with nothing searched, it starts in the name.
+  // Escape goes back one step: from a new song (asking, as Avbryt, once something was typed) to the list.
+  await search.fill('Med Esc');
+  await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await expect(picker.getByLabel('Delar 1')).toBeFocused();
+  await page.keyboard.type('Text');
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', { name: 'Släng sången?' }).getByRole('button', { name: 'Släng' }).click();
+  await expect(picker.getByRole('heading', { name: 'Ny sång' })).toHaveCount(0);
+  await expect(picker).toBeVisible();
+
+  // With nothing searched it starts in the name; untouched, Escape goes back without asking, and a second closes.
   await search.fill('');
   await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
-  await expect(picker.getByRole('textbox', { name: 'Namn', exact: true })).toBeFocused();
-  await expect(picker.getByRole('textbox', { name: 'Namn', exact: true })).toHaveValue('Ny sång');
+  const name = picker.getByRole('textbox', { name: 'Namn', exact: true });
+  await expect(name).toBeFocused();
+  await expect(name).toHaveValue('Ny sång');
   await page.keyboard.press('Escape');
+  await expect(picker.getByRole('heading', { name: 'Ny sång' })).toHaveCount(0);
+  await expect(search).toBeVisible();
+  await search.focus();
+  await page.keyboard.press('Escape');
+  await expect(picker).toHaveCount(0);
+
+  // Closing the dialog while a new song is open throws it away too.
+  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await picker.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await expect(picker.getByRole('heading', { name: 'Ny sång' })).toBeVisible();
+  await picker.getByRole('button', { name: 'Stäng' }).click();
   await expect(picker).toHaveCount(0);
 
   await openAdmin(page, 'Sånger');

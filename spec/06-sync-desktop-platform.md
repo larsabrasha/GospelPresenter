@@ -393,13 +393,16 @@ Deployed to GitHub Pages on push to `main` touching `docs/**` (`docs/src/downloa
   the organisation's open web sessions (in-process). The announcement carries **no data**; receivers
   re-sync over HTTP (`GospelPresenter/GospelPresenter.Shared/Sync/IOrganizationChangeNotifier.cs:1-19`,
   `GospelPresenter/GospelPresenter.Shared/Sync/OrganizationChangesHubMethods.cs:15`).
-- **SYNC-R38** Coalesced to at most **one announcement per organisation per 500 ms**, trailing edge
-  (first change waits) (`GospelPresenter/GospelPresenter.Shared/Sync/OrganizationChangeNotifier.cs:5-21`;
-  test `ABurstOfSavesOnTheServer_CostsTheDeviceOneRound`).
-- **SYNC-R39** The device whose push caused the change is not woken by it — unless another writer
-  changed the same organisation in the same window, then nobody is excluded (`OrganizationChangeNotifier.cs:57-64`;
-  tests `ADevicesOwnPush_DoesNotWakeItAgain`, `TwoWritersInOneWindow_ExcludeNobody`). Web sessions also
-  hear their own writes (harmless reload).
+- **SYNC-R38** The first change of a quiet spell is announced **at once**; further changes within the next
+  **500 ms** are announced once, at the end of that window, which starts a new one: at most two announcements
+  per organisation per window. (Changed with Lars on 2026-10-30 so a change shows on other devices in tens of
+  ms; the current app announces trailing edge only, so the first change waits 500 ms:
+  `GospelPresenter/GospelPresenter.Shared/Sync/OrganizationChangeNotifier.cs:5-21`; test
+  `ABurstOfSavesOnTheServer_CostsTheDeviceOneRound`.)
+- **SYNC-R39** The device whose push caused the change is not woken by it: not by the announcement at once,
+  and not by the one at the end of the window when it was the only writer since — when two or more wrote,
+  nobody is excluded (`OrganizationChangeNotifier.cs:57-64`; tests `ADevicesOwnPush_DoesNotWakeItAgain`,
+  `TwoWritersInOneWindow_ExcludeNobody`). Web sessions also hear their own writes (harmless reload).
 - **SYNC-R40** Another organisation's change never wakes a device or web session; a change with no
   derivable organisation (built-in theme) is announced to everyone; a **user setting** change is
   announced only to the writer's organisation, never server-wide (`GospelPresenter/GospelPresenter.Shared/Sync/OrganizationChangeInterceptor.cs:96-122`,

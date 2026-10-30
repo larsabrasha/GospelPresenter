@@ -180,9 +180,11 @@ export function dump(store: OrgStore) {
 }
 
 /**
- * Coalesces pokes to one per window, trailing edge (SYNC-R38). The writer that
- * caused the change is not poked, unless another writer changed the same
- * organisation in the same window (SYNC-R39).
+ * Coalesces pokes (SYNC-R38): the first change of a quiet spell is announced at
+ * once; what follows within the window is announced once, at its end, which
+ * starts a new window. At most two pokes a window. The writer that caused the
+ * change is not poked, unless another writer changed the same organisation in
+ * the same window (SYNC-R39).
  */
 export class PokeCoalescer {
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -193,14 +195,20 @@ export class PokeCoalescer {
     private windowMs = 500,
   ) {}
   changed(origin: string, seq: number) {
-    this.origins.add(origin);
     this.seq = Math.max(this.seq, seq);
-    this.timer ??= setTimeout(() => this.flush(), this.windowMs);
+    if (this.timer) {
+      this.origins.add(origin);
+      return;
+    }
+    this.send(origin, this.seq);
+    this.timer = setTimeout(() => this.flush(), this.windowMs);
   }
   private flush() {
+    this.timer = undefined;
+    if (!this.origins.size) return;
     const exclude = this.origins.size === 1 ? [...this.origins][0]! : null;
     this.origins.clear();
-    this.timer = undefined;
     this.send(exclude, this.seq);
+    this.timer = setTimeout(() => this.flush(), this.windowMs);
   }
 }

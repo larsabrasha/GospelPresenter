@@ -5,11 +5,8 @@ Smaller things decided or wished for, not yet built. The larger steps are in doc
 ## Performance (decided with Lars 2026-10-29; done 2026-10-30)
 
 Measured before and after, normal and with the CPU slowed 4×, with limits in `e2e/performance.spec.ts`; the
-numbers and what changed are in [Performance](docs/performance.md). Open, for Lars to decide:
-- The host window's start is 0.67 s (was 0.16 s on OPFS), as it now pulls everything at each start. A snapshot
-  to start from would cut it; not built.
-- A change from another device shows after about 0.5 s: the server's poke waits for the end of its 500 ms
-  window (SYNC-R38). Poking at the start of the window (and at most once more at its end) would make it ~20 ms.
+numbers and what changed are in [Performance](docs/performance.md). Decided with Lars on 2026-10-30: no snapshot
+for the host window's start (0.7 s once per start is fine); the server pokes the first change at once (SYNC-R38).
 
 ## The small differences from the current app
 

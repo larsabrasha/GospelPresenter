@@ -10,22 +10,24 @@ slowdown shows and a busy machine does not.
 
 ## The numbers (2026-10-30, on Lars's Mac)
 
-| Flow                                                       | Before | After | Before, 4× | After, 4× |
-| ---------------------------------------------------------- | -----: | ----: | ---------: | --------: |
-| The start page from another page                           |     12 |    16 |         26 |        16 |
-| The window's start (a reload, until the start page lists)  |    157 |   668 |        255 |       743 |
-| Sånger reloaded, until it shows 3 000 songs                |    477 |   710 |      1 051 |     1 063 |
-| Open a presentation of 30 songs                            |     86 |     7 |        152 |        30 |
-| ↓ to the next item in the editor                           |      2 |     2 |          6 |         8 |
-| → to the next slide live                                   |      2 |     2 |          8 |         9 |
-| Open Lägg till, until songs are listed                     |    200 |    19 |        669 |        71 |
-| Add a song with Ctrl+Enter, until the running order has it |    706 |    80 |      2 459 |       146 |
-| Ctrl+2 to the Bible tab                                    |     19 |     5 |         74 |        15 |
-| Ctrl+1 back to the song tab                                |     54 |    12 |        227 |        31 |
-| "Joh 3:16-17" in the Bible search                          |      3 |     3 |          9 |        10 |
-| A book (Psaltaren), until its 150 chapters show            |     11 |     5 |         48 |        42 |
-| A chapter, until its verses show                           |      6 |     3 |         26 |        10 |
-| A song added by another device, until it shows             |    614 |   516 |        676 |       522 |
+| Flow                                                                | Before | After | Before, 4× | After, 4× |
+| ------------------------------------------------------------------- | -----: | ----: | ---------: | --------: |
+| The start page from another page                                    |     12 |    16 |         26 |        16 |
+| The window's start (a reload, until the start page lists)           |    157 |   668 |        255 |       743 |
+| Sånger reloaded, until it shows 3 000 songs                         |    477 |   710 |      1 051 |     1 063 |
+| Open a presentation of 30 songs                                     |     86 |     7 |        152 |        30 |
+| ↓ to the next item in the editor                                    |      2 |     2 |          6 |         8 |
+| → to the next slide live                                            |      2 |     2 |          8 |         9 |
+| → live, until the output window shows the next slide (receivers 4×) |        |     2 |            |         7 |
+| → live, until a paired screen on the LAN shows it (receivers 4×)    |        |    15 |            |        14 |
+| Open Lägg till, until songs are listed                              |    200 |    19 |        669 |        71 |
+| Add a song with Ctrl+Enter, until the running order has it          |    706 |    80 |      2 459 |       146 |
+| Ctrl+2 to the Bible tab                                             |     19 |     5 |         74 |        15 |
+| Ctrl+1 back to the song tab                                         |     54 |    12 |        227 |        31 |
+| "Joh 3:16-17" in the Bible search                                   |      3 |     3 |          9 |        10 |
+| A book (Psaltaren), until its 150 chapters show                     |     11 |     5 |         48 |        42 |
+| A chapter, until its verses show                                    |      6 |     3 |         26 |        10 |
+| A song added by another device, until it shows                      |    614 |    13 |        676 |        32 |
 
 Song search in Lägg till, one key at a time from all 3 000 songs down to "herre" and back to empty
 (`h, he, her, herr, herre, herr, her, he, h, empty`):
@@ -69,13 +71,18 @@ The numbers move by 20 % or more from run to run; the second keystroke, "he", ju
   answers at once.
 - **Sorting by name** uses one `Intl.Collator` rather than `localeCompare` per comparison: 3 ms rather than 86
   for 3 000 songs.
+- **A slide step reaches the projector at once.** It never goes through sync: the output window on the same
+  computer hears it over a BroadcastChannel, paired screens, remote controls and /watch over the live hub's
+  socket, which sends it on as it comes; only viewer counts are held back (LIVE-R36). Measured from the key on
+  the live page until the receiver shows the slide, by one clock (no "before": it was not measured then).
+- **A change from another device shows in tens of ms**, not half a second: the server announces the first
+  change of a quiet spell at once, and what follows within 500 ms once at the end of the window (SYNC-R38 as
+  changed on 2026-10-30; `PokeCoalescer`, `apps/server/test/poke.test.ts`). A change less than 500 ms after the
+  last still waits for the end of its window. The measurement waits out a window before each change.
 - **Indexes** on a presentation's items, a song's parts and arrangements, and the items showing a song
   (`orgIndexes` in `packages/core/src/schema.ts`).
 
 ## Left as it is
 
-- **A change from another device takes about half a second to show** (`syncOne`): the server announces
-  changes at most once per 500 ms, at the end of the window (SYNC-R38). Announcing the first change at once
-  would make it about 20 ms; that is a change of the spec.
 - **A first pull of a big library on a new device** spends most of its time applying the rows (about 0.5 s for
   18 000 rows), mostly in the triggers that every write runs.
