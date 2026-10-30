@@ -54,10 +54,10 @@ test('a three-page PDF becomes a slide deck item whose pages show on the output;
   for (const blob of storedBlobs(host.dataDir)) expect([blob.subarray(0, 4).toString(), blob.subarray(8, 12).toString()]).toEqual(['RIFF', 'WEBP']);
 
   // Live: each page is one slide, its picture at 1920×1080 filling the output.
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
-  await page.getByRole('button', { name: /Predikan\.pdf/ }).first().click();
+  await page.getByRole('button', { name: 'Predikan.pdf 1' }).click();
   const shown = output.getByTestId('slide-image');
   await expect(shown).toBeVisible();
   await expect(output.getByTestId('slide-stage')).toHaveAttribute('data-kind', 'media');

@@ -159,6 +159,12 @@ test('capture every page', async () => {
   };
   // On a phone the floating live panel can cover the slide: fold it for the click, then open it again for the picture.
   const goLive = async (p: Page) => {
+    // Starta presentation stays on the page; the first item selected shows its slides.
+    const start = p.getByRole('button', { name: 'Starta presentation' });
+    if (await start.count()) {
+      await pickItem(p);
+      await start.click();
+    }
     const slide = p.getByRole('button', { name: 'Härlig är jorden 1' });
     await slide.waitFor();
     const fold = p.getByRole('button', { name: 'Fäll in eller ut live-vyn' });
@@ -209,11 +215,11 @@ test('capture every page', async () => {
     ['add-images', presentation, (p) => openAdd(p, 'Control+3')],
     ['add-audio', presentation, (p) => openAdd(p, 'Control+4')],
     ['presentation-menu', presentation, (p) => p.getByRole('button', { name: 'Alternativ' }).click()],
-    ['live', `/live/${id}`, goLive, stopLive],
+    ['live', `/presentations/${id}`, goLive, stopLive],
     // Extern skärm switched on: the output window is open and the row is ringed.
     [
       'live-external',
-      `/live/${id}`,
+      `/presentations/${id}`,
       async (p) => {
         await goLive(p);
         const [output] = await Promise.all([host!.app.waitForEvent('window'), p.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
@@ -226,7 +232,7 @@ test('capture every page', async () => {
     ],
     [
       'live-black',
-      `/live/${id}`,
+      `/presentations/${id}`,
       async (p) => {
         await goLive(p);
         await p.getByRole('button', { name: 'Rensa' }).click();
@@ -236,7 +242,7 @@ test('capture every page', async () => {
     ],
     [
       'live-hints',
-      `/live/${id}`,
+      `/presentations/${id}`,
       async (p) => {
         await goLive(p);
         for (const name of ['Overlays', 'Fjärrstyrning']) await p.getByRole('button', { name, exact: true }).click();
@@ -250,7 +256,7 @@ test('capture every page', async () => {
       (name) =>
         [
           name,
-          `/live/${id}`,
+          `/presentations/${id}`,
           async (p: Page) => {
             await goLive(p);
             await (await remoteSwitch(p)).check();
@@ -267,7 +273,7 @@ test('capture every page', async () => {
     ),
     [
       'stage',
-      `/live/${id}`,
+      `/presentations/${id}`,
       async (p) => {
         await goLive(p);
         await p.getByRole('button', { name: 'Scenläge' }).click();
@@ -378,7 +384,7 @@ test('capture every page', async () => {
     // "Anslut tillfällig skärm" (PairingCodeDialog.razor), and after a TV beside it has been paired.
     [
       'pair-screen',
-      `/live/${id}`,
+      `/presentations/${id}`,
       async (p) => {
         await goLive(p);
         await p.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
@@ -391,7 +397,7 @@ test('capture every page', async () => {
     ],
     [
       'pair-screen-done',
-      `/live/${id}`,
+      `/presentations/${id}`,
       async (p) => {
         await goLive(p);
         await p.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
@@ -446,7 +452,7 @@ test('capture every page', async () => {
   ];
   // Live with Välkommen over Härlig är jorden 1, then what a TV, a phone or the output window shows beside it.
   const liveWithOverlay = async (output?: string) => {
-    await page.goto(`${host!.base}/live/${id}`);
+    await page.goto(`${host!.base}/presentations/${id}`);
     await goLive(page);
     if (output) {
       const toggle = page.getByRole('list', { name: 'Utgångar' }).getByLabel(output);
@@ -527,7 +533,7 @@ test('capture every page', async () => {
           else await shot.context().close();
         }
         if (name !== 'pair') {
-          await page.goto(`${host.base}/live/${id}`);
+          await page.goto(`${host.base}/presentations/${id}`);
           await stopLive(page);
         }
       }

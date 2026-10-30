@@ -132,7 +132,7 @@ sockets are now tagged `poke` in the Durable Object, so a poke never goes to a l
 presentationer"). On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) has a QR code
 button beside it, grey while off; under "Alltid" a line says everyone may take control in place of the switch,
 and under "Aldrig" the section is gone. The QR code button opens the "Fjärrstyr presentationen" dialog
-(`RemoteControlInfoDialog.razor`): the link, `/live/{id}?remote=1&session={id}` (with `&stage=true` it opens in
+(`RemoteControlInfoDialog.razor`): the link, `/presentations/{id}?remote=true&session={id}` (with `&stage=true` it opens in
 the stage view, as `Presentation.razor`; the address follows the stage view, so a reload keeps it), as a QR code, and folded under it the link to copy and how to take
 control from the app. The first time it is switched on on a live page, the dialog opens by itself. On a desktop
 host the link has its LAN address. Under Presentationer every other

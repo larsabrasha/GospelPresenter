@@ -65,7 +65,7 @@ test('a public output follows the presentation in a browser without signing in; 
   await page.getByLabel('Textinnehåll').blur();
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const outputs = page.getByRole('list', { name: 'Utgångar' });
   await outputs.getByLabel('Kyrkkaffet').check();
   await expect(outputs.getByText('1 enhet')).toBeVisible({ timeout: 5_000 });

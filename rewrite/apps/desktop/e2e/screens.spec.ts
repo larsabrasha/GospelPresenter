@@ -3,7 +3,7 @@
 // Played by Playwright's Chromium beside the desktop app.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -26,7 +26,7 @@ async function presenting(): Promise<Page> {
   ]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   return page;
 }
@@ -189,7 +189,8 @@ test("a paired screen draws the projector's canvas, as the output window: the 19
   await picker.getByRole('button', { name: 'Logotyp.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Logotyp.png' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();
 
   await page.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
@@ -207,7 +208,8 @@ test("a paired screen draws the projector's canvas, as the output window: the 19
   await expect(screen.getByTestId('watch-text')).toHaveCount(0);
 
   // The picture item: its picture, fetched through the screen's own path, at 1920 px.
-  await page.getByRole('button', { name: /Logotyp\.png/ }).first().click();
+  await pickItem(page, 'Logotyp.png');
+  await page.getByRole('button', { name: 'Logotyp.png 1' }).click();
   const shown = screen.getByTestId('slide-image');
   await expect(stage).toHaveAttribute('data-kind', 'media', { timeout: 5_000 });
   await expect(shown).toHaveAttribute('src', /^\/api\/screen\/[A-Za-z0-9_-]{43}\/image\/[0-9a-f]{64}$/);

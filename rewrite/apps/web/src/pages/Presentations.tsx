@@ -118,7 +118,7 @@ function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string 
             {s.presentationId && (
               <a
                 className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 no-underline"
-                href={href({ page: 'live', id: s.presentationId, remote: true, session: s.id })}
+                href={href({ page: 'presentation', id: s.presentationId, remote: true, session: s.id })}
               >
                 {t('remote.takeControl')}
               </a>
@@ -152,7 +152,7 @@ function Row({
   const subtitle = [date ? dateLabel(date, today, withYear) : null, p.time, p.location].filter(Boolean).join(' · ');
   return (
     <ListLinkRow
-      href={href(live ? { page: 'live', id: p.id } : { page: 'presentation', id: p.id })}
+      href={href({ page: 'presentation', id: p.id })}
       title={p.name}
       subtitle={subtitle || null}
       subtitleTitle={date ? fullDate(date, withYear) : undefined}

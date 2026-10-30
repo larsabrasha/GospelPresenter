@@ -23,6 +23,15 @@ import { arrangementsOf, getAudio, getImage, listLabels, songPartsOf, songsById 
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'hello' };
 
+function restore(key: string): LivePointer | null {
+  try {
+    const stored = sessionStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as LivePointer) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The live pointer between the windows of one machine (ADR 0007, decision 4).
  * The operator window owns it and answers `hello` from an output that opens
@@ -31,6 +40,7 @@ type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'hello' }
 export class LiveChannel {
   private channel: BroadcastChannel;
   private current: LivePointer = IDLE;
+  private storageKey: string;
   private listeners = new Set<(p: LivePointer) => void>();
   /**
    * The overlay each item of the presenting presentation carries, kept
@@ -44,6 +54,9 @@ export class LiveChannel {
     private role: 'operator' | 'output',
   ) {
     this.channel = new BroadcastChannel(`gp-live:${orgId}`);
+    this.storageKey = `gp.live:${orgId}`;
+    // A reloaded operator window goes on presenting what it presented.
+    if (role === 'operator') this.current = restore(this.storageKey) ?? IDLE;
     this.channel.addEventListener('message', (e: MessageEvent<LiveMessage>) => {
       if (e.data.type === 'hello') {
         if (this.role === 'operator') this.channel.postMessage({ type: 'pointer', pointer: this.current } satisfies LiveMessage);
@@ -68,6 +81,11 @@ export class LiveChannel {
     const pointer = { ...applyLiveChange(this.current, change, (itemId) => this.itemOverlays.get(itemId) ?? null), rev: this.current.rev + 1 };
     this.receive(pointer);
     this.channel.postMessage({ type: 'pointer', pointer } satisfies LiveMessage);
+    try {
+      sessionStorage.setItem(this.storageKey, JSON.stringify(pointer));
+    } catch {
+      // no storage: a reload stops presenting
+    }
   }
 
   subscribe(fn: (p: LivePointer) => void): () => void {

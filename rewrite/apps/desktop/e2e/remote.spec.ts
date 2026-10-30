@@ -3,7 +3,7 @@
 // through the server, and losing the presenter freezes the session.
 import { chromium, expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, remoteSwitch, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, pickItem, remoteSwitch, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -34,7 +34,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   ]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([hostApp.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
@@ -57,7 +57,7 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await info.getByRole('button', { name: 'Kopiera länken' }).click();
   const remoteLink = info.getByLabel('Länk för fjärrstyrning');
   await expect(remoteLink).toBeVisible();
-  await expect(remoteLink).toHaveValue(/\/live\/[\w-]+\?remote=1&session=[\w-]+$/);
+  await expect(remoteLink).toHaveValue(/\/presentations\/[\w-]+\?remote=true&session=[\w-]+$/);
   await expect(info.getByRole('img', { name: 'QR-kod för fjärrstyrning' })).toHaveAttribute('data-value', await remoteLink.inputValue());
   await info.getByRole('button', { name: 'Stäng' }).click();
   await expect(info).toHaveCount(0);
@@ -102,7 +102,7 @@ test('a remote link with ?stage=true opens straight in the stage view, and the a
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await (await remoteSwitch(page)).check();
   const info = page.getByRole('dialog', { name: 'Fjärrstyr presentationen' });
@@ -135,8 +135,9 @@ test('when the presenting computer drops out, the session freezes and someone el
   // Bo's computer presents, with remote control on.
   await openPresentations(secondApp.page);
   await secondApp.page.getByRole('link', { name: 'Söndag' }).click({ timeout: 5_000 });
-  await secondApp.page.getByRole('link', { name: 'Starta presentation' }).click();
+  await secondApp.page.getByRole('button', { name: 'Starta presentation' }).click();
   await allowRemote(secondApp.page);
+  await pickItem(secondApp.page, 'Sång A');
   await secondApp.page.getByRole('button', { name: 'Sång A 1' }).click();
 
   await openPresentations(hostApp.page);
@@ -189,11 +190,12 @@ test('a phone on the LAN, over plain http (no secure context), pairs and takes c
     ]);
     await createPresentation(host.page, 'Söndag');
     await addSongs(host.page, ['Sång A']);
-    await host.page.getByRole('link', { name: 'Starta presentation' }).click();
+    await host.page.getByRole('button', { name: 'Starta presentation' }).click();
     await allowRemote(host.page);
 
     await openPresentations(phone);
     await phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 10_000 });
+    await pickItem(phone, 'Sång A');
     await phone.getByRole('button', { name: 'Sång A 2' }).click();
     await expect(host.page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true', { timeout: 5_000 });
     expect(errors).toEqual([]);
@@ -219,7 +221,7 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
   // She presents without switching anything on; Bo may take control.
   await openPresentations(page);
   await page.getByRole('link', { name: 'Söndag' }).click();
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   await page.getByRole('button', { name: 'Fjärrstyrning', exact: true }).click();
   await expect(page.getByText('Alla i församlingen kan fjärrstyra presentationen.')).toBeVisible();
   await expect(page.getByLabel('Tillåt fjärrstyrning')).toHaveCount(0);

@@ -1,14 +1,18 @@
+import type { Role } from '@gp/core';
 import type { AudioControl } from '../../live/audio.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
-import { LiveView } from './LiveView.tsx';
+import { useLivePointer } from '../../live/useLive.ts';
+import { PresentationEditor } from '../presentation-editor/PresentationEditor.tsx';
 import { RemoteLive } from './RemoteLive.tsx';
 
 /**
- * The live page: this window presenting (the owner), or with `remote` a
- * phone or another computer driving a session elsewhere (spec 04 §2).
+ * A presentation's page (`/presentations/{id}`), as Presentation.razor: its editor, presenting while
+ * this window's session shows it; or with `remote` a phone or another computer driving a session
+ * elsewhere (spec 04 §2).
  */
 export function Live({
   id,
+  role,
   live,
   link,
   audio,
@@ -18,6 +22,7 @@ export function Live({
   stage,
 }: {
   id: string;
+  role: Role;
   live: LiveControl;
   link: LiveLink;
   audio: AudioControl;
@@ -27,6 +32,8 @@ export function Live({
   /** Opened in the stage view (`?stage=true`). */
   stage?: boolean;
 }) {
-  if (remote) return <RemoteLive id={id} link={link} ownSessionId={sessionId} wanted={session ?? null} stage={!!stage} />;
-  return <LiveView id={id} live={live} audio={audio} owner={{ sessionId }} link={link} stage={!!stage} />;
+  const pointer = useLivePointer(live);
+  if (remote) return <RemoteLive id={id} role={role} link={link} ownSessionId={sessionId} wanted={session ?? null} stage={!!stage} />;
+  const presenting = pointer.presentationId === id ? { audio, owner: { sessionId }, link } : undefined;
+  return <PresentationEditor id={id} role={role} live={live} presenting={presenting} stage={stage} />;
 }

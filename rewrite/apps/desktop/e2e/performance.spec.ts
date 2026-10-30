@@ -6,7 +6,7 @@ import { PROTOCOL_VERSION } from '../../../packages/core/src/protocol.ts';
 import { SCHEMA_VERSION } from '../../../packages/core/src/schema.ts';
 import { launch, type Desktop } from './apps.ts';
 import { highlight, makeZip, searchSongs, utf8Encode } from '../../../packages/core/src/index.ts';
-import { addSongs, allowRemote, createPresentation, createSong, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -49,7 +49,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Lägg till Lång.wav' }).click();
   await page.getByRole('dialog', { name: 'Lägg till' }).getByRole('button', { name: 'Stäng' }).click();
   await addSongs(page, ['Sång A']);
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   await allowRemote(page);
 
   await openPresentations(phone);
@@ -61,7 +61,7 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   await phone.goBack();
   const started = Date.now();
   await take.click();
-  await phone.getByRole('button', { name: 'Sång A 1' }).waitFor({ timeout: 30_000 });
+  await phone.getByTestId('live-panel').waitFor({ timeout: 30_000 });
   // About 830 ms when the hash held the thread, about 125 ms since it gives it back.
   expect(Date.now() - started).toBeLessThan(500);
 });
@@ -539,7 +539,8 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
   });
 
   // The live page: → through the slides.
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  await pickItem(page, songName(0));
   await page.getByRole('button', { name: `${songName(0)} 1` }).click();
   await expect(page.getByRole('button', { name: `${songName(0)} 1` })).toHaveAttribute('aria-pressed', 'true');
   await helpers();
@@ -662,7 +663,7 @@ test('a slide step reaches the output window and a paired screen at once, measur
 
   await openPresentations(page);
   await page.getByRole('link', { name: /Söndag/ }).click();
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   await page.getByRole('button', { name: 'Sång A 1', exact: true }).click();
   await page.getByRole('list', { name: 'Utgångar' }).getByLabel('Kyrksal').check();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);

@@ -68,5 +68,5 @@ export function RemotePanel({ id, sessionId, name, always }: { id: string; sessi
 
 function remoteUrl(id: string, sessionId: string): string {
   // The session is named in the link: a code taped to a lectern keeps meaning this machine.
-  return href({ page: 'live', id, remote: true, session: sessionId });
+  return href({ page: 'presentation', id, remote: true, session: sessionId });
 }

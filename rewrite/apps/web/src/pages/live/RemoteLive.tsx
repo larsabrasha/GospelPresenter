@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { LiveSessionInfo } from '@gp/core';
+import type { LiveSessionInfo, Role } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { RemoteAudio } from '../../live/audio.ts';
 import { RemoteControl, useLiveSessions, type LiveLink } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useToast } from '../../ui/Toast.tsx';
-import { LiveView } from './LiveView.tsx';
+import { PresentationEditor } from '../presentation-editor/PresentationEditor.tsx';
 import { RemoteBanner } from './RemoteBanner.tsx';
 
 /**
@@ -13,7 +13,7 @@ import { RemoteBanner } from './RemoteBanner.tsx';
  * candidate, or a picker; then the same page, writing to that session. Its
  * own outputs and the remote toggle are the owner's, so they are not here.
  */
-export function RemoteLive({ id, link, ownSessionId, wanted, stage }: { id: string; link: LiveLink; ownSessionId: string; wanted: string | null; stage: boolean }) {
+export function RemoteLive({ id, role, link, ownSessionId, wanted, stage }: { id: string; role: Role; link: LiveLink; ownSessionId: string; wanted: string | null; stage: boolean }) {
   const { sessions, connected } = useLiveSessions(link);
   const [picked, setPicked] = useState<string | null>(wanted);
   const candidates = sessions.filter((s) => s.presentationId === id && s.id !== ownSessionId);
@@ -66,13 +66,13 @@ export function RemoteLive({ id, link, ownSessionId, wanted, stage }: { id: stri
     );
   }
   if (!chosen.remote) return notReady(t('remote.off'));
-  return <ControlledLive key={chosen.id} id={id} link={link} sessionId={chosen.id} stage={stage} />;
+  return <ControlledLive key={chosen.id} id={id} role={role} link={link} sessionId={chosen.id} stage={stage} />;
 }
 
-function ControlledLive({ id, link, sessionId, stage }: { id: string; link: LiveLink; sessionId: string; stage: boolean }) {
+function ControlledLive({ id, role, link, sessionId, stage }: { id: string; role: Role; link: LiveLink; sessionId: string; stage: boolean }) {
   const toast = useToast();
   const control = useMemo(() => new RemoteControl(link, sessionId, () => toast(t('remote.unconfirmed'), 'warning')), [link, sessionId, toast]);
   const audio = useMemo(() => new RemoteAudio(link, sessionId), [link, sessionId]);
   useEffect(() => () => control.dispose(), [control]);
-  return <LiveView id={id} live={control} audio={audio} owner={null} link={link} stage={stage} />;
+  return <PresentationEditor id={id} role={role} live={control} presenting={{ audio, owner: null, link }} stage={stage} />;
 }

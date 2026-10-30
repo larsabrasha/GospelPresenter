@@ -112,7 +112,7 @@ throttle locking out one client behind a proxy and not the next, and, without th
 ## Addresses
 
 The app's pages are plain paths through the History API (`apps/web/src/ui/router.ts`): `/` (the
-presentations, the start page), `/presentations/{id}`, `/live/{id}`, `/trash?kind=Image`, `/logins`,
+presentations, the start page), `/presentations/{id}` (presenting in place; `/live/{id}` from before opens it), `/trash?kind=Image`, `/logins`,
 `/settings`, `/signin`, `/signed-in`, `/output`, and the admin pages under `/admin/` (as in the current app):
 `songs`, `songs/{id}`, `users`, `devices`, `bibles`, `images`, `audios`, `overlays`, `themes`, `displays`;
 `/admin` alone is the songs. `/songs`, `/songs/{id}` and `/presentations` from before still open their pages.

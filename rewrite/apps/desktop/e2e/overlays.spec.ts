@@ -2,7 +2,7 @@
 // Overlays, carried by an item, toggled during live, switched off by Rensa.
 import { expect, test, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, dropFiles, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, dropFiles, openAdmin, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -45,7 +45,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await expect(page.getByRole('list', { name: 'Sång A' }).getByTestId('slide-overlay').first()).toHaveText('Swish 123 45');
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByText('Kollekt')).toBeVisible();
 
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   const overlay = output.getByTestId('slide-overlay');
@@ -57,11 +57,13 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await page.getByRole('button', { name: 'Sång A 2' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A två');
   await expect(overlay).toHaveText('Swish 123 45');
+  await pickItem(page, 'Sång B');
   await page.getByRole('button', { name: 'Sång B 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('B ett');
   await expect(overlay).toHaveCount(0);
 
   // Switched off by hand, it stays off within the item; back on the item, it comes on again.
+  await pickItem(page, /^Sång A/); // its row names its overlay too
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(overlay).toHaveText('Swish 123 45');
   await page.getByRole('button', { name: 'Overlays', exact: true }).click();
@@ -71,7 +73,9 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await page.getByRole('button', { name: 'Sång A 2' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A två');
   await expect(overlay).toHaveCount(0);
+  await pickItem(page, 'Sång B');
   await page.getByRole('button', { name: 'Sång B 1' }).click();
+  await pickItem(page, /^Sång A/); // its row names its overlay too
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(overlay).toHaveText('Swish 123 45');
 
@@ -79,6 +83,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await toggles.getByLabel('Välkommen').check();
   await expect(overlay).toHaveText('Välkommen hit');
   await expect(toggles.getByLabel('Kollekt')).not.toBeChecked();
+  await pickItem(page, 'Sång B');
   await page.getByRole('button', { name: 'Sång B 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('B ett');
   await expect(overlay).toHaveText('Välkommen hit');

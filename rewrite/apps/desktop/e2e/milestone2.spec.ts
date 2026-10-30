@@ -31,7 +31,7 @@ test("the host's own window keeps its database in memory, and the output still s
   ]);
   await createPresentation(page, 'Kväll');
   await addSongs(page, ['Blott en dag']);
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Blott en dag 2' }).click();
@@ -370,7 +370,7 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await page.getByRole('link', { name: /Gudstjänst/ }).click();
 
   // Live, the item shows Kort's order on the output.
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Inledning 1' }).click();

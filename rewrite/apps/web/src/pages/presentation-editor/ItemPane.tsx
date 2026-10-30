@@ -7,14 +7,14 @@ import { EmptySlidesPicture, MenuIcon, PencilIcon, PlayIcon } from '../../ui/ico
 import { href } from '../../ui/router.ts';
 import { ItemTitle } from './ItemTitle.tsx';
 import { IDLE_HINTS } from './idleHints.ts';
-import { SelectedItem } from './SelectedItem.tsx';
+import { SelectedItem, type Shown } from './SelectedItem.tsx';
 
 /** Starta presentation: in the title row from `lg`, at the bottom right below it. */
-function StartButton({ id, className }: { id: string; className: string }) {
+function StartButton({ onStart, className }: { onStart: () => void; className: string }) {
   return (
     <AppButton
       variant="plain"
-      href={href({ page: 'live', id })}
+      onClick={onStart}
       title={t('presentation.start')}
       className={`pointer-events-auto shrink-0 px-4 py-2.5 rounded-full items-center gap-2 shadow-lg cursor-pointer bg-emerald-500 text-white hover:bg-emerald-600 ${className}`}
     >
@@ -43,7 +43,6 @@ function withBold(text: string, marker: string, bold: string): ReactNode {
  * empty states; below `lg` the round button that opens the running order.
  */
 export function ItemPane({
-  id,
   items,
   selected,
   renaming,
@@ -54,12 +53,15 @@ export function ItemPane({
   overlays,
   theme,
   canStart,
+  onStart,
   onShowMenu,
   onAddImages,
+  shown,
 }: {
+  /** While presenting: a slide clicked is shown live. */
+  shown?: Shown;
   /** "Lägg till bilder" on an image item: the add dialog's picture tab, adding to it. */
   onAddImages: () => void;
-  id: string;
   items: PresentationItem[];
   selected: PresentationItem | null;
   renaming: boolean;
@@ -71,6 +73,7 @@ export function ItemPane({
   theme: Theme;
   /** Starta presentation: not in a template's editor. */
   canStart: boolean;
+  onStart: () => void;
   onShowMenu: () => void;
 }) {
   // Redigera on an image item: its pictures to reorder, remove and add to; another item ends it.
@@ -115,7 +118,7 @@ export function ItemPane({
           ) : (
             <span />
           )}
-          {canStart && <StartButton id={id} className="hidden lg:flex" />}
+          {canStart && <StartButton onStart={onStart} className="hidden lg:flex" />}
         </div>
         <div className="flex-1 flex flex-col gap-3 px-3 pt-16 lg:pt-0 pb-24 lg:pb-3">
           {!items.length && (
@@ -158,6 +161,7 @@ export function ItemPane({
               theme={theme}
               editingImages={editing}
               onAddImages={onAddImages}
+              shown={shown}
             />
           )}
         </div>
@@ -173,7 +177,7 @@ export function ItemPane({
       >
         <MenuIcon className="size-8" />
       </AppButton>
-      {canStart && <StartButton id={id} className="absolute bottom-3 right-3 z-30 flex lg:hidden" />}
+      {canStart && <StartButton onStart={onStart} className="absolute bottom-3 right-3 z-30 flex lg:hidden" />}
     </div>
   );
 }

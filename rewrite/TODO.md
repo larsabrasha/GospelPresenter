@@ -17,6 +17,7 @@ modifiers, SongEditor's skipped name or year, a refused arrangement write) is do
 8. `../.claude/hooks/check-rewrite.mjs:29`: the Stop hook runs `pnpm check:quick` every turn while rewrite/ has
    uncommitted changes, also when the turn changed nothing. Run it only when the turn changed files under
    rewrite/ (compare with a state saved when the turn began). Start here: it costs a minute every turn.
+   _Done 2026-10-30, not committed: `check-rewrite.mjs turn-start` (UserPromptSubmit) saves a fingerprint._
 9. `apps/web/src/db/queries.ts:224`: Bible texts the device does not keep stay in the Map `texts` for good; the
    memory grows per translation. Keep a few (the last two or three translations).
 10. `apps/server/src/live-hub.ts`: `showing()`/`shown()` read live_bindings and live_sessions two or three times
@@ -55,7 +56,7 @@ From reading the code of both apps, page by page; S small (under an hour), M med
 or a model or sync change). **ask**: Lars decides before it is built. Old paths are under
 `GospelPresenter/GospelPresenter.Shared/` on `origin/main`, its Swedish texts in
 `Resources/Localization/SharedResource.sv.resx`. The known items above are not repeated. Left out as
-deliberate (docs, spec decisions or code comments): live as its own page, the song editor as a page, PDF-only
+deliberate (docs, spec decisions or code comments): the song editor as a page, PDF-only
 slides, D13, D15 (the dialog never closes), D17, D24 (Bibles and templates for admins), the popup instead of
 the Presentation API, the remote link's path, the overlay picture from Bilder, the host's Enheter page, the invite as `#token`, passkeys, the Församlingen page.
 
@@ -82,7 +83,7 @@ the Presentation API, the remote link's path, the overlay picture from Bilder, t
 - The editor selects the live item on open, or else the last selected; a red pulsing live dot on its row; a
   toast "Presentationen har uppdaterats" when another session changes it.
 - The start page shows 20 at a time with "Visa fler"; the trash link only when there are presentations; a live
-  row still goes to the live page; taking a screen from another session still asks.
+  row opens the presentation, presenting; taking a screen from another session still asks.
 - A Bible start verse alone stays one verse, as now.
 - The desktop updater ("Starta om för att uppdatera") waits for the packaging of the desktop app.
 
@@ -267,7 +268,7 @@ ToastContainer.razor, utils.js → `ui/`)
 - [x] ✕ on a temporary screen: "Koppla från". S
 - [x] Wake lock while presenting. S
 
-**Live page** (`pages/live/LiveView.tsx`)
+**Live page** (the editor presenting, `pages/presentation-editor/PresentationEditor.tsx`; was its own page until 2026-10-30)
 - [x] The old page has no global step keys: arrows move focus between slides, Enter shows one; new: → ↓ PageDown
   Space and ← ↑ PageUp step across items, `b` blanks. **ask** (keep the new keys?)
 

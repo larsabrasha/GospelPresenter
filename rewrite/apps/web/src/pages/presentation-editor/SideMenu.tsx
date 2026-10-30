@@ -23,6 +23,7 @@ export function SideMenu({
   onTrash,
   ticking,
   onTicking,
+  audio = true,
   children,
 }: {
   presentation: Presentation;
@@ -35,6 +36,8 @@ export function SideMenu({
   /** Select mode (Markera), switched from the menu. */
   ticking: boolean;
   onTicking: (on: boolean) => void;
+  /** Whether this device needs the audio files: a remote control plays none. */
+  audio?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -101,7 +104,7 @@ export function SideMenu({
             );
           })()}
           <div className="px-1">
-            <MediaReadiness presentationId={presentation.id} audio />
+            <MediaReadiness presentationId={presentation.id} audio={audio} />
           </div>
         </div>
         {children}

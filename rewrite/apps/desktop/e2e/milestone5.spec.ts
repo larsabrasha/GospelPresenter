@@ -76,10 +76,10 @@ test('a picture is imported, added to a presentation and shown on the output; tr
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveText([/Logotyp\.png/]);
 
   // Live: the picture fills the output, at 1920 px (MEDIA-A2), over the theme's background.
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
-  await page.getByRole('button', { name: /Logotyp\.png/ }).first().click();
+  await page.getByRole('button', { name: 'Logotyp.png 1' }).click();
   const shown = output.getByTestId('slide-image');
   await expect(shown).toBeVisible();
   await expect(output.getByTestId('slide-stage')).toHaveAttribute('data-kind', 'media');

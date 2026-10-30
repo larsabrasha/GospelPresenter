@@ -2,7 +2,7 @@
 // the device, and added to a presentation as an item with a player.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -76,7 +76,7 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await addSongs(page, ['Sång A']);
 
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
@@ -91,7 +91,10 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   const player = page.getByTestId('audio-player');
   // The controller fetches no audio: it never plays (docs/media-and-files.md, "Which files a device keeps").
   await expect(second.page.getByTestId('media-ready')).toHaveCount(0);
+  // The player is the audio item's, there when it is selected, on either computer.
+  await pickItem(second.page, 'Preludium.wav');
   await mirror.getByRole('button', { name: 'Spela' }).click();
+  await pickItem(page, 'Preludium.wav');
   await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
   await expect(mirror).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
   // It plays here, and what is shown stays (LIVE-R6).
@@ -100,8 +103,10 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   // What is shown changes; the sound plays on (LIVE-A31).
   await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
+  await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+  await pickItem(page, 'Preludium.wav');
   await expect(player).toHaveAttribute('data-playing', 'true');
 
   // The controller pauses it, and the presenting computer stops; then the operator plays it on here.

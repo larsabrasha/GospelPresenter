@@ -17,12 +17,15 @@ Ta bort), the slides as rounded tiles (`SlideGrid.razor`, `ui/SlideTile.tsx`), t
 Starta presentation, the add modal with its pill tabs and round search (`AddItemModal.razor`, `ui/Picker.tsx`),
 the live page's panel at the right (`LivePanel.razor`: Nu visas, Utgångar, Overlays, fjärrstyrning as
 switches in `ui/Toggle.tsx`, Scenläge, the red Avsluta) and the dark stage view with its bottom sheets
-(`StageView.razor`). The flow is kept: live is still its own page, `/live/{id}`, with every item's slides.
+(`StageView.razor`). Live is the editor presenting, as `Presentation.razor` (Lars, 2026-10-30): `/presentations/{id}`
+presents in place (Starta presentation and Avsluta stay on the page; a reload goes on presenting; `/live/{id}`
+from before opens it too) with the running order, so items are added, removed and moved while live; the main area shows the
+selected item's slides, a click shows one live, and the item shown live is selected as the slides step on.
 Below `lg` (a phone) it is laid out as the current app's: the running order is a drawer from the left, open when
 the page opens and closed by choosing an item or tapping the dimmed page, with the round menu button at the bottom
 left and Starta presentation at the right; live's panel floats at the bottom right and folds to its caption and a
 small picture; and a song tapped under Lägg till opens its preview full screen, with ✕ (or Escape) and its own add
-button, while Bibeltexter keeps its preview in the tab. The live page has no running order, so no menu button.
+button, while Bibeltexter keeps its preview in the tab. Presenting, the drawer is closed when it starts.
 
 The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the list in a light card with
 Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button

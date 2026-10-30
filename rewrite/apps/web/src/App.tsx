@@ -94,7 +94,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       ) : route.page === 'settings' ? (
         <Settings />
       ) : route.page === 'presentation' ? (
-        <PresentationEditor key={route.id} id={route.id} role={me.role} live={live} />
+        <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} role={me.role} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} stage={route.stage} />
       ) : route.page === 'template' ? (
         // Editing a template is for admins (D24): a user who has the link is told so.
         can(me.role, 'ManageTemplates') ? (
@@ -102,8 +102,6 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         ) : (
           <Refused text={t('templates.forbidden')} />
         )
-      ) : route.page === 'live' ? (
-        <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} stage={route.stage} />
       ) : ADMIN_PAGES.has(route.page) ? (
         <AdminLayout me={me} host={host} route={route}>
           {admin}

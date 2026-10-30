@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, testPort, type Desktop } from './apps.ts';
-import { createPresentation, createUser, openAdmin, openPresentations, pair, setUpHost } from './flows.ts';
+import { createPresentation, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -74,9 +74,10 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveText([/Johannes 3:16-17/, /Psaltaren 23:1-3/]);
 
   // Live, on the output.
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
+  await pickItem(page, 'Johannes 3:16-17');
   await page.getByRole('button', { name: 'Johannes 3:16-17 1' }).click();
   const stage = output.getByTestId('slide-stage');
   await expect(output.getByTestId('slide-text')).toContainText('16 For God so loved the world');
@@ -102,11 +103,9 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(output.getByTestId('slide-text')).toContainText('1\u00a0Yahweh is my shepherd');
 
   // Back to the default theme: the output follows at once (THEME-R6), and black stays black.
-  await page.goBack();
   await chooseTheme(page, 'Följer församlingens standard');
   await expect(stage).toHaveAttribute('data-theme', 'midnight');
   await expect(stage).toHaveCSS('background-color', 'rgb(11, 27, 58)');
-  await page.goForward();
   await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
   await expect(stage).toHaveCSS('background-color', 'rgb(0, 0, 0)');

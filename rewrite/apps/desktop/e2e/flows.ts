@@ -99,6 +99,14 @@ export async function addSongs(page: Page, names: string[]) {
   await picker.getByRole('button', { name: 'Stäng' }).click();
 }
 
+/**
+ * Selects an item in the running order, where only the selected item's slides are, also
+ * while presenting (Presentation.razor). On a phone the drawer must be open first.
+ */
+export async function pickItem(page: Page, name: string | RegExp) {
+  await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name, exact: true }).click();
+}
+
 /** Google accounts for the people in the tests. */
 export const ANNA: FakeAccount = { sub: 'google-anna', email: 'anna@kyrkan.se', name: 'Anna' };
 

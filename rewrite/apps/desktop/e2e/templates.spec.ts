@@ -40,7 +40,7 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await expect(page.getByText('Du redigerar en mall')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Söndag', exact: true })).toBeVisible();
   await expect(page.getByTestId('schedule')).toHaveText('Söndag 11:00Kyrkan');
-  await expect(page.getByRole('link', { name: 'Starta presentation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Starta presentation' })).toHaveCount(0);
   await addSongs(page, ['Härlig är jorden']);
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await expect(page.getByRole('menuitem', { name: 'Spara som mall' })).toHaveCount(0);
@@ -60,7 +60,7 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await expect(page.getByRole('heading', { name: 'Söndag 1', exact: true })).toBeVisible();
   await expect(page.getByText('Du redigerar en mall')).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveText([/Härlig är jorden/]);
-  await expect(page.getByRole('link', { name: 'Starta presentation' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Starta presentation' })).toBeVisible();
 
   // PRES-A31: Spara som mall, then both templates on the templates page.
   await page.getByRole('button', { name: 'Alternativ' }).click();

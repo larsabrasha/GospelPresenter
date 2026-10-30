@@ -20,7 +20,7 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   await createSong(page, 'Sång B', [['Verse 1', 'B ett']]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A', 'Sång B']);
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
 
@@ -107,7 +107,7 @@ test('Extern skärm is a switch: on opens the output, off closes it, closing the
   const page = host.page;
   await setUpHost(host);
   await createPresentation(page, 'Söndag');
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   const external = page.getByRole('checkbox', { name: 'Extern skärm' });
   const windowCount = () => host!.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
   await expect(external).not.toBeChecked();
@@ -142,15 +142,16 @@ test('Extern skärm is a switch: on opens the output, off closes it, closing the
   await expect.poll(windowCount).toBe(1);
 });
 
-test('a presentation shown live opens its live page from the list, the others their editor', async () => {
+test('a presentation is presented on its own page, as the current app: the address stays, and the list opens it presenting', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
   await createPresentation(page, 'Lördag');
   await createPresentation(page, 'Söndag');
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
-  await expect(page).toHaveURL(/\/live\//);
   const liveUrl = page.url();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  await expect(page.getByTestId('live-panel')).toBeVisible();
+  await expect(page).toHaveURL(liveUrl);
 
   await page.getByRole('link', { name: 'Gospel Presenter' }).click();
   const shown = page.getByRole('link', { name: /Söndag/ });
@@ -162,6 +163,15 @@ test('a presentation shown live opens its live page from the list, the others th
   await page.getByRole('link', { name: 'Gospel Presenter' }).click();
   await page.getByRole('link', { name: /Lördag/ }).click();
   await expect(page).toHaveURL(/\/presentations\//);
+  await expect(page.getByTestId('live-panel')).toHaveCount(0);
+
+  // Avsluta stays on the page, which is the editor again.
+  await page.getByRole('link', { name: 'Gospel Presenter' }).click();
+  await page.getByRole('link', { name: /Söndag/ }).click();
+  await page.getByRole('button', { name: 'Avsluta presentation' }).click();
+  await expect(page).toHaveURL(liveUrl);
+  await expect(page.getByTestId('live-panel')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Starta presentation' })).toBeVisible();
 });
 
 test('addresses are plain paths: links navigate without a reload, a reload or a pasted link lands on the same page', async () => {

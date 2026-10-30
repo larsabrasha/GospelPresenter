@@ -57,9 +57,9 @@ test('? lists the keys of the page, the dialog or the stage view on screen, and 
   await expect(add).toHaveCount(0);
 
   // The live page, and the stage view, whose keys replace the live page's; Esc closes the help, not the stage view.
-  await page.getByRole('link', { name: 'Starta presentation' }).click();
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
   help = await openHelp(page);
-  await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Live', 'Överallt']);
+  await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Live', 'Presentation', 'Överallt']);
   await expect(help.getByRole('listitem').filter({ hasText: 'Nästa slide' }).locator('kbd')).toHaveText(['→', 'Space', 'PageDown']);
   await page.keyboard.press('?');
   await page.getByRole('button', { name: 'Scenläge' }).click();

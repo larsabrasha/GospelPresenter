@@ -2,7 +2,7 @@
 // from the left, the live panel as a floating box that folds, and Lägg till's song preview over the add dialog.
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, pickItem, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -45,7 +45,7 @@ test('on a phone the running order is a drawer, Lägg till previews a song over 
   await expect(page.getByRole('list', { name: 'Sång A' })).toBeVisible();
 
   // The round menu button at the bottom left and Starta presentation at the right are side by side, on screen.
-  const start = page.getByRole('link', { name: 'Starta presentation' });
+  const start = page.getByRole('button', { name: 'Starta presentation' });
   const m = await onScreen(menu);
   const s = await onScreen(start);
   expect(m.x + m.width).toBeLessThan(s.x);
@@ -90,6 +90,11 @@ test('on a phone the running order is a drawer, Lägg till previews a song over 
   await page.mouse.click(370, 400);
   await expect(order).toBeHidden();
   await start.click();
+  // Presenting keeps the running order, in the drawer, closed when it starts; Sång B, added last, is selected.
+  await expect(order).toBeHidden();
+  await menu.click();
+  await pickItem(page, 'Sång A');
+  await expect(order).toBeHidden();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   const panel = page.getByTestId('live-panel');
   const fold = panel.getByRole('button', { name: 'Fäll in eller ut live-vyn' });

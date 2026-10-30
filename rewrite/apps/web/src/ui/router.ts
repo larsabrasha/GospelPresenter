@@ -16,16 +16,16 @@ export type Route =
   | { page: 'songs' }
   | { page: 'song'; id: string }
   | { page: 'presentations' }
-  | { page: 'presentation'; id: string }
+  /**
+   * A presentation in its editor, which is also where it is presented, as Presentation.razor: presenting
+   * when this window's session shows it; with `remote` driving a session elsewhere (spec 04 §2), `session`
+   * naming which. `stage` opens the stage view (`?stage=true`), so a phone's link or a reload lands there.
+   */
+  | { page: 'presentation'; id: string; remote?: boolean; session?: string | null; stage?: boolean }
   /** The templates page, under the admin menu (spec 03 screen 3). */
   | { page: 'templates' }
   /** A template in the presentation editor (`/templates/{id}`, spec 03 screen 2). */
   | { page: 'template'; id: string }
-  /**
-   * The live view: this window's own session, or with `remote` a session elsewhere (spec 04 §2), `session` naming which.
-   * `stage` opens it in the stage view (`?stage=true`, as Presentation.razor), so a phone's link or a reload lands there.
-   */
-  | { page: 'live'; id: string; remote?: boolean; session?: string | null; stage?: boolean }
   | { page: 'trash'; kind: TrashKind | null }
   | { page: 'users' }
   /** A user of the organisation (`/admin/users/{id}`, UserDetail.razor). */
@@ -103,13 +103,14 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     return { page: 'trash', kind: TRASH_KINDS.find((k) => k.toLowerCase() === kind) ?? null };
   }
   if (first === 'songs' && id) return { page: 'song', id };
-  if (first === 'presentations' && id) return { page: 'presentation', id };
-  if (first === 'templates' && id) return { page: 'template', id };
-  if (first === 'live' && id) {
+  // `/live/{id}` was the address while presenting until 2026-10-30, with `remote=1`; its links still open.
+  if ((first === 'presentations' || first === 'live') && id) {
     const stage = query.get('stage') === 'true' ? { stage: true } : {};
-    if (query.get('remote') !== '1') return { page: 'live', id, ...stage };
-    return { page: 'live', id, remote: true, session: query.get('session'), ...stage };
+    const remote = query.get('remote');
+    if (remote !== 'true' && remote !== '1') return { page: 'presentation', id, ...stage };
+    return { page: 'presentation', id, remote: true, session: query.get('session'), ...stage };
   }
+  if (first === 'templates' && id) return { page: 'template', id };
   if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decode(hash.slice(1)) };
   if (first === 'signed-in') return { page: 'signedIn' };
   if (first === 'signin') return { page: 'signIn', error: query.get('error') };
@@ -130,21 +131,19 @@ export function href(r: Route): string {
       return '/';
     case 'song':
       return `/admin/songs/${encodeURIComponent(r.id)}`;
-    case 'presentation':
-      return `/presentations/${encodeURIComponent(r.id)}`;
+    case 'presentation': {
+      const q = new URLSearchParams();
+      if (r.remote) q.set('remote', 'true');
+      if (r.remote && r.session) q.set('session', r.session);
+      if (r.stage) q.set('stage', 'true');
+      return q.size ? `/presentations/${encodeURIComponent(r.id)}?${q}` : `/presentations/${encodeURIComponent(r.id)}`;
+    }
     case 'overlay':
       return `/admin/overlays/${encodeURIComponent(r.id)}`;
     case 'user':
       return `/admin/users/${encodeURIComponent(r.id)}`;
     case 'template':
       return `/templates/${encodeURIComponent(r.id)}`;
-    case 'live': {
-      const q = new URLSearchParams();
-      if (r.remote) q.set('remote', '1');
-      if (r.remote && r.session) q.set('session', r.session);
-      if (r.stage) q.set('stage', 'true');
-      return q.size ? `/live/${encodeURIComponent(r.id)}?${q}` : `/live/${encodeURIComponent(r.id)}`;
-    }
     case 'trash':
       return r.kind ? `/trash?kind=${r.kind}` : '/trash';
     case 'watch':

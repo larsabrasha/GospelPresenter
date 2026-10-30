@@ -5,7 +5,6 @@ import { t } from '../../i18n.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { ArrowsPointingOutIcon, ChevronDownIcon, CloseIcon, StopIcon } from '../../ui/icons.tsx';
-import { navigate } from '../../ui/router.ts';
 import { outputWindow } from '../../live/outputWindow.ts';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { CAPTION } from '../../ui/Toggle.tsx';
@@ -121,9 +120,8 @@ export function LivePanel({
                   title={t('live.end')}
                   onClick={() => {
                     live.set({ presentationId: null, itemId: null, partIndex: 0, black: false });
-                    // The output window closes with the presentation (Live.razor, Lars 2026-10-29).
+                    // The output window closes with the presentation (Live.razor, Lars 2026-10-29); the page stays, editing.
                     outputWindow().turn(false);
-                    navigate({ page: 'presentation', id });
                   }}
                   className="w-full px-4 py-2.5 rounded-full flex items-center justify-center gap-2 shadow-lg cursor-pointer bg-red-500 text-white hover:bg-red-600"
                 >

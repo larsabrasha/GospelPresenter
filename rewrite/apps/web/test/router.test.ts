@@ -15,11 +15,10 @@ describe('routes', () => {
       { page: 'song', id: 'a b/c' },
       { page: 'presentations' },
       { page: 'presentation', id: 'P1' },
-      { page: 'live', id: 'P1' },
-      { page: 'live', id: 'P1', remote: true, session: null },
-      { page: 'live', id: 'P1', remote: true, session: 'S 1' },
-      { page: 'live', id: 'P1', stage: true },
-      { page: 'live', id: 'P1', remote: true, session: 'S1', stage: true },
+      { page: 'presentation', id: 'P1', remote: true, session: null },
+      { page: 'presentation', id: 'P1', remote: true, session: 'S 1' },
+      { page: 'presentation', id: 'P1', stage: true },
+      { page: 'presentation', id: 'P1', remote: true, session: 'S1', stage: true },
       { page: 'trash', kind: null },
       { page: 'trash', kind: 'Song' },
       { page: 'trash', kind: 'Image' },
@@ -65,7 +64,12 @@ describe('routes', () => {
     expect(href({ page: 'display', id: 'abcdefg', name: 'Kyrksal', token: null })).toBe('/display?id=abcdefg&name=Kyrksal');
     expect(href({ page: 'display', id: null, name: null, token: null })).toBe('/display');
     // A remote link straight into the stage view, in the current app's words (Presentation.razor).
-    expect(href({ page: 'live', id: 'P1', remote: true, session: 'S1', stage: true })).toBe('/live/P1?remote=1&session=S1&stage=true');
+    expect(href({ page: 'presentation', id: 'P1', remote: true, session: 'S1', stage: true })).toBe('/presentations/P1?remote=true&session=S1&stage=true');
+  });
+
+  it('a /live/ link from before opens the presentation, presenting or controlling as it said', () => {
+    expect(read('/live/P1')).toEqual({ page: 'presentation', id: 'P1' });
+    expect(read('/live/P1?remote=1&session=S1&stage=true')).toEqual({ page: 'presentation', id: 'P1', remote: true, session: 'S1', stage: true });
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {

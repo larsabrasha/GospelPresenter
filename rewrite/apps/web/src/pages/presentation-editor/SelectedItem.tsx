@@ -1,6 +1,7 @@
-import type { Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
+import type { LivePointer, Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
 import { useEffect, useState, type ReactNode } from 'react';
-import { AudioEngine } from '../../live/audio.ts';
+import { AudioEngine, type AudioControl } from '../../live/audio.ts';
+import type { LiveControl } from '../../live/remote.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
 import { useBlobUrl, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
@@ -41,6 +42,9 @@ function PreviewPlayer({ url, itemId, name }: { url: string; itemId: string; nam
     </div>
   );
 }
+
+/** While presenting: the session a clicked slide is shown in, and its audio. */
+export type Shown = { live: LiveControl; pointer: LivePointer; audio: AudioControl };
 
 /** A warning about the selected item, in the main area, with an action at its end when there is one. */
 function ItemWarning({ children, action }: { children: ReactNode; action?: ReactNode }) {
@@ -113,7 +117,9 @@ export function SelectedItem({
   theme,
   editingImages,
   onAddImages,
+  shown,
 }: {
+  shown?: Shown;
   editingImages: boolean;
   onAddImages: () => void;
   selected: PresentationItem;
@@ -150,7 +156,15 @@ export function SelectedItem({
       {selectedSlides?.problem === 'song-missing' && <ItemWarning>{t('presentation.songMissing')}</ItemWarning>}
       {selectedSlides?.problem === 'image-missing' && <ItemWarning>{t('presentation.imageMissing')}</ItemWarning>}
       {selectedSlides?.problem === 'audio-missing' && <ItemWarning>{t('presentation.audioMissing')}</ItemWarning>}
-      {selectedSlides?.audio && <AudioPreview key={selected.id} itemId={selected.id} hash={selectedSlides.audio.hash} name={selectedSlides.audio.fileName} />}
+      {selectedSlides?.audio &&
+        (shown ? (
+          // While presenting, the session's own player: what plays on the presenting computer (AudioPlayer.razor).
+          <div className="w-full sm:max-w-lg sm:mx-auto">
+            <AudioPlayer control={shown.audio} itemId={selected.id} name={selectedSlides.audio.fileName} />
+          </div>
+        ) : (
+          <AudioPreview key={selected.id} itemId={selected.id} hash={selectedSlides.audio.hash} name={selectedSlides.audio.fileName} />
+        ))}
       {(selectedSong?.deletedAt === null || !!overlays.length) && (
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-1 empty:hidden">
           {selectedSong?.deletedAt === null && (
@@ -187,7 +201,15 @@ export function SelectedItem({
       {selectedSlides && selected.type === 'image' && editingImages ? (
         <ImageItemEditor item={selected} slides={selectedSlides.slides} theme={theme} onAddImages={onAddImages} />
       ) : (
-        selectedSlides && <SlideGrid theme={theme} label={selected.title} slides={selectedSlides.slides} overlayId={selected.overlayId} />
+        selectedSlides && (
+          <SlideGrid
+            theme={theme}
+            label={selected.title}
+            slides={selectedSlides.slides}
+            overlayId={selected.overlayId}
+            shown={shown && { pointer: shown.pointer, itemId: selected.id, onShow: (partIndex) => shown.live.set({ itemId: selected.id, partIndex, black: false }) }}
+          />
+        )
       )}
     </>
   );

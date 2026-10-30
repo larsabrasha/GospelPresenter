@@ -1,6 +1,6 @@
 import { can, sortedArrangements, type PresentationItem, type Role } from '@gp/core';
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { useData, useDb } from '../../db/react.tsx';
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useData, useDb, useShownOverlay } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { slidesOfItems } from '../../live/live.ts';
@@ -11,8 +11,12 @@ import { useKeepOffline } from '../../ui/MediaReadiness.tsx';
 import { navigate } from '../../ui/router.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
-import type { LiveControl } from '../../live/remote.ts';
+import type { AudioControl } from '../../live/audio.ts';
+import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
+import { LivePanel } from '../live/LivePanel.tsx';
+import { RemoteBanner } from '../live/RemoteBanner.tsx';
+import { StageView } from '../StageView.tsx';
 import { EditTemplateDialog } from '../Templates.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { AddItemDialog } from './AddItemDialog.tsx';
@@ -24,6 +28,29 @@ import { SideMenu } from './SideMenu.tsx';
 
 /** The item last selected in each presentation, for this window's life: opened again, it is selected again. */
 const lastSelected = new Map<string, string>();
+
+/** Whether the window is `lg` or wider, where the live panel is a column rather than a floating box. */
+const wideQuery = matchMedia('(min-width: 1024px)');
+function useWide(): boolean {
+  return useSyncExternalStore(
+    (on) => {
+      wideQuery.addEventListener('change', on);
+      return () => wideQuery.removeEventListener('change', on);
+    },
+    () => wideQuery.matches,
+  );
+}
+
+/**
+ * Presenting from the editor, as Presentation.razor does: this window's own session
+ * (`owner`), or a controller driving one elsewhere (`?remote=true`). The running order stays, so items
+ * are added, removed and moved while live; the live panel is at the right.
+ */
+export type Presenting = {
+  audio: AudioControl;
+  owner: { sessionId: string } | null;
+  link: LiveLink;
+};
 
 /** How long after this window's own write a change of the presentation is taken as its own (a push's round trip). */
 const OWN_WRITE_MS = 10_000;
@@ -46,7 +73,39 @@ const KEYS: ShortcutGroup = {
   ],
 };
 
-export function PresentationEditor({ id, role, live, template = false }: { id: string; role: Role; live: LiveControl; template?: boolean }) {
+/** The keys while presenting: ProPresenter's (Lars, 2026-10-29). */
+const LIVE_KEYS: ShortcutGroup = {
+  title: t('shortcuts.group.live'),
+  lines: [
+    { keys: ['ArrowRight', ' ', 'PageDown'], text: t('shortcuts.nextSlide') },
+    { keys: ['ArrowLeft', 'PageUp'], text: t('shortcuts.previousSlide') },
+    { keys: ['ArrowDown'], text: t('shortcuts.nextItem') },
+    { keys: ['ArrowUp'], text: t('shortcuts.previousItem') },
+    { keys: ['B'], text: t('shortcuts.black') },
+  ],
+};
+
+function LiveKeys() {
+  useShortcutGroup(LIVE_KEYS);
+  return null;
+}
+
+export function PresentationEditor({
+  id,
+  role,
+  live,
+  template = false,
+  presenting,
+  stage: openInStage = false,
+}: {
+  id: string;
+  role: Role;
+  live: LiveControl;
+  template?: boolean;
+  presenting?: Presenting;
+  /** The address asks for the stage view (`?stage=true`): it opens while presenting. */
+  stage?: boolean;
+}) {
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
@@ -89,11 +148,60 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
   const keep = useKeepOffline(id);
   const [renaming, setRenaming] = useState(false);
-  // Below `lg` the running order is a drawer from the left, open when the page opens (Presentation.razor).
-  const [menuVisible, setMenuVisible] = useState(true);
+  // Below `lg` the running order is a drawer from the left, open when the page opens (Presentation.razor);
+  // closed when presenting starts, where the old app stayed on the page with the drawer as it was.
+  const [menuVisible, setMenuVisible] = useState(!presenting);
 
   const items = data?.items ?? [];
   const selected = items.find((i) => i.id === selectedId) ?? null;
+
+  // Presenting: the stage view, and the live panel that below `lg` floats and folds (LivePanel.razor's Collapsible).
+  const owner = presenting?.owner ?? null;
+  const [stageOpen, setStage] = useState(openInStage);
+  const stage = !!presenting && stageOpen;
+  const [folded, setFolded] = useState(false);
+  const wide = useWide();
+  const panelId = useId();
+  const overlay = useShownOverlay(pointer.overlayId);
+  // The address says whether the stage view is open (`?stage=true`, as Presentation.razor), so a reload or a copied link opens it again.
+  useEffect(() => {
+    const url = new URL(location.href);
+    if (stage) url.searchParams.set('stage', 'true');
+    else url.searchParams.delete('stage');
+    if (url.href !== location.href) history.replaceState(history.state, '', url);
+  }, [stage]);
+  // The item shown live is the one selected, as a slide stepped into the next item takes the selection along.
+  const [followed, setFollowed] = useState(liveItemId);
+  if (presenting && liveItemId !== followed) {
+    setFollowed(liveItemId);
+    if (liveItemId) setSelectedId(liveItemId);
+  }
+  // The screen stays awake while this computer presents (Presentation.razor's wake lock), and takes it again when the page shows.
+  useEffect(() => {
+    if (!owner || !('wakeLock' in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    const take = () => {
+      if (document.visibilityState === 'visible')
+        void navigator.wakeLock.request('screen').then(
+          (l) => (lock = l),
+          () => {},
+        );
+    };
+    take();
+    document.addEventListener('visibilitychange', take);
+    return () => {
+      document.removeEventListener('visibilitychange', take);
+      void lock?.release();
+    };
+  }, [owner]);
+
+  /** Every slide of the running order, in order: what → and ← step through while presenting. */
+  const steps = useMemo(() => (data ? data.items.flatMap((item) => (data.slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex }))) : []), [data]);
+  const step = (delta: number) => {
+    const at = steps.findIndex((s) => s.itemId === pointer.itemId && s.partIndex === pointer.partIndex);
+    const next = steps[at === -1 ? (delta > 0 ? 0 : steps.length - 1) : at + delta];
+    if (next) live.set({ ...next, black: false });
+  };
 
   // "Presentationen har uppdaterats" when another session changed it: its time of change moved while this window wrote nothing.
   const updatedAt = data?.presentation ? data.presentation.updatedAt : undefined;
@@ -116,7 +224,20 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
   // fields; never behind a dialog (PRES-R37), never a held key repeating (ui/shortcuts.ts).
   useShortcutGroup(KEYS);
   usePageKeys((e) => {
-    if (ticking) return;
+    // The stage view has its own keys.
+    if (ticking || stage) return;
+    // While presenting, as ProPresenter: → Space PageDown the next slide, ← PageUp the previous; `b`
+    // blanks, as Rensa (a slide shows again). ↑ ↓ below also show the item's first slide.
+    const forward = () => step(1);
+    const back = () => step(-1);
+    const black = () => live.set({ black: true });
+    const liveKeys: Record<string, () => void> = { ArrowRight: forward, PageDown: forward, ' ': forward, ArrowLeft: back, PageUp: back, b: black, B: black };
+    const liveKey = presenting && !e.altKey && !e.ctrlKey && !e.metaKey ? liveKeys[e.key] : undefined;
+    if (liveKey) {
+      e.preventDefault();
+      liveKey();
+      return;
+    }
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       // Alt+↑/↓ moves the selected item one place: the keyboard's way to do what the drag handle does.
       if (!selected) return;
@@ -132,8 +253,10 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
       // PRES-R41: no wrap; the first ↓ lands on the first item, the first ↑ on the last.
       const at = items.findIndex((i) => i.id === selected?.id);
       const next = at === -1 ? (e.key === 'ArrowDown' ? 0 : items.length - 1) : Math.min(items.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)));
-      setSelectedId(items[next]!.id);
+      const item = items[next]!;
+      setSelectedId(item.id);
       setMenuVisible(false);
+      if (presenting && data?.slides.get(item.id)?.slides.length && item.id !== pointer.itemId) live.set({ itemId: item.id, partIndex: 0, black: false });
     } else return;
     e.preventDefault();
   });
@@ -184,10 +307,14 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
   const selectedSong = selected?.type === 'song' ? songs.get(selected.sourceId) : undefined;
   const selectedArrangements = selectedSong ? sortedArrangements(data.arrangements, selectedSong.id) : [];
   const selectedSlides = selected ? slides.get(selected.id) : undefined;
+  const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
+      {presenting && !owner && <RemoteBanner />}
+      {presenting && <LiveKeys />}
+      {presenting && stage && <StageView items={items} slides={slides} theme={theme} overlays={overlays} live={live} audio={presenting.audio} onLeave={() => setStage(false)} />}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
         <SideMenu
@@ -200,6 +327,7 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
           onTrash={() => void trash()}
           ticking={ticking}
           onTicking={setTicking}
+          audio={!presenting || !!owner}
         >
           <RunningOrder
             items={items}
@@ -220,7 +348,6 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
           />
         </SideMenu>
         <ItemPane
-          id={id}
           items={items}
           selected={selected}
           renaming={renaming}
@@ -231,9 +358,30 @@ export function PresentationEditor({ id, role, live, template = false }: { id: s
           overlays={overlays}
           theme={theme}
           canStart={!template && pointer.presentationId === null}
+          // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
+          onStart={() => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false })}
           onShowMenu={() => setMenuVisible(true)}
           onAddImages={() => setAdding('images')}
+          shown={presenting ? { live, pointer, audio: presenting.audio } : undefined}
         />
+        {presenting && (
+          <LivePanel
+            id={id}
+            owner={owner}
+            link={presenting.link}
+            live={live}
+            pointer={pointer}
+            current={current}
+            overlay={overlay}
+            theme={theme}
+            overlays={overlays}
+            name={presentation.name}
+            collapsed={folded && !wide}
+            panelId={panelId}
+            onToggle={() => setFolded((f) => !f)}
+            onStage={() => setStage(true)}
+          />
+        )}
         {adding && (
           <AddItemDialog
             presentationId={id}
