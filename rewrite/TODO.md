@@ -12,6 +12,8 @@ modifiers, SongEditor's skipped name or year, a refused arrangement write) is do
    a cached dist shows an old commit on the sign-in page, and a rebuild after a new HEAD gives a new service
    worker hash, so every device fetches the app again. Proposed: the version from the server at run time, so a
    commit alone does not change the build (rather than the commit in turbo's `env`, which rebuilds every commit).
+   _Done 2026-10-30; Lars chose: a build takes the commit only from `GP_COMMIT` (in turbo's
+   `env`), for a release build to set; local and e2e builds show no version; the dev server still asks git._
 7. `apps/desktop/e2e/apps.ts:14`: `testPort` uses `TEST_PARALLEL_INDEX % 10`; with more than 10 workers two
    share a port range and may collide (EADDRINUSE). Make the ranges unique per worker, or cap the workers.
 8. `../.claude/hooks/check-rewrite.mjs:29`: the Stop hook runs `pnpm check:quick` every turn while rewrite/ has

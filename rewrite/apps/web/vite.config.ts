@@ -37,8 +37,14 @@ function serviceWorker(): Plugin {
   };
 }
 
-/** The commit being built, seven characters, for the version on the sign-in page; null without git. */
-function commit(): string | null {
+/**
+ * The commit for the version on the sign-in page, seven characters; null when not known. A build takes it only
+ * from GP_COMMIT, which a release build sets (and turbo hashes): read from git, a build cached by turbo would
+ * show an old commit, and a rebuild per commit would give every device a new service worker. The dev server,
+ * which turbo does not cache, asks git.
+ */
+function commit(command: 'build' | 'serve'): string | null {
+  if (command === 'build') return process.env.GP_COMMIT?.trim().slice(0, 7) || null;
   try {
     return execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
   } catch {
@@ -46,9 +52,9 @@ function commit(): string | null {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss(), serviceWorker()],
-  define: { GP_COMMIT: JSON.stringify(commit()) },
+  define: { GP_COMMIT: JSON.stringify(commit(command)) },
   // wa-sqlite loads its own wasm; pre-bundling would break the URL.
   optimizeDeps: { exclude: ['@journeyapps/wa-sqlite'] },
   worker: { format: 'es' },
@@ -57,4 +63,4 @@ export default defineConfig({
     // `pnpm dev` talks to a server started with `pnpm --filter @gp/desktop serve` (port 8787).
     proxy: { '/api': { target: 'http://127.0.0.1:8787', ws: true } },
   },
-});
+}));

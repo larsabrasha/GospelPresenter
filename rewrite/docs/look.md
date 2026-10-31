@@ -94,9 +94,10 @@ Ljud trash from a ⋯ menu; the editor's details and delete are in a ⋯ menu by
 Lägg till's songs; a song item has Redigera, to the song's page; the song's label and Lägg till del are a list of
 coloured pills (`ui/SelectMenu.tsx`, an ARIA select-only combobox, usable by keyboard alone); Rensa and B only
 blank, and Rensa is gone while black; Utgångar, Overlays and Fjärrstyrning fold, each with an "i"; sign-in shows
-the first way in, the rest behind "Fler alternativ", and the version (the commit: there is no release number yet);
-the canvas is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen
-scrolls on `/watch`, not on the output window or a paired screen.
+the first way in, the rest behind "Fler alternativ", and the version (the commit: there is no release number yet;
+a build knows it only from `GP_COMMIT`, for a release build to set, so local and e2e builds show none); the canvas
+is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen scrolls
+on `/watch`, not on the output window or a paired screen.
 
 Extern skärm under Utgångar is a switch, as there (`live/outputWindow.ts`): on opens the output window, off
 closes it, and it shows whether the window is open, so closing the window some other way turns it off. In the
