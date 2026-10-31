@@ -20,6 +20,7 @@ modifiers, SongEditor's skipped name or year, a refused arrangement write) is do
    _Done 2026-10-30, not committed: `check-rewrite.mjs turn-start` (UserPromptSubmit) saves a fingerprint._
 9. `apps/web/src/db/queries.ts:224`: Bible texts the device does not keep stay in the Map `texts` for good; the
    memory grows per translation. Keep a few (the last two or three translations).
+   _Done 2026-10-30: the last three used, stored or not (`test/bibleBooks.test.ts`)._
 10. `apps/server/src/live-hub.ts`: `showing()`/`shown()` read live_bindings and live_sessions two or three times
    a call and parse JSON again per picture request; use the row already read. Only if it stays simple.
 

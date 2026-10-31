@@ -220,8 +220,17 @@ export async function listBibles(db: ReadDb): Promise<InstalledBible[]> {
   return rows.map((r) => ({ ...bible(r), stored: Boolean(r.stored), kept: Boolean(r.kept) })).toSorted((a, b) => svCompare(a.name, b.name) || a.id.localeCompare(b.id));
 }
 
-/** Parsed texts, by hash: a text never changes, so it is read and parsed once per window. */
+/**
+ * Parsed texts, by hash, the last used last: a text never changes, so it is
+ * read and parsed once, but only the last few are held, as each is megabytes.
+ */
 const texts = new Map<string, Promise<BibleBookText[] | null>>();
+const TEXTS_HELD = 3;
+
+/** Drops a text that came to nothing, unless it was let go and asked for again meanwhile. */
+function forget(hash: string, asked: Promise<BibleBookText[] | null>) {
+  if (texts.get(hash) === asked) texts.delete(hash);
+}
 
 /**
  * A translation's books, or null while this device does not have the text.
@@ -230,17 +239,25 @@ const texts = new Map<string, Promise<BibleBookText[] | null>>();
  */
 export function bibleBooks(db: ReadDb, hash: string, fetch?: (hash: string) => Promise<BibleBookText[] | null>): Promise<BibleBookText[] | null> {
   let p = texts.get(hash);
-  if (!p) {
+  if (p) {
+    texts.delete(hash);
+    texts.set(hash, p);
+  } else {
     p = (async () => {
       const rows = await db.query<{ code: string; chunk: string }>(LOAD_BIBLE_TEXT_SQL, [hash]);
       if (!rows.length) return fetch ? fetch(hash) : null;
       return rows.map((r) => ({ code: r.code, verses: JSON.parse(r.chunk) as BibleBookText['verses'] }));
     })();
     texts.set(hash, p);
+    for (const old of texts.keys()) {
+      if (texts.size <= TEXTS_HELD) break;
+      texts.delete(old);
+    }
     // Not there yet: ask again next time rather than remember the absence.
+    const asked = p;
     void p.then(
-      (books) => books ?? texts.delete(hash),
-      () => texts.delete(hash),
+      (books) => books ?? forget(hash, asked),
+      () => forget(hash, asked),
     );
   }
   return p;
