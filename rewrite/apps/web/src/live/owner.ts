@@ -75,7 +75,7 @@ const seen = new Set<string>();
  * online or paired before, so a choice the server has not caught up with
  * yet stays.
  */
-export function goneScreens(link: Pick<LiveLink, 'online' | 'screens'>, savedScreens: Set<string>): string[] {
+function goneScreens(link: Pick<LiveLink, 'online' | 'screens'>, savedScreens: Set<string>): string[] {
   const here = new Set([...link.online.filter((id) => savedScreens.has(id)), ...link.screens.map((x) => x.id)]);
   const gone = chosen.filter((id) => seen.has(id) && !here.has(id));
   for (const id of here) seen.add(id);

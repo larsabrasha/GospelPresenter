@@ -52,7 +52,7 @@ export function checkPickedVideo(file: Pick<File, 'type' | 'size' | 'name'>): Vi
 }
 
 /** Reads ranges of a picked file from disk: the file is never read whole into memory. */
-export const fileReader =
+const fileReader =
   (file: Blob): RangeReader =>
   async (offset, length) =>
     new Uint8Array(await file.slice(offset, offset + length).arrayBuffer());
@@ -90,7 +90,7 @@ export function stillTime(duration: number): number {
  * a bit into it (`stillTime`) in a picture's two sizes, encoded as a picture is (WebP, or JPEG
  * where the canvas cannot encode WebP). A device that cannot decode it is refused.
  */
-export async function videoStill(file: Blob): Promise<Pick<VideoImport, 'duration' | 'width' | 'height' | 'stillType' | 'still' | 'thumb'>> {
+async function videoStill(file: Blob): Promise<Pick<VideoImport, 'duration' | 'width' | 'height' | 'stillType' | 'still' | 'thumb'>> {
   const url = URL.createObjectURL(file);
   const video = document.createElement('video');
   video.muted = true;
@@ -217,7 +217,7 @@ export async function uploadVideo(file: Blob, hash: string, progress: (p: Upload
 }
 
 /** A video kept whole on this device (`db/videoFiles.ts`), as a file: what a <video src> plays offline. Null when it is not here. */
-export async function keptVideoFile(hash: string): Promise<File | null> {
+async function keptVideoFile(hash: string): Promise<File | null> {
   try {
     const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('videos');
     return await (await dir.getFileHandle(hash)).getFile();
@@ -262,14 +262,14 @@ export async function playUrl(hash: string): Promise<string | null> {
 export type VideoImportState = { name: string; phase: 'reading' | 'uploading' | 'waiting'; percent: number } | null;
 
 /** Why a file was refused, as the import lists it. */
-export function videoFailure(name: string, e: unknown): string {
+function videoFailure(name: string, e: unknown): string {
   if (!(e instanceof VideoRefused)) return t('videos.failedOther', { name });
   const key = { type: 'videos.failedType', size: 'videos.failedSize', name: 'videos.failedName', codec: 'videos.failedCodec', decode: 'videos.failedDecode', other: 'videos.failedOther' } as const;
   return t(key[e.problem], { name, codec: e.codec ?? '?' });
 }
 
 /** Reads, checks and uploads one file, then records it in the library. */
-export async function importVideo(file: File, add: (v: VideoImport) => Promise<void>, state: (s: VideoImportState) => void): Promise<string> {
+async function importVideo(file: File, add: (v: VideoImport) => Promise<void>, state: (s: VideoImportState) => void): Promise<string> {
   checkPickedVideo(file);
   const probe = await probeVideo(fileReader(file), file.size);
   if (!probe.ok) throw probe.problem === 'codec' ? new VideoRefused('codec', probe.entry) : new VideoRefused('type');

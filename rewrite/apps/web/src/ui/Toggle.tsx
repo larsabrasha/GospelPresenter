@@ -10,7 +10,7 @@ export const SWITCH =
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1';
 
 /** The row a switch sits in, ringed in sky while on. */
-export function rowClass(on: boolean, disabled = false): string {
+function rowClass(on: boolean, disabled = false): string {
   return `flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm text-neutral-600 dark:text-neutral-300 ${
     on ? 'bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500' : 'bg-neutral-100 dark:bg-neutral-700/50'
   } ${disabled ? 'cursor-default opacity-60' : 'cursor-pointer'}`;

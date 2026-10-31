@@ -48,8 +48,11 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
   places in shipped code; names in the package's style (web: PascalCase components, camelCase modules; elsewhere
   kebab-case); each package imports only the ones below it; every UI text is used, by a key written out; a spec id
   or a file path in code or docs exists; no `console.log` in shipped code; a fixed wait in a test (`waitForTimeout`,
-  a sleep of 100 ms or more) says why on its line, and no `.only`. Split a file by what its parts do, and move a copy
-  into one shared place; do not raise a limit to pass.
+  a sleep of 100 ms or more) says why on its line, and no `.only`; no import cycles between shipped modules
+  (type-only imports do not count). Split a file by what its parts do, and move a copy into one shared place; do
+  not raise a limit to pass.
+- `pnpm lint` runs knip (`knip.jsonc`): no unused file, export, type or dependency. Export only what another file
+  imports; an exception in `knip.jsonc` says why.
 
 ## The old app: the reference
 

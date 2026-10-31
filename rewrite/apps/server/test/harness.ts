@@ -191,7 +191,7 @@ export async function serverDump(h: Harness, org: string, user: string): Promise
 }
 
 /** A simulated network between a device and the server. */
-export class Net {
+class Net {
   online = true;
   /** The next push reaches the server, but its response is lost. */
   loseNextPushResponse = false;

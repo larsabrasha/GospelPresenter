@@ -17,7 +17,7 @@ import { href, navigate } from '../ui/router.ts';
 import { WEEKDAYS, weekdayName } from './templates.ts';
 import { PresentationNameField } from './presentation-editor/PresentationNameField.tsx';
 
-export interface TemplateFields {
+interface TemplateFields {
   name: string;
   weekday: number | null;
   time: string | null;
@@ -29,7 +29,7 @@ export interface TemplateFields {
  * "Skapa mall" on the templates page, "Redigera detaljer" in its editor.
  * Enter in the name saves; with `savingText`, the button says so until `onSave` ends.
  */
-export function TemplateDetailsDialog({
+function TemplateDetailsDialog({
   title,
   initial,
   saveText,

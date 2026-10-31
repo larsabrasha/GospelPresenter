@@ -21,7 +21,7 @@ function head(major: number, n: number): number[] {
   return [(major << 5) | 26, (n >>> 24) & 0xff, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
-export function cbor(v: Cbor): Uint8Array {
+function cbor(v: Cbor): Uint8Array {
   const out: number[] = [];
   const put = (x: Cbor) => {
     if (typeof x === 'number') out.push(...(x >= 0 ? head(0, x) : head(1, -1 - x)));

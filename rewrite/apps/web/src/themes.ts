@@ -23,7 +23,7 @@ export function themeDescription(theme: Theme): string {
   return texts ? t(texts.description) : theme.description;
 }
 
-export function assetUrl(asset: string): string | null {
+function assetUrl(asset: string): string | null {
   return ASSETS[asset] ?? null;
 }
 

@@ -58,7 +58,7 @@ export function saveDeviceToken(token: string | null) {
 }
 
 /** `?storage=memory` keeps the database in memory even where OPFS exists (development and tests). */
-export function memoryOnly(): boolean {
+function memoryOnly(): boolean {
   return new URLSearchParams(location.search).get('storage') === 'memory';
 }
 

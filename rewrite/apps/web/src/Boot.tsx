@@ -15,7 +15,7 @@ import { AppButton } from './ui/AppButton.tsx';
 export const REPAIR_KEY = 'gp.repair';
 
 /** Opens the app as the signed-in user: a fresh start, so the database worker opens their database (D3). */
-export function enterApp() {
+function enterApp() {
   sessionStorage.removeItem(REPAIR_KEY);
   history.replaceState(null, '', `/${location.search}`); // to the start page; drops an invite token from the address
   location.reload();

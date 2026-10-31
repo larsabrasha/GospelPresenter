@@ -13,7 +13,7 @@ export const CCLI_COLLECTION_SETTING = 'ccliCollection';
 /** An entry's id: one per song, day and presentation (SONG-R50), so the same showing again adds nothing. */
 export const ccliEntryId = (songId: string, date: string, presentationId: string) => `${songId}|${date}|${presentationId}`;
 
-export async function ccliCollectionOn(tx: Tx): Promise<boolean> {
+async function ccliCollectionOn(tx: Tx): Promise<boolean> {
   const [s] = await tx.select({ value: orgSettings.value }).from(orgSettings).where(eq(orgSettings.id, CCLI_COLLECTION_SETTING));
   return s?.value === 'true';
 }

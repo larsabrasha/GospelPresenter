@@ -24,7 +24,7 @@ export function isTextEntry(el: EventTarget | null): boolean {
  * not mid-word in an IME, not a held key repeating, not while a dialog is open,
  * and in a text field only Ctrl/⌘ combinations and Escape.
  */
-export function shortcutAllowed(e: KeyboardEvent): boolean {
+function shortcutAllowed(e: KeyboardEvent): boolean {
   if (e.isComposing || e.keyCode === 229 || e.repeat) return false;
   if (document.querySelector('[aria-modal="true"]')) return false;
   if (isTextEntry(e.target) && !(e.ctrlKey || e.metaKey || e.key === 'Escape')) return false;

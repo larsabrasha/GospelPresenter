@@ -23,7 +23,7 @@ function pickedType(file: File): PickableImageType | null {
 }
 
 /** The checks that need no decoding: type, size and name (MEDIA-R2). */
-export function checkPicked(file: Pick<File, 'type' | 'size' | 'name'>): PickableImageType {
+function checkPicked(file: Pick<File, 'type' | 'size' | 'name'>): PickableImageType {
   const type = pickedType(file as File);
   if (!type) throw new ImageRefused('type');
   if (file.size > MEDIA_LIMITS.sourceBytes || file.size === 0) throw new ImageRefused('size');
@@ -41,7 +41,7 @@ function surface(width: number, height: number): Surface {
   return canvas;
 }
 
-export async function encode(canvas: Surface, type: StoredImageType, quality: number): Promise<Blob> {
+async function encode(canvas: Surface, type: StoredImageType, quality: number): Promise<Blob> {
   if (canvas instanceof OffscreenCanvas) return canvas.convertToBlob({ type, quality });
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode failed'))), type, quality));
 }

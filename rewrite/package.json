@@ -7,15 +7,17 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "lint": "oxlint --deny-warnings && node scripts/check-mutator-sql.mjs && node scripts/check-forbidden-classes.mjs",
+    "lint": "oxlint --deny-warnings && node scripts/check-mutator-sql.mjs && node scripts/check-forbidden-classes.mjs && knip --no-progress --treat-config-hints-as-errors",
     "e2e": "turbo run e2e",
     "check:quick": "node scripts/check-quick.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/node": "^22.10.0",
+    "knip": "6.42.1",
+    "oxlint": "1.89.0",
     "turbo": "2.11.10",
     "typescript": "7.0.2",
-    "vitest": "5.0.5",
-    "oxlint": "1.89.0"
+    "vitest": "5.0.5"
   }
 }

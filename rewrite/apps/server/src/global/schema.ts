@@ -137,7 +137,7 @@ const playTokensDdl = [
 
 export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl];
 
-export const globalMigrations: Record<number, string[]> = {
+const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that
   // no account backs. They would grant nothing, but are dropped all the same.
   2: [...accountDdlV2, `DELETE FROM memberships WHERE user_id NOT IN (SELECT id FROM users)`],

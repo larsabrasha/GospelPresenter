@@ -8,7 +8,7 @@ import { isMac, isTextEntry } from './shortcuts.ts';
 // that `blocks` (a dialog, the stage view) hides the groups under it, whose keys are off while it is open.
 
 /** One line: the keys that do it, each as `Ctrl+1`, `Alt+ArrowDown` or a bare key, and what it does. */
-export type ShortcutLine = { keys: string[]; text: string };
+type ShortcutLine = { keys: string[]; text: string };
 export type ShortcutGroup = { title: string; lines: ShortcutLine[]; blocks?: boolean };
 
 let groups: { id: number; group: ShortcutGroup }[] = [];

@@ -5,13 +5,13 @@ import { SpinnerIcon } from './icons.tsx';
  * The button styles of the current app (Components/AppButton.razor, ButtonVariant.cs).
  * `plain` has none, for a button that draws itself, such as a menu choice.
  */
-export type ButtonVariant = 'primary' | 'secondary' | 'neutral' | 'cancel' | 'danger' | 'icon' | 'dangerIcon' | 'pill' | 'pillActive' | 'plain';
+type ButtonVariant = 'primary' | 'secondary' | 'neutral' | 'cancel' | 'danger' | 'icon' | 'dangerIcon' | 'pill' | 'pillActive' | 'plain';
 
 const PILL = 'whitespace-nowrap text-sm px-4 py-2.5 rounded-full cursor-pointer disabled:opacity-50 disabled:cursor-default';
 const TAB = 'flex-1 shrink-0 flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm cursor-pointer transition-all whitespace-nowrap';
 
 /** The classes of a variant, for an element that is not an AppButton but should look like one. */
-export function buttonClasses(variant: ButtonVariant = 'primary', filled = false): string {
+function buttonClasses(variant: ButtonVariant = 'primary', filled = false): string {
   switch (variant) {
     case 'primary':
       return `${PILL} bg-sky-500 text-white hover:bg-sky-600`;

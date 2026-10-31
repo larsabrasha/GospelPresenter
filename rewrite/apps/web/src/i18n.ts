@@ -1726,7 +1726,7 @@ export type Language = 'sv' | 'en';
 const KEY = 'language';
 
 /** The language chosen on this device in Mina inställningar; Swedish until one is (Lars, 2026-10-31). */
-export function storedLanguage(): Language {
+function storedLanguage(): Language {
   try {
     return localStorage.getItem(KEY) === 'en' ? 'en' : 'sv';
   } catch {

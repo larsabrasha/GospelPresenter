@@ -20,17 +20,17 @@ import { downloadQr, QrCode } from '../ui/QrCode.tsx';
 import { useServerBase } from '../ui/serverBase.ts';
 
 /** A new public output code (LIVE-R30), from the browser's random source. */
-export function newDisplayCode(): string {
+function randomDisplayCode(): string {
   return displayCode((n) => crypto.getRandomValues(new Uint8Array(n)));
 }
 
 /** Where anyone opens an output: the server's own address (spec 04 §7). */
-export function watchUrl(code: string, base = location.origin): string {
+function watchUrl(code: string, base = location.origin): string {
   return `${base}${href({ page: 'watch', code })}`;
 }
 
 /** Where a saved screen's TV opens it (spec 04 §5, §7). */
-export function screenUrl(d: Pick<Display, 'code' | 'name'>, base: string): string {
+function screenUrl(d: Pick<Display, 'code' | 'name'>, base: string): string {
   return `${base}${href({ page: 'display', id: d.code, name: d.name, token: null })}`;
 }
 
@@ -44,7 +44,7 @@ function CreateDialog({ kind, onClose }: { kind: Display['kind']; onClose: (made
   const [name, setName] = useState('');
   const submit = async () => {
     if (!name.trim()) return;
-    const made = { id: newId(), name: name.trim(), code: newDisplayCode(), kind };
+    const made = { id: newId(), name: name.trim(), code: randomDisplayCode(), kind };
     if (!(await trySave(db.mutate('createDisplay', made)))) return;
     onClose({ ...made, createdAt: null });
   };
@@ -161,7 +161,7 @@ export function Displays({ link }: { link: LiveLink }) {
   // As Displays.razor's: the old code's dialog closes, since its link and QR code no longer work.
   const renew = async (d: Display) => {
     if (!(await ask({ title: t('displays.newCode'), text: t('displays.newCodeConfirm', { name: d.name }), confirm: t('displays.newCode') }))) return;
-    if (!(await trySave(db.mutate('newDisplayCode', { id: d.id, code: newDisplayCode() })))) return;
+    if (!(await trySave(db.mutate('newDisplayCode', { id: d.id, code: randomDisplayCode() })))) return;
     setShowing(null);
     toast(t('displays.newCodeDone'));
   };

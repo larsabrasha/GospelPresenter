@@ -19,7 +19,7 @@ const WAIT_MS = 5 * 60_000;
  * text, or null once the browser has been sent on its way (a web page is
  * then leaving; the desktop app waits for its callback).
  */
-export async function startGoogle(invite?: string): Promise<string | null> {
+async function startGoogle(invite?: string): Promise<string | null> {
   const desktop = window.gpDesktop;
   try {
     let path: string;

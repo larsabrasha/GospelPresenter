@@ -5,7 +5,7 @@
  * device's own copies as blob: URLs. `worker-src 'self'` covers the database
  * worker and the service worker (`/sw.js`).
  */
-export const STATIC_HEADERS = {
+const STATIC_HEADERS = {
   'content-security-policy':
     "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; " +
     "connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",

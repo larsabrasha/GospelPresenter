@@ -2,7 +2,7 @@
 // that embeds the server. Shipped code never reaches into another package by a relative path.
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { FILES } from './source.ts';
+import { FILES, importsOf } from './source.ts';
 
 const MAY_USE: Record<string, string[]> = {
   'packages/core': [],
@@ -12,15 +12,7 @@ const MAY_USE: Record<string, string[]> = {
   'apps/desktop': ['@gp/core', '@gp/sync', '@gp/server'],
 };
 
-const IMPORT = /^\s*(?:import|export)\b[^'"]*?from\s+'([^']+)'/;
-
-const imports = (pkg: string) =>
-  FILES.filter((f) => f.pkg === pkg && f.kind === 'source').flatMap((f) =>
-    f.lines.flatMap((line, i) => {
-      const spec = IMPORT.exec(line)?.[1];
-      return spec ? [{ at: `${f.path}:${i + 1}`, file: f.path, spec }] : [];
-    }),
-  );
+const imports = (pkg: string) => FILES.filter((f) => f.pkg === pkg && f.kind === 'source').flatMap((f) => importsOf(f).map((i) => ({ ...i, file: f.path })));
 
 describe('package boundaries', () => {
   it.each(Object.keys(MAY_USE))('lets %s import only the packages below it', (pkg) => {

@@ -10,7 +10,7 @@ import { startNodeServer, type MailConfig } from '@gp/server/node';
 export const onLan = () => process.env.GP_LAN === '1';
 
 /** The https port when a certificate is given: the http port's neighbour by default. */
-export const TLS_PORT = 47843;
+const TLS_PORT = 47843;
 
 /**
  * The certificate for https on the LAN (docs/lan-https-and-addresses.md, "https on the LAN"), or null

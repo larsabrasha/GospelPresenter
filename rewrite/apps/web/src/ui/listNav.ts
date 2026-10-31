@@ -11,7 +11,7 @@ export type ListOrientation = 'vertical' | 'horizontal' | 'grid';
  * none yet), or null when the key does not move it. A modified key is someone
  * else's (the browser's word jump, a shortcut), so only the bare key moves.
  */
-export function listMove(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>, current: number, count: number, orientation: ListOrientation = 'vertical'): number | null {
+function listMove(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>, current: number, count: number, orientation: ListOrientation = 'vertical'): number | null {
   if (count <= 0 || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return null;
   const forward = (e.key === 'ArrowDown' && orientation !== 'horizontal') || (e.key === 'ArrowRight' && orientation !== 'vertical');
   const backward = (e.key === 'ArrowUp' && orientation !== 'horizontal') || (e.key === 'ArrowLeft' && orientation !== 'vertical');
@@ -26,7 +26,7 @@ export function listMove(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 
 }
 
 /** Focuses the item with `data-nav-index` `index` in `container`, scrolling it just into view. */
-export function focusNavItem(container: HTMLElement, index: number): void {
+function focusNavItem(container: HTMLElement, index: number): void {
   const item = container.querySelector<HTMLElement>(`[data-nav-index="${index}"]`);
   if (!item) return;
   // focus() alone jumps the item to the middle of the viewport, which makes a long list lurch on every press.

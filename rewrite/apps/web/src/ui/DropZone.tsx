@@ -7,7 +7,7 @@ import { useToast } from './Toast.tsx';
 const hasFiles = (e: { dataTransfer: DataTransfer | null }) => !!e.dataTransfer && [...e.dataTransfer.types].includes('Files');
 
 /** Whether `file` matches an `accept` list: `.ext`, `type/*` or a full type (utils.js _acceptsFile). */
-export function acceptsFile(file: { name: string; type: string }, accept: string | undefined): boolean {
+function acceptsFile(file: { name: string; type: string }, accept: string | undefined): boolean {
   if (!accept) return true;
   const name = file.name.toLowerCase();
   const type = file.type.toLowerCase();

@@ -18,7 +18,7 @@ const KEEP_COMING_KEY = 'gp.keepComing';
 /** Fired when "Spara kommande presentationer offline" changes in this window. */
 export const KEEP_COMING_CHANGED = 'gp:keep-coming';
 /** How many days ahead "kommande" reaches: today and the seven after. */
-export const COMING_DAYS = 7;
+const COMING_DAYS = 7;
 
 /** "Spara kommande presentationer offline" on this device: off at first, as the theme is a choice of the device. */
 export function keepComingSetting(): boolean {
@@ -54,7 +54,7 @@ export function keptByComing(p: Pick<Presentation, 'eventDate' | 'isTemplate' | 
   return on && !p.isTemplate && p.deletedAt === null && !!p.eventDate && p.eventDate >= today && p.eventDate <= addDays(today, COMING_DAYS);
 }
 
-export type KeepState = 'none' | 'fetching' | 'kept';
+type KeepState = 'none' | 'fetching' | 'kept';
 
 /**
  * A presentation kept offline on this device, or not: chosen by hand, or by the setting for the coming

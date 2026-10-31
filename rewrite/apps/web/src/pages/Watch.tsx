@@ -45,7 +45,7 @@ function PublicOverlay({ text }: { text: string | null }) {
  * credits below it; its picture is under
  * `imageBase`, the output's own API path.
  */
-export function PublicSlideView({ imageBase, slide }: { imageBase: string; slide: PublicSlide }) {
+function PublicSlideView({ imageBase, slide }: { imageBase: string; slide: PublicSlide }) {
   const theme = resolveTheme(slide.themeId, null);
   if (slide.kind === 'media') {
     return (

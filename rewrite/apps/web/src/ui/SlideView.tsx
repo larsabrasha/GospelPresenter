@@ -5,8 +5,8 @@ import type { ShownOverlay } from '../db/queries.ts';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 import { Highlight } from './Highlight.tsx';
 
-export const STAGE_WIDTH = CANVAS.width;
-export const STAGE_HEIGHT = CANVAS.height;
+const STAGE_WIDTH = CANVAS.width;
+const STAGE_HEIGHT = CANVAS.height;
 
 /** A Bible slide's text: each verse number small and faint, held to its first word (spec 05). */
 function BibleText({ slide }: { slide: Slide }) {
@@ -61,7 +61,7 @@ function OverlayLayer({ overlay, media }: { overlay: ShownOverlay; media: Media 
 }
 
 /** How long the black screen takes to fade in or out (LiveDisplay.razor's `duration-500`). */
-export const BLACK_FADE_MS = 500;
+const BLACK_FADE_MS = 500;
 
 /**
  * What a stage draws while `black` fades in: the slide and overlay of the last

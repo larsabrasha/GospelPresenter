@@ -32,7 +32,7 @@ export function copy(input: HTMLInputElement | null, text: string): Promise<void
  */
 const freshInvites = new Map<string, string>();
 
-export function showInviteOnce(userId: string, url: string) {
+function showInviteOnce(userId: string, url: string) {
   freshInvites.set(userId, url);
 }
 

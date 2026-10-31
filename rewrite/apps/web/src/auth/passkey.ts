@@ -20,12 +20,12 @@ function text(b: ArrayBuffer): string {
 }
 
 /** Whether this page can run a ceremony itself (a secure context with WebAuthn). */
-export function passkeysInPage(): boolean {
+function passkeysInPage(): boolean {
   return typeof window.PublicKeyCredential === 'function' && isSecureContext;
 }
 
 /** Runs the ceremony the server's options ask for. Rejects when the person cancels or the authenticator refuses. */
-export async function ceremony(options: PasskeyOptions): Promise<PasskeyCredentialJson> {
+async function ceremony(options: PasskeyOptions): Promise<PasskeyCredentialJson> {
   if ('create' in options) {
     const o = options.create;
     const cred = (await navigator.credentials.create({

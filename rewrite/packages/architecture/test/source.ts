@@ -45,6 +45,23 @@ function list(): SourceFile[] {
 /** Read once for all the tests in a file. */
 export const FILES: SourceFile[] = list();
 
+export interface Import {
+  /** Where the statement starts, `path:line`. */
+  at: string;
+  /** What it names, e.g. `@gp/core` or `./live-tables.ts`. */
+  spec: string;
+  /** `import type …` or `export type …`: gone once compiled, so it makes no cycle at run time. */
+  typeOnly: boolean;
+}
+
+const IMPORT = /^(import|export)\s+(type\s+)?(?:[^;'"]*?\sfrom\s+)?'([^']+)'/gm;
+
+/** The file's import and re-export statements, also those that span lines; dynamic `import()` is left out. */
+export function importsOf(f: SourceFile): Import[] {
+  const text = f.lines.join('\n');
+  return [...text.matchAll(IMPORT)].map((m) => ({ at: `${f.path}:${text.slice(0, m.index).split('\n').length}`, spec: m[3]!, typeOnly: !!m[2] }));
+}
+
 export const fileName = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 
 /** The rewrite's own documents (README, AGENTS, GAPS and docs/), by path, as text. */

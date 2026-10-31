@@ -16,7 +16,7 @@ import { href, navigate } from '../ui/router.ts';
 import { useSongImport } from './SongImport.tsx';
 
 /** "Skapa sång": a name, then the editor (spec 02, SONG-A1, A2; Components/Presentations/NameDialog.razor). */
-export function CreateSongDialog({ initial = '', onClose, onCreated }: { initial?: string; onClose: () => void; onCreated: (id: string) => void }) {
+function CreateSongDialog({ initial = '', onClose, onCreated }: { initial?: string; onClose: () => void; onCreated: (id: string) => void }) {
   const db = useDb();
   const trySave = useTrySave();
   const [name, setName] = useState(initial);

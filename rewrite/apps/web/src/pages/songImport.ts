@@ -7,7 +7,7 @@ import { t } from '../i18n.ts';
 // for each, and the result line once they are written.
 
 type ImportArgs = MutatorArgs<'importSongs'>;
-export type PlannedSong = Omit<ImportArgs['songs'][number], 'replaces'>;
+type PlannedSong = Omit<ImportArgs['songs'][number], 'replaces'>;
 
 /** At most this many songs go in one `importSongs` mutation (its argument limit). */
 export const IMPORT_BATCH = 500;

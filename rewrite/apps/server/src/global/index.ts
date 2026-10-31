@@ -12,9 +12,8 @@
 // members, sign-in, logins, passkeys, throttle, pairing and debug. `Accounts`
 // (accounts.ts) builds them and holds them; only debug uses another (members).
 export type { GlobalSql, Row } from './sql.ts';
-export { GLOBAL_SCHEMA_VERSION, globalDdl, globalMigrations, globalSchemaPlan, migrateGlobal } from './schema.ts';
-export type { SessionInfo } from './members.ts';
-export { LOGIN_FLOW, type LoginFlow, type NewLogin } from './sign-in.ts';
-export { PASSKEY_FLOW, type PasskeyFlow } from './passkeys.ts';
-export { THROTTLE, type ThrottlePolicy } from './throttle.ts';
-export { Accounts, type AccountOptions } from './accounts.ts';
+export { GLOBAL_SCHEMA_VERSION, globalDdl, globalSchemaPlan, migrateGlobal } from './schema.ts';
+export { LOGIN_FLOW, type NewLogin } from './sign-in.ts';
+export { PASSKEY_FLOW } from './passkeys.ts';
+export { THROTTLE } from './throttle.ts';
+export { Accounts } from './accounts.ts';

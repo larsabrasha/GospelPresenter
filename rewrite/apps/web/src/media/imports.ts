@@ -21,7 +21,7 @@ type AudioProblem = 'type' | 'size' | 'name';
  * browser, else its extension; at most 20 MiB and a 200-character name. The
  * bytes are kept as they are; the type stored is what they say they are.
  */
-export async function readAudio(file: File, id: string): Promise<AudioImport | AudioProblem> {
+async function readAudio(file: File, id: string): Promise<AudioImport | AudioProblem> {
   const picked = AUDIO_TYPES.find((x) => x === file.type) ?? (file.type === '' ? audioTypeFromName(file.name) : null);
   if (!picked) return 'type';
   if (file.size === 0 || file.size > MEDIA_LIMITS.audioBytes) return 'size';

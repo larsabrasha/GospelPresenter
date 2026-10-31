@@ -10,7 +10,7 @@ export const REMOTE_CONTROL_SETTING = 'remoteControl';
  * Remote control for the whole organisation (TODO.md "Remote control for the
  * whole organisation"): never, the presenter's own toggle (LIVE-R39), or always.
  */
-export const remoteControlPolicySchema = z.enum(['never', 'presenter', 'always']);
+const remoteControlPolicySchema = z.enum(['never', 'presenter', 'always']);
 export type RemoteControlPolicy = z.output<typeof remoteControlPolicySchema>;
 
 /** The policy a stored value stands for; no row, or a value this build does not know, is the presenter's choice. */

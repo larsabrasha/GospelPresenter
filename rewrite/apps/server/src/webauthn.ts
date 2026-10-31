@@ -36,7 +36,7 @@ export type PasskeyProblem =
   | 'counter';
 
 /** COSE algorithms offered, in order of preference: ES256, EdDSA (Ed25519), RS256. */
-export const PASSKEY_ALGS = [-7, -8, -257] as const;
+const PASSKEY_ALGS = [-7, -8, -257] as const;
 
 /** How long the browser may wait for the authenticator. The flow itself lives PASSKEY_FLOW.ttlMs. */
 const TIMEOUT_MS = 4 * 60_000;
@@ -153,7 +153,7 @@ const bytesOf = (m: Map<number | string, Cbor>, k: number, len?: number) => {
 };
 
 /** Imports a COSE public key. Null for any key this server does not accept. */
-export async function importCoseKey(cose: Uint8Array): Promise<PublicKey | null> {
+async function importCoseKey(cose: Uint8Array): Promise<PublicKey | null> {
   let m: Cbor;
   try {
     m = decodeWhole(cose);
@@ -326,7 +326,7 @@ export interface StoredPasskey {
 const TRANSPORTS = new Set(['usb', 'nfc', 'ble', 'internal', 'hybrid', 'smart-card']);
 
 /** The user handle a user's passkeys carry: their id, which is random and says nothing about them. */
-export const userHandle = (userId: string) => b64url(enc.encode(userId));
+const userHandle = (userId: string) => b64url(enc.encode(userId));
 
 const isIp = (host: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':') || host.startsWith('[');
 

@@ -58,7 +58,7 @@ export function slideOf(row: SessionRow | undefined): PublicSlide | null {
  * report says where the video was as it was sent, and a screen whose clock
  * is wrong still follows, since every canvas event carries the server's time.
  */
-export function stampVideo(canvas: Canvas, now: number): Canvas {
+function stampVideo(canvas: Canvas, now: number): Canvas {
   const video = canvas.slide?.video;
   return video ? { ...canvas, slide: { ...canvas.slide!, video: { ...video, at: now } } } : canvas;
 }

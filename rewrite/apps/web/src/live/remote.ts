@@ -211,7 +211,7 @@ export function useLiveSessions(link: LiveLink): { sessions: LiveSessionInfo[]; 
 }
 
 /** How long a controller waits for the owner's echo before it warns (spec 04 §2). */
-export const CONFIRM_MS = 2000;
+const CONFIRM_MS = 2000;
 
 /**
  * A session elsewhere, driven from here: it shows what the owner last

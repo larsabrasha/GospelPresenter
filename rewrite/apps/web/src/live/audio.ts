@@ -20,7 +20,7 @@ export interface AudioControl {
 }
 
 /** Fade-out (Tona ut): 5 s, ease-out cubic, then pause, rewind and the volume back (spec 04 §1b). */
-export const FADE_MS = 5000;
+const FADE_MS = 5000;
 /** While the seek bar moves the sound is muted, until 150 ms after the last move. */
 const SEEK_MUTE_MS = 150;
 

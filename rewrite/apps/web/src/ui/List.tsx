@@ -65,8 +65,3 @@ export function ListLinkRow({
     </li>
   );
 }
-
-/** A row that is not a link, for content the page lays out itself. */
-export function ListRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <li className={`px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 ${className ?? ''}`}>{children}</li>;
-}

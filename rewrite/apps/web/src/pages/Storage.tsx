@@ -17,7 +17,7 @@ const LIMIT_KEY = 'gp.cacheLimit';
 export const CACHE_LIMIT_CHANGED = 'gp:cache-limit';
 const GIB = 1024 * 1024 * 1024;
 /** The limit until one is chosen (MEDIA-R14): 2 GiB. */
-export const DEFAULT_CACHE_LIMIT = 2 * GIB;
+const DEFAULT_CACHE_LIMIT = 2 * GIB;
 /** The smallest limit the slider offers, and its step. */
 const LIMIT_STEP = 128 * 1024 * 1024;
 
