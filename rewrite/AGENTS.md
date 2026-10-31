@@ -49,8 +49,10 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
   kebab-case); each package imports only the ones below it; every UI text is used, by a key written out; a spec id
   or a file path in code or docs exists; no `console.log` in shipped code; a fixed wait in a test (`waitForTimeout`,
   a sleep of 100 ms or more) says why on its line, and no `.only`; no import cycles between shipped modules
-  (type-only imports do not count). Split a file by what its parts do, and move a copy into one shared place; do
-  not raise a limit to pass.
+  (type-only imports do not count); every Electron window sandboxed, isolated, without Node, and kept on the app
+  (`guardWindow`); and `packages/architecture/api/*.api.md` lists what core, sync and the server export. A change
+  to a package's exports changes its report: read the diff, then `pnpm --filter @gp/architecture test -u`. Split a
+  file by what its parts do, and move a copy into one shared place; do not raise a limit to pass.
 - `pnpm lint` runs knip (`knip.jsonc`): no unused file, export, type or dependency. Export only what another file
   imports; an exception in `knip.jsonc` says why.
 

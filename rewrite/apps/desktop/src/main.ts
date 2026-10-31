@@ -155,6 +155,7 @@ function openOutput() {
     webPreferences,
   });
   const opened = output;
+  guardWindow(opened);
   if (!hidden) opened.once('ready-to-show', () => opened.show());
   // However it closes (the switch, the window's own close button, the OS), the switch hears of it.
   opened.on('closed', () => {
@@ -165,6 +166,20 @@ function openOutput() {
   void opened.loadURL(pageUrl(base, 'output'));
   outputChanged(true);
   log({ event: 'output-opened', external: !!external });
+}
+
+/**
+ * Keeps a window on the app (Electron's security checklist): a link out (Om Gospel Presenter's) opens in the system
+ * browser, and the page never navigates to another origin, where the preload's door would be open to it.
+ */
+function guardWindow(win: BrowserWindow) {
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://')) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (e, url) => {
+    if (new URL(url).origin !== new URL(base).origin) e.preventDefault();
+  });
 }
 
 /** Closes the output window, if it is open. Its `closed` event tells the main window. */
@@ -250,11 +265,7 @@ app.whenReady().then(async () => {
   if (hidden) app.dock?.hide();
   const main = new BrowserWindow({ width: 1280, height: 800, title: 'Gospel Presenter', show: !hidden, webPreferences });
   mainWindow = main;
-  // A link out of the app (Om Gospel Presenter's) opens in the system browser: the app's own windows reach only the host.
-  main.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://')) void shell.openExternal(url);
-    return { action: 'deny' };
-  });
+  guardWindow(main);
   await main.loadURL(pageUrl(base));
   main.on('closed', () => app.quit());
   log({ event: 'ready', base, host: !process.env.GP_SERVER, lan: port ? lanUrls(port, tlsPort) : [], electron: process.versions.electron });
