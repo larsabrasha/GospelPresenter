@@ -8,10 +8,12 @@ import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
 import { MusicalNoteOutlineIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { DropZone } from '../ui/DropZone.tsx';
 import { CARD, ListLinkRow } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { href, navigate } from '../ui/router.ts';
+import { useSongImport } from './SongImport.tsx';
 
 /** "Skapa sång": a name, then the editor (spec 02, SONG-A1, A2; Components/Presentations/NameDialog.razor). */
 export function CreateSongDialog({ initial = '', onClose, onCreated }: { initial?: string; onClose: () => void; onCreated: (id: string) => void }) {
@@ -57,53 +59,59 @@ export function Songs() {
   const [query, setQuery] = useState('');
   const { songs, shown, shownQuery } = useSongSearch(query);
   const [creating, setCreating] = useState(false);
+  const songImport = useSongImport(songs);
 
   return (
     <PageContainer>
-      {/* Always here, also with no songs (the current app hides it then and offers the import): there is no import yet. */}
-      <PageHeader title={t('nav.songs')}>
-        <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
-          <PlusIcon className="size-4" />
-          {t('common.create')}
-        </AppButton>
-      </PageHeader>
-      {creating && <CreateSongDialog onClose={() => setCreating(false)} onCreated={(id) => navigate({ page: 'song', id })} />}
-      <div className={CARD}>
-        <div className="px-5 pt-4 pb-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base/6 font-semibold">{t('songs.all', { n: songs?.length ?? 0 })}</h2>
-            <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Song' })} className="flex items-center gap-1.5">
-              <TrashIcon className="size-4" />
-              {t('nav.trash')}
-            </AppButton>
+      {/* The whole page takes dropped .pro files (spec 02). */}
+      <DropZone className="flex flex-col space-y-5" label={t('songs.import.drop')} accept=".pro" enabled={!songImport.busy} onFiles={(files) => void songImport.files(files)}>
+        {/* Always here, also with no songs (the current app hides it then, with the import below to start from). */}
+        <PageHeader title={t('nav.songs')}>
+          <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
+            <PlusIcon className="size-4" />
+            {t('common.create')}
+          </AppButton>
+        </PageHeader>
+        {creating && <CreateSongDialog onClose={() => setCreating(false)} onCreated={(id) => navigate({ page: 'song', id })} />}
+        {songImport.card}
+        {songImport.dialog}
+        <div className={CARD}>
+          <div className="px-5 pt-4 pb-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base/6 font-semibold">{t('songs.all', { n: songs?.length ?? 0 })}</h2>
+              <AppButton variant="neutral" href={href({ page: 'trash', kind: 'Song' })} className="flex items-center gap-1.5">
+                <TrashIcon className="size-4" />
+                {t('nav.trash')}
+              </AppButton>
+            </div>
+            {!!songs?.length && <SearchField value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} compact />}
           </div>
-          {!!songs?.length && <SearchField value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} compact />}
+          {songs && !songs.length && (
+            <div className="flex flex-col items-center justify-center text-center text-sm py-12 px-6 select-none">
+              <MusicalNoteOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />
+              <p className="font-medium text-neutral-500 dark:text-neutral-400 mb-1">{t('songs.emptyTitle')}</p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">{t('songs.emptyText')}</p>
+            </div>
+          )}
+          {!!songs?.length && shown && !shown.length && <p className="px-5 py-4 text-neutral-400 text-sm">{t('songs.noHits')}</p>}
+          {!!shown?.length && (
+            <ul aria-label={t('nav.songs')}>
+              {shown.map((s) => (
+                <ListLinkRow
+                  key={s.id}
+                  href={href({ page: 'song', id: s.id })}
+                  title={
+                    <span className="font-medium">
+                      <Highlight text={s.name} query={shownQuery} />
+                    </span>
+                  }
+                  subtitle={s.author ? <Highlight text={s.author} query={shownQuery} /> : ' '}
+                />
+              ))}
+            </ul>
+          )}
         </div>
-        {songs && !songs.length && (
-          <div className="flex flex-col items-center justify-center text-center text-sm py-12 px-6 select-none">
-            <MusicalNoteOutlineIcon className="size-12 mb-3 text-neutral-300 dark:text-neutral-600" />
-            <p className="font-medium text-neutral-500 dark:text-neutral-400 mb-1">{t('songs.emptyTitle')}</p>
-            <p className="text-xs text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">{t('songs.emptyText')}</p>
-          </div>
-        )}
-        {!!songs?.length && shown && !shown.length && <p className="px-5 py-4 text-neutral-400 text-sm">{t('songs.noHits')}</p>}
-        {!!shown?.length && (
-          <ul aria-label={t('nav.songs')}>
-            {shown.map((s) => (
-              <ListLinkRow
-                key={s.id}
-                href={href({ page: 'song', id: s.id })}
-                title={
-                  <span className="font-medium">
-                    <Highlight text={s.name} query={shownQuery} />
-                  </span>
-                }
-                subtitle={s.author ? <Highlight text={s.author} query={shownQuery} /> : ' '}
-              />
-            ))}
-          </ul>
-        )}
-      </div>
+      </DropZone>
     </PageContainer>
   );
 }

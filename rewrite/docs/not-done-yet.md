@@ -84,6 +84,6 @@ an open poke socket when its session is revoked (it receives only sequence numbe
 and its next sync is refused); behind a reverse proxy, `X-Forwarded-Proto` and `X-Forwarded-Host`
 (the Google redirect URI then needs `GP_GOOGLE_REDIRECT_BASE_URL`; see [Behind a reverse proxy](lan-https-and-addresses.md#behind-a-reverse-proxy)).
 
-From spec 02 and 03 in particular: song history (SONG-R20–R24, D9), the labels page, CCLI, ProPresenter
-import and dropping its files on Songs (reordering items and arrangement chips by dragging is built, see
+From spec 02 and 03 in particular: song history (SONG-R20–R24, D9), the labels page, and CCLI
+(the ProPresenter import is built, `packages/core/src/propresenter.ts`; reordering items and arrangement chips by dragging is built, see
 `e2e/drag.spec.ts`; so are multi-select removal and the start page's "last changed" order).

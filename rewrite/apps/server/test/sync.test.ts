@@ -507,6 +507,73 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     await expectConverged(alice, bob);
   });
 
+  /** A song as the ProPresenter import sends it: two parts, and an arrangement of them in reverse. */
+  const imported = (id: string, name: string, content = 'Ett') => ({
+    id,
+    name,
+    author: 'Författare',
+    publisher: null,
+    ccli: '123',
+    parts: [
+      { id: `${id}-P0`, labelText: 'Verse 1', content },
+      { id: `${id}-P1`, labelText: 'Refräng', content: 'Två' },
+    ],
+    arrangements: [{ id: `${id}-A0`, name: 'Baklänges', partIds: [`${id}-P1`, `${id}-P0`] }],
+  });
+
+  it('SONG-R38, R39: imported songs land with their parts, labels and arrangements on every device', async () => {
+    await alice.client.mutate('importSongs', { songs: [imported('N1', 'Ny sång')], replace: false });
+
+    await syncAll(alice, bob);
+
+    const d = await bob.client.dump();
+    expect(d.songs.map((r) => [r.name, r.author, r.ccli])).toEqual([['Ny sång', 'Författare', '123']]);
+    expect(d.song_parts.toSorted((a, b) => Number(a.sort) - Number(b.sort)).map((r) => [r.content, r.label_id])).toEqual([
+      ['Ett', 'label:verse 1'],
+      ['Två', 'label:refräng'],
+    ]);
+    expect(d.song_arrangements.map((r) => r.part_ids)).toEqual([JSON.stringify(['N1-P1', 'N1-P0'])]);
+    await expectConverged(alice, bob);
+  });
+
+  it('SONG-R42: the import skips a song whose name the library has, whatever its case or composition, and a name met earlier in it', async () => {
+    await alice.client.mutate('createSong', { id: 'S1', name: 'Äran och makten' });
+
+    await alice.client.mutate('importSongs', { songs: [imported('N1', 'äran OCH makten'.normalize('NFD')), imported('N2', 'Ny'), imported('N3', 'ny')], replace: false });
+
+    const d = await alice.client.dump();
+    expect(d.songs.map((r) => r.id).toSorted()).toEqual(['N2', 'S1']);
+    expect(d.song_parts.filter((r) => r.song_id === 'S1')).toEqual([]);
+  });
+
+  it('SONG-R42: replacing keeps the song id and name, and takes the file author, CCLI, no year, parts and arrangements', async () => {
+    await seed();
+    await seedParts('S1');
+    await alice.client.mutate('updateSong', { id: 'S1', year: 1990 });
+
+    await alice.client.mutate('importSongs', { songs: [imported('N1', 'song 1', 'Nytt')], replace: true });
+    await syncAll(alice, bob);
+
+    const d = await bob.client.dump();
+    expect(d.songs.find((r) => r.id === 'S1')).toMatchObject({ name: 'Song 1', author: 'Författare', ccli: '123', year: null });
+    expect(d.songs.some((r) => r.id === 'N1')).toBe(false);
+    expect(d.song_parts.filter((r) => r.song_id === 'S1').map((r) => r.id).toSorted()).toEqual(['N1-P0', 'N1-P1']);
+    expect(d.song_arrangements.filter((r) => r.song_id === 'S1').map((r) => r.id)).toEqual(['N1-A0']);
+    await expectConverged(alice, bob);
+  });
+
+  it('SONG-R42: a song another device added meanwhile counts as a duplicate where the import runs', async () => {
+    alice.net.online = false;
+    await alice.client.mutate('importSongs', { songs: [imported('N1', 'Samma')], replace: false });
+    await carol.client.mutate('createSong', { id: 'C1', name: 'samma' });
+
+    alice.net.online = true;
+    await syncAll(carol, alice);
+
+    expect((await alice.client.dump()).songs.map((r) => r.id)).toEqual(['C1']);
+    await expectConverged(alice, carol);
+  });
+
   it('PRES-R26: expired trash is purged by the server clock; a client clock that runs ahead purges nothing early', async () => {
     await seed();
     const day = 86_400_000;

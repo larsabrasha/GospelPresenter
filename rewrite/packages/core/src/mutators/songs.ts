@@ -2,6 +2,7 @@ import { and, asc, count, eq, isNull, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { labelDefaults, labelId } from '../labels.ts';
 import { labels, songArrangements, songParts, songs } from '../schema.ts';
+import { songNameKey } from '../propresenter.ts';
 import { parsePartIds } from '../slides.ts';
 import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
@@ -161,4 +162,63 @@ export async function moveSongPart(tx: Tx, a: z.output<typeof moveSongPartArgs>,
   const order = (await partIdsInOrder(tx, p.songId)).filter((x) => x !== a.id);
   order.splice(Math.min(a.toIndex, order.length), 0, a.id);
   await renumberParts(tx, order);
+}
+
+// ------------------------------------------------------------------ import
+
+const importedSong = z.object({
+  id,
+  name,
+  author: optionalText(200),
+  publisher: optionalText(200),
+  ccli: optionalText(20),
+  parts: z.array(z.object({ id, labelText, content: partContent })).min(1).max(LIMITS.partsPerSong),
+  arrangements: z
+    .array(z.object({ id, name: optionalText(100), partIds: z.array(id).max(500) }))
+    .max(LIMITS.arrangementsPerSong),
+});
+
+export const importSongsArgs = z.object({ songs: z.array(importedSong).min(1).max(500), replace: z.boolean() });
+/**
+ * Songs read from ProPresenter files (spec 02 "Import", SONG-R42–R44), in one mutation so the import
+ * is all or nothing. A song whose name is already in the library, not in the trash (compared without
+ * regard to case or composition), is skipped, or with `replace` keeps its id and name and takes the
+ * file's author, publisher, CCLI number (and no year), parts and arrangements in place of its own. The
+ * library is read where this runs, so a song another device added meanwhile counts too; a name added
+ * earlier in the same import does as well.
+ */
+export async function importSongs(tx: Tx, a: z.output<typeof importSongsArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageSongs');
+  const library = await tx.select({ id: songs.id, name: songs.name }).from(songs).where(isNull(songs.deletedAt));
+  const byName = new Map(library.map((s) => [songNameKey(s.name), s.id]));
+  let live = library.length;
+  for (const s of a.songs) {
+    const key = songNameKey(s.name);
+    let songId = byName.get(key);
+    if (songId && !a.replace) continue;
+    if (songId) {
+      await tx.update(songs).set({ author: s.author, publisher: s.publisher, year: null, ccli: s.ccli }).where(eq(songs.id, songId));
+      await tx.delete(songArrangements).where(eq(songArrangements.songId, songId));
+      await tx.delete(songParts).where(eq(songParts.songId, songId));
+    } else {
+      limit(live >= LIMITS.songs, 'songs');
+      songId = s.id;
+      await tx.insert(songs).values({ id: songId, name: s.name, author: s.author, publisher: s.publisher, ccli: s.ccli }).onConflictDoNothing();
+      byName.set(key, songId);
+      live++;
+    }
+    for (const [sort, p] of s.parts.entries()) {
+      await tx
+        .insert(songParts)
+        .values({ id: p.id, songId, sort, labelId: await ensureLabel(tx, p.labelText), content: p.content })
+        .onConflictDoNothing();
+    }
+    const own = new Set(s.parts.map((p) => p.id));
+    for (const [sort, arr] of s.arrangements.entries()) {
+      await tx
+        .insert(songArrangements)
+        .values({ id: arr.id, songId, name: arr.name, partIds: JSON.stringify(arr.partIds.filter((x) => own.has(x))), sort })
+        .onConflictDoNothing();
+    }
+  }
 }

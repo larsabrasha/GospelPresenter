@@ -34,7 +34,7 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 - [x] Sånghistorik (SONG-R20–R24): tidigare versioner av en sång.
 - [x] Etikettsidan: hantera Vers, Refräng och de andra etiketterna.
 - [x] CCLI-rapport (bara sångens CCLI-fält finns).
-- [x] Import från ProPresenter, även att släppa filer på Sånger.
+- [x] Import från ProPresenter, även att släppa filer på Sånger. **Klart 2026-10-31.**
 - [s] Skapa och redigera teman (i dag bara de inbyggda).
 - [s] Församlingens egna bilder som bakgrund i ett tema.
 - [x] Engelska texter och byte av språk.

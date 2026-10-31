@@ -75,6 +75,26 @@ Remote control for the whole organisation (LIVE-R38 and R39 as changed on 2026-1
   (`/admin/settings`, "Församlingens inställningar"), for those with the permission; it looks like "Mina
   inställningar". It is not called "Inställningar", which the admin button in the top bar is already called.
 
+The ProPresenter import (spec 02 "Import card", SONG-R35–R44; built 2026-10-31):
+
+- **The files are read in the page** (`packages/core/src/propresenter.ts`), with a small reader of protobuf's
+  wire format rather than a library, and written in one `importSongs` mutation: there is no
+  `/api/upload/import-songs`, and the import is all or nothing as SONG-R44 has it. An import of more than 500
+  songs goes in several mutations of 500. The duplicate question is asked from the library on this device; the
+  mutation applies the same rule where it runs, so a song of that name another device added meanwhile is a
+  duplicate too. A file over 25 MB is not read, on every device.
+- **The text is read as the current app does, but better in four ways**, checked on 882 real `.pro` files
+  (GP_REAL_PRO_DIR, `packages/core/test/node/real-propresenter.test.ts`): the RTF's header groups (fonts,
+  colours, `{\*…}`) go first, so a slide with empty text boxes is no longer read as `;;` and `\*;;` (ten of
+  those files were songs of only that; now they count as files without song text); one blank line between
+  lines is kept, at most (Lars: one or two breaks in a row), where the current app kept none; spaces at a
+  line's end go; and a `\uN` escape is its character (Cocoa writes the line separator U+2028 so, 38 times in
+  those files), where the current app dropped it. None of the 882 got "Untitled" (Lars remembered that many did
+  in the current app); the title rule is SONG-R36's.
+- **A label is matched and made as the song editor makes one** (`labelId`, the default labels' colours, grey
+  otherwise), not by SONG-R43's colours from the text.
+- **Skapa stays in the header with an empty library**, as it was (the current app shows only the import then).
+
 Templates (spec 03 "Template", screen 3):
 
 - **A template is a row of `presentations`** with `is_template` set, as in the current app: the editor, its

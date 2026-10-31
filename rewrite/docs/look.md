@@ -35,8 +35,8 @@ button, while Bibeltexter keeps its preview in the tab. Presenting, the drawer i
 The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the list in a light card with
 Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button
 (`ui/PageContainer.tsx`), the fields as floating fields, a card per part with its label as a pill, ↑ ↓ and
-the bin, and the arrangements as stacked chips, each dragged by the whole chip, with the dashed Lägg till del. Song history and the ProPresenter import are not built,
-so their pages and buttons are missing.
+the bin, and the arrangements as stacked chips, each dragged by the whole chip, with the dashed Lägg till del. Above the list, the ProPresenter import card (`pages/SongImport.tsx`), and the
+whole page takes dropped `.pro` files. Song history is not built, so its page and button are missing.
 
 A song's fields, its parts' text and its arrangements' names save 500 ms after the last keystroke, as
 `Utils/Debouncer.cs` does there, and `AutoSaveIndicator.razor`'s grey "✓ Sparad" shows at the right of the

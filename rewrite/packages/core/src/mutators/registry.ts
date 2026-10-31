@@ -19,6 +19,8 @@ import {
   removeSongPart,
   moveSongPartArgs,
   moveSongPart,
+  importSongsArgs,
+  importSongs,
 } from './songs.ts';
 import {
   createArrangementArgs,
@@ -180,6 +182,7 @@ export const mutators = {
   restoreSong: m(restoreSongArgs, restoreSong),
   purgeSong: m(purgeSongArgs, purgeSong),
   addSongPart: m(addSongPartArgs, addSongPart),
+  importSongs: m(importSongsArgs, importSongs),
   updateSongPart: m(updateSongPartArgs, updateSongPart),
   removeSongPart: m(removeSongPartArgs, removeSongPart),
   moveSongPart: m(moveSongPartArgs, moveSongPart),
