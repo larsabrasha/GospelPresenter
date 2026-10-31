@@ -2,6 +2,22 @@
 
 Smaller things decided or wished for, not yet built. The larger steps are in docs/next-steps.md.
 
+## Video (from Lars 2026-10-31; not started)
+
+A video can be shown in a presentation, as an item of its own (as audio and pictures are). The picture goes to the
+outputs; the sound plays on the presenting device, as an audio item's does (LIVE-R6), not on the outputs. It is
+added from a new tab in Lägg till, and the files are kept as audio and pictures are today (a library row and a
+media blob, docs/media-and-files.md). The rest is to be settled with Lars before it is built.
+
+A video takes much room, so the desktop host must keep it once: on disk by the server, never also in its window's
+storage (Lars, 2026-10-31). The window already keeps no media ("The host's own window"), but three things in how it
+gets media today do not fit video: `fetchMedia` reads the whole file into memory (the worker, then a Blob), where a
+video should stream from the server (`/api/media/{hash}` has no Range support yet, and its token goes in a header a
+`<video src>` cannot send); `/api/media` answers `private, max-age=31536000, immutable`, so Chromium's HTTP cache in
+Electron's profile may keep a second copy on disk (not checked); and `blobUrls` in `db/queries.ts` never lets go.
+A desktop paired to another host keeps its copy on disk by design, as a browser does: whether video is fetched there
+only when needed is to be settled.
+
 ## Code review, second list (from Lars 2026-10-30; not done)
 
 One at a time, with a test that shows the fault first where one can; do not commit; show the diff and what is
