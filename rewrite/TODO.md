@@ -2,6 +2,11 @@
 
 Smaller things decided or wished for, not yet built. The larger steps are in docs/next-steps.md.
 
+## Shortcuts in the admin dialog (from Lars 2026-10-31; not started)
+
+The admin pages have no keys of their own yet. Keys that go straight to an admin page (Sånger, Bilder, Användare
+and the rest) inside the dialog, and are listed in the keyboard help.
+
 ## Video, and which files a device fetches (from Lars 2026-10-31; not started)
 
 A video can be shown in a presentation, as an item of its own (as audio and pictures are). The picture goes to the
@@ -443,7 +448,7 @@ ToastContainer.razor, utils.js → `ui/`)
 - [x] Töm is one call; new: one mutation per entry. M, **ask**
 
 **Mina inställningar, Setup, Inbjudan, Logga in**
-- [x] Settings: "Om" with the app version. S
+- [x] Settings: "Om" with the app version. S (moved to Om Gospel Presenter in the admin menu, 2026-10-31)
 - [x] Setup: the description ends in a list of three; other help text under the code; one error at a time and
   "Installationskoden måste fyllas i.". S, **ask** _The line on how the superuser signs in stays under the list. A wrong
   code says "Installationskoden är inte korrekt.", as the old one._

@@ -5,8 +5,13 @@ on every screen size, light and dark. It uses Tailwind v4 (`@tailwindcss/vite`),
 `tailwind-input.css` (`apps/web/src/app.css`). Dark mode is the current app's: the class `.dark` on `<html>`,
 the choice in localStorage `theme` (`light`, `dark`, `system`; the system's when none), chosen under Mina
 inställningar (`/settings`) and applied before the first render (`apps/web/src/ui/theme.ts`). The shell is
-`MainLayout.razor`'s top bar (logo to the start page, Beta, the sync's cloud, the cog to the admin pages, the
-user's menu) and `AdminLayout.razor`'s side menu (`apps/web/src/Shell.tsx`). The shared components are in
+`MainLayout.razor`'s top bar (logo to the start page, Beta, both replaced by "‹ Presentationer" in a presentation, the sync's cloud, the cog to the admin pages, the
+user's menu) and `AdminLayout.razor`'s side menu (`apps/web/src/Shell.tsx`). Unlike the current app, the admin pages
+open in a dialog over the page the user is on (`PageDialog` in `ui/Dialog.tsx`; docs/assumptions.md), as the
+settings of Lars's other apps (bygg, piano): at most 896 px wide and 768 px high, a narrow menu, and the pages filling
+the rest (`PageFill` in `ui/PageContainer.tsx`); full screen on a phone. Om Gospel Presenter (`pages/About.tsx`)
+is last in the menu, at its foot, as in those apps: the version, and links out, which the desktop app opens in
+the system browser. The shared components are in
 `apps/web/src/ui/`: `AppButton` with the current app's variants (the only place a `<button>` is made; the lint
 rule says so), `Dialog`, `Modal`, `FloatingInput`/`Select`/`Textarea`, `PillTabs`, the lists, `Dropdown` and
 `PageContainer`. The start page (`pages/Presentations.tsx`) is `Dashboard.razor`: Idag, Kommande and the rest.

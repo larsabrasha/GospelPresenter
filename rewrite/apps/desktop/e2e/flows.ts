@@ -44,14 +44,29 @@ export async function openAdmin(page: Page, name: string) {
   await (await adminMenu(page)).getByRole('link', { name, exact: true }).click();
 }
 
-/** The start page, the presentations: the logo in the bar. */
+/** The admin pages' dialog, over the page the user was on. */
+export function adminDialog(page: Page) {
+  return page.getByRole('dialog', { name: 'Inställningar' });
+}
+
+/** Closes the admin pages' dialog with Stäng, if it is open: back to the page under it. */
+export async function closeAdmin(page: Page) {
+  const dialog = adminDialog(page);
+  if (!(await dialog.isVisible())) return;
+  await dialog.getByRole('button', { name: 'Stäng', exact: true }).first().click();
+  await expect(dialog).toHaveCount(0);
+}
+
+/** The start page, the presentations: the logo in the bar, or in a presentation the way back; under the admin dialog when that is open. */
 export async function openPresentations(page: Page) {
-  await page.getByRole('link', { name: 'Gospel Presenter' }).click();
+  await closeAdmin(page);
+  await page.getByRole('link', { name: /^(Gospel Presenter|Tillbaka till presentationerna)$/ }).click();
   await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
 }
 
 /** Logga ut, in the menu behind the user's picture in the bar. */
 export async function signOut(page: Page) {
+  await closeAdmin(page);
   await page.getByTestId('me').click();
   await page.getByRole('menuitem', { name: 'Logga ut' }).click();
 }

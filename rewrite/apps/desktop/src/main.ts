@@ -241,6 +241,11 @@ app.whenReady().then(async () => {
   if (hidden) app.dock?.hide();
   const main = new BrowserWindow({ width: 1280, height: 800, title: 'Gospel Presenter', show: !hidden, webPreferences });
   mainWindow = main;
+  // A link out of the app (Om Gospel Presenter's) opens in the system browser: the app's own windows reach only the host.
+  main.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://')) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
   await main.loadURL(pageUrl(base));
   main.on('closed', () => app.quit());
   log({ event: 'ready', base, host: !process.env.GP_SERVER, lan: port ? lanUrls(port, tlsPort) : [], electron: process.versions.electron });

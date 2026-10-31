@@ -6,7 +6,7 @@
 // stranger until it pairs, and pairing is how it signs in.
 import { expect, test } from '@playwright/test';
 import { browserSignIn, fakeGoogle, launch, type Desktop } from './apps.ts';
-import { adminMenu, ANNA, createSong, createUser, openAdmin, pair, setUpHost, signInWithGoogle, signOut } from './flows.ts';
+import { adminDialog, adminMenu, ANNA, createSong, createUser, openAdmin, pair, setUpHost, signInWithGoogle, signOut } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -50,6 +50,8 @@ test('sign-in: Google in the system browser; signing out and in again; a strange
   const google = await fakeGoogle();
   const before = google.tokens.ok;
   host = await launch({ dataDir, port });
+  // It opens where it was, Sånger, in the admin dialog over the start page.
+  await adminDialog(host.page).getByRole('button', { name: 'Stäng', exact: true }).first().click();
   await expect(host.page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
   await expect(host.page.getByRole('heading', { name: 'Logga in' })).toHaveCount(0);
   await expect(host.page.getByTestId('status')).toHaveText(/^Synkad$/);
@@ -133,6 +135,7 @@ test('membership: a removed user is signed out on their device; a demoted Admin 
   await host.page.getByLabel('Roll').selectOption({ label: 'Användare' });
   await expect(host.page.getByTestId('saved')).toBeVisible();
   await second.page.reload();
+  await adminDialog(second.page).getByRole('button', { name: 'Stäng', exact: true }).first().click();
   await expect(second.page.getByTestId('me')).toHaveAccessibleName(/Dan/);
   await expect((await adminMenu(second.page)).getByRole('link', { name: 'Användare' })).toHaveCount(0);
 

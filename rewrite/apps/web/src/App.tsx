@@ -9,6 +9,7 @@ import type { LiveChannel } from './live/live.ts';
 import { AudioEngine, audioUrlOfItem } from './live/audio.ts';
 import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
+import { About } from './pages/About.tsx';
 import { Bibles } from './pages/Bibles.tsx';
 import { Audios } from './pages/Audios.tsx';
 import { OverlayEditor, Overlays } from './pages/Overlays.tsx';
@@ -29,10 +30,11 @@ import { Templates } from './pages/Templates.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { UserDetail } from './pages/UserDetail.tsx';
 import { Users } from './pages/Users.tsx';
-import { AdminLayout, TopBar } from './Shell.tsx';
+import { AdminLayout, SyncWarnings, TopBar, UnexpectedError } from './Shell.tsx';
+import { PageDialog } from './ui/Dialog.tsx';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
 import { PageContainer } from './ui/PageContainer.tsx';
-import { useRoute, type Route } from './ui/router.ts';
+import { closeAdmin, isAdminPage, useRoute, type Route } from './ui/router.ts';
 import { ToastProvider } from './ui/Toast.tsx';
 
 /**
@@ -82,41 +84,52 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'templates' && (can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />)}
       {route.page === 'themes' && <Themes role={me.role} />}
       {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
+      {route.page === 'about' && <About />}
       {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings /> : <Refused text={t('orgSettings.forbidden')} />)}
     </>
   );
+  // The admin pages open in a dialog over the page the user was on, which stays as it was (presenting goes
+  // on); opened from the address bar, over the start page.
+  const adminOpen = isAdminPage(route);
+  const [under, setUnder] = useState<Route>(adminOpen ? { page: 'presentations' } : route);
+  if (!adminOpen && route !== under) setUnder(route);
   return (
     <ToastProvider>
-      <TopBar me={me} />
       <ShortcutHelp />
-      {route.page === 'presentations' ? (
-        <Presentations link={link} ownSessionId={sessionId} />
-      ) : route.page === 'settings' ? (
-        <Settings />
-      ) : route.page === 'presentation' ? (
-        <Live key={`${route.id}:${route.remote ? (route.session ?? 'remote') : 'own'}`} id={route.id} role={me.role} live={live} link={link} audio={audio} sessionId={sessionId} remote={route.remote} session={route.session} stage={route.stage} />
-      ) : route.page === 'template' ? (
-        // Editing a template is for admins (D24): a user who has the link is told so.
-        can(me.role, 'ManageTemplates') ? (
-          <PresentationEditor key={route.id} id={route.id} role={me.role} live={live} template />
+      <UnexpectedError />
+      {/* Out of reach under the admin dialog, for the keyboard and screen readers too. */}
+      <div className="contents" inert={adminOpen} aria-hidden={adminOpen || undefined}>
+        <TopBar me={me} back={under.page === 'presentation'} warnings={!adminOpen} />
+        {under.page === 'presentations' ? (
+          <Presentations link={link} ownSessionId={sessionId} />
+        ) : under.page === 'settings' ? (
+          <Settings />
+        ) : under.page === 'presentation' ? (
+          <Live key={`${under.id}:${under.remote ? (under.session ?? 'remote') : 'own'}`} id={under.id} role={me.role} live={live} link={link} audio={audio} sessionId={sessionId} remote={under.remote} session={under.session} stage={under.stage} />
+        ) : under.page === 'template' ? (
+          // Editing a template is for admins (D24): a user who has the link is told so.
+          can(me.role, 'ManageTemplates') ? (
+            <PresentationEditor key={under.id} id={under.id} role={me.role} live={live} template />
+          ) : (
+            <Refused text={t('templates.forbidden')} />
+          )
+        ) : under.page === 'trash' ? (
+          <Trash key={under.kind ?? 'all'} kind={under.kind} role={me.role} />
         ) : (
-          <Refused text={t('templates.forbidden')} />
-        )
-      ) : ADMIN_PAGES.has(route.page) ? (
-        <AdminLayout me={me} host={host} route={route}>
-          {admin}
-        </AdminLayout>
-      ) : route.page === 'trash' ? (
-        <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />
-      ) : (
-        route.page === 'logins' && <Logins error={route.error} />
+          under.page === 'logins' && <Logins error={under.error} />
+        )}
+      </div>
+      {adminOpen && (
+        <PageDialog title={t('nav.admin')} onClose={() => closeAdmin(under)}>
+          <SyncWarnings />
+          <AdminLayout me={me} host={host} route={route}>
+            {admin}
+          </AdminLayout>
+        </PageDialog>
       )}
     </ToastProvider>
   );
 }
-
-/** The pages under the admin menu (Layout/AdminLayout.razor). */
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'song', 'users', 'user', 'devices', 'bibles', 'images', 'audios', 'overlays', 'overlay', 'templates', 'themes', 'displays', 'orgSettings']);
 
 /** A page the user may not open: why, where the page would be. */
 function Refused({ text }: { text: string }) {

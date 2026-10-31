@@ -111,7 +111,7 @@ test("Skapa användare lands on the new user's page, which shows the invite link
   // Her page, no dialog: the card has the link, Kopiera, Dela where the system can share, and that it is shown only now.
   await expect(page).toHaveURL(/\/admin\/users\/[^/]+$/);
   await expect(page.getByRole('heading', { name: 'Cia', exact: true })).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Skapa användare' })).toHaveCount(0);
   const invite = page.getByTestId('invite');
   await expect(invite).toContainText('Aktiv');
   await expect(invite).toContainText('Den visas inte igen.');

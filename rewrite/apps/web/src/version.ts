@@ -5,8 +5,13 @@ import { t } from './i18n.ts';
 declare const GP_COMMIT: string | null | undefined;
 const BUILT_COMMIT = typeof GP_COMMIT === 'string' ? GP_COMMIT : null;
 
+/** The commit the app was built from, seven characters; null when the build knows none. */
+export function appCommit(): string | null {
+  return BUILT_COMMIT;
+}
+
 /**
- * "Version abc1234" for the sign-in page and Mina inställningar (PLAT-R11): the commit, shortened to
+ * "Version abc1234" for the sign-in page (PLAT-R11): the commit, shortened to
  * seven characters, and "(utvecklingsbygge)" from the dev server. There is no
  * release number yet; null when the build knows no commit.
  */

@@ -152,21 +152,23 @@ test('a presentation is presented on its own page, as the current app: the addre
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   await expect(page.getByTestId('live-panel')).toBeVisible();
   await expect(page).toHaveURL(liveUrl);
+  // In a presentation the bar has the way back to the presentations in place of the logo.
+  await expect(page.getByRole('link', { name: 'Gospel Presenter' })).toHaveCount(0);
 
-  await page.getByRole('link', { name: 'Gospel Presenter' }).click();
+  await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
   const shown = page.getByRole('link', { name: /Söndag/ });
   await expect(shown.getByText('Live')).toBeVisible();
   await shown.click();
   await expect(page).toHaveURL(liveUrl);
   await expect(page.getByRole('button', { name: 'Avsluta' })).toBeVisible();
 
-  await page.getByRole('link', { name: 'Gospel Presenter' }).click();
+  await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
   await page.getByRole('link', { name: /Lördag/ }).click();
   await expect(page).toHaveURL(/\/presentations\//);
   await expect(page.getByTestId('live-panel')).toHaveCount(0);
 
   // Avsluta stays on the page, which is the editor again.
-  await page.getByRole('link', { name: 'Gospel Presenter' }).click();
+  await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
   await page.getByRole('link', { name: /Söndag/ }).click();
   await page.getByRole('button', { name: 'Avsluta presentation' }).click();
   await expect(page).toHaveURL(liveUrl);

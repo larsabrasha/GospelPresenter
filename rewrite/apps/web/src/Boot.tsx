@@ -17,7 +17,7 @@ export const REPAIR_KEY = 'gp.repair';
 /** Opens the app as the signed-in user: a fresh start, so the database worker opens their database (D3). */
 export function enterApp() {
   sessionStorage.removeItem(REPAIR_KEY);
-  history.replaceState(null, '', `/songs${location.search}`); // drops an invite token from the address
+  history.replaceState(null, '', `/${location.search}`); // to the start page; drops an invite token from the address
   location.reload();
 }
 

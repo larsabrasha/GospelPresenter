@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 // app's index.html, so a reload or a pasted link lands on the right page.
 // The server's own paths are all under `/api/`, so no page can collide with
 // one. The presentations are the start page, `/`. Admin pages, the songs among them, live under
-// `/admin/`, as in the current app; `/songs` from before still opens them. Secrets stay in the
+// `/admin/`, as in the current app; `/songs` from before still opens them. They open in a dialog over
+// the page the user was on (`isAdminPage`, `closeAdmin`). Secrets stay in the
 // fragment, which no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
@@ -46,6 +47,8 @@ export type Route =
    */
   | { page: 'display'; id: string | null; name: string | null; token: string | null }
   | { page: 'themes' }
+  /** Om Gospel Presenter (`/admin/about`): the version, and links out. */
+  | { page: 'about' }
   /** The organisation's settings (`/admin/settings`): remote control so far. */
   | { page: 'orgSettings' }
   /** The user's own settings on this device: the colour theme. */
@@ -94,6 +97,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'themes') return { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
     if (second === 'settings') return { page: 'orgSettings' };
+    if (second === 'about') return { page: 'about' };
     return { page: 'songs' };
   }
   const id = second;
@@ -123,7 +127,14 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'templates', 'themes', 'displays']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'templates', 'themes', 'displays', 'about']);
+
+/** The pages under `/admin/` (Layout/AdminLayout.razor), which open in a dialog over the page the user was on. */
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'song', 'user', 'overlay', 'orgSettings']);
+
+export function isAdminPage(r: Route): boolean {
+  return ADMIN_DIALOG_PAGES.has(r.page);
+}
 
 export function href(r: Route): string {
   switch (r.page) {
@@ -172,9 +183,42 @@ export function href(r: Route): string {
 
 const NAVIGATED = 'gp:navigate';
 
-export function navigate(r: Route) {
-  history.pushState(null, '', href(r));
+/**
+ * What an entry of the history knows: `adminBack`, on an admin page, is how many
+ * entries back the page under the admin dialog is. None when the admin pages were
+ * opened from the address bar: nothing of the app's is behind them.
+ */
+interface EntryState {
+  adminBack?: number;
+}
+
+/** A new entry for `url`, counting the admin pages opened since the page under them. */
+function push(url: string) {
+  const to = new URL(url, location.href);
+  let state: EntryState | null = null;
+  if (isAdminPage(parseRoute(to.pathname, to.search, to.hash))) {
+    if (!isAdminPage(currentRoute())) state = { adminBack: 1 };
+    else {
+      const back = (history.state as EntryState | null)?.adminBack;
+      if (back) state = { adminBack: back + 1 };
+    }
+  }
+  history.pushState(state, '', url);
   dispatchEvent(new Event(NAVIGATED));
+}
+
+export function navigate(r: Route) {
+  push(href(r));
+}
+
+/**
+ * Closes the admin dialog: back through the admin pages to the page under them, as it
+ * was. Opened from the address bar, nothing is behind them: `under` opens instead.
+ */
+export function closeAdmin(under: Route) {
+  const back = (history.state as EntryState | null)?.adminBack;
+  if (back) history.go(-back);
+  else navigate(under);
 }
 
 /** Paths the server answers itself: a link to one is a real navigation, not a page of the app. */
@@ -193,8 +237,7 @@ export function installLinkHandler(): void {
     const url = new URL((a as HTMLAnchorElement).href, location.href);
     if (url.origin !== location.origin || SERVER_PATHS.test(url.pathname)) return;
     e.preventDefault();
-    history.pushState(null, '', url.pathname + url.search + url.hash);
-    dispatchEvent(new Event(NAVIGATED));
+    push(url.pathname + url.search + url.hash);
   });
 }
 

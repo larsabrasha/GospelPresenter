@@ -340,6 +340,7 @@ test('capture every page', async () => {
     ['overlay-create', '/admin/overlays', (p) => clickFirst(p, 'Skapa')],
     ['overlay', overlay, closeAdminMenu],
     ['themes', '/admin/themes', closeAdminMenu],
+    ['about', '/admin/about', closeAdminMenu],
     [
       'themes-end',
       '/admin/themes',
@@ -373,8 +374,8 @@ test('capture every page', async () => {
         ] as const) {
           if (await p.getByRole('listitem', { name }).count()) continue;
           await p.getByRole('button', { name: add, exact: true }).first().click();
-          await p.getByRole('dialog').getByLabel('Namn').fill(name);
-          await p.getByRole('dialog').getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
+          await p.getByRole('dialog').last().getByLabel('Namn').fill(name);
+          await p.getByRole('dialog').last().getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
           await p.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
         }
       },
@@ -426,16 +427,16 @@ test('capture every page', async () => {
     ] as const) {
       if (await page.getByRole('listitem', { name }).count()) continue;
       await page.getByRole('button', { name: add, exact: true }).first().click();
-      await page.getByRole('dialog').getByLabel('Namn').fill(name);
-      await page.getByRole('dialog').getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
+      await page.getByRole('dialog').last().getByLabel('Namn').fill(name);
+      await page.getByRole('dialog').last().getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
       await page.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
     }
     await page.getByRole('button', { name: 'Visa länk', exact: true }).first().click();
-    const screen = await page.getByRole('dialog').getByLabel('Länk').inputValue();
-    await page.getByRole('dialog').getByRole('button', { name: 'Stäng' }).click();
+    const screen = await page.getByRole('dialog').last().getByLabel('Länk').inputValue();
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Stäng' }).click();
     await page.getByRole('listitem', { name: 'Mobiler' }).getByRole('button', { name: 'Visa QR-kod' }).click();
-    const watch = await page.getByRole('dialog').getByLabel('Länk').inputValue();
-    await page.getByRole('dialog').getByRole('button', { name: 'Stäng' }).click();
+    const watch = await page.getByRole('dialog').last().getByLabel('Länk').inputValue();
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Stäng' }).click();
     return (links = { screen, watch });
   };
   const local = (url: string) => {

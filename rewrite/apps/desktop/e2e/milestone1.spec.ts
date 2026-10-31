@@ -110,12 +110,3 @@ test('the second client keeps working while the host is down, and its edits land
   await host.page.getByRole('link', { name: 'Blott en dag' }).click();
   await expect(host.page.getByLabel('Delar 2', { exact: true })).toHaveValue('Ett ögonblick i sänder');
 });
-
-test('Mina inställningar has "Om", with no version from a build not given GP_COMMIT (Settings.razor)', async () => {
-  host = await launch();
-  await setUpHost(host);
-  await host.page.getByTestId('me').click();
-  await host.page.getByRole('menuitem', { name: 'Mina inställningar' }).click();
-  await expect(host.page.getByRole('heading', { name: 'Om' })).toBeVisible();
-  await expect(host.page.getByTestId('app-version')).toHaveCount(0);
-});

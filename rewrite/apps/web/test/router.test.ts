@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../src/i18n.ts';
-import { href, parseRoute, type Route } from '../src/ui/router.ts';
+import { href, isAdminPage, parseRoute, type Route } from '../src/ui/router.ts';
 
 /** Reads an address the way the app does: `useRoute` gives the router the path, the query and the fragment. */
 const read = (address: string) => {
@@ -34,6 +34,7 @@ describe('routes', () => {
       { page: 'themes' },
       { page: 'displays' },
       { page: 'orgSettings' },
+      { page: 'about' },
       { page: 'settings' },
       { page: 'watch', code: 'abcdefg' },
       { page: 'display', id: null, name: null, token: null },
@@ -73,7 +74,7 @@ describe('routes', () => {
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {
-    for (const page of ['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'templates', 'themes', 'displays'] as const) {
+    for (const page of ['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'templates', 'themes', 'displays', 'about'] as const) {
       const path = href({ page });
       expect(path).toBe(`/admin/${page}`);
       expect(path).not.toMatch(/^\/api/);
@@ -82,6 +83,18 @@ describe('routes', () => {
     // The admin pages start at the songs, as in the current app (Pages/Admin/Admin.razor).
     expect(read('/admin')).toEqual({ page: 'songs' });
     expect(read('/admin/nowhere')).toEqual({ page: 'songs' });
+  });
+
+  it('every page under /admin opens in the admin dialog', () => {
+    for (const path of ['/admin', '/admin/songs/S1', '/admin/users/U1', '/admin/overlays/O1', '/admin/settings', '/admin/about', '/admin/templates', '/songs']) {
+      expect(isAdminPage(read(path)), path).toBe(true);
+    }
+  });
+
+  it('the pages outside /admin open on their own, the template editor among them', () => {
+    for (const path of ['/', '/presentations/P1', '/templates/T1', '/trash', '/settings', '/logins']) {
+      expect(isAdminPage(read(path)), path).toBe(false);
+    }
   });
 
   it('a template opens in the editor at /templates/{id}, as in the current app (spec 03 screen 2)', () => {

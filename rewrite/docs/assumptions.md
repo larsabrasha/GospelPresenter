@@ -2,6 +2,17 @@
 
 Where the spec and ADR 0007 leave a choice open, the conservative one, written down:
 
+- **The admin pages open in a dialog over the page the user is on** (Lars, 2026-10-31), not as pages of their own
+  as in the current app: Inställningar can be opened from inside a presentation, which goes on presenting under it.
+  The addresses stay under `/admin/`; a link straight to one opens it over the start page. Only Stäng closes it,
+  not Escape or a press outside, so nothing half done is lost by a slip; it goes back through the admin pages
+  opened since to the page under them. Signing in lands on the start page, not on Sånger, so it does not open
+  the dialog.
+- **Om Gospel Presenter** (`/admin/about`, Lars, 2026-10-31) is new: at the foot of the admin menu, for everyone,
+  with the version (the commit) and links to the website and GitHub. Mina inställningar has no Om card any more.
+- **In a presentation the bar has "‹ Presentationer"** in place of the logo and Beta (Lars, 2026-10-31), a way back
+  that says where it goes; the current app shows the logo everywhere.
+
 - **The output never opens a database.** It always reads through the operator window's worker over a
   BroadcastChannel, with OPFS or without. If no operator window answers, a read waits and is asked
   again every second, and the output keeps showing what it last had.

@@ -10,12 +10,14 @@ import { Dropdown, MENU_ITEM } from './ui/Dropdown.tsx';
 import {
   ArrowPathIcon,
   BarsIcon,
+  ChevronLeftIcon,
   BookOpenIcon,
   CloudCheckIcon,
   CloudOffIcon,
   CogIcon,
   DesktopIcon,
   DevicesIcon,
+  InformationCircleIcon,
   KeyIcon,
   LogoIcon,
   MenuIcon,
@@ -31,6 +33,7 @@ import {
   WarningIcon,
 } from './ui/icons.tsx';
 import { href, type Route } from './ui/router.ts';
+import { PageFill } from './ui/PageContainer.tsx';
 import { useToast } from './ui/Toast.tsx';
 import { isHostWindow } from './hostWindow.ts';
 
@@ -120,7 +123,7 @@ function SyncStatus() {
  * memory), in a strip under the bar until it is dealt with. In the page's
  * flow, so it never covers a button.
  */
-function SyncWarnings() {
+export function SyncWarnings() {
   const s = useDbStatus();
   const warnings: ReactNode[] = [];
   if (s && s.storage !== 'opfs' && !isHostWindow()) warnings.push(t('status.memory', { reason: s.storage }));
@@ -163,7 +166,7 @@ function SyncWarnings() {
  * An error nothing caught: the current app's yellow bar at the bottom with Ladda
  * om (MainLayout.razor's blazor-error-ui). What went wrong is in the console.
  */
-function UnexpectedError() {
+export function UnexpectedError() {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     // An ErrorEvent without an error is the browser's own notice, such as ResizeObserver's loop limit.
@@ -223,20 +226,36 @@ function AccountMenu({ me }: { me: Me }) {
   );
 }
 
-/** The bar at the top: the logo (to the start page), Beta, and at the right the sync, the admin pages and the user; warnings under it. */
-export function TopBar({ me }: { me: Me }) {
+/**
+ * The bar at the top: the logo (to the start page) and Beta, or in a presentation a way back to the
+ * presentations; at the right the sync, the admin pages and the user. The warnings under it, unless
+ * the admin dialog covers it and shows them itself.
+ */
+export function TopBar({ me, back, warnings }: { me: Me; back: boolean; warnings: boolean }) {
   return (
     <>
       <nav className="relative flex items-center justify-between px-4 h-12 shrink-0 border-b-[0.5px] border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800">
-        <div className="flex items-center gap-3">
-          <a href={href({ page: 'presentations' })} className="flex items-center gap-2 text-sky-500 hover:text-sky-600 no-underline">
-            <LogoIcon className="size-6" />
-            <span className="text-sm font-semibold uppercase tracking-wide whitespace-nowrap">
-              <span className="text-sky-500">Gospel</span> <span className="text-sky-400">Presenter</span>
-            </span>
+        {back ? (
+          <a
+            href={href({ page: 'presentations' })}
+            title={t('nav.backToPresentations')}
+            aria-label={t('nav.backToPresentations')}
+            className="flex items-center gap-1 -ml-1 text-sm font-medium text-sky-500 hover:text-sky-600 no-underline whitespace-nowrap"
+          >
+            <ChevronLeftIcon className="size-5" />
+            {t('nav.presentations')}
           </a>
-          <span className="inline-flex items-center rounded-full bg-orange-500 px-2.5 shrink-0 py-0.5 text-xs font-semibold text-white">{t('app.beta')}</span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <a href={href({ page: 'presentations' })} className="flex items-center gap-2 text-sky-500 hover:text-sky-600 no-underline">
+              <LogoIcon className="size-6" />
+              <span className="text-sm font-semibold uppercase tracking-wide whitespace-nowrap">
+                <span className="text-sky-500">Gospel</span> <span className="text-sky-400">Presenter</span>
+              </span>
+            </a>
+            <span className="inline-flex items-center rounded-full bg-orange-500 px-2.5 shrink-0 py-0.5 text-xs font-semibold text-white">{t('app.beta')}</span>
+          </div>
+        )}
         <div className="flex items-center gap-3 sm:gap-6">
           <SyncStatus />
           <AppButton variant="icon" href={href({ page: 'songs' })} title={t('nav.admin')} aria-label={t('nav.admin')} className="bg-neutral-100 dark:bg-neutral-700">
@@ -245,8 +264,7 @@ export function TopBar({ me }: { me: Me }) {
           <AccountMenu me={me} />
         </div>
       </nav>
-      <SyncWarnings />
-      <UnexpectedError />
+      {warnings && <SyncWarnings />}
     </>
   );
 }
@@ -258,6 +276,9 @@ interface AdminLink {
   /** The pages that light this entry up. */
   pages: Route['page'][];
 }
+
+/** Om Gospel Presenter, for everyone, at the foot of the admin menu. */
+const ABOUT_LINK: AdminLink = { route: { page: 'about' }, label: 'nav.about', icon: InformationCircleIcon, pages: ['about'] };
 
 /** The admin menu's entries, in groups; an entry the user may not open is left out (as the pages refuse them). */
 function adminLinks(me: Me, host: boolean): AdminLink[][] {
@@ -293,6 +314,21 @@ function adminLinks(me: Me, host: boolean): AdminLink[][] {
  */
 export function AdminLayout({ me, host, route, children }: { me: Me; host: boolean; route: Route; children: ReactNode }) {
   const [menuVisible, setMenuVisible] = useState(true);
+  const entry = (l: AdminLink) => {
+    const active = l.pages.includes(route.page);
+    return (
+      <a
+        key={l.label}
+        href={href(l.route)}
+        aria-current={active ? 'page' : undefined}
+        onClick={() => setMenuVisible(false)}
+        className={`flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm no-underline ${active ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+      >
+        <l.icon className="w-4 h-4 shrink-0" />
+        {t(l.label)}
+      </a>
+    );
+  };
   return (
     <div className="flex flex-1 min-h-0 relative">
       <div
@@ -300,33 +336,21 @@ export function AdminLayout({ me, host, route, children }: { me: Me; host: boole
         onClick={() => setMenuVisible(false)}
       />
       <aside
-        className={`w-[300px] shrink-0 bg-white dark:bg-neutral-800 overflow-y-auto duration-200 ease-in-out absolute inset-y-0 left-0 z-[110] shadow-xl lg:relative lg:inset-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 ${menuVisible ? 'visible translate-x-0' : 'invisible -translate-x-full'}`}
+        className={`w-[300px] lg:w-56 shrink-0 bg-white dark:bg-neutral-800 overflow-y-auto duration-200 ease-in-out absolute inset-y-0 left-0 z-[110] shadow-xl lg:relative lg:inset-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 lg:border-r-[0.5px] lg:border-neutral-200 lg:dark:border-neutral-700 ${menuVisible ? 'visible translate-x-0' : 'invisible -translate-x-full'}`}
       >
-        <nav className="flex flex-col py-3" aria-label={t('nav.adminMenu')}>
+        <nav className="flex flex-col min-h-full py-3" aria-label={t('nav.adminMenu')}>
           {adminLinks(me, host).map((group, i) => (
             <div key={i} className="flex flex-col">
               {i > 0 && <div className="my-3 mx-4 h-px bg-neutral-200 dark:bg-neutral-700" />}
-              {group.map((l) => {
-                const active = l.pages.includes(route.page);
-                return (
-                  <a
-                    key={l.label}
-                    href={href(l.route)}
-                    aria-current={active ? 'page' : undefined}
-                    onClick={() => setMenuVisible(false)}
-                    className={`flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm no-underline ${active ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
-                  >
-                    <l.icon className="w-4 h-4 shrink-0" />
-                    {t(l.label)}
-                  </a>
-                );
-              })}
+              {group.map(entry)}
             </div>
           ))}
+          {/* Om Gospel Presenter at the very bottom, apart from the settings, as in Lars's other apps. */}
+          <div className="flex flex-col mt-auto pt-6">{entry(ABOUT_LINK)}</div>
         </nav>
       </aside>
-      <main className="flex-1 overflow-hidden flex flex-col relative">
-        {children}
+      <main className="flex-1 min-w-0 overflow-hidden flex flex-col relative">
+        <PageFill value>{children}</PageFill>
         <div className="flex items-center absolute bottom-0 left-0 right-0 justify-between p-3 z-10 pointer-events-none lg:hidden">
           <AppButton
             variant="plain"

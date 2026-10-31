@@ -24,24 +24,42 @@ const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), textare
 
 /**
  * The covered page behind a dialog, and the box. Escape, the close button and a
- * press on the dimmed page close it (utils.js showModal); the first field (or
+ * press on the dimmed page close it (utils.js showModal), a dialog of pages only the close button; the first field (or
  * button) gets focus, and Tab stays in the box, as with the current app's native
  * `showModal`. Keys in the box stay there, so the page's shortcuts do not see them.
  * It fades in, not out: a delayed close would undo the page opening it again meanwhile.
  */
-function DialogFrame({ titleId, onClose, className, children }: { titleId: string; onClose: () => void; className: string; children: (close: () => void) => ReactNode }) {
+function DialogFrame({
+  titleId,
+  onClose,
+  className,
+  children,
+  page,
+}: {
+  titleId: string;
+  onClose: () => void;
+  className: string;
+  children: (close: () => void) => ReactNode;
+  /**
+   * A dialog of whole pages: the full screen on a phone, focus on the box rather than a field, so a phone shows no
+   * keyboard, and only the close button closes it, so a stray press or Escape loses no work.
+   */
+  page?: boolean;
+}) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = box.current!;
-    if (!el.contains(document.activeElement)) el.querySelector<HTMLElement>('[autofocus], input, textarea, select, button:not([data-close])')?.focus();
-  }, []);
+    if (el.contains(document.activeElement)) return;
+    if (page) el.focus();
+    else el.querySelector<HTMLElement>('[autofocus], input, textarea, select, button:not([data-close])')?.focus();
+  }, [page]);
   const close = onClose;
   const trapTab = (e: React.KeyboardEvent) => {
     const all = [...box.current!.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => x.offsetParent !== null || x === document.activeElement);
     if (all.length === 0) return e.preventDefault();
     const first = all[0]!;
     const last = all[all.length - 1]!;
-    if (e.shiftKey && (document.activeElement === first || !box.current!.contains(document.activeElement))) {
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === box.current || !box.current!.contains(document.activeElement))) {
       e.preventDefault();
       last.focus();
     } else if (!e.shiftKey && document.activeElement === last) {
@@ -51,20 +69,21 @@ function DialogFrame({ titleId, onClose, className, children }: { titleId: strin
   };
   return createPortal(
     <div
-      className="dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 p-4"
+      className={`dialog-in fixed inset-0 z-[140] flex items-center justify-center bg-black/30 ${page ? 'sm:p-4' : 'p-4'}`}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) close();
+        if (!page && e.target === e.currentTarget) close();
       }}
     >
       <div
         ref={box}
-        className={`relative w-full max-h-full overflow-auto rounded-2xl shadow-2xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 ${className}`}
+        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 ${page ? 'h-full flex flex-col overflow-hidden outline-none max-sm:rounded-none' : 'overflow-auto'} ${className}`}
+        tabIndex={page ? -1 : undefined}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={(e) => {
           e.stopPropagation(); // keys in a dialog are the dialog's
-          if (e.key === 'Escape') close();
+          if (e.key === 'Escape' && !page) close();
           else if (e.key === 'Tab') trapTab(e);
         }}
       >
@@ -131,6 +150,29 @@ export function Modal({ title, onClose, children, footer, className }: { title: 
           </div>
           <div className="px-4 h-[70svh] flex flex-col">{children}</div>
           <div className="px-4 py-3">{footer}</div>
+        </>
+      )}
+    </DialogFrame>
+  );
+}
+
+/**
+ * A dialog that holds pages of its own, as the admin pages over the page the user is on:
+ * a bar with the title and the close button, and `children` filling the rest.
+ */
+export function PageDialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const titleId = useId();
+  return (
+    <DialogFrame titleId={titleId} onClose={onClose} className="max-w-4xl sm:h-[min(48rem,100%)]" page>
+      {(close) => (
+        <>
+          <div className="relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-neutral-200 dark:border-neutral-700">
+            <h2 id={titleId} className="font-semibold text-lg/7">
+              {title}
+            </h2>
+            <CloseButton onClick={close} />
+          </div>
+          {children}
         </>
       )}
     </DialogFrame>
