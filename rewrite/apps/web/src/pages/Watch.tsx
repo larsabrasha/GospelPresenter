@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FONT_STACKS, resolveTheme, type Css, type PublicSlide } from '@gp/core';
-import { followStream } from '../live/watch-stream.ts';
+import { followStream } from '../live/watchStream.ts';
 import { t } from '../i18n.ts';
 import { creditsCss, mainCss, stageCss } from '../themes.ts';
 

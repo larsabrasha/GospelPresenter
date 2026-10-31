@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App, OutputApp } from './App.tsx';
 import { storedSession, workerSession } from './auth/session.ts';
 import { Boot, REPAIR_KEY } from './Boot.tsx';
-import { keepApp } from './keep-app.ts';
+import { keepApp } from './keepApp.ts';
 import { Db } from './db/db.ts';
 import { DbProvider, ReaderProvider } from './db/react.tsx';
 import { SharedReader, shareChannelName } from './db/share.ts';

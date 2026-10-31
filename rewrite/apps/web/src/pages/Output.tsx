@@ -9,6 +9,7 @@ import { askFullScreen } from '../ui/fullScreen.ts';
 import { BufferedVideo, FollowingVideo } from '../ui/FollowingVideo.tsx';
 import { canPlayVideo, playUrl } from '../media/video.ts';
 import type { OutputVideo } from '../live/video.ts';
+import { useWakeLock } from '../ui/useWakeLock.ts';
 
 /** This machine's clock: the presenting window's video state is on it too. */
 const now = () => Date.now();
@@ -66,20 +67,8 @@ export function Output({ live }: { live: LiveChannel }) {
   useEffect(() => {
     if (name) document.title = name;
   }, [name]);
-  // The screen stays awake, and takes the lock again when the window shows (Live.razor).
-  useEffect(() => {
-    if (!('wakeLock' in navigator)) return;
-    let lock: WakeLockSentinel | null = null;
-    const take = () => {
-      if (document.visibilityState === 'visible') void navigator.wakeLock.request('screen').then((l) => (lock = l), () => {});
-    };
-    take();
-    document.addEventListener('visibilitychange', take);
-    return () => {
-      document.removeEventListener('visibilitychange', take);
-      void lock?.release();
-    };
-  }, []);
+  // The screen stays awake (Live.razor).
+  useWakeLock();
   return (
     // A click asks for full screen (Live.razor).
     <div className="fixed inset-0 bg-black cursor-none" data-testid="output" onClick={askFullScreen}>

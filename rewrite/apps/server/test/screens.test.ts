@@ -8,7 +8,7 @@ import type { Canvas, LiveServerMessage, PublicSlide } from '@gp/core';
 import { api, device, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
 import { ownState, Window } from './live-window.ts';
 import { Viewer } from './sse-viewer.ts';
-import { SCREEN_GRACE_MS } from '../src/live-hub.ts';
+import { SCREEN_GRACE_MS } from '../src/live-viewers.ts';
 
 const adapters = (process.env.SYNC_ADAPTERS ?? 'node,node-sqlite,workers').split(',') as AdapterName[];
 

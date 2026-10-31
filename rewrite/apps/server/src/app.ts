@@ -28,7 +28,8 @@ import {
 } from '@gp/core';
 import { currentSeq, dump, handlePull, handlePush, type OrgStore, type PokeCoalescer, type SerialQueue } from '@gp/sync/server';
 import type { Caller } from './auth/index.ts';
-import type { LiveHub, Viewer } from './live-hub.ts';
+import type { LiveHub } from './live-hub.ts';
+import type { Viewer } from './live-viewers.ts';
 import type { MediaStorage } from './media.ts';
 import type { PlayTokens } from './play-tokens.ts';
 import { serveVideo, videoBlob, videoRoutes } from './video-routes.ts';

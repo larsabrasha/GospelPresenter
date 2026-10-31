@@ -7,14 +7,15 @@ import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
-import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
-import { ArrowDownTrayIcon, EllipsisIcon, PhotoOutlineIcon, TrashIcon } from '../ui/icons.tsx';
+import { PhotoOutlineIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
+import { RemoveMenu } from '../ui/RemoveMenu.tsx';
+import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
 /**
  * A library picture's thumbnail, from this device's own copy, rounded and at
@@ -70,22 +71,7 @@ export function Images({ role }: { role: Role }) {
               {t('images.trash')}
             </AppButton>
             {manage && (
-              <AppButton asLabel disabled={!!progress} className="inline-flex items-center gap-1.5">
-                <ArrowDownTrayIcon className="size-4 shrink-0" />
-                {t('images.import')}
-                <input
-                  type="file"
-                  accept={IMAGE_ACCEPT}
-                  multiple
-                  hidden
-                  disabled={!!progress}
-                  data-testid="image-file"
-                  onChange={(e) => {
-                    void importFiles([...(e.target.files ?? [])]);
-                    e.target.value = '';
-                  }}
-                />
-              </AppButton>
+              <ImportFilesButton accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />
             )}
           </div>
         </PageHeader>
@@ -122,19 +108,7 @@ export function Images({ role }: { role: Role }) {
                   <ImageThumb image={image} />
                   {manage && (
                     <div className="absolute top-1 right-1">
-                      <Dropdown
-                        menuClassName="min-w-36"
-                        button={{
-                          className: 'size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80',
-                          'aria-label': t('images.more', { name: image.fileName }),
-                        }}
-                        trigger={<EllipsisIcon className="size-4" />}
-                      >
-                        <AppButton variant="plain" role="menuitem" className={MENU_ITEM_DANGER} onClick={() => void remove(image)}>
-                          <TrashIcon className="size-4" />
-                          {t('images.remove')}
-                        </AppButton>
-                      </Dropdown>
+                      <RemoveMenu name={image.fileName} on="picture" onRemove={() => void remove(image)} />
                     </div>
                   )}
                 </div>

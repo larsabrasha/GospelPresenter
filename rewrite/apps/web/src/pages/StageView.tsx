@@ -16,6 +16,7 @@ import { AudioPlayer } from './live/AudioPlayer.tsx';
 import { OverlayToggles } from './OverlayToggles.tsx';
 import { stageKey } from './stageKeys.ts';
 import { helpOpen, useShortcutGroup, type ShortcutGroup } from '../ui/ShortcutHelp.tsx';
+import { useWakeLock } from '../ui/useWakeLock.ts';
 
 /*
  * The sizes of StageView.razor's ComputeScales, from the window: 240 px of its height and 48 px of its width are the
@@ -72,20 +73,8 @@ export function StageView({
   const overlay = useShownOverlay(pointer.overlayId);
   const liveRef = useRef<HTMLLIElement>(null);
 
-  // The screen stays awake while the view is open, and takes the lock again when it shows (utils.js).
-  useEffect(() => {
-    if (!('wakeLock' in navigator)) return;
-    let lock: WakeLockSentinel | null = null;
-    const take = () => {
-      if (document.visibilityState === 'visible') void navigator.wakeLock.request('screen').then((l) => (lock = l), () => {});
-    };
-    take();
-    document.addEventListener('visibilitychange', take);
-    return () => {
-      document.removeEventListener('visibilitychange', take);
-      void lock?.release();
-    };
-  }, []);
+  // The screen stays awake while the view is open (utils.js).
+  useWakeLock();
 
   // Keeps the live tile centred, scrolling smoothly; cheap, so it runs after every render rather than naming what it reads.
   useEffect(() => {

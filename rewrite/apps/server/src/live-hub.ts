@@ -1,19 +1,19 @@
 import {
   ABANDONED_SESSION_MS,
   can,
-  canvasOfPublicSlide,
+  
   LIVE_MESSAGE_MAX,
   liveClientMessageSchema,
-  MAX_VIEWERS,
+  
   REMOTE_CONTROL_SETTING,
   SCREEN_IDLE_MS,
   SESSION_IDLE_MS,
   remoteControlAllowed,
   remoteControlPolicy,
-  ITEM_IMAGES_SQL,
-  SLIDE_PAGES_SQL,
+  
+  
   type Canvas,
-  type LiveVideoState,
+  
   type LiveOwnState,
   type LiveScreen,
   type LiveServerMessage,
@@ -22,6 +22,9 @@ import {
   type Role,
   type WatchEvent,
 } from '@gp/core';
+import { mayShowImage, mayShowVideo } from './live-output-gate.ts';
+import { canvasOf, prepareLiveTables, saveSession, sessionInfoOf, slideOf, type LiveStore, type SessionRow } from './live-tables.ts';
+import { OutputViewers, type Viewer } from './live-viewers.ts';
 
 // An organisation's live sessions (spec 04, ADR 0004): which window presents
 // what, and whether phones may drive it (the window's toggle, under the
@@ -41,75 +44,20 @@ export interface LiveSocket {
   send(message: string): void;
 }
 
-export interface LiveStore {
-  query(sql: string, params?: unknown[]): Record<string, unknown>[];
-}
-
-const DDL = [
-  `CREATE TABLE IF NOT EXISTS live_sessions (
-     id TEXT PRIMARY KEY NOT NULL, owner_user_id TEXT NOT NULL, presentation_id TEXT NOT NULL,
-     presentation_name TEXT NOT NULL, device_name TEXT NOT NULL, remote INTEGER NOT NULL,
-     pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT, audio TEXT, canvas TEXT, video TEXT)`,
-  // Which session an output sends from: at most one (LIVE-R23); `active_at`, its session's last slide change since it was bound (LIVE-R43).
-  `CREATE TABLE IF NOT EXISTS live_bindings (display_id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL, active_at INTEGER NOT NULL)`,
-  // Temporary screens paired with the organisation (spec 04 §5), each for the session that paired it.
-  `CREATE TABLE IF NOT EXISTS live_screens (id TEXT PRIMARY KEY NOT NULL, n INTEGER NOT NULL, session_id TEXT NOT NULL)`,
-  // Saved screens let go for idling (LIVE-R43): not bound to that session again until its owner has switched them off.
-  `CREATE TABLE IF NOT EXISTS live_released (display_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (display_id, session_id))`,
-];
-
-/** One public viewer's stream (LIVE-R35): it only ever needs the newest event. */
-export interface Viewer {
-  send(e: WatchEvent): void;
-  close(): void;
-}
-
-/**
- * How long a saved screen whose stream dropped stays switched on: a TV whose
- * Wi-Fi blinks reconnects within it; a page that closed is off after it (LIVE-A20).
- */
-export const SCREEN_GRACE_MS = 15_000;
-
-/** How often at most the viewer counts go out (LIVE-R36), with a trailing update. */
-const COUNT_THROTTLE_MS = 2000;
-
-interface Row {
-  id: string;
-  owner_user_id: string;
-  presentation_id: string;
-  presentation_name: string;
-  device_name: string;
-  remote: number;
-  pointer: string;
-  owner_seen_at: number;
-  slide: string | null;
-  audio: string | null;
-  video: string | null;
-  canvas: string | null;
-}
-
 /**
  * Callers serialise every call with the organisation's other writes (its
  * queue), so a live write never lands inside a mutation's transaction.
  */
 export class LiveHub {
-  /** Public viewers, by output, by viewer id. In memory: a viewer reconnects if the process restarts. */
-  private viewers = new Map<string, Map<string, { viewer: Viewer; code: string; screen: boolean }>>();
-  private countTimer: ReturnType<typeof setTimeout> | null = null;
-  private countDue = false;
-  /**
-   * Saved screens whose last stream dropped, waiting out SCREEN_GRACE_MS. The
-   * entry is its own mark: a timer whose entry was replaced (the screen came
-   * back and dropped again) does nothing.
-   */
-  private dropped = new Map<string, { timer: unknown }>();
+  /** The streams that follow the outputs; a saved screen gone for good loses its binding. */
+  private viewers: OutputViewers;
   /**
    * Sockets that have closed. A runtime may go on listing one for a while (a
    * Durable Object during and after webSocketClose), so it is left out until
    * the runtime stops listing it.
    */
   private gone = new Set<string>();
-  /** The pending check for idle screens (LIVE-R43), due at `at`; like `dropped`, a timer whose entry was replaced does nothing. */
+  /** The pending check for idle screens (LIVE-R43), due at `at`; a timer whose entry was replaced does nothing. */
   private idleCheck: { at: number; timer: unknown } | null = null;
 
   constructor(
@@ -121,27 +69,22 @@ export class LiveHub {
     /** Runs `fn` after `ms`, in the organisation's queue like every other call (the runtime wraps it). */
     private later: (fn: () => void, ms: number) => unknown = (fn, ms) => setTimeout(fn, ms),
   ) {
-    for (const d of DDL) store.query(d);
-    // A table made before audio, the canvas or video: sessions are short-lived, so it is simply made again.
-    if (!(store.query(`SELECT 1 FROM pragma_table_info('live_sessions') WHERE name = 'video'`).length)) {
-      store.query('DROP TABLE live_sessions');
-      store.query(DDL[0]!);
-    }
-    if (!store.query(`SELECT 1 FROM pragma_table_info('live_bindings') WHERE name = 'active_at'`).length) {
-      store.query('DROP TABLE live_bindings');
-      store.query(DDL[1]!);
-    }
+    prepareLiveTables(store);
+    this.viewers = new OutputViewers(
+      () => this.broadcast(),
+      (displayId) => {
+        this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [displayId]);
+        this.broadcast();
+      },
+      later,
+    );
   }
 
-  /** Stops the viewer-count timer: the database is about to close. */
+  /** Stops the timers: the database is about to close. */
   dispose() {
-    for (const d of this.dropped.values()) clearTimeout(d.timer as ReturnType<typeof setTimeout>);
-    this.dropped.clear();
+    this.viewers.dispose();
     if (this.idleCheck) clearTimeout(this.idleCheck.timer as ReturnType<typeof setTimeout>);
     this.idleCheck = null;
-    if (this.countTimer) clearTimeout(this.countTimer);
-    this.countTimer = null;
-    this.countDue = false;
   }
 
   private sockets(): LiveSocket[] {
@@ -217,27 +160,7 @@ export class LiveHub {
     const slide = state.slide ? JSON.stringify(state.slide) : null;
     // A slide change (another slide, black, an overlay, an edit to what shows) is the screens' activity (LIVE-R43).
     const changed = !existing || existing.pointer !== JSON.stringify(state.pointer) || existing.slide !== slide;
-    this.store.query(
-      `INSERT INTO live_sessions (id, owner_user_id, presentation_id, presentation_name, device_name, remote, pointer, owner_seen_at, slide, audio, canvas, video)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT (id) DO UPDATE SET presentation_id = excluded.presentation_id, presentation_name = excluded.presentation_name,
-         device_name = excluded.device_name, remote = excluded.remote, pointer = excluded.pointer, owner_seen_at = excluded.owner_seen_at,
-         slide = excluded.slide, audio = excluded.audio, canvas = excluded.canvas, video = excluded.video`,
-      [
-        state.sessionId,
-        s.userId,
-        state.presentationId,
-        state.presentationName,
-        state.deviceName,
-        state.remote ? 1 : 0,
-        JSON.stringify(state.pointer),
-        this.now(),
-        slide,
-        state.audio ? JSON.stringify(state.audio) : null,
-        state.canvas ? JSON.stringify(stampVideo(state.canvas, this.now())) : null,
-        state.video ? JSON.stringify(state.video) : null,
-      ],
-    );
+    saveSession(this.store, s.userId, state, slide, this.now());
     if (!s.owns.includes(state.sessionId)) s.owns = [...s.owns, state.sessionId];
     const touched = this.bind(s, state);
     if (changed) this.store.query('UPDATE live_bindings SET active_at = ? WHERE session_id = ?', [this.now(), state.sessionId]);
@@ -256,7 +179,7 @@ export class LiveHub {
     const displays = this.store.query('SELECT id, kind FROM displays') as { id: string; kind: string }[];
     // A saved screen only while its page is open (LIVE-A21); a temporary screen only for the session that paired it.
     const known = new Set([
-      ...displays.filter((d) => d.kind !== 'screen' || this.screenOnline(d.id)).map((d) => d.id),
+      ...displays.filter((d) => d.kind !== 'screen' || this.viewers.online(d.id)).map((d) => d.id),
       ...(this.store.query('SELECT id FROM live_screens WHERE session_id = ?', [state.sessionId]) as { id: string }[]).map((x) => x.id),
     ]);
     const mine = (this.store.query('SELECT display_id FROM live_bindings WHERE session_id = ?', [state.sessionId]) as { display_id: string }[]).map((b) => b.display_id);
@@ -391,12 +314,7 @@ export class LiveHub {
     for (const id of ids) {
       this.store.query('DELETE FROM live_screens WHERE id = ?', [id]);
       this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [id]);
-      const set = this.viewers.get(id);
-      for (const v of set?.values() ?? []) {
-        v.viewer.send({ type: 'unpaired' });
-        v.viewer.close();
-      }
-      this.viewers.delete(id);
+      this.viewers.closeAll(id, { type: 'unpaired' });
     }
     this.released(ids);
   }
@@ -430,7 +348,7 @@ export class LiveHub {
     return slide ? { type: 'slide', slide } : { type: 'idle' };
   }
 
-  private boundRow(displayId: string): Row | undefined {
+  private boundRow(displayId: string): SessionRow | undefined {
     const [b] = this.store.query('SELECT session_id FROM live_bindings WHERE display_id = ?', [displayId]) as { session_id: string }[];
     return b && this.row(b.session_id);
   }
@@ -441,43 +359,17 @@ export class LiveHub {
    * Sends the newest state at once. False when it was refused as one too many.
    */
   watch(displayId: string, code: string, viewerId: string, viewer: Viewer, meta: { orgName: string; outputName: string }, screen = false): boolean {
-    let set = this.viewers.get(displayId);
-    if (!set) this.viewers.set(displayId, (set = new Map()));
-    const old = set.get(viewerId);
-    if (!old && set.size >= MAX_VIEWERS) {
-      viewer.send({ type: 'full' });
-      viewer.close();
-      return false;
-    }
-    set.set(viewerId, { viewer, code, screen });
-    const pending = this.dropped.get(displayId);
-    if (pending) clearTimeout(pending.timer as ReturnType<typeof setTimeout>); // back within the grace
-    this.dropped.delete(displayId);
-    old?.viewer.close();
+    if (!this.viewers.add(displayId, viewerId, { viewer, code, screen })) return false;
     viewer.send({ type: 'meta', ...meta });
     viewer.send(this.shown(displayId, screen));
-    this.countsChanged();
+    this.viewers.changed();
     return true;
   }
 
   /** A viewer's stream ended. Only that stream: a newer one under the same id stays. */
   unwatch(displayId: string, viewerId: string, viewer: Viewer) {
-    const set = this.viewers.get(displayId);
-    if (set?.get(viewerId)?.viewer !== viewer) return;
-    set.delete(viewerId);
-    // A saved screen whose page closed is switched off (LIVE-R24, LIVE-A20), once it has not come back for SCREEN_GRACE_MS.
-    if (!set.size && !this.dropped.has(displayId) && this.store.query(`SELECT 1 FROM displays WHERE id = ? AND kind = 'screen'`, [displayId]).length) {
-      const mark: { timer: unknown } = { timer: null };
-      this.dropped.set(displayId, mark);
-      mark.timer = this.later(() => {
-        if (this.dropped.get(displayId) !== mark) return;
-        this.dropped.delete(displayId);
-        if (this.viewerCount(displayId) > 0) return;
-        this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [displayId]);
-        this.broadcast();
-      }, SCREEN_GRACE_MS);
-    }
-    this.countsChanged();
+    const isSavedScreen = () => this.store.query(`SELECT 1 FROM displays WHERE id = ? AND kind = 'screen'`, [displayId]).length > 0;
+    if (this.viewers.remove(displayId, viewerId, viewer, isSavedScreen)) this.viewers.changed();
   }
 
   /**
@@ -491,29 +383,7 @@ export class LiveHub {
    */
   showing(displayId: string, hash: string, screen = false): boolean {
     const row = this.boundRow(displayId);
-    if (!row) return false;
-    const shown = screen ? canvasOf(row) : null;
-    const slideImage = screen ? shown?.slide?.image : slideOf(row)?.image;
-    if (
-      slideImage === hash &&
-      this.store.query(
-        `SELECT 1 FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id
-         WHERE p.presentation_id = ? AND i.full_hash = ?
-         UNION ALL
-         SELECT 1 FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ? AND s.full_hash = ?
-         UNION ALL
-         SELECT 1 FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.type = 'video' AND p.presentation_id = ? AND v.still_hash = ?`,
-        [row.presentation_id, hash, row.presentation_id, hash, row.presentation_id, hash],
-      ).length > 0
-    ) {
-      return true;
-    }
-    if (!screen || shown?.overlay?.image !== hash) return false;
-    const overlayId = (JSON.parse(row.pointer) as LiveOwnState['pointer']).overlayId;
-    return (
-      !!overlayId &&
-      this.store.query('SELECT 1 FROM overlays o JOIN images i ON i.id = o.image_id WHERE o.id = ? AND i.full_hash = ?', [overlayId, hash]).length > 0
-    );
+    return !!row && mayShowImage(this.store, row, hash, screen);
   }
 
   /**
@@ -524,13 +394,7 @@ export class LiveHub {
    */
   showingVideo(displayId: string, hash: string): boolean {
     const row = this.boundRow(displayId);
-    if (!row || canvasOf(row)?.slide?.video?.hash !== hash) return false;
-    return (
-      this.store.query(`SELECT 1 FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.type = 'video' AND p.presentation_id = ? AND v.hash = ?`, [
-        row.presentation_id,
-        hash,
-      ]).length > 0
-    );
+    return !!row && mayShowVideo(this.store, row, hash);
   }
 
   /**
@@ -540,56 +404,25 @@ export class LiveHub {
   displaysChanged() {
     const codes = new Map((this.store.query('SELECT id, code FROM displays') as { id: string; code: string }[]).map((d) => [d.id, d.code]));
     this.store.query(`DELETE FROM live_bindings WHERE display_id NOT IN (SELECT id FROM displays UNION SELECT id FROM live_screens)`);
-    for (const [displayId, set] of this.viewers) {
-      // A temporary screen is no row in displays; one paired by QR may not be in live_screens yet either.
-      if (this.screen(displayId) || [...set.values()].every((v) => v.code === displayId)) continue;
-      for (const [viewerId, v] of set) {
-        if (codes.get(displayId) === v.code) continue;
-        set.delete(viewerId);
-        v.viewer.close();
-      }
-    }
-    this.countsChanged();
+    // A temporary screen is no row in displays; one paired by QR may not be in live_screens yet either.
+    this.viewers.closeIf((displayId, w, all) => !this.screen(displayId) && !all.every((v) => v.code === displayId) && codes.get(displayId) !== w.code);
+    this.viewers.changed();
     this.broadcast();
   }
 
   private pushTo(displayId: string, ended = false) {
-    const set = this.viewers.get(displayId);
-    if (!set?.size) return; // nobody watching: nothing to send (LIVE-R37)
+    const watching = this.viewers.of(displayId);
+    if (!watching.length) return; // nobody watching: nothing to send (LIVE-R37)
     const events = new Map<boolean, WatchEvent>();
-    for (const v of set.values()) {
+    for (const v of watching) {
       let e = events.get(v.screen);
       if (!e) events.set(v.screen, (e = ended && v.screen ? { type: 'canvas', canvas: null, now: this.now() } : this.shown(displayId, v.screen)));
       v.viewer.send(e);
     }
   }
 
-  /** A saved screen is online while a page follows it, and for SCREEN_GRACE_MS after the last one dropped. */
-  private screenOnline(displayId: string): boolean {
-    return this.viewerCount(displayId) > 0 || this.dropped.has(displayId);
-  }
-
-  private viewerCount(displayId: string): number {
-    return this.viewers.get(displayId)?.size ?? 0;
-  }
-
-  /** Viewer counts reach the operators at most every 2 s: at once, then one trailing update (LIVE-R36). */
-  private countsChanged() {
-    if (this.countTimer) {
-      this.countDue = true;
-      return;
-    }
-    this.broadcast();
-    this.countTimer = setTimeout(() => {
-      this.countTimer = null;
-      if (!this.countDue) return;
-      this.countDue = false;
-      this.countsChanged();
-    }, COUNT_THROTTLE_MS);
-  }
-
-  private row(id: string): Row | undefined {
-    return this.store.query('SELECT * FROM live_sessions WHERE id = ?', [id])[0] as Row | undefined;
+  private row(id: string): SessionRow | undefined {
+    return this.store.query('SELECT * FROM live_sessions WHERE id = ?', [id])[0] as SessionRow | undefined;
   }
 
   /**
@@ -606,7 +439,7 @@ export class LiveHub {
   }
 
   /** The policy decides; the window's own toggle counts only when the policy leaves it to the presenter. */
-  private remoteAllowed(r: Row, policy = this.policy()): boolean {
+  private remoteAllowed(r: SessionRow, policy = this.policy()): boolean {
     return remoteControlAllowed(policy, r.remote === 1);
   }
 
@@ -623,7 +456,7 @@ export class LiveHub {
   sessions(): LiveSessionInfo[] {
     this.releaseIdleScreens();
     const online = new Set(this.sockets().flatMap((o) => o.owns));
-    const rows = this.store.query('SELECT * FROM live_sessions ORDER BY id') as unknown as Row[];
+    const rows = this.store.query('SELECT * FROM live_sessions ORDER BY id') as unknown as SessionRow[];
     const policy = this.policy();
     const out: LiveSessionInfo[] = [];
     for (const r of rows) {
@@ -632,27 +465,16 @@ export class LiveHub {
         continue;
       }
       const outputs = (this.store.query('SELECT display_id FROM live_bindings WHERE session_id = ? ORDER BY display_id', [r.id]) as { display_id: string }[]).map(
-        (b) => ({ id: b.display_id, viewers: this.viewerCount(b.display_id) }),
+        (b) => ({ id: b.display_id, viewers: this.viewers.count(b.display_id) }),
       );
-      out.push({
-        id: r.id,
-        presentationId: r.presentation_id,
-        presentationName: r.presentation_name,
-        deviceName: r.device_name,
-        remote: this.remoteAllowed(r, policy),
-        ownerOnline: online.has(r.id),
-        pointer: JSON.parse(r.pointer) as LiveSessionInfo['pointer'],
-        outputs,
-        audio: r.audio ? (JSON.parse(r.audio) as LiveSessionInfo['audio']) : null,
-        video: r.video ? (JSON.parse(r.video) as LiveVideoState) : null,
-      });
+      out.push(sessionInfoOf(r, outputs, this.remoteAllowed(r, policy), online.has(r.id)));
     }
     return out;
   }
 
   private snapshot(): string {
     const sessions = this.sessions();
-    const online = [...new Set([...this.viewers].filter(([, set]) => set.size > 0).map(([id]) => id).concat([...this.dropped.keys()]))].toSorted();
+    const online = this.viewers.onlineIds();
     const screens = this.store.query('SELECT id, n FROM live_screens ORDER BY n') as unknown as LiveScreen[];
     return JSON.stringify({ type: 'sessions', sessions, online, screens } satisfies LiveServerMessage);
   }
@@ -674,24 +496,5 @@ function reply(s: LiveSocket, m: LiveServerMessage) {
   s.send(JSON.stringify(m));
 }
 
-/** The public slide a session shows (LIVE-R32); null without a session, or black. */
-function slideOf(row: Row | undefined): PublicSlide | null {
-  return row?.slide ? (JSON.parse(row.slide) as PublicSlide) : null;
-}
 
-/**
- * The canvas with its video's moment on the server's clock: the owner's
- * report says where the video was as it was sent, and a screen whose clock
- * is wrong still follows, since every canvas event carries the server's time.
- */
-function stampVideo(canvas: Canvas, now: number): Canvas {
-  const video = canvas.slide?.video;
-  return video ? { ...canvas, slide: { ...canvas.slide!, video: { ...video, at: now } } } : canvas;
-}
 
-/** The canvas a session's paired screens draw (spec 04 §5); from an owner that reports none (an older build), the public slide's. */
-function canvasOf(row: Row | undefined): Canvas | null {
-  if (row?.canvas) return JSON.parse(row.canvas) as Canvas;
-  const slide = slideOf(row);
-  return slide ? canvasOfPublicSlide(slide) : null;
-}

@@ -35,7 +35,7 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
   (use `cursor-default`).
 - Every screen works light and dark, desktop and phone (390 px wide).
 - Take the old app's Tailwind classes; the look follows the old app (docs/look.md).
-- UI strings are Swedish, in `apps/web/src/i18n.ts`.
+- UI strings are in `apps/web/src/i18n.ts`, in Swedish and English; a new text needs both.
 
 ## Code rules
 
@@ -43,6 +43,11 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
 - Comments in English, as dense as the code around them.
 - Tests follow Microsoft's unit testing best practices: Arrange-Act-Assert, one behaviour per test, names that
   say the behaviour.
+- `packages/architecture` checks the rest in `pnpm test` (under a second, never cached): at most 500 lines in a
+  source file and 800 in a test file (the UI texts and the icons are tables, exempt); no 8 lines in a row in two
+  places in shipped code; names in the package's style (web: PascalCase components, camelCase modules; elsewhere
+  kebab-case); each package imports only the ones below it. Split a file by what its parts do, and move a copy
+  into one shared place; do not raise a limit to pass.
 
 ## The old app: the reference
 

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
 import type { LibraryVideo, LiveVideo, LiveVideoState, VideoCodec, VideoCommand, VideoType } from '@gp/core';
 import { playUrl } from '../media/video.ts';
 import type { LiveLink } from './remote.ts';
+import { usePlayerState } from './usePlayerState.ts';
 
 // Video during live (TODO.md "Video on the outputs"). The presenting window
 // plays it: one element, unmuted, whose sound is the presenting computer's, as
@@ -274,17 +274,4 @@ export class RemoteVideo implements VideoControl {
 }
 
 /** The video state, and while it plays, a fresh position four times a second. */
-export function useVideo(control: VideoControl): VideoState | null {
-  const [state, setState] = useState(() => control.state());
-  useEffect(() => {
-    const update = () => setState(control.state());
-    const off = control.subscribe(update);
-    const tick = setInterval(update, 250);
-    update();
-    return () => {
-      off();
-      clearInterval(tick);
-    };
-  }, [control]);
-  return state;
-}
+export const useVideo = (control: VideoControl): VideoState | null => usePlayerState(control);

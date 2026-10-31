@@ -18,6 +18,7 @@ with Bible readings and a chosen look runs offline. Milestone 5 adds the media l
 |---|---|
 | `packages/core` | Schema, mutators with Zod-validated arguments, permissions, slides, song search, live pointer |
 | `packages/sync` | The sync engine: client (rebase, pokes) and server (push, pull, change log) |
+| `packages/architecture` | Tests of the code itself, read as text: file length, names, copies, which package may import which |
 | `apps/server` | Hono server on Node (one SQLite file per organisation) and on Workers (a Durable Object per organisation) |
 | `apps/web` | React + Vite client: wa-sqlite on OPFS in a worker |
 | `apps/desktop` | Electron: the embedded server, the main window and the output window |

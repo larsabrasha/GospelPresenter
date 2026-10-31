@@ -72,7 +72,7 @@ the database worker, wa-sqlite's wasm, the CSS, fonts and the background) and a 
   files from it: the app loads everything at start. A device that started from its kept copy while the host was
   gone, and finds the host back with a newer build (the sync's "update first", 426), gets the new app with a
   reload, since a page comes from the network first.
-- **Where it registers** (`apps/web/src/keep-app.ts`): only a built app (not `pnpm dev`), only in a secure context,
+- **Where it registers** (`apps/web/src/keepApp.ts`): only a built app (not `pnpm dev`), only in a secure context,
   and never in the desktop app's windows, whose page comes from their own server. Not for `/watch/{code}`, as
   a viewer's phone needs no copy of the app; a device that already has the worker gets `/watch/` through it,
   network first. Over plain http on the LAN a browser allows no service worker, so such a tablet still needs the
@@ -80,7 +80,7 @@ the database worker, wa-sqlite's wasm, the CSS, fonts and the background) and a 
 - **On the server**, `index.html`, `/sw.js` and every page address are sent with `cache-control: no-cache`, so a
   new build is seen at once; the CSP's `worker-src 'self'` covers the worker.
 
-Tested in `apps/web/test/sw-route.test.ts` (which requests go where), `apps/server/test/tls.test.ts` (headers)
+Tested in `apps/web/test/swRoute.test.ts` (which requests go where), `apps/server/test/tls.test.ts` (headers)
 and `apps/desktop/e2e/https.spec.ts`: a browser over https on the LAN pairs, the host goes, the page reloads and
 shows its songs, another page opens by its address, and `/api/` fails rather than coming from a cache; the host
 comes back with another build, which one reload brings, and which the worker keeps instead of the old one. The

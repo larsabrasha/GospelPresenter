@@ -3,7 +3,7 @@
 // database answers the page, so the hash must give the thread back.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { PROTOCOL_VERSION } from '../../../packages/core/src/protocol.ts';
-import { SCHEMA_VERSION } from '../../../packages/core/src/schema.ts';
+import { SCHEMA_VERSION } from '../../../packages/core/src/org-schema.ts';
 import { launch, type Desktop } from './apps.ts';
 import { highlight, makeZip, searchSongs, utf8Encode } from '../../../packages/core/src/index.ts';
 import { addSongs, allowRemote, createPresentation, createSong, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';

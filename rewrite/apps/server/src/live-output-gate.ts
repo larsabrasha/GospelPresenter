@@ -1,0 +1,42 @@
+import { ITEM_IMAGES_SQL, SLIDE_PAGES_SQL, type LiveOwnState } from '@gp/core';
+import { canvasOf, slideOf, type LiveStore, type SessionRow } from './live-tables.ts';
+
+// What an output's viewers may fetch (LIVE-R32, MEDIA-R10): only what its session shows, and only if it belongs to the
+// presentation the session presents. The owner's report alone is not enough: a changed client could otherwise name
+// any picture of the library and make it public through the output.
+
+/**
+ * A picture: the one on screen, of an item in the presentation, or a page of a slide deck in it. A paired screen may
+ * also show the overlay's picture (LIVE-R34), only if it is the picture of the overlay the session's pointer has
+ * switched on; a public output never gets it.
+ */
+export function mayShowImage(store: LiveStore, row: SessionRow, hash: string, screen: boolean): boolean {
+  const shown = screen ? canvasOf(row) : null;
+  const slideImage = screen ? shown?.slide?.image : slideOf(row)?.image;
+  if (
+    slideImage === hash &&
+    store.query(
+      `SELECT 1 FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id
+       WHERE p.presentation_id = ? AND i.full_hash = ?
+       UNION ALL
+       SELECT 1 FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ? AND s.full_hash = ?
+       UNION ALL
+       SELECT 1 FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.type = 'video' AND p.presentation_id = ? AND v.still_hash = ?`,
+      [row.presentation_id, hash, row.presentation_id, hash, row.presentation_id, hash],
+    ).length > 0
+  ) {
+    return true;
+  }
+  if (!screen || shown?.overlay?.image !== hash) return false;
+  const overlayId = (JSON.parse(row.pointer) as LiveOwnState['pointer']).overlayId;
+  return !!overlayId && store.query('SELECT 1 FROM overlays o JOIN images i ON i.id = o.image_id WHERE o.id = ? AND i.full_hash = ?', [overlayId, hash]).length > 0;
+}
+
+/**
+ * A video a paired screen streams (TODO.md "Video on the outputs"): the one on its canvas, of an item in the
+ * presentation. A public output never streams one; it shows the still.
+ */
+export function mayShowVideo(store: LiveStore, row: SessionRow, hash: string): boolean {
+  if (canvasOf(row)?.slide?.video?.hash !== hash) return false;
+  return store.query(`SELECT 1 FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.type = 'video' AND p.presentation_id = ? AND v.hash = ?`, [row.presentation_id, hash]).length > 0;
+}

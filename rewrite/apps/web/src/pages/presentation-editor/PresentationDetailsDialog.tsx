@@ -4,9 +4,10 @@ import { t } from '../../i18n.ts';
 import { themeName } from '../../themes.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { Dialog, DialogButtons } from '../../ui/Dialog.tsx';
-import { FloatingInput, FloatingTextarea } from '../../ui/Floating.tsx';
+import { FloatingTextarea } from '../../ui/Floating.tsx';
 import { MapPinIcon } from '../../ui/icons.tsx';
 import { SimpleInput, SimpleSelect } from '../../ui/SimpleInput.tsx';
+import { PresentationNameField } from './PresentationNameField.tsx';
 
 /** What the dialog edits; empty strings are cleared fields. */
 export interface PresentationDetails {
@@ -68,20 +69,7 @@ export function PresentationDetailsDialog({
   return (
     <Dialog title={title} onClose={onClose} maxWidthClass="max-w-2xl">
       <div className="space-y-3">
-        <FloatingInput
-          label={t('presentation.name')}
-          hideLabel
-          autoFocus
-          maxLength={200}
-          value={d.name}
-          onChange={set('name')}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              void save();
-            }
-          }}
-        />
+        <PresentationNameField value={d.name} onChange={(name) => setD((was) => ({ ...was, name }))} onEnter={() => void save()} />
         <div className="flex gap-2 flex-wrap">
           <SimpleInput type="date" aria-label={t('presentation.date')} value={d.date} onChange={set('date')} />
           <SimpleInput type="time" aria-label={t('presentation.time')} value={d.time} onChange={set('time')} />

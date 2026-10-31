@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { resolveTheme, type Canvas } from '@gp/core';
 import { canPlayVideo } from '../media/video.ts';
 import { FollowingVideo } from '../ui/FollowingVideo.tsx';
-import { followStream } from '../live/watch-stream.ts';
+import { followStream } from '../live/watchStream.ts';
 import { t } from '../i18n.ts';
 import { LogoIcon } from '../ui/icons.tsx';
 import { SlideView } from '../ui/SlideView.tsx';

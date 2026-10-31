@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BLOB_URL_GRACE_MS, blobUrl, blobUrlCount, holdBlobUrl } from '../src/db/queries.ts';
+import { BLOB_URL_GRACE_MS, blobUrl, blobUrlCount, holdBlobUrl } from '../src/db/blobUrls.ts';
 import type { ReadDb } from '../src/db/share.ts';
 
 // A picture's object URL holds its bytes in the window's memory: it is let go once nothing shows it (TODO.md "Video").

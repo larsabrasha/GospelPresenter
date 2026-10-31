@@ -5,15 +5,15 @@ import { listAudios } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
-import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
-import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
-import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, SpeakerWaveIcon, TrashIcon } from '../ui/icons.tsx';
+import { SpeakerWaveIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
 import { ctrlLabel } from '../ui/shortcuts.ts';
 import { useToast } from '../ui/Toast.tsx';
+import { PickableFileRow } from './PickableFileRow.tsx';
+import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
 /** When a file goes to the trash: this device's clock. */
 const trashedAt = () => Date.now();
@@ -77,22 +77,7 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
     <DropZone className="flex-1 min-h-0 flex flex-col" label={t('audios.drop')} accept={AUDIO_ACCEPT} onFiles={(files) => void imports.run(files)}>
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
-          <AppButton variant="secondary" asLabel disabled={!!imports.progress} className="inline-flex items-center gap-1.5">
-            <ArrowDownTrayIcon className="size-4 shrink-0" />
-            {t('images.import')}
-            <input
-              type="file"
-              accept={AUDIO_ACCEPT}
-              multiple
-              hidden
-              disabled={!!imports.progress}
-              data-testid="audio-tab-file"
-              onChange={(e) => {
-                void imports.run([...(e.target.files ?? [])]);
-                e.target.value = '';
-              }}
-            />
-          </AppButton>
+          <ImportFilesButton accept={AUDIO_ACCEPT} busy={!!imports.progress} testId="audio-tab-file" secondary onFiles={(files) => void imports.run(files)} />
           <DropHint text={t('images.dropAffordance')} />
           {!!imports.failures.length && (
             <span className="text-red-500 dark:text-red-400 text-sm" role="alert">
@@ -110,51 +95,11 @@ export function AudioTab({ presentationId, afterItemId, onAdded, active }: { pre
             </EmptyTab>
           )}
           <ul className="flex flex-col gap-1 p-3" aria-label={t('audios.title')} onKeyDown={list.onKeyDown}>
-            {shown.map((a, i) => {
-              const isPicked = picked.includes(a.id);
-              return (
-                <li
-                  key={a.id}
-                  {...list.item(i)}
-                  role="button"
-                  aria-pressed={isPicked}
-                  aria-label={a.fileName}
-                  onClick={() => toggle(a.id)}
-                  onKeyDown={(e) => {
-                    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ') || e.ctrlKey || e.metaKey) return;
-                    e.preventDefault();
-                    toggle(a.id);
-                  }}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
-                    isPicked ? 'ring-sky-500 bg-sky-50 dark:bg-sky-900/20' : 'ring-transparent hover:bg-neutral-100 dark:hover:bg-neutral-700'
-                  }`}
-                >
-                  {isPicked ? (
-                    <span className="size-5 flex items-center justify-center rounded-full bg-sky-500 text-white shrink-0">
-                      <CheckIcon className="size-4" />
-                    </span>
-                  ) : (
-                    <SpeakerWaveIcon className="size-5 text-neutral-400 shrink-0" />
-                  )}
-                  <span className="text-sm truncate flex-1">{a.fileName}</span>
-                  <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                    <Dropdown
-                      menuClassName="min-w-36"
-                      button={{
-                        className: 'size-7 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer',
-                        'aria-label': t('images.more', { name: a.fileName }),
-                      }}
-                      trigger={<EllipsisIcon className="size-4" />}
-                    >
-                      <AppButton variant="plain" role="menuitem" className={MENU_ITEM_DANGER} onClick={() => void remove(a)}>
-                        <TrashIcon className="size-4" />
-                        {t('images.remove')}
-                      </AppButton>
-                    </Dropdown>
-                  </span>
-                </li>
-              );
-            })}
+            {shown.map((a, i) => (
+              <PickableFileRow key={a.id} nav={list.item(i)} picked={picked.includes(a.id)} name={a.fileName} icon={<SpeakerWaveIcon className="size-5 text-neutral-400 shrink-0" />} onToggle={() => toggle(a.id)} onRemove={() => void remove(a)}>
+                <span className="text-sm truncate flex-1">{a.fileName}</span>
+              </PickableFileRow>
+            ))}
           </ul>
         </div>
         <AddFooter

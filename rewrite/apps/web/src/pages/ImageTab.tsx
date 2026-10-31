@@ -8,13 +8,14 @@ import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
-import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
-import { ArrowDownTrayIcon, CheckIcon, EllipsisIcon, PhotoIcon, TrashIcon } from '../ui/icons.tsx';
+import { CheckIcon, PhotoIcon } from '../ui/icons.tsx';
 import { useRovingList } from '../ui/listNav.ts';
 import { AddFooter, EmptyTab, isAddKey, SearchField, useFocusWhenShown } from '../ui/Picker.tsx';
 import { ctrlLabel } from '../ui/shortcuts.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { ImageThumb } from './Images.tsx';
+import { RemoveMenu } from '../ui/RemoveMenu.tsx';
+import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
 /** When a file goes to the trash: this device's clock. */
 const trashedAt = () => Date.now();
@@ -93,22 +94,7 @@ export function ImageTab({
     <DropZone className="flex-1 min-h-0 flex flex-col" label={t('images.drop')} accept={IMAGE_ACCEPT} onFiles={(files) => void imports.run(files)}>
       <div className="flex-1 min-h-0 flex flex-col" onKeyDown={onKeyDown}>
         <div className="shrink-0 flex flex-wrap items-center gap-3 pb-4">
-          <AppButton variant="secondary" asLabel disabled={!!imports.progress} className="inline-flex items-center gap-1.5">
-            <ArrowDownTrayIcon className="size-4 shrink-0" />
-            {t('images.import')}
-            <input
-              type="file"
-              accept={IMAGE_ACCEPT}
-              multiple
-              hidden
-              disabled={!!imports.progress}
-              data-testid="image-tab-file"
-              onChange={(e) => {
-                void imports.run([...(e.target.files ?? [])]);
-                e.target.value = '';
-              }}
-            />
-          </AppButton>
+          <ImportFilesButton accept={IMAGE_ACCEPT} busy={!!imports.progress} testId="image-tab-file" secondary onFiles={(files) => void imports.run(files)} />
           <DropHint text={t('images.dropAffordance')} />
           {!!imports.failures.length && (
             <span className="text-red-500 dark:text-red-400 text-sm" role="alert">
@@ -149,19 +135,7 @@ export function ImageTab({
                       )}
                     </AppButton>
                     <span className="absolute top-1 right-1">
-                      <Dropdown
-                        menuClassName="min-w-36"
-                        button={{
-                          className: 'size-7 flex items-center justify-center rounded-full bg-black/60 text-white cursor-pointer hover:bg-black/80',
-                          'aria-label': t('images.more', { name: image.fileName }),
-                        }}
-                        trigger={<EllipsisIcon className="size-4" />}
-                      >
-                        <AppButton variant="plain" role="menuitem" className={MENU_ITEM_DANGER} onClick={() => void remove(image)}>
-                          <TrashIcon className="size-4" />
-                          {t('images.remove')}
-                        </AppButton>
-                      </Dropdown>
+                      <RemoveMenu name={image.fileName} on="picture" onRemove={() => void remove(image)} />
                     </span>
                   </span>
                   <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>

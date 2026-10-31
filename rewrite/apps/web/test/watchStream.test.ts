@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { WatchEvent } from '@gp/core';
-import { followStream, type StreamSource } from '../src/live/watch-stream.ts';
+import { followStream, type StreamSource } from '../src/live/watchStream.ts';
 
 class FakeSource implements StreamSource {
   readyState = 0;

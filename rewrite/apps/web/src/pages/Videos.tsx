@@ -7,9 +7,8 @@ import { useVideoImport, VIDEO_ACCEPT } from '../media/video.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
-import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
-import { ArrowDownTrayIcon, EllipsisIcon, TrashIcon, VideoIcon } from '../ui/icons.tsx';
+import { TrashIcon, VideoIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
@@ -17,6 +16,8 @@ import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { formatBytes } from './Storage.tsx';
 import { formatDuration } from './VideoTab.tsx';
+import { RemoveMenu } from '../ui/RemoveMenu.tsx';
+import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
 /** When a video goes to the trash: this device's clock, as for songs and presentations. */
 const trashedAt = () => Date.now();
@@ -70,22 +71,7 @@ export function Videos({ role }: { role: Role }) {
               {t('images.trash')}
             </AppButton>
             {manage && (
-              <AppButton asLabel disabled={imports.busy} className="inline-flex items-center gap-1.5">
-                <ArrowDownTrayIcon className="size-4 shrink-0" />
-                {t('images.import')}
-                <input
-                  type="file"
-                  accept={VIDEO_ACCEPT}
-                  multiple
-                  hidden
-                  disabled={imports.busy}
-                  data-testid="video-file"
-                  onChange={(e) => {
-                    void importFiles([...(e.target.files ?? [])]);
-                    e.target.value = '';
-                  }}
-                />
-              </AppButton>
+              <ImportFilesButton accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file" onFiles={(files) => void importFiles(files)} />
             )}
           </div>
         </PageHeader>
@@ -130,19 +116,7 @@ export function Videos({ role }: { role: Role }) {
                   </span>
                 </span>
                 {manage && (
-                  <Dropdown
-                    menuClassName="min-w-36"
-                    button={{
-                      className: 'size-7 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer',
-                      'aria-label': t('images.more', { name: v.fileName }),
-                    }}
-                    trigger={<EllipsisIcon className="size-4" />}
-                  >
-                    <AppButton variant="plain" role="menuitem" className={MENU_ITEM_DANGER} onClick={() => void remove(v)}>
-                      <TrashIcon className="size-4" />
-                      {t('images.remove')}
-                    </AppButton>
-                  </Dropdown>
+                  <RemoveMenu name={v.fileName} on="row" onRemove={() => void remove(v)} />
                 )}
               </li>
             ))}

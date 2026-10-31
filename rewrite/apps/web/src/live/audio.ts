@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
 import type { AudioCommand, LiveAudio } from '@gp/core';
-import { blobUrl, getAudio, holdBlobUrl } from '../db/queries.ts';
+import { blobUrl, holdBlobUrl } from '../db/blobUrls.ts';
+import { getAudio } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import type { LiveLink } from './remote.ts';
+import { usePlayerState } from './usePlayerState.ts';
 
 // Audio during live (spec 04 §1b). It plays only on the presenting computer:
 // one audio item at a time is the session's audio, and it keeps playing while
@@ -214,17 +215,4 @@ export class RemoteAudio implements AudioControl {
 }
 
 /** The audio state, and while it plays, a fresh position four times a second. */
-export function useAudio(control: AudioControl): LiveAudio | null {
-  const [state, setState] = useState(() => control.state());
-  useEffect(() => {
-    const update = () => setState(control.state());
-    const off = control.subscribe(update);
-    const tick = setInterval(update, 250);
-    update();
-    return () => {
-      off();
-      clearInterval(tick);
-    };
-  }, [control]);
-  return state;
-}
+export const useAudio = (control: AudioControl): LiveAudio | null => usePlayerState(control);

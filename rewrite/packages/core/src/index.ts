@@ -1,4 +1,5 @@
 export * from './schema.ts';
+export * from './org-schema.ts';
 export * from './permissions.ts';
 export * from './labels.ts';
 export * from './mutators/index.ts';

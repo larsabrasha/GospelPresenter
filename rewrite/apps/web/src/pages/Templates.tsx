@@ -9,13 +9,13 @@ import { useSaveFailed, useTrySave } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
-import { FloatingInput } from '../ui/Floating.tsx';
 import { SimpleInput, SimpleSelect } from '../ui/SimpleInput.tsx';
 import { PlusIcon, TemplatesPicture, TrashIcon } from '../ui/icons.tsx';
 import { CARD, ListCard, ListLinkRow } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { WEEKDAYS, weekdayName } from './templates.ts';
+import { PresentationNameField } from './presentation-editor/PresentationNameField.tsx';
 
 export interface TemplateFields {
   name: string;
@@ -61,20 +61,7 @@ export function TemplateDetailsDialog({
   return (
     <Dialog title={title} onClose={onClose} maxWidthClass="max-w-2xl">
       <div className="space-y-3">
-        <FloatingInput
-          label={t('presentation.name')}
-          hideLabel
-          autoFocus
-          maxLength={200}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              void save();
-            }
-          }}
-        />
+        <PresentationNameField value={name} onChange={setName} onEnter={() => void save()} />
         <div className="flex gap-2 flex-wrap">
           <SimpleSelect aria-label={t('schedule.day')} value={weekday} onChange={(e) => setWeekday(e.target.value)}>
             <option value="">{t('schedule.noDay')}</option>

@@ -3,7 +3,8 @@ import type { Song } from '@gp/core';
 import { presentationMediaState } from '@gp/sync/client';
 import type { Db } from './db.ts';
 import type { DbStatus } from './protocol.ts';
-import { blobUrl, holdBlobUrl, listSongs, shownOverlay, type ShownOverlay } from './queries.ts';
+import { blobUrl, holdBlobUrl } from './blobUrls.ts';
+import { listSongs, shownOverlay, type ShownOverlay } from './queries.ts';
 import { needsReload, type ReadDb } from './share.ts';
 import { isHostWindow } from '../hostWindow.ts';
 

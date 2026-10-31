@@ -7,14 +7,15 @@ import { AUDIO_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
-import { Dropdown, MENU_ITEM_DANGER } from '../ui/Dropdown.tsx';
 import { CardNote, EmptySmall } from '../ui/Empty.tsx';
-import { ArrowDownTrayIcon, EllipsisIcon, SpeakerWaveIcon, TrashIcon } from '../ui/icons.tsx';
+import { SpeakerWaveIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { href } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
+import { RemoveMenu } from '../ui/RemoveMenu.tsx';
+import { ImportFilesButton } from '../ui/ImportFilesButton.tsx';
 
 /** When a file goes to the trash: this device's clock, as for songs and presentations. */
 const trashedAt = () => Date.now();
@@ -57,22 +58,7 @@ export function Audios({ role }: { role: Role }) {
               {t('images.trash')}
             </AppButton>
             {manage && (
-              <AppButton asLabel disabled={!!progress} className="inline-flex items-center gap-1.5">
-                <ArrowDownTrayIcon className="size-4 shrink-0" />
-                {t('images.import')}
-                <input
-                  type="file"
-                  accept={AUDIO_ACCEPT}
-                  multiple
-                  hidden
-                  disabled={!!progress}
-                  data-testid="audio-file"
-                  onChange={(e) => {
-                    void importFiles([...(e.target.files ?? [])]);
-                    e.target.value = '';
-                  }}
-                />
-              </AppButton>
+              <ImportFilesButton accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />
             )}
           </div>
         </PageHeader>
@@ -112,19 +98,7 @@ export function Audios({ role }: { role: Role }) {
                 <SpeakerWaveIcon className="size-5 text-neutral-400 shrink-0" />
                 <span className="text-sm truncate flex-1">{a.fileName}</span>
                 {manage && (
-                  <Dropdown
-                    menuClassName="min-w-36"
-                    button={{
-                      className: 'size-7 flex items-center justify-center rounded-full text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer',
-                      'aria-label': t('images.more', { name: a.fileName }),
-                    }}
-                    trigger={<EllipsisIcon className="size-4" />}
-                  >
-                    <AppButton variant="plain" role="menuitem" className={MENU_ITEM_DANGER} onClick={() => void remove(a)}>
-                      <TrashIcon className="size-4" />
-                      {t('images.remove')}
-                    </AppButton>
-                  </Dropdown>
+                  <RemoveMenu name={a.fileName} on="row" onRemove={() => void remove(a)} />
                 )}
               </li>
             ))}
