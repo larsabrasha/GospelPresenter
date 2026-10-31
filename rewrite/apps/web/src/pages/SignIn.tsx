@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { AuthState, SignInResponse } from '@gp/core';
+import { api } from '../auth/api.ts';
+import { errorText } from '../auth/errors.ts';
 import { useDesktopSignIn } from '../auth/google.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { FloatingInput } from '../ui/Floating.tsx';
 import { GoogleIcon } from '../ui/icons.tsx';
 import { appVersion } from '../version.ts';
 import { AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
@@ -114,6 +117,47 @@ export function methodsText(methods: Pick<AuthState, 'google' | 'passkeys'> | nu
 }
 
 /**
+ * "Glömt hur du loggar in?" (decided on 2026-10-31; the current app has none): the person's e-mail address, to which
+ * the server sends a new invite if a user has it. The answer is the same either way, so the page says "if".
+ */
+function Recover() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [state, setState] = useState<{ sending?: boolean; sent?: boolean; error?: string }>({});
+  if (!open)
+    return (
+      <div className="flex justify-center pt-4">
+        <AppButton variant="plain" className="text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer" onClick={() => setOpen(true)}>
+          {t('recover.link')}
+        </AppButton>
+      </div>
+    );
+  if (state.sent) return <p className={`${AUTH_TEXT} pt-4 max-w-xs mx-auto`} role="status">{t('recover.sent')}</p>;
+  const send = async (e: FormEvent) => {
+    e.preventDefault();
+    setState({ sending: true });
+    try {
+      const r = await api('POST', '/api/auth/recover', { email });
+      setState(r.error ? { error: r.error === 'invalid-request' ? t('recover.invalid') : errorText(r) } : { sent: true });
+    } catch {
+      setState({ error: t('auth.offline') });
+    }
+  };
+  return (
+    <form className="w-64 mx-auto pt-4 space-y-3" onSubmit={(e) => void send(e)}>
+      <p className={AUTH_TEXT}>{t('recover.text')}</p>
+      <FloatingInput label={t('recover.email')} type="email" autoFocus maxLength={320} value={email} onChange={(e) => setEmail(e.target.value)} />
+      <FormError text={state.error ?? null} center />
+      <div className="flex justify-center">
+        <AppButton type="submit" disabled={!email.trim()} loading={state.sending}>
+          {t('recover.send')}
+        </AppButton>
+      </div>
+    </form>
+  );
+}
+
+/**
  * "Logga in" (Login.razor): the logo, the first way to sign in with the rest
  * behind "Fler alternativ", and the app's version at the foot, also for when
  * what needs explaining is why one cannot get past this screen. The title is
@@ -129,10 +173,13 @@ export function SignIn({ error, methods, onSignedIn }: { error: string | null; m
       initialError={error}
       centered
       firstOnly
-      footer={version && <p className="pt-16 text-xs text-neutral-400 dark:text-neutral-500 text-center">{version}</p>}
+      footer={
+        <>
+          {methods?.mail && <Recover />}
+          {version && <p className="pt-16 text-xs text-neutral-400 dark:text-neutral-500 text-center">{version}</p>}
+        </>
+      }
       onSignedIn={onSignedIn}
-    >
-      {window.gpDesktop && <p className="text-xs text-neutral-400 dark:text-neutral-500 leading-relaxed text-center">{t('auth.onceOnline')}</p>}
-    </SignInChoices>
+    />
   );
 }

@@ -16,6 +16,8 @@ export const THROTTLE = {
   address: { free: 20, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
   /** Per address: slows one machine guessing public output codes (`/api/watch/`). Only unknown codes count. */
   watch: { free: 20, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
+  /** "Glömt hur du loggar in?" per address and per e-mail address: every ask counts, so nobody floods a mailbox. */
+  recover: { free: 5, windowMs: 60 * 60_000, lockMs: 60 * 60_000, maxLockMs: 60 * 60_000 },
   /** Per address: slows one machine making temporary screens, each a row until it is paired or a day old. */
   screen: { free: 30, windowMs: 15 * 60_000, lockMs: 15 * 60_000, maxLockMs: 15 * 60_000 },
 } satisfies Record<string, ThrottlePolicy>;

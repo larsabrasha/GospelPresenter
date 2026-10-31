@@ -107,7 +107,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
   // ------------------------------------------------------------ first run (runs first: no user may exist yet)
 
   it('AUTH-A1/D19: setup needs the setup token, answers with an invite, and is done once the SuperAdmin linked Google', async () => {
-    expect(await api(h, 'GET', '/api/auth/state')).toEqual({ status: 200, body: { setupRequired: true, google: true, passkeys: false } satisfies AuthState });
+    expect(await api(h, 'GET', '/api/auth/state')).toEqual({ status: 200, body: { setupRequired: true, google: true, passkeys: false, mail: false } satisfies AuthState });
     const body = { name: 'Anna', orgName: 'Lilla Kyrkan' };
     expect((await api(h, 'POST', '/api/auth/setup', { body: { ...body, setupToken: 'gpst_guess' } })).body).toEqual({ error: 'setup-token' });
     expect((await api(h, 'POST', '/api/auth/setup', { body: { ...body, setupToken: SETUP_TOKEN, name: '  ' } })).body).toEqual({ error: 'invalid-request' });
@@ -478,7 +478,7 @@ describe.each(adapters)('%s adapter, Google not configured', (adapterName) => {
   });
 
   it('nobody can set up or sign in, and the server says why', async () => {
-    expect((await api(h, 'GET', '/api/auth/state')).body).toEqual({ setupRequired: true, google: false, passkeys: false });
+    expect((await api(h, 'GET', '/api/auth/state')).body).toEqual({ setupRequired: true, google: false, passkeys: false, mail: false });
     expect(await api(h, 'POST', '/api/auth/setup', { body: { setupToken: SETUP_TOKEN, name: 'A', orgName: 'K' } })).toEqual({ status: 503, body: { error: 'google-disabled' } });
     expect((await api(h, 'POST', '/api/auth/google/begin', { body: {} })).body).toEqual({ error: 'google-disabled' });
     const page = await fetch(`${h.url}/api/app-login?callback_scheme=gospelpresenter`, { redirect: 'manual' });

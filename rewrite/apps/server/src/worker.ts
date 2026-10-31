@@ -4,6 +4,7 @@ import { Hono, type Context } from 'hono';
 import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
 import { authenticate, authRoutes, isApiPath, WS_PROTOCOL } from './auth/index.ts';
+import { mailConfigFrom } from './mail.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
@@ -42,6 +43,10 @@ interface Env {
   FRESH_SIGN_IN_MS?: string;
   /** The built web app (Workers static assets, wrangler.toml's [assets]). Without it, only the API answers. */
   ASSETS?: Fetcher;
+  /** E-mail through Resend: the key (a secret), the sender ("Gospel Presenter <noreply@example.org>") and the app's public address for links. All three, or no mail. */
+  RESEND_API_KEY?: string;
+  MAIL_FROM?: string;
+  APP_URL?: string;
 }
 
 function passkeysOf(env: Env): Passkeys | null {
@@ -277,6 +282,7 @@ function globals(env: Env) {
       google: googleOf(env),
       passkeys: passkeysOf(env),
       freshSignInMs: env.FRESH_SIGN_IN_MS ? Number(env.FRESH_SIGN_IN_MS) : undefined,
+      mail: mailConfigFrom({ apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM, appUrl: env.APP_URL }),
       debug: env.SPIKE_DEBUG === '1',
       log: (e) => console.warn(JSON.stringify(e)),
     });
@@ -371,7 +377,8 @@ worker.all('*', async (c, next) => {
 
 worker.all('*', async (c) => {
   const { accounts, auth } = await globals(c.env);
-  if (!orgPaths.some((p) => c.req.path.startsWith(p))) return auth.fetch(c.req.raw);
+  // With the execution context, so work after an answer (a mail) is kept alive with waitUntil.
+  if (!orgPaths.some((p) => c.req.path.startsWith(p))) return auth.fetch(c.req.raw, c.env, c.executionCtx);
   const caller = await authenticate(c.req.raw, accounts);
   if (caller instanceof Response) return caller;
   const stub = c.env.ORG.get(c.env.ORG.idFromName(caller.orgId));

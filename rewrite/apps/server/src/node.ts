@@ -19,6 +19,7 @@ import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
+import type { MailConfig } from './mail.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
 import { PlayTokens } from './play-tokens.ts';
@@ -29,6 +30,8 @@ import { isAppPage, staticHeaders } from './static.ts';
 import { Passkeys, type PasskeyConfig } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { PokeCoalescer, SerialQueue, type OrgStore } from '@gp/sync/server';
+
+export { mailConfigFrom, type MailConfig } from './mail.ts';
 
 const require = createRequire(import.meta.url);
 
@@ -180,6 +183,8 @@ export interface NodeServerOptions {
   sessionIdleMs?: number;
   /** Sign-in with Google. */
   google?: GoogleConfig;
+  /** E-mail through Resend (`mailConfigFrom`): invites by mail and "Glömt hur du loggar in?". */
+  mail?: MailConfig | null;
   /**
    * Passkeys: the RP ID and the origins ceremonies may come from. Without it
    * and without Google nobody can sign in or set up; paired devices and
@@ -272,6 +277,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       google,
       passkeys,
       freshSignInMs: opts.freshSignInMs,
+      mail: opts.mail ?? null,
       pairing: opts.pairing,
       debug: opts.debug,
       log: opts.log ?? ((e) => process.stderr.write(JSON.stringify(e) + '\n')),

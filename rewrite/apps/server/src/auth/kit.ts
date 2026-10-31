@@ -7,6 +7,7 @@ import { ACCOUNT_LIMITS, can, type AuthError, type PasskeyOptions, type Permissi
 import { newSecret } from '../crypto.ts';
 import { LOGIN_FLOW, PASSKEY_FLOW, type Accounts } from '../global/index.ts';
 import type { GoogleOidc } from '../google.ts';
+import type { MailConfig } from '../mail.ts';
 import type { Passkeys } from '../webauthn.ts';
 import { authenticate, type Caller } from './caller.ts';
 import { signInFailed } from './pages.ts';
@@ -24,6 +25,8 @@ export interface AuthDeps {
   passkeys: Passkeys | null;
   /** How young a session must be to add a login to its user (ACCOUNT_LIMITS.freshSignInMs by default). */
   freshSignInMs?: number;
+  /** E-mail; null or absent when the server has no Resend key, sender or app address. */
+  mail?: MailConfig | null;
   /** Set on a desktop host. */
   pairing?: Pairing;
   debug?: boolean;
@@ -130,7 +133,21 @@ export function authKit(deps: AuthDeps) {
   const target = (caller: Caller, id: string) => accounts.members.member(id, caller.orgId);
   const actor = (caller: Caller) => ({ id: caller.ctx.userId, role: caller.ctx.role });
 
-  return { deps, accounts, google, passkeys, log, tooMany, signedIn, withCaller, secure, cookie, mayAddLogin, startPasskey, start, target, actor };
+  /**
+   * Work that goes on after the answer: on Workers kept alive with `waitUntil`, on Node simply not awaited. A
+   * failure is logged. "Glömt hur du loggar in?" answers before it knows whether a mail goes, so the time it takes
+   * does not tell whether the address has an account.
+   */
+  const inBackground = (c: Context, work: () => Promise<void>) => {
+    const p = work().catch((e: unknown) => log({ event: 'background-failed', reason: String(e) }));
+    try {
+      c.executionCtx.waitUntil(p);
+    } catch {
+      // Node: no execution context; the promise runs on by itself.
+    }
+  };
+
+  return { deps, accounts, google, passkeys, log, tooMany, inBackground, signedIn, withCaller, secure, cookie, mayAddLogin, startPasskey, start, target, actor };
 }
 
 export type AuthKit = ReturnType<typeof authKit>;

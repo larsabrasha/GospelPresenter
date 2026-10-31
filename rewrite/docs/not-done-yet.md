@@ -70,7 +70,7 @@ keeping one shows the other as "Tillgänglig offline" too (the current app's "im
 From spec 01 and milestone 3: OIDC providers other than Google, which are not planned (ADR 0007
 (12)); passkey autofill (conditional mediation: the sign-in page has a button, no username field);
 ending the sessions a removed passkey made (removing a login ends no session; a new invite ends them
-all); trusting attestation (which authenticator made a passkey is never checked); any mail at all (an admin's new invite link is the reset); packaging
+all); trusting attestation (which authenticator made a passkey is never checked); packaging
 the desktop app, so its callback scheme is registered by an installer (a development build registers
 `gospelpresenter-local` only with `GP_REGISTER_SCHEME=1`) and its Google client is built in; a login
 hint or profile picture from Google; more than one Google account per user (ORG-R13 allows 5);

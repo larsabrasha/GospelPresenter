@@ -122,7 +122,7 @@ describe.each(adapters)('%s adapter, passkeys', (adapterName) => {
   // ------------------------------------------------------------ first run (runs first: no user may exist yet)
 
   it('D19 with a passkey: setup\'s invite is accepted by making a passkey, and it signs in with no Google and no username', async () => {
-    expect((await api<AuthState>(h, 'GET', '/api/auth/state')).body).toEqual({ setupRequired: true, google: true, passkeys: true });
+    expect((await api<AuthState>(h, 'GET', '/api/auth/state')).body).toEqual({ setupRequired: true, google: true, passkeys: true, mail: false });
     const setup = await api<{ inviteToken: string }>(h, 'POST', '/api/auth/setup', { body: { setupToken: SETUP_TOKEN, name: 'Anna', orgName: 'Lilla Kyrkan' } });
     expect(setup.status).toBe(200);
 

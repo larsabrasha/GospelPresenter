@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { emailSchema, inviteRefusal, removeUserRefusal, roleChangeRefusal, ROLES, userEditRefusal, type LoginMethod, type Me, type Role, type UserRow } from '@gp/core';
+import { emailSchema, inviteRefusal, removeUserRefusal, roleChangeRefusal, ROLES, userEditRefusal, type AuthState, type LoginMethod, type Me, type Role, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
@@ -48,6 +48,9 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
   const [roleError, setRoleError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [input, setInput] = useState<HTMLInputElement | null>(null);
+  /** Whether the server can send e-mail (`AuthState.mail`): then an invite can be mailed. */
+  const [mail, setMail] = useState(false);
+  const [mailing, setMailing] = useState(false);
   const saved = useSavedIndicator();
   const toast = useToast();
   const { dialog, ask } = useConfirm();
@@ -64,6 +67,12 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
     void fetchDetail(path).then(apply);
   }, [path, apply]);
   useEffect(() => () => forgetInvite(id), [id]);
+  useEffect(() => {
+    api<AuthState>('GET', '/api/auth/state').then(
+      (r) => setMail(!r.error && r.body.mail),
+      () => setMail(false),
+    );
+  }, []);
 
   /** Runs a change and reloads; a refusal is a toast. True when it went through. */
   const act = async (method: string, url: string): Promise<boolean> => {
@@ -129,6 +138,23 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
     } catch {
       toast(t('auth.offline'));
     }
+    await load();
+  };
+
+  /** A new invite, mailed to the user; its link shows here too, as one made here does. */
+  const mailInvite = async (email: string) => {
+    setMailing(true);
+    try {
+      const r = await api<{ inviteToken: string }>('POST', `${path}/invites/email`);
+      if (r.error) toast(errorText(r));
+      else {
+        setLink(await inviteUrl(r.body.inviteToken));
+        toast(t('userDetail.mailSent', { email }));
+      }
+    } catch {
+      toast(t('auth.offline'));
+    }
+    setMailing(false);
     await load();
   };
 
@@ -338,6 +364,13 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
             {(!invite || invite.expired) && !inviteRefusal(actor, user) && (
               <div className="flex justify-center">
                 <AppButton onClick={() => void createInvite()}>{t('userDetail.createInvite')}</AppButton>
+              </div>
+            )}
+            {mail && user.email && !inviteRefusal(actor, user) && (
+              <div className="flex justify-center">
+                <AppButton variant="secondary" loading={mailing} onClick={() => void mailInvite(user.email!)}>
+                  {t('userDetail.mailInvite', { email: user.email })}
+                </AppButton>
               </div>
             )}
           </>

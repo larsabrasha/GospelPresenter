@@ -243,6 +243,17 @@ export class MemberService {
     return inserted === 1 ? { id, inviteToken } : 'limit';
   }
 
+  /** The user with this (lower-cased) e-mail and the organisation of their oldest membership, for "Glömt hur du loggar in?". */
+  async userByEmail(email: string): Promise<{ id: string; name: string; orgId: string; orgName: string } | null> {
+    const [r] = await this.sql.all(
+      `SELECT u.id, u.name, o.id AS org_id, o.name AS org_name FROM users u
+       JOIN memberships m ON m.user_id = u.id JOIN orgs o ON o.id = m.org_id
+       WHERE u.email = ? ORDER BY m.rowid LIMIT 1`,
+      [email],
+    );
+    return r ? { id: String(r.id), name: String(r.name), orgId: String(r.org_id), orgName: String(r.org_name) } : null;
+  }
+
   /** A new invite for a member, at most 20 unused per user, expired ones included (AUTH-R3). */
   async createInvite(userId: string, orgId: string): Promise<string | 'limit'> {
     const token = newSecret('gpin_');

@@ -24,7 +24,21 @@ Under Inloggningsmetoder (in the menu behind the user's picture in the top bar) 
 a passkey, links a Google account, renames a passkey and removes any login but the last. Adding needs
 a sign-in from the last 10 minutes, made by the user themselves (not by a pairing); otherwise the page
 asks them to sign out and in again. Linking a Google account that is already another user's is
-refused (`login-taken`). No one adds a login to another user. An admin's new invite is the only way back for someone who lost every login.
+refused (`login-taken`). No one adds a login to another user. Someone who lost every login gets back in through a
+new invite: from an admin, or, on a server that can send e-mail, mailed to them.
+
+**E-mail** (decided on 2026-10-31; the current app sends none) goes through Resend (`apps/server/src/mail.ts`). On the
+user's page an admin presses "Skicka inbjudan till {e-post}" (`POST /api/users/{id}/invites/email`): a new invite,
+mailed, whose link shows on the page too. On the sign-in page "Glömt hur du loggar in?" takes an address
+(`POST /api/auth/recover`); if a user has it, a new invite to their oldest organisation is mailed to it. The answer is
+the same either way, and the mail goes after it, so neither the answer nor its time tells whether the address has an
+account. Every ask counts against the asking address and the e-mail address: five an hour each, then an hour's lock.
+The link is an ordinary invite, so accepting it replaces the user's logins and ends their sessions; nothing changes
+before then. Links point at the configured app address, never at the request's Host header. Configuration: the
+Worker reads `RESEND_API_KEY` (a secret), `MAIL_FROM` (`Gospel Presenter <noreply@example.org>`, on a domain verified
+at Resend) and `APP_URL`; Node hosts read `GP_RESEND_API_KEY`, `GP_MAIL_FROM` and `GP_APP_URL` (`GP_RESEND_URL` points
+the tests at a fake). Without all three there is no mail: `/api/auth/state` says `mail: false`, the button and the
+link are not shown, and the routes answer 503 `mail-disabled`.
 
 Användare lists the users; each row opens the user's page (`/admin/users/{id}`, as UserDetail.razor). There an
 admin changes the name and e-mail (saved 500 ms after typing; the address must be valid and no other user's,

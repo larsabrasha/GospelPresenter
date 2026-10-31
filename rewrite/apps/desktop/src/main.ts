@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { app, BrowserWindow, ipcMain, screen, session, shell } from 'electron';
 import type { GoogleConfig } from '@gp/server';
+import { mailConfigFrom } from '@gp/server/node';
 import { lanUrls, pageUrl, startHost } from './host.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -213,6 +214,8 @@ app.whenReady().then(async () => {
       google: googleConfig(),
       // The system browser on this machine runs the ceremonies, at localhost: passkeys made here work only here.
       passkeys: { rpId: 'localhost', origins: [passkeyBase(`http://127.0.0.1:${hostPort}`)] },
+      // E-mail, when the host is given a Resend key, a sender and the address links point at (serve.ts has the same).
+      mail: mailConfigFrom({ apiKey: process.env.GP_RESEND_API_KEY, from: process.env.GP_MAIL_FROM, appUrl: process.env.GP_APP_URL, endpoint: process.env.GP_RESEND_URL }),
     });
     base = server.url;
     port = server.port;

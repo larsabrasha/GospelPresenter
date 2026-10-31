@@ -2,10 +2,11 @@
 // name, e-mail and role, remove, invite, and an admin's view of a user's logins.
 import type { Hono } from 'hono';
 import { createUserRefusal, createUserRequest, inviteRefusal, removeUserRefusal, roleChangeRefusal, updateUserRequest, userEditRefusal } from '@gp/core';
+import { inviteLink, inviteMail } from '../mail.ts';
 import { body, fail, type AuthKit } from './kit.ts';
 
 export function userRoutes(app: Hono, kit: AuthKit) {
-  const { accounts, withCaller, target, actor } = kit;
+  const { deps, accounts, withCaller, target, actor, log } = kit;
 
   // -------------------------------------------------------------- the organisation's users
 
@@ -76,6 +77,31 @@ export function userRoutes(app: Hono, kit: AuthKit) {
       if (refusal) return fail(c, 403, refusal);
       const token = await accounts.members.createInvite(t.id, caller.orgId);
       if (token === 'limit') return fail(c, 409, 'limit');
+      return c.json({ inviteToken: token });
+    }),
+  );
+
+  /** A new invite, mailed to the user's e-mail address ("Skicka via e-post"); its token is answered too, as for one made here. */
+  app.post(
+    '/api/users/:id/invites/email',
+    withCaller('ManageUsers', async (c, caller) => {
+      const mail = deps.mail;
+      if (!mail) return fail(c, 503, 'mail-disabled');
+      const t = await target(caller, c.req.param('id')!);
+      if (!t) return fail(c, 404, 'not-found');
+      const refusal = inviteRefusal(actor(caller), t);
+      if (refusal) return fail(c, 403, refusal);
+      const user = await accounts.members.user(t.id, caller.orgId);
+      if (!user?.email) return fail(c, 409, 'no-email');
+      const token = await accounts.members.createInvite(t.id, caller.orgId);
+      if (token === 'limit') return fail(c, 409, 'limit');
+      const me = await accounts.members.me({ sessionId: caller.sessionId, userId: caller.ctx.userId, orgId: caller.orgId, role: caller.ctx.role });
+      try {
+        await mail.mailer.send(inviteMail('invite', { to: user.email, name: user.name, orgName: me?.orgName ?? '', link: inviteLink(mail.appUrl, token) }));
+      } catch (e) {
+        log({ event: 'mail-failed', reason: String(e) });
+        return fail(c, 503, 'mail-failed');
+      }
       return c.json({ inviteToken: token });
     }),
   );

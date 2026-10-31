@@ -162,6 +162,20 @@ Song history (spec 02 `/admin/songs/{id}/history`, SONG-R20–R24, D9; built 202
 - **At most 50 per song**; purging a song deletes its history with it. The list shows the name and "Idag 14:05",
   "Igår 09:30" or "3 okt. 2026 14:05" in the device's time zone; not who made the change.
 
+E-mail (GAPS.md "E-post", built 2026-10-31; the current app sends none):
+
+- **Resend, on every host** (Lars chose Resend over Cloudflare Email Service, which was in beta and Workers-only): one
+  HTTP call behind a small `Mailer`, so another sender can be added. A host without a key, a sender and the app's
+  address sends nothing and shows no mail button or link.
+- **An admin mails an invite** from the user's page, and **"Glömt hur du loggar in?"** mails a new invite to the user
+  with the address (Lars chose both). The recovery link is an ordinary invite: accepting it replaces the user's logins
+  and ends their sessions, as an admin's new invite does. Whoever reads the user's mail can therefore take over the
+  account; that is what recovery by e-mail is. A user without an e-mail address cannot recover this way.
+- **The same answer whether the address has an account**, with the lookup and the mail after the answer; five asks an
+  hour per address and per e-mail address. Someone who sends five asks for another's address locks that address's
+  recovery for an hour, nothing more.
+- **A user in several organisations** gets an invite to the oldest one; the membership work is not built yet.
+
 The CCLI report (spec 02 `/admin/ccli-report`, SONG-R48–R53; built 2026-10-31):
 
 - **The window that presents counts** (`live/ccli.ts`): a song slide shown 10 s without a change of slide, item or

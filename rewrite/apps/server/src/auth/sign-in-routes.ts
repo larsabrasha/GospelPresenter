@@ -14,7 +14,7 @@ export function signInRoutes(app: Hono, kit: AuthKit) {
 
   // -------------------------------------------------------------- first run, sign-in, sign-out
 
-  app.get('/api/auth/state', async (c) => c.json({ setupRequired: !(await accounts.members.setupDone()), google: !!google, passkeys: !!passkeys } satisfies AuthState));
+  app.get('/api/auth/state', async (c) => c.json({ setupRequired: !(await accounts.members.setupDone()), google: !!google, passkeys: !!passkeys, mail: !!deps.mail } satisfies AuthState));
 
   /** First run (D19): makes the SuperAdmin and answers with their invite, which they accept with Google or a new passkey. */
   app.post('/api/auth/setup', async (c) => {

@@ -5,6 +5,7 @@
 import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mailConfigFrom } from '@gp/server/node';
 import { onLan, pageUrl, startHost } from './host.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -23,6 +24,8 @@ const server = await startHost({
     process.env.GP_PASSKEY_RP_ID && process.env.GP_PASSKEY_ORIGINS
       ? { rpId: process.env.GP_PASSKEY_RP_ID, origins: process.env.GP_PASSKEY_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean) }
       : undefined,
+  // E-mail through Resend: GP_RESEND_API_KEY, GP_MAIL_FROM and GP_APP_URL (the address links point at), all three or none.
+  mail: mailConfigFrom({ apiKey: process.env.GP_RESEND_API_KEY, from: process.env.GP_MAIL_FROM, appUrl: process.env.GP_APP_URL, endpoint: process.env.GP_RESEND_URL }),
 });
 console.log(`Gospel Presenter: ${pageUrl(server.url)}`);
 if (server.tls) console.log(`Over https: ${pageUrl(server.tls.url)}`);

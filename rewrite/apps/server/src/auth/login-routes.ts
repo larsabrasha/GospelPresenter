@@ -1,10 +1,12 @@
 // The caller's own logins and session, and looking up an invite.
 import type { Hono } from 'hono';
-import { LOGIN_PROVIDERS, renameLoginRequest, type Me } from '@gp/core';
+import { LOGIN_PROVIDERS, recoverRequest, renameLoginRequest, type Me } from '@gp/core';
+import { THROTTLE } from '../global/index.ts';
+import { inviteLink, inviteMail } from '../mail.ts';
 import { body, fail, type AuthKit } from './kit.ts';
 
 export function loginRoutes(app: Hono, kit: AuthKit) {
-  const { accounts, withCaller } = kit;
+  const { deps, accounts, withCaller, tooMany, inBackground } = kit;
 
   // -------------------------------------------------------------- your own logins (never another user's: no user id is taken)
 
@@ -56,5 +58,29 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
   app.post('/api/auth/invites/lookup', async (c) => {
     const token = (await c.req.json().catch(() => null))?.token;
     return c.json(await accounts.members.invite(typeof token === 'string' ? token : ''));
+  });
+
+  /**
+   * "Glömt hur du loggar in?" (decided on 2026-10-31): a new invite to the user with this e-mail address, which they
+   * accept with Google or a new passkey, as an admin's new invite. The answer is the same whether the address has an
+   * account or not; every ask counts against the address it came from and the e-mail address it names.
+   */
+  app.post('/api/auth/recover', async (c) => {
+    const mail = deps.mail;
+    if (!mail) return fail(c, 503, 'mail-disabled');
+    const a = await body(c, recoverRequest);
+    if (!a) return fail(c, 400, 'invalid-request');
+    const keys = [`recover:${deps.clientAddress(c)}`, `recover-email:${a.email}`];
+    const locked = await accounts.throttle.lockedUntil(keys);
+    if (locked) return tooMany(c, locked);
+    for (const k of keys) await accounts.throttle.fail(k, THROTTLE.recover);
+    inBackground(c, async () => {
+      const user = await accounts.members.userByEmail(a.email);
+      if (!user) return;
+      const token = await accounts.members.createInvite(user.id, user.orgId);
+      if (token === 'limit') return;
+      await mail.mailer.send(inviteMail('recovery', { to: a.email, name: user.name, orgName: user.orgName, link: inviteLink(mail.appUrl, token) }));
+    });
+    return c.json({ ok: true });
   });
 }

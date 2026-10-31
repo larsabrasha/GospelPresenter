@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { hostname, networkInterfaces } from 'node:os';
 import { join } from 'node:path';
 import type { GoogleConfig, PasskeyConfig } from '@gp/server';
-import { startNodeServer } from '@gp/server/node';
+import { startNodeServer, type MailConfig } from '@gp/server/node';
 
 /** Whether the host listens on the LAN (`GP_LAN=1`) rather than on this machine only. */
 export const onLan = () => process.env.GP_LAN === '1';
@@ -86,6 +86,7 @@ export async function startHost(opts: {
   port?: number;
   google?: GoogleConfig;
   passkeys?: PasskeyConfig;
+  mail?: MailConfig | null;
 }) {
   mkdirSync(opts.dataDir, { recursive: true });
   const tls = tlsConfig(opts.dataDir);
@@ -105,6 +106,7 @@ export async function startHost(opts: {
     // The redirect is to this server on this machine: the system browser beside it comes back here.
     google: opts.google,
     passkeys: opts.passkeys,
+    mail: opts.mail,
   });
 }
 

@@ -212,7 +212,12 @@ export interface AuthState {
   google: boolean;
   /** The server has an RP ID and origins for passkeys. */
   passkeys: boolean;
+  /** The server can send e-mail (a Resend key, a sender and the app's address): invites by mail, and "Glömt hur du loggar in?". */
+  mail: boolean;
 }
+
+/** "Glömt hur du loggar in?": the address to send a new invite to. */
+export const recoverRequest = z.object({ email: emailSchema });
 
 export type InviteState =
   | { state: 'valid'; name: string; orgName: string; email: string | null }
@@ -273,7 +278,10 @@ export type AuthError =
   | 'own-account'
   | 'super-admin-only'
   | 'device-not-paired'
-  | 'pair-code-invalid';
+  | 'pair-code-invalid'
+  | 'mail-disabled'
+  | 'mail-failed'
+  | 'no-email';
 
 export interface Actor {
   id: string;

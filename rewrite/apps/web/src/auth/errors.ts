@@ -24,6 +24,9 @@ const known = new Set<string>([
   'pair-code-invalid',
   'invite-invalid',
   'invite-expired',
+  'mail-failed',
+  'mail-disabled',
+  'no-email',
 ]);
 
 /** The Swedish text for a refusal from the auth API (one error contract, spec README). */

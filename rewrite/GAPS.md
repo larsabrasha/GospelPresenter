@@ -53,7 +53,7 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 - [x] Fler organisationer än den första, byte mellan dem, och superadminsidorna (organisationer, aktiva sessioner, inloggade just nu).
 - [s] Se och logga ut sina egna enheter (D23).
 - [s] `/admin/devices` som i specen: alla enheter med version (i dag bara värddatorns parkopplade enheter).
-- [x] E-post (i dag är en ny inbjudningslänk enda sättet att återställa ett konto). Via Resend, som i pralinbutiken.
+- [x] E-post (i dag är en ny inbjudningslänk enda sättet att återställa ett konto). Via Resend, som i pralinbutiken. **Klart 2026-10-31.**
 - [s] Passkey som fylls i automatiskt på inloggningssidan.
 - [s] Inloggning med Googles kontoförslag och profilbild från Google.
 - [s] När en passkey tas bort loggas dess sessioner ut.

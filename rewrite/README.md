@@ -41,6 +41,8 @@ GP_SERVER=http://127.0.0.1:47800 GP_DATA_DIR=/tmp/gp-second pnpm --filter @gp/de
 pnpm --filter @gp/desktop serve            # the server alone on :8787, then `pnpm --filter @gp/web dev`
 GP_PASSKEY_RP_ID=localhost GP_PASSKEY_ORIGINS=http://localhost:8787 pnpm --filter @gp/desktop serve
                                            # the same with passkeys; open http://localhost:8787 (not 127.0.0.1)
+export GP_RESEND_API_KEY=… GP_MAIL_FROM='Gospel Presenter <noreply@…>' GP_APP_URL=http://localhost:8787
+                                           # e-mail through Resend (see docs/sign-in-and-pairing.md, "E-mail")
 ```
 
 Needs Node 22 or later and pnpm 12. The e2e runs the real app, with its windows hidden: they are made but never
