@@ -278,6 +278,8 @@ ToastContainer.razor, utils.js → `ui/`)
 **Live page** (the editor presenting, `pages/presentation-editor/PresentationEditor.tsx`; was its own page until 2026-10-30)
 - [x] The old page has no global step keys: arrows move focus between slides, Enter shows one; new: → ↓ PageDown
   Space and ← ↑ PageUp step across items, `b` blanks. **ask** (keep the new keys?)
+- [x] A reload while presenting goes on presenting, as the old app (its tab's `session-id` in sessionStorage); only
+  Avsluta presentation stops it. Lars confirmed 2026-10-31; tested in `e2e/editor.spec.ts`.
 
 **Output window** (Pages/Live.razor → `pages/Output.tsx`)
 - [x] A click asks for full screen; wake lock; the title from `?title`. S

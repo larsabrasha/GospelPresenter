@@ -88,6 +88,41 @@ test('presenting keeps the running order: items are added and removed while live
   await expect(page.getByRole('button', { name: 'Sång B 1' })).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('a reload while presenting goes on presenting the same slide; only Avsluta presentation stops it', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createSong(page, 'Sång A', [
+    ['Verse 1', 'A ett'],
+    ['Chorus', 'A två'],
+  ]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+  await page.getByRole('button', { name: 'Starta presentation' }).click();
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  await output.getByTestId('output').waitFor();
+  await page.getByRole('button', { name: 'Sång A 2' }).click();
+  await expect(output.getByTestId('slide-text')).toHaveText('A två');
+
+  await page.reload();
+
+  // Still presenting, on the same slide, and the keys still step it.
+  await expect(page.getByTestId('live-panel')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Avsluta presentation' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Starta presentation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Sång A 2' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(output.getByTestId('slide-text')).toHaveText('A två');
+  await page.keyboard.press('ArrowLeft');
+  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+
+  // Avsluta ends it, and a reload after that does not start it again.
+  await Promise.all([output.waitForEvent('close'), page.getByRole('button', { name: 'Avsluta presentation' }).click()]);
+  await expect(page.getByTestId('live-panel')).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Starta presentation' })).toBeVisible();
+  await expect(page.getByTestId('live-panel')).toHaveCount(0);
+});
+
 test('several pictures make one image item; Redigera removes one and adds more', async () => {
   host = await launch();
   const page = host.page;
