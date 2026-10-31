@@ -2,17 +2,17 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron, chromium, type ElectronApplication, type Page } from '@playwright/test';
+import { workerPort } from './ports.ts';
 import { appCallbackLink, startFakeGoogle, TestBrowser, type FakeAccount, type FakeGoogle } from '../../server/test/fake-google.ts';
 
 /**
- * A port for a host or server in a test. Workers run side by side, so each takes its own range of
- * 2000 ports, and within it the next port each time (a random start, as a host from an earlier run
+ * A port for a host or server in a test. Workers run side by side, so each takes its own range
+ * (`workerPort`), and within it the next port each time (a random start, as a host from an earlier run
  * may still be closing).
  */
-let nextPort = Math.floor(Math.random() * 2_000);
+let nextPort = Math.floor(Math.random() * 1_000);
 export function testPort(): number {
-  const slot = Number(process.env.TEST_PARALLEL_INDEX ?? 0) % 10;
-  return 20_000 + slot * 2_000 + (nextPort++ % 2_000);
+  return workerPort(Number(process.env.TEST_PARALLEL_INDEX ?? 0), nextPort++);
 }
 
 let google: FakeGoogle | undefined;

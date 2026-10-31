@@ -16,6 +16,8 @@ modifiers, SongEditor's skipped name or year, a refused arrangement write) is do
    `env`), for a release build to set; local and e2e builds show no version; the dev server still asks git._
 7. `apps/desktop/e2e/apps.ts:14`: `testPort` uses `TEST_PARALLEL_INDEX % 10`; with more than 10 workers two
    share a port range and may collide (EADDRINUSE). Make the ranges unique per worker, or cap the workers.
+   _Done 2026-10-30: `e2e/ports.ts`, 29 ranges of 1 000 below macOS's ephemeral ports, and at most
+   29 workers (`test/ports.test.ts`)._
 8. `../.claude/hooks/check-rewrite.mjs:29`: the Stop hook runs `pnpm check:quick` every turn while rewrite/ has
    uncommitted changes, also when the turn changed nothing. Run it only when the turn changed files under
    rewrite/ (compare with a state saved when the turn began). Start here: it costs a minute every turn.
