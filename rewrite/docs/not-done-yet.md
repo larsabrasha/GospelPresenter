@@ -7,8 +7,8 @@ From milestone 5 and the media library: the S3 adapter of D31 (the interface has
 so an install that wants S3 cannot yet); organisation images as a theme's background (a theme's image is
 still only a built-in asset, `backgroundImageSchema`, and there is no theme editor to choose one);
 a limit on the total size of an organisation's media (only the number and size of files per kind are limited);
-MEDIA-R14's eviction by when a file was last used (it is by when it arrived); HTTP Range for audio (video has it);
-a native file dialog for "Importera" (the page's file input is used, also in Electron). Dropping files onto the add
+MEDIA-R14's eviction by when a file was last used (it is by when it arrived); HTTP Range for audio (video has it).
+Dropping files onto the add
 dialog's tabs is built but not dropped in an e2e test. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.

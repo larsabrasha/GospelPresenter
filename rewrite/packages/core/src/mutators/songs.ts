@@ -1,7 +1,7 @@
 import { and, asc, count, eq, isNull, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
-import { labelDefaults, labelId } from '../labels.ts';
-import { labels, songArrangements, songParts, songs } from '../schema.ts';
+import { songArrangements, songParts, songs } from '../schema.ts';
+import { ensureLabel } from './labels.ts';
 import { parsePartIds } from '../slides.ts';
 import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
@@ -60,17 +60,6 @@ export async function purgeSong(tx: Tx, a: z.output<typeof purgeSongArgs>, ctx: 
   if (!s) return; // already gone: nothing to do
   if (s.deletedAt === null) throw new MutationError('not-in-trash', 'song is not in the trash');
   await deleteSongRows(tx, a.id);
-}
-
-/** Makes sure the label exists; its id comes from the text, so duplicates converge. */
-async function ensureLabel(tx: Tx, text: string | null | undefined): Promise<string | null> {
-  if (!text?.trim()) return null;
-  const lid = labelId(text);
-  await tx
-    .insert(labels)
-    .values({ id: lid, text: text.trim(), ...labelDefaults(text) })
-    .onConflictDoNothing();
-  return lid;
 }
 
 export async function partIdsInOrder(tx: Tx, songId: string): Promise<string[]> {

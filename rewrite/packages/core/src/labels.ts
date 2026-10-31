@@ -33,10 +33,36 @@ const defaults: [string, string][] = [
 
 export const DEFAULT_LABELS = defaults.map(([text, color], sort) => ({ text, color, sort }));
 
-/** A label's id: its normalised text, so the same label made on two devices is one row. */
-export function labelId(text: string): string {
-  return 'label:' + text.trim().toLowerCase().replace(/\s+/g, ' ');
+/** A label's text as compared: two labels may not share it (spec 02 "Part label"), whatever their case or spacing. */
+export function labelKey(text: string): string {
+  return text.trim().toLowerCase().replace(/\s+/g, ' ');
 }
+
+/**
+ * The id a label made from `text` is given first: its normalised text, so the
+ * same label made on two devices is one row. A label renamed since may hold it;
+ * then the creating mutator adds a number (`freeLabelId`).
+ */
+export function labelId(text: string): string {
+  return 'label:' + labelKey(text);
+}
+
+/**
+ * The 25 default labels for an organisation (SONG-R47), written once by the
+ * server when it opens the database, so they sync like any change and one the
+ * organisation deletes stays deleted. A label that already has the text (one
+ * made from a song before the labels page) is left as it is.
+ */
+export const labelSeedSql: string[] = [
+  `CREATE TABLE IF NOT EXISTS server_seeds (what TEXT PRIMARY KEY NOT NULL)`,
+  ...DEFAULT_LABELS.map(
+    (l) =>
+      `INSERT INTO labels (id, text, color, sort) SELECT '${labelId(l.text)}', '${l.text}', '${l.color}', ${l.sort}
+       WHERE NOT EXISTS (SELECT 1 FROM server_seeds WHERE what = 'labels')
+         AND NOT EXISTS (SELECT 1 FROM labels WHERE id = '${labelId(l.text)}' OR lower(trim(text)) = '${labelKey(l.text)}')`,
+  ),
+  `INSERT INTO server_seeds (what) SELECT 'labels' WHERE NOT EXISTS (SELECT 1 FROM server_seeds WHERE what = 'labels')`,
+];
 
 /** The colour and order a label gets when it is created from its text. */
 export function labelDefaults(text: string): { color: string; sort: number } {

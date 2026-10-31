@@ -36,7 +36,7 @@ The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the lis
 Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button
 (`ui/PageContainer.tsx`), the fields as floating fields, a card per part with its label as a pill, ↑ ↓ and
 the bin, and the arrangements as stacked chips, each dragged by the whole chip, with the dashed Lägg till del. Above the list, the ProPresenter import card (`pages/SongImport.tsx`), and the
-whole page takes dropped `.pro` files; its bar fills as the files are read, and pulses while saving. Its duplicate dialog is new: a row per song with a green Likadan or amber Annan text pill, Visa text, and a SimpleSelect of the choice. Song history is not built, so its page and button are missing.
+whole page takes dropped `.pro` files; its bar fills as the files are read, and pulses while saving. Its duplicate dialog is new: a row per song with a green Likadan or amber Annan text pill, Visa text, and a SimpleSelect of the choice. Etiketter (`pages/Labels.tsx`) is Labels.razor's: rows of white-on-colour pills with ↑, ↓, the pencil and the bin, and a dialog with Etiketttext and a colour field. Song history is not built, so its page and button are missing.
 
 A song's fields, its parts' text and its arrangements' names save 500 ms after the last keystroke, as
 `Utils/Debouncer.cs` does there, and `AutoSaveIndicator.razor`'s grey "✓ Sparad" shows at the right of the

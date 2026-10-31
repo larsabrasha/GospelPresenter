@@ -4,4 +4,5 @@ export { MAX_VERSES_PER_ITEM } from './presentations.ts';
 export { DEFAULT_THEME_SETTING } from './bibles-and-themes.ts';
 export { REMOTE_CONTROL_SETTING, REMOTE_CONTROL_MUTATORS, remoteControlPolicy, remoteControlAllowed, type RemoteControlPolicy } from './org-settings.ts';
 export { DISPLAY_MUTATORS } from './displays.ts';
+export { LABEL_LIMIT } from './labels.ts';
 export { getMutator, mutators, runMutator, type Mutator, type MutatorArgs, type MutatorName, type Mutators } from './registry.ts';

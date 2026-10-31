@@ -125,6 +125,22 @@ The ProPresenter import (spec 02 "Import card", SONG-R35–R44; built 2026-10-31
   otherwise), not by SONG-R43's colours from the text.
 - **Skapa stays in the header with an empty library**, as it was (the current app shows only the import then).
 
+The labels page (spec 02 `/admin/labels`, SONG-R45–R47; built 2026-10-31):
+
+- **The server writes the 25 default labels once** when it opens an organisation's database (`labelSeedSql`,
+  marked in a server-only `server_seeds` table), after its change triggers, so they reach every device as
+  changes do and one the organisation deletes stays deleted. Before, the song editor offered the defaults
+  without rows and made one when it was picked, so a deleted default came back. An organisation that has
+  labels already gets the defaults it lacks once; one whose text a label has (any case) is left as it is.
+- **A label is found by its text, case and spacing aside** (`labelKey`): a song's part, an import and the
+  editor name a label by its text, so a renamed label is still found. Two labels may not share a text, and the
+  dialog says so as it is typed ("Det finns redan en etikett med den texten."); the current app compared case
+  sensitively and threw without a message. A new label's id is its text (`labelId`) as before, or with a
+  number when a renamed label holds that id. At most 200 labels (the current app has a limit without a number).
+- **A label made from a song or an import is appended to the order**, in the default label's colour or grey,
+  rather than placed at its default position.
+- **Order by ↑ and ↓ only**, as the current app; no dragging. A label pill keeps white text on any colour.
+
 Templates (spec 03 "Template", screen 3):
 
 - **A template is a row of `presentations`** with `is_template` set, as in the current app: the editor, its
@@ -230,6 +246,10 @@ are the implementer's choices within them):
 
 Milestone 5 (media library):
 
+- **"Importera" uses the page's file input, also in the desktop app** (Lars, 2026-10-31): Electron shows the
+  system's own file dialog for it, filtered by the input's `accept`. The current app's own dialog had the title
+  "Välj bilder" and the filter "Bilder"; that is all that differs, and a dialog in the main process would send
+  the files' bytes to the page, up to 2 GB for a video, where the page now reads a file in parts.
 - **A blob is named by the hash of its bytes, and an image has two** (`full`, `thumb`); spec 05 names objects
   `org/{org}/images/{id}/{variant}` and gives them a row id. Content addressing (ADR 0007 (9), D28) is what
   makes `private, immutable` safe and lets the same file twice be one object.

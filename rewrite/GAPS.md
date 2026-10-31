@@ -32,7 +32,7 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 ## Saknas: det märks för den som använder appen
 
 - [x] Sånghistorik (SONG-R20–R24): tidigare versioner av en sång.
-- [x] Etikettsidan: hantera Vers, Refräng och de andra etiketterna.
+- [x] Etikettsidan: hantera Vers, Refräng och de andra etiketterna. **Klart 2026-10-31.**
 - [x] CCLI-rapport (bara sångens CCLI-fält finns).
 - [x] Import från ProPresenter, även att släppa filer på Sånger. **Klart 2026-10-31.**
 - [s] Skapa och redigera teman (i dag bara de inbyggda).
@@ -42,7 +42,7 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 - [s] Tangentbordet i mallväljaren (piltangenter).
 - [s] Ordna om overlays.
 - [s] Ett ljudinslag med flera filer.
-- [x] Systemets egen fildialog för "Importera" i skrivbordsappen.
+- [-] Systemets egen fildialog för "Importera" i skrivbordsappen (struken 2026-10-31: Electron visar redan systemets dialog för sidans filfält; bara titeln "Välj bilder" och filternamnet skiljer).
 
 ## Saknas: konton och administration
 

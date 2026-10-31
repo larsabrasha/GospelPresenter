@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
-import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
+import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
 import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
 import { authenticate, authRoutes, isApiPath, WS_PROTOCOL } from './auth/index.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
@@ -64,7 +64,8 @@ function googleOf(env: Env): GoogleOidc | null {
 export function durableSqliteStore(storage: DurableObjectStorage): OrgStore {
   const run = (sql: string) => storage.sql.exec(sql).toArray() as Record<string, unknown>[];
   migrateOrgSchemaSync(run, (fn) => storage.transactionSync(fn));
-  for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) run(s);
+  // After the change triggers, so the default labels sync like any change (SONG-R47).
+  for (const s of [...serverSyncDdl, ...serverChangeTriggers(), ...labelSeedSql]) run(s);
   return {
     db: drizzle(storage, { schema }) as unknown as Tx,
     query: (sql, params = []) => storage.sql.exec(sql, ...params).toArray() as Record<string, unknown>[],

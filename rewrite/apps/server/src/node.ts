@@ -12,7 +12,7 @@ import { drizzle as drizzleProxy } from 'drizzle-orm/sqlite-proxy';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
+import { labelSeedSql, migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
 import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
 import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
 import { newSecret } from './crypto.ts';
@@ -114,7 +114,8 @@ export function nodeOrgStore(f: SqliteFile): OrgStore {
       throw e;
     }
   });
-  for (const s of [...serverSyncDdl, ...serverChangeTriggers()]) f.exec(s);
+  // After the change triggers, so the default labels sync like any change (SONG-R47).
+  for (const s of [...serverSyncDdl, ...serverChangeTriggers(), ...labelSeedSql]) f.exec(s);
   return {
     db: f.drizzle(),
     query: f.query,

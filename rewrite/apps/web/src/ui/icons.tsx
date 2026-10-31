@@ -539,6 +539,19 @@ export function EmptySlidesPicture({ className }: IconProps) {
   );
 }
 
+/** Etiketter in the admin menu (TagSymbol.razor). */
+export function TagIcon({ className }: IconProps) {
+  return (
+    <Solid className={className} viewBox="0 0 20 20">
+      <path
+        fillRule="evenodd"
+        d="M4.5 2A2.5 2.5 0 0 0 2 4.5v3.879a2.5 2.5 0 0 0 .732 1.767l7.5 7.5a2.5 2.5 0 0 0 3.536 0l3.878-3.878a2.5 2.5 0 0 0 0-3.536l-7.5-7.5A2.5 2.5 0 0 0 8.38 2H4.5ZM5 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"
+        clipRule="evenodd"
+      />
+    </Solid>
+  );
+}
+
 export function PencilIcon({ className }: IconProps) {
   return (
     <Outline className={className}>
@@ -771,6 +784,20 @@ export function ScreensPicture({ className }: IconProps) {
       <rect x="80" y="110" width="40" height="8" rx="2" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
       <rect x="60" y="118" width="80" height="6" rx="3" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
       <PlusBadge />
+    </Picture>
+  );
+}
+
+/** No labels: two label pills (Labels.razor). */
+export function LabelsPicture({ className }: IconProps) {
+  return (
+    <Picture className={className}>
+      <rect x="30" y="30" width="140" height="40" rx="20" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <circle cx="55" cy="50" r="10" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.5" />
+      <line x1="75" y1="50" x2="145" y2="50" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+      <rect x="30" y="80" width="140" height="40" rx="20" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <circle cx="55" cy="100" r="10" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.5" />
+      <line x1="75" y1="100" x2="130" y2="100" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
     </Picture>
   );
 }

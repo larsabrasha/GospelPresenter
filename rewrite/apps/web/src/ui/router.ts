@@ -37,6 +37,7 @@ export type Route =
   | { page: 'audios' }
   | { page: 'videos' }
   | { page: 'overlays' }
+  | { page: 'labels' }
   | { page: 'overlay'; id: string }
   | { page: 'displays' }
   /** A public output (spec 04 §6): anonymous, no database. */
@@ -96,6 +97,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'videos') return { page: 'videos' };
     if (second === 'overlays') return third ? { page: 'overlay', id: third } : { page: 'overlays' };
     if (second === 'templates') return { page: 'templates' };
+    if (second === 'labels') return { page: 'labels' };
     if (second === 'themes') return { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
     if (second === 'settings') return { page: 'orgSettings' };
@@ -129,7 +131,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'themes', 'displays', 'about']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'labels', 'themes', 'displays', 'about']);
 
 /** The pages under `/admin/` (Layout/AdminLayout.razor), which open in a dialog over the page the user was on. */
 const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'song', 'user', 'overlay', 'orgSettings']);

@@ -2,7 +2,7 @@
 // file per organisation) and Workers (a SQLite Durable Object per
 // organisation plus D1, in workerd through Miniflare). Clients run wa-sqlite.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { labelId, PROTOCOL_VERSION, SCHEMA_VERSION } from '@gp/core';
+import { DEFAULT_LABELS, labelId, PROTOCOL_VERSION, SCHEMA_VERSION } from '@gp/core';
 import { PULL_PAGE } from '@gp/sync/server';
 import { api, device, POKE_WINDOW_MS, pokeProtocols, pokeUrl, serverDump, setRole, startAdapter, waitFor, type AdapterName, type Device, type Harness } from './harness.ts';
 
@@ -292,13 +292,75 @@ describe.each(adapters)('%s adapter', (adapterName) => {
     for (const d of [alice, carol]) {
       const dump = await d.client.dump();
       // The server's row survives, with Carol's spelling and the default colour.
-      expect(dump.labels).toEqual([{ id: labelId('Bridge'), text: 'Bridge', color: '#7834c7', sort: 12 }]);
+      expect(dump.labels.filter((l) => String(l.text).toLowerCase().trim() === 'bridge')).toEqual([{ id: labelId('Bridge'), text: 'Bridge', color: '#7834c7', sort: 12 }]);
       expect(dump.song_parts.map((r) => [r.id, r.song_id, r.label_id])).toEqual([
         ['PA', 'S1', labelId('Bridge')],
         ['PC', 'S2', labelId('Bridge')],
       ]);
     }
     await expectConverged(alice, carol);
+  });
+
+  // ------------------------------------------------------------ labels (spec 02 "/admin/labels")
+
+  /** The labels a device has, in order, as [text, colour]. */
+  const labelRows = async (d: Device) =>
+    (await d.client.dump()).labels.toSorted((a, b) => Number(a.sort) - Number(b.sort)).map((l) => [l.text, l.color]);
+
+  it('SONG-A27: a new organisation has the 25 default labels, in order, on every device', async () => {
+    await syncAll(alice, bob);
+
+    expect(await labelRows(bob)).toEqual(DEFAULT_LABELS.map((l) => [l.text, l.color]));
+  });
+
+  it('SONG-R45: a label made on the labels page is appended to the order', async () => {
+    await alice.client.mutate('createLabel', { text: 'Coda', color: '#ABCDEF' });
+    await syncAll(alice, bob);
+
+    expect((await labelRows(bob)).at(-1)).toEqual(['Coda', '#abcdef']);
+  });
+
+  it('SONG-A29: a label is refused when another has its text, whatever its case or spacing', async () => {
+    await syncAll(alice);
+
+    await expect(alice.client.mutate('createLabel', { text: ' chorus ', color: '#000000' })).rejects.toThrow();
+  });
+
+  it("a renamed label keeps its parts, and a part given the new text gets that label, the old text a new one", async () => {
+    await seed();
+    await alice.client.mutate('addSongPart', { id: 'PA', songId: 'S1', labelText: 'Verse', content: 'a' });
+    await alice.client.mutate('updateLabel', { id: labelId('Verse'), text: 'Vers', color: '#111111' });
+
+    await alice.client.mutate('addSongPart', { id: 'PB', songId: 'S1', labelText: 'vers', content: 'b' });
+    await alice.client.mutate('addSongPart', { id: 'PC', songId: 'S1', labelText: 'Verse', content: 'c' });
+    await syncAll(alice, bob);
+
+    const d = await bob.client.dump();
+    const labelOf = (part: string) => d.labels.find((l) => l.id === d.song_parts.find((p) => p.id === part)?.label_id);
+    expect([labelOf('PA')?.text, labelOf('PB')?.text, labelOf('PC')?.text]).toEqual(['Vers', 'Vers', 'Verse']);
+    expect(labelOf('PC')?.id).toBe(`${labelId('Verse')}:2`);
+    await expectConverged(alice, bob);
+  });
+
+  it('SONG-R46, A30: a deleted label leaves its parts unlabelled, and the rest are numbered again', async () => {
+    await seed();
+    await alice.client.mutate('addSongPart', { id: 'PA', songId: 'S1', labelText: 'Bridge', content: 'a' });
+
+    await alice.client.mutate('deleteLabel', { id: labelId('Bridge') });
+    await syncAll(alice, bob);
+
+    const d = await bob.client.dump();
+    expect(d.song_parts.find((p) => p.id === 'PA')?.label_id).toBeNull();
+    expect(d.labels.map((l) => Number(l.sort)).toSorted((a, b) => a - b)).toEqual([...Array(DEFAULT_LABELS.length - 1).keys()]);
+  });
+
+  it('SONG-A31: a label moved up is before the one it passed on every device', async () => {
+    await syncAll(alice);
+
+    await alice.client.mutate('moveLabel', { id: labelId('Verse 1'), toIndex: 0 });
+    await syncAll(alice, bob);
+
+    expect((await labelRows(bob)).slice(0, 2).map(([text]) => text)).toEqual(['Verse 1', 'Verse']);
   });
 
   // ------------------------------------------------------------ milestone 2: arrangements, items, trash

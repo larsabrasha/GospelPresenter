@@ -29,6 +29,7 @@ import {
   SquaresOverlapIcon,
   UserIcon,
   UsersIcon,
+  TagIcon,
   ViewGridIcon,
   WarningIcon,
   VideoIcon,
@@ -294,6 +295,7 @@ function adminLinks(me: Me, host: boolean): AdminLink[][] {
     [
       can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', icon: SquaresOverlapIcon, pages: ['overlays', 'overlay'] },
       can(me.role, 'ManageTemplates') && { route: { page: 'templates' }, label: 'nav.templates', icon: ViewGridIcon, pages: ['templates'] },
+      can(me.role, 'ManageSongs') && { route: { page: 'labels' }, label: 'nav.labels', icon: TagIcon, pages: ['labels'] },
     ],
     [
       can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', icon: DesktopIcon, pages: ['displays'] },

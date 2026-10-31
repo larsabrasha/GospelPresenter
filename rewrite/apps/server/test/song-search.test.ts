@@ -162,6 +162,7 @@ describe('the tables a change reports', () => {
   });
 
   it('a pull reports the tables it wrote, those its rebase rewrote included', async () => {
+    await alice.client.pull(); // the default labels the server wrote when it opened the database
     await bob.client.mutate('createSong', { id: 'S1', name: 'A' });
     await bob.client.sync();
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag' }); // pending: replayed on the pull

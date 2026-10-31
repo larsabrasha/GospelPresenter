@@ -1,4 +1,4 @@
-import { DEFAULT_LABELS, labelId, LIMITS, parsePartIds, type Label, type SongArrangement, type SongPart } from '@gp/core';
+import { LIMITS, parsePartIds, type Label, type SongArrangement, type SongPart } from '@gp/core';
 import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { arrangementsOf, getSong, listLabels, presentationsUsing, songPartsOf } from '../db/queries.ts';
@@ -260,9 +260,8 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   const saving = (write: Promise<void>) => afterWrite(write, saved.show, saveFailed);
   // The writes it does not flag ("Sparad") still say when they are refused.
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
-  const labelChoices: Label[] = [...DEFAULT_LABELS.map((l) => ({ id: labelId(l.text), ...l })).filter((l) => !labels.has(l.id)), ...labels.values()].toSorted(
-    (a, b) => a.sort - b.sort || a.text.localeCompare(b.text, 'sv'),
-  );
+  // The organisation's labels in their order (SONG-R45); the server writes the defaults (SONG-R47).
+  const labelChoices: Label[] = [...labels.values()];
 
   const removePart = async (p: SongPart) => {
     const label = p.labelId ? (labels.get(p.labelId)?.text ?? t('song.noLabel')) : t('song.noLabel');
