@@ -32,7 +32,7 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
   if (invite) {
     return (
       <SignInChoices title={t('setup.title')} invite={invite} methods={methods} autoStart onSignedIn={onSignedIn}>
-        <p className={AUTH_TEXT}>{methodsText(methods, 'setup')}</p>
+        <p className={AUTH_TEXT}>{methodsText(methods)}</p>
       </SignInChoices>
     );
   }
@@ -44,7 +44,7 @@ export function Setup({ methods, onSignedIn }: { methods: AuthState | null; onSi
         <li>{t('setup.manageUsers')}</li>
         <li>{t('setup.configure')}</li>
       </ul>
-      <p className={`${AUTH_TEXT} mb-2`}>{methodsText(methods, 'setup')}</p>
+      <p className={`${AUTH_TEXT} mb-2`}>{methodsText(methods)}</p>
       <form
         className="flex flex-col gap-4"
         onSubmit={async (e) => {

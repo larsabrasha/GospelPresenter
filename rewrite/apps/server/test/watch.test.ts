@@ -140,10 +140,10 @@ describe.each(adapters)('%s adapter: public outputs', (adapterName) => {
     // Not even when a report names it: it is in no item of the presentation the session shows.
     owner.send({ type: 'own', state: ownState('S1', { outputs: ['D1'], slide: slide('', { kind: 'media', image: libraryOnly.hash }) }) });
     await owner.sessions((x) => x[0]?.pointer.rev === 1);
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200)); // nothing may happen: time for a report to reach the output
     expect((await image(libraryOnly.hash)).status).toBe(404);
     owner.send({ type: 'own', state: ownState('S1', { outputs: ['D1'], slide: null }) });
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200)); // nothing may happen: time for a report to reach the output
     expect((await image(shownPicture.hash)).status).toBe(404);
   });
 

@@ -447,7 +447,7 @@ describe.each(adapters)('%s adapter, passkeys and a session that is no longer fr
     const { setRole } = await import('./harness.ts');
     const token = await setRole(h, 'old', 'org-old', 'user');
     expect((await api(h, 'POST', '/api/auth/passkey/begin', { token, body: { mode: 'register' } })).status).toBe(200);
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1200)); // past the harness's fresh sign-in time, on the server's own clock
     expect((await api(h, 'POST', '/api/auth/passkey/begin', { token, body: { mode: 'register' } })).body).toEqual({ error: 'reauth-required' });
     expect((await api(h, 'POST', '/api/auth/google/begin', { token, body: { link: true } })).body).toEqual({ error: 'reauth-required' });
     expect((await api(h, 'GET', '/api/auth/logins', { token })).status).toBe(200);

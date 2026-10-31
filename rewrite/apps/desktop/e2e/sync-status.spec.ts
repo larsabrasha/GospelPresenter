@@ -22,7 +22,7 @@ test('a click on the sync icon syncs now, and a sync that runs over 1.5 s shows 
   let pulls = 0;
   await page.route('**/api/sync/pull', async (route) => {
     pulls++;
-    await new Promise((r) => setTimeout(r, 2500));
+    await new Promise((r) => setTimeout(r, 2500)); // a slow network, not a wait in the test
     await route.continue();
   });
 

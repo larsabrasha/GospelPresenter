@@ -110,10 +110,9 @@ export function SignInChoices({
 }
 
 /** Setup's text that says how the superuser will sign in, for what the server offers. */
-export function methodsText(methods: Pick<AuthState, 'google' | 'passkeys'> | null, kind: 'setup'): string {
+export function methodsText(methods: Pick<AuthState, 'google' | 'passkeys'> | null): string {
   const { google, passkeys } = methods ?? FALLBACK;
-  const which = google && passkeys ? 'both' : passkeys ? 'passkey' : 'google';
-  return t(`${kind}.methods.${which}`);
+  return t(google && passkeys ? 'setup.methods.both' : passkeys ? 'setup.methods.passkey' : 'setup.methods.google');
 }
 
 /**

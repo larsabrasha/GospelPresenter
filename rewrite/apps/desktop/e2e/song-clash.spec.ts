@@ -65,6 +65,6 @@ test('"Använd deras" takes the other text and writes nothing of mine', async ()
 
   await expect(warning).toHaveCount(0);
   await expect(myPart).toHaveValue('B två');
-  await mine.waitForTimeout(1_000); // what a stray save of mine would need to reach the other computer
+  await mine.waitForTimeout(1_000); // nothing may happen: what a stray save of mine would need to reach the other computer
   await expect(theirPart).toHaveValue('B två');
 });

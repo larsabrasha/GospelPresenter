@@ -462,7 +462,7 @@ describe.each(adapters)('%s adapter, short session idle time', (adapterName) => 
   it('expired: a session unused for longer than the idle time is refused', async () => {
     const token = await setRole(h, 'lu', 'org-lu', 'user');
     expect((await api(h, 'GET', '/api/auth/me', { token })).status).toBe(200);
-    await new Promise((r) => setTimeout(r, 1700));
+    await new Promise((r) => setTimeout(r, 1700)); // past the harness's idle time, on the server's own clock
     expect((await api(h, 'GET', '/api/auth/me', { token })).status).toBe(401);
     expect((await api(h, 'POST', '/api/sync/pull', { token, body: pull() })).status).toBe(401);
   });

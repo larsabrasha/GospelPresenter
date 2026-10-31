@@ -304,7 +304,7 @@ test('the add dialog\'s song list with 3 000 songs: a keystroke and a scroll ste
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await expect(picker.getByRole('list', { name: 'Sånger' }).getByRole('listitem')).toHaveCount(3000, { timeout: 10_000 });
   // The worker prepares the search texts a second after the songs arrive; a person takes longer than this to start typing.
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1500); // measured as a person meets it: they start typing later than this
 
   // What the list must show after each key: the search over the same songs, in library order (as the list sorts).
   const songs = library(3000)
@@ -531,7 +531,7 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
   // One change at a time: the server pokes the first change of a quiet spell at once, and what follows within
   // 500 ms at the end of that window (SYNC-R38), so each change waits out the last one's window first.
   f.syncOne = await median(runs, async () => {
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(600); // each change waits out the last one's poke window (above)
     const n = await page.locator('ol[aria-label="Programpunkter"] > li').count();
     const itemId = `perf-sync-${Date.now()}`;
     await page.evaluate((before) => window.gpArm(() => document.querySelectorAll('ol[aria-label="Programpunkter"] > li').length === before + 1), n);

@@ -40,7 +40,7 @@ export class Window {
       if (Date.now() > deadline) throw new Error(`no matching message; got ${JSON.stringify(this.messages.slice(from))}`);
       await new Promise<void>((r) => {
         this.waiters.push(r);
-        setTimeout(r, 200);
+        setTimeout(r, 200); // look again if no message wakes it
       });
     }
   }

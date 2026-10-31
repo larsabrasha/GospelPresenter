@@ -408,7 +408,7 @@ describe.each(adapters)('%s adapter: sync', (adapterName) => {
     (measured[`poke latency ms (${adapterName})`] ??= []).push(...samples.map(Math.round));
     console.log(`[measure] ${adapterName} poke latency ms: ${samples.map(Math.round).join(', ')}`);
     for (const s of samples) expect(s).toBeLessThan(3000);
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, 700)); // nothing may happen: past a poke window
     expect(bobPokes).toBe(0); // the writer is not woken by its own change (SYNC-R39)
   });
 

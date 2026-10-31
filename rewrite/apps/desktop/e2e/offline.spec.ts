@@ -71,7 +71,7 @@ test('a presentation kept offline by its icon has its pictures and its video who
   await addFromLibrary(host.page, 'Control+3', 'Affisch.png');
   // The second computer fetches it without opening the presentation: time to sync and fetch, then all is there.
   await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/);
-  await second.page.waitForTimeout(3000);
+  await second.page.waitForTimeout(3000); // the icon says kept before the new picture arrives as after: time for it to arrive
   await expect(icon).toHaveAttribute('data-state', 'kept', { timeout: 15_000 });
 
   // The host goes away; the presentation opens with its full picture and plays its video, from this computer alone.

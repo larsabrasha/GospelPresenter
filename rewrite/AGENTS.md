@@ -46,7 +46,9 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
 - `packages/architecture` checks the rest in `pnpm test` (under a second, never cached): at most 500 lines in a
   source file and 800 in a test file (the UI texts and the icons are tables, exempt); no 8 lines in a row in two
   places in shipped code; names in the package's style (web: PascalCase components, camelCase modules; elsewhere
-  kebab-case); each package imports only the ones below it. Split a file by what its parts do, and move a copy
+  kebab-case); each package imports only the ones below it; every UI text is used, by a key written out; a spec id
+  or a file path in code or docs exists; no `console.log` in shipped code; a fixed wait in a test (`waitForTimeout`,
+  a sleep of 100 ms or more) says why on its line, and no `.only`. Split a file by what its parts do, and move a copy
   into one shared place; do not raise a limit to pass.
 
 ## The old app: the reference

@@ -11,7 +11,6 @@ test.afterEach(async () => {
 });
 
 test('a song with a CCLI number shown for 10 seconds is listed, and its card is marked reported', async () => {
-  test.slow();
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -27,8 +26,10 @@ test('a song with a CCLI number shown for 10 seconds is listed, and its card is 
   await addSongs(page, ['Amazing Grace']);
 
   await page.getByRole('button', { name: 'Starta presentation' }).click();
+  // The page's clock jumps the 10 s ahead (CCLI_SHOWN_MS) instead of the test waiting them out.
+  await page.clock.install();
   await page.getByRole('button', { name: 'Amazing Grace 1' }).click();
-  await page.waitForTimeout(10_500);
+  await page.clock.fastForward(10_500);
   await openAdmin(page, 'CCLI-rapport');
 
   const card = page.getByRole('region', { name: /^Gudstjänst \d{4}-\d{2}-\d{2}$/ });

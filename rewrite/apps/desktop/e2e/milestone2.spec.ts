@@ -136,7 +136,7 @@ test('the song saves 500 ms after typing, says "Sparad", and keeps what was type
   const name = page.getByLabel('Namn', { exact: true });
   await expect(saved).toHaveCount(0, { timeout: 5000 });
   await name.fill('');
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(700); // nothing may happen: past the 500 ms autosave, with time for a save to show
   await expect(saved).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Sparas', exact: true })).toBeVisible();
   await name.fill('Sparad sång');
@@ -198,7 +198,7 @@ test('a refused save says "Kunde inte spara", not "Sparad", and the field keeps 
   // Refused once more while the warning shows: still one warning, not two.
   await ccli.press('3');
   await ccli.blur();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(300); // nothing may happen: time for a second warning to show
   expect(await failed.count()).toBe(1);
   await page.reload();
   await expect(page.getByLabel('CCLI')).toHaveValue('');
