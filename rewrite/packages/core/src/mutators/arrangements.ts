@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { songArrangements, songs } from '../schema.ts';
 import { parsePartIds } from '../slides.ts';
 import { id, LIMITS, limit, MutationError, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
+import { keepSongVersion, keepVersionOfArrangement } from './history.ts';
 import { partIdsInOrder } from './songs.ts';
 
 // ------------------------------------------------------------------ arrangements
@@ -25,6 +26,7 @@ export async function createArrangement(tx: Tx, a: z.output<typeof createArrange
   if (!s) throw new MutationError('not-found', 'song not found');
   const [n] = await tx.select({ n: count(), last: max(songArrangements.sort) }).from(songArrangements).where(eq(songArrangements.songId, a.songId));
   limit((n?.n ?? 0) >= LIMITS.arrangementsPerSong, 'arrangements');
+  await keepSongVersion(tx, a.songId, ctx);
   await tx
     .insert(songArrangements)
     .values({
@@ -46,7 +48,9 @@ export async function updateArrangement(tx: Tx, a: z.output<typeof updateArrange
   const set: { name?: string | null; partIds?: string } = {};
   if (a.name !== undefined) set.name = a.name;
   if (a.partIds !== undefined) set.partIds = JSON.stringify(await ownPartIds(tx, arr.songId, a.partIds));
-  if (Object.keys(set).length) await tx.update(songArrangements).set(set).where(eq(songArrangements.id, a.id));
+  if (!Object.keys(set).length) return;
+  await keepSongVersion(tx, arr.songId, ctx);
+  await tx.update(songArrangements).set(set).where(eq(songArrangements.id, a.id));
 }
 
 /** The arrangement's song and part ids where this runs, or null if it is gone. */
@@ -70,7 +74,9 @@ function chipAt(ids: string[], index: number, partId: string): number {
   return best;
 }
 
-async function setArrangementParts(tx: Tx, arrangementId: string, ids: string[]) {
+/** Writes an arrangement's chips, keeping the song's version first (SONG-R20). */
+async function setArrangementParts(tx: Tx, arr: { songId: string }, arrangementId: string, ids: string[], ctx: MutatorCtx) {
+  await keepSongVersion(tx, arr.songId, ctx);
   await tx.update(songArrangements).set({ partIds: JSON.stringify(ids) }).where(eq(songArrangements.id, arrangementId));
 }
 
@@ -86,7 +92,7 @@ export async function appendArrangementPart(tx: Tx, a: z.output<typeof appendArr
   if (!arr) return;
   if (!(await ownPartIds(tx, arr.songId, [a.partId])).length) return; // not (or no longer) a part of the song
   if (arr.ids.length >= 500) throw new MutationError('limit', 'the maximum number of parts in an arrangement has been reached');
-  await setArrangementParts(tx, a.id, [...arr.ids, a.partId]);
+  await setArrangementParts(tx, arr, a.id, [...arr.ids, a.partId], ctx);
 }
 
 export const removeArrangementPartArgs = z.object({ id, index: z.number().int().min(0), partId: id });
@@ -96,7 +102,7 @@ export async function removeArrangementPart(tx: Tx, a: z.output<typeof removeArr
   const arr = await arrangementParts(tx, a.id);
   if (!arr) return;
   const at = chipAt(arr.ids, a.index, a.partId);
-  if (at !== -1) await setArrangementParts(tx, a.id, arr.ids.toSpliced(at, 1));
+  if (at !== -1) await setArrangementParts(tx, arr, a.id, arr.ids.toSpliced(at, 1), ctx);
 }
 
 export const moveArrangementPartArgs = z.object({ id, index: z.number().int().min(0), partId: id, by: z.number().int().min(-500).max(500) });
@@ -108,12 +114,13 @@ export async function moveArrangementPart(tx: Tx, a: z.output<typeof moveArrange
   const at = chipAt(arr.ids, a.index, a.partId);
   if (at === -1) return;
   const to = Math.max(0, Math.min(arr.ids.length - 1, at + a.by));
-  if (to !== at) await setArrangementParts(tx, a.id, arr.ids.toSpliced(at, 1).toSpliced(to, 0, a.partId));
+  if (to !== at) await setArrangementParts(tx, arr, a.id, arr.ids.toSpliced(at, 1).toSpliced(to, 0, a.partId), ctx);
 }
 
 export const removeArrangementArgs = z.object({ id });
 /** Deletes exactly the named arrangement. Items that chose it fall back to all parts (SONG-R18). */
 export async function removeArrangement(tx: Tx, a: z.output<typeof removeArrangementArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageSongs');
+  await keepVersionOfArrangement(tx, a.id, ctx);
   await tx.delete(songArrangements).where(eq(songArrangements.id, a.id));
 }

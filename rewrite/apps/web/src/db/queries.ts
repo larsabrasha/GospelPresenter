@@ -18,6 +18,7 @@ import {
   type Song,
   type SongArrangement,
   type SongPart,
+  type SongVersion,
   type Theme,
 } from '@gp/core';
 import type { MediaBytes, ReadDb } from './share.ts';
@@ -80,6 +81,14 @@ const arrangement = (r: Row): SongArrangement => ({
   sort: Number(r.sort),
 });
 
+const version = (r: Row): SongVersion => ({
+  id: String(r.id),
+  songId: String(r.song_id),
+  userId: String(r.user_id),
+  createdAt: Number(r.created_at),
+  name: String(r.name),
+  data: String(r.data),
+});
 const label = (r: Row): Label => ({ id: String(r.id), text: String(r.text), color: String(r.color), sort: Number(r.sort) });
 
 /** `localeCompare(…, 'sv', { sensitivity: 'base' })`, made once: making it per call cost 86 ms to sort 3 000 songs. */
@@ -118,6 +127,11 @@ export async function songPartsOf(db: ReadDb, songIds: string[]): Promise<SongPa
   if (!songIds.length) return [];
   const rows = await db.query(`SELECT * FROM song_parts WHERE song_id IN (${songIds.map(() => '?').join(', ')}) ORDER BY sort, id`, songIds);
   return rows.map(part);
+}
+
+/** A song's history, newest first (SONG-R23). */
+export async function songVersionsOf(db: ReadDb, songId: string): Promise<SongVersion[]> {
+  return (await db.query('SELECT * FROM song_versions WHERE song_id = ? ORDER BY created_at DESC, id DESC', [songId])).map(version);
 }
 
 export async function songsById(db: ReadDb, ids: string[]): Promise<Map<string, Song>> {

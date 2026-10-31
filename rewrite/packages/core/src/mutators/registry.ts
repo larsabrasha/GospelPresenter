@@ -22,6 +22,7 @@ import {
   importSongsArgs,
   importSongs,
 } from './songs.ts';
+import { restoreSongVersionArgs, restoreSongVersion } from './history.ts';
 import { createLabelArgs, createLabel, updateLabelArgs, updateLabel, deleteLabelArgs, deleteLabel, moveLabelArgs, moveLabel } from './labels.ts';
 import {
   createArrangementArgs,
@@ -184,6 +185,7 @@ export const mutators = {
   purgeSong: m(purgeSongArgs, purgeSong),
   addSongPart: m(addSongPartArgs, addSongPart),
   importSongs: m(importSongsArgs, importSongs),
+  restoreSongVersion: m(restoreSongVersionArgs, restoreSongVersion),
   createLabel: m(createLabelArgs, createLabel),
   updateLabel: m(updateLabelArgs, updateLabel),
   deleteLabel: m(deleteLabelArgs, deleteLabel),

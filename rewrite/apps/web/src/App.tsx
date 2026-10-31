@@ -28,6 +28,7 @@ import { Presentations } from './pages/Presentations.tsx';
 import { OrgSettings } from './pages/OrgSettings.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
+import { SongHistory } from './pages/SongHistory.tsx';
 import { Themes } from './pages/Themes.tsx';
 import { Songs } from './pages/Songs.tsx';
 import { Templates } from './pages/Templates.tsx';
@@ -112,6 +113,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'templates' && (can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />)}
       {route.page === 'labels' && <Labels />}
+      {route.page === 'songHistory' && <SongHistory key={route.id} id={route.id} />}
       {route.page === 'themes' && <Themes role={me.role} />}
       {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'about' && <About />}

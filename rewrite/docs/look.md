@@ -36,7 +36,7 @@ The songs (step 3) are `Pages/Admin/Songs.razor` and `SongDetail.razor`: the lis
 Papperskorg and the round search, marks in yellow; the editor under `DetailHeader.razor`'s round back button
 (`ui/PageContainer.tsx`), the fields as floating fields, a card per part with its label as a pill, ↑ ↓ and
 the bin, and the arrangements as stacked chips, each dragged by the whole chip, with the dashed Lägg till del. Above the list, the ProPresenter import card (`pages/SongImport.tsx`), and the
-whole page takes dropped `.pro` files; its bar fills as the files are read, and pulses while saving. Its duplicate dialog is new: a row per song with a green Likadan or amber Annan text pill, Visa text, and a SimpleSelect of the choice. Etiketter (`pages/Labels.tsx`) is Labels.razor's: rows of white-on-colour pills with ↑, ↓, the pencil and the bin, and a dialog with Etiketttext and a colour field. Song history is not built, so its page and button are missing.
+whole page takes dropped `.pro` files; its bar fills as the files are read, and pulses while saving. Its duplicate dialog is new: a row per song with a green Likadan or amber Annan text pill, Visa text, and a SimpleSelect of the choice. Etiketter (`pages/Labels.tsx`) is Labels.razor's: rows of white-on-colour pills with ↑, ↓, the pencil and the bin, and a dialog with Etiketttext and a colour field. Historik (`pages/SongHistory.tsx`) is SongHistory.razor's: a column of versions (name and "Idag 14:05"), the chosen one sky-tinted, and its parts as slides beside it in the organisation's default theme, stacked on a phone; the song page has the grey Historik button with a clock at the left of its last row.
 
 A song's fields, its parts' text and its arrangements' names save 500 ms after the last keystroke, as
 `Utils/Debouncer.cs` does there, and `AutoSaveIndicator.razor`'s grey "✓ Sparad" shows at the right of the
@@ -47,8 +47,8 @@ field shows what was typed while it has focus, so its own save coming back (trim
 the cursor or take back a letter; once it is left, the stored value shows when it next changes. A blank name
 and a year that is not 0–9999 are not written and say nothing; a refused write says nothing either. Each save
 is a mutation of its own (`updateSong` with one field, `updateSongPart`, `updateArrangement`), so typing now
-queues a few more mutations, which the sync sends together; nothing keeps a snapshot per write (song history
-and CCLI reports are not built). Tested in `apps/web/test/debounce.test.ts` (the wait, flushing, failures, order)
+queues a few more mutations, which the sync sends together; the server keeps a version of the song before them,
+at most one per person per half hour (song history, docs/assumptions.md). Tested in `apps/web/test/debounce.test.ts` (the wait, flushing, failures, order)
 and e2e in `milestone2.spec.ts` (Sparad, typing on through a save, leaving at once, reloading at once, a blank name).
 
 A clash in a part (D18; the old app had none to copy): when a part's stored text changes from elsewhere while the

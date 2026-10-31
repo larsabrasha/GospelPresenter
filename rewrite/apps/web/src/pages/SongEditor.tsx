@@ -8,7 +8,7 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { ChevronDownIcon, ChevronUpIcon, CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { ChevronDownIcon, ChevronUpIcon, ClockIcon, CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { isAddKey } from '../ui/Picker.tsx';
 import { SelectMenu } from '../ui/SelectMenu.tsx';
@@ -466,10 +466,17 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             )}
           </div>
         </div>
-        {/* The current app has Historik at the left; the history is not built yet. */}
         {!adding && (
           <div className="flex items-center justify-between">
-            <div />
+            {/* Historik is the song page's, not the add dialog's (SongDetail.razor). */}
+            {onBack ? (
+              <div />
+            ) : (
+              <AppButton variant="neutral" href={href({ page: 'songHistory', id })} className="flex items-center gap-1.5">
+                <ClockIcon className="size-4" strokeWidth={2} />
+                {t('song.history')}
+              </AppButton>
+            )}
             <AppButton variant="danger" onClick={() => void trash()}>
               {t('song.trash')}
             </AppButton>

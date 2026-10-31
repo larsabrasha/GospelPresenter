@@ -16,6 +16,8 @@ export type TrashKind = (typeof TRASH_KINDS)[number];
 export type Route =
   | { page: 'songs' }
   | { page: 'song'; id: string }
+  /** A song's history (`/admin/songs/{id}/history`, SongHistory.razor). */
+  | { page: 'songHistory'; id: string }
   | { page: 'presentations' }
   /**
    * A presentation in its editor, which is also where it is presented, as Presentation.razor: presenting
@@ -85,10 +87,10 @@ function decode(segment: string): string {
 
 /** An address as the router reads it: the path and query, and the fragment, which only an invite's token uses. */
 export function parseRoute(path: string, search = '', hash = ''): Route {
-  const [first = '', second, third] = path.replace(/^\/+|\/+$/g, '').split('/').map(decode);
+  const [first = '', second, third, fourth] = path.replace(/^\/+|\/+$/g, '').split('/').map(decode);
   const query = new URLSearchParams(search);
   if (first === 'admin') {
-    if (second === 'songs') return third ? { page: 'song', id: third } : { page: 'songs' };
+    if (second === 'songs') return third ? (fourth === 'history' ? { page: 'songHistory', id: third } : { page: 'song', id: third }) : { page: 'songs' };
     if (second === 'users') return third ? { page: 'user', id: third } : { page: 'users' };
     if (second === 'devices') return { page: 'devices' };
     if (second === 'bibles') return { page: 'bibles' };
@@ -134,7 +136,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
 const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'labels', 'themes', 'displays', 'about']);
 
 /** The pages under `/admin/` (Layout/AdminLayout.razor), which open in a dialog over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'song', 'user', 'overlay', 'orgSettings']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'song', 'songHistory', 'user', 'overlay', 'orgSettings']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);
@@ -146,6 +148,8 @@ export function href(r: Route): string {
       return '/';
     case 'song':
       return `/admin/songs/${encodeURIComponent(r.id)}`;
+    case 'songHistory':
+      return `/admin/songs/${encodeURIComponent(r.id)}/history`;
     case 'presentation': {
       const q = new URLSearchParams();
       if (r.remote) q.set('remote', 'true');

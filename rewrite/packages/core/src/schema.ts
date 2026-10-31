@@ -51,6 +51,22 @@ export const songArrangements = sqliteTable('song_arrangements', {
   sort: integer('sort').notNull(),
 });
 
+/**
+ * A song as it was before a change (spec 02 "Song version", SONG-R20–R23, D9): the whole song, its
+ * fields, parts and arrangements, as JSON (`SongSnapshot`). Only the server writes these, when it runs
+ * a change to the song; clients read them and restore one. `userId` is whose change it was made before.
+ */
+export const songVersions = sqliteTable('song_versions', {
+  id: text('id').primaryKey(),
+  songId: text('song_id')
+    .notNull()
+    .references(() => songs.id),
+  userId: text('user_id').notNull(),
+  createdAt: integer('created_at').notNull(),
+  name: text('name').notNull(),
+  data: text('data').notNull(),
+});
+
 export const presentations = sqliteTable('presentations', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -304,6 +320,7 @@ export const schema = {
   songs,
   songParts,
   songArrangements,
+  songVersions,
   presentations,
   presentationItems,
   bibles,
@@ -322,12 +339,13 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos];
+export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
 export type SongPart = typeof songParts.$inferSelect;
 export type SongArrangement = typeof songArrangements.$inferSelect;
+export type SongVersion = typeof songVersions.$inferSelect;
 export type Presentation = typeof presentations.$inferSelect;
 export type PresentationItem = typeof presentationItems.$inferSelect;
 export type Bible = typeof bibles.$inferSelect;
@@ -338,7 +356,7 @@ export type Overlay = typeof overlays.$inferSelect;
 export type LibraryVideo = typeof videos.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -358,6 +376,12 @@ export const orgIndexes: string[] = [
   'CREATE INDEX IF NOT EXISTS presentation_items_by_source ON presentation_items (source_id)',
   'CREATE INDEX IF NOT EXISTS song_parts_by_song ON song_parts (song_id, sort)',
   'CREATE INDEX IF NOT EXISTS song_arrangements_by_song ON song_arrangements (song_id, sort)',
+];
+
+const songVersionsDdl = [
+  `CREATE TABLE IF NOT EXISTS song_versions (id TEXT PRIMARY KEY NOT NULL, song_id TEXT NOT NULL REFERENCES songs(id),
+     user_id TEXT NOT NULL, created_at INTEGER NOT NULL, name TEXT NOT NULL, data TEXT NOT NULL)`,
+  'CREATE INDEX IF NOT EXISTS song_versions_by_song ON song_versions (song_id, created_at)',
 ];
 
 const videosDdl = `CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
@@ -380,6 +404,7 @@ export const orgDdl: string[] = [
      label_id TEXT REFERENCES labels(id), content TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS song_arrangements (id TEXT PRIMARY KEY NOT NULL,
      song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
+  ...songVersionsDdl,
   `CREATE TABLE IF NOT EXISTS presentations (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, event_date TEXT,
      deleted_at INTEGER, theme_id TEXT, is_template INTEGER NOT NULL DEFAULT 0, weekday INTEGER, time TEXT,
      location TEXT, last_used_at INTEGER, description TEXT, updated_at INTEGER)`,
@@ -418,6 +443,8 @@ export const orgMigrations: Record<number, string[]> = {
   13: [videosDdl],
   // The videos a device keeps whole, for its presentations kept offline (not synced).
   14: [videoFilesDdl],
+  // Song history (SONG-R20–R23, D9).
+  15: songVersionsDdl,
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

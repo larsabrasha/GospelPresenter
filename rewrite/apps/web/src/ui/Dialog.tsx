@@ -195,6 +195,8 @@ export interface AskOptions {
   busy?: string;
   /** Narrower, with the text at its normal size, as Presentation.razor's removal of an item. */
   compact?: boolean;
+  /** A blue confirm button in place of the red, for what loses nothing (SongHistory.razor's Återställ). */
+  primary?: boolean;
 }
 
 interface Ask extends AskOptions {
@@ -252,7 +254,7 @@ export function useConfirm(): { dialog: ReactNode; ask: (o: AskOptions) => Promi
         <AppButton variant="cancel" onClick={() => done(false)}>
           {t('common.cancel')}
         </AppButton>
-        <AppButton variant="danger" filled disabled={working} onClick={() => void confirm()}>
+        <AppButton variant={open.primary ? 'primary' : 'danger'} filled disabled={working} onClick={() => void confirm()}>
           {working && open.busy ? open.busy : open.confirm}
         </AppButton>
       </DialogButtons>

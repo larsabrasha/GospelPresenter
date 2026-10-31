@@ -141,6 +141,27 @@ The labels page (spec 02 `/admin/labels`, SONG-R45–R47; built 2026-10-31):
   rather than placed at its default position.
 - **Order by ↑ and ↓ only**, as the current app; no dragging. A label pill keeps white text on any colour.
 
+Song history (spec 02 `/admin/songs/{id}/history`, SONG-R20–R24, D9; built 2026-10-31):
+
+- **A version is the whole song** (D9; Lars chose "Hela sången"): name, author, publisher, year, CCLI, the parts
+  with their ids and labels, and the arrangements (`song_versions.data`, `SongSnapshot`). Restoring gives all of
+  it back, the parts with their old ids, so arrangements and presentation items still find them; parts and
+  arrangements the version lacks are deleted. The current app kept name, author and parts only, and gave the
+  parts new ids, which emptied the arrangements. A part's label is the one it had if that is still there
+  (renamed or not), else one with its text.
+- **Only the server keeps versions** (when it runs a change, `ctx.now`), and they sync to every device like a
+  song does, so the history reads offline and on the desktop host. A restore runs on the device at once.
+- **30 minutes per person** (Lars chose "Per person"): a change keeps no new version when the same person made
+  the newest one under 30 minutes ago; anyone else's change does keep one. So an edit sent later by a device
+  that was offline never hides another's text: that is SONG-R24 here, where the sync does not refuse such a
+  push. The window runs from the newest version, not from the last change, so a long session keeps one version
+  per half hour; the current app moved the newest version's time on with each change, which would send the
+  whole version over the sync with every save.
+- **No version of a song without parts** (a new song being written), and **none that equals the newest**.
+  An import that replaces a song keeps one first (D9), as a restore does, whatever the window.
+- **At most 50 per song**; purging a song deletes its history with it. The list shows the name and "Idag 14:05",
+  "Igår 09:30" or "3 okt. 2026 14:05" in the device's time zone; not who made the change.
+
 Templates (spec 03 "Template", screen 3):
 
 - **A template is a row of `presentations`** with `is_template` set, as in the current app: the editor, its

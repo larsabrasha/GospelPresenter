@@ -31,7 +31,7 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 
 ## Saknas: det märks för den som använder appen
 
-- [x] Sånghistorik (SONG-R20–R24): tidigare versioner av en sång.
+- [x] Sånghistorik (SONG-R20–R24): tidigare versioner av en sång. **Klart 2026-10-31.**
 - [x] Etikettsidan: hantera Vers, Refräng och de andra etiketterna. **Klart 2026-10-31.**
 - [x] CCLI-rapport (bara sångens CCLI-fält finns).
 - [x] Import från ProPresenter, även att släppa filer på Sånger. **Klart 2026-10-31.**

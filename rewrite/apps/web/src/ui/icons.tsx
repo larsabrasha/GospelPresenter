@@ -940,9 +940,9 @@ export function CalendarIcon({ className }: IconProps) {
 }
 
 /** A time field's clock (Symbols/ClockSymbol.razor). */
-export function ClockIcon({ className }: IconProps) {
+export function ClockIcon({ className, strokeWidth }: StrokeIconProps) {
   return (
-    <Outline className={className}>
+    <Outline className={className} strokeWidth={strokeWidth}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
     </Outline>
   );

@@ -95,9 +95,9 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
   });
 
   it('a version 11 file gets the columns and the indexes of 12, as a new file has them', () => {
-    // Version 11: today's tables without what 12 added, and no indexes.
+    // Version 11: today's tables without what 12 and later added (song history came in 15), and no indexes.
     const v11 = orgDdl
-      .filter((s) => !orgIndexes.includes(s))
+      .filter((s) => !orgIndexes.includes(s) && !s.includes('song_versions'))
       .map((s) => s.replace(', description TEXT, updated_at INTEGER', '').replace(', created_at INTEGER)', ')'));
     const file = fileWith(driver, [...v11, schemaMetaDdl, 'INSERT INTO _schema (one, version) VALUES (1, 11)']);
     const fresh = openSqlite(fileWith(driver, []), driver);
@@ -108,7 +108,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
 
     expect(columnsOf(f.query)).toEqual(columnsOf(fresh.query));
     expect(indexesOf(f.query)).toEqual(indexesOf(fresh.query));
-    expect(indexesOf(f.query)).toHaveLength(orgIndexes.length);
+    expect(indexesOf(f.query)).toHaveLength(orgIndexes.length + 1); // and song_versions_by_song, from 15
     f.close();
     fresh.close();
   });

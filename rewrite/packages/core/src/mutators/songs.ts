@@ -1,6 +1,7 @@
 import { and, asc, count, eq, isNull, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
-import { songArrangements, songParts, songs } from '../schema.ts';
+import { songArrangements, songParts, songs, songVersions } from '../schema.ts';
+import { keepSongVersion, keepVersionOfPart } from './history.ts';
 import { ensureLabel } from './labels.ts';
 import { parsePartIds } from '../slides.ts';
 import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
@@ -30,7 +31,9 @@ export async function updateSong(tx: Tx, a: z.output<typeof updateSongArgs>, ctx
   requirePermission(ctx, 'ManageSongs');
   const { id: songId, ...fields } = a;
   const set = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
-  if (Object.keys(set).length) await tx.update(songs).set(set).where(eq(songs.id, songId));
+  if (!Object.keys(set).length) return;
+  await keepSongVersion(tx, songId, ctx);
+  await tx.update(songs).set(set).where(eq(songs.id, songId));
 }
 
 export const trashSongArgs = z.object({ id, at: z.number().int() });
@@ -45,8 +48,9 @@ export async function restoreSong(tx: Tx, a: z.output<typeof restoreSongArgs>, c
   await tx.update(songs).set({ deletedAt: null }).where(eq(songs.id, a.id));
 }
 
-/** Deletes a song with its parts and arrangements. Presentation items that use it stay, and say the song is gone. */
+/** Deletes a song with its parts, arrangements and history. Presentation items that use it stay, and say the song is gone. */
 export async function deleteSongRows(tx: Tx, songId: string) {
+  await tx.delete(songVersions).where(eq(songVersions.songId, songId));
   await tx.delete(songArrangements).where(eq(songArrangements.songId, songId));
   await tx.delete(songParts).where(eq(songParts.songId, songId));
   await tx.delete(songs).where(eq(songs.id, songId));
@@ -92,6 +96,7 @@ export async function addSongPart(tx: Tx, a: z.output<typeof addSongPartArgs>, c
   if (!s) throw new MutationError('not-found', 'song not found');
   const [n] = await tx.select({ n: count() }).from(songParts).where(eq(songParts.songId, a.songId));
   limit((n?.n ?? 0) >= LIMITS.partsPerSong, 'parts');
+  await keepSongVersion(tx, a.songId, ctx);
   const [top] = await tx.select({ last: max(songParts.sort) }).from(songParts).where(eq(songParts.songId, a.songId));
   await tx
     .insert(songParts)
@@ -111,7 +116,9 @@ export async function updateSongPart(tx: Tx, a: z.output<typeof updateSongPartAr
   const set: { content?: string; labelId?: string | null } = {};
   if (a.content !== undefined) set.content = a.content;
   if (a.labelText !== undefined) set.labelId = await ensureLabel(tx, a.labelText);
-  if (Object.keys(set).length) await tx.update(songParts).set(set).where(eq(songParts.id, a.id));
+  if (!Object.keys(set).length) return;
+  await keepVersionOfPart(tx, a.id, ctx);
+  await tx.update(songParts).set(set).where(eq(songParts.id, a.id));
 }
 
 export const removeSongPartArgs = z.object({ id });
@@ -124,6 +131,7 @@ export async function removeSongPart(tx: Tx, a: z.output<typeof removeSongPartAr
   requirePermission(ctx, 'ManageSongs');
   const [p] = await tx.select({ songId: songParts.songId }).from(songParts).where(eq(songParts.id, a.id));
   if (!p) return;
+  await keepSongVersion(tx, p.songId, ctx);
   await tx.delete(songParts).where(eq(songParts.id, a.id));
   await renumberParts(tx, await partIdsInOrder(tx, p.songId));
   const arrangements = await tx
@@ -147,6 +155,7 @@ export async function moveSongPart(tx: Tx, a: z.output<typeof moveSongPartArgs>,
   requirePermission(ctx, 'ManageSongs');
   const [p] = await tx.select({ songId: songParts.songId }).from(songParts).where(eq(songParts.id, a.id));
   if (!p) return;
+  await keepSongVersion(tx, p.songId, ctx);
   const order = (await partIdsInOrder(tx, p.songId)).filter((x) => x !== a.id);
   order.splice(Math.min(a.toIndex, order.length), 0, a.id);
   await renumberParts(tx, order);
@@ -184,6 +193,7 @@ export async function importSongs(tx: Tx, a: z.output<typeof importSongsArgs>, c
   for (const s of a.songs) {
     let songId = s.replaces && library.has(s.replaces) ? s.replaces : null;
     if (songId) {
+      await keepSongVersion(tx, songId, ctx, true); // D9: the replaced song can be restored
       await tx.update(songs).set({ author: s.author, publisher: s.publisher, year: null, ccli: s.ccli }).where(eq(songs.id, songId));
       await tx.delete(songArrangements).where(eq(songArrangements.songId, songId));
       await tx.delete(songParts).where(eq(songParts.songId, songId));
