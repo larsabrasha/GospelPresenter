@@ -2,12 +2,31 @@
 
 Smaller things decided or wished for, not yet built. The larger steps are in docs/next-steps.md.
 
-## Video (from Lars 2026-10-31; not started)
+## Video, and which files a device fetches (from Lars 2026-10-31; not started)
 
 A video can be shown in a presentation, as an item of its own (as audio and pictures are). The picture goes to the
 outputs; the sound plays on the presenting device, as an audio item's does (LIVE-R6), not on the outputs. It is
 added from a new tab in Lägg till, and the files are kept as audio and pictures are today (a library row and a
-media blob, docs/media-and-files.md). The rest is to be settled with Lars before it is built.
+media blob, docs/media-and-files.md). Only video from a file for now (Lars, 2026-10-31): showing a YouTube video
+is often wanted, but not now.
+
+Formats (Lars, 2026-10-31): MP4 and MOV with H.264 or HEVC; WebM later. HEVC from the start, since an iPhone films
+HEVC by default ("Hög effektivitet"), and whether iOS converts to H.264 when a video is picked in a browser is not
+checked. Nothing is converted, as with slide decks (PDF only). The import reads the codec from the file (`avc1`,
+`avc3`, `hvc1` or `hev1` in the `stsd` box) and refuses anything else with a hint to export as MP4. A device that
+cannot play a video (HEVC on Linux or an old browser; `MediaCapabilities` or `canPlayType` tell) says so in the
+editor and live, and a paired screen that cannot shows the still. The same load in a `<video>` gives the length,
+size and a still from the start (the thumbnail). The server trusts the file's signature, not the type the client
+claims, as for pictures.
+
+Size (Lars, 2026-10-31): at most 2 GB a video; mostly short clips, but they can be large. `PUT /api/media` takes 10
+MiB in one request today, and one request on Cloudflare is at most 100 MB on the usual plans, so a video goes up in
+parts: R2's multipart upload on Cloudflare (parts of at least 5 MiB), a file appended to on Node, and an upload that
+was cut off goes on from the last part (Lars: good on a phone above all). A dropped network within the page goes on
+by itself; after the page was closed (a phone locks the screen, the browser is left) the page no longer holds the
+file, so it is picked again and goes on where it was, known by its hash; the phone does not keep a copy to resume
+from, which would store the video twice there. A blob is named by its SHA-256, which `crypto.subtle.digest` makes
+only from the whole file in memory, so a large video needs a hash made in steps.
 
 A video takes much room, so the desktop host must keep it once: on disk by the server, never also in its window's
 storage (Lars, 2026-10-31). The window already keeps no media ("The host's own window"), but three things in how it
@@ -15,8 +34,63 @@ gets media today do not fit video: `fetchMedia` reads the whole file into memory
 video should stream from the server (`/api/media/{hash}` has no Range support yet, and its token goes in a header a
 `<video src>` cannot send); `/api/media` answers `private, max-age=31536000, immutable`, so Chromium's HTTP cache in
 Electron's profile may keep a second copy on disk (not checked); and `blobUrls` in `db/queries.ts` never lets go.
-A desktop paired to another host keeps its copy on disk by design, as a browser does: whether video is fetched there
-only when needed is to be settled.
+
+Which files a device fetches, for every kind of file (Lars, 2026-10-31). Every client does the same, with no machine
+set apart (the church's computer is a laptop that moves around, and the church's network is good). Looking around
+the app fetches no heavy file: not the coming seven days ahead, and not on opening a presentation. Thumbnails stay
+as now, and a video gets a small still the same way; the editor's preview of audio or a video streams from the
+server when it is played and is not kept. Only presenting needs the files: Starta presentation fetches that
+presentation's pictures, audio and slide deck pages at once, quietly, so a live slide change never waits (they are
+small; the icon does not change for it). A video is not fetched: it streams from the server, and the start of it
+buffers when the item before it goes live, so it starts at once. The whole video file is fetched only when someone
+keeps the presentation offline (Lars, 2026-10-31: stream video, fetch the rest). Keeping a presentation offline is
+a choice someone makes themselves; its state shows clearly on the presentation everywhere it appears (the start
+page's list, the editor), not hidden in the ⋯ menu as now: an icon, as OneDrive's, Apple's cloud with an arrow
+or Spotify's download button, that says not kept, fetching (with progress) or all here, and starts keeping it
+offline. This replaces the "ahead of time" and "on demand" rules of docs/media-and-files.md ("Which files a device
+keeps") and the ⋯ menu's "Tillgänglig offline på den här enheten" and the list's "Offline" badge. What presenting
+fetched may stay after Avsluta as a cache (Lars): within the limit, the oldest dropped first, as files nothing needs
+are now; it does not make the presentation "kept offline". A video in the cache counts in its limit as any file
+does.
+
+Video on the outputs (Lars, 2026-10-31): the output window, on the presenting computer, plays it. A paired screen
+plays it too, streamed by itself and muted: the live pointer the screens already get carries the playback state
+(which video, playing or not, the position and the moment it was at), and the screen works out where to be and
+seeks when it drifts more than a fraction of a second. A public output (the phones in the pews) shows a still of
+the video only: a hundred phones streaming it would cost their data and the server, and the sound is in the room
+anyway; video there can come later with the same state.
+
+One choice per device under Mina inställningar (Lars, 2026-10-31), off at first, as the theme is: "Spara kommande
+presentationer offline", with "Presentationer de närmaste sju dagarna hämtas till den här enheten, även video."
+under it. Switched on, every presentation dated from today to seven days ahead is kept offline on this device,
+video included, as if each had been chosen by hand, and their icons show it. Once a date has passed, its files
+are ordinary cache again. Any device may switch it on (the church's computer would), so no machine is set apart in
+the code; seven days rather than today, so a large video is already there on Sunday morning if the computer was on
+during the week.
+
+Old presentations never pile up: once a date has passed, its files are cache, and the cache has a limit, the oldest
+dropped first. Only what someone kept offline by hand stays until they undo it. So Mina inställningar gets a part
+"Lagring på den här enheten" (Lars, 2026-10-31), as Spotify's and the iPhone's storage pages: how much the app uses
+here, "Sparat offline" (each presentation with its date and size, and a button to stop keeping it), and "Cache" (its
+size, and "Rensa cache"). Never cleared by it: files waiting to be uploaded, those of a presentation shown now, and
+the thumbnails the library needs offline. A file is kept once however many presentations use it (a blob is named
+by its hash), so the total counts it once, and a presentation's size there counts the files it shares with others
+too. The cache limit is a choice there, not fixed (Lars): it is 2 GiB today
+(MEDIA-R14, `DEFAULT_MEDIA_POLICY.budget` in `packages/sync/src/client/media.ts`, already a parameter). It is a
+slider whose range follows the disk (Lars): in the desktop app the disk's size and free room (Node's `fs.statfs`);
+in a browser only the share the browser grants (`navigator.storage.estimate()`), as a page cannot see the disk.
+What is kept offline (by hand, or by the choice for the coming presentations) is outside the limit, and neither the
+limit nor "Rensa cache" ever drops it (Lars, 2026-10-31), as Spotify's downloads and OneDrive's "Behåll alltid på
+den här enheten": what someone chose is never dropped on its own; it is bounded by the disk only, and the storage
+part shows its size. A desktop host's own window keeps no files, so there the
+part says so or is hidden.
+
+Later, not with the rest (Lars, 2026-10-31): where the files are kept as a choice, for another disk or folder; only
+in the desktop app, as a browser decides that itself. Today everything of the desktop app (its window's storage,
+and on a host the server's database and `media` folder) is under Electron's `userData`, which only `GP_DATA_DIR`
+moves (`apps/desktop/src/main.ts:30`). A choice in the app would keep the folder in a small file outside it, move
+what is there, and restart. On a host it is the server's data, every video of the organisation, so that is where
+another disk matters most.
 
 ## Code review, second list (from Lars 2026-10-30; not done)
 
