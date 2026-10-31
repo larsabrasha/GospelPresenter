@@ -7,7 +7,7 @@ import { newId } from '../../ids.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useTrySave } from '../../ui/AutoSave.tsx';
 import { Modal } from '../../ui/Dialog.tsx';
-import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon } from '../../ui/icons.tsx';
+import { BookOpenIcon, MusicalNoteIcon, PhotoIcon, RectangleStackIcon, SpeakerWaveIcon, VideoIcon } from '../../ui/icons.tsx';
 import { PillTabs } from '../../ui/PillTabs.tsx';
 import { ctrlLabel } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
@@ -16,6 +16,7 @@ import { AudioTab } from '../AudioTab.tsx';
 import { BibleTab } from '../BibleTab.tsx';
 import { ImageTab } from '../ImageTab.tsx';
 import { SongEditor } from '../SongEditor.tsx';
+import { VideoTab } from '../VideoTab.tsx';
 import { SlidesTab } from './SlidesTab.tsx';
 import { SongTab } from './SongTab.tsx';
 
@@ -29,12 +30,13 @@ export interface TabProps {
   active: boolean;
 }
 
-type Tab = 'songs' | 'bible' | 'images' | 'audio' | 'slides';
-const ORDER: Tab[] = ['songs', 'bible', 'images', 'audio', 'slides'];
+type Tab = 'songs' | 'bible' | 'images' | 'audio' | 'slides' | 'video';
+/** Video last, so the tabs before it keep their keys. */
+const ORDER: Tab[] = ['songs', 'bible', 'images', 'audio', 'slides', 'video'];
 
 /**
- * The add-item modal (spec 03 2d): Sånger, Bibeltexter, Bilder, Ljud and PowerPoint; Ctrl/⌘+1 to
- * +5 switch, wherever focus is. Every tab stays as it was while another is shown (AddItemModal.razor
+ * The add-item modal (spec 03 2d): Sånger, Bibeltexter, Bilder, Ljud, PowerPoint and Video; Ctrl/⌘+1 to
+ * +6 switch, wherever focus is. Every tab stays as it was while another is shown (AddItemModal.razor
  * hides them). It never closes after an add (D15). The new item goes after the selected one and
  * becomes selected. A song's pencil opens its editor here, with a way back to the list.
  */
@@ -48,6 +50,7 @@ const KEYS: ShortcutGroup = {
     { keys: ['Ctrl+3'], text: t('shortcuts.tab.images') },
     { keys: ['Ctrl+4'], text: t('shortcuts.tab.audio') },
     { keys: ['Ctrl+5'], text: t('shortcuts.tab.slides') },
+    { keys: ['Ctrl+6'], text: t('shortcuts.tab.video') },
     { keys: ['Ctrl+Enter'], text: t('shortcuts.add') },
     { keys: ['ArrowDown'], text: t('shortcuts.moveThroughResults') },
   ],
@@ -114,6 +117,7 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
     ['images', t('presentation.imagesTab'), PhotoIcon],
     ['audio', t('presentation.audioTab'), SpeakerWaveIcon],
     ['slides', t('slides.tab'), RectangleStackIcon],
+    ['video', t('presentation.videoTab'), VideoIcon],
   ];
   const shown = (key: Tab) => (!editingSongId && tab === key ? 'flex-1 min-h-0 flex flex-col' : 'hidden');
   const tabProps = (key: Tab): TabProps => ({ ...props, onClose: close, active: !editingSongId && tab === key });
@@ -171,6 +175,9 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
         </div>
         <div className={shown('slides')}>
           <SlidesTab {...tabProps('slides')} />
+        </div>
+        <div className={shown('video')}>
+          <VideoTab {...tabProps('video')} />
         </div>
       </div>
     </Modal>

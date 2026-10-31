@@ -99,7 +99,7 @@ export const presentationItems = sqliteTable('presentation_items', {
   presentationId: text('presentation_id')
     .notNull()
     .references(() => presentations.id),
-  type: text('type', { enum: ['song', 'bible', 'image', 'audio', 'slides'] }).notNull(),
+  type: text('type', { enum: ['song', 'bible', 'image', 'audio', 'slides', 'video'] }).notNull(),
   title: text('title').notNull(),
   sourceId: text('source_id').notNull(),
   sort: integer('sort').notNull(),
@@ -161,6 +161,32 @@ export const audios = sqliteTable('audios', {
   size: integer('size').notNull(),
   createdAt: integer('created_at').notNull(),
   /** Set while the file is in the trash (MEDIA-R8). */
+  deletedAt: integer('deleted_at'),
+});
+
+/**
+ * A video in the media library (TODO.md "Video"): one blob named by its
+ * SHA-256, MP4 or MOV with H.264 or HEVC, kept as it was picked and never
+ * converted, plus a still from its start in the two sizes a picture has
+ * (`still` fits 1920×1080, `thumb` 400×225). Only the metadata syncs; the
+ * video itself streams from the server and no device fetches it whole.
+ */
+export const videos = sqliteTable('videos', {
+  id: text('id').primaryKey(),
+  fileName: text('file_name').notNull(),
+  contentType: text('content_type', { enum: ['video/mp4', 'video/quicktime'] }).notNull(),
+  codec: text('codec', { enum: ['h264', 'hevc'] }).notNull(),
+  hash: text('hash').notNull(),
+  size: integer('size').notNull(),
+  /** In milliseconds. */
+  duration: integer('duration').notNull(),
+  width: integer('width').notNull(),
+  height: integer('height').notNull(),
+  /** The still's two pictures, stored as a library picture's are (JPEG or WebP). */
+  stillHash: text('still_hash').notNull(),
+  thumbHash: text('thumb_hash').notNull(),
+  createdAt: integer('created_at').notNull(),
+  /** Set while the video is in the trash (MEDIA-R8). */
   deletedAt: integer('deleted_at'),
 });
 
@@ -273,6 +299,7 @@ export const schema = {
   displays,
   audios,
   overlays,
+  videos,
   bibleTexts,
   bibleBlobs,
   mediaBlobs,
@@ -281,7 +308,7 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays];
+export const syncedTables = [labels, songs, songParts, songArrangements, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
@@ -294,9 +321,10 @@ export type LibraryImage = typeof images.$inferSelect;
 export type Display = typeof displays.$inferSelect;
 export type LibraryAudio = typeof audios.$inferSelect;
 export type Overlay = typeof overlays.$inferSelect;
+export type LibraryVideo = typeof videos.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -317,6 +345,10 @@ export const orgIndexes: string[] = [
   'CREATE INDEX IF NOT EXISTS song_parts_by_song ON song_parts (song_id, sort)',
   'CREATE INDEX IF NOT EXISTS song_arrangements_by_song ON song_arrangements (song_id, sort)',
 ];
+
+const videosDdl = `CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
+     codec TEXT NOT NULL, hash TEXT NOT NULL, size INTEGER NOT NULL, duration INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
+     still_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`;
 
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
@@ -348,6 +380,7 @@ export const orgDdl: string[] = [
      hash TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`,
   `CREATE TABLE IF NOT EXISTS overlays (id TEXT PRIMARY KEY NOT NULL, title TEXT NOT NULL, content TEXT, image_id TEXT,
      sort INTEGER NOT NULL)`,
+  videosDdl,
   // Not synced: what this database keeps for itself (see the tables above).
   `CREATE TABLE IF NOT EXISTS bible_texts (hash TEXT NOT NULL, book TEXT NOT NULL, sort INTEGER NOT NULL, chunk TEXT NOT NULL,
      PRIMARY KEY (hash, book))`,
@@ -363,6 +396,8 @@ export const orgDdl: string[] = [
 export const orgMigrations: Record<number, string[]> = {
   // A presentation's description (spec 03) and when it was last changed; when an output was made; the indexes (`orgIndexes`).
   12: ['ALTER TABLE presentations ADD COLUMN description TEXT', 'ALTER TABLE presentations ADD COLUMN updated_at INTEGER', 'ALTER TABLE displays ADD COLUMN created_at INTEGER', ...orgIndexes],
+  // The video library (TODO.md "Video").
+  13: [videosDdl],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

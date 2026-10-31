@@ -4,7 +4,7 @@ import { schemaMetaDdl } from '@gp/core';
 import type { GlobalSql } from './sql.ts';
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 6;
+export const GLOBAL_SCHEMA_VERSION = 7;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -122,7 +122,20 @@ const screensDdl = [
   `CREATE TABLE IF NOT EXISTS screen_tokens (token TEXT PRIMARY KEY NOT NULL, org_id TEXT NOT NULL, expires INTEGER NOT NULL, screen_id TEXT)`,
 ];
 
-export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl];
+/**
+ * Version 7: what lets a plain `<video src>` stream a video (TODO.md "Video"),
+ * which cannot send the session's header. A token names one organisation's
+ * one blob, for a few hours, and the session it was minted for: it ends with
+ * that session (signing out, revoking). Only its hash is stored, as for every
+ * secret. Global, so the Worker finds the organisation from the token alone.
+ */
+const playTokensDdl = [
+  `CREATE TABLE IF NOT EXISTS play_tokens (token_hash TEXT PRIMARY KEY NOT NULL, org_id TEXT NOT NULL, media_hash TEXT NOT NULL,
+     session_id TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS play_tokens_expiry ON play_tokens (expires_at)`,
+];
+
+export const globalDdl = [membershipsDdl, ...accountDdl, watchCodesDdl, ...screensDdl, ...playTokensDdl];
 
 export const globalMigrations: Record<number, string[]> = {
   // Milestones 1 and 2 had memberships only, for placeholder user ids that
@@ -153,6 +166,7 @@ export const globalMigrations: Record<number, string[]> = {
   ],
   5: [watchCodesDdl],
   6: screensDdl,
+  7: playTokensDdl,
 };
 
 /** What to run to bring a global database to GLOBAL_SCHEMA_VERSION; `version` is null without a row. */

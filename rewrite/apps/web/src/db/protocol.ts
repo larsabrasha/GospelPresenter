@@ -1,4 +1,4 @@
-import type { Role } from '@gp/core';
+import type { Role, VideoCodec, VideoType } from '@gp/core';
 
 /** Who is signed in, as the database worker needs it (see auth/session.ts). */
 export interface Session {
@@ -46,6 +46,8 @@ export type DbCall =
   | { op: 'addImage'; image: ImageImport }
   /** Adds an audio file to the library, as it was picked (MEDIA-R5): kept here, uploaded before `addAudio` is pushed. */
   | { op: 'addAudio'; audio: AudioImport }
+  /** Records a video already uploaded (TODO.md "Video"): its still is kept here, the video only named; then `addVideo`. */
+  | { op: 'addVideo'; video: VideoImport }
   /** Adds a rendered slide deck as an item (D29): keep its pages' blobs here, then `addSlides`, uploaded before it is pushed. */
   | { op: 'addSlides'; slides: SlidesImport }
   /** Imports a Bible zip (spec 05): parse and store here, then `importBible`, uploaded before it is pushed. */
@@ -111,4 +113,25 @@ export interface AudioImport {
   /** What its bytes say it is (`sniffAudio`), not what the browser guessed. */
   contentType: 'audio/mpeg' | 'audio/wav' | 'audio/ogg' | 'audio/mp4' | 'audio/webm' | 'audio/x-m4a';
   bytes: Uint8Array;
+}
+
+/**
+ * A video the page has read and uploaded (`media/video.ts`): the video itself is on the server
+ * already and is never kept on a device; its still, in a picture's two sizes, is kept and
+ * uploaded before `addVideo` is pushed, as a picture's blobs are.
+ */
+export interface VideoImport {
+  id: string;
+  fileName: string;
+  contentType: VideoType;
+  codec: VideoCodec;
+  hash: string;
+  size: number;
+  /** Milliseconds. */
+  duration: number;
+  width: number;
+  height: number;
+  stillType: 'image/jpeg' | 'image/webp';
+  still: Uint8Array;
+  thumb: Uint8Array;
 }

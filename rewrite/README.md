@@ -59,7 +59,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 |---|---|
 | [sign-in-and-pairing.md](docs/sign-in-and-pairing.md) | Google and passkey sign-in, setup, invites, logins, sessions, pairing a device with the host, their configuration, the fake Google, and the schema versions of the global and organisation databases |
 | [bibles-and-themes.md](docs/bibles-and-themes.md) | How a translation's text is stored, uploaded and kept per device, importing and checking a real translation; the built-in themes and their fonts |
-| [media-and-files.md](docs/media-and-files.md) | Pictures and audio: what syncs, where the bytes live, the endpoints, the client pipeline, clean-up, audio during live, and which files a device keeps |
+| [media-and-files.md](docs/media-and-files.md) | Pictures, audio and video: what syncs, where the bytes live, the endpoints, the client pipeline, video's upload in parts and streaming, clean-up, audio during live, and which files a device keeps |
 | [live.md](docs/live.md) | Overlays, paired screens (`/display`) and the QR codes, remote control, and public outputs (`/watch`) |
 | [lan-https-and-addresses.md](docs/lan-https-and-addresses.md) | A tablet over plain http, https on the LAN, the service worker that starts the app without the host, a reverse proxy, and the app's addresses |
 | [cloudflare.md](docs/cloudflare.md) | The Worker serving the web app, and the trial on a real Cloudflare account with its measurements |

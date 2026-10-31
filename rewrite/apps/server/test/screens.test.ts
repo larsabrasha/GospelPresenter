@@ -80,7 +80,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     expect(screen.status).toBe(200);
     await screen.next((e) => e.type === 'idle');
     owner.send({ type: 'own', state: ownState('S1', { outputs: [first.body.id], slide: slide('Härlig är jorden'), canvas: canvas('Härlig är jorden') }) });
-    expect(await screen.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', canvas: canvas('Härlig är jorden') });
+    expect(await screen.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', now: expect.any(Number), canvas: canvas('Härlig är jorden') });
     await latest(owner, (m) => m.online.includes(first.body.id) && m.sessions[0]?.outputs[0]?.id === first.body.id);
 
     // ✕: the session lets it go; the TV is told, and starts again with a new code.
@@ -146,7 +146,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     const dropped = await api<{ screen: { id: string; n: number } | null }>(h, 'DELETE', `/api/live/screens/token/${made.token}?session=S1`, { user: 'anna', org });
     expect(dropped.body).toEqual({ screen: { id: used.body.id, n: 1 } });
     owner.send({ type: 'own', state: ownState('S1', { outputs: [used.body.id], slide: slide('Härlig är jorden'), canvas: canvas('Härlig är jorden') }) });
-    expect(await screen.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', canvas: canvas('Härlig är jorden') });
+    expect(await screen.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', now: expect.any(Number), canvas: canvas('Härlig är jorden') });
     expect(screen.ended).toBe(false);
 
     // Without a live session to take it in, the TV starts again.
@@ -183,14 +183,14 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     expect(page.events[0] ?? (await page.next((e) => e.type === 'meta'))).toEqual({ type: 'meta', orgName: expect.any(String), outputName: 'Kyrksal' });
     await latest(owner, (m) => m.online.includes('K1'));
     owner.send({ type: 'own', state: ownState('S1', { outputs: ['K1'], slide: slide('Härlig är jorden'), canvas: canvas('Härlig är jorden') }) });
-    expect(await page.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', canvas: canvas('Härlig är jorden') });
+    expect(await page.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', now: expect.any(Number), canvas: canvas('Härlig är jorden') });
 
     // Not in local workerd: there a closed stream is never noticed, not even when a ping is written (docs/not-done-yet.md).
     if (adapterName === 'workers') return;
     // A blink: the stream drops and the TV comes back within SCREEN_GRACE_MS, still switched on.
     page.close();
     const back = track(await Viewer.open(h, 'kyrksam', undefined, 'display'));
-    expect(await back.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', canvas: canvas('Härlig är jorden') });
+    expect(await back.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', now: expect.any(Number), canvas: canvas('Härlig är jorden') });
     await latest(owner, (m) => m.online.includes('K1') && m.sessions[0]?.outputs[0]?.id === 'K1');
 
     // Closed for good: still online through the grace, then off.
@@ -243,7 +243,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
 
     owner.send({ type: 'own', state: ownState('S1', { outputs: [id, 'D1'], slide: slide('Härlig är jorden'), canvas: shown }) });
 
-    expect(await screen.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', canvas: shown });
+    expect(await screen.next((e) => e.type === 'canvas')).toEqual({ type: 'canvas', now: expect.any(Number), canvas: shown });
     expect(await viewer.next((e) => e.type === 'slide')).toEqual({ type: 'slide', slide: slide('Härlig är jorden') });
     expect(viewer.events.some((e) => e.type === 'canvas')).toBe(false);
   });
@@ -258,7 +258,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
     owner.send({ type: 'own', state: ownState('S1', { outputs: [id], slide: { ...slide('Före'), overlay: 'Välkommen' }, canvas: null }) });
 
     const e = await screen.next((x) => x.type === 'canvas');
-    expect(e).toEqual({ type: 'canvas', canvas: { slide: { kind: 'song', text: 'Före', verses: null, image: null, credits: null }, themeId: 'classic', overlay: { text: 'Välkommen', image: null } } });
+    expect(e).toEqual({ type: 'canvas', now: expect.any(Number), canvas: { slide: { kind: 'song', text: 'Före', verses: null, image: null, credits: null }, themeId: 'classic', overlay: { text: 'Välkommen', image: null } } });
   });
 
   it('a bound screen draws black when the session is black, rather than waiting', async () => {
@@ -273,7 +273,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
 
     owner.send({ type: 'own', state: ownState('S1', { outputs: [id], slide: null, canvas: null }) });
 
-    expect(await screen.next((e) => e.type === 'canvas' || e.type === 'idle', from)).toEqual({ type: 'canvas', canvas: null });
+    expect(await screen.next((e) => e.type === 'canvas' || e.type === 'idle', from)).toEqual({ type: 'canvas', now: expect.any(Number), canvas: null });
   });
 
   it('a saved screen draws black when its session ends, and waits with its name when it is switched off (Display.razor)', async () => {
@@ -297,7 +297,7 @@ describe.each(adapters)('%s adapter: paired screens', (adapterName) => {
 
     owner.send({ type: 'end', sessionId: 'S1' });
 
-    expect(await page.next((e) => e.type === 'canvas' || e.type === 'idle', from)).toEqual({ type: 'canvas', canvas: null });
+    expect(await page.next((e) => e.type === 'canvas' || e.type === 'idle', from)).toEqual({ type: 'canvas', now: expect.any(Number), canvas: null });
   });
 
   it("serves the overlay's picture to a screen only while that overlay is switched on, and never to a public output (LIVE-R34)", async () => {

@@ -12,6 +12,7 @@ import { navigate } from '../../ui/router.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
 import type { AudioControl } from '../../live/audio.ts';
+import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { LivePanel } from '../live/LivePanel.tsx';
@@ -48,6 +49,8 @@ function useWide(): boolean {
  */
 export type Presenting = {
   audio: AudioControl;
+  /** The presenting window's video; a controller has none (its video plays on the presenting computer, not driven from here). */
+  video?: VideoControl;
   owner: { sessionId: string } | null;
   link: LiveLink;
 };
@@ -314,7 +317,7 @@ export function PresentationEditor({
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
       {presenting && !owner && <RemoteBanner />}
       {presenting && <LiveKeys />}
-      {presenting && stage && <StageView items={items} slides={slides} theme={theme} overlays={overlays} live={live} audio={presenting.audio} onLeave={() => setStage(false)} />}
+      {presenting && stage && <StageView items={items} slides={slides} theme={theme} overlays={overlays} live={live} audio={presenting.audio} video={presenting.video} onLeave={() => setStage(false)} />}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
         <SideMenu
@@ -362,7 +365,7 @@ export function PresentationEditor({
           onStart={() => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false })}
           onShowMenu={() => setMenuVisible(true)}
           onAddImages={() => setAdding('images')}
-          shown={presenting ? { live, pointer, audio: presenting.audio } : undefined}
+          shown={presenting ? { live, pointer, audio: presenting.audio, video: presenting.video } : undefined}
         />
         {presenting && (
           <LivePanel

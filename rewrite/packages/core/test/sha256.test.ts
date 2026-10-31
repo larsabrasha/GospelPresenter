@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sha256, sha256Async, utf8Encode } from '@gp/core';
+import { Sha256, sha256, sha256Async, utf8Encode, type Sha256State } from '@gp/core';
 
 const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
 const subtle = (globalThis as unknown as { crypto: { subtle: { digest(a: string, d: Uint8Array): Promise<ArrayBuffer> } } }).crypto.subtle;
@@ -29,5 +29,25 @@ describe('sha256 without Web Crypto', () => {
       const data = Uint8Array.from({ length: n }, (_, i) => (i * 31 + n) & 0xff);
       expect(hex(sha256(data)), `${n} bytes`).toBe(hex(new Uint8Array(await subtle.digest('SHA-256', data))));
     }
+  });
+});
+
+describe('sha256 in steps', () => {
+  const data = Uint8Array.from({ length: 300_000 }, (_, i) => (i * 7 + 3) & 0xff);
+
+  it('gives the hash of the whole whatever the steps', () => {
+    const hash = new Sha256();
+    for (const [from, to] of [[0, 1], [1, 64], [64, 65], [65, 200_000], [200_000, 300_000]] as const) hash.update(data.subarray(from, to));
+
+    expect(hash.hex()).toBe(hex(sha256(data)));
+  });
+
+  it('takes up again from a written-down state, as a server does between two parts', () => {
+    const first = new Sha256().update(data.subarray(0, 131_072 + 5));
+    const state = JSON.parse(JSON.stringify(first.state())) as Sha256State;
+
+    const resumed = Sha256.from(state).update(data.subarray(131_072 + 5));
+
+    expect(resumed.hex()).toBe(hex(sha256(data)));
   });
 });

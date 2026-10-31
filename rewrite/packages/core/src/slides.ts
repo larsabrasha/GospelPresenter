@@ -1,9 +1,17 @@
 import { z } from 'zod';
 import { bibleCredits, bibleSlideText, type BibleItemContent, type BibleSlide } from './bible.ts';
 import { MEDIA_HASH } from './media.ts';
+import type { VideoCodec, VideoType } from './video.ts';
 import type { Label, Song, SongArrangement, SongPart } from './schema.ts';
 
-/** What an output renders for one slide (spec 04 `LiveSlide`): a song part, a piece of a Bible passage or a picture. */
+/** A video slide's video: what a device needs to stream it and to know whether it can play it. */
+export interface SlideVideo {
+  hash: string;
+  type: VideoType;
+  codec: VideoCodec;
+}
+
+/** What an output renders for one slide (spec 04 `LiveSlide`): a song part, a piece of a Bible passage, a picture or a video. */
 export interface Slide {
   /** The part id, plus the occurrence when an arrangement repeats the part: stable while the song is edited. */
   key: string;
@@ -17,6 +25,8 @@ export interface Slide {
   verses: BibleSlide | null;
   label: { text: string; color: string } | null;
   credits: string | null;
+  /** A video slide's video, which the outputs play; its `image` is the still, drawn where it does not play. */
+  video?: SlideVideo;
 }
 
 /** "Author · © Publisher · Year", dropping missing pieces; null if there are none (spec 04). */
@@ -83,6 +93,11 @@ export function bibleItemSlides(title: string, content: BibleItemContent): Slide
 /** A slide of an image item: one picture, over the theme's media background (spec 05). */
 export function imageSlide(fullHash: string, key = 'image'): Slide {
   return { key, kind: 'media', text: '', verses: null, image: fullHash, label: null, credits: null };
+}
+
+/** A video item's one slide: the still as its picture, the video for the outputs that play it. */
+export function videoSlide(video: { hash: string; contentType: VideoType; codec: VideoCodec; stillHash: string }): Slide {
+  return { key: 'video', kind: 'media', text: '', verses: null, image: video.stillHash, label: null, credits: null, video: { hash: video.hash, type: video.contentType, codec: video.codec } };
 }
 
 /** At most this many pictures in one image item. */

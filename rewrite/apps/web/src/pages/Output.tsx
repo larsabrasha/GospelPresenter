@@ -1,10 +1,39 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import type { SlideVideo } from '@gp/core';
 import { useData, useShownOverlay } from '../db/react.tsx';
 import { getPresentation, itemsOf, themeOf } from '../db/queries.ts';
 import { slidesOf, type LiveChannel } from '../live/live.ts';
 import { useLivePointer } from '../live/useLive.ts';
 import { SlideView } from '../ui/SlideView.tsx';
 import { askFullScreen } from '../ui/fullScreen.ts';
+import { BufferedVideo, FollowingVideo } from '../ui/FollowingVideo.tsx';
+import { canPlayVideo, playUrl } from '../media/video.ts';
+import type { OutputVideo } from '../live/video.ts';
+
+/** This machine's clock: the presenting window's video state is on it too. */
+const now = () => Date.now();
+
+/** A URL that streams the video, once the server has given a token for it; null where this device cannot play it. */
+function useVideoSrc(video: Pick<SlideVideo, 'hash' | 'type' | 'codec'> | null | undefined): string | null {
+  const [src, setSrc] = useState<{ hash: string; url: string | null } | null>(null);
+  const hash = video && canPlayVideo(video.type, video.codec) ? video.hash : null;
+  useEffect(() => {
+    if (!hash) return;
+    let live = true;
+    void playUrl(hash).then((url) => live && setSrc({ hash, url }));
+    return () => {
+      live = false;
+    };
+  }, [hash]);
+  return hash && src?.hash === hash ? src.url : null;
+}
+
+/** The video the operator plays, as the live channel brings it. */
+function useOutputVideo(live: LiveChannel): OutputVideo {
+  const [video, setVideo] = useState<OutputVideo>({ video: null, next: null });
+  useEffect(() => live.subscribeVideo(setVideo), [live]);
+  return video;
+}
 
 /**
  * An output window: renders its own copy of the content plus the live pointer
@@ -26,6 +55,12 @@ export function Output({ live }: { live: LiveChannel }) {
     [pointer.presentationId, pointer.itemId, pointer.partIndex],
   );
   const overlay = useShownOverlay(pointer.overlayId);
+  // A video slide plays here, muted, following the operator window's video; its sound is the operator window's (LIVE-R6).
+  const playback = useOutputVideo(live);
+  const shownVideo = shown?.slide.video;
+  const src = useVideoSrc(shownVideo);
+  const following = playback.video && playback.video.hash === shownVideo?.hash ? playback.video : null;
+  const nextSrc = useVideoSrc(playback.next && playback.next.hash !== shownVideo?.hash ? playback.next : null);
   // The window is named after the presentation, as the current app's `?title` (Live.razor).
   const name = useData(async (db) => (pointer.presentationId ? ((await getPresentation(db, pointer.presentationId))?.name ?? null) : null), [pointer.presentationId]);
   useEffect(() => {
@@ -48,7 +83,15 @@ export function Output({ live }: { live: LiveChannel }) {
   return (
     // A click asks for full screen (Live.razor).
     <div className="fixed inset-0 bg-black cursor-none" data-testid="output" onClick={askFullScreen}>
-      <SlideView slide={shown?.slide ?? null} theme={shown?.theme} label={false} overlay={overlay} black={pointer.black} />
+      <SlideView
+        slide={shown?.slide ?? null}
+        theme={shown?.theme}
+        label={false}
+        overlay={overlay}
+        black={pointer.black}
+        video={<FollowingVideo key={shownVideo?.hash} src={src} video={following} clock={now} />}
+      />
+      <BufferedVideo src={nextSrc} />
     </div>
   );
 }

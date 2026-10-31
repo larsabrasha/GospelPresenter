@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { CANVAS, CLASSIC, type Slide, type Theme } from '@gp/core';
 import { useBlobUrl } from '../db/react.tsx';
 import type { ShownOverlay } from '../db/queries.ts';
@@ -92,6 +92,7 @@ function useBlackFade(black: boolean, slide: Slide | null, overlay: ShownOverlay
  * `highlight` marks a search's words in a song's text: the add dialog's preview only, never an output.
  * `black`, given on outputs and the live preview, is the black screen: a black cover above the slide and the
  * overlay that fades in and out over 500 ms (LiveDisplay.razor); what was shown stays under it while it fades in.
+ * `video` is what an output plays over a video slide's still (`FollowingVideo`); previews and tiles draw the still.
  */
 export function SlideView({
   slide: given,
@@ -102,6 +103,7 @@ export function SlideView({
   media,
   highlight,
   black,
+  video,
 }: {
   slide: Slide | null;
   theme?: Theme;
@@ -111,6 +113,7 @@ export function SlideView({
   media?: (hash: string) => string;
   highlight?: string;
   black?: boolean;
+  video?: ReactNode;
 }) {
   const shown = useBlackFade(!!black, given, givenOverlay);
   const { slide, overlay } = black === undefined ? { slide: given, overlay: givenOverlay } : shown;
@@ -140,7 +143,10 @@ export function SlideView({
               </span>
             )}
             {slide.kind === 'media' ? (
-              slide.image && <Picture hash={slide.image} media={media} className="slide-image" testId="slide-image" />
+              <>
+                {slide.image && <Picture hash={slide.image} media={media} className="slide-image" testId="slide-image" />}
+                {slide.video && video}
+              </>
             ) : (
               <>
                 <div className="slide-content">

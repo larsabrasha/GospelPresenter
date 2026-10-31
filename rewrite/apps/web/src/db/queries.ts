@@ -8,6 +8,7 @@ import {
   type BibleBookText,
   type Display,
   type LibraryAudio,
+  type LibraryVideo,
   type Label,
   type LibraryImage,
   type Overlay,
@@ -62,7 +63,7 @@ const presentation = (r: Row): Presentation => ({
 const item = (r: Row): PresentationItem => ({
   id: String(r.id),
   presentationId: String(r.presentation_id),
-  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' || r.type === 'slides' ? r.type : 'song',
+  type: r.type === 'bible' || r.type === 'image' || r.type === 'audio' || r.type === 'slides' || r.type === 'video' ? r.type : 'song',
   title: String(r.title),
   sourceId: String(r.source_id),
   sort: Number(r.sort),
@@ -161,7 +162,7 @@ export async function getPresentation(db: ReadDb, id: string): Promise<Presentat
 }
 
 export interface TrashEntry {
-  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio';
+  kind: 'Presentation' | 'Template' | 'Song' | 'Image' | 'Audio' | 'Video';
   id: string;
   name: string;
   /** The event date of a presentation, the author of a song. */
@@ -177,7 +178,9 @@ export async function listTrash(db: ReadDb): Promise<TrashEntry[]> {
   const presentations = (await db.query('SELECT * FROM presentations WHERE deleted_at IS NOT NULL')).map(presentation);
   const trashedImages = (await db.query('SELECT * FROM images WHERE deleted_at IS NOT NULL')).map(libraryImage);
   const trashedAudios = (await db.query('SELECT * FROM audios WHERE deleted_at IS NOT NULL')).map(libraryAudio);
+  const trashedVideos = (await db.query('SELECT * FROM videos WHERE deleted_at IS NOT NULL')).map(libraryVideo);
   const entries: TrashEntry[] = [
+    ...trashedVideos.map((v) => ({ kind: 'Video' as const, id: v.id, name: v.fileName, detail: null, deletedAt: v.deletedAt! })),
     ...trashedImages.map((i) => ({ kind: 'Image' as const, id: i.id, name: i.fileName, detail: null, deletedAt: i.deletedAt! })),
     ...trashedAudios.map((a) => ({ kind: 'Audio' as const, id: a.id, name: a.fileName, detail: null, deletedAt: a.deletedAt! })),
     ...presentations.map((p) =>
@@ -364,6 +367,35 @@ export async function listAudios(db: ReadDb): Promise<LibraryAudio[]> {
 export async function getAudio(db: ReadDb, id: string): Promise<LibraryAudio | null> {
   const [r] = await db.query('SELECT * FROM audios WHERE id = ?', [id]);
   return r ? libraryAudio(r) : null;
+}
+
+// ------------------------------------------------------------------ video
+
+const libraryVideo = (r: Row): LibraryVideo => ({
+  id: String(r.id),
+  fileName: String(r.file_name),
+  contentType: r.content_type === 'video/quicktime' ? 'video/quicktime' : 'video/mp4',
+  codec: r.codec === 'hevc' ? 'hevc' : 'h264',
+  hash: String(r.hash),
+  size: Number(r.size),
+  duration: Number(r.duration),
+  width: Number(r.width),
+  height: Number(r.height),
+  stillHash: String(r.still_hash),
+  thumbHash: String(r.thumb_hash),
+  createdAt: Number(r.created_at),
+  deletedAt: (r.deleted_at as number | null) ?? null,
+});
+
+/** The videos, newest first, without the trash (MEDIA-R7). */
+export async function listVideos(db: ReadDb): Promise<LibraryVideo[]> {
+  return (await db.query('SELECT * FROM videos WHERE deleted_at IS NULL ORDER BY created_at DESC, id')).map(libraryVideo);
+}
+
+/** A video by id, trashed or not: a trashed video still plays where it is used (MEDIA-R8). */
+export async function getVideo(db: ReadDb, id: string): Promise<LibraryVideo | null> {
+  const [r] = await db.query('SELECT * FROM videos WHERE id = ?', [id]);
+  return r ? libraryVideo(r) : null;
 }
 
 /** Whether this device keeps the presentation's files whatever its date ("Tillgänglig offline"). */

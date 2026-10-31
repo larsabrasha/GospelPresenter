@@ -17,11 +17,14 @@ import {
   type Song,
   type SongArrangement,
   type SongPart,
+  type LibraryVideo,
+  videoSlide,
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
-import { arrangementsOf, getAudio, getImage, listLabels, songPartsOf, songsById } from '../db/queries.ts';
+import type { OutputVideo } from './video.ts';
+import { arrangementsOf, getAudio, getImage, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
-type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'hello' };
+type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'hello' };
 
 function restore(key: string): LivePointer | null {
   try {
@@ -42,6 +45,8 @@ export class LiveChannel {
   private current: LivePointer = IDLE;
   private storageKey: string;
   private listeners = new Set<(p: LivePointer) => void>();
+  private video: OutputVideo = { video: null, next: null };
+  private videoListeners = new Set<(v: OutputVideo) => void>();
   /**
    * The overlay each item of the presenting presentation carries, kept
    * current by the owner (`useLiveOwner`), so `set` can switch it on and off
@@ -59,7 +64,11 @@ export class LiveChannel {
     if (role === 'operator') this.current = restore(this.storageKey) ?? IDLE;
     this.channel.addEventListener('message', (e: MessageEvent<LiveMessage>) => {
       if (e.data.type === 'hello') {
-        if (this.role === 'operator') this.channel.postMessage({ type: 'pointer', pointer: this.current } satisfies LiveMessage);
+        if (this.role !== 'operator') return;
+        this.channel.postMessage({ type: 'pointer', pointer: this.current } satisfies LiveMessage);
+        this.channel.postMessage({ type: 'video', video: this.video } satisfies LiveMessage);
+      } else if (e.data.type === 'video') {
+        if (this.role === 'output') this.receiveVideo(e.data.video);
       } else this.receive(e.data.pointer);
     });
     if (role === 'output') this.channel.postMessage({ type: 'hello' } satisfies LiveMessage);
@@ -94,6 +103,28 @@ export class LiveChannel {
     return () => this.listeners.delete(fn);
   }
 
+  /**
+   * Operator only: where the video plays now, and the next one to buffer, for
+   * the output window on this machine (TODO.md "Video on the outputs"). Sent
+   * on every change of the video, never through the server.
+   */
+  setVideo(video: OutputVideo) {
+    this.video = video;
+    this.channel.postMessage({ type: 'video', video } satisfies LiveMessage);
+  }
+
+  private receiveVideo(video: OutputVideo) {
+    this.video = video;
+    for (const fn of this.videoListeners) fn(video);
+  }
+
+  /** Output only: the video the operator plays, now and on every change. */
+  subscribeVideo(fn: (v: OutputVideo) => void): () => void {
+    this.videoListeners.add(fn);
+    fn(this.video);
+    return () => this.videoListeners.delete(fn);
+  }
+
   close() {
     this.channel.close();
   }
@@ -102,9 +133,11 @@ export class LiveChannel {
 export interface ItemSlides {
   slides: Slide[];
   /** Why the item has no slides, if it has none. An audio item has none by nature. */
-  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | null;
+  problem: 'song-missing' | 'song-trashed' | 'no-parts' | 'image-missing' | 'audio-missing' | 'video-missing' | null;
   /** An audio item's file: played on the presenting computer, never shown (LIVE-R6). */
   audio?: { hash: string; fileName: string };
+  /** A video item's video: its one slide plays it on the outputs, its sound on the presenting computer. */
+  video?: LibraryVideo;
 }
 
 /**
@@ -154,6 +187,10 @@ async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData
   if (item.type === 'audio') {
     const audio = await getAudio(db, item.sourceId);
     return audio ? { slides: [], problem: null, audio: { hash: audio.hash, fileName: audio.fileName } } : { slides: [], problem: 'audio-missing' };
+  }
+  if (item.type === 'video') {
+    const video = await getVideo(db, item.sourceId);
+    return video ? { slides: [videoSlide(video)], problem: null, video } : { slides: [], problem: 'video-missing' };
   }
   if (item.type === 'image') {
     // A slide per picture. A reference like a song, but a trashed picture still shows (MEDIA-R8); a purged one is gone.

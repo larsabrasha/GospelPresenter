@@ -37,8 +37,8 @@ device sees the row in a pull and downloads, hash and signature checked, the blo
 files a device keeps](#which-files-a-device-keeps)).
 
 **Clean-up.** Mutators never touch the blobs. After a push that can leave blobs unused (`addImage`,
-`purgeImage`, `purgeExpiredTrash`, and for audio and slide decks their adds, `purgeAudio`, `removeItem` and
-`purgePresentation`), not after every edit, the server removes the blobs nothing names (`ORPHAN_BLOBS_SQL`),
+`purgeImage`, `purgeExpiredTrash`, and for audio, video and slide decks their adds, `purgeAudio`, `purgeVideo`,
+`removeItem` and `purgePresentation`), not after every edit, the server removes the blobs nothing names (`ORPHAN_BLOBS_SQL`),
 and a device does the same in `syncMedia`, but only for blobs older than an hour (`ORPHAN_GRACE_MS`), so a
 blob uploaded just before its `addImage` arrives is never taken away. Uploading a blob the server has already
 starts its hour over, and a device uploads a waiting add's blobs again once half an hour has passed, so an add
@@ -80,6 +80,62 @@ something on the page, and Safari only on an element that has played after such 
 a moment of silence at the operator's first click or key. The e2e shows a controller starting the sound first in
 the desktop app; the browser case, Safari above all, is not tested.
 
+## Video
+
+A video (TODO.md "Video, and which files a device fetches") is a synced row in `videos` (file name, type, codec,
+hash, size, length in milliseconds, width, height, the hashes of its still's two pictures, `created_at`,
+`deleted_at`; organisation schema 13) and one blob, the file byte for byte as it was picked: MP4 or MOV with H.264
+or HEVC, at most 2 GiB, never converted. Its still, the first frame, is stored as a picture is, in both sizes
+(`still` fits 1920×1080, `thumb` 400×225). A video item (`type` 'video', `sourceId` the video) has one slide, a
+`media` slide whose picture is the still and which carries the video (`videoSlide` in core). Everyone may import,
+trash and add videos (`ViewVideos`, `ManageVideos`, as for audio); at most 500, the trash not counted. The trash
+holds them with the rest ("Videor"), and the clean-up takes all three blobs once nothing names them.
+
+**What a file is** (`packages/core/src/video.ts`). The import and the server read the same boxes, a range at a
+time: the `ftyp` box at the start (brand `qt  ` is MOV, anything else MP4), then the top-level boxes a header at a
+time to find `moov`, which may be at either end, and in it the first video track's sample entry (`avc1`/`avc3` is
+H.264, `hvc1`/`hev1` HEVC). Anything else is refused: the page names the codec and says to export as MP4 (H.264).
+
+**The import** (`apps/web/src/media/video.ts`, the Video tab in Lägg till, Ctrl/⌘+6). The page checks the type
+(the browser's, else the extension), size and name; reads the codec; loads the file once in a `<video>` from an
+object URL for its length, size and the still (a device that cannot decode it, HEVC on Linux, is refused: it could
+not make the still); hashes it with core's SHA-256 in steps, 8 MiB at a time (`Sha256`, no Web Crypto, as
+`crypto.subtle.digest` takes only a whole buffer); then uploads it in parts and records it: the worker keeps the
+still's blobs as a picture's, records the video's blob without bytes, and queues `addVideo`, whose still goes up
+before it is pushed (`MediaUploads`). The video is never kept on the device, so importing one needs the server; an
+upload that cannot reach it waits and goes on by itself.
+
+**The upload in parts** (`apps/server/src/video-routes.ts`, all under ManageVideos):
+`POST /api/media/{hash}/upload` with the size starts one, or says where one stands (`received`, always whole
+parts) or that the server has the video (`done`); `PUT /api/media/{hash}/upload/{n}` takes part n, 8 MiB but the
+last; `POST /api/media/{hash}/upload/finish` checks the hash, makes the object, reads its codec from it and only
+then records it in `media_blobs`. The upload is known by the video's hash, in a server-only table of the
+organisation (`media_uploads`), with the running SHA-256 of the parts so far, so the server never reads the file
+back to check it. A part again is answered with where the upload stands, one out of order is refused (409), and
+the first part must start with `ftyp` (the signature, not the claimed type, MEDIA-A6). In storage it is R2's
+multipart upload on Workers, and on Node a file beside the key, written at each part's offset and renamed when
+finished (`MediaStorage.startUpload`, `putPart`, `finishUpload`, `abortUpload`). An upload left for six days is
+given up (R2 drops unfinished ones after seven). The page (`uploadVideo`) asks where the server is, sends the parts
+after that, and on a network error or a 5xx waits 1, 2, 5, 10, then 30 s and asks again, for as long as the page
+is open; a page that was closed starts over by picking the same file, which hashes to the same name and goes on
+from the last part. The phone keeps no copy to go on from.
+
+**Streaming.** `GET /api/media/{hash}` of a video streams it with HTTP Range (206 and `Content-Range`, 416 past
+the end), never read into memory on the server (`MediaStorage.read` with a range: a file stream on Node, R2's
+ranged get), with `Cache-Control: no-store`. A `<video src>` cannot send the session's header, so a signed-in page
+asks `POST /api/media/{hash}/play` for a URL, `/api/play/{token}/{hash}`: a token good for six hours that names one
+blob of the caller's organisation, kept hashed in the global tables (`play_tokens`, global schema 7) so the Worker
+finds the organisation from it; the desktop host's pairing guard lets it through, as the token is the credential.
+The editor's player (`VideoPreview`) loads nothing until played (`preload="none"`) and keeps nothing; the operator
+window, the output window and a paired screen stream the same way. `fetchMedia` and `blobUrl` are never used for a
+video.
+
+**Files.** A device fetches a video's thumbnail always (with the pictures'), and its still with a presentation's
+pictures, ahead or on demand as for pictures; never the video. "Alla bilder och ljud finns på den här enheten"
+counts the still. On the desktop host the video is on the server's disk once, and `no-store` keeps Chromium's HTTP
+cache in Electron's profile from keeping a second copy (that `immutable` would have done so for video was not
+measured; `no-store` rules it out).
+
 ## Slide decks
 
 A slide deck (D29) is a presentation item of type
@@ -107,8 +163,8 @@ fonts and do not use JPEG 2000.
 ## Which files a device keeps
 
 Every device has every row, but not every file (`syncMedia` and `MediaPolicy` in
-`packages/sync/src/client/media.ts`). Always: every picture's thumbnail, which is small and what the
-library and the pickers show. Ahead of time, on a device that keeps its data (OPFS in a browser, the desktop
+`packages/sync/src/client/media.ts`). Always: every picture's and video's thumbnail, which is small and what the
+library and the pickers show. Never a video: it streams (see [Video](#video)); its still counts as a full picture. Ahead of time, on a device that keeps its data (OPFS in a browser, the desktop
 app, later the tablet app): the full pictures, the audio and the slide decks' pages (both sizes) of every presentation dated from today to seven
 days ahead, so Sunday's material is on the computer before anyone leaves for church. On demand, on any device:
 what a presentation open on one of its pages needs (the editor, the live page, remote control), fetched at

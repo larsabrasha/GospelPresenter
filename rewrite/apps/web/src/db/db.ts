@@ -1,5 +1,5 @@
 import type { BibleBookText, MutatorArgs, MutatorName } from '@gp/core';
-import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
+import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
@@ -70,6 +70,12 @@ export class Db implements ReadDb {
   addAudio(audio: AudioImport): Promise<void> {
     this.lastWriteAt = Date.now();
     return this.call({ op: 'addAudio', audio });
+  }
+
+  /** Records an uploaded video in the library; its still is kept here and uploaded before the add is pushed. */
+  addVideo(video: VideoImport): Promise<void> {
+    this.lastWriteAt = Date.now();
+    return this.call({ op: 'addVideo', video });
   }
 
   /** Keeps a rendered slide deck's pages here and adds it as an item, online or not. */

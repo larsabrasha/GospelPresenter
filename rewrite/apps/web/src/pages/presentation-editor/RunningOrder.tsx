@@ -146,7 +146,7 @@ export function RunningOrder({
                       {carried.title}
                     </span>
                   )}
-                  {(problem === 'song-trashed' || problem === 'song-missing' || problem === 'image-missing' || problem === 'audio-missing') && (
+                  {(problem === 'song-trashed' || problem === 'song-missing' || problem === 'image-missing' || problem === 'audio-missing' || problem === 'video-missing') && (
                     <span className={isSelected ? 'text-white' : 'text-amber-500'}>
                       <WarningIcon className="size-4" />
                       <span className="sr-only">⚠</span>

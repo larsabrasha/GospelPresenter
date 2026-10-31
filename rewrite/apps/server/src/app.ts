@@ -30,13 +30,17 @@ import { currentSeq, dump, handlePull, handlePush, type OrgStore, type PokeCoale
 import type { Caller } from './auth/index.ts';
 import type { LiveHub, Viewer } from './live-hub.ts';
 import type { MediaStorage } from './media.ts';
+import type { PlayTokens } from './play-tokens.ts';
+import { serveVideo, videoBlob, videoRoutes } from './video-routes.ts';
 import type { WatchRegistry } from './watch.ts';
 
 export { authenticate, authRoutes, credentials, isApiPath, isLoopback, pairingGuard, WS_PROTOCOL, type AuthDeps, type Caller, type Pairing } from './auth/index.ts';
 export { GoogleOidc, TEST_ISSUER_BUILD, type GoogleConfig, type GoogleIdentity, type TokenProblem } from './google.ts';
 export { Accounts, globalDdl, migrateGlobal, GLOBAL_SCHEMA_VERSION, globalSchemaPlan, type GlobalSql } from './global/index.ts';
 export { Passkeys, type PasskeyConfig } from './webauthn.ts';
-export { memoryStorage, r2Storage, type MediaStorage, type R2Like } from './media.ts';
+export { memoryStorage, r2Storage, streamBytes, type MediaStorage, type R2Like } from './media.ts';
+export { PlayTokens } from './play-tokens.ts';
+export { parseRange, playRoutes } from './video-routes.ts';
 export { lookupThrottled, WatchRegistry, type WatchTarget } from './watch.ts';
 
 /** An organisation's runtime: its database, its write queue, its poke hub and its live sessions. */
@@ -53,7 +57,19 @@ export interface Org {
  * audio and slide decks. A slide deck's pages are named only by its item, so
  * removing the item, or purging its presentation or template, may free them too.
  */
-const MEDIA_GC_MUTATORS: readonly string[] = ['purgeImage', 'purgeExpiredTrash', 'addImage', 'purgeAudio', 'addAudio', 'addSlides', 'removeItem', 'purgePresentation', 'purgeTemplate'];
+const MEDIA_GC_MUTATORS: readonly string[] = [
+  'purgeImage',
+  'purgeExpiredTrash',
+  'addImage',
+  'purgeAudio',
+  'addAudio',
+  'purgeVideo',
+  'addVideo',
+  'addSlides',
+  'removeItem',
+  'purgePresentation',
+  'purgeTemplate',
+];
 
 /**
  * Removes the stored blobs nothing names, once they are older than the grace
@@ -80,11 +96,16 @@ export interface SyncRouteOptions {
   mediaGraceMs?: number;
   /** The global index of public output codes; kept up to date after a push that changed outputs. */
   watch?: WatchRegistry | null;
+  /** Where the tokens a `<video src>` streams with are kept (global); without it, no video streams. */
+  playTokens?: PlayTokens | null;
+  /** The size of a video upload's parts but the last (tests). */
+  videoPartBytes?: number;
 }
 
 export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; org: Org } | Response>, opts: SyncRouteOptions) {
-  const { debug, media = null, mediaGraceMs = ORPHAN_GRACE_MS, watch = null } = opts;
+  const { debug, media = null, mediaGraceMs = ORPHAN_GRACE_MS, watch = null, playTokens = null } = opts;
   const app = new Hono();
+  app.route('/', videoRoutes(resolve, { media, playTokens, partBytes: opts.videoPartBytes }));
 
   app.post('/api/sync/push', async (c) => {
     const r = await resolve(c);
@@ -217,7 +238,10 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     if (!media) return c.json({ error: 'media-disabled' }, 503);
     const hash = c.req.param('hash');
     // Only this organisation's blobs are known to its store, and its key starts with its id (MEDIA-R11).
-    const known = MEDIA_HASH.test(hash) ? await r.org.queue.run(async () => r.org.store.query('SELECT content_type FROM media_blobs WHERE hash = ?', [hash])) : [];
+    const known = MEDIA_HASH.test(hash) ? await r.org.queue.run(async () => r.org.store.query('SELECT content_type, size FROM media_blobs WHERE hash = ?', [hash])) : [];
+    // A video streams, a range at a time; it is never read whole.
+    const type = String(known[0]?.content_type ?? '');
+    if (type.startsWith('video/')) return serveVideo(c, media, mediaKey(r.caller.orgId, hash), { type, size: Number(known[0]!.size), hash });
     const bytes = known.length ? await media.get(mediaKey(r.caller.orgId, hash)) : null;
     if (!bytes) return c.json({ error: 'not-found' }, 404);
     c.header('cache-control', 'private, max-age=31536000, immutable'); // content-addressed (D28)
@@ -348,6 +372,19 @@ export function outputRoutes(kind: OutputKind, resolve: (c: Context, key: string
     c.header('x-content-type-options', 'nosniff');
     return c.body(bytes as Uint8Array<ArrayBuffer>);
   });
+
+  // A paired screen streams the video on its canvas itself, muted (TODO.md "Video on the outputs"); a public output never does.
+  if (kind !== 'watch') {
+    app.get(`${base}/video/:hash`, async (c) => {
+      const hash = c.req.param('hash') ?? '';
+      const t = MEDIA_HASH.test(hash) ? await find(c, c.req.param('code') ?? '') : null;
+      if (t instanceof Response) return t;
+      if (!t || !media) return c.json({ error: 'not-found' }, 404);
+      const blob = await t.org.queue.run(async () => (t.live.showingVideo(t.displayId, hash) ? videoBlob(t.org.store, hash) : undefined));
+      if (!blob) return c.json({ error: 'not-found' }, 404);
+      return serveVideo(c, media, mediaKey(t.orgId, hash), blob);
+    });
+  }
 
   return app;
 }

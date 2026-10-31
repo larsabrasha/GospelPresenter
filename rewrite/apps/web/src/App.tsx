@@ -7,6 +7,7 @@ import { useDb } from './db/react.tsx';
 import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
 import { AudioEngine, audioUrlOfItem } from './live/audio.ts';
+import { VideoEngine } from './live/video.ts';
 import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
 import { About } from './pages/About.tsx';
@@ -47,8 +48,10 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const db = useDb();
   // The session's audio plays in this window, whichever page is open (spec 04 §1b).
   const audio = useMemo(() => new AudioEngine((itemId) => audioUrlOfItem(db, itemId)), [db]);
+  // So does a video item's, and its picture's clock, which the outputs follow (TODO.md "Video on the outputs").
+  const video = useMemo(() => new VideoEngine(), []);
   // This window owns whatever it presents, on every page (LIVE-R49).
-  useLiveOwner(live, link, db, sessionId, audio);
+  useLiveOwner(live, link, db, sessionId, audio, video);
   const [me, setMe] = useState(initial);
   const [host, setHost] = useState(false);
 
@@ -105,7 +108,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
         ) : under.page === 'settings' ? (
           <Settings />
         ) : under.page === 'presentation' ? (
-          <Live key={`${under.id}:${under.remote ? (under.session ?? 'remote') : 'own'}`} id={under.id} role={me.role} live={live} link={link} audio={audio} sessionId={sessionId} remote={under.remote} session={under.session} stage={under.stage} />
+          <Live key={`${under.id}:${under.remote ? (under.session ?? 'remote') : 'own'}`} id={under.id} role={me.role} live={live} link={link} audio={audio} video={video} sessionId={sessionId} remote={under.remote} session={under.session} stage={under.stage} />
         ) : under.page === 'template' ? (
           // Editing a template is for admins (D24): a user who has the link is told so.
           can(me.role, 'ManageTemplates') ? (

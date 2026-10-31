@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { resolveTheme, type Canvas } from '@gp/core';
+import { canPlayVideo } from '../media/video.ts';
+import { FollowingVideo } from '../ui/FollowingVideo.tsx';
 import { followStream } from '../live/watch-stream.ts';
 import { t } from '../i18n.ts';
 import { LogoIcon } from '../ui/icons.tsx';
@@ -15,7 +17,8 @@ import { viewerId } from './Watch.tsx';
 // Bound to a session it draws the projector's canvas, as the output window
 // does (Display.razor renders LiveDisplay), from the canvas the server sends.
 
-type Shown = { kind: 'idle' } | { kind: 'canvas'; canvas: Canvas | null };
+/** `offset`: the server's clock less this page's, from the moment the canvas came, for a video's `at`. */
+type Shown = { kind: 'idle' } | { kind: 'canvas'; canvas: Canvas | null; offset: number };
 
 const SCREEN_KEY = 'ad-hoc-display-id';
 const POLL_MS = 3000;
@@ -69,7 +72,7 @@ function follow(base: string, on: { shown: (s: Shown) => void; name?: (n: string
         if (m.type === 'meta') {
           on.name?.(m.outputName);
           document.title = m.orgName || 'Gospel Presenter';
-        } else if (m.type === 'canvas') on.shown({ kind: 'canvas', canvas: m.canvas });
+        } else if (m.type === 'canvas') on.shown({ kind: 'canvas', canvas: m.canvas, offset: m.now === undefined ? 0 : m.now - Date.now() });
         else if (m.type === 'idle') on.shown({ kind: 'idle' });
         else if (m.type === 'unpaired') on.gone();
       },
@@ -94,12 +97,30 @@ function Slide({ base, shown }: { base: string; shown: Shown }) {
   if (canvas && canvas !== last) setLast(canvas);
   const drawn = canvas ?? last;
   // The same objects while the canvas is the same, as the fade compares them.
-  const slide = useMemo(() => (drawn?.slide ? { ...drawn.slide, key: '', label: null } : null), [drawn]);
+  const slide = useMemo(() => {
+    if (!drawn?.slide) return null;
+    const { video, ...rest } = drawn.slide;
+    return { ...rest, key: '', label: null, ...(video ? { video: { hash: video.hash, type: video.type, codec: video.codec } } : {}) };
+  }, [drawn]);
   const overlay = useMemo(() => (drawn?.overlay ? { content: drawn.overlay.text, imageHash: drawn.overlay.image } : null), [drawn]);
+  // A video plays here muted, streamed by this screen itself, where the server's clock says it should be; one this
+  // browser cannot play shows its still (TODO.md "Video on the outputs").
+  const video = drawn?.slide?.video ?? null;
+  const offset = shown.kind === 'canvas' ? shown.offset : 0;
+  const clock = useCallback(() => Date.now() + offset, [offset]);
+  const playable = !!video && canPlayVideo(video.type, video.codec);
   return (
     // One element throughout, so the cover is there to fade when the canvas comes back.
     <div className="fixed inset-0 bg-black cursor-none" data-testid={canvas ? 'output' : 'display-black'}>
-      <SlideView slide={slide} theme={resolveTheme(drawn?.themeId ?? null, null)} label={false} overlay={overlay} black={!canvas} media={(hash) => `${base}/image/${hash}`} />
+      <SlideView
+        slide={slide}
+        theme={resolveTheme(drawn?.themeId ?? null, null)}
+        label={false}
+        overlay={overlay}
+        black={!canvas}
+        media={(hash) => `${base}/image/${hash}`}
+        video={playable && video ? <FollowingVideo key={video.hash} src={`${base}/video/${video.hash}`} video={video} clock={clock} /> : null}
+      />
     </div>
   );
 }

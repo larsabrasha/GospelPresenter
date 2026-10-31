@@ -3,6 +3,8 @@ import type { Overlay, PresentationItem, Theme } from '@gp/core';
 import { useShownOverlay } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { useAudio, type AudioControl } from '../live/audio.ts';
+import type { VideoControl } from '../live/video.ts';
+import { VideoPlayer } from './live/VideoPlayer.tsx';
 import type { ItemSlides } from '../live/live.ts';
 import type { LiveControl } from '../live/remote.ts';
 import { useLivePointer } from '../live/useLive.ts';
@@ -48,6 +50,7 @@ export function StageView({
   overlays,
   live,
   audio,
+  video,
   onLeave,
 }: {
   items: PresentationItem[];
@@ -56,6 +59,7 @@ export function StageView({
   overlays: Overlay[];
   live: LiveControl;
   audio: AudioControl;
+  video?: VideoControl;
   onLeave: () => void;
 }) {
   useShortcutGroup(KEYS);
@@ -137,6 +141,7 @@ export function StageView({
   // Nästa shows the slide after the live part, also while the screen is black (StageView.razor).
   const next = item ? parts[pointer.partIndex + 1] : undefined;
   const audioItem = item && slides.get(item.id)?.audio;
+  const videoItem = item && slides.get(item.id)?.video;
 
   const caption = 'text-[10px] uppercase tracking-widest text-neutral-500 font-semibold';
 
@@ -238,6 +243,8 @@ export function StageView({
                 </span>
               )}
             </div>
+            {/* A video item: its player, so it is paused and moved in from here; its sound plays on this computer. */}
+            {videoItem && item && video && <VideoPlayer control={video} itemId={item.id} name={videoItem.fileName} type={videoItem.contentType} codec={videoItem.codec} />}
             <AppButton
               variant="plain"
               className={`cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium shrink-0 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 mt-1 ${pointer.black ? 'invisible' : ''}`}

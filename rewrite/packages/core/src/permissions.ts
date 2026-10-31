@@ -18,6 +18,8 @@ export type Permission =
   | 'ManageImages'
   | 'ViewAudios'
   | 'ManageAudios'
+  | 'ViewVideos'
+  | 'ManageVideos'
   | 'ViewOverlays'
   | 'ManageOverlays'
   | 'ViewUsers'
@@ -27,7 +29,7 @@ export type Permission =
   | 'ManageOrganizations'
   | 'AssignSuperAdminRole';
 
-const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewTemplates', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes', 'ViewImages', 'ManageImages', 'ViewAudios', 'ManageAudios', 'ViewOverlays', 'ManageOverlays'];
+const everyone: Permission[] = ['ViewPresentations', 'ManagePresentations', 'ViewTemplates', 'ViewSongs', 'ManageSongs', 'ViewBibles', 'ViewThemes', 'ViewImages', 'ManageImages', 'ViewAudios', 'ManageAudios', 'ViewVideos', 'ManageVideos', 'ViewOverlays', 'ManageOverlays'];
 /**
  * Importing and deleting Bibles, and making and editing templates, is for admins (D24); everyone uses them.
  * The organisation's settings (remote control so far) are for admins too.

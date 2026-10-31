@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 // fragment, which no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
-export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio'] as const;
+export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio', 'Video'] as const;
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
 export type Route =

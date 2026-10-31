@@ -2,12 +2,13 @@ import { DurableObject } from 'cloudflare:workers';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { Hono, type Context } from 'hono';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Role, type Tx } from '@gp/core';
-import { outputRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
+import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
 import { authenticate, authRoutes, isApiPath, WS_PROTOCOL } from './auth/index.ts';
 import { GoogleOidc, TEST_ISSUER_BUILD } from './google.ts';
 import { Accounts, migrateGlobal, type GlobalSql, type Row } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { r2Storage, type R2Like } from './media.ts';
+import { PlayTokens } from './play-tokens.ts';
 import { Passkeys } from './webauthn.ts';
 import { lookupThrottled, WatchRegistry } from './watch.ts';
 import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
@@ -103,7 +104,7 @@ export class OrgDurableObject extends DurableObject<Env> {
       const userId = c.req.header('x-user')!;
       const role = c.req.header('x-role') as Role;
       // Sync needs neither when the session signed in nor how: those matter only to the auth routes.
-      return { caller: { orgId: c.req.header('x-org')!, sessionId: '', ctx: { userId, role }, signedInAt: 0, paired: true }, org: this.org };
+      return { caller: { orgId: c.req.header('x-org')!, sessionId: c.req.header('x-session') ?? '', ctx: { userId, role }, signedInAt: 0, paired: true }, org: this.org };
     };
     this.app = syncRoutes(resolveCaller, {
       debug: env.SPIKE_DEBUG === '1',
@@ -111,8 +112,17 @@ export class OrgDurableObject extends DurableObject<Env> {
       mediaGraceMs: env.MEDIA_GRACE_MS ? Number(env.MEDIA_GRACE_MS) : undefined,
       // The organisation's object writes its codes to the global index in D1.
       watch: new WatchRegistry(d1Sql(env.DB)),
+      playTokens: new PlayTokens(d1Sql(env.DB)),
     });
     const media = env.MEDIA ? r2Storage(env.MEDIA as unknown as R2Like) : null;
+    // A video's stream: the Worker checked the token in D1 and names its organisation (only it reaches this object).
+    this.app.route(
+      '/',
+      playRoutes(async (c) => {
+        const orgId = c.req.header('x-play-org');
+        return orgId ? { org: this.org, orgId } : null;
+      }, media),
+    );
     // An output: the Worker found the code (or a temporary screen's id) in D1 and names the output in headers.
     for (const kind of ['watch', 'display', 'screen'] as const) {
       this.app.route(
@@ -304,7 +314,7 @@ worker.get('/api/debug/d1-triggers', async (c) => {
 const toOutput = (c: Context<{ Bindings: Env }>, target: { orgId: string; orgName: string; displayId: string }, key: string) => {
   const stub = c.env.ORG.get(c.env.ORG.idFromName(target.orgId));
   const headers = new Headers(c.req.raw.headers);
-  for (const h of ['x-user', 'x-role']) headers.delete(h);
+  for (const h of ['x-user', 'x-role', 'x-session', 'x-play-org']) headers.delete(h);
   headers.set('x-org', target.orgId);
   headers.set('x-display', target.displayId);
   headers.set('x-org-name', encodeURIComponent(target.orgName));
@@ -326,6 +336,16 @@ worker.get('/api/screen/:id/*', async (c) => {
   const target = await new ScreenRegistry(d1Sql(c.env.DB)).orgOf(c.req.param('id'));
   if (!target) return c.json({ error: 'not-found' }, 404);
   return toOutput(c, { ...target, displayId: c.req.param('id') }, c.req.param('id'));
+});
+// A video's `<video src>` (TODO.md "Video"): the token, checked in D1, names the organisation; no session header.
+worker.get('/api/play/:token/:hash', async (c) => {
+  await globals(c.env);
+  const orgId = await new PlayTokens(d1Sql(c.env.DB)).orgOf(c.req.param('token'), c.req.param('hash'));
+  if (!orgId) return c.json({ error: 'not-found' }, 404);
+  const headers = new Headers(c.req.raw.headers);
+  for (const h of ['x-user', 'x-role', 'x-session', 'x-org']) headers.delete(h);
+  headers.set('x-play-org', orgId);
+  return c.env.ORG.get(c.env.ORG.idFromName(orgId)).fetch(new Request(c.req.raw, { headers }));
 });
 // Made once per isolate, like the auth routes: every TV showing a code asks every 3 s.
 let screenStart: Hono | undefined;
@@ -355,7 +375,9 @@ worker.all('*', async (c) => {
   if (caller instanceof Response) return caller;
   const stub = c.env.ORG.get(c.env.ORG.idFromName(caller.orgId));
   const headers = new Headers(c.req.raw.headers);
+  headers.delete('x-play-org'); // only the play route names an organisation that way
   headers.set('x-user', caller.ctx.userId);
+  headers.set('x-session', caller.sessionId); // a video's play token ends with this session
   headers.set('x-role', caller.ctx.role);
   headers.set('x-org', caller.orgId);
   return stub.fetch(new Request(c.req.raw, { headers }));

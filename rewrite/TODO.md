@@ -7,7 +7,82 @@ Smaller things decided or wished for, not yet built. The larger steps are in doc
 The admin pages have no keys of their own yet. Keys that go straight to an admin page (Sånger, Bilder, Användare
 and the rest) inside the dialog, and are listed in the keyboard help.
 
-## Video, and which files a device fetches (from Lars 2026-10-31; not started)
+## MCP and a CLI (from Lars 2026-10-31; not started)
+
+Neither is in the rewrite yet. MCP is the current app's (spec 01 "`/admin/api-keys`" and "MCP endpoint `/mcp`"):
+`POST /mcp` with `Authorization: Bearer <key>`, the key acting as role User in its organisation whatever its
+owner's role (PERM-R8, E17), at most 10 keys per user (AUTH-R14), shown once (AUTH-R13), and the page to make and
+delete keys, with the JSON snippet for an MCP client. Its tools are the current app's: Bibles (`list_bibles`,
+`get_bible_books`, `get_bible_chapters`, `get_bible_verses`, `search_bible`), songs (`search_songs`, `list_songs`,
+`get_song`) and presentations (`list_presentations`, `get_presentation`, `create_presentation`, `list_templates`,
+`add_song_to_presentation`, `add_bible_text_to_presentation`, `rename_presentation`, `reorder_items`,
+`rename_item`, `remove_item`, `update_item_arrangement`, `reorder_item_parts`, `remove_item_part`,
+`update_presentation_event`). In the rewrite they run on the server against the organisation's database through
+the same mutators as the clients, so a change reaches every device as any other, on Node and on Workers.
+
+A CLI is new, as `cli/` in Lars's bygg app: the same operations from a terminal (and scripts), with the same API
+keys. One set of operations behind both, so MCP and the CLI cannot drift apart. Not decided yet: its name and how it
+is installed, whether it also uploads media (a video in parts, see below), and whether the keys page names it.
+
+## Presentations in the phone's calendar (from Lars 2026-10-31; not started)
+
+The current app's calendar subscription (spec 01 "Calendar subscription", "Calendar feed", AUTH-R14, AUTH-R15,
+E19, AUTH-A17): a personal secret link `{base}/api/calendar/{token}.ics` (`gpcal_` + 43 characters, stored as its
+hash, shown once, at most 10 per user, last fetched shown) that the iPhone's Calendar, Google Calendar or Outlook
+subscribes to, with "Lägg till i kalender" as a `webcal://` link. The feed holds the organisation's presentations
+from 30 days back, not templates or trashed ones, each with its name, place, time (an hour) or all day, its items
+as lines with an icon, and a link to `/presentations/{id}`. The current app keeps the links on the profile page,
+which the rewrite has not; Mina inställningar is the place. Time and place are in the feed from the start (Lars,
+2026-10-31); the rewrite's presentations have both already. A phone's calendar fetches the link from wherever the
+phone is, so the link must work over the internet, also for an organisation on a desktop host: see the next part.
+
+## A phone works everywhere, on the church's network and over the internet (from Lars 2026-10-31; not started)
+
+A phone (the calendar, the Capacitor app, a browser) works over the internet and on the church's network alike,
+and the user never chooses between them or knows which it uses (Lars, 2026-10-31). Today an organisation lives
+either on the cloud or on a desktop host (ADR 0007 (6), D8), and a desktop host is reached only on its network.
+
+How (Lars, 2026-10-31): it stays as now, the desktop host hosts, and its state is mirrored in the cloud. A phone
+controls through the cloud, or straight on the church's network; which is chosen by itself, the fastest and best:
+most likely the church's network first when it answers, the cloud otherwise, and over again when that changes. The
+mirror also gives the calendar one link that works everywhere. The cloud holds everything, the whole organisation
+and its media (Lars, 2026-10-31): before the rewrite the cloud was all there was. The rewrite also lets a church run
+on its own network only, with no cloud; it then goes without what the cloud gives (reaching it from anywhere,
+sharing, users who sign in from home, the calendar link).
+
+Decided (Lars, 2026-10-31), for the ADR to write before building:
+
+- **The host off:** the cloud takes changes as usual, and the host syncs them in when it starts. They are
+  mutations, so they merge as today; phones work while the host computer is off.
+- **Control through the cloud:** the host keeps a connection out to the cloud, which relays control and the live
+  state between phones and the host. No port is opened at the church; the same code on Node and Workers.
+- **Signing in:** once, against the cloud. The session is good on the host too, which checks it without the
+  internet since the sessions sync to it. Pairing by QR code stays for churches without the cloud and for TVs.
+- **Finding the host and choosing the way:** nothing complicated for now (Lars). A page from the cloud over https
+  may not call an `http` address on the church's network, so a browser goes through the cloud; the apps (the
+  desktop app, the Capacitor app), which have no such rule, try the host on the church's network first and the
+  cloud after. Later, if it is needed: Plex's model, a name per host under gospelpresenter.com pointing at its LAN
+  address with a real certificate (Let's Encrypt through the cloud's DNS), so browsers can go the local way too;
+  some routers refuse such names (DNS rebinding protection), and they need the internet to resolve.
+
+## Video, and which files a device fetches (from Lars 2026-10-31; the video item done 2026-10-31, the rest not started)
+
+**Done (2026-10-31):** the video item end to end. A `videos` library row and a `video` item, with their mutators
+(add, trash, restore, purge, add to a presentation) and ViewVideos/ManageVideos as for audio; the import from a new
+Video tab in Lägg till (Ctrl/⌘+6), MP4 and MOV with H.264 or HEVC read from the file's `stsd` box, anything else
+refused with a hint to export as MP4, length, size and a still from one load in a `<video>`, a hash in steps; the
+upload in parts (R2 multipart, a file written at offsets on Node) that goes on from the last part, by itself within
+the page and by picking the file again after it closed; streaming with Range and a short-lived token in the URL for
+`<video src>`, `no-store` so the host keeps the file once; the editor's preview that streams when played; live, the
+sound on the presenting window, the output window following it, the next video buffered when the item before goes
+live, a paired screen streaming it muted from the state in its canvas (the still where it cannot play the codec),
+and a public output showing the still. See docs/media-and-files.md ("Video"), docs/live.md ("Video on the outputs")
+and the choices in docs/assumptions.md ("Video").
+
+**Not done yet:** keeping presentations offline and the icon for it, "Spara kommande presentationer offline", the
+storage part "Lagring på den här enheten", the cache limit as a slider, fetching a presentation's files on Starta
+presentation (devices still fetch ahead and on demand as docs/media-and-files.md says), where files are kept, YouTube,
+WebM, `blobUrls` letting go, a Video page among the admin pages, and play/pause/seek of a video from a remote control.
 
 A video can be shown in a presentation, as an item of its own (as audio and pictures are). The picture goes to the
 outputs; the sound plays on the presenting device, as an audio item's does (LIVE-R6), not on the outputs. It is

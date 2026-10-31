@@ -1,7 +1,8 @@
 import { count, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { MEDIA_LIMITS } from '../media.ts';
-import { audios, images, mediaBlobs, presentationItems } from '../schema.ts';
+import { audios, images, mediaBlobs, presentationItems, videos } from '../schema.ts';
+import { VIDEO_CODECS, VIDEO_LIMITS, VIDEO_TYPES } from '../video.ts';
 import { imageItemIds, MAX_ITEM_IMAGES, MAX_SLIDE_PAGES, type SlidesItemContent } from '../slides.ts';
 import { id, limit, MutationError, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 import { insertItem, changePresentation } from './presentations.ts';
@@ -229,6 +230,91 @@ export async function addAudioToPresentation(tx: Tx, a: z.output<typeof addAudio
     type: 'audio',
     title: f.fileName,
     sourceId: a.audioId,
+    arrangementId: null,
+    content: null,
+  });
+}
+
+// ------------------------------------------------------------------ video (TODO.md "Video")
+
+export const addVideoArgs = z.object({
+  id,
+  fileName: z.string().trim().min(1).max(MEDIA_LIMITS.fileName),
+  /** As the server read it from the file when the upload was finished. */
+  contentType: z.enum(VIDEO_TYPES),
+  codec: z.enum(VIDEO_CODECS),
+  /** The video, uploaded in parts first (`/api/media/{hash}/upload`). */
+  hash: mediaHash,
+  size: z.number().int().min(1).max(VIDEO_LIMITS.bytes),
+  /** Milliseconds; up to a day. */
+  duration: z.number().int().min(0).max(24 * 3600 * 1000),
+  width: z.number().int().min(1).max(16_384),
+  height: z.number().int().min(1).max(16_384),
+  /** The still from its start, in a picture's two sizes, uploaded as pictures' are. */
+  stillHash: mediaHash,
+  thumbHash: mediaHash,
+  createdAt: z.number().int(),
+});
+/**
+ * Adds a video to the library. Its three blobs must be known where this runs:
+ * the video on the server once its upload was finished (a device records it
+ * without its bytes, as it never keeps a video), the still where it was
+ * stored. At most 500, the trash not counted.
+ */
+export async function addVideo(tx: Tx, a: z.output<typeof addVideoArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageVideos');
+  const [existing] = await tx.select({ id: videos.id }).from(videos).where(eq(videos.id, a.id));
+  if (existing) return;
+  for (const hash of new Set([a.hash, a.stillHash, a.thumbHash])) {
+    const [blob] = await tx.select({ hash: mediaBlobs.hash }).from(mediaBlobs).where(eq(mediaBlobs.hash, hash));
+    if (!blob) throw new MutationError('media-missing', 'the video or its still has not been uploaded');
+  }
+  const [n] = await tx.select({ n: count() }).from(videos).where(isNull(videos.deletedAt));
+  limit((n?.n ?? 0) >= VIDEO_LIMITS.videos, 'videos');
+  await tx.insert(videos).values({ ...a, deletedAt: null });
+}
+
+export const trashVideoArgs = z.object({ id, at: z.number().int() });
+/** Soft delete (MEDIA-R8): it still plays where a presentation uses it. */
+export async function trashVideo(tx: Tx, a: z.output<typeof trashVideoArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageVideos');
+  await tx.update(videos).set({ deletedAt: a.at }).where(eq(videos.id, a.id));
+}
+
+export const restoreVideoArgs = z.object({ id });
+export async function restoreVideo(tx: Tx, a: z.output<typeof restoreVideoArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageVideos');
+  await tx.update(videos).set({ deletedAt: null }).where(eq(videos.id, a.id));
+}
+
+export const purgeVideoArgs = z.object({ id });
+/** Permanent delete: only of a video in the trash where this runs. Its blobs go with the next clean-up. */
+export async function purgeVideo(tx: Tx, a: z.output<typeof purgeVideoArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManageVideos');
+  const [v] = await tx.select({ deletedAt: videos.deletedAt }).from(videos).where(eq(videos.id, a.id));
+  if (!v) return;
+  if (v.deletedAt === null) throw new MutationError('not-in-trash', 'video is not in the trash');
+  await tx.delete(videos).where(eq(videos.id, a.id));
+}
+
+export const addVideoToPresentationArgs = z.object({ itemId: id, presentationId: id, videoId: id, afterItemId: id.nullable().optional() });
+/**
+ * Adds a video as an item: one slide, whose picture goes to the outputs and
+ * whose sound plays on the presenting computer (LIVE-R6, as an audio item's).
+ * A reference, like a picture: a trashed video still plays.
+ */
+export async function addVideoToPresentation(tx: Tx, a: z.output<typeof addVideoToPresentationArgs>, ctx: MutatorCtx) {
+  requirePermission(ctx, 'ManagePresentations');
+  requirePermission(ctx, 'ViewVideos');
+  await changePresentation(tx, a.presentationId, ctx);
+  const [v] = await tx.select({ fileName: videos.fileName }).from(videos).where(eq(videos.id, a.videoId));
+  if (!v) throw new MutationError('not-found', 'video not found');
+  await insertItem(tx, a.afterItemId, {
+    id: a.itemId,
+    presentationId: a.presentationId,
+    type: 'video',
+    title: v.fileName,
+    sourceId: a.videoId,
     arrangementId: null,
     content: null,
   });

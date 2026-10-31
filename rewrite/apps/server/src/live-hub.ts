@@ -215,7 +215,7 @@ export class LiveHub {
         this.now(),
         state.slide ? JSON.stringify(state.slide) : null,
         state.audio ? JSON.stringify(state.audio) : null,
-        state.canvas ? JSON.stringify(state.canvas) : null,
+        state.canvas ? JSON.stringify(stampVideo(state.canvas, this.now())) : null,
       ],
     );
     if (!s.owns.includes(state.sessionId)) s.owns = [...s.owns, state.sessionId];
@@ -341,7 +341,7 @@ export class LiveHub {
   private shown(displayId: string, screen: boolean): WatchEvent {
     // A screen bound to a session draws its canvas, black included, as Display.razor; unbound, it waits.
     const row = this.boundRow(displayId);
-    if (screen) return row ? { type: 'canvas', canvas: canvasOf(row) } : { type: 'idle' };
+    if (screen) return row ? { type: 'canvas', canvas: canvasOf(row), now: this.now() } : { type: 'idle' };
     const slide = slideOf(row);
     return slide ? { type: 'slide', slide } : { type: 'idle' };
   }
@@ -416,8 +416,10 @@ export class LiveHub {
         `SELECT 1 FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id
          WHERE p.presentation_id = ? AND i.full_hash = ?
          UNION ALL
-         SELECT 1 FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ? AND s.full_hash = ?`,
-        [row.presentation_id, hash, row.presentation_id, hash],
+         SELECT 1 FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ? AND s.full_hash = ?
+         UNION ALL
+         SELECT 1 FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.type = 'video' AND p.presentation_id = ? AND v.still_hash = ?`,
+        [row.presentation_id, hash, row.presentation_id, hash, row.presentation_id, hash],
       ).length > 0
     ) {
       return true;
@@ -427,6 +429,23 @@ export class LiveHub {
     return (
       !!overlayId &&
       this.store.query('SELECT 1 FROM overlays o JOIN images i ON i.id = o.image_id WHERE o.id = ? AND i.full_hash = ?', [overlayId, hash]).length > 0
+    );
+  }
+
+  /**
+   * Whether a paired screen may stream a video (TODO.md "Video on the
+   * outputs"): the one on its canvas, and only if it is the video of an item
+   * in the presentation the session shows, as for a picture (LIVE-R32). A
+   * public output never streams one; it shows the still.
+   */
+  showingVideo(displayId: string, hash: string): boolean {
+    const row = this.boundRow(displayId);
+    if (!row || canvasOf(row)?.slide?.video?.hash !== hash) return false;
+    return (
+      this.store.query(`SELECT 1 FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.type = 'video' AND p.presentation_id = ? AND v.hash = ?`, [
+        row.presentation_id,
+        hash,
+      ]).length > 0
     );
   }
 
@@ -456,7 +475,7 @@ export class LiveHub {
     const events = new Map<boolean, WatchEvent>();
     for (const v of set.values()) {
       let e = events.get(v.screen);
-      if (!e) events.set(v.screen, (e = ended && v.screen ? { type: 'canvas', canvas: null } : this.shown(displayId, v.screen)));
+      if (!e) events.set(v.screen, (e = ended && v.screen ? { type: 'canvas', canvas: null, now: this.now() } : this.shown(displayId, v.screen)));
       v.viewer.send(e);
     }
   }
@@ -566,6 +585,16 @@ function reply(s: LiveSocket, m: LiveServerMessage) {
 /** The public slide a session shows (LIVE-R32); null without a session, or black. */
 function slideOf(row: Row | undefined): PublicSlide | null {
   return row?.slide ? (JSON.parse(row.slide) as PublicSlide) : null;
+}
+
+/**
+ * The canvas with its video's moment on the server's clock: the owner's
+ * report says where the video was as it was sent, and a screen whose clock
+ * is wrong still follows, since every canvas event carries the server's time.
+ */
+function stampVideo(canvas: Canvas, now: number): Canvas {
+  const video = canvas.slide?.video;
+  return video ? { ...canvas, slide: { ...canvas.slide!, video: { ...video, at: now } } } : canvas;
 }
 
 /** The canvas a session's paired screens draw (spec 04 §5); from an owner that reports none (an older build), the public slide's. */

@@ -41,13 +41,13 @@ function surface(width: number, height: number): Surface {
   return canvas;
 }
 
-async function encode(canvas: Surface, type: StoredImageType, quality: number): Promise<Blob> {
+export async function encode(canvas: Surface, type: StoredImageType, quality: number): Promise<Blob> {
   if (canvas instanceof OffscreenCanvas) return canvas.convertToBlob({ type, quality });
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode failed'))), type, quality));
 }
 
-/** Draws the bitmap at the size and encodes it; the blob's type may differ from `type` if the browser cannot encode it. */
-async function render(bitmap: ImageBitmap, size: { width: number; height: number }, type: StoredImageType, quality: number): Promise<Blob> {
+/** Draws the picture (a bitmap, or a video's frame) at the size and encodes it; the blob's type may differ from `type` if the browser cannot encode it. */
+export async function render(bitmap: CanvasImageSource, size: { width: number; height: number }, type: StoredImageType, quality: number): Promise<Blob> {
   const canvas = surface(size.width, size.height);
   const ctx = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null;
   if (!ctx) throw new Error('no canvas');

@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { toCanvas, toPublicSlide, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
-import { getOverlay, getPresentation, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
+import { getOverlay, getPresentation, getVideo, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import { slidesOf, type LiveChannel } from './live.ts';
 import type { AudioEngine } from './audio.ts';
+import type { VideoEngine } from './video.ts';
 import { remoteAllowed, type LiveLink } from './remote.ts';
 
 /** Fired when "Tillåt fjärrstyrning" or the chosen outputs change in this window. */
@@ -95,7 +96,7 @@ export function refusedOutputs(sessions: LiveSessionInfo[], sessionId: string): 
  * (spec 04 §5) gets the canvas the output window draws, overlay picture
  * included; null is black.
  */
-async function shownOnOutputs(db: ReadDb, p: LivePointer): Promise<{ slide: PublicSlide | null; canvas: Canvas | null }> {
+async function shownOnOutputs(db: ReadDb, p: LivePointer, video: VideoEngine): Promise<{ slide: PublicSlide | null; canvas: Canvas | null }> {
   if (!p.presentationId || p.black) return { slide: null, canvas: null };
   const item = p.itemId ? (await itemsOf(db, p.presentationId)).find((i) => i.id === p.itemId) : undefined;
   const slide = item ? ((await slidesOf(db, item)).slides[p.partIndex] ?? null) : null;
@@ -106,7 +107,8 @@ async function shownOnOutputs(db: ReadDb, p: LivePointer): Promise<{ slide: Publ
   return {
     // An overlay with nothing selected is shown on its own, as the projector shows it.
     slide: slide || overlay?.text ? toPublicSlide(slide ?? { kind: 'song', text: '', verses: null, image: null, credits: null }, theme.id, overlay?.text ?? null) : null,
-    canvas: toCanvas(slide, theme.id, overlay),
+    // A video slide carries where the video is, for the paired screens to follow; the public outputs get its still.
+    canvas: toCanvas(slide, theme.id, overlay, slide?.video ? (video.live() ?? { ...slide.video, playing: false, position: 0, at: Date.now() }) : null),
   };
 }
 
@@ -118,17 +120,18 @@ async function shownOnOutputs(db: ReadDb, p: LivePointer): Promise<{ slide: Publ
  * item exists. Its own outputs follow the LiveChannel, never the server;
  * public outputs get the slide it reports.
  */
-export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sessionId: string, audio: AudioEngine) {
+export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sessionId: string, audio: AudioEngine, video: VideoEngine) {
   useEffect(() => {
     let current = 0;
     const report = async (p: LivePointer) => {
       const mine = ++current;
       if (!p.presentationId) {
         audio.stop();
+        video.stop();
         return link.own(null);
       }
       const presentation = await getPresentation(db, p.presentationId);
-      const { slide, canvas } = chosen.length ? await shownOnOutputs(db, p) : { slide: null, canvas: null };
+      const { slide, canvas } = chosen.length ? await shownOnOutputs(db, p, video) : { slide: null, canvas: null };
       if (mine !== current) return; // a newer pointer is on its way
       link.own({
         sessionId,
@@ -151,9 +154,24 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       const items = presentationId ? await itemsOf(db, presentationId) : [];
       if (mine === loading) live.itemOverlays = new Map(items.map((i) => [i.id, i.overlayId]));
     };
+    // A video item that goes live plays here, from its start; the next item's video buffers meanwhile (TODO.md "Video").
+    let videoTurn = 0;
+    const followVideo = async (p: LivePointer) => {
+      const mine = ++videoTurn;
+      if (!p.presentationId) return video.stop();
+      const items = await itemsOf(db, p.presentationId);
+      const at = items.findIndex((i) => i.id === p.itemId);
+      const videoOf = async (i: (typeof items)[number] | undefined) => (i?.type === 'video' ? await getVideo(db, i.sourceId) : null);
+      const shownVideo = await videoOf(items[at]);
+      const nextVideo = at >= 0 ? await videoOf(items[at + 1]) : null;
+      if (mine !== videoTurn) return;
+      await video.show(shownVideo && items[at] ? { itemId: items[at].id, video: shownVideo } : null);
+      if (mine === videoTurn) void video.buffer(nextVideo);
+    };
     let presenting: string | null = null;
     const off = live.subscribe((p) => {
       if (p.presentationId !== presenting) void loadOverlays((presenting = p.presentationId));
+      void followVideo(p);
       void report(p);
     });
     const again = () => void report(live.pointer);
@@ -183,6 +201,11 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
     });
     // The audio plays here; what it does reaches the controllers with the next report.
     const offAudio = audio.subscribe(again);
+    // So does the video: the output window on this machine follows it through the live channel, the paired screens through the report.
+    const offVideo = video.subscribe(() => {
+      live.setVideo({ video: video.live(), next: video.next() });
+      if (chosen.length) again();
+    });
     const offAudioCommand = link.onAudioCommand((target, command) => {
       if (target === sessionId && live.pointer.presentationId) audio.command(command);
     });
@@ -198,8 +221,9 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       offError();
       offSessions();
       offAudio();
+      offVideo();
       offAudioCommand();
       removeEventListener(REMOTE_CHANGED, again);
     };
-  }, [live, link, db, sessionId, audio]);
+  }, [live, link, db, sessionId, audio, video]);
 }

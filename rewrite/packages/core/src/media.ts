@@ -148,11 +148,14 @@ export const ITEM_IMAGES_SQL = `SELECT p.presentation_id, p.source_id AS image_i
   UNION ALL
   SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL`;
 
-/** The blobs no image, audio file or slide deck names, older than the grace period: what a clean-up may remove. */
+/** The blobs no image, audio file, video or slide deck names, older than the grace period: what a clean-up may remove. */
 export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
   WHERE received_at < ?
     AND hash NOT IN (SELECT full_hash FROM images)
     AND hash NOT IN (SELECT thumb_hash FROM images)
     AND hash NOT IN (SELECT hash FROM audios)
+    AND hash NOT IN (SELECT hash FROM videos)
+    AND hash NOT IN (SELECT still_hash FROM videos)
+    AND hash NOT IN (SELECT thumb_hash FROM videos)
     AND hash NOT IN (SELECT full_hash FROM (${SLIDE_PAGES_SQL}))
     AND hash NOT IN (SELECT thumb_hash FROM (${SLIDE_PAGES_SQL}))`;

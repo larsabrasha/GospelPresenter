@@ -1,8 +1,9 @@
 // Media blobs on a client (docs/media-and-files.md, "Media"): a picture is two immutable blobs
 // named by their SHA-256, kept in `media_blobs`, which does not sync. Only the
 // `images` row syncs; this uploads the blobs of a queued `addImage` (or
-// `addAudio`, `addSlides`) before it is pushed, downloads what the library names and this device lacks, and
-// removes what nothing names.
+// `addAudio`, `addVideo`, `addSlides`) before it is pushed, downloads what the library names and this device lacks, and
+// removes what nothing names. A video itself is never kept on a device: it was uploaded before its
+// `addVideo` was queued, is recorded here without its bytes, and streams from the server.
 import { ITEM_IMAGES_SQL, MEDIA_HASH, ORPHAN_BLOBS_SQL, ORPHAN_GRACE_MS, recordMediaBlobSql, sha256HexBytes, SLIDE_PAGES_SQL, sniffMedia } from '@gp/core';
 import type { PendingMutation, SyncClient } from './client.ts';
 
@@ -37,8 +38,8 @@ export interface MediaSync {
 
 /**
  * Which files this device fetches (docs/media-and-files.md, "Which files a device keeps").
- * Every picture's thumbnail, always. The full picture, the audio and the
- * slide decks' pages (both sizes) of a presentation that is open here, or, on a device that keeps its data,
+ * Every picture's and video's thumbnail, always. The full picture, the audio, a video's still (never the
+ * video itself, which streams) and the slide decks' pages (both sizes) of a presentation that is open here, or, on a device that keeps its data,
  * coming up within `days`. Every overlay's picture when either applies. Never audio for a presentation this device only
  * controls: it plays on the presenting computer.
  */
@@ -76,7 +77,9 @@ export function addDays(date: string, days: number): string {
  */
 export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Promise<string[]> {
   if (policy.fetch === false) return [];
-  const thumbs = (await client.query('SELECT thumb_hash AS hash FROM images ORDER BY created_at DESC')) as { hash: string }[];
+  const thumbs = (await client.query(
+    'SELECT hash FROM (SELECT thumb_hash AS hash, created_at FROM images UNION ALL SELECT thumb_hash AS hash, created_at FROM videos) ORDER BY created_at DESC',
+  )) as { hash: string }[];
   const coming = policy.prefetch
     ? ((await client.query('SELECT id FROM presentations WHERE deleted_at IS NULL AND event_date >= ? AND event_date <= ? ORDER BY event_date', [
         policy.today,
@@ -104,10 +107,13 @@ export async function wantedBlobs(client: SyncClient, policy: MediaPolicy): Prom
        SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id
          WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
        UNION ALL
+       SELECT v.still_hash AS hash FROM presentation_items p JOIN videos v ON v.id = p.source_id
+         WHERE p.presentation_id = ? AND p.type = 'video'
+       UNION ALL
        SELECT s.thumb_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
        UNION ALL
        SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?`,
-      [presentationId, presentationId, audio ? 1 : 0, presentationId, presentationId],
+      [presentationId, presentationId, audio ? 1 : 0, presentationId, presentationId, presentationId],
     )) as { hash: string }[];
     hashes.push(...items.map((i) => i.hash));
   }
@@ -144,7 +150,7 @@ export async function syncMedia(
       result.missing.push(hash);
       continue;
     }
-    // A row from before (without bytes) cannot exist on a device, but a stale one is replaced all the same.
+    // A row without bytes on a device is a video's, which is never wanted here; a stale one is replaced all the same.
     await client.localWrite([{ sql: 'DELETE FROM media_blobs WHERE hash = ?', params: [hash] }, recordMediaBlobSql(hash, type, bytes.length, bytes, now)]);
     result.downloaded.push(hash);
   }
@@ -188,20 +194,25 @@ export async function presentationMediaState(
     `SELECT h.hash, EXISTS (SELECT 1 FROM media_blobs b WHERE b.hash = h.hash AND b.bytes IS NOT NULL) AS present FROM (
        SELECT i.full_hash AS hash FROM (${ITEM_IMAGES_SQL}) p JOIN images i ON i.id = p.image_id WHERE p.presentation_id = ?
        UNION SELECT a.hash AS hash FROM presentation_items p JOIN audios a ON a.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'audio' AND ?
+       UNION SELECT v.still_hash AS hash FROM presentation_items p JOIN videos v ON v.id = p.source_id WHERE p.presentation_id = ? AND p.type = 'video'
        UNION SELECT s.full_hash AS hash FROM (${SLIDE_PAGES_SQL}) s WHERE s.presentation_id = ?
        UNION SELECT i.full_hash AS hash FROM overlays o JOIN images i ON i.id = o.image_id) h`,
-    [presentationId, presentationId, audio ? 1 : 0, presentationId],
+    [presentationId, presentationId, audio ? 1 : 0, presentationId, presentationId],
   )) as { hash: string; present: number }[];
   return { needed: rows.length, present: rows.filter((r) => Number(r.present)).length };
 }
 
 /** The mutations that name blobs the device must upload first. */
-const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addSlides']);
+const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSlides']);
 
-/** The blobs a queued add names: a picture's two, an audio file's one, or two per page of a slide deck. */
+/**
+ * The blobs a queued add names: a picture's two, an audio file's one, a video's three, or two per page of a
+ * slide deck. A video's own blob has no bytes here: it was uploaded before the add, so it is only kept named.
+ */
 function blobsOf(m: PendingMutation): Set<string> {
-  const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown; pages?: unknown };
+  const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown; stillHash?: unknown; pages?: unknown };
   if (m.name === 'addAudio') return new Set([String(a.hash)]);
+  if (m.name === 'addVideo') return new Set([String(a.hash), String(a.stillHash), String(a.thumbHash)]);
   if (m.name === 'addSlides') {
     const pages = Array.isArray(a.pages) ? (a.pages as { full?: unknown; thumb?: unknown }[]) : [];
     return new Set(pages.flatMap((p) => [String(p?.full), String(p?.thumb)]));
@@ -213,7 +224,7 @@ function blobsOf(m: PendingMutation): Set<string> {
 export type MediaBlobUpload = (hash: string, bytes: Uint8Array) => Promise<number>;
 
 /**
- * Uploads the blobs of every queued `addImage`, `addAudio` and `addSlides`
+ * Uploads the blobs of every queued `addImage`, `addAudio`, `addVideo` (its still) and `addSlides`
  * before the mutation is pushed, so a file imported offline reaches the server with its bytes. Give
  * `beforePush` to the SyncClient, alone or through `chainBeforePush`.
  *

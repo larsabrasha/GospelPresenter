@@ -99,6 +99,47 @@ Templates (spec 03 "Template", screen 3):
 - **Weekdays start on Monday** in the details dialog, Sweden's first day of the week; the old app took it from
   the culture.
 
+Video (TODO.md "Video, and which files a device fetches", 2026-10-31). Lars decided the formats, the size, the parts,
+the streaming and who plays what; these are the choices the implementer made where that leaves one open, not Lars's:
+
+- **A `<video src>` streams with a token in its URL**, `/api/play/{token}/{hash}`, since it cannot send the
+  session's header and the API has no cookie. A signed-in caller with ViewVideos asks for it
+  (`POST /api/media/{hash}/play`); it names one blob of one organisation, lasts six hours, and is stored hashed in
+  the global tables, so the Worker finds the organisation from it. It is the one exception to "secrets travel in
+  headers and bodies, never URLs" (Milestone 3 below), as signed URLs are at CloudFront, Cloudflare Stream and Mux
+  (Lars chose to keep it, 2026-10-31): it reaches only that video, for a few hours, and ends with the session it was
+  minted for (signing out or a revoked session). The server logs no URLs, and `Referrer-Policy: no-referrer` keeps it
+  out of other sites' logs; a reverse proxy in front may still log it. A page asks for a new one when fewer than ten
+  minutes are left.
+- **The server reads the codec too**, at the end of an upload (the `moov` box, read back a range at a time), not
+  only the `ftyp` signature; a file whose codec is not taken is removed, so a changed client cannot store one.
+- **A part is 8 MiB** (R2 wants at least 5 MiB, one size but the last); 2 GB is read as 2 GiB, so at most 256 parts.
+  An unfinished upload is given up after six days. At most 500 videos, the trash not counted, as for audio.
+- **The still is the first frame**, taken when the `<video>` has it (`loadeddata`), in a picture's two sizes. A
+  device that cannot decode the video cannot import it (it could not make the still); a `moov` over 64 MiB is refused.
+- **Importing a video needs the server**: the video is never kept on a device, so there is nothing to queue it from.
+  An upload that loses the network waits and goes on by itself while the page is open, also after the dialog closes.
+- **The hash is core's own SHA-256**, in plain JavaScript, 8 MiB at a time on the page's thread: about 180 MB/s on a
+  Mac (2 GB in some 11 s), slower on a phone; the server uses the same code to carry its running hash between parts,
+  which a Worker could not do with a WebAssembly library. No new dependency.
+- **The presenting window is the clock and the sound**: its own element plays with sound; the output window on the
+  same machine follows it, muted, from the state on the live channel (within 0.04 s by up to 5 % faster or slower,
+  a seek past 0.3 s), whether or not an output window is open. A paired screen follows the same way from its canvas.
+  How far the projector's picture and the sound drift apart on real hardware is not measured.
+- **A video item that goes live starts from its beginning; leaving it stops it**, also when going back to it (it
+  starts over). An audio item plays on after it is left (LIVE-R6); a video's sound belongs with its picture.
+- **"Svart skärm" covers a playing video and does not pause it**: the sound plays on under black, as an audio item's
+  does. The player pauses it.
+- **A reloaded presenting window starts a live video over from its beginning.**
+- **A controller sees a video item's slide but gets no player**: play, pause and seek are not relayed by remote
+  control yet.
+- **Whether a device can play a codec is `canPlayType`** with Main profile strings (`avc1.4D4028`,
+  `hvc1.1.6.L120.90`), not `MediaCapabilities`, which answers asynchronously.
+- **The Video tab is the sixth in Lägg till (Ctrl/⌘+6)**, after PowerPoint, so the other tabs keep their keys. There
+  is no Video page among the admin pages yet; videos are imported and trashed in the tab, and restored in the trash.
+- **Every video response is `no-store`**, the session's `GET /api/media/{hash}` too: the desktop host keeps the
+  file once, on the server's disk.
+
 Milestone 5 (media library):
 
 - **A blob is named by the hash of its bytes, and an image has two** (`full`, `thumb`); spec 05 names objects

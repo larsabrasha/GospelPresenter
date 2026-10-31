@@ -40,6 +40,39 @@ running order and the live page name the overlay an item carries.
 data, else once a presentation is open, since any overlay can be switched on during live. "Alla bilder och ljud
 finns på den här enheten" counts them.
 
+## Video on the outputs
+
+A video item (see [Video](media-and-files.md#video)) has one slide. When it goes live, the presenting window plays
+it from its start (`VideoEngine`, `apps/web/src/live/video.ts`): one `<video>` element of its own, not on the page,
+unmuted, so its sound plays on the presenting computer as an audio item's does (LIVE-R6) and never on an output.
+Leaving the item stops it; the end of the presentation too. The player (`VideoPlayer`) under the item's slide on
+the live page, and under the slide in the stage view, has play, pause, a seek bar and the time. When the item before
+a video item goes live, a second element buffers the video, and the output window buffers it too, so it starts at
+once.
+
+**The output window on the same machine** plays the picture, muted, in an element of its own over the still
+(`FollowingVideo`), streamed with its own token. The presenting window posts on the live channel, beside the
+pointer, which video plays, whether it plays, its position and the moment (`Date.now()`, a clock both windows
+share), on every play, pause, seek, stall and end, and the next video to buffer. Four times a second the output
+works out where the video should be and plays up to 5 % faster or slower to get within 0.04 s, or seeks when it is
+more than 0.3 s off (`follow`). The operator window is the clock and the sound, whether an output window is open or
+not.
+
+**A paired screen** gets the same state in its canvas (`canvas.slide.video`: hash, type, codec, playing, position,
+`at`), streams the video itself, muted, from `/api/screen/{id}/video/{hash}` or `/api/display/{code}/video/{hash}`
+(Range, `no-store`), and follows it the same way. The hub stamps `at` with the server's clock when the report
+arrives, and every canvas event carries the server's time (`now`), so a TV whose clock is wrong still knows where
+to be. Its stream answers only for the video on its canvas, and only if it is the video of an item in the
+presentation the session shows, as for a picture (LIVE-R32). A screen whose browser cannot play the codec
+(`canPlayType`; HEVC in most browsers off Apple and Windows' hardware) shows the still. **A public output**
+(`/watch`) shows the still only, served as a picture of the presentation; it never streams the video.
+
+Tested in `apps/server/test/video.test.ts` (three adapters: the stamped moment, the screen's video route, the still
+to a public output and no video), `apps/web/test/video.test.ts` (`follow`, `expectedPosition`) and
+`apps/desktop/e2e/video.spec.ts` (the output window plays in step with the operator window, the next video buffers,
+a paired screen in Playwright's Chromium follows and pauses with it, and an HEVC video shows its still there while
+the output plays it). How close the sound and the output's picture stay on a real projector is not measured.
+
 ## Paired screens
 
 A TV or a PC in the church opens `/display` at the server, the cloud's or the desktop host's, and shows a

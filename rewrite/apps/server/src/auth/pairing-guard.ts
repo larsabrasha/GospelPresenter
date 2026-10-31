@@ -19,8 +19,12 @@ export async function deviceOf(req: Request, accounts: Accounts, pairing: Pairin
   return (await accounts.pairing.pairedDevice(device)) ? 'paired' : null;
 }
 
-/** The anonymous outputs (spec 04 §5, §6): public outputs, saved screens and temporary screens. */
-const ANONYMOUS_PREFIXES = ['/api/watch/', '/api/display/', '/api/screen/'];
+/**
+ * The anonymous outputs (spec 04 §5, §6): public outputs, saved screens and temporary screens. And a video's
+ * stream (`/api/play/{token}/…`), whose token, minted for a paired device's session, is its credential:
+ * a `<video src>` cannot send the device's header.
+ */
+const ANONYMOUS_PREFIXES = ['/api/watch/', '/api/display/', '/api/screen/', '/api/play/'];
 /** Paths an unpaired device may reach: the pairing itself. Everything outside the API is the static app. */
 const OPEN_PATHS = new Set(['/api/pair/status', '/api/pair/claim']);
 /**

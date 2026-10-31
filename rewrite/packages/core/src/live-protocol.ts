@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { OVERLAY_LIMITS } from './live.ts';
+import { VIDEO_CODECS, VIDEO_TYPES } from './video.ts';
 
 // Remote control (spec 04 §2, ADR 0004 as carried over by ADR 0007 decision 4).
 // The window that presents owns its session and drives its own outputs from
@@ -76,6 +77,26 @@ export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses
 }
 
 /**
+ * A video on the outputs and where it is (TODO.md "Video on the outputs"):
+ * which video, playing or not, and its position at a moment. A paired screen
+ * streams it muted and works out where to be from these; the presenting
+ * computer plays the sound. `at` is the server's clock once the hub has the
+ * report (it stamps it on receipt), so a screen with a wrong clock still
+ * follows: each canvas event carries the server's time as it is sent.
+ */
+export const liveVideoSchema = z.object({
+  hash: z.string().regex(/^[0-9a-f]{64}$/),
+  type: z.enum(VIDEO_TYPES),
+  codec: z.enum(VIDEO_CODECS),
+  playing: z.boolean(),
+  /** Seconds into the video at `at`. */
+  position: z.number().min(0).max(24 * 3600),
+  /** Milliseconds since the epoch. */
+  at: z.number().int().min(0),
+});
+export type LiveVideo = z.infer<typeof liveVideoSchema>;
+
+/**
  * What a paired screen draws (spec 04 §5: "same rendering as /live"): the
  * projector's canvas, so the slide, its theme and the overlay with its
  * picture. A paired screen is bound to the session by an operator, like the
@@ -85,7 +106,8 @@ export function toPublicSlide(slide: Pick<PublicSlide, 'kind' | 'text' | 'verses
  * projector draws it with nothing selected. The whole canvas null: black.
  */
 export const canvasSchema = z.object({
-  slide: publicSlideSchema.pick({ kind: true, text: true, verses: true, image: true, credits: true }).nullable(),
+  /** A video slide carries its video and where it is; its `image` is the still, for a screen that cannot play it. */
+  slide: publicSlideSchema.pick({ kind: true, text: true, verses: true, image: true, credits: true }).extend({ video: liveVideoSchema.nullable().optional() }).nullable(),
   themeId: z.string().max(100),
   overlay: z
     .object({
@@ -97,15 +119,16 @@ export const canvasSchema = z.object({
 });
 export type Canvas = z.infer<typeof canvasSchema>;
 
-/** The canvas of `slide` (null: nothing selected) and the overlay, cut to what a report may carry. */
+/** The canvas of `slide` (null: nothing selected) and the overlay, cut to what a report may carry; `video` where the slide is a video's. */
 export function toCanvas(
   slide: Pick<PublicSlide, 'kind' | 'text' | 'verses' | 'image' | 'credits'> | null,
   themeId: string,
   overlay: { text: string | null; image: string | null } | null,
+  video: LiveVideo | null = null,
 ): Canvas {
   const cut = slide && toPublicSlide(slide, themeId);
   return {
-    slide: cut && { kind: cut.kind, text: cut.text, verses: cut.verses, image: cut.image, credits: cut.credits },
+    slide: cut && { kind: cut.kind, text: cut.text, verses: cut.verses, image: cut.image, credits: cut.credits, ...(video ? { video } : {}) },
     themeId,
     overlay: overlay && (overlay.text || overlay.image) ? { text: overlay.text?.slice(0, OVERLAY_LIMITS.content) ?? null, image: overlay.image } : null,
   };
@@ -237,8 +260,9 @@ export type WatchEvent =
   /**
    * To a paired screen only, in place of `slide` and `idle` while it is bound:
    * the projector's canvas (spec 04 §5), null for black. `idle`: not bound.
+   * `now` is the server's clock as it sent this, for a video's `at`.
    */
-  | { type: 'canvas'; canvas: Canvas | null }
+  | { type: 'canvas'; canvas: Canvas | null; now?: number }
   | { type: 'idle' }
   | { type: 'full' }
   /** To a temporary screen: it is no longer paired, and shows a new code (spec 04 §5). */

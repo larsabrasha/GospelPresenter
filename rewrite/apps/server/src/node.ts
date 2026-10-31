@@ -13,7 +13,7 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono, type Context } from 'hono';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { migrateOrgSchemaSync, schema, serverChangeTriggers, serverSyncDdl, type Poke, type Tx } from '@gp/core';
-import { outputRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
+import { outputRoutes, playRoutes, syncRoutes, watchLocked, type Org } from './app.ts';
 import { authenticate, authRoutes, deviceOf, pairingGuard, isApiPath, WS_PROTOCOL, type Pairing } from './auth/index.ts';
 import { newSecret } from './crypto.ts';
 import { GoogleOidc, type GoogleConfig } from './google.ts';
@@ -21,6 +21,7 @@ import { Accounts, migrateGlobal, type GlobalSql } from './global/index.ts';
 import { LiveHub, type LiveSocket } from './live-hub.ts';
 import { diskStorage } from './media-disk.ts';
 import type { MediaStorage } from './media.ts';
+import { PlayTokens } from './play-tokens.ts';
 import { forwardedClient, trustedProxies } from './proxy.ts';
 import { screenPairRoutes, screenStartRoutes } from './screen-routes.ts';
 import { ScreenRegistry } from './screens.ts';
@@ -224,6 +225,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   const accounts = new Accounts(globalSql, { sessionIdleMs: opts.sessionIdleMs });
   const watch = new WatchRegistry(globalSql);
   const screens = new ScreenRegistry(globalSql);
+  const playTokens = new PlayTokens(globalSql);
   const setupToken = opts.setupToken ?? newSecret('gpst_');
   const orgs = new Map<string, Org & { file: SqliteFile; sockets: Map<WebSocket, string>; live: LiveHub; liveSockets: Map<WebSocket, LiveSocket> }>();
 
@@ -297,6 +299,14 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       return { org, live: org.live, orgId: t.orgId, orgName: t.orgName, displayId: id, code: id };
     }, media),
   );
+  // A video's `<video src>`: the token names the organisation and the blob (TODO.md "Video").
+  app.route(
+    '/',
+    playRoutes(async (_c, token, hash) => {
+      const orgId = await playTokens.orgOf(token, hash);
+      return orgId ? { org: openOrg(orgId), orgId } : null;
+    }, media),
+  );
   const resolveCaller = async (c: Context) => {
     const caller = await authenticate(c.req.raw, accounts);
     if (caller instanceof Response) return caller;
@@ -311,6 +321,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       media,
       mediaGraceMs: opts.mediaGraceMs,
       watch,
+      playTokens,
     }),
   );
   if (opts.webRoot) {

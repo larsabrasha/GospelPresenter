@@ -5,7 +5,7 @@ import { listTrash, type TrashEntry } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useConfirm } from '../ui/Dialog.tsx';
-import { DocumentTextIcon, MapIcon, MusicalNoteOutlineIcon, PhotoOutlineIcon, SpeakerOutlineIcon, TrashIcon } from '../ui/icons.tsx';
+import { DocumentTextIcon, MapIcon, MusicalNoteOutlineIcon, PhotoOutlineIcon, SpeakerOutlineIcon, TrashIcon, VideoOutlineIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
@@ -20,9 +20,10 @@ const manages: Record<TrashKind, Parameters<typeof can>[1]> = {
   Song: 'ManageSongs',
   Image: 'ManageImages',
   Audio: 'ManageAudios',
+  Video: 'ManageVideos',
 };
-const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio' } as const;
-const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio' } as const;
+const restoreMutator = { Presentation: 'restorePresentation', Template: 'restoreTemplate', Song: 'restoreSong', Image: 'restoreImage', Audio: 'restoreAudio', Video: 'restoreVideo' } as const;
+const purgeMutator = { Presentation: 'purgePresentation', Template: 'purgeTemplate', Song: 'purgeSong', Image: 'purgeImage', Audio: 'purgeAudio', Video: 'purgeVideo' } as const;
 
 /** Each kind's icon at the start of its row (Trash.razor). */
 function KindIcon({ kind }: { kind: TrashKind }) {
@@ -38,6 +39,8 @@ function KindIcon({ kind }: { kind: TrashKind }) {
       return <PhotoOutlineIcon className={className} strokeWidth={1.5} />;
     case 'Audio':
       return <SpeakerOutlineIcon className={className} />;
+    case 'Video':
+      return <VideoOutlineIcon className={className} />;
   }
 }
 

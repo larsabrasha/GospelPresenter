@@ -1,5 +1,6 @@
 import type { Role } from '@gp/core';
 import type { AudioControl } from '../../live/audio.ts';
+import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { PresentationEditor } from '../presentation-editor/PresentationEditor.tsx';
@@ -16,6 +17,7 @@ export function Live({
   live,
   link,
   audio,
+  video,
   sessionId,
   remote,
   session,
@@ -26,6 +28,7 @@ export function Live({
   live: LiveControl;
   link: LiveLink;
   audio: AudioControl;
+  video: VideoControl;
   sessionId: string;
   remote?: boolean;
   session?: string | null;
@@ -34,6 +37,6 @@ export function Live({
 }) {
   const pointer = useLivePointer(live);
   if (remote) return <RemoteLive id={id} role={role} link={link} ownSessionId={sessionId} wanted={session ?? null} stage={!!stage} />;
-  const presenting = pointer.presentationId === id ? { audio, owner: { sessionId }, link } : undefined;
+  const presenting = pointer.presentationId === id ? { audio, video, owner: { sessionId }, link } : undefined;
   return <PresentationEditor id={id} role={role} live={live} presenting={presenting} stage={stage} />;
 }

@@ -1,8 +1,11 @@
-import type { LivePointer, Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
+import type { LibraryVideo, LivePointer, Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AudioEngine, type AudioControl } from '../../live/audio.ts';
 import type { LiveControl } from '../../live/remote.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
+import { VideoPlayer } from '../live/VideoPlayer.tsx';
+import type { VideoControl } from '../../live/video.ts';
+import { canPlayVideo, codecName, playUrl } from '../../media/video.ts';
 import { useBlobUrl, useDb } from '../../db/react.tsx';
 import { t } from '../../i18n.ts';
 import type { ItemSlides } from '../../live/live.ts';
@@ -43,8 +46,45 @@ function PreviewPlayer({ url, itemId, name }: { url: string; itemId: string; nam
   );
 }
 
-/** While presenting: the session a clicked slide is shown in, and its audio. */
-export type Shown = { live: LiveControl; pointer: LivePointer; audio: AudioControl };
+/**
+ * A video item in the editor: a player that streams the video from the server when it is played and
+ * keeps nothing (TODO.md "Video"), over its still. A device that cannot play the codec says so.
+ */
+function VideoPreview({ video }: { video: LibraryVideo }) {
+  const poster = useBlobUrl(video.stillHash);
+  const playable = canPlayVideo(video.contentType, video.codec);
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!playable) return;
+    let live = true;
+    void playUrl(video.hash).then((url) => live && setSrc(url));
+    return () => {
+      live = false;
+    };
+  }, [video.hash, playable]);
+  return (
+    <div className="w-full sm:max-w-lg sm:mx-auto space-y-2">
+      {!playable && <ItemWarning>{t('videos.cannotPlay', { codec: codecName(video.codec) })}</ItemWarning>}
+      {playable ? (
+        <video
+          className="w-full aspect-video rounded-xl bg-black"
+          controls
+          playsInline
+          preload="none"
+          poster={poster ?? undefined}
+          src={src ?? undefined}
+          aria-label={t('videos.preview', { name: video.fileName })}
+          data-testid="video-preview"
+        />
+      ) : (
+        poster && <img className="w-full aspect-video object-contain rounded-xl bg-black" src={poster} alt="" draggable={false} />
+      )}
+    </div>
+  );
+}
+
+/** While presenting: the session a clicked slide is shown in, its audio, and its video (none on a controller). */
+export type Shown = { live: LiveControl; pointer: LivePointer; audio: AudioControl; video?: VideoControl };
 
 /** A warning about the selected item, in the main area, with an action at its end when there is one. */
 function ItemWarning({ children, action }: { children: ReactNode; action?: ReactNode }) {
@@ -156,6 +196,18 @@ export function SelectedItem({
       {selectedSlides?.problem === 'song-missing' && <ItemWarning>{t('presentation.songMissing')}</ItemWarning>}
       {selectedSlides?.problem === 'image-missing' && <ItemWarning>{t('presentation.imageMissing')}</ItemWarning>}
       {selectedSlides?.problem === 'audio-missing' && <ItemWarning>{t('presentation.audioMissing')}</ItemWarning>}
+      {selectedSlides?.problem === 'video-missing' && <ItemWarning>{t('presentation.videoMissing')}</ItemWarning>}
+      {selectedSlides?.video &&
+        (shown ? (
+          // While presenting, the window's own video: its sound plays here, the outputs follow its picture.
+          shown.video && (
+            <div className="w-full sm:max-w-lg sm:mx-auto">
+              <VideoPlayer control={shown.video} itemId={selected.id} name={selectedSlides.video.fileName} type={selectedSlides.video.contentType} codec={selectedSlides.video.codec} />
+            </div>
+          )
+        ) : (
+          <VideoPreview key={selected.id} video={selectedSlides.video} />
+        ))}
       {selectedSlides?.audio &&
         (shown ? (
           // While presenting, the session's own player: what plays on the presenting computer (AudioPlayer.razor).

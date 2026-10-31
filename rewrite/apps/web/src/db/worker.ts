@@ -5,7 +5,7 @@ import SQLiteESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite.mjs';
 import wasmUrl from '@journeyapps/wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as SQLite from '@journeyapps/wa-sqlite';
 import { OPFSCoopSyncVFS } from '@journeyapps/wa-sqlite/src/examples/OPFSCoopSyncVFS.js';
-import { bibleId, importBibleZip, verseCount, type MutatorName } from '@gp/core';
+import { bibleId, importBibleZip, recordMediaBlobSql, verseCount, type MutatorName } from '@gp/core';
 import {
   authHeaders,
   BibleTextUploads,
@@ -28,7 +28,7 @@ import {
   type ClientSqlite,
 } from '@gp/sync/client';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
-import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
+import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport, VideoImport } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
 
 /** The backstop poll (SYNC-R43): pokes are never load-bearing. */
@@ -206,6 +206,34 @@ function addAudio(a: AudioImport): Promise<void> {
   });
 }
 
+/**
+ * Records a video the page has uploaded: its still is kept here (uploaded before the add is pushed), the
+ * video only named, without its bytes, so `addVideo` finds it here as it does on the server. No device
+ * keeps a video: it streams from the server.
+ */
+function addVideo(v: VideoImport): Promise<void> {
+  return serialStore(async () => {
+    const stillHash = await storeMediaBlob(client!, v.still, v.stillType);
+    const thumbHash = await storeMediaBlob(client!, v.thumb, v.stillType);
+    await client!.localWrite([recordMediaBlobSql(v.hash, v.contentType, v.size, null, Date.now())]);
+    await client!.mutate('addVideo', {
+      id: v.id,
+      fileName: v.fileName,
+      contentType: v.contentType,
+      codec: v.codec,
+      hash: v.hash,
+      size: v.size,
+      duration: v.duration,
+      width: v.width,
+      height: v.height,
+      stillHash,
+      thumbHash,
+      createdAt: Date.now(),
+    });
+    void client!.requestSync().then(reportStatus);
+  });
+}
+
 /** Keeps every page's blobs here and adds the deck as an item, online or not. */
 function addSlides(s: SlidesImport): Promise<void> {
   return serialStore(async () => {
@@ -348,6 +376,8 @@ async function handle(call: DbCall): Promise<unknown> {
       return addAudio(call.audio);
     case 'addSlides':
       return addSlides(call.slides);
+    case 'addVideo':
+      return addVideo(call.video);
     case 'openMedia':
       openMedia.set(call.key, { presentationId: call.presentationId, audio: call.audio });
       syncMediaBlobs();

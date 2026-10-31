@@ -245,7 +245,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('global database, %
   /** Every table's columns, sorted (a migrated table has its added columns last). */
   const shape = (f: ReturnType<typeof openSqlite>) =>
     Object.fromEntries(tables(f).map((t) => [t, f.query(`SELECT name FROM pragma_table_info('${String(t)}')`).map((r) => String(r.name)).toSorted()]));
-  const ALL = ['_schema', 'auth_throttle', 'invites', 'login_flows', 'memberships', 'orgs', 'pair_codes', 'paired_devices', 'passkey_flows', 'screen_tokens', 'screens', 'sessions', 'user_logins', 'users', 'watch_codes'];
+  const ALL = ['_schema', 'auth_throttle', 'invites', 'login_flows', 'memberships', 'orgs', 'pair_codes', 'paired_devices', 'passkey_flows', 'play_tokens', 'screen_tokens', 'screens', 'sessions', 'user_logins', 'users', 'watch_codes'];
 
   async function freshShape(dir: string) {
     const f = openSqlite(join(dir, `fresh-${crypto.randomUUID()}.sqlite`), driver);
