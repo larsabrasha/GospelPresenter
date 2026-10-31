@@ -325,8 +325,7 @@ export class LiveHub {
    * screen. A black screen or nothing selected is the waiting screen (LIVE-R14).
    */
   current(displayId: string): PublicSlide | null {
-    const row = this.boundRow(displayId);
-    return row?.slide ? (JSON.parse(row.slide) as PublicSlide) : null;
+    return slideOf(this.boundRow(displayId));
   }
 
   /**
@@ -335,16 +334,15 @@ export class LiveHub {
    * slide's. Null: black.
    */
   canvas(displayId: string): Canvas | null {
-    const row = this.boundRow(displayId);
-    if (row?.canvas) return JSON.parse(row.canvas) as Canvas;
-    return row?.slide ? canvasOfPublicSlide(JSON.parse(row.slide) as PublicSlide) : null;
+    return canvasOf(this.boundRow(displayId));
   }
 
   /** The event an output's viewer gets for what it shows now: a public output the public slide, a paired screen the canvas. */
   private shown(displayId: string, screen: boolean): WatchEvent {
     // A screen bound to a session draws its canvas, black included, as Display.razor; unbound, it waits.
-    if (screen) return this.boundRow(displayId) ? { type: 'canvas', canvas: this.canvas(displayId) } : { type: 'idle' };
-    const slide = this.current(displayId);
+    const row = this.boundRow(displayId);
+    if (screen) return row ? { type: 'canvas', canvas: canvasOf(row) } : { type: 'idle' };
+    const slide = slideOf(row);
     return slide ? { type: 'slide', slide } : { type: 'idle' };
   }
 
@@ -410,8 +408,8 @@ export class LiveHub {
   showing(displayId: string, hash: string, screen = false): boolean {
     const row = this.boundRow(displayId);
     if (!row) return false;
-    const shown = screen ? this.canvas(displayId) : null;
-    const slideImage = screen ? shown?.slide?.image : this.current(displayId)?.image;
+    const shown = screen ? canvasOf(row) : null;
+    const slideImage = screen ? shown?.slide?.image : slideOf(row)?.image;
     if (
       slideImage === hash &&
       this.store.query(
@@ -563,4 +561,16 @@ export class LiveHub {
 
 function reply(s: LiveSocket, m: LiveServerMessage) {
   s.send(JSON.stringify(m));
+}
+
+/** The public slide a session shows (LIVE-R32); null without a session, or black. */
+function slideOf(row: Row | undefined): PublicSlide | null {
+  return row?.slide ? (JSON.parse(row.slide) as PublicSlide) : null;
+}
+
+/** The canvas a session's paired screens draw (spec 04 §5); from an owner that reports none (an older build), the public slide's. */
+function canvasOf(row: Row | undefined): Canvas | null {
+  if (row?.canvas) return JSON.parse(row.canvas) as Canvas;
+  const slide = slideOf(row);
+  return slide ? canvasOfPublicSlide(slide) : null;
 }

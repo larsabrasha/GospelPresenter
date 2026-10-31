@@ -27,6 +27,8 @@ modifiers, SongEditor's skipped name or year, a refused arrangement write) is do
    _Done 2026-10-30: the last three used, stored or not (`test/bibleBooks.test.ts`)._
 10. `apps/server/src/live-hub.ts`: `showing()`/`shown()` read live_bindings and live_sessions two or three times
    a call and parse JSON again per picture request; use the row already read. Only if it stays simple.
+   _Done 2026-10-30: `slideOf`/`canvasOf` take the row; a picture request reads the binding and
+   the session once and parses once (was twice each). No new test: it changes no behaviour._
 
 ## Performance (decided with Lars 2026-10-29; done 2026-10-30)
 
