@@ -66,6 +66,7 @@ export class LiveLink {
   private audioListeners = new Set<(sessionId: string, command: AudioCommand) => void>();
   private videoListeners = new Set<(sessionId: string, command: VideoCommand) => void>();
   private errorListeners = new Set<(error: string) => void>();
+  private releasedListeners = new Set<(sessionId: string, outputs: string[]) => void>();
 
   constructor(private protocols: string[]) {
     this.connect();
@@ -98,6 +99,7 @@ export class LiveLink {
       } else if (m.type === 'command') for (const fn of this.commandListeners) fn(m.sessionId, m.change);
       else if (m.type === 'audio-command') for (const fn of this.audioListeners) fn(m.sessionId, m.command);
       else if (m.type === 'video-command') for (const fn of this.videoListeners) fn(m.sessionId, m.command);
+      else if (m.type === 'released') for (const fn of this.releasedListeners) fn(m.sessionId, m.outputs);
       else {
         // A refused report is not what the server holds: send the next one even if it is the same.
         this.lastSent = '';
@@ -178,6 +180,12 @@ export class LiveLink {
   onError(fn: (error: string) => void): () => void {
     this.errorListeners.add(fn);
     return () => this.errorListeners.delete(fn);
+  }
+
+  /** Screens the server let go after 4 hours without a slide change (LIVE-R43). */
+  onReleased(fn: (sessionId: string, outputs: string[]) => void): () => void {
+    this.releasedListeners.add(fn);
+    return () => this.releasedListeners.delete(fn);
   }
 
   close() {

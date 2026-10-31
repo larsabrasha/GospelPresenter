@@ -161,7 +161,9 @@ which session is kept on the socket (a hibernatable socket's attachment), so a D
 between messages. Every hub call runs in the organisation's queue, so a live write never lands inside a
 mutation's transaction. Only the user who first reported a session id may report it again. A lost owner
 freezes the session (LIVE-R50): it stays, cannot be driven, and anyone in the organisation may then end it
-("Avsluta presentationen"); after 2 hours without its owner it is ended when the sessions are next read.
+("Avsluta presentationen"); after 2 hours without its owner, or 4 hours without a report from it (LIVE-R42),
+it is ended when the sessions are next read. A screen whose session has not changed slide for 4 hours is let go
+(LIVE-R43, `docs/assumptions.md`).
 Starting and controlling need `ManagePresentations` (ADR 0007 decision 5), which every role has, so any
 member may control, as LIVE-R38 says. The hub reads the policy on every command and every sessions list; after
 a push of `setRemoteControl` it sends the sessions to everyone, so a running session follows at once. The poke

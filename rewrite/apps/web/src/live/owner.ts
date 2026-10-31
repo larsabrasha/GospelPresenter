@@ -230,11 +230,16 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       if (e !== 'output-taken') return;
       for (const id of refusedOutputs(link.sessions, sessionId)) setOutput(id, false);
     });
+    // Screens let go for idling (LIVE-R43) are switched off here too; the operator may switch them on again.
+    const offReleased = link.onReleased((target, outputs) => {
+      if (target === sessionId) for (const id of outputs) setOutput(id, false);
+    });
     return () => {
       off();
       offDb();
       offCommand();
       offError();
+      offReleased();
       offSessions();
       offAudio();
       offVideo();

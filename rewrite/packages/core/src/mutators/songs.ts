@@ -2,7 +2,6 @@ import { and, asc, count, eq, isNull, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { labelDefaults, labelId } from '../labels.ts';
 import { labels, songArrangements, songParts, songs } from '../schema.ts';
-import { songNameKey } from '../propresenter.ts';
 import { parsePartIds } from '../slides.ts';
 import { id, LIMITS, limit, MutationError, name, optionalText, requirePermission, type MutatorCtx, type Tx } from './base.ts';
 
@@ -176,26 +175,25 @@ const importedSong = z.object({
   arrangements: z
     .array(z.object({ id, name: optionalText(100), partIds: z.array(id).max(500) }))
     .max(LIMITS.arrangementsPerSong),
+  /** The library song this one replaces, as the importer chose; null adds it, whatever its name. */
+  replaces: id.nullable(),
 });
 
-export const importSongsArgs = z.object({ songs: z.array(importedSong).min(1).max(500), replace: z.boolean() });
+export const importSongsArgs = z.object({ songs: z.array(importedSong).min(1).max(500) });
 /**
- * Songs read from ProPresenter files (spec 02 "Import", SONG-R42–R44), in one mutation so the import
- * is all or nothing. A song whose name is already in the library, not in the trash (compared without
- * regard to case or composition), is skipped, or with `replace` keeps its id and name and takes the
- * file's author, publisher, CCLI number (and no year), parts and arrangements in place of its own. The
- * library is read where this runs, so a song another device added meanwhile counts too; a name added
- * earlier in the same import does as well.
+ * Songs read from ProPresenter files (spec 02 "Import", SONG-R42–R44 as changed on 2026-10-31), in one
+ * mutation so the import is all or nothing. The importer chose per song: those to skip are not sent, and
+ * one that `replaces` a song keeps that song's id and name and takes the file's author, publisher, CCLI
+ * number (and no year), parts and arrangements in place of its own. A song to replace that is gone or in
+ * the trash where this runs is added instead, so no text is lost; every other song is added, even beside
+ * one of the same name.
  */
 export async function importSongs(tx: Tx, a: z.output<typeof importSongsArgs>, ctx: MutatorCtx) {
   requirePermission(ctx, 'ManageSongs');
-  const library = await tx.select({ id: songs.id, name: songs.name }).from(songs).where(isNull(songs.deletedAt));
-  const byName = new Map(library.map((s) => [songNameKey(s.name), s.id]));
-  let live = library.length;
+  const library = new Set((await tx.select({ id: songs.id }).from(songs).where(isNull(songs.deletedAt))).map((s) => s.id));
+  let live = library.size;
   for (const s of a.songs) {
-    const key = songNameKey(s.name);
-    let songId = byName.get(key);
-    if (songId && !a.replace) continue;
+    let songId = s.replaces && library.has(s.replaces) ? s.replaces : null;
     if (songId) {
       await tx.update(songs).set({ author: s.author, publisher: s.publisher, year: null, ccli: s.ccli }).where(eq(songs.id, songId));
       await tx.delete(songArrangements).where(eq(songArrangements.songId, songId));
@@ -204,7 +202,7 @@ export async function importSongs(tx: Tx, a: z.output<typeof importSongsArgs>, c
       limit(live >= LIMITS.songs, 'songs');
       songId = s.id;
       await tx.insert(songs).values({ id: songId, name: s.name, author: s.author, publisher: s.publisher, ccli: s.ccli }).onConflictDoNothing();
-      byName.set(key, songId);
+      library.add(songId);
       live++;
     }
     for (const [sort, p] of s.parts.entries()) {

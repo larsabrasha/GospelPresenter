@@ -38,8 +38,7 @@ rather than only the newest (the stream is not a one-slot queue); the 500-viewer
 Swedish only, not per Accept-Language. A Durable Object with open streams does not hibernate; spec 04 and
 ADR 0007 leave a Durable Object per output for when that matters.
 
-From spec 04's paired screens: the 4-hour idle unbinding of LIVE-R43; a saved screen whose session the
-2-hour rule ended (LIVE-R50) draws black, where the old app showed its name once the session expired; a `/display` page of an older build, still open when the server
+From spec 04's paired screens: a `/display` page of an older build, still open when the server
 is updated, does not know the `canvas` event and waits until it is reloaded. In local workerd a closed stream is
 never noticed, not even when a ping is written: a saved screen stays Online and a public output's viewer stays
 counted after the page has closed (on Node both go at once); whether Cloudflare itself notices is not known. A
@@ -47,8 +46,9 @@ four-digit code is unique across every organisation on the server: 8 999 at a ti
 few on a shared cloud. Not tested on a real TV browser.
 
 From spec 04's remote control: the
-4-hour idle eviction of LIVE-R42 (only an abandoned session, 2 hours without its owner, is ended); the
-superadmin's Aktiva sessioner. A session id is per window
+superadmin's Aktiva sessioner. The 4-hour limits (LIVE-R42, R43) are tested only in `live-hub.test.ts` on a
+clock the test moves, not on the adapters or in the app; on a Durable Object the screen timer is lost if the
+object is evicted, and the next event checks instead. A session id is per window
 (kept for the tab's life), also in the desktop app, rather than derived from the device token (spec 04): a
 desktop that restarts starts a new session, and the old one stays frozen until someone ends it or 2 hours
 pass. Two operator windows on one machine share their pointer (one BroadcastChannel) and so show as two

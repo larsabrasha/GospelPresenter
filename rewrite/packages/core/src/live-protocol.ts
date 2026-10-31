@@ -259,10 +259,16 @@ export type LiveServerMessage =
   | { type: 'audio-command'; sessionId: string; command: AudioCommand }
   /** To the owner only: a controller's video command. */
   | { type: 'video-command'; sessionId: string; command: VideoCommand }
+  /** To the owner only: saved or temporary screens let go after SCREEN_IDLE_MS without a slide change (LIVE-R43); switch them off. */
+  | { type: 'released'; sessionId: string; outputs: string[] }
   | { type: 'error'; error: 'invalid-message' | 'not-owner' | 'not-found' | 'remote-off' | 'owner-offline' | 'forbidden' | 'output-taken' };
 
 /** A session whose owner has been gone this long is ended (LIVE-R50's reaper). */
 export const ABANDONED_SESSION_MS = 2 * 60 * 60 * 1000;
+/** A session whose owner has not reported for this long is ended, owner online or not (LIVE-R42). */
+export const SESSION_IDLE_MS = 4 * 60 * 60 * 1000;
+/** A screen whose session has not changed slide for this long is let go (LIVE-R43). */
+export const SCREEN_IDLE_MS = 4 * 60 * 60 * 1000;
 /**
  * The largest message the server reads: room for the largest valid report,
  * even if every character of its slide needs a six-character JSON escape (a

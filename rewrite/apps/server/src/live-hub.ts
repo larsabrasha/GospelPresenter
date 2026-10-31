@@ -6,6 +6,8 @@ import {
   liveClientMessageSchema,
   MAX_VIEWERS,
   REMOTE_CONTROL_SETTING,
+  SCREEN_IDLE_MS,
+  SESSION_IDLE_MS,
   remoteControlAllowed,
   remoteControlPolicy,
   ITEM_IMAGES_SQL,
@@ -48,10 +50,12 @@ const DDL = [
      id TEXT PRIMARY KEY NOT NULL, owner_user_id TEXT NOT NULL, presentation_id TEXT NOT NULL,
      presentation_name TEXT NOT NULL, device_name TEXT NOT NULL, remote INTEGER NOT NULL,
      pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT, audio TEXT, canvas TEXT, video TEXT)`,
-  // Which session an output sends from: at most one (LIVE-R23).
-  `CREATE TABLE IF NOT EXISTS live_bindings (display_id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL)`,
+  // Which session an output sends from: at most one (LIVE-R23); `active_at`, its session's last slide change since it was bound (LIVE-R43).
+  `CREATE TABLE IF NOT EXISTS live_bindings (display_id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL, active_at INTEGER NOT NULL)`,
   // Temporary screens paired with the organisation (spec 04 §5), each for the session that paired it.
   `CREATE TABLE IF NOT EXISTS live_screens (id TEXT PRIMARY KEY NOT NULL, n INTEGER NOT NULL, session_id TEXT NOT NULL)`,
+  // Saved screens let go for idling (LIVE-R43): not bound to that session again until its owner has switched them off.
+  `CREATE TABLE IF NOT EXISTS live_released (display_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (display_id, session_id))`,
 ];
 
 /** One public viewer's stream (LIVE-R35): it only ever needs the newest event. */
@@ -105,6 +109,8 @@ export class LiveHub {
    * the runtime stops listing it.
    */
   private gone = new Set<string>();
+  /** The pending check for idle screens (LIVE-R43), due at `at`; like `dropped`, a timer whose entry was replaced does nothing. */
+  private idleCheck: { at: number; timer: unknown } | null = null;
 
   constructor(
     private store: LiveStore,
@@ -121,12 +127,18 @@ export class LiveHub {
       store.query('DROP TABLE live_sessions');
       store.query(DDL[0]!);
     }
+    if (!store.query(`SELECT 1 FROM pragma_table_info('live_bindings') WHERE name = 'active_at'`).length) {
+      store.query('DROP TABLE live_bindings');
+      store.query(DDL[1]!);
+    }
   }
 
   /** Stops the viewer-count timer: the database is about to close. */
   dispose() {
     for (const d of this.dropped.values()) clearTimeout(d.timer as ReturnType<typeof setTimeout>);
     this.dropped.clear();
+    if (this.idleCheck) clearTimeout(this.idleCheck.timer as ReturnType<typeof setTimeout>);
+    this.idleCheck = null;
     if (this.countTimer) clearTimeout(this.countTimer);
     this.countTimer = null;
     this.countDue = false;
@@ -202,6 +214,9 @@ export class LiveHub {
     const existing = this.row(state.sessionId);
     // A session id is the owner's; another user cannot take it over by naming it.
     if (existing && existing.owner_user_id !== s.userId) return reply(s, { type: 'error', error: 'not-owner' });
+    const slide = state.slide ? JSON.stringify(state.slide) : null;
+    // A slide change (another slide, black, an overlay, an edit to what shows) is the screens' activity (LIVE-R43).
+    const changed = !existing || existing.pointer !== JSON.stringify(state.pointer) || existing.slide !== slide;
     this.store.query(
       `INSERT INTO live_sessions (id, owner_user_id, presentation_id, presentation_name, device_name, remote, pointer, owner_seen_at, slide, audio, canvas, video)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -217,7 +232,7 @@ export class LiveHub {
         state.remote ? 1 : 0,
         JSON.stringify(state.pointer),
         this.now(),
-        state.slide ? JSON.stringify(state.slide) : null,
+        slide,
         state.audio ? JSON.stringify(state.audio) : null,
         state.canvas ? JSON.stringify(stampVideo(state.canvas, this.now())) : null,
         state.video ? JSON.stringify(state.video) : null,
@@ -225,6 +240,7 @@ export class LiveHub {
     );
     if (!s.owns.includes(state.sessionId)) s.owns = [...s.owns, state.sessionId];
     const touched = this.bind(s, state);
+    if (changed) this.store.query('UPDATE live_bindings SET active_at = ? WHERE session_id = ?', [this.now(), state.sessionId]);
     this.broadcast();
     for (const displayId of touched) this.pushTo(displayId);
   }
@@ -249,17 +265,22 @@ export class LiveHub {
     for (const id of dropped) this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [id]);
     // A temporary screen switched off (✕) is let go: its TV shows a new code.
     this.releaseScreens((this.store.query('SELECT id FROM live_screens WHERE session_id = ?', [state.sessionId]) as { id: string }[]).map((x) => x.id).filter((id) => dropped.includes(id)));
+    // A saved screen let go for idling stays off until the owner switches it off (LIVE-R43); then it may be switched on again.
+    const idled = (this.store.query('SELECT display_id FROM live_released WHERE session_id = ?', [state.sessionId]) as { display_id: string }[]).map((r) => r.display_id);
+    for (const id of idled) if (!state.outputs.includes(id)) this.store.query('DELETE FROM live_released WHERE display_id = ? AND session_id = ?', [id, state.sessionId]);
+    const stillIdle = idled.filter((id) => state.outputs.includes(id));
+    if (stillIdle.length) reply(s, { type: 'released', sessionId: state.sessionId, outputs: stillIdle });
     let refused = false;
     for (const id of state.outputs) {
-      if (!known.has(id) || mine.includes(id)) continue;
+      if (!known.has(id) || mine.includes(id) || stillIdle.includes(id)) continue;
       const [other] = this.store.query('SELECT session_id FROM live_bindings WHERE display_id = ?', [id]) as { session_id: string }[];
       if (other && this.row(other.session_id) && !state.takeOver.includes(id)) {
         refused = true;
         continue;
       }
       this.store.query(
-        'INSERT INTO live_bindings (display_id, session_id) VALUES (?, ?) ON CONFLICT (display_id) DO UPDATE SET session_id = excluded.session_id',
-        [id, state.sessionId],
+        'INSERT INTO live_bindings (display_id, session_id, active_at) VALUES (?, ?, ?) ON CONFLICT (display_id) DO UPDATE SET session_id = excluded.session_id, active_at = excluded.active_at',
+        [id, state.sessionId, this.now()],
       );
       touched.add(id);
     }
@@ -267,15 +288,73 @@ export class LiveHub {
     return touched;
   }
 
-  private endSession(id: string) {
+  /** `expired`: ended by the server (LIVE-R42, LIVE-R50) rather than by a person. */
+  private endSession(id: string, expired = false) {
     const bound = (this.store.query('SELECT display_id FROM live_bindings WHERE session_id = ?', [id]) as { display_id: string }[]).map((b) => b.display_id);
     this.store.query('DELETE FROM live_bindings WHERE session_id = ?', [id]);
+    // An owner still online brings an expired session back with its next report: its let-go screens stay off.
+    if (!expired || !this.ownerOnline(id)) this.store.query('DELETE FROM live_released WHERE session_id = ?', [id]);
     this.store.query('DELETE FROM live_sessions WHERE id = ?', [id]);
     // Its temporary screens go with it (LIVE-R24: the screen disconnects itself).
     this.releaseScreens((this.store.query('SELECT id FROM live_screens WHERE session_id = ?', [id]) as { id: string }[]).map((x) => x.id));
-    // A saved screen whose session ended draws black, not its name (Display.razor keeps the pairing when the
-    // presentation stops); its name comes back when its page is opened again.
-    for (const d of bound) this.pushTo(d, true);
+    // A saved screen whose session was stopped draws black (Display.razor keeps the pairing when the presentation
+    // stops), its name when its page is opened again; one whose session expired shows its name at once.
+    for (const d of bound) this.pushTo(d, !expired);
+  }
+
+  /**
+   * Lets go of the screens whose session has not changed slide for
+   * SCREEN_IDLE_MS (LIVE-R43): a temporary screen shows a new code, a saved
+   * screen its name. Their owners hear `released`, to switch them off.
+   */
+  private releaseIdleScreens() {
+    const idle = this.store.query(
+      `SELECT b.display_id, b.session_id, (t.id IS NOT NULL) AS temporary FROM live_bindings b LEFT JOIN live_screens t ON t.id = b.display_id
+       WHERE b.active_at <= ? AND (t.id IS NOT NULL OR b.display_id IN (SELECT id FROM displays WHERE kind = 'screen'))`,
+      [this.now() - SCREEN_IDLE_MS],
+    ) as { display_id: string; session_id: string; temporary: number }[];
+    if (!idle.length) return;
+    this.releaseScreens(idle.filter((b) => b.temporary).map((b) => b.display_id));
+    for (const b of idle.filter((x) => !x.temporary)) {
+      this.store.query('DELETE FROM live_bindings WHERE display_id = ?', [b.display_id]);
+      this.store.query('INSERT INTO live_released (display_id, session_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [b.display_id, b.session_id]);
+      this.pushTo(b.display_id);
+    }
+    for (const sessionId of new Set(idle.map((b) => b.session_id))) {
+      const message = JSON.stringify({ type: 'released', sessionId, outputs: idle.filter((b) => b.session_id === sessionId).map((b) => b.display_id) } satisfies LiveServerMessage);
+      for (const o of this.sockets().filter((x) => x.owns.includes(sessionId))) {
+        try {
+          o.send(message);
+        } catch {
+          // closing: the owner hears it with its next report (`bind`)
+        }
+      }
+    }
+  }
+
+  /**
+   * Keeps one check pending for the screen that idles out first (LIVE-R43).
+   * Sessions are checked whenever anything happens (`sessions`), not on a
+   * timer, so a Durable Object without open streams may hibernate.
+   */
+  private scheduleIdleCheck() {
+    const [first] = this.store.query(
+      `SELECT min(active_at) AS at FROM live_bindings WHERE display_id IN (SELECT id FROM live_screens UNION SELECT id FROM displays WHERE kind = 'screen')`,
+    ) as { at: number | null }[];
+    if (first?.at == null) return;
+    const at = Number(first.at) + SCREEN_IDLE_MS;
+    if (this.idleCheck && this.idleCheck.at <= at) return;
+    if (this.idleCheck) clearTimeout(this.idleCheck.timer as ReturnType<typeof setTimeout>);
+    const mark: { at: number; timer: unknown } = { at, timer: null };
+    this.idleCheck = mark;
+    mark.timer = this.later(
+      () => {
+        if (this.idleCheck !== mark) return;
+        this.idleCheck = null;
+        this.broadcast(); // sweeps, and schedules the next check
+      },
+      Math.max(at - this.now(), 0) + 1000,
+    );
   }
 
   // ------------------------------------------------------------ temporary screens (spec 04 §5)
@@ -535,15 +614,21 @@ export class LiveHub {
     return this.sockets().some((o) => o.owns.includes(id));
   }
 
-  /** Every session, after ending those whose owner has been gone too long (LIVE-R50). */
+  /**
+   * Every session, after ending those whose owner has been gone too long
+   * (LIVE-R50) or has not reported for SESSION_IDLE_MS (LIVE-R42), and letting
+   * go of idle screens (LIVE-R43). An owner still online brings its session
+   * back with its next report.
+   */
   sessions(): LiveSessionInfo[] {
+    this.releaseIdleScreens();
     const online = new Set(this.sockets().flatMap((o) => o.owns));
     const rows = this.store.query('SELECT * FROM live_sessions ORDER BY id') as unknown as Row[];
     const policy = this.policy();
     const out: LiveSessionInfo[] = [];
     for (const r of rows) {
-      if (!online.has(r.id) && r.owner_seen_at < this.now() - ABANDONED_SESSION_MS) {
-        this.endSession(r.id);
+      if (r.owner_seen_at < this.now() - (online.has(r.id) ? SESSION_IDLE_MS : ABANDONED_SESSION_MS)) {
+        this.endSession(r.id, true);
         continue;
       }
       const outputs = (this.store.query('SELECT display_id FROM live_bindings WHERE session_id = ? ORDER BY display_id', [r.id]) as { display_id: string }[]).map(
@@ -581,6 +666,7 @@ export class LiveHub {
         // A socket that is closing: its close is on its way.
       }
     }
+    this.scheduleIdleCheck();
   }
 }
 

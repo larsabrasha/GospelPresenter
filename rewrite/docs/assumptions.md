@@ -75,14 +75,44 @@ Remote control for the whole organisation (LIVE-R38 and R39 as changed on 2026-1
   (`/admin/settings`, "Församlingens inställningar"), for those with the permission; it looks like "Mina
   inställningar". It is not called "Inställningar", which the admin button in the top bar is already called.
 
+Idle limits on live sessions and screens (LIVE-R42, R43, R50; built 2026-10-31):
+
+- **A session whose owner has not reported for 4 hours is ended, owner online or not** (LIVE-R42). A report is
+  sent on every change the window makes (a slide, black, an overlay, the remote toggle, outputs, sound, video)
+  and on every reconnect; a controller's command counts once the owner applies it. An open screen or output
+  does not keep a session alive, unlike the old app's reads. The server ends only its own copy: a window still
+  presenting goes on presenting and brings the session back with its next report, as LIVE-R50 has for a
+  mirrored session. It is not told, and its local outputs stay. Checked when anything happens on the hub, not
+  every minute, so a phone that has the list open sees the session go with the next event.
+- **A screen is let go when its session has not changed slide for 4 hours** (LIVE-R43): another slide, black,
+  an overlay, or an edit to what shows; not the remote toggle or sound. Both kinds: a temporary screen shows a
+  new code, a saved screen its name. Public outputs are not let go. The owner window hears `released` and
+  switches the screen off, and the server will not bind it to that session again until it has been switched
+  off, so the operator may switch it on again. Checked by a timer for the screen due first, and whenever
+  anything happens.
+- **A saved screen whose session expired shows its name** (LIVE-R50's reaper, or LIVE-R42), as the old app
+  did. One whose session was stopped (Avsluta, or an ended session from another phone) still draws black, as
+  Display.razor does, until its page is opened again.
+
 The ProPresenter import (spec 02 "Import card", SONG-R35–R44; built 2026-10-31):
 
 - **The files are read in the page** (`packages/core/src/propresenter.ts`), with a small reader of protobuf's
   wire format rather than a library, and written in one `importSongs` mutation: there is no
   `/api/upload/import-songs`, and the import is all or nothing as SONG-R44 has it. An import of more than 500
-  songs goes in several mutations of 500. The duplicate question is asked from the library on this device; the
-  mutation applies the same rule where it runs, so a song of that name another device added meanwhile is a
-  duplicate too. A file over 25 MB is not read, on every device.
+  songs goes in several mutations of 500. A file over 25 MB is not read, on every device.
+- **Duplicates are chosen per song, with both texts to compare** (SONG-R42 as changed with Lars on 2026-10-31;
+  the current app asks once for all, by name only). A song shares a name with one in the library or earlier
+  in the import (case and composition aside, as SONG-R42); it is marked "Likadan" when the text is the same
+  word for word (spaces, line breaks and blank lines do not count; labels, arrangements, author and CCLI do
+  not either) and "Annan text" otherwise, and asked about either way. Each row has Hoppa över, Ersätt and
+  Behåll båda (only the first and last for a name met earlier in the import), "Visa text" shows the library's
+  and the file's text side by side, and "Alla:" sets every row. A same song starts as Hoppa över, another
+  text as Behåll båda, so no text is lost by default; Behåll båda adds the song beside the other under the
+  same name. Of several library songs with the name, the one with the same text is compared with, else the
+  first. The choice is made on this device: the mutation replaces the song it names, or adds the song when
+  that one is gone or in the trash where it runs, and adds every other song, so a song of that name another
+  device added meanwhile is not skipped; nothing is lost, but two songs may then share a name. The texts are
+  shown whole, without marking the words that differ.
 - **The text is read as the current app does, but better in four ways**, checked on 882 real `.pro` files
   (GP_REAL_PRO_DIR, `packages/core/test/node/real-propresenter.test.ts`): the RTF's header groups (fonts,
   colours, `{\*…}`) go first, so a slide with empty text boxes is no longer read as `;;` and `\*;;` (ten of

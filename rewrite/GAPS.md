@@ -82,9 +82,9 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 - [s] Publika utgångar på mottagarens språk (Accept-Language).
 - [s] Overlay-bilden på publika utgångar (i dag bara texten).
 - [s] En borttagen overlay ligger kvar på utgångarna tills den slås av, som specen säger (i dag försvinner den direkt).
-- [x] En sparad skärm visar sitt namn när sessionen gått ut (i dag svart, LIVE-R50).
-- [x] Släpp en skärm som varit stilla i 4 timmar (LIVE-R43).
-- [x] Avsluta fjärrstyrning som varit stilla i 4 timmar (LIVE-R42; i dag bara efter 2 timmar utan ägare).
+- [x] En sparad skärm visar sitt namn när sessionen gått ut (i dag svart, LIVE-R50). **Klart 2026-10-31.**
+- [x] Släpp en skärm som varit stilla i 4 timmar (LIVE-R43). **Klart 2026-10-31.**
+- [x] Avsluta fjärrstyrning som varit stilla i 4 timmar (LIVE-R42; i dag bara efter 2 timmar utan ägare). **Klart 2026-10-31.**
 - [s] Sessionen följer enheten, inte fönstret (i dag får en omstartad dator en ny session).
 - [s] Två operatörsfönster på samma dator blir två egna sessioner (i dag delar de pekare).
 - [s] Två översättningar med samma text visas som två (i dag syns båda som "Tillgänglig offline").
