@@ -149,9 +149,9 @@ calendar subscriptions (`GospelPresenter/GospelPresenter.Shared/Services/IAppCap
 | `/admin/devices` | ViewUsers | read-only |
 | `/admin/organizations`, `/admin/organizations/{id}` | ManageOrganizations (SuperAdmin) | |
 | `/admin/api-keys` | ManageMcpApiKeys (SuperAdmin) | |
-| `/admin/sessions` | ManageOrganizations | live sessions, all organizations |
+| `/admin/sessions` | ManageOrganizations | live sessions, all organizations; not in the rewrite (dropped 2026-10-31) |
 | `/admin/settings` | ManageOrganizationSettings (Admin+) | rewrite only (2026-10-29): the organisation's settings, remote control so far (LIVE-R38) |
-| `/admin/connected-users` | ManageOrganizations | |
+| `/admin/connected-users` | ManageOrganizations | not in the rewrite (dropped 2026-10-31) |
 | Other admin pages (other areas) | `/admin/songs`, `/admin/labels`, `/admin/songs/{id}`, `/admin/songs/{id}/history`: ManageSongs; `/admin/bibles`: ManageBibles; `/admin/images`: ManageOrganizationImages; `/admin/audios`: ManageOrganizationAudios; `/admin/overlays`, `/admin/overlays/{id}`: ManageOverlays; `/admin/templates`: ManageTemplates; `/admin/themes`: ManageThemes; `/admin/ccli-report`: ViewCcliReport; `/admin/displays`: ManageRemoteDisplays; `/presentations/{id}`, `/templates/{id}`, `/trash`: signed in | `@attribute [Authorize(Policy=…)]` in each page |
 | `/live`, `/display`, `/watch/*` | anonymous | Live/public output area |
 
@@ -543,6 +543,7 @@ ViewUsers is required (`GospelPresenter/GospelPresenter.Shared/Pages/Admin/Devic
     "Bibeltext", "Bild", "Ljud", "Slides"), then the link.
 
 ### `/admin/connected-users` (SuperAdmin)
+- Not in the rewrite (dropped 2026-10-31): this section describes the current app only.
 - "Inloggade just nu": people with at least one open web page (Blazor connection), across all
   organizations, one row per user. Subtitle: "Vem som har appen öppen just nu. En sida som lämnats
   öppen räknas tills den stängs." (`GospelPresenter/GospelPresenter.Shared/Pages/SuperAdmin/ConnectedUsers.razor`)
@@ -555,6 +556,7 @@ ViewUsers is required (`GospelPresenter/GospelPresenter.Shared/Pages/Admin/Devic
   "Den här värden räknar inga anslutningar."
 
 ### `/admin/sessions` (SuperAdmin)
+- Not in the rewrite (dropped 2026-10-31): this section, ORG-R17, ORG-A18 and ORG-A19 describe the current app only.
 - "Aktiva sessioner": every running presentation, across all organizations
   (`GospelPresenter/GospelPresenter.Shared/Pages/SuperAdmin/LiveSessions.razor`).
 - Each row shows the presentation name (or "Presentation utan namn"), then "{org} · {owner} · {sessionId}".

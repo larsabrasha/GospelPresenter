@@ -49,8 +49,9 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 - [s] Profilbild, och att kunna redigera sin profil (i dag visas `/logins` som Min profil).
 - [s] Församlingens logga.
 - [s] Flera Google-konton per användare (spec: upp till 5).
-- [x] En användare i flera organisationer.
-- [x] Fler organisationer än den första, byte mellan dem, och superadminsidorna (organisationer, aktiva sessioner, inloggade just nu).
+- [x] En användare i flera organisationer. **Klart 2026-10-31.**
+- [x] Fler organisationer än den första, byte mellan dem, och superadminsidan Organisationer. **Klart 2026-10-31.**
+- [-] Superadminsidorna Aktiva sessioner och Inloggade just nu (struken 2026-10-31: de fick fråga varje organisation var femte sekund, och en superadmin behöver dem sällan).
 - [s] Se och logga ut sina egna enheter (D23).
 - [s] `/admin/devices` som i specen: alla enheter med version (i dag bara värddatorns parkopplade enheter).
 - [x] E-post (i dag är en ny inbjudningslänk enda sättet att återställa ett konto). Via Resend, som i pralinbutiken. **Klart 2026-10-31.**

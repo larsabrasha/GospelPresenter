@@ -66,7 +66,7 @@ it is recorded here or in an ADR. A **Decided** entry in the recommendation colu
 
 | # | Question | Recommendation | Sources |
 |---|---|---|---|
-| D1 | One organisation per user (super admins switch), or membership in several? | **Decided:** one organisation per user for now, super admins switch; the data model has a membership table (user, organisation, role) so several organisations can be enabled later without a migration | 01 Q5 |
+| D1 | One organisation per user (super admins switch), or membership in several? | **Decided:** one organisation per user for now, super admins switch; the data model has a membership table (user, organisation, role) so several organisations can be enabled later without a migration. **Changed 2026-10-31:** a user may be a member of several (an admin adds an existing user by e-mail) and switches between them; a SuperAdmin acts in any organisation without a membership | 01 Q5 |
 | D2 | Where does live state live on Workers? | **Decided:** one Durable Object per organisation, holding any number of concurrent sessions, outputs and controllers; in-process on Node and in the desktop's embedded server. Public `/watch` fan-out may move to a Durable Object per output if it grows | 04 Q16, 06 Q9 |
 | D3 | Signing in as another account on a device: wipe local data or partition per account? | **Decided:** one local database per account and organisation; switching back resumes unsynced work | 06 Q1 |
 | D4 | Sync conflict semantics: keep "additions win" and whole-presentation merges? | **Decided:** client mutations replay against the server's latest state; deletions are exact, fields merge individually | 06 Q4–Q6, Q10 |

@@ -4,7 +4,7 @@ import { schemaMetaDdl } from '@gp/core';
 import type { GlobalSql } from './sql.ts';
 
 /** Bumped when a global table changes shape. Separate from the organisation schema, which clients hold. */
-export const GLOBAL_SCHEMA_VERSION = 7;
+export const GLOBAL_SCHEMA_VERSION = 8;
 
 const membershipsDdl = `CREATE TABLE IF NOT EXISTS memberships (user_id TEXT NOT NULL, org_id TEXT NOT NULL, role TEXT NOT NULL,
      PRIMARY KEY (user_id, org_id))`;
@@ -81,7 +81,7 @@ const loginDdl = [
 /** The current tables, as a new database gets them. */
 const accountDdl = [
   `CREATE TABLE IF NOT EXISTS orgs (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, created_at INTEGER NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, email TEXT, created_at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, email TEXT, created_at INTEGER NOT NULL, last_org_id TEXT)`,
   // 01 Q2: only a real address must be unique; users without one are allowed.
   `CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email) WHERE email IS NOT NULL`,
   ...loginDdl,
@@ -167,6 +167,8 @@ export const globalMigrations: Record<number, string[]> = {
   5: [watchCodesDdl],
   6: screensDdl,
   7: playTokensDdl,
+  // The organisation a user last switched to, which their next sign-in opens (spec 01 `LastSelectedOrganizationId`).
+  8: [`ALTER TABLE users ADD COLUMN last_org_id TEXT`],
 };
 
 /** What to run to bring a global database to GLOBAL_SCHEMA_VERSION; `version` is null without a row. */

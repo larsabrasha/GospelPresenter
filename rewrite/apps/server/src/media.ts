@@ -21,6 +21,8 @@ export interface MediaStorage {
   read(key: string, range?: ByteRange): Promise<ReadableStream<Uint8Array> | null>;
   /** Removes the key; a no-op if it is not there. */
   delete(key: string): Promise<void>;
+  /** Removes every key under `prefix` (`org/{org}/`, when an organisation is deleted). */
+  deleteAll(prefix: string): Promise<void>;
   /**
    * An upload in parts: started, given its parts in order (a part again
    * replaces it), then finished, when the object appears under the key, or
@@ -52,6 +54,9 @@ export function memoryStorage(): MediaStorage & { keys(): string[]; uploads(): n
       return new Blob([part as BlobPart]).stream();
     },
     delete: async (key) => void objects.delete(key),
+    async deleteAll(prefix) {
+      for (const key of objects.keys()) if (key.startsWith(prefix)) objects.delete(key);
+    },
     async startUpload(key) {
       const id = `${key}#${next++}`;
       uploads.set(id, new Map());
@@ -86,7 +91,8 @@ export function memoryStorage(): MediaStorage & { keys(): string[]; uploads(): n
 export interface R2Like {
   put(key: string, value: ArrayBuffer | Uint8Array): Promise<unknown>;
   get(key: string, options?: { range?: ByteRange }): Promise<{ arrayBuffer(): Promise<ArrayBuffer>; body: ReadableStream<Uint8Array> } | null>;
-  delete(key: string): Promise<void>;
+  delete(key: string | string[]): Promise<void>;
+  list(options: { prefix: string; cursor?: string }): Promise<{ objects: { key: string }[]; truncated: boolean; cursor?: string }>;
   createMultipartUpload(key: string): Promise<{ uploadId: string }>;
   resumeMultipartUpload(
     key: string,
@@ -107,6 +113,14 @@ export function r2Storage(bucket: R2Like): MediaStorage {
     },
     read: async (key, range) => (await bucket.get(key, range ? { range } : undefined))?.body ?? null,
     delete: (key) => bucket.delete(key),
+    async deleteAll(prefix) {
+      let cursor: string | undefined;
+      do {
+        const page = await bucket.list({ prefix, cursor });
+        if (page.objects.length) await bucket.delete(page.objects.map((o) => o.key));
+        cursor = page.truncated ? page.cursor : undefined;
+      } while (cursor);
+    },
     startUpload: async (key) => (await bucket.createMultipartUpload(key)).uploadId,
     putPart: async (key, uploadId, part, _offset, bytes) => (await bucket.resumeMultipartUpload(key, uploadId).uploadPart(part, bytes)).etag,
     finishUpload: async (key, uploadId, etags) => void (await bucket.resumeMultipartUpload(key, uploadId).complete(etags.map((etag, i) => ({ partNumber: i + 1, etag })))),

@@ -45,8 +45,7 @@ counted after the page has closed (on Node both go at once); whether Cloudflare 
 four-digit code is unique across every organisation on the server: 8 999 at a time, plenty on a desktop host,
 few on a shared cloud. Not tested on a real TV browser.
 
-From spec 04's remote control: the
-superadmin's Aktiva sessioner. The 4-hour limits (LIVE-R42, R43) are tested only in `live-hub.test.ts` on a
+From spec 04's remote control: the 4-hour limits (LIVE-R42, R43) are tested only in `live-hub.test.ts` on a
 clock the test moves, not on the adapters or in the app; on a Durable Object the screen timer is lost if the
 object is evicted, and the next event checks instead. A session id is per window
 (kept for the tab's life), also in the desktop app, rather than derived from the device token (spec 04): a
@@ -75,8 +74,7 @@ the desktop app, so its callback scheme is registered by an installer (a develop
 `gospelpresenter-local` only with `GP_REGISTER_SCHEME=1`) and its Google client is built in; a login
 hint or profile picture from Google; more than one Google account per user (ORG-R13 allows 5);
 profiles and profile images (the user page has no picture, and `/logins` stands in for Min profil), the
-language switch; organisations other than the one setup makes, the SuperAdmin switcher and super admin
-pages; a user in several organisations (D1 leaves it for later); listing and revoking your own
+language switch; the organisation logo; MCP API-nycklar; listing and revoking your own
 devices' sessions (D23; removing the user or pairing again are the ways today); `/admin/devices` as spec 01
 has it (every device token with its version; the rewrite's page is the host's paired devices);
 MCP keys and calendar feeds; the welcome modal; closing

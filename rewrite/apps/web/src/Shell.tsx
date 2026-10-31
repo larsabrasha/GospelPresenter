@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { can, type Me } from '@gp/core';
 import { api } from './auth/api.ts';
+import { switchOrg } from './auth/orgs.ts';
 import { forgetSession, saveDeviceToken } from './auth/session.ts';
 import { REPAIR_KEY } from './Boot.tsx';
 import { useDb, useDbStatus } from './db/react.tsx';
@@ -11,6 +12,7 @@ import {
   ArrowPathIcon,
   BarsIcon,
   CcliReportIcon,
+  CheckIcon,
   ChevronLeftIcon,
   BookOpenIcon,
   CloudCheckIcon,
@@ -194,8 +196,44 @@ export function UnexpectedError() {
   );
 }
 
-/** The signed-in user's menu (Components/LoginDisplay.razor): who, their logins, their settings, sign out. */
-function AccountMenu({ me }: { me: Me }) {
+type SwitchOrg = { id: string; name: string };
+
+/** The organisations the user may switch to, or none offline; the switcher shows only when there is a choice. */
+function useSwitchOrgs(me: Me): SwitchOrg[] {
+  const [orgs, setOrgs] = useState<SwitchOrg[]>([]);
+  useEffect(() => {
+    api<SwitchOrg[]>('GET', '/api/auth/orgs').then(
+      (r) => !r.error && setOrgs(r.body),
+      () => undefined, // offline: no switching
+    );
+  }, []);
+  return me.role === 'superAdmin' || orgs.length > 1 ? orgs : [];
+}
+
+/** The switcher's choices, the active one checked (OrganizationSwitcher.razor's menu). */
+function OrgChoices({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
+  const toast = useToast();
+  return orgs.map((o) => (
+    <AppButton
+      key={o.id}
+      variant="plain"
+      role="menuitem"
+      className={`${MENU_ITEM} ${o.id === me.orgId ? 'bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300' : ''}`}
+      onClick={() => {
+        if (o.id !== me.orgId) void switchOrg(o.id).then((error) => error && toast(error, 'warning'));
+      }}
+    >
+      <span className="flex-1 truncate">{o.name}</span>
+      {o.id === me.orgId && <CheckIcon className="size-4 shrink-0" />}
+    </AppButton>
+  ));
+}
+
+/**
+ * The signed-in user's menu (Components/LoginDisplay.razor): who, their logins, their settings, sign out. On a phone,
+ * where the bar has no room for the switcher, the organisations to switch to are here.
+ */
+function AccountMenu({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
   const who = `${me.name} · ${me.orgName}`;
   return (
     <Dropdown
@@ -212,6 +250,11 @@ function AccountMenu({ me }: { me: Me }) {
         {me.email && <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">{me.email}</div>}
         <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">{me.orgName}</div>
       </div>
+      {orgs.length > 0 && (
+        <div className="sm:hidden border-b-[0.5px] border-neutral-200 dark:border-neutral-600">
+          <OrgChoices me={me} orgs={orgs} />
+        </div>
+      )}
       <a href={href({ page: 'logins', error: null })} className={MENU_ITEM} role="menuitem">
         <KeyIcon className="size-4" />
         {t('logins.title')}
@@ -230,11 +273,40 @@ function AccountMenu({ me }: { me: Me }) {
 }
 
 /**
+ * The organisation switcher (Components/OrganizationSwitcher.razor): a pill with the organisation's name, and a menu
+ * of the ones the user may switch to. Shown to a SuperAdmin, and to a user in more than one, from the `sm` width;
+ * below it the account menu has them. Choosing one loads the start page there (ORG-R7).
+ */
+function OrgSwitcher({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
+  if (!orgs.length) return null;
+  return (
+    <Dropdown
+      className="max-sm:hidden"
+      menuClassName="right-0 w-64"
+      button={{
+        className: 'flex items-center gap-1.5 rounded-full text-xs bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 px-3 py-1.5 cursor-pointer max-w-56',
+        'aria-label': t('orgs.switcher', { name: me.orgName }),
+        'data-testid': 'org-switcher',
+      }}
+      trigger={
+        <>
+          <ViewGridIcon className="size-3.5 shrink-0" />
+          <span className="truncate">{me.orgName}</span>
+        </>
+      }
+    >
+      <OrgChoices me={me} orgs={orgs} />
+    </Dropdown>
+  );
+}
+
+/**
  * The bar at the top: the logo (to the start page) and Beta, or in a presentation a way back to the
  * presentations; at the right the sync, the admin pages and the user. The warnings under it, unless
  * the admin dialog covers it and shows them itself.
  */
 export function TopBar({ me, back, warnings }: { me: Me; back: boolean; warnings: boolean }) {
+  const orgs = useSwitchOrgs(me);
   return (
     <>
       <nav className="relative flex items-center justify-between px-4 h-12 shrink-0 border-b-[0.5px] border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800">
@@ -264,7 +336,8 @@ export function TopBar({ me, back, warnings }: { me: Me; back: boolean; warnings
           <AppButton variant="icon" href={href({ page: 'songs' })} title={t('nav.admin')} aria-label={t('nav.admin')} className="bg-neutral-100 dark:bg-neutral-700">
             <CogIcon className="size-4" />
           </AppButton>
-          <AccountMenu me={me} />
+          <OrgSwitcher me={me} orgs={orgs} />
+          <AccountMenu me={me} orgs={orgs} />
         </div>
       </nav>
       {warnings && <SyncWarnings />}
@@ -307,6 +380,10 @@ function adminLinks(me: Me, host: boolean): AdminLink[][] {
       can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', icon: UsersIcon, pages: ['users', 'user'] },
       host && can(me.role, 'ManageUsers') && { route: { page: 'devices' }, label: 'nav.devices', icon: DevicesIcon, pages: ['devices'] },
       can(me.role, 'ManageOrganizationSettings') && { route: { page: 'orgSettings' }, label: 'nav.orgSettings', icon: CogIcon, pages: ['orgSettings'] },
+    ],
+    // The SuperAdmin's pages, across organisations (spec 01 sidebar).
+    [
+      can(me.role, 'ManageOrganizations') && { route: { page: 'orgs' }, label: 'nav.orgs', icon: ViewGridIcon, pages: ['orgs', 'org'] },
     ],
   ];
   return groups.map((g) => g.filter((l): l is AdminLink => !!l)).filter((g) => g.length > 0);

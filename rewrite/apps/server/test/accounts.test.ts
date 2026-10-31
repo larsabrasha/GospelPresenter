@@ -72,7 +72,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
   it('an invite links one Google account; one already linked to someone else is refused and the invite is kept', async () => {
     const { accounts, orgId } = await fresh(driver);
     const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
-    if (typeof bo === 'string') throw new Error(bo);
+    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
     expect(await accounts.signIn.signInWithGoogle(google('anna'), await sha256(bo.inviteToken))).toBe('login-taken');
     expect(await accounts.members.invite(bo.inviteToken)).toMatchObject({ state: 'valid' });
     expect(await accounts.signIn.signInWithGoogle(google('bo'), await sha256(bo.inviteToken))).toEqual({ userId: bo.id, orgId });
@@ -113,7 +113,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
   it('an invite is valid for 7 days and once; using it replaces the Google account and revokes other sessions', async () => {
     const { accounts, clock, orgId } = await fresh(driver);
     const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
-    if (typeof bo === 'string') throw new Error(bo);
+    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
     expect(await accounts.members.invite(bo.inviteToken)).toEqual({ state: 'valid', name: 'Bo', orgName: 'Lilla Kyrkan', email: 'bo@x.se' });
 
     clock.now += ACCOUNT_LIMITS.inviteTtlMs;
@@ -140,7 +140,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
   it('at most 20 unused invites per user, expired ones included (AUTH-R3); 100 users per organisation (ORG-R10)', async () => {
     const { accounts, orgId } = await fresh(driver);
     const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
-    if (typeof bo === 'string') throw new Error(bo);
+    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
     for (let i = 1; i < ACCOUNT_LIMITS.unusedInvitesPerUser; i++) expect(await accounts.members.createInvite(bo.id, orgId)).toMatch(/^gpin_/);
     expect(await accounts.members.createInvite(bo.id, orgId)).toBe('limit');
 
@@ -159,7 +159,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
   it('deleting a user takes their logins, sessions, invites and membership', async () => {
     const { accounts, orgId } = await fresh(driver);
     const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'admin' });
-    if (typeof bo === 'string') throw new Error(bo);
+    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
     const s = await accounts.members.createSession(bo.id, orgId, 'x');
     const invite = await accounts.members.createInvite(bo.id, orgId);
     expect(await accounts.signIn.signInWithGoogle(google('bo'), await sha256(invite as string))).toMatchObject({ userId: bo.id });
@@ -293,7 +293,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('accounts, %s', (dr
     await accounts.members.revokeSession(sessionId);
     expect(await accounts.logins.add(userId, sessionId, pk('late'))).toBe('unauthenticated');
     const bo = await accounts.members.createUser(orgId, { name: 'Bo', email: 'bo@x.se', role: 'user' });
-    if (typeof bo === 'string') throw new Error(bo);
+    if (typeof bo === 'string' || !bo.inviteToken) throw new Error(String(bo));
     const boSession = await accounts.members.createSession(bo.id, orgId, 'Mac');
     expect(await accounts.logins.add(bo.id, boSession.sessionId, { provider: 'google', subject: 'sub-anna', name: null })).toBe('login-taken');
     expect(await accounts.logins.add(userId, boSession.sessionId, pk('x'))).toBe('unauthenticated'); // someone else's session

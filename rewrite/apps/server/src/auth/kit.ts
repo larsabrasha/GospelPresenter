@@ -27,6 +27,8 @@ export interface AuthDeps {
   freshSignInMs?: number;
   /** E-mail; null or absent when the server has no Resend key, sender or app address. */
   mail?: MailConfig | null;
+  /** Deletes an organisation's data and files once its accounts are gone (`DELETE /api/orgs/{id}`). */
+  dropOrgData?: (orgId: string) => Promise<void>;
   /** Set on a desktop host. */
   pairing?: Pairing;
   debug?: boolean;
@@ -67,10 +69,10 @@ export function authKit(deps: AuthDeps) {
   };
 
   async function signedIn(userId: string, orgId: string, deviceName: string, pairedDeviceId: string | null = null): Promise<SignInResponse | null> {
-    const member = await accounts.members.member(userId, orgId);
-    if (!member) return null;
+    const role = await accounts.members.roleIn(userId, orgId);
+    if (!role) return null;
     const { token, sessionId } = await accounts.members.createSession(userId, orgId, deviceName, pairedDeviceId);
-    const me = await accounts.members.me({ sessionId, userId, orgId, role: member.role });
+    const me = await accounts.members.me({ sessionId, userId, orgId, role });
     return me && { token, me };
   }
 

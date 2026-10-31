@@ -153,10 +153,19 @@ export class SignInService {
     return this.signedInAs(String(linked.user_id));
   }
 
-  /** The organisation a user signs in to: their only one, for now (D1). */
+  /**
+   * The organisation a user signs in to: the one they last switched to while they may still act there (a member, or a
+   * SuperAdmin while it exists), else their first by name (spec 01 switcher, initial pick).
+   */
   async signedInAs(userId: string): Promise<{ userId: string; orgId: string } | 'not-a-member'> {
-    const [m] = await this.sql.all('SELECT org_id FROM memberships WHERE user_id = ? ORDER BY org_id LIMIT 1', [userId]);
-    return m ? { userId, orgId: String(m.org_id) } : 'not-a-member';
+    const [last] = await this.sql.all(
+      `SELECT o.id FROM users u JOIN orgs o ON o.id = u.last_org_id
+       WHERE u.id = ? AND EXISTS (SELECT 1 FROM memberships m WHERE m.user_id = u.id AND (m.org_id = o.id OR m.role = 'superAdmin'))`,
+      [userId],
+    );
+    if (last) return { userId, orgId: String(last.id) };
+    const [first] = await this.sql.all('SELECT o.id FROM memberships m JOIN orgs o ON o.id = m.org_id WHERE m.user_id = ? ORDER BY o.name COLLATE NOCASE, o.id LIMIT 1', [userId]);
+    return first ? { userId, orgId: String(first.id) } : 'not-a-member';
   }
 
   /**

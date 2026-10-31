@@ -10,6 +10,8 @@ export const ROLES = ['user', 'admin', 'superAdmin'] as const satisfies readonly
 
 /** Limits of spec 01 (ORG-R10, AUTH-R1, AUTH-R3, AUTH-R8) and of pairing (LIVE-R28, made stricter). */
 export const ACCOUNT_LIMITS = {
+  /** Organisations on one server (ORG-R2). */
+  orgs: 100,
   usersPerOrg: 100,
   unusedInvitesPerUser: 20,
   inviteTtlMs: 7 * 24 * 60 * 60_000,
@@ -177,6 +179,19 @@ export const updateUserRequest = z
   .object({ name: personName.optional(), email: emailSchema.nullable().optional(), role: roleSchema.optional() })
   .refine((a) => a.name !== undefined || a.email !== undefined || a.role !== undefined);
 
+/** `POST /api/orgs` and `PATCH /api/orgs/{id}`: an organisation's name (ORG-R1). */
+export const orgNameRequest = z.object({ name: z.string().trim().min(1).max(200) });
+
+/** `POST /api/auth/switch`: the organisation to act in from now on (spec 01 switcher). */
+export const switchOrgRequest = z.object({ orgId: z.string().min(1).max(200) });
+
+/** A row of `/admin/organizations`. */
+export interface OrgRow {
+  id: string;
+  name: string;
+  members: number;
+}
+
 /** A pairing code signs the device in as `userId` (the caller when absent), a member of the caller's organisation. */
 export const pairCodeRequest = z.object({ userId: z.string().min(1).max(200).optional() });
 
@@ -281,7 +296,8 @@ export type AuthError =
   | 'pair-code-invalid'
   | 'mail-disabled'
   | 'mail-failed'
-  | 'no-email';
+  | 'no-email'
+  | 'super-admin-home';
 
 export interface Actor {
   id: string;

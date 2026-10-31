@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
@@ -239,7 +239,7 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
   function openOrg(orgId: string) {
     let org = orgs.get(orgId);
     if (!org) {
-      const file = openSqlite(join(opts.dataDir, `org-${encodeURIComponent(orgId)}.sqlite`), driver);
+      const file = openSqlite(orgFile(orgId), driver);
       const sockets = new Map<WebSocket, string>();
       const poke = new PokeCoalescer((exclude, seq) => {
         const msg = JSON.stringify({ type: 'poke', seq } satisfies Poke);
@@ -261,6 +261,21 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
     return org;
   }
 
+  const media = opts.media ?? diskStorage(join(opts.dataDir, 'media'));
+  const orgFile = (orgId: string) => join(opts.dataDir, `org-${encodeURIComponent(orgId)}.sqlite`);
+  /** A deleted organisation's file and files: its sockets are closed, its database closed and removed, its media removed. */
+  async function dropOrg(orgId: string) {
+    const org = orgs.get(orgId);
+    if (org) {
+      for (const ws of [...org.sockets.keys(), ...org.liveSockets.keys()]) ws.terminate();
+      org.live.dispose();
+      org.file.close();
+      orgs.delete(orgId);
+    }
+    for (const f of [orgFile(orgId), `${orgFile(orgId)}-wal`, `${orgFile(orgId)}-shm`]) rmSync(f, { force: true });
+    await media.deleteAll(`org/${orgId}/`);
+  }
+
   const google = opts.google ? new GoogleOidc(opts.google) : null;
   const passkeys = opts.passkeys ? new Passkeys(opts.passkeys) : null;
   const proxies = opts.trustedProxies?.length ? trustedProxies(opts.trustedProxies) : null;
@@ -278,12 +293,12 @@ export async function startNodeServer(opts: NodeServerOptions): Promise<RunningS
       passkeys,
       freshSignInMs: opts.freshSignInMs,
       mail: opts.mail ?? null,
+      dropOrgData: dropOrg,
       pairing: opts.pairing,
       debug: opts.debug,
       log: opts.log ?? ((e) => process.stderr.write(JSON.stringify(e) + '\n')),
     }),
   );
-  const media = opts.media ?? diskStorage(join(opts.dataDir, 'media'));
   // Public outputs and saved screens are found by their code, temporary screens by their id (spec 04 §5, §6).
   for (const kind of ['watch', 'display'] as const) {
     app.route(

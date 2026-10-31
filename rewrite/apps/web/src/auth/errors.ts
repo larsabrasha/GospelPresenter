@@ -27,6 +27,7 @@ const known = new Set<string>([
   'mail-failed',
   'mail-disabled',
   'no-email',
+  'super-admin-home',
 ]);
 
 /** The Swedish text for a refusal from the auth API (one error contract, spec README). */

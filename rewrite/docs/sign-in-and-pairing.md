@@ -40,6 +40,19 @@ at Resend) and `APP_URL`; Node hosts read `GP_RESEND_API_KEY`, `GP_MAIL_FROM` an
 the tests at a fake). Without all three there is no mail: `/api/auth/state` says `mail: false`, the button and the
 link are not shown, and the routes answer 503 `mail-disabled`.
 
+**Organisations** (decided on 2026-10-31; D1 as changed then). A SuperAdmin makes, renames and deletes them under
+Organisationer (`/admin/organizations`, `POST`/`PATCH`/`DELETE /api/orgs`), and acts as SuperAdmin in any of them without
+being a member (`MemberService.roleIn`), so they are in no organisation's user list. A user is in several when an admin
+creates a user with an address another organisation's user has: that user becomes a member here with the role given,
+with an invite only if they cannot sign in yet. The switcher in the top bar (in the account menu on a phone) lists the
+organisations the user may act in; choosing one asks `POST /api/auth/switch` for a new session there, keeps it, and loads
+the start page, so the database worker opens that organisation's database (D3). The old session stays, since another tab
+may still sync the old organisation with it; the new one keeps the sign-in time. The next sign-in opens the organisation
+switched to last (`users.last_org_id`), else the first by name. Radera användare removes the membership; a user in no
+other organisation goes for good. Deleting an organisation (its name typed) removes its memberships, invites, sessions,
+codes and screens, the users in no other organisation, its database (the file, or the Durable Object's storage) and its
+files; it is refused while it is a SuperAdmin's only organisation (`super-admin-home`), so no SuperAdmin is left without one.
+
 Användare lists the users; each row opens the user's page (`/admin/users/{id}`, as UserDetail.razor). There an
 admin changes the name and e-mail (saved 500 ms after typing; the address must be valid and no other user's,
 `PATCH /api/users/{id}`), the role, sees the user's logins and removes one (`GET`/`DELETE

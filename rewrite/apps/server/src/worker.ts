@@ -165,6 +165,13 @@ export class OrgDurableObject extends DurableObject<Env> {
       // The client offered credentials as subprotocols too; the answer names only this one.
       return new Response(null, { status: 101, webSocket: pair[0], headers: { 'sec-websocket-protocol': WS_PROTOCOL } });
     }
+    // The organisation was deleted (`DELETE /api/orgs/{id}`): only the Worker reaches this path, through the stub.
+    if (new URL(request.url).pathname === '/internal/drop' && request.method === 'POST') {
+      for (const ws of this.ctx.getWebSockets()) ws.close(1000, 'organisation deleted');
+      this.live.dispose();
+      await this.ctx.storage.deleteAll();
+      return new Response(null, { status: 204 });
+    }
     return this.app.fetch(request);
   }
 
@@ -283,6 +290,10 @@ function globals(env: Env) {
       passkeys: passkeysOf(env),
       freshSignInMs: env.FRESH_SIGN_IN_MS ? Number(env.FRESH_SIGN_IN_MS) : undefined,
       mail: mailConfigFrom({ apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM, appUrl: env.APP_URL }),
+      dropOrgData: async (orgId) => {
+        await env.ORG.get(env.ORG.idFromName(orgId)).fetch('https://org/internal/drop', { method: 'POST' });
+        if (env.MEDIA) await r2Storage(env.MEDIA as unknown as R2Like).deleteAll(`org/${orgId}/`);
+      },
       debug: env.SPIKE_DEBUG === '1',
       log: (e) => console.warn(JSON.stringify(e)),
     });

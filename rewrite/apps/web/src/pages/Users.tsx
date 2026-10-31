@@ -50,7 +50,7 @@ export function acceptHere(token: string) {
   location.reload();
 }
 
-function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (id: string, token: string) => void; onClose: () => void }) {
+function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (id: string, token: string | null) => void; onClose: () => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('user');
@@ -74,7 +74,8 @@ function CreateUserDialog({ me, onCreated, onClose }: { me: Me; onCreated: (id: 
           setSaving(true);
           try {
             // The server refuses a taken address before it creates anyone.
-            const r = await api<{ id: string; inviteToken: string }>('POST', '/api/users', { name, email, role });
+            // An address another organisation's user has adds that user here, with no invite if they can sign in already.
+            const r = await api<{ id: string; inviteToken: string | null }>('POST', '/api/users', { name, email, role });
             if (!r.error) return onCreated(r.body.id, r.body.inviteToken);
             if (r.error === 'email-taken') setEmailError(errorText(r));
             else setError(errorText(r));
@@ -218,7 +219,7 @@ export function Users({ me }: { me: Me }) {
           me={me}
           onClose={() => setCreating(false)}
           onCreated={async (id, token) => {
-            showInviteOnce(id, await inviteUrl(token));
+            if (token) showInviteOnce(id, await inviteUrl(token));
             navigate({ page: 'user', id });
           }}
         />

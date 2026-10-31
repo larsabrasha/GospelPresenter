@@ -42,6 +42,9 @@ export type Route =
   | { page: 'labels' }
   /** The CCLI report (`/admin/ccli-report`, CcliReport.razor). */
   | { page: 'ccliReport' }
+  /** The SuperAdmin's organisations (`/admin/organizations`, Organizations.razor), and one of them. */
+  | { page: 'orgs' }
+  | { page: 'org'; id: string }
   | { page: 'overlay'; id: string }
   | { page: 'displays' }
   /** A public output (spec 04 §6): anonymous, no database. */
@@ -103,6 +106,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'templates') return { page: 'templates' };
     if (second === 'labels') return { page: 'labels' };
     if (second === 'ccli-report') return { page: 'ccliReport' };
+    if (second === 'organizations') return third ? { page: 'org', id: third } : { page: 'orgs' };
     if (second === 'themes') return { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
     if (second === 'settings') return { page: 'orgSettings' };
@@ -139,7 +143,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
 const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'labels', 'ccliReport', 'themes', 'displays', 'about']);
 
 /** The pages under `/admin/` (Layout/AdminLayout.razor), which open in a dialog over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'song', 'songHistory', 'user', 'overlay', 'orgSettings']);
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);
@@ -187,6 +191,10 @@ export function href(r: Route): string {
       return '/admin/settings';
     case 'ccliReport':
       return '/admin/ccli-report';
+    case 'orgs':
+      return '/admin/organizations';
+    case 'org':
+      return `/admin/organizations/${encodeURIComponent(r.id)}`;
     case 'logins':
       return r.error ? `/logins?error=${encodeURIComponent(r.error)}` : '/logins';
     default:

@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import { debugRoutes } from './debug-routes.ts';
 import { authKit, type AuthDeps } from './kit.ts';
 import { loginRoutes } from './login-routes.ts';
+import { orgRoutes } from './org-routes.ts';
 import { pairingRoutes } from './pairing-routes.ts';
 import { passkeyRoutes } from './passkey-routes.ts';
 import { signInRoutes } from './sign-in-routes.ts';
@@ -25,6 +26,7 @@ export function authRoutes(deps: AuthDeps) {
   passkeyRoutes(app, kit);
   loginRoutes(app, kit);
   userRoutes(app, kit);
+  orgRoutes(app, kit);
   pairingRoutes(app, kit);
   debugRoutes(app, kit);
   return app;

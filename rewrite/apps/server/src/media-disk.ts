@@ -37,6 +37,9 @@ export function diskStorage(root: string): MediaStorage {
         throw e;
       }
     },
+    async deleteAll(prefix) {
+      await rm(pathOf(prefix.replace(/\/+$/, '')), { recursive: true, force: true });
+    },
     async get(key) {
       try {
         return new Uint8Array(await readFile(pathOf(key)));

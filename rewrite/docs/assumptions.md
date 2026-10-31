@@ -162,6 +162,26 @@ Song history (spec 02 `/admin/songs/{id}/history`, SONG-R20–R24, D9; built 202
 - **At most 50 per song**; purging a song deletes its history with it. The list shows the name and "Idag 14:05",
   "Igår 09:30" or "3 okt. 2026 14:05" in the device's time zone; not who made the change.
 
+Several organisations (spec 01 `/admin/organizations` and the switcher, ORG-R1–R7; built 2026-10-31):
+
+- **A user can be in several organisations** (Lars chose "Admin lägger till med e-post"; D1 changed): Skapa användare
+  with an address another organisation's user has adds that user, with the role given there. They get no invite if they
+  can sign in already: an invite would replace their logins. The current app had one organisation per user.
+- **A SuperAdmin visits without a membership** (Lars chose "Besöka utan medlemskap"), as the current app's selected
+  organisation: SuperAdmin wherever they have no membership, and in no user list there. A new organisation has no
+  members; the SuperAdmin lands on its Användare to make the first.
+- **Switching makes a new session** rather than moving the old one: another tab may sync the old organisation's database
+  with the old token. The new one keeps the sign-in time. Switching is online only, as the users pages are.
+- **Deleting deletes everything** (Lars chose "Allt, och ensamma användare"), users in no other organisation included,
+  but never a SuperAdmin's only organisation (D20 kept: the current app deleted you with your home organisation, E5).
+  Deleting the organisation the SuperAdmin is in moves them to another first.
+- **The desktop host can hold several** (Lars chose "Ja, som servern"): it runs the same server; a pairing code is for the
+  organisation the host window is in.
+- **No Aktiva sessioner or Inloggade just nu** (Lars, 2026-10-31): they would have had to ask every organisation's
+  live hub every few seconds, and a SuperAdmin seldom needs them. ORG-R17, A18 and A19 do not apply.
+- **No logo**: the list shows the first letter, the switcher a grid icon (GAPS.md: the logo later). At most 100
+  organisations. The labels are written when the server first opens the new organisation's database.
+
 E-mail (GAPS.md "E-post", built 2026-10-31; the current app sends none):
 
 - **Resend, on every host** (Lars chose Resend over Cloudflare Email Service, which was in beta and Workers-only): one
@@ -174,7 +194,7 @@ E-mail (GAPS.md "E-post", built 2026-10-31; the current app sends none):
 - **The same answer whether the address has an account**, with the lookup and the mail after the answer; five asks an
   hour per address and per e-mail address. Someone who sends five asks for another's address locks that address's
   recovery for an hour, nothing more.
-- **A user in several organisations** gets an invite to the oldest one; the membership work is not built yet.
+- **A user in several organisations** gets an invite to the oldest one.
 
 The CCLI report (spec 02 `/admin/ccli-report`, SONG-R48–R53; built 2026-10-31):
 

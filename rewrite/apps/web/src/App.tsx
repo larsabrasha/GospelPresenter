@@ -29,6 +29,7 @@ import { Presentations } from './pages/Presentations.tsx';
 import { OrgSettings } from './pages/OrgSettings.tsx';
 import { Settings } from './pages/Settings.tsx';
 import { CcliReport } from './pages/CcliReport.tsx';
+import { OrgDetail, Orgs } from './pages/Orgs.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
 import { SongHistory } from './pages/SongHistory.tsx';
 import { Themes } from './pages/Themes.tsx';
@@ -116,6 +117,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'templates' && (can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />)}
+      {route.page === 'orgs' && (can(me.role, 'ManageOrganizations') ? <Orgs /> : <Refused text={t('orgs.forbidden')} />)}
+      {route.page === 'org' && (can(me.role, 'ManageOrganizations') ? <OrgDetail key={route.id} id={route.id} me={me} /> : <Refused text={t('orgs.forbidden')} />)}
       {route.page === 'ccliReport' && (can(me.role, 'ViewCcliReport') ? <CcliReport role={me.role} /> : <Refused text={t('ccli.forbidden')} />)}
       {route.page === 'labels' && <Labels />}
       {route.page === 'songHistory' && <SongHistory key={route.id} id={route.id} />}

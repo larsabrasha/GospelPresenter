@@ -63,7 +63,7 @@ export function userRoutes(app: Hono, kit: AuthKit) {
       if (!t) return fail(c, 404, 'not-found');
       const refusal = removeUserRefusal(actor(caller), t);
       if (refusal) return fail(c, 403, refusal);
-      await accounts.members.deleteUser(t.id);
+      await accounts.members.removeMember(t.id, caller.orgId);
       return c.json({ ok: true });
     }),
   );
