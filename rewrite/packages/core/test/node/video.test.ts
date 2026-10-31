@@ -8,6 +8,7 @@ import { findMoov, partCount, probeVideo, sniffVideoContainer, VIDEO_LIMITS, vid
 //   … -c:v libx264 -pix_fmt yuv420p -crf 35 -movflags +faststart h264.mov                          (moov first, brand qt)
 //   … -c:v libx265 -tag:v hvc1 -pix_fmt yuv420p -crf 35 hevc.mp4
 //   … -c:v mpeg4 -q:v 20 mpeg4.mp4                                                                  (refused)
+//   h264-long.mp4: 20 s at 5 fps, -crf 40 -g 10, sine 330 Hz at 16k: long enough for the live e2e (pause, reload)
 export const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../fixtures/${name}`, import.meta.url)));
 
 /** Reads a file in memory, counting the bytes asked for. */

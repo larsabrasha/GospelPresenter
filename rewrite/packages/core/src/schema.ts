@@ -276,6 +276,19 @@ export const pinnedPresentations = sqliteTable('pinned_presentations', {
 });
 
 /**
+ * Not synced. The videos this device keeps whole, for the presentations kept offline here (TODO.md
+ * "Video"): the files themselves are in the browser's private storage (OPFS), not in this database,
+ * which could not hold 2 GB in a row. `received` is how many bytes are there so far; a video is whole
+ * when it is `size`. `usedAt` orders the ones nothing keeps any more, as cache, oldest first.
+ */
+export const videoFiles = sqliteTable('video_files', {
+  hash: text('hash').primaryKey(),
+  size: integer('size').notNull(),
+  received: integer('received').notNull(),
+  usedAt: integer('used_at').notNull(),
+});
+
+/**
  * Not synced. The translations this device keeps the text of ("Tillgänglig
  * offline", docs/bibles-and-themes.md "Bibles"): a choice for this device, not for the
  * organisation. By id, so a re-imported translation stays kept. A desktop
@@ -305,6 +318,7 @@ export const schema = {
   mediaBlobs,
   pinnedPresentations,
   keptBibles,
+  videoFiles,
 };
 
 /** Synced tables in parent-before-child order. */
@@ -324,7 +338,7 @@ export type Overlay = typeof overlays.$inferSelect;
 export type LibraryVideo = typeof videos.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -349,6 +363,9 @@ export const orgIndexes: string[] = [
 const videosDdl = `CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      codec TEXT NOT NULL, hash TEXT NOT NULL, size INTEGER NOT NULL, duration INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
      still_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`;
+
+const videoFilesDdl = `CREATE TABLE IF NOT EXISTS video_files (hash TEXT PRIMARY KEY NOT NULL, size INTEGER NOT NULL, received INTEGER NOT NULL,
+     used_at INTEGER NOT NULL)`;
 
 // Hand-written DDL of the current version: the columns must match the Drizzle
 // tables above, which a test checks. A database made by an older version is
@@ -389,6 +406,7 @@ export const orgDdl: string[] = [
      bytes BLOB, received_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS pinned_presentations (id TEXT PRIMARY KEY NOT NULL, pinned_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS kept_bibles (id TEXT PRIMARY KEY NOT NULL, kept_at INTEGER NOT NULL)`,
+  videoFilesDdl,
   ...orgIndexes,
 ];
 
@@ -398,6 +416,8 @@ export const orgMigrations: Record<number, string[]> = {
   12: ['ALTER TABLE presentations ADD COLUMN description TEXT', 'ALTER TABLE presentations ADD COLUMN updated_at INTEGER', 'ALTER TABLE displays ADD COLUMN created_at INTEGER', ...orgIndexes],
   // The video library (TODO.md "Video").
   13: [videosDdl],
+  // The videos a device keeps whole, for its presentations kept offline (not synced).
+  14: [videoFilesDdl],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

@@ -1,21 +1,21 @@
 # Not done yet
 
-Slide-deck pages, profile pictures and logos, English text, mobile, and a real deploy to
-Cloudflare. The Workers adapter is tested in local workerd, and once on a real account (see [On Cloudflare](cloudflare.md)).
+Profile pictures and logos, English text, the mobile app (the phone layout of the web app is built), and a real
+deploy to Cloudflare. The Workers adapter is tested in local workerd, and once on a real account (see [On Cloudflare](cloudflare.md)).
 
 From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,
 so an install that wants S3 cannot yet); organisation images as a theme's background (a theme's image is
 still only a built-in asset, `backgroundImageSchema`, and there is no theme editor to choose one);
-a limit on the total size of an organisation's media (only 1 000 pictures and 10 MiB per blob are limited); MEDIA-R14's eviction
-by when a file was last used (it is by when it arrived); live and public URLs
-(MEDIA-R10) and `/api/watch` with it; HTTP Range for audio; a native file dialog for "Importera" (the page's
-file input is used, also in Electron); dropping files onto the add dialog. The page's
+a limit on the total size of an organisation's media (only the number and size of files per kind are limited);
+MEDIA-R14's eviction by when a file was last used (it is by when it arrived); HTTP Range for audio (video has it);
+a native file dialog for "Importera" (the page's file input is used, also in Electron). Dropping files onto the add
+dialog's tabs is built but not dropped in an e2e test. The page's
 image pipeline runs only in Chromium (Electron) in the tests; Safari cannot encode WebP in a canvas, so there
 it falls back to JPEG on a white background, which is written but untested.
 
-From templates: their time and place reach a new presentation only as its date, as presentations have no
-event time or place yet; the `n` shortcut on the start page and the keyboard in the picker; the templates page
-is ordered by name, not by when a template was last changed; a template is not pictured by the capture script.
+From templates: the keyboard in the template picker; a template is not pictured by the capture script. A
+template's time and place reach a new presentation, and the start page's `n` shortcut is built; an e2e test checks
+neither (templates.spec.ts asserts only the date).
 
 From overlays: the picture on a public output (only the text is sent); reordering (spec 03 Q11, as there).
 An overlay deleted while it is shown disappears from the outputs at once (spec 04 keeps it until toggled). The
@@ -62,8 +62,7 @@ blank, as Rensa), Esc closes an open sheet or else the view; none of them in a t
 `e2e/milestone6.spec.ts`. The wake lock is requested but not tested.
 
 From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
-the Teman page lists the built-ins and sets the default), the stage view and the public output, and
-the theme's Media style (there are no media slides). BIBLE-R16's device-local Bibles (a translation
+the Teman page lists the built-ins and sets the default). BIBLE-R16's device-local Bibles (a translation
 that never leaves the device) are not built, by decision D30: an import made offline is queued and goes
 to the server (see [Bibles](bibles-and-themes.md#bibles)). Two translations with exactly the same text share it on a device, so
 keeping one shows the other as "Tillgänglig offline" too (the current app's "imported here" text).
@@ -75,15 +74,16 @@ all); trusting attestation (which authenticator made a passkey is never checked)
 the desktop app, so its callback scheme is registered by an installer (a development build registers
 `gospelpresenter-local` only with `GP_REGISTER_SCHEME=1`) and its Google client is built in; a login
 hint or profile picture from Google; more than one Google account per user (ORG-R13 allows 5);
-profiles and profile images (the user page has no picture), `/settings` and the
+profiles and profile images (the user page has no picture, and `/logins` stands in for Min profil), the
 language switch; organisations other than the one setup makes, the SuperAdmin switcher and super admin
 pages; a user in several organisations (D1 leaves it for later); listing and revoking your own
-devices' sessions (D23; removing the user or pairing again are the ways today); `/admin/devices`;
+devices' sessions (D23; removing the user or pairing again are the ways today); `/admin/devices` as spec 01
+has it (every device token with its version; the rewrite's page is the host's paired devices);
 MCP keys and calendar feeds; the welcome modal; closing
 an open poke socket when its session is revoked (it receives only sequence numbers until it closes,
 and its next sync is refused); behind a reverse proxy, `X-Forwarded-Proto` and `X-Forwarded-Host`
 (the Google redirect URI then needs `GP_GOOGLE_REDIRECT_BASE_URL`; see [Behind a reverse proxy](lan-https-and-addresses.md#behind-a-reverse-proxy)).
 
 From spec 02 and 03 in particular: song history (SONG-R20–R24, D9), the labels page, CCLI, ProPresenter
-import, the dashboard's "last changed" order, multi-select removal, and dropping files (reordering items and arrangement chips by dragging is
-built, see `e2e/drag.spec.ts`).
+import and dropping its files on Songs (reordering items and arrangement chips by dragging is built, see
+`e2e/drag.spec.ts`; so are multi-select removal and the start page's "last changed" order).

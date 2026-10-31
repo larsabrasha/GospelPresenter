@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   liveReconnectDelay,
   type AudioCommand,
+  type VideoCommand,
   type LiveChange,
   type LiveOwnState,
   type LivePointer,
@@ -63,6 +64,7 @@ export class LiveLink {
   private listeners = new Set<() => void>();
   private commandListeners = new Set<(sessionId: string, change: LiveChange) => void>();
   private audioListeners = new Set<(sessionId: string, command: AudioCommand) => void>();
+  private videoListeners = new Set<(sessionId: string, command: VideoCommand) => void>();
   private errorListeners = new Set<(error: string) => void>();
 
   constructor(private protocols: string[]) {
@@ -95,6 +97,7 @@ export class LiveLink {
         this.notify();
       } else if (m.type === 'command') for (const fn of this.commandListeners) fn(m.sessionId, m.change);
       else if (m.type === 'audio-command') for (const fn of this.audioListeners) fn(m.sessionId, m.command);
+      else if (m.type === 'video-command') for (const fn of this.videoListeners) fn(m.sessionId, m.command);
       else {
         // A refused report is not what the server holds: send the next one even if it is the same.
         this.lastSent = '';
@@ -145,6 +148,16 @@ export class LiveLink {
   onAudioCommand(fn: (sessionId: string, command: AudioCommand) => void): () => void {
     this.audioListeners.add(fn);
     return () => this.audioListeners.delete(fn);
+  }
+
+  /** A controller's video command (play, pause, seek), relayed to the presenting computer. Dropped if unsent. */
+  videoCommand(sessionId: string, command: VideoCommand) {
+    this.send({ type: 'video', sessionId, command });
+  }
+
+  onVideoCommand(fn: (sessionId: string, command: VideoCommand) => void): () => void {
+    this.videoListeners.add(fn);
+    return () => this.videoListeners.delete(fn);
   }
 
   /** Ends a session whose owner is gone (LIVE-R50). */

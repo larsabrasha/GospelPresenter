@@ -31,6 +31,7 @@ export function ListLinkRow({
   subtitle,
   subtitleTitle,
   end,
+  after,
   nav,
 }: {
   href: string;
@@ -38,15 +39,17 @@ export function ListLinkRow({
   subtitle?: ReactNode;
   subtitleTitle?: string;
   end?: ReactNode;
+  /** A control at the end of the row, outside the link (a button cannot sit in a link). */
+  after?: ReactNode;
   /** Its place in a roving list (ui/listNav.ts `item(i)`). */
   nav?: HTMLAttributes<HTMLAnchorElement>;
 }) {
   return (
-    <li className="border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+    <li className="flex items-center border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
       <a
         {...nav}
         href={href}
-        className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
+        className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
       >
         <div className="flex-1 min-w-0">
           <div className="truncate">{title}</div>
@@ -58,6 +61,7 @@ export function ListLinkRow({
         </div>
         {end}
       </a>
+      {after && <div className="shrink-0 pr-3 -ml-2">{after}</div>}
     </li>
   );
 }

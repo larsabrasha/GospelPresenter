@@ -115,8 +115,10 @@ the streaming and who plays what; these are the choices the implementer made whe
   only the `ftyp` signature; a file whose codec is not taken is removed, so a changed client cannot store one.
 - **A part is 8 MiB** (R2 wants at least 5 MiB, one size but the last); 2 GB is read as 2 GiB, so at most 256 parts.
   An unfinished upload is given up after six days. At most 500 videos, the trash not counted, as for audio.
-- **The still is the first frame**, taken when the `<video>` has it (`loadeddata`), in a picture's two sizes. A
-  device that cannot decode the video cannot import it (it could not make the still); a `moov` over 64 MiB is refused.
+- **The still is taken a bit into the video** (Lars, 2026-10-31: the first frame is often black or a fade): at 1 s or
+  a tenth of the length, whichever is earlier, and never at the very end of a short clip (`stillTime`). Videos
+  imported before keep their stills. A device that cannot decode the video cannot import it (it could not make the
+  still); a `moov` over 64 MiB is refused.
 - **Importing a video needs the server**: the video is never kept on a device, so there is nothing to queue it from.
   An upload that loses the network waits and goes on by itself while the page is open, also after the dialog closes.
 - **The hash is core's own SHA-256**, in plain JavaScript, 8 MiB at a time on the page's thread: about 180 MB/s on a
@@ -128,17 +130,53 @@ the streaming and who plays what; these are the choices the implementer made whe
   How far the projector's picture and the sound drift apart on real hardware is not measured.
 - **A video item that goes live starts from its beginning; leaving it stops it**, also when going back to it (it
   starts over). An audio item plays on after it is left (LIVE-R6); a video's sound belongs with its picture.
-- **"Svart skärm" covers a playing video and does not pause it**: the sound plays on under black, as an audio item's
-  does. The player pauses it.
-- **A reloaded presenting window starts a live video over from its beginning.**
-- **A controller sees a video item's slide but gets no player**: play, pause and seek are not relayed by remote
-  control yet.
+- **"Svart skärm" (B, Rensa) pauses a playing video, picture and sound; showing the picture again resumes it where
+  it was** (Lars, 2026-10-31). A video paused by hand stays paused when the picture comes back. A window reloaded
+  while black, with its video paused by black, does not know that black paused it: the video stays paused (mine).
+- **A reloaded presenting window resumes a live video where it was** (Lars, 2026-10-31), from the state it kept with
+  the pointer (position and moment, in the tab's `sessionStorage`), playing or paused as it was.
+- **A controller drives a video as it drives audio** (mine): its player sends play, pause and seek to the presenting
+  computer (`video` messages, relayed like `audio`) and mirrors the state the owner reports. Its warning about a
+  codec it cannot play is left out: it plays nothing.
 - **Whether a device can play a codec is `canPlayType`** with Main profile strings (`avc1.4D4028`,
   `hvc1.1.6.L120.90`), not `MediaCapabilities`, which answers asynchronously.
-- **The Video tab is the sixth in Lägg till (Ctrl/⌘+6)**, after PowerPoint, so the other tabs keep their keys. There
-  is no Video page among the admin pages yet; videos are imported and trashed in the tab, and restored in the trash.
+- **The Video tab is the sixth in Lägg till (Ctrl/⌘+6)**, after PowerPoint, so the other tabs keep their keys. Videor
+  among the admin pages (`/admin/videos`, after Ljud) lists them with still, length, size and codec, imports and
+  trashes, as Ljud does; no playback there (mine).
 - **Every video response is `no-store`**, the session's `GET /api/media/{hash}` too: the desktop host keeps the
   file once, on the server's disk.
+
+Which files a device fetches, keeping offline and storage (TODO.md, the same section; Lars decided the rules, these
+are the implementer's choices within them):
+
+- **Looking around shows thumbnails where the full picture is not here**: tiles, previews and the overlay editor
+  draw a picture's `thumb` (every device keeps it) until presenting or keeping offline has fetched the `full`. The
+  live preview on a controller does the same, as a controller fetches nothing.
+- **"Hämtar bilder och ljud" while presenting is quiet**: said to screen readers only; the line shows only when files
+  are missing and cannot be fetched (offline).
+- **An object URL of a picture or a sound is let go 30 s after nothing shows or plays it** (`holdBlobUrl`), so a
+  slide shown again soon after still has it.
+- **A video kept offline lives in the browser's private storage (OPFS) as a file**, `videos/{hash}`, not in the
+  database (a row cannot hold 2 GB); a local table, `video_files` (organisation schema 14, not synced), says how much
+  of each is here. It is fetched with HTTP Range from where an earlier try stopped, hashed as it comes, and renamed
+  from `{hash}.part` only once the hash matches; a mismatch starts it over. A page plays a kept video from that file
+  (an object URL of the file reads from the disk), before asking the server for a token.
+- **The icon** is a cloud with an arrow (not kept), a ring that fills by files, a video counting by its bytes
+  (fetching), and a sky check (all here). It sits after the title in the list and in the editor's side menu; the
+  host's own window and templates show none; a device that keeps nothing shows it faded with why. Clicking it again
+  stops keeping it, without a question. One kept by "Spara kommande presentationer offline" says so and is undone
+  there, not on the icon.
+- **"Spara kommande presentationer offline" and the cache limit are kept in the browser's `localStorage`**, as the
+  theme is: a choice of the device, sent to the database worker when the app starts and when it changes.
+- **What is kept no more becomes cache at once**: its pictures and videos count against the limit, oldest first, a
+  video's part at once.
+- **The cache limit's slider** goes from 128 MiB, in steps of 128 MiB, to the room the cache could have: the free
+  room on the disk (`fs.statfs` in the desktop app) or what the browser grants and has not used
+  (`navigator.storage.estimate()`), plus what the cache holds now; 20 GiB when neither answers. 2 GiB until moved.
+- **"Lagring på den här enheten" counts the app's files** (pictures, audio, stills, pages and kept videos), not the
+  database or the app itself; a file shared by two presentations counts once in the totals and in each
+  presentation's size. "Rensa cache" asks nothing first. On a desktop host's own window it says the files are the
+  server's.
 
 Milestone 5 (media library):
 

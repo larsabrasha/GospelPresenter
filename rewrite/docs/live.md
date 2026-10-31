@@ -45,7 +45,11 @@ finns på den här enheten" counts them.
 A video item (see [Video](media-and-files.md#video)) has one slide. When it goes live, the presenting window plays
 it from its start (`VideoEngine`, `apps/web/src/live/video.ts`): one `<video>` element of its own, not on the page,
 unmuted, so its sound plays on the presenting computer as an audio item's does (LIVE-R6) and never on an output.
-Leaving the item stops it; the end of the presentation too. The player (`VideoPlayer`) under the item's slide on
+Leaving the item stops it; the end of the presentation too. "Svart skärm" (B, Rensa) pauses it, picture and
+sound, and showing the picture again resumes it where it was; a video paused by hand stays paused (Lars,
+2026-10-31). A reloaded presenting window resumes it where it was, from the state it kept beside the pointer in the
+tab (Lars, 2026-10-31). A controller's player sends play, pause and seek to the presenting window (`video` messages,
+relayed like audio commands) and mirrors what it reports (`RemoteVideo`). The player (`VideoPlayer`) under the item's slide on
 the live page, and under the slide in the stage view, has play, pause, a seek bar and the time. When the item before
 a video item goes live, a second element buffers the video, and the output window buffers it too, so it starts at
 once.
@@ -71,7 +75,9 @@ Tested in `apps/server/test/video.test.ts` (three adapters: the stamped moment, 
 to a public output and no video), `apps/web/test/video.test.ts` (`follow`, `expectedPosition`) and
 `apps/desktop/e2e/video.spec.ts` (the output window plays in step with the operator window, the next video buffers,
 a paired screen in Playwright's Chromium follows and pauses with it, and an HEVC video shows its still there while
-the output plays it). How close the sound and the output's picture stay on a real projector is not measured.
+the output plays it; black pauses and resumes it; a reload resumes it; a controller plays, pauses and moves it, and
+the stage view drives it), and `apps/server/test/live.test.ts` (a video command reaches the owner only). How close
+the sound and the output's picture stay on a real projector is not measured.
 
 ## Paired screens
 

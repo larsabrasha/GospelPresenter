@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { LiveSessionInfo, Role } from '@gp/core';
 import { t } from '../../i18n.ts';
 import { RemoteAudio } from '../../live/audio.ts';
+import { RemoteVideo } from '../../live/video.ts';
 import { RemoteControl, useLiveSessions, type LiveLink } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useToast } from '../../ui/Toast.tsx';
@@ -73,6 +74,7 @@ function ControlledLive({ id, role, link, sessionId, stage }: { id: string; role
   const toast = useToast();
   const control = useMemo(() => new RemoteControl(link, sessionId, () => toast(t('remote.unconfirmed'), 'warning')), [link, sessionId, toast]);
   const audio = useMemo(() => new RemoteAudio(link, sessionId), [link, sessionId]);
+  const video = useMemo(() => new RemoteVideo(link, sessionId), [link, sessionId]);
   useEffect(() => () => control.dispose(), [control]);
-  return <PresentationEditor id={id} role={role} live={control} presenting={{ audio, owner: null, link }} stage={stage} />;
+  return <PresentationEditor id={id} role={role} live={control} presenting={{ audio, video, owner: null, link }} stage={stage} />;
 }

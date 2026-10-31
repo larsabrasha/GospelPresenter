@@ -8,11 +8,14 @@ import { t } from './i18n.ts';
 import type { LiveChannel } from './live/live.ts';
 import { AudioEngine, audioUrlOfItem } from './live/audio.ts';
 import { VideoEngine } from './live/video.ts';
+import { KEEP_COMING_CHANGED, keepComingSetting } from './ui/KeepOffline.tsx';
+import { CACHE_LIMIT_CHANGED, cacheLimitSetting } from './pages/Storage.tsx';
 import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
 import { About } from './pages/About.tsx';
 import { Bibles } from './pages/Bibles.tsx';
 import { Audios } from './pages/Audios.tsx';
+import { Videos } from './pages/Videos.tsx';
 import { OverlayEditor, Overlays } from './pages/Overlays.tsx';
 import { Devices } from './pages/Devices.tsx';
 import { Displays } from './pages/Displays.tsx';
@@ -52,6 +55,27 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const video = useMemo(() => new VideoEngine(), []);
   // This window owns whatever it presents, on every page (LIVE-R49).
   useLiveOwner(live, link, db, sessionId, audio, video);
+  // Starta presentation fetches the presentation's files here, at once and quietly; looking around fetches none.
+  useEffect(() => {
+    let last: string | null | undefined;
+    return live.subscribe((p) => {
+      if (p.presentationId !== last) void db.present((last = p.presentationId));
+    });
+  }, [live, db]);
+  // "Spara kommande presentationer offline" is this device's choice, kept by the page; the worker follows it.
+  useEffect(() => {
+    const send = () => void db.keepComing(keepComingSetting());
+    send();
+    addEventListener(KEEP_COMING_CHANGED, send);
+    return () => removeEventListener(KEEP_COMING_CHANGED, send);
+  }, [db]);
+  // So is the cache limit (Lagring på den här enheten).
+  useEffect(() => {
+    const send = () => void db.setBudget(cacheLimitSetting());
+    send();
+    addEventListener(CACHE_LIMIT_CHANGED, send);
+    return () => removeEventListener(CACHE_LIMIT_CHANGED, send);
+  }, [db]);
   const [me, setMe] = useState(initial);
   const [host, setHost] = useState(false);
 
@@ -82,6 +106,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'bibles' && (can(me.role, 'ManageBibles') ? <Bibles /> : <Refused text={t('bibles.forbidden')} />)}
       {route.page === 'images' && (can(me.role, 'ViewImages') ? <Images role={me.role} /> : <Refused text={t('images.forbidden')} />)}
       {route.page === 'audios' && (can(me.role, 'ViewAudios') ? <Audios role={me.role} /> : <Refused text={t('audios.forbidden')} />)}
+      {route.page === 'videos' && (can(me.role, 'ViewVideos') ? <Videos role={me.role} /> : <Refused text={t('videos.forbidden')} />)}
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'templates' && (can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />)}

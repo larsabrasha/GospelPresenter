@@ -62,7 +62,7 @@ An audio file is a synced row in `audios` (file name, type, hash, size, `created
 and one blob, stored byte for byte as it was picked (MEDIA-R5), through the same storage, upload
 and clean-up as pictures. The server takes a blob it recognises by its first bytes as MP3, WAV, Ogg, MP4/M4A or
 WebM, up to 20 MiB, and serves it with that type; a picture stays limited to 10 MiB. A device fetches an audio
-file as it does a full picture: for a presentation that is open or coming (see [Which files a device keeps](#which-files-a-device-keeps)). Ljud
+file as it does a full picture: for a presentation it presents or keeps offline (see [Which files a device keeps](#which-files-a-device-keeps)). Ljud
 (`/admin/audios`) lists the files, with import, drop, search and the trash; there is no playback there (spec 05).
 An audio item has no slides; in the editor it shows a player for the file. The server's CSP now allows `blob:`
 for media, which the player needs. One file per item: spec 03's item with several audio files is not built.
@@ -85,7 +85,7 @@ the desktop app; the browser case, Safari above all, is not tested.
 A video (TODO.md "Video, and which files a device fetches") is a synced row in `videos` (file name, type, codec,
 hash, size, length in milliseconds, width, height, the hashes of its still's two pictures, `created_at`,
 `deleted_at`; organisation schema 13) and one blob, the file byte for byte as it was picked: MP4 or MOV with H.264
-or HEVC, at most 2 GiB, never converted. Its still, the first frame, is stored as a picture is, in both sizes
+or HEVC, at most 2 GiB, never converted. Its still, taken at 1 s or a tenth of the length, whichever is earlier (`stillTime`, Lars 2026-10-31), is stored as a picture is, in both sizes
 (`still` fits 1920×1080, `thumb` 400×225). A video item (`type` 'video', `sourceId` the video) has one slide, a
 `media` slide whose picture is the still and which carries the video (`videoSlide` in core). Everyone may import,
 trash and add videos (`ViewVideos`, `ManageVideos`, as for audio); at most 500, the trash not counted. The trash
@@ -162,22 +162,47 @@ fonts and do not use JPEG 2000.
 
 ## Which files a device keeps
 
-Every device has every row, but not every file (`syncMedia` and `MediaPolicy` in
-`packages/sync/src/client/media.ts`). Always: every picture's and video's thumbnail, which is small and what the
-library and the pickers show. Never a video: it streams (see [Video](#video)); its still counts as a full picture. Ahead of time, on a device that keeps its data (OPFS in a browser, the desktop
-app, later the tablet app): the full pictures, the audio and the slide decks' pages (both sizes) of every presentation dated from today to seven
-days ahead, so Sunday's material is on the computer before anyone leaves for church. On demand, on any device:
-what a presentation open on one of its pages needs (the editor, the live page, remote control), fetched at
-once. Kept offline, on a device that keeps its data: every file of a presentation marked "Tillgänglig
-offline på den här enheten" in the editor, whatever its date, including what is added to it later (a local,
-unsynced table, `pinned_presentations`; the list marks them "Offline"). A device
-that keeps nothing between reloads shows the choice switched off and says why. Never: audio for a presentation the device only controls, since it plays on the presenting computer.
-A device that keeps its data only in memory (a tablet over plain http) fetches nothing ahead, as it would lose
-it at the next reload. Files no open or coming presentation needs are kept within 2 GiB (MEDIA-R14), the
-oldest dropped first; what is coming, open, kept offline or waiting to be uploaded is never dropped. The editor and the live
-page say whether everything is on the device ("Alla bilder och ljud finns på den här enheten") or how much is
-being fetched, and, offline, how many files are missing and cannot be. A presentation without a date is
-fetched only when it is opened; "coming" is decided by this device's own calendar day.
+Every device has every row, but not every file (`syncMedia`, `MediaPolicy` and `keptPresentations` in
+`packages/sync/src/client/media.ts`; TODO.md "Video, and which files a device fetches", Lars 2026-10-31). Every
+client does the same; no machine is set apart.
+
+**Always:** every picture's and video's thumbnail, which is small and what the library, the pickers and the tiles
+show. **Looking around fetches nothing heavier:** opening a presentation, the editor and remote control show a
+picture's thumbnail where its full picture is not on the device (`SlideView`), and the editor's player of a video
+streams it when played and keeps nothing.
+
+**Presenting:** Starta presentation fetches that presentation's files at once, quietly: its full pictures, its
+audio, its videos' stills, its slide decks' pages (both sizes) and every overlay's picture (any can be switched on).
+Never a video: it streams, and its start buffers when the item before it goes live. What presenting fetched stays
+afterwards as cache.
+
+**Kept offline**, on a device that keeps its data (OPFS in a browser, the desktop app): every file of the
+presentation, whatever its date, its videos whole too, including what is added to it later. It is a choice the device
+makes for each presentation by its icon (a cloud with an arrow, a ring that fills while its files come, a sky check
+once all is here), after the title in the start page's list and in the editor's side menu (`ui/KeepOffline.tsx`;
+the local table `pinned_presentations`), or for every presentation dated from today to seven days ahead with "Spara
+kommande presentationer offline" under Mina inställningar ("Presentationer de närmaste sju dagarna hämtas till den
+här enheten, även video.", off at first, kept in the browser as the theme is). Once a date has passed, its files are
+cache. Videos kept whole are files in the browser's private storage (OPFS, `videos/{hash}`, fetched with Range from
+where they stopped and checked against their hash; `db/videoFiles.ts`), recorded in the local table `video_files`;
+a page plays a kept video from that file, so it plays offline. A device that keeps nothing between reloads shows the
+icon faded and says why; a desktop host's own window shows none.
+
+**The cache** is every file nothing wants now (not a thumbnail, not waiting to be uploaded, not needed by the
+presentation presented here or one kept offline). It is kept within a limit, 2 GiB until changed (MEDIA-R14), the
+oldest dropped first, videos too. What is kept offline is outside the limit and is never dropped on its own.
+
+**Lagring på den här enheten** under Mina inställningar (`pages/Storage.tsx`, `storageReport`): how much the app's
+files use here; Sparat offline, each presentation kept offline with its date and size and "Sluta spara" for one kept
+by hand; Cache, its size, the limit as a slider whose range follows the free room on the disk (desktop app,
+`fs.statfs`) or what the browser grants (`navigator.storage.estimate()`), and "Rensa cache", which never drops a
+file waiting to be uploaded, one the presentation shown now needs, or a thumbnail. A file is counted once however
+many presentations use it. On a desktop host's own window it says the files are the server's.
+
+While this window presents, the side menu says, to screen readers, whether everything is on the device ("Alla
+bilder och ljud finns på den här enheten"), and, offline, shows how many files are missing and cannot be fetched.
+"Today" is this device's own calendar day. Object URLs of pictures and sounds are let go 30 s after nothing shows
+or plays them (`holdBlobUrl` in `db/queries.ts`).
 
 ## The host's own window
 
@@ -187,6 +212,6 @@ copy in the window would be the same data twice on one disk (decided with Lars 2
 everything before the first page shows (about 0.7 s for 3 000 songs and 50 presentations, see
 [Performance](performance.md)); a picture, an audio file or a Bible text is fetched from the server when a
 page needs it and held in that window only (`fetchMedia`, `fetchBibleText`). What it uploads (an import) is
-kept until the server has it. It shows no "Data sparas bara i minnet" warning and no offline choices: the
-editor's media line and Biblar say everything is there. A desktop paired to another host is not a host and
+kept until the server has it. It shows no "Data sparas bara i minnet" warning, no offline icons and no "Spara
+kommande presentationer offline"; Lagring på den här enheten says the files are the server's. A desktop paired to another host is not a host and
 keeps its copy on disk, as a browser does.

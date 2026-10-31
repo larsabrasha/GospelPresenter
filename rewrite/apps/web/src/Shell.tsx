@@ -31,6 +31,7 @@ import {
   UsersIcon,
   ViewGridIcon,
   WarningIcon,
+  VideoIcon,
 } from './ui/icons.tsx';
 import { href, type Route } from './ui/router.ts';
 import { PageFill } from './ui/PageContainer.tsx';
@@ -288,6 +289,7 @@ function adminLinks(me: Me, host: boolean): AdminLink[][] {
       can(me.role, 'ManageBibles') && { route: { page: 'bibles' }, label: 'nav.bibles', icon: BookOpenIcon, pages: ['bibles'] },
       can(me.role, 'ViewImages') && { route: { page: 'images' }, label: 'nav.images', icon: PhotoIcon, pages: ['images'] },
       can(me.role, 'ViewAudios') && { route: { page: 'audios' }, label: 'nav.audios', icon: SpeakerWaveIcon, pages: ['audios'] },
+      can(me.role, 'ViewVideos') && { route: { page: 'videos' }, label: 'nav.videos', icon: VideoIcon, pages: ['videos'] },
     ],
     [
       can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', icon: SquaresOverlapIcon, pages: ['overlays', 'overlay'] },

@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('gpDesktop', {
   deviceName: String(ipcRenderer.sendSync('device-name')),
   setupToken: () => ipcRenderer.invoke('setup-token') as Promise<string | null>,
   lanUrls: () => ipcRenderer.invoke('lan-urls') as Promise<string[]>,
+  diskSpace: () => ipcRenderer.invoke('disk-space') as Promise<{ total: number; free: number }>,
   callbackScheme: String(ipcRenderer.sendSync('callback-scheme')),
   openSignIn: (path: string) => ipcRenderer.invoke('open-sign-in', path) as Promise<boolean>,
   onSignInCallback(cb: (token: string) => void) {

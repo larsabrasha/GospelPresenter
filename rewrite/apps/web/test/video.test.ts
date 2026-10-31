@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Sha256, VIDEO_LIMITS } from '@gp/core';
 import { expectedPosition, follow, SEEK_DRIFT_S } from '../src/live/video.ts';
-import { checkPickedVideo, hashFile, uploadVideo, VideoRefused, type UploadProgress } from '../src/media/video.ts';
+import { checkPickedVideo, hashFile, stillTime, uploadVideo, VideoRefused, type UploadProgress } from '../src/media/video.ts';
 import { formatDuration } from '../src/pages/VideoTab.tsx';
 
 // TODO.md "Video": following the presenting window's video, and the import's checks, hash and upload.
@@ -58,6 +58,20 @@ describe('picking a video', () => {
   it('shows a length as minutes and seconds, or hours too', () => {
     expect(formatDuration(65_000)).toBe('1:05');
     expect(formatDuration(3_725_000)).toBe('1:02:05');
+  });
+});
+
+describe('when the still is taken', () => {
+  it('takes it at one second into a long video', () => {
+    expect(stillTime(120)).toBe(1);
+  });
+
+  it('takes it a tenth into a short clip', () => {
+    expect(stillTime(3)).toBeCloseTo(0.3);
+  });
+
+  it('takes the first frame when the length is unknown', () => {
+    expect(stillTime(Number.NaN)).toBe(0);
   });
 });
 

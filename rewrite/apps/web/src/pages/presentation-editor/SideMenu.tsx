@@ -4,7 +4,8 @@ import { t } from '../../i18n.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { Dropdown, MENU_ITEM } from '../../ui/Dropdown.tsx';
 import { CheckboxIcon, DocumentDuplicateIcon, EllipsisOutlineIcon, PencilIcon, TrashIcon } from '../../ui/icons.tsx';
-import { KeepOfflineItem, MediaReadiness, OfflinePill, type useKeepOffline } from '../../ui/MediaReadiness.tsx';
+import { MediaReadiness } from '../../ui/MediaReadiness.tsx';
+import { KeepOfflineButton, useKeepOffline } from '../../ui/KeepOffline.tsx';
 import { scheduleLine } from '../templates.ts';
 import { eventLine } from './eventDate.ts';
 
@@ -15,7 +16,6 @@ import { eventLine } from './eventDate.ts';
  */
 export function SideMenu({
   presentation,
-  keep,
   menuVisible,
   onHideMenu,
   onEditDetails,
@@ -23,11 +23,10 @@ export function SideMenu({
   onTrash,
   ticking,
   onTicking,
-  audio = true,
+  media = false,
   children,
 }: {
   presentation: Presentation;
-  keep: ReturnType<typeof useKeepOffline>;
   menuVisible: boolean;
   onHideMenu: () => void;
   onEditDetails: () => void;
@@ -36,10 +35,11 @@ export function SideMenu({
   /** Select mode (Markera), switched from the menu. */
   ticking: boolean;
   onTicking: (on: boolean) => void;
-  /** Whether this device needs the audio files: a remote control plays none. */
-  audio?: boolean;
+  /** Whether to say if this device has the files: while it presents the presentation (and while it keeps it offline). */
+  media?: boolean;
   children: ReactNode;
 }) {
+  const keep = useKeepOffline(presentation);
   return (
     <>
       {/* Below `lg`: the dimmed page behind the drawer; a tap on it closes the drawer. */}
@@ -57,7 +57,7 @@ export function SideMenu({
           <div className="flex items-center justify-between gap-1">
             <div className="flex items-center gap-2 min-w-0">
               <h1 className="font-semibold text-lg/7 px-1 min-w-0 line-clamp-2">{presentation.name}</h1>
-              {keep.kept && <OfflinePill />}
+              {!presentation.isTemplate && <KeepOfflineButton presentation={presentation} />}
             </div>
             <Dropdown
               className="shrink-0"
@@ -79,7 +79,6 @@ export function SideMenu({
                   {t('templates.saveAs')}
                 </AppButton>
               )}
-              {!presentation.isTemplate && <KeepOfflineItem keep={keep} />}
               <div className="border-t-[0.5px] border-neutral-200 dark:border-neutral-600" />
               <AppButton variant="plain" role="menuitemcheckbox" aria-checked={ticking} className={MENU_ITEM} onClick={() => onTicking(!ticking)}>
                 <CheckboxIcon checked={ticking} className="size-4" />
@@ -103,9 +102,11 @@ export function SideMenu({
               </div>
             );
           })()}
-          <div className="px-1">
-            <MediaReadiness presentationId={presentation.id} audio={audio} />
-          </div>
+          {(media || keep.kept) && (
+            <div className="px-1">
+              <MediaReadiness presentationId={presentation.id} audio />
+            </div>
+          )}
         </div>
         {children}
       </aside>

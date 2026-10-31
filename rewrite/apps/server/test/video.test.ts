@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { mediaKey, sha256HexBytes, VIDEO_LIMITS, type Canvas, type LiveVideo, type PublicSlide } from '@gp/core';
-import { storeMediaBlob } from '@gp/sync/client';
+import { DEFAULT_MEDIA_POLICY, presentationOfflineState, setPinned, storageReport, storeMediaBlob, wantedVideos } from '@gp/sync/client';
 import { parseRange, streamBytes } from '@gp/server';
 import { diskStorage } from '../src/media-disk.ts';
 import { api, device, serverDump, setRole, startAdapter, tokenOf, type AdapterName, type Device, type Harness } from './harness.ts';
@@ -300,6 +300,70 @@ describe.each(adapters)('%s adapter: the video library', (adapterName) => {
     await anna.client.sync();
 
     expect(anna.client.rejected.map((r) => r.error)).toEqual(['media-missing']);
+  });
+
+  /** A presentation P with the uploaded video V in it, on this device. */
+  async function presentationWithVideo() {
+    const { hash } = await upload(h, org, 'anna', fixture('h264.mp4'));
+    const stillHash = await still(9);
+    await known(hash);
+    await anna.client.mutate('addVideo', videoArgs('V', hash, stillHash));
+    await anna.client.mutate('createPresentation', { id: 'P', name: 'Söndag', eventDate: '2026-11-03' });
+    await anna.client.mutate('addVideoToPresentation', { itemId: 'I', presentationId: 'P', videoId: 'V' });
+    await anna.client.sync();
+    return hash;
+  }
+  const policy = { ...DEFAULT_MEDIA_POLICY, today: '2026-11-01' };
+
+  it('wants no video whole while nothing is kept offline, only presented or looked at', async () => {
+    await presentationWithVideo();
+
+    expect(await wantedVideos(anna.client, { ...policy, presenting: 'P' })).toEqual([]);
+  });
+
+  it('wants the whole video of a presentation kept offline by hand, or by the setting for the coming days', async () => {
+    const hash = await presentationWithVideo();
+    const byHand = async () => {
+      await setPinned(anna.client, 'P', true);
+      const r = await wantedVideos(anna.client, policy);
+      await setPinned(anna.client, 'P', false);
+      return r;
+    };
+
+    expect(await byHand()).toEqual([{ hash, size: fixture('h264.mp4').length }]);
+    expect(await wantedVideos(anna.client, { ...policy, keepComing: true })).toEqual([{ hash, size: fixture('h264.mp4').length }]);
+    expect(await wantedVideos(anna.client, { ...policy, keepComing: true, persistent: false })).toEqual([]);
+  });
+
+  it('counts a kept presentation whole only once its video is, by the bytes it has so far', async () => {
+    const hash = await presentationWithVideo();
+    const size = fixture('h264.mp4').length;
+    const received = (n: number) =>
+      anna.client.localWrite([{ sql: 'INSERT INTO video_files (hash, size, received, used_at) VALUES (?, ?, ?, 1) ON CONFLICT (hash) DO UPDATE SET received = excluded.received', params: [hash, size, n] }]);
+
+    const none = await presentationOfflineState(anna.client, 'P');
+    await received(size / 2);
+    const half = await presentationOfflineState(anna.client, 'P');
+    await received(size);
+    const whole = await presentationOfflineState(anna.client, 'P');
+
+    expect(none).toEqual({ share: 0.5, complete: false, files: 2 }); // the still is here (imported here), the video not
+    expect(half.share).toBe(0.75);
+    expect(whole).toEqual({ share: 1, complete: true, files: 2 });
+  });
+
+  it('reports a kept presentation with its files, and its video as cache once it is kept no more', async () => {
+    const hash = await presentationWithVideo();
+    const size = fixture('h264.mp4').length;
+    await anna.client.localWrite([{ sql: 'INSERT INTO video_files (hash, size, received, used_at) VALUES (?, ?, ?, 1)', params: [hash, size, size] }]);
+    await setPinned(anna.client, 'P', true);
+
+    const kept = await storageReport(anna.client, policy);
+    await setPinned(anna.client, 'P', false);
+    const cached = await storageReport(anna.client, policy);
+
+    expect(kept).toEqual({ total: size + 200, offline: [{ presentationId: 'P', bytes: size + 200 }], offlineTotal: size + 200, cache: 0 });
+    expect(cached).toEqual({ total: size + 200, offline: [], offlineTotal: 0, cache: size }); // the still is the library's thumbnail: never cache
   });
 
   it('a purged video takes its blobs with it; a trashed one still streams', async () => {

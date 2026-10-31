@@ -17,6 +17,8 @@ interface Window {
     setupToken(): Promise<string | null>;
     /** Addresses other devices on the LAN can open, when the host listens there. */
     lanUrls(): Promise<string[]>;
+    /** The size and free room of the disk the app's data is on, in bytes (`fs.statfs`). */
+    diskSpace(): Promise<{ total: number; free: number }>;
     /** The scheme this installation receives its sign-in on (spec 01 device sign-in, ADR 0005). */
     callbackScheme: string;
     /**

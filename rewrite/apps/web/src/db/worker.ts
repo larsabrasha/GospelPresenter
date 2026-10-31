@@ -26,7 +26,10 @@ import {
   SongSearch,
   SyncClient,
   type ClientSqlite,
+  type MediaPolicy,
+  storageReport,
 } from '@gp/sync/client';
+import { keepVideos } from './videoFiles.ts';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
 import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport, VideoImport } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
@@ -147,35 +150,99 @@ const mediaUploads = new MediaUploads(async (hash, bytes) => {
   return res.status;
 });
 
-/** Presentations open on this device's pages, by page: their files are fetched now. */
-const openMedia = new Map<string, { presentationId: string; audio: boolean }>();
+/** The presentation this window presents: its files are fetched at once. */
+let presenting: string | null = null;
+/** "Spara kommande presentationer offline" on this device. */
+let keepComing = false;
+
+/** The most bytes of files nothing wants now this device keeps (the cache; MEDIA-R14), as the page sets it. */
+let budget: number = DEFAULT_MEDIA_POLICY.budget;
+
+/** Which files this device fetches and keeps now (docs/media-and-files.md, "Which files a device keeps"). */
+function mediaPolicy(): MediaPolicy {
+  return {
+    ...DEFAULT_MEDIA_POLICY,
+    presenting,
+    keepComing,
+    budget,
+    // Only a device that keeps its data keeps presentations offline: in memory they would be lost at the next reload.
+    persistent: storage === 'opfs',
+    today: new Date().toLocaleDateString('sv-SE'), // YYYY-MM-DD, this device's own calendar day
+    // A host's own window fetches nothing and keeps only what waits to be uploaded: it shows the server's files (`fetchMedia`).
+    ...(session!.hostWindow ? { fetch: false, budget: 0 } : {}),
+  };
+}
+
+async function downloadBlob(hash: string): Promise<Uint8Array | null> {
+  const res = await fetch(`/api/media/${hash}`, { headers: credentials() });
+  return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+}
+
+/** A video from `offset` on (HTTP Range), to keep it whole here. */
+const getVideo = (hash: string, offset: number) => fetch(`/api/media/${hash}`, { headers: { ...credentials(), ...(offset ? { range: `bytes=${offset}-` } : {}) } });
+
+/**
+ * "Rensa cache": drops every file nothing wants now, blobs and videos, at once. Never a thumbnail, a file
+ * waiting to be uploaded, or one the presentation shown now or one kept offline needs.
+ */
+async function clearCache(): Promise<void> {
+  await serialStore(async () => {
+    const r = await syncMedia(client!, async () => null, Date.now(), { ...mediaPolicy(), budget: 0 });
+    blobCache = r.cache;
+    notifyChanged(['media_blobs']);
+  });
+  // After the run under way, and any it asked for.
+  for (let run: Promise<void> | null = videoRun; run; run = videoRun) await run;
+  if (storage === 'opfs' && !session?.hostWindow) await keepVideos(client!, mediaPolicy(), 0, getVideo, () => notifyChanged(['video_files']), Date.now, false).catch(() => undefined);
+  notifyChanged(['video_files']);
+}
+
+/** The bytes of the blobs' cache after the last clean-up: the videos' cache gets what is left of the budget. */
+let blobCache = 0;
 
 let mediaSyncQueued = false;
-/** Fetches the blobs of pictures this device lacks (thumbnails first) and drops unused ones; coalesced. */
+/** Fetches the blobs of pictures this device lacks (thumbnails first) and drops unused ones; coalesced. Then the videos kept offline. */
 function syncMediaBlobs() {
   if (mediaSyncQueued) return;
   mediaSyncQueued = true;
   void serialStore(async () => {
     mediaSyncQueued = false;
-    const r = await syncMedia(
-      client!,
-      async (hash) => {
-        const res = await fetch(`/api/media/${hash}`, { headers: credentials() });
-        return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
-      },
-      Date.now(),
-      {
-        ...DEFAULT_MEDIA_POLICY,
-        open: [...openMedia.values()],
-        // Only a device that keeps its data fetches coming presentations ahead: in memory it would be lost at the next reload.
-        prefetch: storage === 'opfs',
-        today: new Date().toLocaleDateString('sv-SE'), // YYYY-MM-DD, this device's own calendar day
-        // A host's own window fetches nothing and keeps only what waits to be uploaded: it shows the server's files (`fetchMedia`).
-        ...(session!.hostWindow ? { fetch: false, budget: 0 } : {}),
-      },
-    );
+    const r = await syncMedia(client!, downloadBlob, Date.now(), mediaPolicy());
+    blobCache = r.cache;
     if (r.downloaded.length || r.removed) notifyChanged(['media_blobs']);
-  }).catch(() => undefined); // offline: the next change or poll tries again
+  })
+    .catch(() => undefined) // offline: the next change or poll tries again
+    .finally(syncVideoFiles);
+}
+
+let videoRun: Promise<void> | null = null;
+let videoAgain = false;
+/**
+ * Fetches the whole videos of the presentations kept offline here and drops the ones nothing keeps; one run
+ * at a time, outside the imports' queue, as a video takes long. A run asked for meanwhile follows it.
+ */
+function syncVideoFiles() {
+  if (storage !== 'opfs' || session?.hostWindow) return;
+  if (videoRun) {
+    videoAgain = true;
+    return;
+  }
+  videoRun = keepVideos(
+    client!,
+    mediaPolicy(),
+    Math.max(0, budget - blobCache),
+    getVideo,
+    () => notifyChanged(['video_files']),
+  )
+    .then(() => undefined)
+    .catch(() => undefined) // offline: the next change or poll goes on from where this stopped
+    .finally(() => {
+      videoRun = null;
+      if (videoAgain) {
+        videoAgain = false;
+        syncVideoFiles();
+      }
+    });
 }
 
 /** Keeps the picture's blobs here and records it in the library, online or not. */
@@ -378,13 +445,22 @@ async function handle(call: DbCall): Promise<unknown> {
       return addSlides(call.slides);
     case 'addVideo':
       return addVideo(call.video);
-    case 'openMedia':
-      openMedia.set(call.key, { presentationId: call.presentationId, audio: call.audio });
+    case 'present':
+      presenting = call.presentationId;
       syncMediaBlobs();
       return;
-    case 'closeMedia':
-      openMedia.delete(call.key);
+    case 'keepComing':
+      keepComing = call.on;
+      syncMediaBlobs();
       return;
+    case 'setBudget':
+      budget = call.bytes;
+      syncMediaBlobs();
+      return;
+    case 'storageReport':
+      return { ...(await storageReport(client!, mediaPolicy())), budget };
+    case 'clearCache':
+      return clearCache();
     case 'keepBible':
       return keepBibleHere(call.bibleId, call.on);
     case 'fetchBibleText':

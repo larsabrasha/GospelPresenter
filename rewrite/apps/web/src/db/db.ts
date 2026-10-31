@@ -1,4 +1,5 @@
 import type { BibleBookText, MutatorArgs, MutatorName } from '@gp/core';
+import type { StorageReport } from '@gp/sync/client';
 import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
 
@@ -85,8 +86,25 @@ export class Db implements ReadDb {
   }
 
   /** Tells the database that a page has a presentation open, so its pictures and audio are fetched now. */
-  openMedia(key: string, presentationId: string, audio: boolean): Promise<void> {
-    return this.call({ op: 'openMedia', key, presentationId, audio });
+  present(presentationId: string | null): Promise<void> {
+    return this.call({ op: 'present', presentationId });
+  }
+
+  setBudget(bytes: number): Promise<void> {
+    return this.call({ op: 'setBudget', bytes });
+  }
+
+  storageReport(): Promise<StorageReport & { budget: number }> {
+    return this.call({ op: 'storageReport' });
+  }
+
+  clearCache(): Promise<void> {
+    return this.call({ op: 'clearCache' });
+  }
+
+  /** "Spara kommande presentationer offline" on this device, on or off. */
+  keepComing(on: boolean): Promise<void> {
+    return this.call({ op: 'keepComing', on });
   }
 
   setPinned(presentationId: string, on: boolean): Promise<void> {
@@ -106,10 +124,6 @@ export class Db implements ReadDb {
   /** A translation's text this device does not keep, fetched from the server and not stored; null offline. */
   fetchBibleText(hash: string): Promise<BibleBookText[] | null> {
     return this.call({ op: 'fetchBibleText', hash });
-  }
-
-  closeMedia(key: string): Promise<void> {
-    return this.call({ op: 'closeMedia', key });
   }
 
   /** Syncs with the server now (the sync icon's click); answers with the status after it. */

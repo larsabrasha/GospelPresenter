@@ -59,6 +59,9 @@ function downloader(h: Harness, org: string, user: string) {
   };
 }
 
+/** What a device fetches while it presents P. */
+const presentingP: MediaPolicy = { ...DEFAULT_MEDIA_POLICY, presenting: 'P', today: TODAY };
+
 const imageArgs = (id: string, fullHash: string, thumbHash: string, fileName = 'logo.jpg') => ({
   id,
   fileName,
@@ -180,15 +183,15 @@ describe.each(adapters)('%s adapter: the media library', (adapterName) => {
     expect(s.changes.some((c) => c.tbl.includes('blob'))).toBe(false);
 
     // In the library only: every device has the thumbnail, nobody needs the full picture yet.
-    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [p.thumbHash], missing: [], removed: 0 });
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toMatchObject({ downloaded: [p.thumbHash], missing: [], removed: 0 });
     expect(await hasMediaBlob(bob.client, p.fullHash)).toBe(false);
-    // In a presentation this Sunday: fetched ahead, once.
+    // In a presentation this device presents: fetched then, once.
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag', eventDate: TODAY });
     await alice.client.mutate('addImageToPresentation', { itemId: 'I1', presentationId: 'P', imageId: 'IMG1' });
     await alice.client.sync();
     await bob.client.sync();
-    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [p.fullHash], missing: [], removed: 0 });
-    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toEqual({ downloaded: [], missing: [], removed: 0 });
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), presentingP)).toMatchObject({ downloaded: [p.fullHash], missing: [], removed: 0 });
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), presentingP)).toMatchObject({ downloaded: [], missing: [], removed: 0 });
   });
 
   it('refuses an add whose blobs were not uploaded, and one past the limit (MEDIA-R3)', async () => {
@@ -425,7 +428,7 @@ describe.each(adapters)('%s adapter: audio files', (adapterName) => {
     expect(await refusedAsTooLarge(put(h, org, 'bob', await sha256HexBytes(bigPicture), bigPicture))).toBe(true);
   });
 
-  it('syncs one row; a device fetches the file only once a presentation uses it; purged, it goes', async () => {
+  it('syncs one row; a device fetches the file only when it presents a presentation that uses it; purged, it goes', async () => {
     const bytes = ogg('hymn');
     const hash = await storeMediaBlob(alice.client, bytes, 'audio/ogg');
     expect((await put(h, org, 'alice', hash, bytes)).status).toBe(204);
@@ -439,7 +442,8 @@ describe.each(adapters)('%s adapter: audio files', (adapterName) => {
     await alice.client.mutate('addAudioToPresentation', { itemId: 'I1', presentationId: 'P', audioId: 'A1' });
     await alice.client.sync();
     await bob.client.sync();
-    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toMatchObject({ downloaded: [hash] });
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'))).toMatchObject({ downloaded: [] }); // looking around fetches nothing
+    expect(await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), presentingP)).toMatchObject({ downloaded: [hash] });
     expect((await serverDump(h, org, 'alice')).tables.presentation_items).toMatchObject([{ id: 'I1', type: 'audio', source_id: 'A1', title: 'Psalm 1.ogg' }]);
 
     await alice.client.mutate('trashAudio', { id: 'A1', at: 2 });
@@ -489,7 +493,7 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     bob = await device(h, org, 'bob', 'user');
   });
 
-  const policy = (over: Partial<MediaPolicy> = {}): MediaPolicy => ({ ...DEFAULT_MEDIA_POLICY, open: [], today: '2026-11-01', ...over });
+  const policy = (over: Partial<MediaPolicy> = {}): MediaPolicy => ({ ...DEFAULT_MEDIA_POLICY, today: '2026-11-01', ...over });
 
   /** A picture and a sound in a presentation on `date`; returns their hashes. */
   async function presentation(id: string, date: string | null, seed: string) {
@@ -508,35 +512,59 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     return { full: p.fullHash, thumb: p.thumbHash, sound: soundHash };
   }
 
-  it('fetches ahead what is coming within seven days, not later or earlier, and nothing ahead on a device that keeps no data', async () => {
+  it('fetches only the thumbnails while nothing is presented or kept, whatever is coming', async () => {
+    const soon = await presentation('SOON', '2026-11-02', 'soon');
+    const undated = await presentation('UNDATED', null, 'undated');
+    await bob.client.sync();
+
+    const r = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy());
+
+    expect(r.downloaded.toSorted()).toEqual([soon.thumb, undated.thumb].toSorted());
+  });
+
+  it('fetches every file of the presentation it presents, at once', async () => {
+    const p = await presentation('P', null, 'open');
+    await bob.client.sync();
+    await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy());
+
+    const r = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ presenting: 'P' }));
+
+    expect(r.downloaded.toSorted()).toEqual([p.full, p.sound].toSorted());
+    expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });
+  });
+
+  it('keeps what presenting fetched afterwards as cache, within the budget', async () => {
+    const p = await presentation('P', null, 'cache');
+    await bob.client.sync();
+    await syncMedia(bob.client, downloader(h, org, 'bob'), 1000, policy({ presenting: 'P' }));
+
+    const after = await syncMedia(bob.client, async () => null, 2000, policy());
+
+    expect(after.removed).toBe(0);
+    expect(await hasMediaBlob(bob.client, p.full)).toBe(true);
+  });
+
+  it('with "Spara kommande presentationer offline", keeps the coming seven days, not later, not earlier, not on a device that keeps no data', async () => {
     const soon = await presentation('SOON', '2026-11-08', 'soon');
     const later = await presentation('LATER', '2026-11-09', 'later');
     const past = await presentation('PAST', '2026-10-31', 'past');
-    const undated = await presentation('UNDATED', null, 'undated');
     await bob.client.sync();
-    const memoryOnly = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false }));
-    expect(memoryOnly.downloaded.toSorted()).toEqual([soon.thumb, later.thumb, past.thumb, undated.thumb].toSorted()); // thumbnails only
-    const r = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy());
-    expect(r.downloaded.toSorted()).toEqual([soon.full, soon.sound].toSorted());
-  });
+    await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy());
 
-  it('fetches what an open presentation needs; a remote control does not fetch its audio', async () => {
-    const p = await presentation('P', null, 'open');
-    await bob.client.sync();
-    const control = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false, open: [{ presentationId: 'P', audio: false }] }));
-    expect(control.downloaded.toSorted()).toEqual([p.thumb, p.full].toSorted());
-    expect(await presentationMediaState(bob.client, 'P', false)).toEqual({ needed: 1, present: 1 });
-    expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 1 });
-    const presenter = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false, open: [{ presentationId: 'P', audio: true }] }));
-    expect(presenter.downloaded).toEqual([p.sound]);
-    expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });
+    const memoryOnly = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ keepComing: true, persistent: false }));
+    const r = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ keepComing: true }));
+
+    expect(memoryOnly.downloaded).toEqual([]);
+    expect(r.downloaded.toSorted()).toEqual([soon.full, soon.sound].toSorted());
+    expect(await hasMediaBlob(bob.client, later.full)).toBe(false);
+    expect(await hasMediaBlob(bob.client, past.full)).toBe(false);
   });
 
   it('fetches and keeps a presentation kept offline on this device, whatever its date; not on one that keeps no data', async () => {
     const p = await presentation('KEPT', null, 'kept');
     await bob.client.sync();
     await setPinned(bob.client, 'KEPT', true);
-    const memoryOnly = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false }));
+    const memoryOnly = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ persistent: false }));
     expect(memoryOnly.downloaded).toEqual([p.thumb]);
     const kept = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy());
     expect(kept.downloaded.toSorted()).toEqual([p.full, p.sound].toSorted());
@@ -552,7 +580,7 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     await alice.client.mutate('createPresentation', { id: 'Q', name: 'Q' });
     const waiting = await storeMediaBlob(alice.client, jpeg('waiting'), 'image/jpeg');
     await alice.client.mutate('addImage', imageArgs('WAIT', waiting, waiting)); // not pushed yet
-    const host = policy({ prefetch: false, fetch: false, budget: 0, open: [{ presentationId: 'HOST', audio: true }] });
+    const host = policy({ persistent: false, fetch: false, budget: 0, presenting: 'HOST' });
 
     const r = await syncMedia(alice.client, downloader(h, org, 'alice'), Date.now(), host);
 
@@ -562,7 +590,7 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     expect(await hasMediaBlob(alice.client, waiting)).toBe(true);
   });
 
-  it("fetches every overlay's picture once a presentation is open, and counts it as needed for live", async () => {
+  it("fetches every overlay's picture when it presents, and counts it as needed for live", async () => {
     const p = await presentation('P', null, 'with-overlay');
     const o = await uploaded(h, org, alice, 'overlay');
     await alice.client.mutate('addImage', imageArgs('OVL-IMG', o.fullHash, o.thumbHash));
@@ -570,23 +598,23 @@ describe.each(adapters)('%s adapter: which files a device keeps', (adapterName) 
     await alice.client.sync();
     expect(alice.client.rejected).toEqual([]);
     await bob.client.sync();
-    const nothingOpen = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false }));
-    expect(nothingOpen.downloaded.toSorted()).toEqual([p.thumb, o.thumbHash].toSorted());
+    const nothing = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy());
+    expect(nothing.downloaded.toSorted()).toEqual([p.thumb, o.thumbHash].toSorted());
     expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 3, present: 0 });
-    const open = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ prefetch: false, open: [{ presentationId: 'P', audio: true }] }));
-    expect(open.downloaded).toEqual([o.fullHash, p.full, p.sound]);
+    const presenting = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), policy({ presenting: 'P' }));
+    expect(presenting.downloaded).toEqual([o.fullHash, p.full, p.sound]);
     expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 3, present: 3 });
   });
 
-  it('keeps what is not needed now only within the budget, oldest out first; never what is coming or open', async () => {
+  it('keeps the cache only within the budget, oldest out first; never what is presented now', async () => {
     const a = await presentation('A', null, 'budget-a');
     const b = await presentation('B', null, 'budget-b');
     await bob.client.sync();
-    // Both were open once, so both are on the device.
-    await syncMedia(bob.client, downloader(h, org, 'bob'), 1000, policy({ prefetch: false, open: [{ presentationId: 'A', audio: true }] }));
-    await syncMedia(bob.client, downloader(h, org, 'bob'), 2000, policy({ prefetch: false, open: [{ presentationId: 'B', audio: true }] }));
-    // B is open now; a budget of one byte leaves room for nothing else, so A's files (the older) go, not B's or the thumbnails.
-    const r = await syncMedia(bob.client, async () => null, 3000, policy({ prefetch: false, budget: 1, open: [{ presentationId: 'B', audio: true }] }));
+    // Both were presented once, so both are on the device.
+    await syncMedia(bob.client, downloader(h, org, 'bob'), 1000, policy({ presenting: 'A' }));
+    await syncMedia(bob.client, downloader(h, org, 'bob'), 2000, policy({ presenting: 'B' }));
+    // B is presented now; a budget of one byte leaves room for nothing else, so A's files (the older) go, not B's or the thumbnails.
+    const r = await syncMedia(bob.client, async () => null, 3000, policy({ budget: 1, presenting: 'B' }));
     expect(r.removed).toBe(2);
     expect(await hasMediaBlob(bob.client, a.full)).toBe(false);
     expect(await hasMediaBlob(bob.client, a.sound)).toBe(false);
@@ -712,14 +740,14 @@ describe.each(adapters)('%s adapter: slide decks (PRES-R11, D29)', (adapterName)
     expect((await serverDump(h, org, 'alice')).tables.presentation_items).toEqual([]);
   });
 
-  it("another device fetches a coming presentation's deck pages, both sizes, and counts them as needed live", async () => {
+  it("a device that presents fetches the deck's pages, both sizes, and counts them as needed live", async () => {
     const deck = await pages(alice, 'coming', 2);
     await alice.client.mutate('createPresentation', { id: 'P', name: 'Söndag', eventDate: TODAY });
     await alice.client.mutate('addSlides', { itemId: 'I1', presentationId: 'P', fileName: 'Predikan.pdf', pages: deck });
     await alice.client.sync();
     await bob.client.sync();
 
-    const r = await syncMedia(bob.client, downloader(h, org, 'bob'));
+    const r = await syncMedia(bob.client, downloader(h, org, 'bob'), Date.now(), presentingP);
 
     expect(r.downloaded.toSorted()).toEqual(deck.flatMap((p) => [p.full, p.thumb]).toSorted());
     expect(await presentationMediaState(bob.client, 'P')).toEqual({ needed: 2, present: 2 });

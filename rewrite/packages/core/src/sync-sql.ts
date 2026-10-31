@@ -1,5 +1,5 @@
 import { getTableConfig, type SQLiteTable } from 'drizzle-orm/sqlite-core';
-import { bibleBlobs, bibleTexts, keptBibles, mediaBlobs, pinnedPresentations, syncedTables } from './schema.ts';
+import { bibleBlobs, bibleTexts, keptBibles, mediaBlobs, pinnedPresentations, syncedTables, videoFiles } from './schema.ts';
 
 // SQL shared by both ends of the sync protocol, generated from the Drizzle
 // schema so no table can be forgotten.
@@ -135,7 +135,7 @@ export function upsertSql(t: TableInfo, rows = 1): string {
 }
 
 /** The tables whose changes a page hears of: the synced ones, and those of the device's own the pages read. */
-export const watchedTables: string[] = [...syncedTables, bibleTexts, bibleBlobs, mediaBlobs, pinnedPresentations, keptBibles].map((t: SQLiteTable) => getTableConfig(t).name);
+export const watchedTables: string[] = [...syncedTables, bibleTexts, bibleBlobs, mediaBlobs, pinnedPresentations, keptBibles, videoFiles].map((t: SQLiteTable) => getTableConfig(t).name);
 
 /** Where a client connection notes the tables a transaction wrote, until it commits (`changeTrackingDdl`). */
 export const CHANGED_TABLES = 'temp.changed_tables';

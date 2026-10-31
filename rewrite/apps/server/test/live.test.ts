@@ -56,6 +56,7 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
       pointer: { itemId: 'I1', partIndex: 0, black: false, overlayId: null, rev: 1 },
       outputs: [],
       audio: null,
+      video: null,
     });
 
     phone.send({ type: 'set', sessionId: 'S1', change: { itemId: 'I1', partIndex: 2, black: false } });
@@ -180,6 +181,22 @@ describe.each(adapters)('%s adapter: live sessions and remote control', (adapter
     await phone.sessions((x) => x[0]?.remote === false);
     phone.send({ type: 'audio', sessionId: 'S1', command: { action: 'fade', itemId: 'A1' } });
     expect(await phone.error()).toBe('remote-off');
+  });
+
+  it("a video command reaches the owner only, and the owner's video reaches everyone (TODO.md \"Video\")", async () => {
+    const owner = await win('anna');
+    const phone = await win('bo');
+    owner.send({ type: 'own', state: state('S1') });
+    await phone.sessions((x) => x.length === 1);
+
+    phone.send({ type: 'video', sessionId: 'S1', command: { action: 'seek', itemId: 'V1', position: 12 } });
+    const command = await owner.next((m) => m.type === 'video-command');
+    owner.send({ type: 'own', state: state('S1', { video: { itemId: 'V1', playing: false, position: 12, duration: 60 } }) });
+    const [s] = await phone.sessions((x) => x[0]?.video?.position === 12);
+
+    expect(command).toEqual({ type: 'video-command', sessionId: 'S1', command: { action: 'seek', itemId: 'V1', position: 12 } });
+    expect(phone.messages.some((m) => m.type === 'video-command')).toBe(false);
+    expect(s!.video).toEqual({ itemId: 'V1', playing: false, position: 12, duration: 60 });
   });
 
   it('the owner ends its own session', async () => {

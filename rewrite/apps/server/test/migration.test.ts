@@ -141,8 +141,8 @@ describe('client (wa-sqlite)', () => {
     await client.mutate('addSongToPresentation', { itemId: 'I1', presentationId: 'P', songId: 'S1' });
     const [trigger] = await client.query("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'undo_presentation_items_upd'");
     expect(String(trigger!.sql)).toContain('overlay_id');
-    // Every table is made by the DDL: the synced ones, and the five that do not sync (Bible texts, media blobs, pins, kept Bibles).
-    expect(orgDdl.filter((s) => s.startsWith('CREATE TABLE')).length).toBe(tableInfo.length + 5);
+    // Every table is made by the DDL: the synced ones, and the six that do not sync (Bible texts and blobs, media blobs, pins, kept Bibles, kept video files).
+    expect(orgDdl.filter((s) => s.startsWith('CREATE TABLE')).length).toBe(tableInfo.length + 6);
     await client.close();
   });
 

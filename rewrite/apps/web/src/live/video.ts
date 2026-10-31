@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import type { LibraryVideo, LiveVideo, VideoCodec, VideoType } from '@gp/core';
+import type { LibraryVideo, LiveVideo, LiveVideoState, VideoCodec, VideoCommand, VideoType } from '@gp/core';
 import { playUrl } from '../media/video.ts';
+import type { LiveLink } from './remote.ts';
 
 // Video during live (TODO.md "Video on the outputs"). The presenting window
 // plays it: one element, unmuted, whose sound is the presenting computer's, as
@@ -26,7 +27,7 @@ export interface VideoState extends VideoRef {
   duration: number | null;
 }
 
-export type VideoCommand = { action: 'play' | 'pause'; itemId: string } | { action: 'seek'; itemId: string; position: number };
+export type { VideoCommand } from '@gp/core';
 
 /** What the live page and the stage view drive: the engine in the presenting window. */
 export interface VideoControl {
@@ -141,8 +142,9 @@ export class VideoEngine implements VideoControl {
   /**
    * The item now live: a video item starts from its beginning, at once if it
    * was buffered; anything else stops the video. The same item again changes nothing.
+   * `from` resumes it where it was instead (a reloaded window, Lars 2026-10-31), playing or not.
    */
-  async show(item: { itemId: string; video: LibraryVideo } | null) {
+  async show(item: { itemId: string; video: LibraryVideo } | null, from?: { position: number; playing: boolean }) {
     if ((item?.itemId ?? null) === this.itemId) return;
     const turn = ++this.turn;
     this.current.el.pause();
@@ -159,9 +161,29 @@ export class VideoEngine implements VideoControl {
       this.current.ref = ref;
       this.current.el.src = url;
     }
-    this.current.el.currentTime = 0;
-    await this.start(this.current.el);
+    this.pausedByBlack = false;
+    this.current.el.currentTime = from ? Math.min(from.position, Math.max(0, item.video.duration / 1000 - 0.05)) : 0;
+    if (!from || from.playing) await this.start(this.current.el);
     this.notify();
+  }
+
+  /** Paused by the black screen, so showing the picture again resumes it. */
+  private pausedByBlack = false;
+
+  /**
+   * The black screen (B, Rensa) pauses a playing video, picture and sound; the picture shown again resumes
+   * it where it was (Lars, 2026-10-31). A video paused by hand stays paused.
+   */
+  setBlack(black: boolean) {
+    const el = this.current.el;
+    if (!this.itemId) return;
+    if (black && !el.paused && !el.ended) {
+      this.pausedByBlack = true;
+      el.pause();
+    } else if (!black && this.pausedByBlack) {
+      this.pausedByBlack = false;
+      void this.start(el);
+    }
   }
 
   /** Buffers the next item's video, so its start is there when it goes live. */
@@ -184,6 +206,7 @@ export class VideoEngine implements VideoControl {
       void this.start(el);
     } else if (c.action === 'pause') el.pause();
     else if (c.action === 'seek') el.currentTime = c.position;
+    if (c.action !== 'seek') this.pausedByBlack = false; // a choice by hand: black no longer decides
     this.notify();
   }
 
@@ -207,6 +230,46 @@ export class VideoEngine implements VideoControl {
 
   private notify() {
     for (const fn of this.listeners) fn();
+  }
+}
+
+/**
+ * A session's video elsewhere, on a controller: what the owner last reported, its position moved on by
+ * the time since the report while it plays. Commands go to the owner; nothing plays here.
+ */
+export class RemoteVideo implements VideoControl {
+  private received = Date.now();
+  private last: string | null = null;
+
+  constructor(
+    private link: Pick<LiveLink, 'sessions' | 'subscribe' | 'videoCommand'>,
+    private sessionId: string,
+  ) {}
+
+  private reported(): LiveVideoState | null {
+    const v = this.link.sessions.find((s) => s.id === this.sessionId)?.video ?? null;
+    const key = JSON.stringify(v);
+    if (key !== this.last) {
+      this.last = key;
+      this.received = Date.now();
+    }
+    return v;
+  }
+
+  state(): VideoState | null {
+    const v = this.reported();
+    if (!v) return null;
+    const position = v.playing ? v.position + (Date.now() - this.received) / 1000 : v.position;
+    // The hash, type and codec are the presenting computer's concern: a controller only drives.
+    return { itemId: v.itemId, playing: v.playing, position: v.duration === null ? position : Math.min(v.duration, position), duration: v.duration, hash: '', type: 'video/mp4', codec: 'h264' };
+  }
+
+  subscribe(fn: () => void): () => void {
+    return this.link.subscribe(fn);
+  }
+
+  command(c: VideoCommand): void {
+    this.link.videoCommand(this.sessionId, c);
   }
 }
 

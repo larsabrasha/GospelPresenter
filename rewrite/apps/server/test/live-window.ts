@@ -72,5 +72,6 @@ export const ownState = (sessionId: string, over: Partial<LiveOwnState> = {}): L
   slide: null,
   canvas: null,
   audio: null,
+  video: null,
   ...over,
 });

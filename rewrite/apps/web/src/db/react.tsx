@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useId, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { Song } from '@gp/core';
 import { presentationMediaState } from '@gp/sync/client';
 import type { Db } from './db.ts';
 import type { DbStatus } from './protocol.ts';
-import { blobUrl, listSongs, shownOverlay, type ShownOverlay } from './queries.ts';
+import { blobUrl, holdBlobUrl, listSongs, shownOverlay, type ShownOverlay } from './queries.ts';
 import { needsReload, type ReadDb } from './share.ts';
 import { isHostWindow } from '../hostWindow.ts';
 
@@ -86,6 +86,8 @@ export function useDbStatus(): DbStatus | undefined {
 
 /** The object URL of a stored picture blob, or null while there is none (not synced to this device yet, or no hash). */
 export function useBlobUrl(hash: string | null): string | null {
+  // Held while shown, so it is not let go under the picture; let go a while after.
+  useEffect(() => (hash ? holdBlobUrl(hash) : undefined), [hash]);
   return useData(async (db) => (hash ? blobUrl(db, hash) : null), [hash]) ?? null;
 }
 
@@ -95,18 +97,10 @@ export function useShownOverlay(id: string | null): ShownOverlay | null {
 }
 
 /**
- * While the page is open, has the database fetch the presentation's pictures
- * (and its audio, unless `audio` is false: a remote control never plays), and
- * says how many of the files it needs this device has.
+ * How many of the files a presentation needs live this device has (docs/media-and-files.md, "Which files
+ * a device keeps"). Reading it fetches nothing: presenting does, and keeping it offline.
  */
 export function usePresentationMedia(presentationId: string, audio: boolean): { needed: number; present: number } | undefined {
-  const db = useContext(DbContext);
-  const key = useId();
-  useEffect(() => {
-    if (!db) return;
-    void db.openMedia(key, presentationId, audio);
-    return () => void db.closeMedia(key);
-  }, [db, key, presentationId, audio]);
   const state = useData((r) => presentationMediaState(r, presentationId, audio), [presentationId, audio]);
   return state && isHostWindow() ? { ...state, present: state.needed } : state;
 }

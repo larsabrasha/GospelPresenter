@@ -19,6 +19,8 @@ export interface Slide {
   kind: 'song' | 'bible' | 'media';
   /** A media slide's picture: the hash of its `full` blob. */
   image: string | null;
+  /** Its `thumb` blob, which every device keeps: drawn where the full picture is not on the device. */
+  thumb?: string | null;
   /** The text as plain text: a song part as written; a Bible slide with its verse numbers. */
   text: string;
   /** A Bible slide's runs of words, each starting with its verse number if it starts a verse. */
@@ -91,13 +93,23 @@ export function bibleItemSlides(title: string, content: BibleItemContent): Slide
 }
 
 /** A slide of an image item: one picture, over the theme's media background (spec 05). */
-export function imageSlide(fullHash: string, key = 'image'): Slide {
-  return { key, kind: 'media', text: '', verses: null, image: fullHash, label: null, credits: null };
+export function imageSlide(fullHash: string, key = 'image', thumbHash: string | null = null): Slide {
+  return { key, kind: 'media', text: '', verses: null, image: fullHash, thumb: thumbHash, label: null, credits: null };
 }
 
 /** A video item's one slide: the still as its picture, the video for the outputs that play it. */
-export function videoSlide(video: { hash: string; contentType: VideoType; codec: VideoCodec; stillHash: string }): Slide {
-  return { key: 'video', kind: 'media', text: '', verses: null, image: video.stillHash, label: null, credits: null, video: { hash: video.hash, type: video.contentType, codec: video.codec } };
+export function videoSlide(video: { hash: string; contentType: VideoType; codec: VideoCodec; stillHash: string; thumbHash?: string }): Slide {
+  return {
+    key: 'video',
+    kind: 'media',
+    text: '',
+    verses: null,
+    image: video.stillHash,
+    thumb: video.thumbHash ?? null,
+    label: null,
+    credits: null,
+    video: { hash: video.hash, type: video.contentType, codec: video.codec },
+  };
 }
 
 /** At most this many pictures in one image item. */
@@ -163,5 +175,5 @@ export function parseSlidesContent(json: string | null): SlidesItemContent | nul
 
 /** A slide deck's slides: each page a picture filling the stage, like an image item. */
 export function slideDeckSlides(content: SlidesItemContent): Slide[] {
-  return content.pages.map((page, i) => ({ key: `s${i}`, kind: 'media', text: '', verses: null, image: page.full, label: null, credits: null }));
+  return content.pages.map((page, i) => ({ key: `s${i}`, kind: 'media', text: '', verses: null, image: page.full, thumb: page.thumb, label: null, credits: null }));
 }

@@ -53,7 +53,7 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
 /** An overlay's picture as a small 16:9 thumbnail in the list, or a grey box with a picture icon when it has none (Overlays.razor). */
 function OverlayThumb({ overlay }: { overlay: Pick<Overlay, 'id'> }) {
   const shown = useShownOverlay(overlay.id);
-  const url = useBlobUrl(shown?.imageHash ?? null);
+  const url = useBlobUrl(shown?.thumbHash ?? null);
   return url ? (
     <img src={url} alt="" draggable={false} className="w-16 h-9 object-cover rounded border border-neutral-200 dark:border-neutral-600 shrink-0" />
   ) : (
@@ -225,7 +225,7 @@ export function OverlayEditor({ id }: { id: string }) {
         <div>
           <h2 className="block text-sm/5 font-medium mb-1">{t('overlays.preview')}</h2>
           <div className="max-w-[640px] aspect-video rounded-lg overflow-hidden">
-            <SlideView slide={null} overlay={{ content: overlay.content, imageHash: image?.fullHash ?? null }} />
+            <SlideView slide={null} overlay={{ content: overlay.content, imageHash: image?.fullHash ?? null, thumbHash: image?.thumbHash ?? null }} />
           </div>
         </div>
       </div>

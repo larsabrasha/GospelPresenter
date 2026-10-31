@@ -64,8 +64,37 @@ Decided (Lars, 2026-10-31), for the ADR to write before building:
   cloud after. Later, if it is needed: Plex's model, a name per host under gospelpresenter.com pointing at its LAN
   address with a real certificate (Let's Encrypt through the cloud's DNS), so browsers can go the local way too;
   some routers refuse such names (DNS rebinding protection), and they need the internet to resolve.
+- **How an app finds the host** (Lars, 2026-10-31): the cloud tells it. The host knows its LAN addresses (it works
+  them out for the pairing QR code today) and sends them to the cloud over its connection out whenever they change;
+  a signed-in app gets them, tries them, and keeps them for when the internet is down. mDNS (Bonjour) beside it:
+  the host announces a Gospel Presenter service with its id on the network, so an app finds it with no internet
+  and after the router gave the host a new address (Node libraries in the desktop app, a Zeroconf plugin in
+  Capacitor; iOS needs the service declared and the local network permission). Many church networks block it
+  (guest networks, Wi-Fi that keeps clients apart, VLANs), so it only adds to the list. Whichever way an address
+  came, the app checks it reached the right host: the host answers with its id and proves it with something only
+  it has (signing a challenge with its key), so another computer that got the old address is not taken for it.
+  No local address answering quickly means the cloud; on a blocked network it is only a little slower.
 
-## Video, and which files a device fetches (from Lars 2026-10-31; the video item done 2026-10-31, the rest not started)
+## Offline: what a device keeps that the server has not (from Lars 2026-10-31; not started)
+
+On a phone people expect everything to happen on the server; that a device can hold something of its own is new
+to most, and it confuses when something added seems never to reach the cloud (Lars, 2026-10-31). So:
+
+- **Text changes** (songs, presentations and the rest) are saved on the device and synced as now, but while the
+  device is offline a clear line says so: "Du är offline. Ändringar sparas när du är ansluten igen." (Lars), as
+  Google Docs does; it goes when the device is back and its changes are synced. The sync icon's dot alone is too
+  easy to miss.
+- **Files are not limited, they are made clear** (Lars: "dumt att begränsa bara för att folk inte fattar"):
+  pictures, audio and PDF slide decks can still be added offline on every device and wait there, as today
+  (docs/media-and-files.md), and the offline line counts them ("2 bilder väntar på att laddas upp från den här
+  enheten"). A waiting file is marked where it shows on its own device, and other devices, once the item has
+  synced, show it as waiting for its upload from that device (by the device's name), not as missing. A browser
+  tab that is closed with files still waiting asks first, as a page with unsaved changes does; what it holds stays
+  in its storage and goes up the next time the app opens there. Video stays the exception, needing a connection
+  on every device: up to 2 GB kept twice on the device is a real cost, not a matter of understanding. In the host's
+  own window the server is on the same computer, so everything always works there.
+
+## Video, and which files a device fetches (from Lars 2026-10-31; done 2026-10-31 but where files are kept, YouTube and WebM)
 
 **Done (2026-10-31):** the video item end to end. A `videos` library row and a `video` item, with their mutators
 (add, trash, restore, purge, add to a presentation) and ViewVideos/ManageVideos as for audio; the import from a new
@@ -79,10 +108,18 @@ live, a paired screen streaming it muted from the state in its canvas (the still
 and a public output showing the still. See docs/media-and-files.md ("Video"), docs/live.md ("Video on the outputs")
 and the choices in docs/assumptions.md ("Video").
 
-**Not done yet:** keeping presentations offline and the icon for it, "Spara kommande presentationer offline", the
-storage part "Lagring på den här enheten", the cache limit as a slider, fetching a presentation's files on Starta
-presentation (devices still fetch ahead and on demand as docs/media-and-files.md says), where files are kept, YouTube,
-WebM, `blobUrls` letting go, a Video page among the admin pages, and play/pause/seek of a video from a remote control.
+**Done too (2026-10-31, second pass):** `blobUrls` lets go of a URL 30 s after nothing shows it; Starta
+presentation fetches that presentation's files at once and quietly, looking around fetches only thumbnails (tiles
+show them where the full picture is not here), and what presenting fetched stays as cache; keeping a presentation
+offline by its icon in the list and the editor (not kept, a filling ring, all here), its videos whole too, in OPFS,
+replacing the ⋯ menu's choice and the "Offline" badge; "Spara kommande presentationer offline" under Mina
+inställningar; "Lagring på den här enheten" with Sparat offline, the cache, its limit as a slider and "Rensa cache";
+a Videor page among the admin pages; play, pause and seek of a video from remote control and the stage view. Lars's
+answers of 2026-10-31: black pauses a live video and showing it again resumes it; a reloaded presenting window
+resumes it where it was; the still is taken at 1 s or a tenth of the length.
+
+**Not done yet:** where the files are kept, as a choice (later, as said below), YouTube, WebM. Open with Lars: whether
+a video import can be queued offline (today it needs the server).
 
 A video can be shown in a presentation, as an item of its own (as audio and pictures are). The picture goes to the
 outputs; the sound plays on the presenting device, as an audio item's does (LIVE-R6), not on the outputs. It is

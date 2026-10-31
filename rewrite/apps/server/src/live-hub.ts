@@ -11,6 +11,7 @@ import {
   ITEM_IMAGES_SQL,
   SLIDE_PAGES_SQL,
   type Canvas,
+  type LiveVideoState,
   type LiveOwnState,
   type LiveScreen,
   type LiveServerMessage,
@@ -46,7 +47,7 @@ const DDL = [
   `CREATE TABLE IF NOT EXISTS live_sessions (
      id TEXT PRIMARY KEY NOT NULL, owner_user_id TEXT NOT NULL, presentation_id TEXT NOT NULL,
      presentation_name TEXT NOT NULL, device_name TEXT NOT NULL, remote INTEGER NOT NULL,
-     pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT, audio TEXT, canvas TEXT)`,
+     pointer TEXT NOT NULL, owner_seen_at INTEGER NOT NULL, slide TEXT, audio TEXT, canvas TEXT, video TEXT)`,
   // Which session an output sends from: at most one (LIVE-R23).
   `CREATE TABLE IF NOT EXISTS live_bindings (display_id TEXT PRIMARY KEY NOT NULL, session_id TEXT NOT NULL)`,
   // Temporary screens paired with the organisation (spec 04 §5), each for the session that paired it.
@@ -79,6 +80,7 @@ interface Row {
   owner_seen_at: number;
   slide: string | null;
   audio: string | null;
+  video: string | null;
   canvas: string | null;
 }
 
@@ -114,8 +116,8 @@ export class LiveHub {
     private later: (fn: () => void, ms: number) => unknown = (fn, ms) => setTimeout(fn, ms),
   ) {
     for (const d of DDL) store.query(d);
-    // A table made before audio or the canvas: sessions are short-lived, so it is simply made again.
-    if (!(store.query(`SELECT 1 FROM pragma_table_info('live_sessions') WHERE name = 'canvas'`).length)) {
+    // A table made before audio, the canvas or video: sessions are short-lived, so it is simply made again.
+    if (!(store.query(`SELECT 1 FROM pragma_table_info('live_sessions') WHERE name = 'video'`).length)) {
       store.query('DROP TABLE live_sessions');
       store.query(DDL[0]!);
     }
@@ -183,7 +185,9 @@ export class LiveHub {
     const command = JSON.stringify(
       (msg.type === 'audio'
         ? { type: 'audio-command', sessionId: row.id, command: msg.command }
-        : { type: 'command', sessionId: row.id, change: msg.change }) satisfies LiveServerMessage,
+        : msg.type === 'video'
+          ? { type: 'video-command', sessionId: row.id, command: msg.command }
+          : { type: 'command', sessionId: row.id, change: msg.change }) satisfies LiveServerMessage,
     );
     for (const o of owners) {
       try {
@@ -199,11 +203,11 @@ export class LiveHub {
     // A session id is the owner's; another user cannot take it over by naming it.
     if (existing && existing.owner_user_id !== s.userId) return reply(s, { type: 'error', error: 'not-owner' });
     this.store.query(
-      `INSERT INTO live_sessions (id, owner_user_id, presentation_id, presentation_name, device_name, remote, pointer, owner_seen_at, slide, audio, canvas)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO live_sessions (id, owner_user_id, presentation_id, presentation_name, device_name, remote, pointer, owner_seen_at, slide, audio, canvas, video)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (id) DO UPDATE SET presentation_id = excluded.presentation_id, presentation_name = excluded.presentation_name,
          device_name = excluded.device_name, remote = excluded.remote, pointer = excluded.pointer, owner_seen_at = excluded.owner_seen_at,
-         slide = excluded.slide, audio = excluded.audio, canvas = excluded.canvas`,
+         slide = excluded.slide, audio = excluded.audio, canvas = excluded.canvas, video = excluded.video`,
       [
         state.sessionId,
         s.userId,
@@ -216,6 +220,7 @@ export class LiveHub {
         state.slide ? JSON.stringify(state.slide) : null,
         state.audio ? JSON.stringify(state.audio) : null,
         state.canvas ? JSON.stringify(stampVideo(state.canvas, this.now())) : null,
+        state.video ? JSON.stringify(state.video) : null,
       ],
     );
     if (!s.owns.includes(state.sessionId)) s.owns = [...s.owns, state.sessionId];
@@ -554,6 +559,7 @@ export class LiveHub {
         pointer: JSON.parse(r.pointer) as LiveSessionInfo['pointer'],
         outputs,
         audio: r.audio ? (JSON.parse(r.audio) as LiveSessionInfo['audio']) : null,
+        video: r.video ? (JSON.parse(r.video) as LiveVideoState) : null,
       });
     }
     return out;

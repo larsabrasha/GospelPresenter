@@ -167,6 +167,23 @@ export const audioCommandSchema = z.discriminatedUnion('action', [
 ]);
 export type AudioCommand = z.infer<typeof audioCommandSchema>;
 
+/** The session's video for a controller (TODO.md "Video"): the video item the presenting computer plays, and where. */
+export const liveVideoStateSchema = z.object({
+  itemId: id,
+  playing: z.boolean(),
+  position: z.number().min(0).max(24 * 3600),
+  duration: z.number().min(0).max(24 * 3600).nullable(),
+});
+export type LiveVideoState = z.infer<typeof liveVideoStateSchema>;
+
+/** What a controller asks the presenting computer to do with its video, relayed like an audio command. */
+export const videoCommandSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('play'), itemId: id }),
+  z.object({ action: z.literal('pause'), itemId: id }),
+  z.object({ action: z.literal('seek'), itemId: id, position: z.number().min(0).max(24 * 3600) }),
+]);
+export type VideoCommand = z.infer<typeof videoCommandSchema>;
+
 /** What the owner reports, whole, on connect, on every reconnect and on every change (LIVE-R47). */
 export const liveOwnStateSchema = z.object({
   sessionId: id,
@@ -187,6 +204,8 @@ export const liveOwnStateSchema = z.object({
   canvas: canvasSchema.nullable().default(null),
   /** The audio item it plays, if any. */
   audio: liveAudioSchema.nullable().default(null),
+  /** The video item it plays, if any. Absent from an older owner. */
+  video: liveVideoStateSchema.nullable().default(null),
 });
 export type LiveOwnState = z.infer<typeof liveOwnStateSchema>;
 
@@ -197,6 +216,8 @@ export const liveClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('set'), sessionId: id, change: liveChangeSchema }),
   /** A controller's audio command, relayed to the owner like `set` (spec 04 §1b). */
   z.object({ type: z.literal('audio'), sessionId: id, command: audioCommandSchema }),
+  /** A controller's video command (play, pause, seek), relayed to the owner like `audio`. */
+  z.object({ type: z.literal('video'), sessionId: id, command: videoCommandSchema }),
 ]);
 export type LiveClientMessage = z.infer<typeof liveClientMessageSchema>;
 
@@ -215,6 +236,8 @@ export interface LiveSessionInfo {
   outputs: { id: string; viewers: number }[];
   /** Its audio, as the owner last reported it. */
   audio: LiveAudio | null;
+  /** Its video, as the owner last reported it. */
+  video?: LiveVideoState | null;
 }
 
 /** A temporary screen paired with this organisation (spec 04 §5): numbered for its name, "Tillfällig skärm (n)". */
@@ -234,6 +257,8 @@ export type LiveServerMessage =
   | { type: 'command'; sessionId: string; change: LiveChange }
   /** To the owner only: a controller's audio command. */
   | { type: 'audio-command'; sessionId: string; command: AudioCommand }
+  /** To the owner only: a controller's video command. */
+  | { type: 'video-command'; sessionId: string; command: VideoCommand }
   | { type: 'error'; error: 'invalid-message' | 'not-owner' | 'not-found' | 'remote-off' | 'owner-offline' | 'forbidden' | 'output-taken' };
 
 /** A session whose owner has been gone this long is ended (LIVE-R50's reaper). */

@@ -83,7 +83,7 @@ function VideoPreview({ video }: { video: LibraryVideo }) {
   );
 }
 
-/** While presenting: the session a clicked slide is shown in, its audio, and its video (none on a controller). */
+/** While presenting: the session a clicked slide is shown in, its audio, and its video. */
 export type Shown = { live: LiveControl; pointer: LivePointer; audio: AudioControl; video?: VideoControl };
 
 /** A warning about the selected item, in the main area, with an action at its end when there is one. */

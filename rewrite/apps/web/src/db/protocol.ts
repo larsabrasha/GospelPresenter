@@ -54,12 +54,18 @@ export type DbCall =
   | { op: 'importBible'; data: Uint8Array }
   | { op: 'syncNow' }
   /**
-   * A presentation is open on a page (editor, live, remote control): fetch
-   * what it needs now (docs/media-and-files.md, "Which files a device keeps"); `audio` false
-   * for a remote control, which never plays. `key` names the page, for `closeMedia`.
+   * This window presents a presentation (Starta presentation), or no longer does: its files are fetched
+   * at once (docs/media-and-files.md, "Which files a device keeps"). Opening a presentation fetches nothing.
    */
-  | { op: 'openMedia'; key: string; presentationId: string; audio: boolean }
-  | { op: 'closeMedia'; key: string }
+  | { op: 'present'; presentationId: string | null }
+  /** "Spara kommande presentationer offline", this device's choice, as the page keeps it. */
+  | { op: 'keepComing'; on: boolean }
+  /** The cache's limit on this device, in bytes (Lagring på den här enheten). */
+  | { op: 'setBudget'; bytes: number }
+  /** How this device's files are used: `StorageReport` and the limit. */
+  | { op: 'storageReport' }
+  /** "Rensa cache": drops what nothing wants now. */
+  | { op: 'clearCache' }
   /** Keeps a presentation's files on this device whatever its date ("Tillgänglig offline"), or stops. */
   | { op: 'setPinned'; presentationId: string; on: boolean }
   /** "Gör tillgänglig offline" (true: false if the text could not be downloaded) or "Ta bort den nedladdade kopian". */

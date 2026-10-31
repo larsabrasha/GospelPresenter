@@ -7,7 +7,6 @@ import { slidesOfItems } from '../../live/live.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
-import { useKeepOffline } from '../../ui/MediaReadiness.tsx';
 import { navigate } from '../../ui/router.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
@@ -49,7 +48,7 @@ function useWide(): boolean {
  */
 export type Presenting = {
   audio: AudioControl;
-  /** The presenting window's video; a controller has none (its video plays on the presenting computer, not driven from here). */
+  /** The session's video: the presenting window's own engine, or on a controller a mirror that sends commands. */
   video?: VideoControl;
   owner: { sessionId: string } | null;
   link: LiveLink;
@@ -149,7 +148,6 @@ export function PresentationEditor({
   const [adding, setAdding] = useState<false | 'item' | 'images'>(false);
   const [details, setDetails] = useState(false);
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
-  const keep = useKeepOffline(id);
   const [renaming, setRenaming] = useState(false);
   // Below `lg` the running order is a drawer from the left, open when the page opens (Presentation.razor);
   // closed when presenting starts, where the old app stayed on the page with the drawer as it was.
@@ -322,7 +320,6 @@ export function PresentationEditor({
         {dialog}
         <SideMenu
           presentation={presentation}
-          keep={keep}
           menuVisible={menuVisible}
           onHideMenu={() => setMenuVisible(false)}
           onEditDetails={() => setDetails(true)}
@@ -330,7 +327,7 @@ export function PresentationEditor({
           onTrash={() => void trash()}
           ticking={ticking}
           onTicking={setTicking}
-          audio={!presenting || !!owner}
+          media={!!presenting && !!owner}
         >
           <RunningOrder
             items={items}

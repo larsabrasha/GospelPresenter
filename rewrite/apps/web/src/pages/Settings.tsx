@@ -5,6 +5,34 @@ import { CheckIcon, ComputerIcon, MoonIcon, SunIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { getTheme, setTheme, type ThemeChoice } from '../ui/theme.ts';
+import { useDbStatus } from '../db/react.tsx';
+import { isHostWindow } from '../hostWindow.ts';
+import { setKeepComingSetting, useKeepComing } from '../ui/KeepOffline.tsx';
+import { SWITCH } from '../ui/Toggle.tsx';
+import { StorageSection } from './Storage.tsx';
+
+/**
+ * "Spara kommande presentationer offline" (TODO.md "Video"): this device keeps every presentation of the
+ * coming seven days offline, videos too, as if each had been chosen by hand. Off at first. A desktop
+ * host's own window keeps nothing, so it has no such choice; a device that keeps nothing says why.
+ */
+function KeepComing() {
+  const on = useKeepComing();
+  const status = useDbStatus();
+  if (isHostWindow()) return null;
+  const unavailable = !!status && status.storage !== 'opfs';
+  return (
+    <div className={`${CARD} p-5`}>
+      <label className={`flex items-start justify-between gap-4 ${unavailable ? 'cursor-default' : 'cursor-pointer'}`}>
+        <span>
+          <span className="block text-sm/5 font-medium">{t('settings.keepComing')}</span>
+          <span className="block text-xs text-neutral-500 dark:text-neutral-400 mt-1">{t(unavailable ? 'settings.keepComingUnavailable' : 'settings.keepComingDescription')}</span>
+        </span>
+        <input type="checkbox" role="switch" className={`${SWITCH} mt-0.5`} checked={on && !unavailable} disabled={unavailable} onChange={(e) => setKeepComingSetting(e.target.checked)} />
+      </label>
+    </div>
+  );
+}
 
 const THEMES: { value: ThemeChoice; label: TextKey; icon: typeof SunIcon }[] = [
   { value: 'system', label: 'settings.themeSystem', icon: ComputerIcon },
@@ -12,7 +40,7 @@ const THEMES: { value: ThemeChoice; label: TextKey; icon: typeof SunIcon }[] = [
   { value: 'dark', label: 'settings.themeDark', icon: MoonIcon },
 ];
 
-/** "Mina inställningar" (Pages/Settings.razor): the colour theme of this device. The version is under Om Gospel Presenter. */
+/** "Mina inställningar" (Pages/Settings.razor): the colour theme of this device, and what it keeps offline. The version is under Om Gospel Presenter. */
 export function Settings() {
   const [current, setCurrent] = useState(getTheme);
   return (
@@ -48,6 +76,8 @@ export function Settings() {
           })}
         </div>
       </div>
+      <KeepComing />
+      <StorageSection />
     </PageContainer>
   );
 }

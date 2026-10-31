@@ -1,7 +1,8 @@
 import type { Presentation } from '@gp/core';
 import { useState, type HTMLAttributes } from 'react';
 import { useData, useDb } from '../db/react.tsx';
-import { itemsOf, listPresentations, pinnedIds, recentTemplates } from '../db/queries.ts';
+import { itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
+import { KeepOfflineButton } from '../ui/KeepOffline.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
@@ -136,7 +137,6 @@ function Row({
   showDate,
   withYear,
   live,
-  pinned,
   nav,
 }: {
   p: Presentation;
@@ -144,7 +144,6 @@ function Row({
   showDate: boolean;
   withYear: boolean;
   live: boolean;
-  pinned: boolean;
   nav: HTMLAttributes<HTMLAnchorElement>;
 }) {
   const date = showDate && p.eventDate;
@@ -157,11 +156,9 @@ function Row({
       subtitle={subtitle || null}
       subtitleTitle={date ? fullDate(date, withYear) : undefined}
       nav={nav}
+      after={<KeepOfflineButton presentation={p} />}
       end={
         <>
-          {pinned && (
-            <span className="shrink-0 inline-flex items-center rounded-full bg-neutral-200 dark:bg-neutral-700 px-2 py-0.5 text-xs text-neutral-600 dark:text-neutral-300">{t('media.offlineBadge')}</span>
-          )}
           {live && (
             <span className="shrink-0 inline-flex items-center gap-1 bg-red-500 text-white text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full">
               <span className="size-1.5 rounded-full bg-white animate-pulse" />
@@ -190,7 +187,6 @@ const KEYS: ShortcutGroup = {
 
 export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const presentations = useData(listPresentations, []);
-  const pinned = useData(pinnedIds, []);
   const templates = useData(recentTemplates, []);
   const { sessions } = useLiveSessions(link);
   const [picking, setPicking] = useState(false);
@@ -206,7 +202,7 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
   const list = useRovingList(navCount);
   const livePresentation = sessions.find((s) => s.id === ownSessionId)?.presentationId;
   const row = (p: Presentation, index: number, showDate: boolean, withYear: boolean) => (
-    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} pinned={!!pinned?.has(p.id)} nav={list.item(index)} />
+    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} nav={list.item(index)} />
   );
   const startCreating = () => (templates?.length ? setPicking(true) : setCreating({ template: null }));
   useShortcutGroup(KEYS);

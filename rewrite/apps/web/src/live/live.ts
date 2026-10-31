@@ -18,6 +18,7 @@ import {
   type SongArrangement,
   type SongPart,
   type LibraryVideo,
+  type LiveVideo,
   videoSlide,
 } from '@gp/core';
 import type { ReadDb } from '../db/share.ts';
@@ -25,6 +26,15 @@ import type { OutputVideo } from './video.ts';
 import { arrangementsOf, getAudio, getImage, getVideo, listLabels, songPartsOf, songsById } from '../db/queries.ts';
 
 type LiveMessage = { type: 'pointer'; pointer: LivePointer } | { type: 'video'; video: OutputVideo } | { type: 'hello' };
+
+function restoreVideo(key: string): LiveVideo | null {
+  try {
+    const stored = sessionStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as LiveVideo) : null;
+  } catch {
+    return null;
+  }
+}
 
 function restore(key: string): LivePointer | null {
   try {
@@ -54,14 +64,20 @@ export class LiveChannel {
    */
   itemOverlays = new Map<string, string | null>();
 
+  /** Where the video was when this window was reloaded, if it played one: it resumes from there (Lars, 2026-10-31). */
+  restoredVideo: LiveVideo | null = null;
+
   constructor(
     orgId: string,
     private role: 'operator' | 'output',
   ) {
     this.channel = new BroadcastChannel(`gp-live:${orgId}`);
     this.storageKey = `gp.live:${orgId}`;
-    // A reloaded operator window goes on presenting what it presented.
-    if (role === 'operator') this.current = restore(this.storageKey) ?? IDLE;
+    // A reloaded operator window goes on presenting what it presented, a video where it was.
+    if (role === 'operator') {
+      this.current = restore(this.storageKey) ?? IDLE;
+      this.restoredVideo = this.current.presentationId ? restoreVideo(`${this.storageKey}:video`) : null;
+    }
     this.channel.addEventListener('message', (e: MessageEvent<LiveMessage>) => {
       if (e.data.type === 'hello') {
         if (this.role !== 'operator') return;
@@ -111,6 +127,12 @@ export class LiveChannel {
   setVideo(video: OutputVideo) {
     this.video = video;
     this.channel.postMessage({ type: 'video', video } satisfies LiveMessage);
+    try {
+      if (video.video) sessionStorage.setItem(`${this.storageKey}:video`, JSON.stringify(video.video));
+      else sessionStorage.removeItem(`${this.storageKey}:video`);
+    } catch {
+      // no storage: a reload starts the video over
+    }
   }
 
   private receiveVideo(video: OutputVideo) {
@@ -196,7 +218,7 @@ async function itemSlides(db: ReadDb, item: PresentationItem, songData: SongData
     // A slide per picture. A reference like a song, but a trashed picture still shows (MEDIA-R8); a purged one is gone.
     const ids = imageItemIds(item);
     const found = await Promise.all(ids.map((id) => getImage(db, id)));
-    const slides = found.flatMap((image, i) => (image ? [imageSlide(image.fullHash, `image${i}`)] : []));
+    const slides = found.flatMap((image, i) => (image ? [imageSlide(image.fullHash, `image${i}`, image.thumbHash)] : []));
     return slides.length ? { slides, problem: null } : { slides: [], problem: 'image-missing' };
   }
   const song = songData?.songs.get(item.sourceId);

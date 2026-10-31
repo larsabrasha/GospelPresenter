@@ -11,6 +11,7 @@
 // Keychain) is unreliable; and at http://localhost rather than 127.0.0.1,
 // because an IP address cannot be a passkey's RP ID.
 import { randomBytes } from 'node:crypto';
+import { statfs } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -228,6 +229,11 @@ app.whenReady().then(async () => {
   // Only on the host, and only if no user existed at start: the window that sets the host up gets the token.
   ipcMain.handle('setup-token', () => setupToken);
   ipcMain.handle('lan-urls', () => (port ? lanUrls(port, tlsPort) : []));
+  // The disk the app's data is on, for the cache limit's range (Lagring på den här enheten).
+  ipcMain.handle('disk-space', async () => {
+    const s = await statfs(app.getPath('userData'));
+    return { total: s.blocks * s.bsize, free: s.bavail * s.bsize };
+  });
   ipcMain.on('callback-scheme', (e) => (e.returnValue = CALLBACK_SCHEME));
   // Opens a sign-in of this app's own server in the system browser: only its entry paths, never another URL.
   ipcMain.handle('open-sign-in', async (_e, path: unknown) => {

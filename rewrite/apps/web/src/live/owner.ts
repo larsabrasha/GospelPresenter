@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
-import { toCanvas, toPublicSlide, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
+import { toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
 import { getOverlay, getPresentation, getVideo, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import { slidesOf, type LiveChannel } from './live.ts';
 import type { AudioEngine } from './audio.ts';
-import type { VideoEngine } from './video.ts';
+import { expectedPosition, type VideoEngine } from './video.ts';
 import { remoteAllowed, type LiveLink } from './remote.ts';
 
 /** Fired when "Tillåt fjärrstyrning" or the chosen outputs change in this window. */
@@ -112,6 +112,12 @@ async function shownOnOutputs(db: ReadDb, p: LivePointer, video: VideoEngine): P
   };
 }
 
+/** The video as a controller sees it: the item, playing or not, where and how long. */
+function videoState(video: VideoEngine): LiveVideoState | null {
+  const s = video.state();
+  return s && { itemId: s.itemId, playing: s.playing, position: s.position, duration: s.duration };
+}
+
 /**
  * Makes this window the owner of its live session (ADR 0004): whatever the
  * window presents is reported to the server, whichever page is open, and a
@@ -145,6 +151,7 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
         slide,
         canvas,
         audio: audio.state(),
+        video: videoState(video),
       });
     };
     // The overlays the presenting presentation's items carry, for `live.set` (TODO.md "Overlays").
@@ -165,8 +172,14 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       const shownVideo = await videoOf(items[at]);
       const nextVideo = at >= 0 ? await videoOf(items[at + 1]) : null;
       if (mine !== videoTurn) return;
-      await video.show(shownVideo && items[at] ? { itemId: items[at].id, video: shownVideo } : null);
-      if (mine === videoTurn) void video.buffer(nextVideo);
+      // Once, after a reload: the video live then resumes where it was, from the state kept with the pointer.
+      const restored = live.restoredVideo;
+      live.restoredVideo = null;
+      const from = restored && shownVideo && restored.hash === shownVideo.hash ? { position: expectedPosition(restored, Date.now()), playing: restored.playing && !p.black } : undefined;
+      await video.show(shownVideo && items[at] ? { itemId: items[at].id, video: shownVideo } : null, from);
+      if (mine !== videoTurn) return;
+      video.setBlack(p.black);
+      void video.buffer(nextVideo);
     };
     let presenting: string | null = null;
     const off = live.subscribe((p) => {
@@ -179,7 +192,7 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
     // An edit to what is showing, or a new theme, reaches the public outputs too.
     const offDb = db.onChange(() => {
       void loadOverlays(presenting);
-      if (chosen.length) again();
+      again(); // controllers mirror it
     });
     const offCommand = link.onCommand(async (target, change) => {
       const p = live.pointer;
@@ -204,10 +217,13 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
     // So does the video: the output window on this machine follows it through the live channel, the paired screens through the report.
     const offVideo = video.subscribe(() => {
       live.setVideo({ video: video.live(), next: video.next() });
-      if (chosen.length) again();
+      again(); // controllers mirror it
     });
     const offAudioCommand = link.onAudioCommand((target, command) => {
       if (target === sessionId && live.pointer.presentationId) audio.command(command);
+    });
+    const offVideoCommand = link.onVideoCommand((target, command) => {
+      if (target === sessionId && live.pointer.presentationId) video.command(command);
     });
     // An output another session sends to was not taken: unless we asked to take it over, stop asking for it.
     const offError = link.onError((e) => {
@@ -223,6 +239,7 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
       offAudio();
       offVideo();
       offAudioCommand();
+      offVideoCommand();
       removeEventListener(REMOTE_CHANGED, again);
     };
   }, [live, link, db, sessionId, audio, video]);

@@ -77,8 +77,17 @@ export function canPlayVideo(type: VideoType, codec: VideoCodec): boolean {
 export const codecName = (codec: string) => (codec === 'h264' ? 'H.264' : codec === 'hevc' ? 'HEVC' : codec);
 
 /**
+ * When the still is taken (Lars, 2026-10-31): a bit into the video, as the first frame is often black or a
+ * fade: at 1 s or a tenth of the length, whichever is earlier; never at or past the end of a very short clip.
+ */
+export function stillTime(duration: number): number {
+  if (!Number.isFinite(duration) || duration <= 0) return 0;
+  return Math.max(0, Math.min(1, duration / 10, duration - 0.05));
+}
+
+/**
  * One load of the file in a <video>: its length, its size, and a still from
- * its start in a picture's two sizes, encoded as a picture is (WebP, or JPEG
+ * a bit into it (`stillTime`) in a picture's two sizes, encoded as a picture is (WebP, or JPEG
  * where the canvas cannot encode WebP). A device that cannot decode it is refused.
  */
 export async function videoStill(file: Blob): Promise<Pick<VideoImport, 'duration' | 'width' | 'height' | 'stillType' | 'still' | 'thumb'>> {
@@ -96,6 +105,14 @@ export async function videoStill(file: Blob): Promise<Pick<VideoImport, 'duratio
     });
     // No picture: a track it cannot decode, or none at all.
     if (!video.videoWidth || !video.videoHeight) throw new VideoRefused('decode');
+    const at = stillTime(video.duration);
+    if (at > 0) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 10_000); // a frame that never comes: the first one is drawn
+        video.addEventListener('seeked', () => (clearTimeout(timer), resolve()), { once: true });
+        video.currentTime = at;
+      });
+    }
     const full = fitWithin(video.videoWidth, video.videoHeight, IMAGE_VARIANTS.full.width, IMAGE_VARIANTS.full.height);
     const thumb = fitWithin(video.videoWidth, video.videoHeight, IMAGE_VARIANTS.thumb.width, IMAGE_VARIANTS.thumb.height);
     let type: 'image/webp' | 'image/jpeg' = 'image/webp';
@@ -199,11 +216,36 @@ export async function uploadVideo(file: Blob, hash: string, progress: (p: Upload
   }
 }
 
+/** A video kept whole on this device (`db/videoFiles.ts`), as a file: what a <video src> plays offline. Null when it is not here. */
+export async function keptVideoFile(hash: string): Promise<File | null> {
+  try {
+    const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('videos');
+    return await (await dir.getFileHandle(hash)).getFile();
+  } catch {
+    return null;
+  }
+}
+
+/** Object URLs of videos kept on this device: a file's URL reads from the disk, so it holds no copy in memory. */
+const keptUrls = new Map<string, string>();
+
 /** URLs a <video src> streams from, by hash, until a few minutes before their token runs out. */
 const playUrls = new Map<string, { url: string; expiresAt: number }>();
 
-/** A URL that streams the video (`/api/play/{token}/{hash}`): a <video src> cannot send the session's header. Null when it cannot be had. */
+/**
+ * A URL that plays the video: the file kept on this device when the presentation is kept offline here,
+ * else a stream from the server (`/api/play/{token}/{hash}`: a <video src> cannot send the session's
+ * header). Null when it cannot be had.
+ */
 export async function playUrl(hash: string): Promise<string | null> {
+  const local = keptUrls.get(hash);
+  if (local) return local;
+  const file = await keptVideoFile(hash);
+  if (file) {
+    const url = URL.createObjectURL(file);
+    keptUrls.set(hash, url);
+    return url;
+  }
   const known = playUrls.get(hash);
   if (known && known.expiresAt - Date.now() > 10 * 60_000) return known.url;
   try {

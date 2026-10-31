@@ -30,11 +30,13 @@ describe('live reports', () => {
           verses: Array.from({ length: PUBLIC_SLIDE_LIMITS.segments }, () => ({ n: 999, t: worst.repeat(PUBLIC_SLIDE_LIMITS.text / PUBLIC_SLIDE_LIMITS.segments) })),
           image: 'a'.repeat(64),
           credits: worst.repeat(PUBLIC_SLIDE_LIMITS.credits),
+          video: { hash: 'c'.repeat(64), type: 'video/quicktime', codec: 'hevc', playing: true, position: 86_399.123456789, at: Number.MAX_SAFE_INTEGER },
         },
         themeId: id,
         overlay: { text: worst.repeat(OVERLAY_LIMITS.content), image: 'b'.repeat(64) },
       },
       audio: { itemId: id, playing: true, position: 86_399.123456789, duration: 86_399.123456789, fading: true },
+      video: { itemId: id, playing: true, position: 86_399.123456789, duration: 86_399.123456789 },
     };
     const message = { type: 'own', state };
     expect(liveClientMessageSchema.safeParse(message).success).toBe(true);

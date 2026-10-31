@@ -19,7 +19,7 @@ test.afterEach(async () => {
 });
 
 test('"Ta kontroll" opens in well under a second while a 19 MB audio file is still being fetched and checked', async () => {
-  // The file is fetched because the tablet opened the presentation in the editor just before.
+  // The file is fetched because the tablet started the presentation itself just before.
   const { networkInterfaces } = await import('node:os');
   const lan = Object.values(networkInterfaces())
     .flat()
@@ -55,8 +55,9 @@ test('"Ta kontroll" opens in well under a second while a 19 MB audio file is sti
   await openPresentations(phone);
   const take = phone.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' });
   await take.waitFor({ timeout: 10_000 });
-  // Opening it in the editor has the tablet fetch its audio (a remote control alone would not); then straight to control.
+  // Starting it on the tablet has the tablet fetch its audio (opening it alone, or a remote control, would not); then straight to control.
   await phone.getByRole('link', { name: 'Söndag' }).click();
+  await phone.getByRole('button', { name: 'Starta presentation' }).click();
   await expect(phone.getByTestId('media-ready')).toBeVisible();
   await phone.goBack();
   const started = Date.now();

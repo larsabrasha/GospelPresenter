@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AudioCommand, LiveAudio } from '@gp/core';
-import { blobUrl, getAudio } from '../db/queries.ts';
+import { blobUrl, getAudio, holdBlobUrl } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
 import type { LiveLink } from './remote.ts';
 
@@ -44,11 +44,18 @@ const SILENCE = (() => {
   return b;
 })();
 
-/** The audio item's file, by item: its blob as this device has it. */
-export async function audioUrlOfItem(db: ReadDb, itemId: string): Promise<string | null> {
+/** A file to play: its URL, and what lets it go when the element plays something else. */
+export type AudioSource = { url: string; release: () => void };
+
+/** The audio item's file, by item: its blob as this device has it, held until the engine lets it go. */
+export async function audioUrlOfItem(db: ReadDb, itemId: string): Promise<AudioSource | null> {
   const [item] = await db.query<{ source_id: string }>(`SELECT source_id FROM presentation_items WHERE id = ? AND type = 'audio'`, [itemId]);
   const audio = item ? await getAudio(db, item.source_id) : null;
-  return audio ? blobUrl(db, audio.hash) : null;
+  if (!audio) return null;
+  const release = holdBlobUrl(audio.hash);
+  const url = await blobUrl(db, audio.hash);
+  if (!url) release();
+  return url ? { url, release } : null;
 }
 
 /** The presenting window's audio: one element, so playing one item stops the other. */
@@ -58,8 +65,10 @@ export class AudioEngine implements AudioControl {
   private fading: ReturnType<typeof setInterval> | null = null;
   private unmute: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<() => void>();
+  /** Lets go of the file the element holds, when it takes another. */
+  private release: () => void = () => {};
 
-  constructor(private urlOf: (itemId: string) => Promise<string | null>) {
+  constructor(private urlOf: (itemId: string) => Promise<string | AudioSource | null>) {
     this.el = new Audio();
     this.el.preload = 'auto';
     for (const e of ['play', 'pause', 'seeked', 'loadedmetadata', 'ended', 'durationchange']) this.el.addEventListener(e, () => this.notify());
@@ -103,10 +112,12 @@ export class AudioEngine implements AudioControl {
     if (c.action !== 'play' && c.itemId !== this.itemId) return; // a command for audio that is not playing here
     if (c.action === 'play') {
       if (c.itemId !== this.itemId) {
-        const url = await this.urlOf(c.itemId);
-        if (!url) return; // not on this device (yet): nothing to play
+        const source = await this.urlOf(c.itemId);
+        if (!source) return; // not on this device (yet): nothing to play
         this.stopFade();
-        this.el.src = url;
+        this.release();
+        this.release = typeof source === 'string' ? () => {} : source.release;
+        this.el.src = typeof source === 'string' ? source : source.url;
         this.itemId = c.itemId;
       }
       await this.el.play().catch(() => this.notify()); // refused (no user gesture yet): the state says it is not playing

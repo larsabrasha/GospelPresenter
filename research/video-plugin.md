@@ -337,7 +337,7 @@ contract holds.
 | **Web video** (first) | importer `videos`, link + search | host | file → multipart ingest + client finish | yt-dlp channel | This note |
 | **PowerPoint/Keynote → PDF** | importer `slides`, input `file` (`.pptx`, `.key`, `.odp`) | host | PDF → the existing PDF pipeline in the client | path to LibreOffice if not found | Uses a locally installed LibreOffice (`soffice --headless --convert-to pdf`), or Keynote and PowerPoint through AppleScript on macOS. Nothing in the core app, which keeps the 2026-10-28 decision (no Gotenberg, no renderer in the app). The file goes up to the host as a plugin job input (`POST …/jobs` with the file, up to 50 MB) |
 | **Pexels / Unsplash backgrounds** | importer `images` (and `videos` for Pexels video), search, layout `image` | host | file → the existing image pipeline | API key, `scope: host` | Pexels: a free key, 200 requests an hour and 20,000 a month by default, and attribution with a link to Pexels ([docs](https://www.pexels.com/api/documentation/)). Unsplash: 50 requests an hour in demo and 1,000 once approved for production. It requires attribution, and a call to `/photos/:id/download` on each download ([docs](https://unsplash.com/documentation)). Its guidelines want images hotlinked for display. Storing a copy the user chose to download is the "download" case, but check the guidelines before building *(unverified)* |
-| **CCLI SongSelect** | importer `songs`, search, layout `text` | host | structured song → the song mutations | OAuth account, `scope: organisation` | SongSelect's API is partner-only. Reportedly CCLI retired the partner programme and takes no new partners ([third-party notes](https://git.stadtmission-butzbach.de/public/pp-planer/src/branch/master/CCLI-API.md), *unverified with CCLI*). It uses OAuth 2.0 with PKCE per user, plus a subscription key. Its terms reportedly forbid automated retrieval without an agreement. Realistic path: ask `partners@ccli.com`. Until then, a file importer for the files a SongSelect user can download by hand (plain text, ChordPro) needs no API |
+| **CCLI SongSelect** | importer `songs`, search, layout `text` | host | structured song → the song mutations | OAuth account, `scope: organisation` | SongSelect's API is partner-only. Reportedly CCLI retired the partner programme and takes no new partners ([third-party notes](https://git.stadtmission-butzbach.de/public/pp-planer/src/branch/master/CCLI-API.md), *unverified with CCLI*). It uses OAuth 2.0 with PKCE per user, plus a subscription key. Its terms reportedly forbid automated retrieval without an agreement. **Lars asked CCLI and was refused (2026-10-31).** What remains is a file importer for the files a SongSelect user can download by hand (plain text, ChordPro) needs no API |
 
 So the manifest needs one contribution type, `importers` (target, placements, inputs: link, search,
 file), plus `settings` with scopes and `links` for sharing in. A plugin that truly needs its own UI could
@@ -586,7 +586,7 @@ get that account blocked), and put a credential on the host.
 | **1. Web video plugin v1** | Fetching yt-dlp and ffmpeg at their pinned versions and checking them against the pinned hashes, Electron as the JS runtime, link resolve, YouTube search and details, the format filter, the size choice, progress, cancel, the error mapping, finished jobs waiting until added. Tested on macOS (arm64) and Windows x64; Linux built but untested | 4–6 days |
 | **2. Sharing a link in** (section 8) | The desktop URL scheme, a bookmarklet, the confirm view. Then Web Share Target (needs a web manifest; only where the app is installable over https) | 2–4 days |
 | **3. Second importer** | Pexels (or the PowerPoint converter), to prove the "small file → client pipeline" route and settings with secrets | 2–3 days |
-| **4. Later** | The Chrome extension. A desktop signed in to the cloud running plugins locally. Hardware conversion of VP9 or AV1. An iOS Share Extension with the Capacitor app. SongSelect if CCLI grants access | — |
+| **4. Later** | The Chrome extension. A desktop signed in to the cloud running plugins locally. Hardware conversion of VP9 or AV1. An iOS Share Extension with the Capacitor app. A file importer for SongSelect's own exports (CCLI refused API access) | — |
 
 **What the core app must provide first:** (a) the ingest callable server-side on the host, without
 HTTP; (b) finishing an import from an uploaded hash in the client; (c) the `PluginHost` seam in the server;
@@ -611,24 +611,24 @@ are as in section 6.
 | **iOS / iPadOS** | — | A native Share Extension in the Capacitor app to come (`docs/next-steps.md`). It needs a Swift target, `NSExtensionActivationSupportsWebURLWithMaxCount`, and an App Group to hand the URL to the app or to post it to the host with the app's device token from a shared keychain. A share extension cannot officially open its own app. About 2–3 days, after the Capacitor app exists. **Stopgap:** an Apple Shortcut that accepts URLs in the share sheet and opens `http://{host}/share?url=…` in Safari, shared as an iCloud link. It needs Safari on that device paired with the host *(not tried)* | Later, with the Capacitor app; the Shortcut if asked for sooner |
 | **macOS Share menu** | — | A native Share Extension (`.appex`) inside the Electron bundle, signed with the app | Not worth it; the bookmarklet covers macOS |
 
-## Open decisions
+## Decisions (Lars, 2026-10-31) and what is still open
 
-1. **Signed packages only, with Lars's key in the app?** Recommended: yes, with a development override.
-   The alternative is any package, with a warning, which leaves churches open to a mailed "plugin".
-2. **Who installs:** an Admin in the host's own window (recommended), or any Admin from any device.
+1. **Signed packages only**, with Lars's key in the app, and a development override for building plugins.
+2. **An Admin installs, in the host's own window** only.
 3. **Electron's RunAsNode fuse stays on** when packaging is set up, so yt-dlp can use the app as its JS
-   runtime. If not, the plugin fetches QuickJS or Deno as well.
-4. **Decided (Lars, 2026-10-31): pinned tools, no updates of their own.** Still open: whether the
-   `updateUrl` check and one-click update come in v1 (recommended, since yt-dlp breaks when YouTube changes and
-   the pinned version is the only one), and whether Lars keeps copies of the pinned files in case upstream
-   prunes them.
-5. **Who finishes a job whose page was closed:** the next page that opens the video tab (recommended for
-   v1), or the host itself (ffmpeg still, plus server-authored mutations: more work in core and sync).
-6. **No sign-in to YouTube** for age-restricted videos (recommended), accepting that those cannot be
-   fetched.
-7. **Cloud organisations:** no plugins in v1. Later, a desktop signed in to the cloud could run plugins
-   itself.
-8. **SongSelect:** ask CCLI about partner access before planning anything beyond a file importer.
+   runtime (a technical choice, not asked; otherwise the plugin fetches QuickJS or Deno as well).
+4. **Pinned tools, no updates of their own**, and **one-click update in v1**: the `updateUrl` is checked
+   daily and when a fetch fails, and an Admin updates after the signature is checked. When a pinned file
+   disappears upstream, a new plugin version pins another; Lars keeps no copies, so he distributes no GPL
+   binaries.
+5. **The host finishes a job** whose page was closed: it makes the still with the plugin's ffmpeg and adds the
+   video itself, through server-authored mutations. MCP (TODO.md "MCP and a CLI") needs the same, so it is
+   built once for both; this moves that work into phase 0.
+6. **No sign-in to YouTube**: age-restricted videos cannot be fetched.
+7. **Cloud organisations get no plugins in v1.** Later, a desktop app signed in to the cloud could run
+   plugins on its own computer and upload to the cloud.
+8. **SongSelect is out:** Lars asked CCLI for partner access and was refused. Only a file importer of
+   SongSelect's own exports remains possible.
 
 ## Not verified
 
@@ -640,6 +640,6 @@ are as in section 6.
 - The behaviour of age-restricted and bot-checked videos. The error texts are yt-dlp's known messages,
   not reproduced here.
 - The exact Web Share Target support per browser, the current Chrome Web Store policy text, Unsplash's
-  rules on storing a downloaded copy, and CCLI's partner programme status.
+  rules on storing a downloaded copy.
 - Mediabunny as an ffmpeg-free remuxer.
 - Electron `utilityProcess` with the Node permission flags for plugin processes.

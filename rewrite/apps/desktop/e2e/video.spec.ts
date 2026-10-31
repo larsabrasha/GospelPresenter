@@ -7,7 +7,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, pickItem, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 let browser: Browser | undefined;
@@ -100,7 +100,7 @@ test('live: the output window plays the video in step with the operator window, 
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
-  await addVideo(page);
+  await addVideo(page, 'Dop.mp4', 'h264-long.mp4');
 
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
@@ -137,6 +137,24 @@ test('live: the output window plays the video in step with the operator window, 
   const at = (await page.getByTestId('video-player').getByRole('slider').getAttribute('aria-valuenow'))!;
   expect(Math.abs((await playback(onOutput)).time - Number(at))).toBeLessThan(1);
   await expect.poll(async () => Math.abs((await playback(onScreen)).time - (await playback(onOutput)).time), { timeout: 5_000 }).toBeLessThan(0.35);
+
+  // Black pauses it, picture and sound; the picture shown again resumes it where it was (Lars, 2026-10-31).
+  await player.getByRole('button', { name: 'Spela video' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'true');
+  await page.getByRole('button', { name: 'Rensa' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'false');
+  const paused = Number(await player.getByRole('slider').getAttribute('aria-valuenow'));
+  await page.getByRole('button', { name: 'Dop.mp4 1' }).click();
+  await expect(player).toHaveAttribute('data-playing', 'true');
+  expect(Number(await player.getByRole('slider').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(paused);
+  await expect.poll(async () => (await playback(onOutput)).paused, { timeout: 5_000 }).toBe(false);
+
+  // A reload of the operator window resumes the video where it was, not from the start (Lars, 2026-10-31).
+  await expect.poll(async () => Number(await player.getByRole('slider').getAttribute('aria-valuenow')), { timeout: 10_000 }).toBeGreaterThanOrEqual(paused + 2);
+  const before = Number(await player.getByRole('slider').getAttribute('aria-valuenow'));
+  await page.reload();
+  await expect(page.getByTestId('video-player')).toHaveAttribute('data-playing', 'true', { timeout: 15_000 });
+  expect(Number(await page.getByTestId('video-player').getByRole('slider').getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(before);
 });
 
 test('live: a paired screen that cannot play HEVC shows the still, while the output window plays it', async () => {
@@ -158,4 +176,67 @@ test('live: a paired screen that cannot play HEVC shows the still, while the out
   await expect(still).toHaveAttribute('src', /^\/api\/screen\/[A-Za-z0-9_-]{43}\/image\/[0-9a-f]{64}$/, { timeout: 10_000 });
   await expect.poll(() => still.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(160);
   await expect(screen.getByTestId('slide-video')).toHaveCount(0);
+});
+
+test('Videor lists the videos with length, size and codec, imports from the page and trashes from ⋯', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+
+  await openAdmin(page, 'Videor');
+  await expect(page.getByText('Inga videor än')).toBeVisible();
+  await page.getByTestId('video-file').setInputFiles({ name: 'Dop.mp4', mimeType: 'video/mp4', buffer: fixture('h264-long.mp4') });
+  await expect(page.getByRole('heading', { name: 'Alla videor (1)' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('list', { name: 'Videor' }).getByRole('listitem')).toHaveText([/Dop\.mp4\s*0:20 · 66 kB · H\.264/]);
+
+  await page.getByRole('button', { name: 'Fler val för Dop.mp4' }).click();
+  await page.getByRole('menuitem', { name: 'Radera' }).click();
+  await expect(page.getByText('Inga videor än')).toBeVisible();
+  await page.getByRole('link', { name: 'Papperskorg' }).click();
+  await expect(page.getByRole('list', { name: 'Papperskorg' }).getByRole('listitem')).toHaveText([/Dop\.mp4.*Video/]);
+});
+
+test('live: a controller plays, pauses and moves the video on the presenting computer, and the stage view drives it too', async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createUser(page, 'Bo', 'bo@kyrkan.se');
+  const second = await launch({ server: host.base });
+  try {
+    await pair(page, second.page, 'Andra datorn', 'Bo');
+    await createPresentation(page, 'Söndag');
+    await addVideo(page, 'Dop.mp4', 'h264-long.mp4');
+    await page.getByRole('button', { name: 'Starta presentation' }).click();
+    await page.getByRole('button', { name: 'Dop.mp4 1' }).click();
+    const player = page.getByTestId('video-player');
+    await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 10_000 });
+    await player.getByRole('button', { name: 'Pausa video' }).click();
+    await allowRemote(page);
+
+    await openPresentations(second.page);
+    await second.page.getByRole('list', { name: 'Visas just nu' }).getByRole('link', { name: 'Ta kontroll' }).click({ timeout: 10_000 });
+    await pickItem(second.page, 'Dop.mp4');
+    const mirror = second.page.getByTestId('video-player');
+    await expect(mirror).toHaveAttribute('data-playing', 'false', { timeout: 5_000 });
+    await expect(mirror.getByTestId('video-duration')).toHaveText('0:20', { timeout: 5_000 });
+
+    // Play from the controller: it plays on the presenting computer, and the mirror follows its report.
+    await mirror.getByRole('button', { name: 'Spela video' }).click();
+    await expect(player).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
+    await expect(mirror).toHaveAttribute('data-playing', 'true', { timeout: 5_000 });
+    // Moved there by keys on the seek bar: five seconds on.
+    const at = Number(await player.getByRole('slider').getAttribute('aria-valuenow'));
+    await mirror.getByRole('slider').press('ArrowRight');
+    await expect.poll(async () => Number(await player.getByRole('slider').getAttribute('aria-valuenow')), { timeout: 5_000 }).toBeGreaterThanOrEqual(at + 4);
+    await mirror.getByRole('button', { name: 'Pausa video' }).click();
+    await expect(player).toHaveAttribute('data-playing', 'false', { timeout: 5_000 });
+
+    // The stage view on the presenting computer has the same player.
+    await page.getByRole('button', { name: 'Scenläge' }).click();
+    const stage = page.getByTestId('stage-view');
+    await stage.getByTestId('video-player').getByRole('button', { name: 'Spela video' }).click();
+    await expect(stage.getByTestId('video-player')).toHaveAttribute('data-playing', 'true');
+  } finally {
+    await second.app.close();
+  }
 });

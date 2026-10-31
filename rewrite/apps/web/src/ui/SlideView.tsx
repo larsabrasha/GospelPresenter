@@ -31,13 +31,19 @@ function BibleText({ slide }: { slide: Slide }) {
 /** Where a picture comes from: this device's blob (nothing until it has it), or, on a page with no database (a paired screen), the URL `media` gives. */
 type Media = ((hash: string) => string) | undefined;
 
-function BlobPicture({ hash, className, testId }: { hash: string | null; className: string; testId?: string }) {
-  const url = useBlobUrl(hash);
+/**
+ * A picture from this device: the full one where it is here (presenting fetched it, or it is kept offline),
+ * else its thumbnail, which every device has, so looking around shows pictures without fetching them.
+ */
+function BlobPicture({ hash, thumb, className, testId }: { hash: string | null; thumb: string | null; className: string; testId?: string }) {
+  const full = useBlobUrl(hash);
+  const small = useBlobUrl(full || !thumb || thumb === hash ? null : thumb);
+  const url = full ?? small;
   return url ? <img className={className} src={url} alt="" data-testid={testId} draggable={false} /> : null;
 }
 
-function Picture({ hash, media, className, testId }: { hash: string | null; media: Media; className: string; testId?: string }) {
-  if (!media) return <BlobPicture hash={hash} className={className} testId={testId} />;
+function Picture({ hash, thumb = null, media, className, testId }: { hash: string | null; thumb?: string | null; media: Media; className: string; testId?: string }) {
+  if (!media) return <BlobPicture hash={hash} thumb={thumb} className={className} testId={testId} />;
   return hash ? <img className={className} src={media(hash)} alt="" data-testid={testId} draggable={false} /> : null;
 }
 
@@ -48,7 +54,7 @@ function Picture({ hash, media, className, testId }: { hash: string | null; medi
 function OverlayLayer({ overlay, media }: { overlay: ShownOverlay; media: Media }) {
   return (
     <div className="slide-overlay" data-testid="slide-overlay">
-      <Picture hash={overlay.imageHash} media={media} className="slide-overlay-image" testId="slide-overlay-image" />
+      <Picture hash={overlay.imageHash} thumb={overlay.thumbHash} media={media} className="slide-overlay-image" testId="slide-overlay-image" />
       {overlay.content && <div className="slide-overlay-text">{overlay.content}</div>}
     </div>
   );
@@ -144,7 +150,7 @@ export function SlideView({
             )}
             {slide.kind === 'media' ? (
               <>
-                {slide.image && <Picture hash={slide.image} media={media} className="slide-image" testId="slide-image" />}
+                {slide.image && <Picture hash={slide.image} thumb={slide.thumb} media={media} className="slide-image" testId="slide-image" />}
                 {slide.video && video}
               </>
             ) : (
