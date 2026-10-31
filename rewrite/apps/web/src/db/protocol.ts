@@ -36,7 +36,7 @@ export interface DbStatus {
 }
 
 export type DbCall =
-  | { op: 'open'; session: Session }
+  | { op: 'open'; session: Session; locale: string }
   | { op: 'mutate'; name: string; args: unknown }
   | { op: 'query'; sql: string; params: unknown[] }
   /** The ids of the songs that match, best first; all of them in library order for a blank query (SONG-R30–R33). */

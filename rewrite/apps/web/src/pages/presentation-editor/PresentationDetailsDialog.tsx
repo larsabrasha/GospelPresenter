@@ -1,6 +1,7 @@
 import { listThemes } from '@gp/core';
 import { useState } from 'react';
 import { t } from '../../i18n.ts';
+import { themeName } from '../../themes.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { Dialog, DialogButtons } from '../../ui/Dialog.tsx';
 import { FloatingInput, FloatingTextarea } from '../../ui/Floating.tsx';
@@ -97,7 +98,7 @@ export function PresentationDetailsDialog({
               <option value="">{t('presentation.themeDefault')}</option>
               {listThemes().map((th) => (
                 <option key={th.id} value={th.id}>
-                  {th.name}
+                  {themeName(th)}
                 </option>
               ))}
             </SimpleSelect>

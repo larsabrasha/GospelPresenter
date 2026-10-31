@@ -1,7 +1,7 @@
 // The start page's dates and lists (spec 03 screen 1), apart from the page so they can be tested.
 import type { Presentation } from '@gp/core';
 import { byLastChanged } from '../db/queries.ts';
-import { t } from '../i18n.ts';
+import { locale, t } from '../i18n.ts';
 
 /** Today's date on this device, `YYYY-MM-DD`, as event dates are stored. */
 export function localToday(now = new Date()): string {
@@ -22,14 +22,14 @@ function addDays(iso: string, days: number): string {
 
 /** "mån 4 maj", with the year when asked: the current app's "ddd d MMMM [yyyy]". */
 function shortDate(iso: string, withYear: boolean): string {
-  const parts = new Intl.DateTimeFormat('sv-SE', { weekday: 'short', day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) }).formatToParts(dateOf(iso));
+  const parts = new Intl.DateTimeFormat(locale(), { weekday: 'short', day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) }).formatToParts(dateOf(iso));
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? '';
   return [part('weekday').replace(/\.$/, ''), part('day'), part('month'), withYear ? part('year') : ''].filter(Boolean).join(' ');
 }
 
 /** "måndag 4 maj 2026", for the tooltip; without the year in Kommande, as the row (PresentationRow.razor). */
 export function fullDate(iso: string, withYear = true): string {
-  return dateOf(iso).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) });
+  return dateOf(iso).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) });
 }
 
 /**

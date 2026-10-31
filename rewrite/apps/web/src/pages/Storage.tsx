@@ -3,7 +3,7 @@ import type { StorageReport } from '@gp/sync/client';
 import { listPresentations, pinnedIds } from '../db/queries.ts';
 import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
-import { t } from '../i18n.ts';
+import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { CARD } from '../ui/List.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -50,7 +50,7 @@ export function formatBytes(bytes: number): string {
   for (const [size, unit] of units) {
     if (bytes >= size) {
       const n = bytes / size;
-      return `${n.toLocaleString('sv-SE', { maximumFractionDigits: n < 10 ? 1 : 0 })} ${unit}`;
+      return `${n.toLocaleString(locale(), { maximumFractionDigits: n < 10 ? 1 : 0 })} ${unit}`;
     }
   }
   return `${bytes} B`;

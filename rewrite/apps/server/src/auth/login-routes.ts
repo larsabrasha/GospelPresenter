@@ -79,7 +79,7 @@ export function loginRoutes(app: Hono, kit: AuthKit) {
       if (!user) return;
       const token = await accounts.members.createInvite(user.id, user.orgId);
       if (token === 'limit') return;
-      await mail.mailer.send(inviteMail('recovery', { to: a.email, name: user.name, orgName: user.orgName, link: inviteLink(mail.appUrl, token) }));
+      await mail.mailer.send(inviteMail('recovery', { to: a.email, name: user.name, orgName: user.orgName, link: inviteLink(mail.appUrl, token) }, a.language));
     });
     return c.json({ ok: true });
   });

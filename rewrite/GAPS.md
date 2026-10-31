@@ -37,7 +37,7 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 - [x] Import från ProPresenter, även att släppa filer på Sånger. **Klart 2026-10-31.**
 - [s] Skapa och redigera teman (i dag bara de inbyggda).
 - [s] Församlingens egna bilder som bakgrund i ett tema.
-- [x] Engelska texter och byte av språk.
+- [x] Engelska texter och byte av språk. **Klart 2026-10-31.**
 - [s] Välkomstrutan för nya.
 - [s] Tangentbordet i mallväljaren (piltangenter).
 - [s] Ordna om overlays.
@@ -80,7 +80,7 @@ Dessa tar jag bort ur not-done-yet.md, om du inte säger emot.
 - [s] En gammal `/display`-sida känner inte till nya händelser och laddas inte om av sig själv.
 - [s] Stäng anslutningen för push-meddelanden när en session dras tillbaka.
 - [s] En långsam tittare på en publik utgång får bara det senaste, inte allt i tur och ordning.
-- [s] Publika utgångar på mottagarens språk (Accept-Language).
+- [x] Publika utgångar på mottagarens språk (Accept-Language). **Klart 2026-10-31**, med engelskan.
 - [s] Overlay-bilden på publika utgångar (i dag bara texten).
 - [s] En borttagen overlay ligger kvar på utgångarna tills den slås av, som specen säger (i dag försvinner den direkt).
 - [x] En sparad skärm visar sitt namn när sessionen gått ut (i dag svart, LIVE-R50). **Klart 2026-10-31.**

@@ -32,7 +32,7 @@ test.afterAll(async () => {
 /** A page in a browser beside the app, as a TV or a phone would open one, in a theme and a size. */
 async function beside(url: string, theme: string, width: number, height: number): Promise<Page> {
   browser ??= await chromium.launch();
-  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: theme as 'light' | 'dark' });
+  const ctx = await browser.newContext({ viewport: { width, height }, colorScheme: theme as 'light' | 'dark', locale: 'sv-SE' });
   await ctx.addInitScript((t) => localStorage.setItem('theme', t), theme);
   const p = await ctx.newPage();
   await p.goto(url);

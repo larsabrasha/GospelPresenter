@@ -33,7 +33,7 @@ async function presenting(): Promise<Page> {
 
 async function tv(url: string): Promise<Page> {
   browser ??= await chromium.launch();
-  const page = await browser.newPage();
+  const page = await browser.newPage({ locale: 'sv-SE' });
   await page.goto(url);
   return page;
 }

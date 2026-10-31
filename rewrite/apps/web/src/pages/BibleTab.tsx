@@ -6,6 +6,7 @@ import {
   MAX_VERSES_PER_ITEM,
   searchVerses,
   splitBibleSlides,
+  englishBookName,
   swedishBookName,
   versesInRange,
   type BibleBookText,
@@ -15,7 +16,7 @@ import {
 import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { bibleBooks, listBibles } from '../db/queries.ts';
-import { t } from '../i18n.ts';
+import { language, t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
@@ -44,6 +45,8 @@ interface Browse {
 
 const chaptersOf = (book: BibleBookText) => [...new Set(book.verses.map(([c]) => c))];
 const versesOf = (book: BibleBookText, chapter: number) => book.verses.filter(([c]) => c === chapter);
+/** A book's name in the page's language (spec 05: Swedish under sv, else English). */
+const bookName = (code: string) => (language() === 'sv' ? swedishBookName(code) : englishBookName(code));
 const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
 /** A book, chapter or verse to pick (AddItem/Bible/BibleBookPicker.razor and the rest). */
@@ -72,7 +75,7 @@ function BookPicker({ books, onPick }: { books: BibleBookText[]; onPick: (b: Bib
                 <h3 className="text-xs/4 font-semibold text-neutral-400 uppercase tracking-wide px-3 mb-1 sticky top-0 bg-white dark:bg-neutral-800 py-2 z-10">{g.title}</h3>
                 {g.books.map((b) => (
                   <AppButton key={b.code} variant="plain" {...list.item(index++)} className={`${CELL} px-3 py-2 text-left`} onClick={() => onPick(b)}>
-                    {swedishBookName(b.code)}
+                    {bookName(b.code)}
                   </AppButton>
                 ))}
               </section>
@@ -177,7 +180,7 @@ function BrowsePicker({ browse, books, setBrowse, onBack }: { browse: Browse; bo
           <ChevronLeftIcon className="size-5" />
         </AppButton>
         <div className="flex items-center gap-x-0.5 ml-1">
-          {crumb(swedishBookName(book.code), 'book')}
+          {crumb(bookName(book.code), 'book')}
           {start && (
             <>
               {crumb(String(start[0]), 'startChapter')}
@@ -369,7 +372,7 @@ export function BibleTab({
                 {shown.map((v) => (
                   <li key={`${v.b}${v.c}:${v.v}`} className="px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-700/50">
                     <span className="text-sky-500 font-semibold whitespace-nowrap">
-                      {swedishBookName(v.b)} {v.c}:{v.v}
+                      {bookName(v.b)} {v.c}:{v.v}
                     </span>{' '}
                     <span className="text-neutral-700 dark:text-neutral-300">{v.t}</span>
                   </li>

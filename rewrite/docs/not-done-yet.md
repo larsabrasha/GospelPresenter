@@ -1,6 +1,6 @@
 # Not done yet
 
-Profile pictures and logos, English text, the mobile app (the phone layout of the web app is built), and a real
+Profile pictures and logos, the mobile app (the phone layout of the web app is built), and a real
 deploy to Cloudflare. The Workers adapter is tested in local workerd, and once on a real account (see [On Cloudflare](cloudflare.md)).
 
 From milestone 5 and the media library: the S3 adapter of D31 (the interface has room for it; no adapter,
@@ -34,8 +34,7 @@ From audio: HTTP Range on `/api/media`
 
 From spec 04's public outputs: on Cloudflare `/watch/{code}` and `/display` get the app's
 `index.html` as on Node, not opened in a browser there; a viewer whose network is slow gets every event in turn
-rather than only the newest (the stream is not a one-slot queue); the 500-viewer cap is not tested; texts are
-Swedish only, not per Accept-Language. A Durable Object with open streams does not hibernate; spec 04 and
+rather than only the newest (the stream is not a one-slot queue); the 500-viewer cap is not tested. A Durable Object with open streams does not hibernate; spec 04 and
 ADR 0007 leave a Durable Object per output for when that matters.
 
 From spec 04's paired screens: a `/display` page of an older build, still open when the server
@@ -85,3 +84,7 @@ and its next sync is refused); behind a reverse proxy, `X-Forwarded-Proto` and `
 From spec 02 and 03 in particular, nothing big is left: song history (`packages/core/src/mutators/history.ts`), the
 labels page and the CCLI report (`packages/core/src/mutators/ccli.ts`) are built; the ProPresenter import is built, `packages/core/src/propresenter.ts`; reordering items and arrangement chips by dragging is built, see
 `e2e/drag.spec.ts`; so are multi-select removal and the start page's "last changed" order).
+
+From the language switch (GAPS.md "Engelska"): the server's own pages in the system browser (a desktop sign-in's
+passkey page, "Du är inloggad", the sign-in error) are Swedish only, as is the desktop host's window title. The
+English that is not the current app's was written for the rewrite and has not been read by an English speaker.

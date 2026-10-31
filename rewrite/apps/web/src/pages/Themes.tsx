@@ -3,6 +3,7 @@ import { can, listThemes, type Role, type Slide } from '@gp/core';
 import { useData, useDb } from '../db/react.tsx';
 import { orgDefaultThemeId } from '../db/queries.ts';
 import { t } from '../i18n.ts';
+import { themeDescription, themeName } from '../themes.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer } from '../ui/PageContainer.tsx';
@@ -66,12 +67,12 @@ export function Themes({ role }: { role: Role }) {
             {/* The name and text get the full width; the button has its own row. */}
             <div className="px-5 py-4">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold">{theme.name}</span>
+                <span className="font-semibold">{themeName(theme)}</span>
                 {theme.id === current && (
                   <span className="text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">{t('themes.default')}</span>
                 )}
               </div>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 leading-relaxed">{theme.description}</p>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 leading-relaxed">{themeDescription(theme)}</p>
               {manage && theme.id !== current && (
                 <div className="flex justify-end mt-3">
                   <AppButton disabled={saving !== null} onClick={() => void choose(theme.id)}>

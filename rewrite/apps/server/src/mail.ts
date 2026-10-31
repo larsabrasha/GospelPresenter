@@ -48,27 +48,51 @@ export function mailConfigFrom(s: { apiKey?: string; from?: string; appUrl?: str
 /** An invite's page, as the app's own link has it (`/invite#{token}`: the token stays out of every server's log). */
 export const inviteLink = (appUrl: string, token: string) => `${appUrl.replace(/\/+$/, '')}/invite#${encodeURIComponent(token)}`;
 
-/** The mail with an invite: from an admin (`invite`), or asked for on the sign-in page (`recovery`). */
-export function inviteMail(kind: 'invite' | 'recovery', a: { to: string; name: string; orgName: string; link: string }): Mail {
-  const days = 'Länken gäller i 7 dagar och kan användas en gång.';
-  if (kind === 'invite')
-    return {
-      to: a.to,
-      subject: `Du är inbjuden till ${a.orgName} i Gospel Presenter`,
-      text: [`Hej ${a.name}!`, '', `Du är inbjuden till ${a.orgName} i Gospel Presenter. Öppna länken och logga in med Google eller skapa en passkey:`, '', a.link, '', days].join('\n'),
-    };
-  return {
-    to: a.to,
-    subject: 'Logga in i Gospel Presenter igen',
-    text: [
-      `Hej ${a.name}!`,
-      '',
-      `Någon bad om ett nytt sätt att logga in i ${a.orgName} i Gospel Presenter med din e-postadress. Öppna länken och logga in med Google eller skapa en passkey:`,
-      '',
-      a.link,
-      '',
-      days,
-      'Bad du inte om det här kan du strunta i mejlet: inget ändras förrän länken används.',
-    ].join('\n'),
-  };
+type MailText = { subject: (orgName: string) => string; lines: (a: { name: string; orgName: string; link: string }) => string[] };
+
+const MAILS: Record<'sv' | 'en', Record<'invite' | 'recovery', MailText>> = {
+  sv: {
+    invite: {
+      subject: (org) => `Du är inbjuden till ${org} i Gospel Presenter`,
+      lines: (a) => [`Hej ${a.name}!`, '', `Du är inbjuden till ${a.orgName} i Gospel Presenter. Öppna länken och logga in med Google eller skapa en passkey:`, '', a.link, '', 'Länken gäller i 7 dagar och kan användas en gång.'],
+    },
+    recovery: {
+      subject: () => 'Logga in i Gospel Presenter igen',
+      lines: (a) => [
+        `Hej ${a.name}!`,
+        '',
+        `Någon bad om ett nytt sätt att logga in i ${a.orgName} i Gospel Presenter med din e-postadress. Öppna länken och logga in med Google eller skapa en passkey:`,
+        '',
+        a.link,
+        '',
+        'Länken gäller i 7 dagar och kan användas en gång.',
+        'Bad du inte om det här kan du strunta i mejlet: inget ändras förrän länken används.',
+      ],
+    },
+  },
+  en: {
+    invite: {
+      subject: (org) => `You are invited to ${org} in Gospel Presenter`,
+      lines: (a) => [`Hi ${a.name}!`, '', `You are invited to ${a.orgName} in Gospel Presenter. Open the link and sign in with Google or create a passkey:`, '', a.link, '', 'The link is valid for 7 days and can be used once.'],
+    },
+    recovery: {
+      subject: () => 'Sign in to Gospel Presenter again',
+      lines: (a) => [
+        `Hi ${a.name}!`,
+        '',
+        `Someone asked for a new way to sign in to ${a.orgName} in Gospel Presenter with your email address. Open the link and sign in with Google or create a passkey:`,
+        '',
+        a.link,
+        '',
+        'The link is valid for 7 days and can be used once.',
+        'If you did not ask for this, you can ignore this email: nothing changes until the link is used.',
+      ],
+    },
+  },
+};
+
+/** The mail with an invite: from an admin (`invite`), or asked for on the sign-in page (`recovery`), in the asking page's language. */
+export function inviteMail(kind: 'invite' | 'recovery', a: { to: string; name: string; orgName: string; link: string }, language: 'sv' | 'en' = 'sv'): Mail {
+  const m = MAILS[language][kind];
+  return { to: a.to, subject: m.subject(a.orgName), text: m.lines(a).join('\n') };
 }

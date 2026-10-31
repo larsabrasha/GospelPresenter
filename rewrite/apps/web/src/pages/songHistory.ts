@@ -1,11 +1,11 @@
 import { DEFAULT_LABEL_COLOR, parseSongSnapshot, type Slide, type SongVersion } from '@gp/core';
-import { t } from '../i18n.ts';
+import { locale, t } from '../i18n.ts';
 
 // What the history page shows of a version (SongHistory.razor): when it is from, and its parts as slides.
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const clock = new Intl.DateTimeFormat('sv-SE', { hour: '2-digit', minute: '2-digit' });
-const date = new Intl.DateTimeFormat('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' });
+const clock = new Intl.DateTimeFormat(locale(), { hour: '2-digit', minute: '2-digit' });
+const date = new Intl.DateTimeFormat(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 
 /** "Idag 14:05", "Igår 09:30", else "3 okt. 2026 14:05", in this device's time zone. */
 export function versionTime(at: number, now = Date.now()): string {

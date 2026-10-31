@@ -6,8 +6,14 @@ import { inflateRaw, utf8Decode, utf8Encode } from './platform.ts';
 // the server never parses a zip. No library: a zip reader over the platform's
 // DEFLATE, and small readers for the two formats.
 
-/** A refusal the user sees after "Importen misslyckades: ". */
-export class BibleImportError extends Error {}
+export type BibleImportReason = 'not-zip' | 'compression' | 'too-large' | 'no-files' | 'no-verses';
+
+/** A refusal the user sees after "Importen misslyckades: ", in their language. The message is the reason, so it survives a worker's reply. */
+export class BibleImportError extends Error {
+  constructor(readonly reason: BibleImportReason) {
+    super(reason);
+  }
+}
 
 export interface ImportedBible {
   name: string;
@@ -40,12 +46,12 @@ export function readZip(data: Uint8Array): ZipEntry[] {
       break;
     }
   }
-  if (end < 0) throw new BibleImportError('Filen är inte en giltig zip-fil.');
+  if (end < 0) throw new BibleImportError('not-zip');
   const count = u16(data, end + 10);
   let p = u32(data, end + 16);
   const entries: ZipEntry[] = [];
   for (let i = 0; i < count; i++) {
-    if (p + 46 > data.length || u32(data, p) !== 0x02014b50) throw new BibleImportError('Filen är inte en giltig zip-fil.');
+    if (p + 46 > data.length || u32(data, p) !== 0x02014b50) throw new BibleImportError('not-zip');
     const method = u16(data, p + 10);
     const compressed = u32(data, p + 20);
     const size = u32(data, p + 24);
@@ -59,12 +65,12 @@ export function readZip(data: Uint8Array): ZipEntry[] {
       name,
       size,
       async read() {
-        if (u32(data, local) !== 0x04034b50) throw new BibleImportError('Filen är inte en giltig zip-fil.');
+        if (u32(data, local) !== 0x04034b50) throw new BibleImportError('not-zip');
         const start = local + 30 + u16(data, local + 26) + u16(data, local + 28);
         const raw = data.subarray(start, start + compressed);
         if (method === 0) return raw;
         if (method === 8) return inflateRaw(raw);
-        throw new BibleImportError(`Zip-filen använder en komprimering som inte stöds (${method}).`);
+        throw new BibleImportError('compression');
       },
     });
   }
@@ -340,7 +346,7 @@ function initials(title: string): string | null {
  * matter are left out; books come in canonical order.
  */
 export async function importBibleZip(data: Uint8Array, yieldNow: () => Promise<void> = async () => {}): Promise<ImportedBible> {
-  if (data.length > BIBLE_ZIP_MAX_BYTES) throw new BibleImportError('Filen är för stor (max 50 MB).');
+  if (data.length > BIBLE_ZIP_MAX_BYTES) throw new BibleImportError('too-large');
   const entries = readZip(data).filter((e) => !e.name.endsWith('/') && e.size > 0);
   const read = async (e: ZipEntry) => utf8Decode(await e.read());
 
@@ -375,7 +381,7 @@ export async function importBibleZip(data: Uint8Array, yieldNow: () => Promise<v
   if (!files.length) files = entries.filter((e) => lower(e.name).endsWith('.usx'));
   const usx = files.length > 0;
   if (!usx) files = entries.filter((e) => /\.(usfm|sfm)$/.test(lower(e.name)));
-  if (!files.length) throw new BibleImportError('Hittade inga USX- eller USFM-filer i zip-filen.');
+  if (!files.length) throw new BibleImportError('no-files');
 
   const books = new Map<string, BibleBookText>();
   for (const file of files.toSorted((a, b) => a.name.localeCompare(b.name))) {
@@ -383,7 +389,7 @@ export async function importBibleZip(data: Uint8Array, yieldNow: () => Promise<v
     if (book && book.verses.length && !PERIPHERALS.has(book.code) && !books.has(book.code)) books.set(book.code, book);
     await yieldNow(); // a big translation takes a moment: let the page breathe
   }
-  if (!books.size) throw new BibleImportError('Hittade inga verser i zip-filen.');
+  if (!books.size) throw new BibleImportError('no-verses');
   return {
     name: name.slice(0, 200), // BIBLE-R4
     abbreviation: abbreviation.slice(0, 50),

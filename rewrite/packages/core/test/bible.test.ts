@@ -231,7 +231,7 @@ describe('import (BIBLE-R3–R6)', () => {
   });
 
   it('BIBLE-A5: a zip without USX or USFM, and a file that is not a zip, are refused', async () => {
-    await expect(importBibleZip(makeZip([{ name: 'readme.txt', data: utf8Encode('hej') }]))).rejects.toThrow('Hittade inga USX- eller USFM-filer i zip-filen.');
+    await expect(importBibleZip(makeZip([{ name: 'readme.txt', data: utf8Encode('hej') }]))).rejects.toThrow('no-files');
     await expect(importBibleZip(utf8Encode('not a zip'))).rejects.toBeInstanceOf(BibleImportError);
   });
 

@@ -388,7 +388,7 @@ async function handle(call: DbCall): Promise<unknown> {
       });
       client = c;
       session = s;
-      const search = (songSearch = new SongSearch(c));
+      const search = (songSearch = new SongSearch(c, call.locale));
       // Other windows of this machine read through this worker (the output), or
       // share the OPFS file (a second operator window): tell them about changes.
       const share = serveReads(

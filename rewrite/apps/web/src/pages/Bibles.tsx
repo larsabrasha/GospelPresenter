@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BIBLE_ZIP_MAX_BYTES } from '@gp/core';
 import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { listBibles, type InstalledBible } from '../db/queries.ts';
-import { t } from '../i18n.ts';
+import { isTextKey, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
@@ -59,7 +59,7 @@ export function Bibles() {
       const done = t(r.replaced ? 'bibles.updated' : 'bibles.imported', { name: r.name, n: r.verses });
       setMessage({ ok: true, text: r.queued ? `${done} ${t('bibles.queued')}` : done });
     } catch (e) {
-      setMessage({ ok: false, text: t('bibles.failed', { error: e instanceof Error ? e.message : String(e) }) });
+      setMessage({ ok: false, text: t('bibles.failed', { error: importErrorText(e) }) });
     } finally {
       setBusy(false);
     }
@@ -157,6 +157,13 @@ export function Bibles() {
  * button to keep it, a grey button that removes the kept copy, the download
  * on its way, or a text that stays here because an import of it is queued.
  */
+/** Why an import was refused, in the page's language: the core's reason, or what the worker said. */
+function importErrorText(e: unknown): string {
+  const message = e instanceof Error ? e.message : String(e);
+  const key = `bibles.error.${message}`;
+  return isTextKey(key) ? t(key) : message;
+}
+
 function OfflineState({ bible: b, busy, onKeep }: { bible: InstalledBible; busy: string | null; onKeep: (on: boolean) => void }) {
   if (b.kept && b.stored) {
     return (

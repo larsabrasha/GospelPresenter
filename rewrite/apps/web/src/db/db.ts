@@ -2,6 +2,7 @@ import type { BibleBookText, MutatorArgs, MutatorName } from '@gp/core';
 import type { StorageReport } from '@gp/sync/client';
 import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
+import { locale } from '../i18n.ts';
 
 /** The page's handle on its database worker, which owns the database and syncs it. */
 export class Db implements ReadDb {
@@ -39,7 +40,7 @@ export class Db implements ReadDb {
 
   /** Opens the session's database and starts syncing it. */
   open(session: Session): Promise<string> {
-    return this.call({ op: 'open', session });
+    return this.call({ op: 'open', session, locale: locale() });
   }
 
   mutate<N extends MutatorName>(name: N, args: MutatorArgs<N>): Promise<void> {
@@ -56,7 +57,7 @@ export class Db implements ReadDb {
     return this.call({ op: 'searchSongs', query });
   }
 
-  /** Imports a Bible zip; rejects with a message to show (in Swedish) if it cannot. */
+  /** Imports a Bible zip; rejects with a `BibleImportReason` as the message if it cannot. */
   importBible(data: Uint8Array): Promise<BibleImportResult> {
     return this.call({ op: 'importBible', data });
   }

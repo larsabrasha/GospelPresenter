@@ -141,6 +141,33 @@ describe('Glömt hur du loggar in?', () => {
   });
 });
 
+describe("the mail's language", () => {
+  it('is English for an invite from an admin whose page is in English', async () => {
+    const s = await server();
+
+    await s.call('POST', `/api/users/${s.bo}/invites/email`, { language: 'en' });
+
+    expect(s.sent[0]!.subject).toBe('You are invited to Lilla Kyrkan in Gospel Presenter');
+  });
+
+  it('is English for a new invite asked for on a sign-in page in English', async () => {
+    const s = await server();
+
+    await s.call('POST', '/api/auth/recover', { email: 'bo@x.se', language: 'en' }, null);
+    await s.settle();
+
+    expect(s.sent[0]!.text).toMatch(/^Hi Bo!/);
+  });
+
+  it('is Swedish for a language the app does not have', async () => {
+    const s = await server();
+
+    await s.call('POST', `/api/users/${s.bo}/invites/email`, { language: 'de' });
+
+    expect(s.sent[0]!.subject).toBe('Du är inbjuden till Lilla Kyrkan i Gospel Presenter');
+  });
+});
+
 describe('sending through Resend', () => {
   it('posts the mail to Resend with the key, from the sender', async () => {
     const calls: { url: string; init: RequestInit }[] = [];

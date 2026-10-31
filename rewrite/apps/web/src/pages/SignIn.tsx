@@ -3,7 +3,7 @@ import type { AuthState, SignInResponse } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { useDesktopSignIn } from '../auth/google.ts';
-import { t } from '../i18n.ts';
+import { language, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { GoogleIcon } from '../ui/icons.tsx';
@@ -137,7 +137,7 @@ function Recover() {
     e.preventDefault();
     setState({ sending: true });
     try {
-      const r = await api('POST', '/api/auth/recover', { email });
+      const r = await api('POST', '/api/auth/recover', { email, language: language() });
       setState(r.error ? { error: r.error === 'invalid-request' ? t('recover.invalid') : errorText(r) } : { sent: true });
     } catch {
       setState({ error: t('auth.offline') });

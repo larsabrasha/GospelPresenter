@@ -3,7 +3,7 @@ import { useState, type HTMLAttributes } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
 import { KeepOfflineButton } from '../ui/KeepOffline.tsx';
-import { t } from '../i18n.ts';
+import { locale, t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
@@ -101,7 +101,7 @@ function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string 
   // By presentation name, then id, so the cards keep their places (Dashboard.razor).
   const shown = sessions
     .filter((s) => s.remote && s.id !== ownSessionId)
-    .toSorted((a, b) => (a.presentationName ?? '').localeCompare(b.presentationName ?? '', 'sv', { sensitivity: 'base' }) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    .toSorted((a, b) => (a.presentationName ?? '').localeCompare(b.presentationName ?? '', locale(), { sensitivity: 'base' }) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   if (!shown.length) return null;
   return (
     <ul className="space-y-5" aria-label={t('remote.nowShowing')}>

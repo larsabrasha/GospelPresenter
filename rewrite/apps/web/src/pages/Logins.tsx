@@ -4,7 +4,7 @@ import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { addPasskey, linkGoogle } from '../auth/passkey.ts';
 import { deviceName } from '../auth/session.ts';
-import { t } from '../i18n.ts';
+import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
@@ -26,7 +26,7 @@ async function fetchLogins(): Promise<LoginMethod[] | string> {
   }
 }
 
-const day = (ms: number) => new Date(ms).toLocaleDateString('sv-SE');
+const day = (ms: number) => new Date(ms).toLocaleDateString(locale());
 const label = (l: LoginMethod) => l.name ?? (l.provider === 'google' ? t('logins.google') : t('logins.passkey'));
 
 /** Asks for a name, then the passkey. */

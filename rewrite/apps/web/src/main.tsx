@@ -12,6 +12,7 @@ import { LiveChannel } from './live/live.ts';
 import { LiveLink, windowSessionId } from './live/remote.ts';
 import { Display } from './pages/Display.tsx';
 import { Watch } from './pages/Watch.tsx';
+import { browserLanguage, installLanguage } from './i18n.ts';
 import { currentRoute, installLinkHandler } from './ui/router.ts';
 import { installTheme } from './ui/theme.ts';
 import './fonts.css';
@@ -21,6 +22,8 @@ installTheme();
 const root = createRoot(document.getElementById('root')!);
 installLinkHandler();
 const route = currentRoute();
+// A public output's viewer and a screen choose nothing: they follow their browser's language.
+installLanguage(route.page === 'watch' || route.page === 'display' ? browserLanguage() : undefined);
 const stored = storedSession();
 // A public output's viewer is anyone's phone, and a screen is a TV: neither gets a copy of the app.
 if (route.page !== 'watch' && route.page !== 'display') keepApp();

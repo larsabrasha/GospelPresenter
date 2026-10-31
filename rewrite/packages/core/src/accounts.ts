@@ -231,8 +231,14 @@ export interface AuthState {
   mail: boolean;
 }
 
+/** The app's languages; a mail goes out in the language of the page that asked for it (decided on 2026-10-31). */
+export const mailLanguage = z.enum(['sv', 'en']).catch('sv');
+
 /** "Glömt hur du loggar in?": the address to send a new invite to. */
-export const recoverRequest = z.object({ email: emailSchema });
+export const recoverRequest = z.object({ email: emailSchema, language: mailLanguage.optional() });
+
+/** An admin's "Skicka inbjudan": the language to write the mail in. */
+export const mailInviteRequest = z.object({ language: mailLanguage.optional() });
 
 export type InviteState =
   | { state: 'valid'; name: string; orgName: string; email: string | null }

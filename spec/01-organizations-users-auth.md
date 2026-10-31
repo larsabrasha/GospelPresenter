@@ -381,6 +381,9 @@ Any signed-in user (`GospelPresenter/GospelPresenter.Shared/Pages/Settings.razor
 - An "Om" section shows the app version.
 
 ### Localization behaviour
+- The rewrite (decided 2026-10-31): Swedish until a device chooses English, the choice kept per device (no
+  `PreferredLanguage`, no redirect), public outputs by the viewer's browser; AUTH-R17, AUTH-R18 and ORG-A16's second
+  half describe the current app only. `rewrite/docs/assumptions.md` "Languages" has the details.
 - Supported cultures are `en` (the default and fallback) and `sv`. Resolution order is:
   1. culture cookie
   2. query string

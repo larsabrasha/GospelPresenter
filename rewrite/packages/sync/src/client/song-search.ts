@@ -6,9 +6,6 @@
 import { prepareSong, rankSongs, type PreparedSong } from '@gp/core';
 import type { SyncClient } from './client.ts';
 
-/** `localeCompare(…, 'sv', { sensitivity: 'base' })`, as the song lists sort, made once. */
-const collator = new Intl.Collator('sv', { sensitivity: 'base' });
-
 interface Library {
   /** The ids in library order (by name, as the song lists show them), for the ties. */
   order: string[];
@@ -17,8 +14,14 @@ interface Library {
 
 export class SongSearch {
   private library: Promise<Library> | null = null;
+  /** `localeCompare(…, locale, { sensitivity: 'base' })`, as the song lists sort in the page's language, made once. */
+  private collator: Intl.Collator;
 
-  constructor(private client: SyncClient) {
+  constructor(
+    private client: SyncClient,
+    locale = 'sv-SE',
+  ) {
+    this.collator = new Intl.Collator(locale, { sensitivity: 'base' });
     client.onChange((tables) => {
       if (tables.has('songs') || tables.has('song_parts')) this.forget();
     });
@@ -53,6 +56,6 @@ export class SongSearch {
       }),
     );
     // As `listSongs` orders the library: the table's order, then a stable sort by name.
-    return { order: songs.toSorted((a, b) => collator.compare(a.name, b.name)).map((s) => s.id), texts };
+    return { order: songs.toSorted((a, b) => this.collator.compare(a.name, b.name)).map((s) => s.id), texts };
   }
 }

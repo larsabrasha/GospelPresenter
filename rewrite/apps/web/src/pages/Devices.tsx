@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { inviteRefusal, type Me, type PairedDevice, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
-import { t } from '../i18n.ts';
+import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { FloatingSelect } from '../ui/Floating.tsx';
@@ -12,7 +12,7 @@ import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { QrCode } from '../ui/QrCode.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
-const when = (ms: number) => new Date(ms).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+const when = (ms: number) => new Date(ms).toLocaleString(locale(), { dateStyle: 'short', timeStyle: 'short' });
 
 /** Who the new device will be signed in as: the caller, or a member they may make an invite for (D20, D21). */
 function PairAsDialog({ me, onCode, onClose }: { me: Me; onCode: (c: { code: string; expiresAt: number; name: string }) => void; onClose: () => void }) {

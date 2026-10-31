@@ -23,6 +23,7 @@ import {
   type SongVersion,
   type Theme,
 } from '@gp/core';
+import { locale } from '../i18n.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
 
 // Reads from the local database, mapped to the core row types. The column
@@ -93,10 +94,10 @@ const version = (r: Row): SongVersion => ({
 });
 const label = (r: Row): Label => ({ id: String(r.id), text: String(r.text), color: String(r.color), sort: Number(r.sort) });
 
-/** `localeCompare(…, 'sv', { sensitivity: 'base' })`, made once: making it per call cost 86 ms to sort 3 000 songs. */
-const svCompare = new Intl.Collator('sv', { sensitivity: 'base' }).compare;
+/** `localeCompare(…, locale, { sensitivity: 'base' })` in the page's language, made once: making it per call cost 86 ms to sort 3 000 songs. */
+const byLocale = new Intl.Collator(locale(), { sensitivity: 'base' }).compare;
 
-const byName = (a: Song, b: Song) => svCompare(a.name, b.name);
+const byName = (a: Song, b: Song) => byLocale(a.name, b.name);
 
 /** The library, by name, without the trash (spec 02: culture-aware, case-insensitive). */
 export async function listSongs(db: ReadDb): Promise<Song[]> {
@@ -170,7 +171,7 @@ export function byLastChanged(a: Pick<Presentation, 'updatedAt'>, b: Pick<Presen
   return (b.updatedAt ?? -1) - (a.updatedAt ?? -1);
 }
 
-const byPresentationName = (a: Presentation, b: Presentation) => svCompare(a.name, b.name) || a.id.localeCompare(b.id);
+const byPresentationName = (a: Presentation, b: Presentation) => byLocale(a.name, b.name) || a.id.localeCompare(b.id);
 
 export async function getPresentation(db: ReadDb, id: string): Promise<Presentation | null> {
   const [r] = await db.query('SELECT * FROM presentations WHERE id = ?', [id]);
@@ -236,7 +237,7 @@ export async function listBibles(db: ReadDb): Promise<InstalledBible[]> {
   const rows = await db.query(
     'SELECT b.*, EXISTS (SELECT 1 FROM bible_blobs t WHERE t.hash = b.content_hash) AS stored, EXISTS (SELECT 1 FROM kept_bibles k WHERE k.id = b.id) AS kept FROM bibles b',
   );
-  return rows.map((r) => ({ ...bible(r), stored: Boolean(r.stored), kept: Boolean(r.kept) })).toSorted((a, b) => svCompare(a.name, b.name) || a.id.localeCompare(b.id));
+  return rows.map((r) => ({ ...bible(r), stored: Boolean(r.stored), kept: Boolean(r.kept) })).toSorted((a, b) => byLocale(a.name, b.name) || a.id.localeCompare(b.id));
 }
 
 /**
@@ -313,7 +314,7 @@ const ccliEntry = (r: Row): CcliEntry => ({
 /** The CCLI entries by date, newest first, then presentation and song name (SONG-R52). */
 export async function listCcliEntries(db: ReadDb): Promise<CcliEntry[]> {
   return (await db.query('SELECT * FROM ccli_entries ORDER BY date DESC')).map(ccliEntry).toSorted(
-    (a, b) => b.date.localeCompare(a.date) || svCompare(a.presentationName, b.presentationName) || a.presentationId.localeCompare(b.presentationId) || svCompare(a.songName, b.songName),
+    (a, b) => b.date.localeCompare(a.date) || byLocale(a.presentationName, b.presentationName) || a.presentationId.localeCompare(b.presentationId) || byLocale(a.songName, b.songName),
   );
 }
 
@@ -431,7 +432,7 @@ export async function blobUrl(db: ReadDb, hash: string): Promise<string | null> 
 export async function listDisplays(db: ReadDb): Promise<Display[]> {
   const rows = await db.query<{ id: string; name: string; code: string; kind: string; created_at: number | null }>('SELECT id, name, code, kind, created_at FROM displays');
   return rows
-    .toSorted((a, b) => (a.created_at ?? -1) - (b.created_at ?? -1) || svCompare(a.name, b.name) || a.id.localeCompare(b.id))
+    .toSorted((a, b) => (a.created_at ?? -1) - (b.created_at ?? -1) || byLocale(a.name, b.name) || a.id.localeCompare(b.id))
     .map((r) => ({ id: r.id, name: r.name, code: r.code, kind: r.kind === 'screen' ? ('screen' as const) : ('public' as const), createdAt: r.created_at }));
 }
 

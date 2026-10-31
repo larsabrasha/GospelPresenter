@@ -39,9 +39,9 @@ test('a public output follows the presentation in a browser without signing in; 
   await expect(row.getByRole('textbox')).toHaveCount(0);
   await expect(row.getByRole('button', { name: 'Ny kod' })).toHaveCount(0);
 
-  // A phone opens it: the waiting screen, with the output's name.
+  // A phone opens it: the waiting screen, with the output's name, in the phone's language.
   browser = await chromium.launch();
-  const phone = await browser.newPage();
+  const phone = await browser.newPage({ locale: 'sv-SE' });
   await phone.goto(url);
   await expect(phone.getByTestId('watch-waiting')).toContainText('Kyrkkaffet');
   await expect(phone.getByTestId('watch-waiting')).toContainText('Väntar på att sändningen ska börja');
@@ -108,4 +108,8 @@ test('a public output follows the presentation in a browser without signing in; 
   await expect(linkField).toHaveValue(/\/watch\/[a-z2-9]{7}$/);
   await expect(linkField).not.toHaveValue(url);
   await expect(phone.getByText('Det finns ingen sändning med den här koden.')).toBeVisible({ timeout: 10_000 });
+  // A phone in English is told in English (the viewer's browser language, decided on 2026-10-31).
+  const english = await browser.newPage({ locale: 'en-US' });
+  await english.goto(url);
+  await expect(english.getByText('There is no broadcast with this code.')).toBeVisible();
 });

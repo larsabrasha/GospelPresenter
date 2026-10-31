@@ -182,6 +182,24 @@ Several organisations (spec 01 `/admin/organizations` and the switcher, ORG-R1�
 - **No logo**: the list shows the first letter, the switcher a grid icon (GAPS.md: the logo later). At most 100
   organisations. The labels are written when the server first opens the new organisation's database.
 
+Languages (GAPS.md "Engelska", built 2026-10-31; spec 01 "Localization behaviour"):
+
+- **Swedish until a device chooses English** (Lars chose "Alltid svenska"; the current app falls back to English and
+  follows Accept-Language, AUTH-R17). The sign-in page shows the device's choice too.
+- **The choice belongs to the device** (Lars chose "Per enhet"), in `localStorage['language']` like the colour theme:
+  it does not follow the user to a new device (unlike ORG-A16), and the server stores no `PreferredLanguage`. The
+  choice loads the page again; other open windows keep their language until they load again.
+- **A public output's viewer and a screen follow their browser** (Lars chose "Tittarens webbläsare"): Swedish for any
+  `sv` first language, else English.
+- **A mail is in the language of the page that asked for it**: the admin's for an invite, the sign-in page's for
+  "Glömt hur du loggar in?". The server does not know the recipient's.
+- **Dates, numbers and the order of names follow the language** (Lars chose "Bokstavsordning"): `sv-SE`, or `en-GB`
+  (day before month, a 24-hour clock) where the current app's `en` gave American dates. Search still folds case the
+  Swedish way, which is the same for English. A Bible's book names follow it in the Bibeltext tab (spec 05), but a
+  Bible item's title stays as it was made.
+- **The English is the current app's** (SharedResource.resx) where the Swedish text matched, 508 of 847 texts; the
+  rest is new. The built-in themes' names and descriptions and a Bible import's refusals are texts too.
+
 E-mail (GAPS.md "E-post", built 2026-10-31; the current app sends none):
 
 - **Resend, on every host** (Lars chose Resend over Cloudflare Email Service, which was in beta and Workers-only): one

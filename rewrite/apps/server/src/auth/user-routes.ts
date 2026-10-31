@@ -1,7 +1,7 @@
 // The organisation's users: list, create, one user (the detail page), change
 // name, e-mail and role, remove, invite, and an admin's view of a user's logins.
 import type { Hono } from 'hono';
-import { createUserRefusal, createUserRequest, inviteRefusal, removeUserRefusal, roleChangeRefusal, updateUserRequest, userEditRefusal } from '@gp/core';
+import { createUserRefusal, createUserRequest, inviteRefusal, mailInviteRequest, removeUserRefusal, roleChangeRefusal, updateUserRequest, userEditRefusal } from '@gp/core';
 import { inviteLink, inviteMail } from '../mail.ts';
 import { body, fail, type AuthKit } from './kit.ts';
 
@@ -97,7 +97,7 @@ export function userRoutes(app: Hono, kit: AuthKit) {
       if (token === 'limit') return fail(c, 409, 'limit');
       const me = await accounts.members.me({ sessionId: caller.sessionId, userId: caller.ctx.userId, orgId: caller.orgId, role: caller.ctx.role });
       try {
-        await mail.mailer.send(inviteMail('invite', { to: user.email, name: user.name, orgName: me?.orgName ?? '', link: inviteLink(mail.appUrl, token) }));
+        await mail.mailer.send(inviteMail('invite', { to: user.email, name: user.name, orgName: me?.orgName ?? '', link: inviteLink(mail.appUrl, token) }, (await body(c, mailInviteRequest))?.language));
       } catch (e) {
         log({ event: 'mail-failed', reason: String(e) });
         return fail(c, 503, 'mail-failed');

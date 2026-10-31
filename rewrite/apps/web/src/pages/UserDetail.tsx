@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { emailSchema, inviteRefusal, removeUserRefusal, roleChangeRefusal, ROLES, userEditRefusal, type AuthState, type LoginMethod, type Me, type Role, type UserRow } from '@gp/core';
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
-import { t } from '../i18n.ts';
+import { language, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
@@ -145,7 +145,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
   const mailInvite = async (email: string) => {
     setMailing(true);
     try {
-      const r = await api<{ inviteToken: string }>('POST', `${path}/invites/email`);
+      const r = await api<{ inviteToken: string }>('POST', `${path}/invites/email`, { language: language() });
       if (r.error) toast(errorText(r));
       else {
         setLink(await inviteUrl(r.body.inviteToken));
