@@ -162,6 +162,25 @@ Song history (spec 02 `/admin/songs/{id}/history`, SONG-R20–R24, D9; built 202
 - **At most 50 per song**; purging a song deletes its history with it. The list shows the name and "Idag 14:05",
   "Igår 09:30" or "3 okt. 2026 14:05" in the device's time zone; not who made the change.
 
+The CCLI report (spec 02 `/admin/ccli-report`, SONG-R48–R53; built 2026-10-31):
+
+- **The window that presents counts** (`live/ccli.ts`): a song slide shown 10 s without a change of slide, item or
+  black screen records the song with `recordCcliUse`, a synced mutation, so it works offline and a session is
+  counted once whoever controls or watches it (SONG-R51, with no "reported elsewhere" flag). A new overlay or the
+  same pointer sent again does not start the 10 s over. A presentation shown in two windows records once, as the
+  entry's id is the song, day and presentation.
+- **The day is the presenting device's own** (Lars chose "Datorns lokala datum", 02 Q12), so a service after midnight
+  UTC is on the day it is held; the current app took the server's UTC day.
+- **A card per day and presentation** (Lars chose "Per presentation", 02 Q13): two presentations of the same name on
+  the same day get a card each; the current app merged them by name.
+- **Admins only** (Lars chose "Bara admin", 02 Q11): the menu entry, the page, the collection switch and Rapporterad
+  are for admins; a user sees no link. Anyone who presents records entries. The entries sync to every device, as
+  every other table does; they hold song and presentation names that every member sees anyway.
+- **Both switches move at once** and go back if the write is refused (the current app's moved and said nothing). A
+  card marked under a filter it no longer matches stays until the filter changes, as it did. "Visa fler" shows 50
+  more entries of those already on the device.
+- **The names and the number are as shown** and are not tied to the song or presentation, so an entry outlives both.
+
 Templates (spec 03 "Template", screen 3):
 
 - **A template is a row of `presentations`** with `is_template` set, as in the current app: the editor, its

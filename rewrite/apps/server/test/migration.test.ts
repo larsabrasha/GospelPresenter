@@ -95,9 +95,9 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
   });
 
   it('a version 11 file gets the columns and the indexes of 12, as a new file has them', () => {
-    // Version 11: today's tables without what 12 and later added (song history came in 15), and no indexes.
+    // Version 11: today's tables without what 12 and later added (song history came in 15, the CCLI report in 16), and no indexes.
     const v11 = orgDdl
-      .filter((s) => !orgIndexes.includes(s) && !s.includes('song_versions'))
+      .filter((s) => !orgIndexes.includes(s) && !s.includes('song_versions') && !s.includes('ccli_entries'))
       .map((s) => s.replace(', description TEXT, updated_at INTEGER', '').replace(', created_at INTEGER)', ')'));
     const file = fileWith(driver, [...v11, schemaMetaDdl, 'INSERT INTO _schema (one, version) VALUES (1, 11)']);
     const fresh = openSqlite(fileWith(driver, []), driver);

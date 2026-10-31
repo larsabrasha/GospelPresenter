@@ -10,6 +10,7 @@ import { AudioEngine, audioUrlOfItem } from './live/audio.ts';
 import { VideoEngine } from './live/video.ts';
 import { KEEP_COMING_CHANGED, keepComingSetting } from './ui/KeepOffline.tsx';
 import { CACHE_LIMIT_CHANGED, cacheLimitSetting } from './pages/Storage.tsx';
+import { useCcliCounter } from './live/ccli.ts';
 import { useLiveOwner } from './live/owner.ts';
 import type { LiveLink } from './live/remote.ts';
 import { About } from './pages/About.tsx';
@@ -27,6 +28,7 @@ import { PresentationEditor } from './pages/presentation-editor/index.ts';
 import { Presentations } from './pages/Presentations.tsx';
 import { OrgSettings } from './pages/OrgSettings.tsx';
 import { Settings } from './pages/Settings.tsx';
+import { CcliReport } from './pages/CcliReport.tsx';
 import { SongEditor } from './pages/SongEditor.tsx';
 import { SongHistory } from './pages/SongHistory.tsx';
 import { Themes } from './pages/Themes.tsx';
@@ -57,6 +59,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const video = useMemo(() => new VideoEngine(), []);
   // This window owns whatever it presents, on every page (LIVE-R49).
   useLiveOwner(live, link, db, sessionId, audio, video);
+  // And counts the songs it shows for the CCLI report (SONG-R48).
+  useCcliCounter(live, db);
   // Starta presentation fetches the presentation's files here, at once and quietly; looking around fetches none.
   useEffect(() => {
     let last: string | null | undefined;
@@ -112,6 +116,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'templates' && (can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />)}
+      {route.page === 'ccliReport' && (can(me.role, 'ViewCcliReport') ? <CcliReport role={me.role} /> : <Refused text={t('ccli.forbidden')} />)}
       {route.page === 'labels' && <Labels />}
       {route.page === 'songHistory' && <SongHistory key={route.id} id={route.id} />}
       {route.page === 'themes' && <Themes role={me.role} />}

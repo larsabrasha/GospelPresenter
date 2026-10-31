@@ -552,6 +552,24 @@ export function TagIcon({ className }: IconProps) {
   );
 }
 
+/** CCLI-rapport in the admin menu (DocumentDuplicateSymbol.razor, the solid one). */
+export function CcliReportIcon({ className }: IconProps) {
+  return (
+    <Solid className={className} viewBox="0 0 20 20">
+      <path
+        fillRule="evenodd"
+        d="M15.988 3.012A2.25 2.25 0 0 1 18 5.25v6.5A2.25 2.25 0 0 1 15.75 14H13.5V7A2.5 2.5 0 0 0 11 4.5H8.128a2.252 2.252 0 0 1 1.884-1.488A2.25 2.25 0 0 1 12.25 1h1.5a2.25 2.25 0 0 1 2.238 2.012ZM11.5 3.25a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 .75.75v.25h-3v-.25Z"
+        clipRule="evenodd"
+      />
+      <path
+        fillRule="evenodd"
+        d="M2 7a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7Zm2 3.25a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Zm0 3.5a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Z"
+        clipRule="evenodd"
+      />
+    </Solid>
+  );
+}
+
 export function PencilIcon({ className }: IconProps) {
   return (
     <Outline className={className}>
@@ -798,6 +816,21 @@ export function LabelsPicture({ className }: IconProps) {
       <rect x="30" y="80" width="140" height="40" rx="20" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
       <circle cx="55" cy="100" r="10" stroke="currentColor" strokeWidth="2" fill="none" opacity="0.5" />
       <line x1="75" y1="100" x2="130" y2="100" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+    </Picture>
+  );
+}
+
+/** No CCLI entries: a list with a plus (CcliReport.razor). */
+export function CcliPicture({ className }: IconProps) {
+  return (
+    <Picture className={className}>
+      <rect x="40" y="30" width="120" height="100" rx="8" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <line x1="60" y1="55" x2="140" y2="55" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.5" />
+      <line x1="60" y1="70" x2="130" y2="70" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.4" />
+      <line x1="60" y1="85" x2="120" y2="85" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.3" />
+      <line x1="60" y1="100" x2="110" y2="100" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.2" />
+      <circle cx="155" cy="120" r="16" stroke="currentColor" strokeWidth="2" className={PICTURE_FILL} />
+      <path d="M149 120h12M155 114v12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
     </Picture>
   );
 }

@@ -79,8 +79,11 @@ under it while it sends, the viewer count ("0 enheter" too), Visa QR-kod and Ta 
 button and Ny kod (under a line saying what it is for; the dialog closes after it) are in the QR dialog. The templates page and its
 dialogs (`pages/Templates.tsx`), the picker on Skapa and the editor's sky banner take the current app's markup.
 The user page (`/admin/users/{id}`, `pages/UserDetail.tsx`) is `UserDetail.razor` without the profile picture; its
-invite card shows the link only right after Skapa (AUTH-R13), on a host as "Logga in som … här". The current app's
-labels, CCLI report, API keys and super-admin pages have no counterpart yet.
+invite card shows the link only right after Skapa (AUTH-R13), on a host as "Logga in som … här". CCLI-rapport
+(`pages/CcliReport.tsx`) is CcliReport.razor's: the collection switch with its grey line, Alla, Orapporterade and
+Rapporterade as pills, and a card per day and presentation with a grey head, its Rapporterad switch, and rows of
+number and song (the number under the song on a phone). The current app's API keys and super-admin pages have no
+counterpart yet.
 
 Sign-in, setup, the invite and pairing (step 5) are `Login.razor`, `Setup.razor` and `InvitePage.razor`
 (`pages/AuthCard.tsx`): the logo and the two-blue name, the fields as floating fields and the wide sky Kom igång;

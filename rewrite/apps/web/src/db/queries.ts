@@ -1,10 +1,12 @@
 import {
+  CCLI_COLLECTION_SETTING,
   DEFAULT_THEME_SETTING,
   LOAD_BIBLE_TEXT_SQL,
   REMOTE_CONTROL_SETTING,
   remoteControlPolicy,
   resolveTheme,
   type Bible,
+  type CcliEntry,
   type BibleBookText,
   type Display,
   type LibraryAudio,
@@ -289,6 +291,30 @@ export async function orgDefaultThemeId(db: ReadDb): Promise<string | null> {
 export async function orgRemoteControl(db: ReadDb): Promise<RemoteControlPolicy> {
   const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [REMOTE_CONTROL_SETTING]);
   return remoteControlPolicy(r?.value);
+}
+
+/** Whether CCLI collection is on (SONG-R49): only `"true"` is. */
+export async function ccliCollectionOn(db: ReadDb): Promise<boolean> {
+  const [r] = await db.query<{ value: string }>('SELECT value FROM org_settings WHERE id = ?', [CCLI_COLLECTION_SETTING]);
+  return r?.value === 'true';
+}
+
+const ccliEntry = (r: Row): CcliEntry => ({
+  id: String(r.id),
+  songId: String(r.song_id),
+  songName: String(r.song_name),
+  ccli: String(r.ccli),
+  presentationId: String(r.presentation_id),
+  presentationName: String(r.presentation_name),
+  date: String(r.date),
+  reportedAt: (r.reported_at as number | null) ?? null,
+});
+
+/** The CCLI entries by date, newest first, then presentation and song name (SONG-R52). */
+export async function listCcliEntries(db: ReadDb): Promise<CcliEntry[]> {
+  return (await db.query('SELECT * FROM ccli_entries ORDER BY date DESC')).map(ccliEntry).toSorted(
+    (a, b) => b.date.localeCompare(a.date) || svCompare(a.presentationName, b.presentationName) || a.presentationId.localeCompare(b.presentationId) || svCompare(a.songName, b.songName),
+  );
 }
 
 /** The theme a presentation shows: its own, else the organisation's default, else Classic (THEME-R1). */

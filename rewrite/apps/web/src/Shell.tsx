@@ -10,6 +10,7 @@ import { Dropdown, MENU_ITEM } from './ui/Dropdown.tsx';
 import {
   ArrowPathIcon,
   BarsIcon,
+  CcliReportIcon,
   ChevronLeftIcon,
   BookOpenIcon,
   CloudCheckIcon,
@@ -300,6 +301,7 @@ function adminLinks(me: Me, host: boolean): AdminLink[][] {
     [
       can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', icon: DesktopIcon, pages: ['displays'] },
       { route: { page: 'themes' }, label: 'nav.themes', icon: BarsIcon, pages: ['themes'] },
+      can(me.role, 'ViewCcliReport') && { route: { page: 'ccliReport' }, label: 'nav.ccliReport', icon: CcliReportIcon, pages: ['ccliReport'] },
     ],
     [
       can(me.role, 'ViewUsers') && { route: { page: 'users' }, label: 'nav.users', icon: UsersIcon, pages: ['users', 'user'] },

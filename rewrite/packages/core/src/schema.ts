@@ -67,6 +67,23 @@ export const songVersions = sqliteTable('song_versions', {
   data: text('data').notNull(),
 });
 
+/**
+ * A song shown live with its CCLI number (spec 02 "CCLI report entry", SONG-R48–R52): once per song,
+ * day and presentation, so the id is made of those (`ccliEntryId`). The names and the number are as
+ * they were when it was shown; it is not tied to the song or the presentation row, so it outlives both.
+ * `date` is the presenting device's day, `YYYY-MM-DD`; `reportedAt` is set while it is marked reported.
+ */
+export const ccliEntries = sqliteTable('ccli_entries', {
+  id: text('id').primaryKey(),
+  songId: text('song_id').notNull(),
+  songName: text('song_name').notNull(),
+  ccli: text('ccli').notNull(),
+  presentationId: text('presentation_id').notNull(),
+  presentationName: text('presentation_name').notNull(),
+  date: text('date').notNull(),
+  reportedAt: integer('reported_at'),
+});
+
 export const presentations = sqliteTable('presentations', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -321,6 +338,7 @@ export const schema = {
   songParts,
   songArrangements,
   songVersions,
+  ccliEntries,
   presentations,
   presentationItems,
   bibles,
@@ -339,13 +357,14 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos];
+export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
 export type SongPart = typeof songParts.$inferSelect;
 export type SongArrangement = typeof songArrangements.$inferSelect;
 export type SongVersion = typeof songVersions.$inferSelect;
+export type CcliEntry = typeof ccliEntries.$inferSelect;
 export type Presentation = typeof presentations.$inferSelect;
 export type PresentationItem = typeof presentationItems.$inferSelect;
 export type Bible = typeof bibles.$inferSelect;
@@ -356,7 +375,7 @@ export type Overlay = typeof overlays.$inferSelect;
 export type LibraryVideo = typeof videos.$inferSelect;
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -384,6 +403,9 @@ const songVersionsDdl = [
   'CREATE INDEX IF NOT EXISTS song_versions_by_song ON song_versions (song_id, created_at)',
 ];
 
+const ccliEntriesDdl = `CREATE TABLE IF NOT EXISTS ccli_entries (id TEXT PRIMARY KEY NOT NULL, song_id TEXT NOT NULL, song_name TEXT NOT NULL,
+     ccli TEXT NOT NULL, presentation_id TEXT NOT NULL, presentation_name TEXT NOT NULL, date TEXT NOT NULL, reported_at INTEGER)`;
+
 const videosDdl = `CREATE TABLE IF NOT EXISTS videos (id TEXT PRIMARY KEY NOT NULL, file_name TEXT NOT NULL, content_type TEXT NOT NULL,
      codec TEXT NOT NULL, hash TEXT NOT NULL, size INTEGER NOT NULL, duration INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL,
      still_hash TEXT NOT NULL, thumb_hash TEXT NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER)`;
@@ -405,6 +427,7 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS song_arrangements (id TEXT PRIMARY KEY NOT NULL,
      song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
   ...songVersionsDdl,
+  ccliEntriesDdl,
   `CREATE TABLE IF NOT EXISTS presentations (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, event_date TEXT,
      deleted_at INTEGER, theme_id TEXT, is_template INTEGER NOT NULL DEFAULT 0, weekday INTEGER, time TEXT,
      location TEXT, last_used_at INTEGER, description TEXT, updated_at INTEGER)`,
@@ -445,6 +468,8 @@ export const orgMigrations: Record<number, string[]> = {
   14: [videoFilesDdl],
   // Song history (SONG-R20–R23, D9).
   15: songVersionsDdl,
+  // The CCLI report (SONG-R48–R52).
+  16: [ccliEntriesDdl],
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */
