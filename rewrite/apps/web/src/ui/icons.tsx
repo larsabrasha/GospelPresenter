@@ -50,9 +50,9 @@ export function GoogleIcon({ className }: IconProps) {
   );
 }
 
-export function PlusIcon({ className }: IconProps) {
+export function PlusIcon({ className, strokeWidth }: StrokeIconProps) {
   return (
-    <Outline className={className}>
+    <Outline className={className} strokeWidth={strokeWidth}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
     </Outline>
   );

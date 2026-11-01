@@ -13,6 +13,12 @@ test.afterEach(async () => {
 
 const PHONE = { width: 390, height: 844 };
 
+/** A sheet once it has slid in (`sheet-in`), so its box is where it stays. */
+async function settled(sheet: Locator) {
+  await sheet.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+  return sheet;
+}
+
 /** The box of an element, which must lie wholly within the phone's screen. */
 async function onScreen(l: Locator) {
   const box = (await l.boundingBox())!;
@@ -112,12 +118,16 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   await page.getByRole('button', { name: 'Nästa bild' }).click();
   await expect(picture).toContainText('A två');
 
-  // Rensa blacks the outputs and turns into Visa igen; the bar says RENSAD instead of LIVE.
+  // Rensa blacks the outputs and then rests until a part is shown again: a tap on the part marked RENSAD does it. The
+  // bar still says LIVE, as the presentation runs until Avsluta.
   await page.getByRole('button', { name: 'Rensa' }).click();
-  await expect(page.getByRole('button', { name: 'Visa igen' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(live.getByRole('button', { name: 'Om presentationen' })).toContainText('RENSAD');
-  await page.getByRole('button', { name: 'Visa igen' }).click();
+  await expect(page.getByRole('button', { name: 'Rensa', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Visa igen' })).toHaveCount(0);
   await expect(live.getByRole('button', { name: 'Om presentationen' })).toContainText('LIVE');
+  await expect(live.getByRole('button', { name: 'Om presentationen' })).not.toContainText('RENSAD');
+  await liveOrder.getByRole('button', { name: /A två/ }).click();
+  await expect(liveOrder.getByRole('button', { name: /A två/ })).toContainText('VISAS');
+  await expect(page.getByRole('button', { name: 'Rensa', exact: true })).toBeEnabled();
 
   // Lägg till while presenting adds right after the item shown, not at the end; nothing changes on the outputs.
   await live.getByRole('button', { name: 'Lägg till', exact: true }).click();
@@ -129,8 +139,10 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   expect(await liveOrder.locator('section').evaluateAll((all) => all.map((x) => x.getAttribute('aria-label')))).toEqual(['Sång A', 'Sång C', 'Sång B']);
   await expect(picture).toContainText('A två');
 
-  // Redigera folds the list to one row per item, moved by ≡; the shown item cannot be removed.
-  await live.getByRole('button', { name: 'Redigera' }).click();
+  // Flytta in an item's … folds the list to one row per item, moved by ≡; the shown item cannot be removed.
+  await expect(live.getByRole('button', { name: 'Redigera', exact: true })).toHaveCount(0); // no Edit button, as iOS 27
+  await liveOrder.getByRole('button', { name: 'Mer om Sång C' }).click();
+  await page.getByRole('button', { name: 'Flytta', exact: true }).click();
   const edit = page.getByTestId('live-edit');
   await expect(edit.getByRole('listitem')).toHaveText([/Sång A/, /Sång C/, /Sång B/]);
   await expect(edit.getByRole('button', { name: 'Ta bort Sång A' })).toBeDisabled();
@@ -159,13 +171,21 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
 
   // A sheet is pulled down by its bar to close it, as on iOS.
   await live.getByRole('button', { name: 'Mer', exact: true }).click();
-  const more = page.getByRole('dialog', { name: 'Söndag' });
+  const more = await settled(page.getByRole('dialog', { name: 'Söndag' }));
   const bar = (await more.getByRole('heading', { name: 'Söndag' }).boundingBox())!;
   await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
   await page.mouse.down();
   await page.mouse.move(bar.x + bar.width / 2, bar.y + 400, { steps: 8 });
   await page.mouse.up();
   await expect(more).toBeHidden();
+
+  // On an iPad held upright the same sheet is centred, as iPadOS's form sheet.
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await live.getByRole('button', { name: 'Mer', exact: true }).click();
+  const centred = (await (await settled(page.getByRole('dialog', { name: 'Söndag' }))).boundingBox())!;
+  expect(Math.abs(centred.y + centred.height / 2 - 590)).toBeLessThan(10);
+  await page.getByRole('dialog', { name: 'Söndag' }).getByRole('button', { name: 'Stäng' }).click();
+  await page.setViewportSize(PHONE);
 
   // Avsluta presentation is last in …, and asks first.
   await live.getByRole('button', { name: 'Mer', exact: true }).click();

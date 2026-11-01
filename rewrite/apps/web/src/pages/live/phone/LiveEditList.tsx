@@ -18,7 +18,7 @@ export function LiveEditList({ items, shownId, onRemove }: { items: Presentation
     afterWrite(db.mutate('moveItem', { itemId: items[from]!.id, by: to - from }), () => {}, saveFailed),
   );
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-10" data-testid="live-edit">
+    <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-24" data-testid="live-edit">
       <ol ref={listRef} aria-label={t('live.order')} className="rounded-[1.375rem] overflow-hidden bg-surface divide-y-[0.5px] divide-separator">
         {items.map((item, i) => {
           const shown = item.id === shownId;

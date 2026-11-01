@@ -74,7 +74,7 @@ export function LiveOrder({
   };
 
   return (
-    <div ref={list} className="relative flex-1 min-h-0 overflow-y-auto px-4 pb-10" data-testid="live-order">
+    <div ref={list} className="relative flex-1 min-h-0 overflow-y-auto px-4 pb-24" data-testid="live-order">
       <div className="flex flex-col gap-2">
         {items.map((item) => {
           const set = slides.get(item.id);
@@ -93,9 +93,10 @@ export function LiveOrder({
                   variant="plain"
                   aria-label={t('live.itemMore', { title: item.title })}
                   onClick={() => onItemMenu(item)}
-                  className="-mr-2.5 -my-1.5 h-7 w-9 rounded-full flex items-center justify-center cursor-pointer text-neutral-500 dark:text-neutral-400"
+                  // 44 pt to a finger, drawn into the heading's space above and down to the card, so the row stays its height.
+                  className="-mr-3 -mt-5 -mb-2 size-11 shrink-0 rounded-full flex items-center justify-center cursor-pointer text-neutral-600 dark:text-neutral-300"
                 >
-                  <EllipsisIcon className="size-4" />
+                  <EllipsisIcon className="size-5" />
                 </AppButton>
               </h3>
               {set?.audio && <AudioPlayer control={audio} itemId={item.id} name={set.audio.fileName} />}

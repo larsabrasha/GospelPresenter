@@ -1,4 +1,4 @@
-import type { LivePointer, Presentation } from '@gp/core';
+import type { Presentation } from '@gp/core';
 import { useRef, useState, type ReactNode } from 'react';
 import { orgRemoteControl } from '../../../db/queries.ts';
 import { useData } from '../../../db/react.tsx';
@@ -42,7 +42,6 @@ const BAR_BUTTON = 'h-8 touch:h-11 touch:min-w-11 justify-center px-3 rounded-lg
 export function LiveBar({
   id,
   presentation,
-  pointer,
   live,
   owner,
   onStage,
@@ -50,7 +49,6 @@ export function LiveBar({
 }: {
   id: string;
   presentation: Presentation;
-  pointer: LivePointer;
   live: LiveControl;
   owner: { sessionId: string } | null;
   onStage: () => void;
@@ -84,9 +82,10 @@ export function LiveBar({
       >
         <span className="max-w-full flex items-center gap-2 whitespace-nowrap">
           <span className="text-[15px] font-semibold truncate">{presentation.name}</span>
-          <span className={`shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide ${pointer.black ? 'bg-raised-2 text-neutral-500' : 'bg-red-500/15 text-red-500'}`}>
-            <span className={`size-1.5 rounded-full ${pointer.black ? 'bg-neutral-500' : 'bg-red-500'}`} />
-            {pointer.black ? t('live.clearedBadge') : t('live.badge')}
+          {/* LIVE until Avsluta, also while Rensa has blacked the outputs: the presentation is still running. */}
+          <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-red-500/15 text-red-500">
+            <span className="size-1.5 rounded-full bg-red-500" />
+            {t('live.badge')}
           </span>
           <ChevronDownIcon className="size-3 shrink-0 text-neutral-500" />
         </span>

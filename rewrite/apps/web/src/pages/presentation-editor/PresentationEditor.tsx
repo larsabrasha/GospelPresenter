@@ -339,7 +339,7 @@ export function PresentationEditor({
       {presenting && !owner && <RemoteBanner />}
       {presenting && <LiveKeys />}
       {presenting && !phone && (
-        <LiveBar id={id} presentation={presentation} pointer={pointer} live={live} owner={owner} onStage={() => setStage(true)} onDetails={() => setDetails(true)} />
+        <LiveBar id={id} presentation={presentation} live={live} owner={owner} onStage={() => setStage(true)} onDetails={() => setDetails(true)} />
       )}
       {presenting && stage && <StageView items={items} slides={slides} theme={theme} overlays={overlays} live={live} audio={presenting.audio} video={presenting.video} onLeave={() => setStage(false)} />}
       <section className="flex-1 min-h-0 flex relative">

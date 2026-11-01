@@ -3,7 +3,7 @@ import type { ShownOverlay } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
-import { ChevronLeftIcon, CloseIcon } from '../../ui/icons.tsx';
+import { ChevronLeftIcon } from '../../ui/icons.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { CAPTION } from '../../ui/Toggle.tsx';
 import { OutputsPanel } from './OutputsPanel.tsx';
@@ -56,11 +56,12 @@ export function LivePanel({
           variant="plain"
           title={t('live.clear')}
           aria-pressed={pointer.black}
-          onClick={() => live.set({ black: !pointer.black })}
-          className={`flex-1 h-9 touch:h-11 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold cursor-pointer ${pointer.black ? 'bg-neutral-900 text-white dark:bg-white dark:text-black' : 'bg-raised'}`}
+          // Rensa only blacks the outputs; a slide clicked or an arrow shows one again, as ProPresenter's Clear.
+          disabled={pointer.black}
+          onClick={() => live.set({ black: true })}
+          className="flex-1 h-9 touch:h-11 rounded-lg flex items-center justify-center text-sm font-semibold cursor-pointer bg-raised disabled:opacity-40 disabled:cursor-default"
         >
-          {!pointer.black && <CloseIcon className="size-4" />}
-          {pointer.black ? t('live.showAgain') : t('live.clear')}
+          {t('live.clear')}
         </AppButton>
         <AppButton variant="plain" aria-label={t('live.nextSlide')} disabled={!canStep.forward} onClick={() => onStep(1)} className={STEP}>
           <ChevronLeftIcon className="size-4 rotate-180" />

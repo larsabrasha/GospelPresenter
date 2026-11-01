@@ -9,9 +9,9 @@ import { outputWindow } from '../../../live/outputWindow.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronLeftIcon, CloseIcon, DesktopIcon, EllipsisIcon, GripIcon, InformationCircleIcon, PencilIcon, PlusIcon, RemoteIcon, SquaresOverlapIcon, StopIcon, TrashIcon } from '../../../ui/icons.tsx';
+import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronLeftIcon, DesktopIcon, EllipsisIcon, GripIcon, InformationCircleIcon, PencilIcon, PlusIcon, RemoteIcon, SquaresOverlapIcon, StopIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
-import { GROUP, Sheet } from '../../../ui/Sheet.tsx';
+import { GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
 import { SlideView } from '../../../ui/SlideView.tsx';
 import { AddItemDialog } from '../../presentation-editor/AddItemDialog.tsx';
 import type { Presenting } from '../../presentation-editor/PresentationEditor.tsx';
@@ -26,6 +26,8 @@ type Open = null | 'outputs' | 'more' | 'overlays' | 'remote' | { item: Presenta
 
 /** A round glass button of the bar, as iOS 26 draws them. */
 const GLASS = 'bg-white/70 dark:bg-surface/60 backdrop-blur-md shadow-[inset_0_0.5px_0_rgba(255,255,255,0.22),0_8px_28px_rgba(0,0,0,0.25)]';
+/** Glass tinted with the app's colour, as iOS 27 draws a floating "new": seen at once, quieter than a filled button. */
+const TINTED_GLASS = 'bg-sky-100/80 dark:bg-sky-950/70 text-sky-600 dark:text-sky-300 ring-1 ring-sky-500/30 backdrop-blur-md shadow-[0_8px_28px_rgba(2,132,199,0.25)]';
 /** How long an item just added stays marked. */
 const MARKED_MS = 2600;
 /** A row of a sheet's menu. */
@@ -108,8 +110,9 @@ export function PhoneLive({
             <ChevronDownIcon className="size-3.5 shrink-0 text-neutral-500" />
           </span>
           <span className="max-w-full flex items-center gap-1.5 text-xs/4 whitespace-nowrap">
-            <span className={`size-1.5 rounded-full shrink-0 ${pointer.black ? 'bg-neutral-500' : 'bg-red-500'}`} />
-            <span className={`shrink-0 font-semibold tracking-wide ${pointer.black ? 'text-neutral-500' : 'text-red-500'}`}>{pointer.black ? t('live.clearedBadge') : t('live.badge')}</span>
+            {/* LIVE until Avsluta, also while Rensa has blacked the outputs: the presentation is still running. */}
+            <span className="size-1.5 rounded-full shrink-0 bg-red-500" />
+            <span className="shrink-0 font-semibold tracking-wide text-red-500">{t('live.badge')}</span>
             {place && <span className="min-w-0 truncate text-neutral-500 dark:text-neutral-400">· {place}</span>}
           </span>
         </AppButton>
@@ -125,24 +128,26 @@ export function PhoneLive({
         </div>
       </div>
 
-      <div className="px-4 pt-3 flex flex-col gap-3 shrink-0 items-center">
+      {/* Above the running order, so the buttons' shadows fall over it rather than being cut by its sticky headings. */}
+      <div className="relative z-[2] px-4 pt-3 flex flex-col gap-3 shrink-0 items-center">
         <div className={`w-full max-w-[640px] aspect-video rounded-2xl overflow-hidden ring-2 ${pointer.black ? 'ring-neutral-500' : 'ring-red-500'}`} data-testid="phone-live-picture">
           <SlideView slide={current} theme={theme} label={false} overlay={overlay} black={pointer.black} />
         </div>
         {video && pointer.itemId && presenting.video && <VideoPlayer control={presenting.video} itemId={pointer.itemId} name={video.fileName} type={video.contentType} codec={video.codec} />}
-        {/* As iOS 27's player: round glass arrows, and Rensa a capsule of its own width between them. */}
+        {/* As iOS 27's player: round glass arrows, and Rensa a capsule of plain text between them, so it stands centred. */}
         <div role="toolbar" aria-label={t('live.outputs')} className="flex items-center justify-center gap-4 h-11">
           <AppButton variant="plain" aria-label={t('live.previous')} disabled={at <= 0} onClick={() => go(at - 1)} className={`size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 ${GLASS}`}>
             <ChevronLeftIcon className="size-5" />
           </AppButton>
+          {/* Rensa only blacks the outputs; a part tapped or an arrow shows one again, as ProPresenter's Clear. */}
           <AppButton
             variant="plain"
             aria-pressed={pointer.black}
-            onClick={() => live.set({ black: !pointer.black })}
-            className={`h-11 min-w-36 px-6 rounded-full flex items-center justify-center gap-1.5 text-[15px] font-semibold cursor-pointer ${pointer.black ? 'bg-neutral-900 text-white dark:bg-white dark:text-black' : GLASS}`}
+            disabled={pointer.black}
+            onClick={() => live.set({ black: true })}
+            className={`h-11 min-w-36 px-6 rounded-full flex items-center justify-center text-[15px] font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-default ${GLASS}`}
           >
-            {!pointer.black && <CloseIcon className="size-4" />}
-            {pointer.black ? t('live.showAgain') : t('live.clear')}
+            {t('live.clear')}
           </AppButton>
           <AppButton variant="plain" aria-label={t('live.nextSlide')} disabled={at === -1 ? !steps.length : at >= steps.length - 1} onClick={() => go(at + 1)} className={`size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 ${GLASS}`}>
             <ChevronLeftIcon className="size-5 rotate-180" />
@@ -150,25 +155,19 @@ export function PhoneLive({
         </div>
       </div>
 
-      {/* A quiet heading, as iOS 27's lists: Redigera as text, Lägg till as a round +, no line under it. */}
-      <div className="flex items-center justify-between pl-5 pr-4 pt-6 pb-1 shrink-0">
-        <h2 className="text-xl/7 font-semibold">{t('live.order')}</h2>
-        <span className="flex items-center gap-1">
-          <AppButton
-            variant="plain"
-            aria-pressed={editing}
-            onClick={() => setEditing(!editing)}
-            className={`h-11 px-3 text-[17px] text-sky-500 cursor-pointer ${editing ? 'font-semibold' : ''}`}
-          >
-            {editing ? t('live.editDone') : t('live.edit')}
-          </AppButton>
-          {!editing && (
-            <AppButton variant="plain" aria-label={t('live.add')} title={t('live.add')} onClick={() => setAdding({ chosenId: null })} className="size-9 rounded-full flex items-center justify-center cursor-pointer bg-sky-500 text-white">
-              <PlusIcon className="size-5" />
-            </AppButton>
-          )}
-        </span>
-      </div>
+      {/* No heading over the running order; Lägg till floats at the bottom right as a round glass +, as iOS 27's
+          Notes and Reminders put "new", far enough from the edges that its shadow is not cut. Moving is reached from an
+          item's … (Flytta); Klar takes the +'s place. */}
+      <div className="h-3 shrink-0" />
+      {editing ? (
+        <AppButton variant="plain" onClick={() => setEditing(false)} className={`absolute z-10 right-7 bottom-[max(1.75rem,env(safe-area-inset-bottom))] h-14 px-6 rounded-full text-[17px] font-semibold text-sky-500 cursor-pointer ${GLASS}`}>
+          {t('live.editDone')}
+        </AppButton>
+      ) : (
+        <AppButton variant="plain" aria-label={t('live.add')} title={t('live.add')} onClick={() => setAdding({ chosenId: null })} className={`absolute z-10 right-7 bottom-[max(1.75rem,env(safe-area-inset-bottom))] size-14 rounded-full flex items-center justify-center cursor-pointer ${TINTED_GLASS}`}>
+          <PlusIcon className="size-6" strokeWidth={2.25} />
+        </AppButton>
+      )}
       {editing ? (
         <LiveEditList items={items} shownId={pointer.itemId} onRemove={(item) => void remove(item)} />
       ) : (
@@ -265,10 +264,12 @@ export function PhoneLive({
   );
 }
 
-/** A choice in a sheet's menu, its icon first, as iOS 27 draws them. */
+/** A choice in a sheet's menu, its icon first, as iOS 27 draws them; choosing it closes the sheet. */
 function MenuRow({ icon, onClick, danger, disabled, children }: { icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; children: ReactNode }) {
+  // The sheet slides away first, as on iOS, then the choice is carried out.
+  const dismiss = useSheetDismiss();
   return (
-    <AppButton variant="plain" onClick={onClick} disabled={disabled} className={`${ROW} ${danger ? 'text-red-500' : ''} disabled:text-neutral-400 disabled:cursor-default disabled:text-[15px]`}>
+    <AppButton variant="plain" onClick={() => dismiss(onClick)} disabled={disabled} className={`${ROW} ${danger ? 'text-red-500' : ''} disabled:text-neutral-400 disabled:cursor-default disabled:text-[15px]`}>
       {icon && <span className={`shrink-0 flex ${danger || disabled ? '' : 'text-neutral-500 dark:text-neutral-400'}`}>{icon}</span>}
       <span>{children}</span>
     </AppButton>
