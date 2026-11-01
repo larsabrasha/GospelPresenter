@@ -53,6 +53,8 @@ Unit/server tests and typecheck are cached by turbo: an unchanged package shows 
   (`guardWindow`); and `packages/architecture/api/*.api.md` lists what core, sync and the server export. A change
   to a package's exports changes its report: read the diff, then `pnpm --filter @gp/architecture test -u`. Split a
   file by what its parts do, and move a copy into one shared place; do not raise a limit to pass.
+- A new feature a church uses on a Sunday gets its row in `docs/scenarios.md`, naming the e2e test that runs it;
+  `e2e/journeys.spec.ts` runs whole Sundays across the features.
 - `pnpm lint` runs knip (`knip.jsonc`): no unused file, export, type or dependency. Export only what another file
   imports; an exception in `knip.jsonc` says why.
 
