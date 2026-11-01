@@ -3,6 +3,7 @@ import { DEFAULT_LABEL_COLOR, labelKey, type Label } from '@gp/core';
 import { listLabels } from '../db/queries.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
@@ -110,7 +111,7 @@ export function Labels() {
   return (
     <PageContainer>
       {dialog}
-      <PageHeader title={t('labels.title')}>{!!labels?.length && create}</PageHeader>
+      <PageHeader title={t('labels.title')}>{!!labels?.length && <AddButton label={t('common.create')} onClick={() => setEditing('new')} />}</PageHeader>
       <div className={CARD}>
         {!labels && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {labels && !labels.length && (

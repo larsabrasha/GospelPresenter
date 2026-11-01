@@ -71,6 +71,8 @@ export function CcliReport({ role }: { role: Role }) {
       <div className="px-5 pb-2">
         <label className="flex items-center gap-3 cursor-pointer select-none w-fit">
           <input
+            // A new switch once the setting has loaded, so it shows as it is rather than sliding there.
+            key={data ? 'loaded' : 'loading'}
             type="checkbox"
             className={SWITCH}
             checked={asked.get(COLLECTION) ?? !!data?.on}

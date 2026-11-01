@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useDb, useSongSearch } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
-import { MusicalNoteOutlineIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { MusicalNoteOutlineIcon, TrashIcon } from '../ui/icons.tsx';
 import { DropZone } from '../ui/DropZone.tsx';
 import { CARD, ListLinkRow } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
@@ -67,10 +68,7 @@ export function Songs() {
       <DropZone className="flex flex-col space-y-5" label={t('songs.import.drop')} accept=".pro" enabled={!songImport.busy} onFiles={(files) => void songImport.files(files)}>
         {/* Always here, also with no songs (the current app hides it then, with the import below to start from). */}
         <PageHeader title={t('nav.songs')}>
-          <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
-            <PlusIcon className="size-4" />
-            {t('common.create')}
-          </AppButton>
+          <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
         </PageHeader>
         {creating && <CreateSongDialog onClose={() => setCreating(false)} onCreated={(id) => navigate({ page: 'song', id })} />}
         {songImport.card}

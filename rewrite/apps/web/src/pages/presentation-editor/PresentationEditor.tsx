@@ -1,5 +1,5 @@
 import { can, sortedArrangements, type PresentationItem, type Role } from '@gp/core';
-import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useData, useDb, useShownOverlay } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
@@ -15,7 +15,9 @@ import type { AudioControl } from '../../live/audio.ts';
 import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
-import { LiveBar } from '../live/desktop/LiveBar.tsx';
+import { PresentationBar } from '../live/desktop/PresentationBar.tsx';
+import { useWide } from '../../ui/useWide.ts';
+import { BackToPresentations } from '../../TopBar.tsx';
 import { LiveOrder } from '../live/desktop/LiveOrder.tsx';
 import { LiveSlides } from '../live/desktop/LiveSlides.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
@@ -34,17 +36,6 @@ import { SideMenu } from './SideMenu.tsx';
 /** The item last selected in each presentation, for this window's life: opened again, it is selected again. */
 const lastSelected = new Map<string, string>();
 
-/** Whether the window is `lg` or wider, where the live panel is a column rather than a floating box. */
-const wideQuery = matchMedia('(min-width: 1024px)');
-function useWide(): boolean {
-  return useSyncExternalStore(
-    (on) => {
-      wideQuery.addEventListener('change', on);
-      return () => wideQuery.removeEventListener('change', on);
-    },
-    () => wideQuery.matches,
-  );
-}
 
 /**
  * Presenting from the editor, as Presentation.razor does: this window's own session
@@ -276,8 +267,12 @@ export function PresentationEditor({
   // A template's id under /presentations, or the other way round, is not found either: said in the side menu (Sidebar.razor).
   if (!presentation || presentation.deletedAt !== null || presentation.isTemplate !== template)
     return (
-      <section className="flex-1 min-h-0 flex">
-        <aside className="hidden lg:block w-[300px] shrink-0 bg-surface">
+      <section className="flex-1 min-h-0 flex relative">
+        {/* The app's bar is narrow-only here: on a computer the way back is this. */}
+        <div className="hidden lg:flex absolute top-3 left-4 z-10">
+          <BackToPresentations />
+        </div>
+        <aside className="hidden lg:block w-[300px] shrink-0 bg-surface pt-8">
           <p className="text-sm text-center text-neutral-500 pt-10">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>
         </aside>
         <div className="flex-1 bg-ground lg:hidden">
@@ -326,21 +321,37 @@ export function PresentationEditor({
   const selectedSlides = selected ? slides.get(selected.id) : undefined;
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
   const at = steps.findIndex((x) => x.itemId === pointer.itemId && x.partIndex === pointer.partIndex);
-  const nextStep = at === -1 ? null : (steps[at + 1] ?? null);
-  const nextItem = nextStep ? items.find((i) => i.id === nextStep.itemId) : undefined;
-  const nextSlide = nextStep ? slides.get(nextStep.itemId)?.slides[nextStep.partIndex] : undefined;
-  const next = nextItem && nextSlide ? { slide: nextSlide, title: nextStep!.itemId === pointer.itemId ? (nextSlide.label?.text ?? String(nextStep!.partIndex + 1)) : nextItem.title } : null;
   // Presenting on a phone or an iPad held upright: one column with sheets instead of the editor (docs/layout-2-0.md).
   const phone = !!presenting && !wide;
+  // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
+  const startable = !template && pointer.presentationId === null;
+  const start = () => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false });
+  const saveAsTemplate = !template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
+      {/* The bar on a computer, before and while presenting; below `lg` the app's bar and the drawer have it all. */}
+      {!phone && (
+        <PresentationBar
+          id={id}
+          presentation={presentation}
+          live={live}
+          presenting={!!presenting}
+          owner={owner}
+          canStart={startable}
+          onStart={start}
+          onStage={() => setStage(true)}
+          onDetails={() => setDetails(true)}
+          onSaveAsTemplate={saveAsTemplate}
+          onTrash={() => void trash()}
+          ticking={ticking}
+          onTicking={setTicking}
+          className={presenting ? '' : 'max-lg:hidden'}
+        />
+      )}
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
       {presenting && !owner && <RemoteBanner />}
       {presenting && <LiveKeys />}
-      {presenting && !phone && (
-        <LiveBar id={id} presentation={presentation} live={live} owner={owner} onStage={() => setStage(true)} onDetails={() => setDetails(true)} />
-      )}
       {presenting && stage && <StageView items={items} slides={slides} theme={theme} overlays={overlays} live={live} audio={presenting.audio} video={presenting.video} onLeave={() => setStage(false)} />}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
@@ -367,11 +378,12 @@ export function PresentationEditor({
               menuVisible={menuVisible}
               onHideMenu={() => setMenuVisible(false)}
               onEditDetails={() => setDetails(true)}
-              onSaveAsTemplate={!template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined}
+              onSaveAsTemplate={saveAsTemplate}
               onTrash={() => void trash()}
               ticking={ticking}
               onTicking={setTicking}
               media={!!presenting && !!owner}
+              presenting={!!presenting}
             >
               {presenting && !ticking ? (
                 <LiveOrder
@@ -424,9 +436,8 @@ export function PresentationEditor({
                 selectedSlides={selectedSlides}
                 overlays={overlays}
                 theme={theme}
-                canStart={!template && pointer.presentationId === null}
-                // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
-                onStart={() => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false })}
+                canStart={startable}
+                onStart={start}
                 onShowMenu={() => setMenuVisible(true)}
                 onAddImages={() => setAdding('images')}
               />
@@ -440,7 +451,6 @@ export function PresentationEditor({
             live={live}
             pointer={pointer}
             current={current}
-            next={next}
             overlay={overlay}
             theme={theme}
             overlays={overlays}

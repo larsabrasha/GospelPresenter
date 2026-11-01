@@ -52,7 +52,7 @@ export function RemotePanel({ id, sessionId, name, always }: { id: string; sessi
           title={t('remote.showInfo')}
           aria-label={t('remote.showInfo')}
           onClick={() => setInfo(true)}
-          className={`size-8 flex items-center justify-center rounded-lg shrink-0 transition-colors ${
+          className={`size-8 flex items-center justify-center rounded-full shrink-0 transition-colors ${
             on
               ? 'cursor-pointer text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/30 hover:bg-sky-200 dark:hover:bg-sky-900/50'
               : 'cursor-default text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-raised/50 opacity-50'

@@ -45,7 +45,7 @@ test('presenting on a computer, the running order marks the shown item, drags wh
   await expect(page.getByRole('menu', { name: 'Fler val för Sång C' }).getByRole('menuitem', { name: 'Flytta upp' })).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
-  await expect(page.getByTestId('live-bar')).toBeVisible();
+  await expect(page.getByTestId('presentation-bar')).toBeVisible();
 
   // Delete removes the selected item after asking; the shown item it leaves.
   await list.getByRole('button', { name: 'Sång B', exact: true }).click();
@@ -86,8 +86,8 @@ test('on an iPad lying down, the live layout has touch sizes and a finger drags 
     list.getByRole('button', { name: 'Sång A', exact: true }),
     list.getByRole('button', { name: 'Fler val för Sång A' }),
     list.getByTestId('drag-handle').first(),
-    page.getByTestId('live-bar').getByRole('button', { name: 'Avsluta presentation' }),
-    page.getByTestId('live-bar').getByRole('button', { name: 'Mer', exact: true }),
+    page.getByTestId('presentation-bar').getByRole('button', { name: 'Avsluta presentation' }),
+    page.getByTestId('presentation-bar').getByRole('button', { name: 'Alternativ', exact: true }),
     page.getByRole('button', { name: 'Rensa' }),
   ]) {
     const box = (await target.boundingBox())!;

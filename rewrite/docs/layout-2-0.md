@@ -19,7 +19,10 @@ Light mode's ground is a step darker than iOS's `#f2f2f7`, so a white row stands
 
 The bar opens things (sheets, menus, other views); actions on what is shown sit by it. Nothing in a bar both
 changes the view and acts. What is used all the time is always in view, what is used now and then is a tap away,
-and what is set once lives in a menu.
+and what is set once lives in a menu. A page that lists something adds to it with a round + in its heading row, tinted in the app's blue
+(`ui/AddButton.tsx`): the start page, Sånger, Användare and the other pages of Inställningar, importing pictures,
+audio and video too. Only live has its + floating at the bottom right, as its bar is full and the list is all there
+is. A selected row is the app's blue (`sky-500`), and a list's rows are 52 pt high at every width.
 
 ## The layout follows the width
 
@@ -32,11 +35,13 @@ whole row.
 
 - **The bar:** back (to the start page; the presentation keeps running), the title with a line under it
   (`● LIVE · 10:00 · Kyrksalen`; LIVE until Avsluta, also while Rensa has blacked the outputs), and at the right
-  one glass button in two parts: Utgångar (with the number on, green) and ….
+  one glass button in two parts: … and ■, which ends the presentation (asking first). Start and stop are always an
+  icon at the far right of the bar, on a phone and a computer (Lars, 2026-11-01).
   The title never wraps: one line each, a fixed height, the place cut with "…" first. A tap on it opens
   **Om presentationen**: time, place, the whole description, and Redigera.
-- **…** holds Om presentationen, Scenläge, Overlays, Fjärrstyrning and, last and red, Avsluta presentation, which
-  asks first. Avsluta stays there: it is mostly done from the computer.
+- **…** holds Utgångar first, then Om presentationen, Scenläge, Overlays and Fjärrstyrning.
+- **The description** sits at the top of the running order, three lines with Visa mer to unfold the rest, so it is
+  plain to see; on a computer the same at the top of the left column.
 - **The picture** that is shown, with **‹ Rensa ›** right under it (Rensa only blacks the outputs, and
   rests while they are black: a part tapped or an arrow shows one again, as ProPresenter's Clear; no "Visa igen"). An audio or video item adds a player line between them:
   pause, the time and how far it is.
@@ -44,7 +49,7 @@ whole row.
   "new" (no Redigera, as iOS 27's lists have none; Klar takes the +'s place while moving). Every part of
   every item is shown with its whole text (pictures as thumbnails); a tap on a part shows it. Each item is a
   section whose heading (name, LIVE dot, kind, …) sticks at the top until the next pushes it away. The shown part
-  has a red ring and VISAS, the next NÄSTA, the ones before are dimmed.
+  has a red ring and VISAS, the next NÄSTA; the ones before look as the rest (not dimmed), as one goes back to them.
 - **The list follows the shown part** only when it changed some other way than a tap in the list (the arrows,
   someone controlling it remotely), and only when the part is out of view: nothing moves under a finger.
 - **Flytta**, in an item's …, folds the list to one row per item, moved by ≡ and removed by a red minus; the shown item can move
@@ -59,8 +64,12 @@ whole row.
 
 ## Live, columns (computer, iPad lying down)
 
-- **The bar:** "‹ Presentationer" at the left; in the middle the title, LIVE and the time and place, which open a
-  popover with all of it and Redigera; at the right Scenläge, … (Fjärrstyrning, Kortkommandon) and a red Avsluta.
+- **The bar** is the presentation's own, the same before and while it is presented, so its name stays in one place
+  (the left column has none): "‹ Presentationer" at the left; in the middle the name, LIVE while presented, and when
+  and where, which open a popover with the description and Redigera; at the right the presentation's … (Redigera
+  detaljer, Spara som mall, Markera, Fjärrstyrning, Inställningar, and to the trash when not presented), Scenläge
+  while presented, and at the far right ▶ to start or ■ to end, which asks first. The cloud shows there while the
+  sync has a problem. A template has no ▶.
 - **Left:** the items, one row each, the shown one marked by a red dot left of its name and a tint across the
   whole row. Dragged straight away with the mouse (after 4 px, so a click still selects), Delete removes, and a
   right click or the row's … gives Lägg till efter, Flytta upp, Flytta ned and Ta bort. A click scrolls the middle

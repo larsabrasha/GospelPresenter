@@ -142,7 +142,7 @@ export function StageView({
           onClick={onLeave}
           aria-label={t('stage.leave')}
           title={t('stage.leave')}
-          className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-neutral-800 text-sm shrink-0"
+          className="cursor-pointer flex items-center gap-1.5 px-3.5 py-2 rounded-full hover:bg-neutral-800 text-sm shrink-0"
         >
           <ChevronLeftIcon className="size-5" />
           <span className="hidden sm:inline">{t('stage.leave')}</span>
@@ -152,7 +152,7 @@ export function StageView({
           aria-haspopup="dialog"
           title={t('stage.switch')}
           onClick={() => setPicking(true)}
-          className="cursor-pointer absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[60%] flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-neutral-800"
+          className="cursor-pointer absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-[60%] flex items-center gap-2 px-4 py-2 rounded-full hover:bg-neutral-800"
         >
           <span className="truncate text-base font-semibold">{item?.title ?? t('stage.choose')}</span>
           <ChevronDownIcon className="size-4 shrink-0 text-neutral-400" />
@@ -164,7 +164,7 @@ export function StageView({
             aria-label={t('stage.toggleOverlays')}
             title={t('stage.toggleOverlays')}
             onClick={() => setOverlaySheet(true)}
-            className="cursor-pointer ml-auto relative flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg shrink-0 hover:bg-neutral-800 text-neutral-200 text-sm"
+            className="cursor-pointer ml-auto relative flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-full shrink-0 hover:bg-neutral-800 text-neutral-200 text-sm"
           >
             <SquaresOverlapIcon className="size-5" />
             <span className="hidden sm:inline">{t('overlays.title')}</span>
@@ -189,7 +189,7 @@ export function StageView({
                   <AppButton
                     variant="plain"
                     onClick={() => pick(i)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer ${i.id === item?.id ? 'bg-sky-600 text-white' : 'text-neutral-200 hover:bg-neutral-800'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer ${i.id === item?.id ? 'bg-sky-500 text-white' : 'text-neutral-200 hover:bg-neutral-800'}`}
                   >
                     <ItemIcon type={i.type} className="size-4 shrink-0" />
                     <span className="truncate">{i.title}</span>

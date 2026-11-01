@@ -3,6 +3,7 @@ import { inviteRefusal, type Me, type PairedDevice, type UserRow } from '@gp/cor
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { locale, t } from '../i18n.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { FloatingSelect } from '../ui/Floating.tsx';
@@ -133,7 +134,7 @@ export function Devices({ me }: { me: Me }) {
   return (
     <PageContainer>
       <PageHeader title={t('devices.title')}>
-        <AppButton onClick={() => setChoosing(true)}>{t('devices.pair')}</AppButton>
+        <AddButton label={t('devices.pair')} onClick={() => setChoosing(true)} />
       </PageHeader>
       <p className="px-5 text-sm text-neutral-500 dark:text-neutral-400">{t('devices.text')}</p>
       {typeof devices === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{devices}</p>}

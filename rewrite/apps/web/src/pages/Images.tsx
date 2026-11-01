@@ -71,7 +71,7 @@ export function Images({ role }: { role: Role }) {
               {t('images.trash')}
             </AppButton>
             {manage && (
-              <ImportFilesButton accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />
+              <ImportFilesButton round accept={IMAGE_ACCEPT} busy={!!progress} testId="image-file" onFiles={(files) => void importFiles(files)} />
             )}
           </div>
         </PageHeader>

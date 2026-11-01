@@ -19,7 +19,7 @@ export function CopyField({ value, label, copyLabel, onCopy, inputRef }: { value
         onFocus={(e) => e.currentTarget.select()}
         className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-raised text-sm font-mono text-neutral-800 dark:text-neutral-100 border border-neutral-200 dark:border-neutral-600 select-all focus:outline-none focus:ring-2 focus:ring-sky-500"
       />
-      <AppButton variant="neutral" title={copyLabel} aria-label={copyLabel} onClick={onCopy} className="px-3! py-2! rounded-lg! flex items-center justify-center">
+      <AppButton variant="neutral" title={copyLabel} aria-label={copyLabel} onClick={onCopy} className="px-3! py-2! rounded-full! flex items-center justify-center">
         <CopyIcon className="w-4 h-4" />
       </AppButton>
     </div>

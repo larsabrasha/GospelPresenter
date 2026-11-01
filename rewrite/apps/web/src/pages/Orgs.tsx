@@ -4,12 +4,13 @@ import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { enterWith, sessionIn, switchOrg } from '../auth/orgs.ts';
 import { t } from '../i18n.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptySmall } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
-import { PlusIcon, ViewGridIcon } from '../ui/icons.tsx';
+import { ViewGridIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { DetailHeader, PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -89,10 +90,7 @@ export function Orgs() {
   return (
     <PageContainer>
       <PageHeader title={t('orgs.title')}>
-        <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
-          <PlusIcon className="size-4" />
-          {t('common.create')}
-        </AppButton>
+        <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
       </PageHeader>
       {typeof orgs === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{orgs}</p>}
       <div className={CARD}>

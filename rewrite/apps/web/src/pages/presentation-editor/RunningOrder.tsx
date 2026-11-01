@@ -101,7 +101,7 @@ export function RunningOrder({
               data-sort-row
               data-item-id={item.id}
               style={rowStyle(i)}
-              className={`flex items-center mx-2 rounded-lg text-sm group scroll-mb-16 ${isSelected ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-raised'} ${
+              className={`flex items-center mx-2 rounded-full text-sm group scroll-mb-16 ${isSelected ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-raised'} ${
                 dragging === i ? `shadow-lg ${isSelected ? '' : 'bg-white dark:bg-raised'}` : ''
               }`}
             >
@@ -130,7 +130,7 @@ export function RunningOrder({
               ) : (
                 <AppButton
                   variant="plain"
-                  className="flex items-center space-x-3 px-3 py-3 grow cursor-pointer min-w-0 text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
+                  className="flex items-center space-x-3 px-3 py-3 grow cursor-pointer min-w-0 text-left rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
                   aria-pressed={isSelected}
                   onClick={() => onSelect(item.id)}
                 >

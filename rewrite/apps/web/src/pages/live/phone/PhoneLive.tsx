@@ -12,7 +12,8 @@ import { useConfirm } from '../../../ui/Dialog.tsx';
 import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronLeftIcon, DesktopIcon, EllipsisIcon, GripIcon, InformationCircleIcon, PencilIcon, PlusIcon, RemoteIcon, SquaresOverlapIcon, StopIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
 import { GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
-import { SlideView } from '../../../ui/SlideView.tsx';
+import { GLASS, TINTED_GLASS } from '../../../ui/glass.ts';
+import { LivePicture } from '../LivePicture.tsx';
 import { AddItemDialog } from '../../presentation-editor/AddItemDialog.tsx';
 import type { Presenting } from '../../presentation-editor/PresentationEditor.tsx';
 import { OverlaysPanel } from '../OverlaysPanel.tsx';
@@ -24,10 +25,6 @@ import { OutputsList } from './OutputsList.tsx';
 
 type Open = null | 'outputs' | 'more' | 'overlays' | 'remote' | { item: PresentationItem };
 
-/** A round glass button of the bar, as iOS 26 draws them. */
-const GLASS = 'bg-white/70 dark:bg-surface/60 backdrop-blur-md shadow-[inset_0_0.5px_0_rgba(255,255,255,0.22),0_8px_28px_rgba(0,0,0,0.25)]';
-/** Glass tinted with the app's colour, as iOS 27 draws a floating "new": seen at once, quieter than a filled button. */
-const TINTED_GLASS = 'bg-sky-100/80 dark:bg-sky-950/70 text-sky-600 dark:text-sky-300 ring-1 ring-sky-500/30 backdrop-blur-md shadow-[0_8px_28px_rgba(2,132,199,0.25)]';
 /** How long an item just added stays marked. */
 const MARKED_MS = 2600;
 /** A row of a sheet's menu. */
@@ -35,7 +32,7 @@ const ROW = 'w-full min-h-12 px-4 flex items-center gap-3.5 text-[17px] text-lef
 
 /**
  * Presenting on a phone or an iPad held upright (docs/layout-2-0.md): the bar (back, the title that opens the
- * details, Utgångar and …), the picture with ‹ Rensa › under it, and the running order filling the rest.
+ * details, … with Utgångar first, and ■ to end), the picture with ‹ Rensa › under it, and the running order filling the rest.
  */
 export function PhoneLive({
   id,
@@ -116,43 +113,33 @@ export function PhoneLive({
             {place && <span className="min-w-0 truncate text-neutral-500 dark:text-neutral-400">· {place}</span>}
           </span>
         </AppButton>
+        {/* Most is in …; ending is an icon of its own at the far right, as on a computer (only this window's session ends). */}
         <div className={`justify-self-end flex h-11 rounded-full ${GLASS}`}>
-          {owner && (
-            <AppButton variant="plain" aria-label={t('live.outputs')} onClick={() => setOpen('outputs')} className="w-12 flex items-center justify-center cursor-pointer">
-              <DesktopIcon className="size-5" />
-            </AppButton>
-          )}
           <AppButton variant="plain" aria-label={t('live.more')} onClick={() => setOpen('more')} className="w-12 flex items-center justify-center cursor-pointer">
             <EllipsisIcon className="size-5" />
           </AppButton>
+          {owner && (
+            <AppButton variant="plain" aria-label={t('live.end')} title={t('live.end')} onClick={() => void end()} className="w-12 flex items-center justify-center cursor-pointer text-red-500">
+              <StopIcon className="size-5" />
+            </AppButton>
+          )}
         </div>
       </div>
 
       {/* Above the running order, so the buttons' shadows fall over it rather than being cut by its sticky headings. */}
-      <div className="relative z-[2] px-4 pt-3 flex flex-col gap-3 shrink-0 items-center">
-        <div className={`w-full max-w-[640px] aspect-video rounded-2xl overflow-hidden ring-2 ${pointer.black ? 'ring-neutral-500' : 'ring-red-500'}`} data-testid="phone-live-picture">
-          <SlideView slide={current} theme={theme} label={false} overlay={overlay} black={pointer.black} />
-        </div>
-        {video && pointer.itemId && presenting.video && <VideoPlayer control={presenting.video} itemId={pointer.itemId} name={video.fileName} type={video.contentType} codec={video.codec} />}
-        {/* As iOS 27's player: round glass arrows, and Rensa a capsule of plain text between them, so it stands centred. */}
-        <div role="toolbar" aria-label={t('live.outputs')} className="flex items-center justify-center gap-4 h-11">
-          <AppButton variant="plain" aria-label={t('live.previous')} disabled={at <= 0} onClick={() => go(at - 1)} className={`size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 ${GLASS}`}>
-            <ChevronLeftIcon className="size-5" />
-          </AppButton>
-          {/* Rensa only blacks the outputs; a part tapped or an arrow shows one again, as ProPresenter's Clear. */}
-          <AppButton
-            variant="plain"
-            aria-pressed={pointer.black}
-            disabled={pointer.black}
-            onClick={() => live.set({ black: true })}
-            className={`h-11 min-w-36 px-6 rounded-full flex items-center justify-center text-[15px] font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-default ${GLASS}`}
-          >
-            {t('live.clear')}
-          </AppButton>
-          <AppButton variant="plain" aria-label={t('live.nextSlide')} disabled={at === -1 ? !steps.length : at >= steps.length - 1} onClick={() => go(at + 1)} className={`size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 ${GLASS}`}>
-            <ChevronLeftIcon className="size-5 rotate-180" />
-          </AppButton>
-        </div>
+      <div className="relative z-[2] px-4 pt-3 shrink-0">
+        <LivePicture
+          slide={current}
+          theme={theme}
+          overlay={overlay}
+          black={pointer.black}
+          canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
+          onStep={(delta) => go(at + delta)}
+          onClear={() => live.set({ black: true })}
+          testId="phone-live-picture"
+        >
+          {video && pointer.itemId && presenting.video && <VideoPlayer control={presenting.video} itemId={pointer.itemId} name={video.fileName} type={video.contentType} codec={video.codec} />}
+        </LivePicture>
       </div>
 
       {/* No heading over the running order; Lägg till floats at the bottom right as a round glass +, as iOS 27's
@@ -178,6 +165,7 @@ export function PhoneLive({
           pointer={pointer}
           audio={presenting.audio}
           addedId={addedId}
+          description={presentation.description}
           onPick={(itemId, partIndex) => live.set({ itemId, partIndex, black: false })}
           onItemMenu={(item) => setOpen({ item })}
         />
@@ -201,6 +189,11 @@ export function PhoneLive({
       {open === 'more' && (
         <Sheet title={presentation.name} onClose={() => setOpen(null)}>
           <div className={GROUP}>
+            {owner && (
+              <MenuRow icon={<DesktopIcon className="size-5" />} onClick={() => setOpen('outputs')}>
+                {t('live.outputs')}
+              </MenuRow>
+            )}
             <MenuRow icon={<InformationCircleIcon className="size-5" />} onClick={() => (setOpen(null), onDetails())}>
               {t('live.about')}
             </MenuRow>
@@ -218,13 +211,6 @@ export function PhoneLive({
               </MenuRow>
             )}
           </div>
-          {owner && (
-            <div className={GROUP}>
-              <MenuRow icon={<StopIcon className="size-5" />} onClick={() => void end()} danger>
-                {t('live.end')}
-              </MenuRow>
-            </div>
-          )}
         </Sheet>
       )}
       {open && typeof open === 'object' && (

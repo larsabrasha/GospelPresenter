@@ -3,6 +3,7 @@ import { assignableRoles, can, emailSchema, type Me, type Role, type UserRow } f
 import { api } from '../auth/api.ts';
 import { errorText } from '../auth/errors.ts';
 import { t } from '../i18n.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
@@ -185,7 +186,7 @@ export function Users({ me }: { me: Me }) {
   );
   return (
     <PageContainer>
-      <PageHeader title={t('users.title')}>{manage && !empty && create}</PageHeader>
+      <PageHeader title={t('users.title')}>{manage && !empty && <AddButton label={t('users.create')} onClick={() => setCreating(true)} />}</PageHeader>
       {typeof users === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{users}</p>}
       <div className={CARD}>
         {users === null && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}

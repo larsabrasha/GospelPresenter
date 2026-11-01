@@ -8,6 +8,7 @@ import { AppButton } from '../../../ui/AppButton.tsx';
 import { EllipsisIcon } from '../../../ui/icons.tsx';
 import { SlideView } from '../../../ui/SlideView.tsx';
 import { AudioPlayer } from '../AudioPlayer.tsx';
+import { Description } from '../../presentation-editor/Description.tsx';
 
 /** How tall a section's sticky heading is: a part under it is out of view. */
 const HEADING = 36;
@@ -25,6 +26,7 @@ export function LiveOrder({
   pointer,
   audio,
   addedId,
+  description,
   onPick,
   onItemMenu,
 }: {
@@ -35,6 +37,8 @@ export function LiveOrder({
   audio: AudioControl;
   /** The item just added, scrolled to and marked for a moment. */
   addedId: string | null;
+  /** The presentation's description, at the top of the list. */
+  description: string | null;
   onPick: (itemId: string, partIndex: number) => void;
   onItemMenu: (item: PresentationItem) => void;
 }) {
@@ -76,6 +80,7 @@ export function LiveOrder({
   return (
     <div ref={list} className="relative flex-1 min-h-0 overflow-y-auto px-4 pb-24" data-testid="live-order">
       <div className="flex flex-col gap-2">
+        {description && <Description key={description} text={description} className="mt-2" />}
         {items.map((item) => {
           const set = slides.get(item.id);
           const liveHere = item.id === pointer.itemId;
@@ -102,7 +107,6 @@ export function LiveOrder({
               {set?.audio && <AudioPlayer control={audio} itemId={item.id} name={set.audio.fileName} />}
               {set?.slides.map((slide, partIndex) => {
                 const current = liveHere && partIndex === pointer.partIndex;
-                const before = at !== -1 && steps.findIndex((s) => s.itemId === item.id && s.partIndex === partIndex) < at;
                 const mark = badge(item.id, partIndex);
                 return (
                   <AppButton
@@ -117,7 +121,7 @@ export function LiveOrder({
                     className={`w-full flex gap-3 px-4 py-3 rounded-2xl text-left cursor-pointer ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? `bg-surface dark:bg-raised ring-2 ${pointer.black ? 'ring-neutral-500' : 'ring-red-500'}` : 'bg-surface'}`}
                   >
                     {slide.kind === 'media' && (
-                      <span className={`w-24 aspect-video shrink-0 rounded-lg overflow-hidden ${before ? 'opacity-50' : ''}`}>
+                      <span className="w-24 aspect-video shrink-0 rounded-lg overflow-hidden">
                         <SlideView slide={slide} theme={theme} label={false} credits={false} />
                       </span>
                     )}
@@ -126,7 +130,7 @@ export function LiveOrder({
                         <span className="text-[13px] font-semibold text-neutral-500 dark:text-neutral-400 truncate">{partLabel(slide, partIndex)}</span>
                         {mark && <span className={`shrink-0 text-[11px] font-bold tracking-wide px-2 py-0.5 rounded-lg ${mark.className}`}>{mark.text}</span>}
                       </span>
-                      {slide.kind !== 'media' && <span className={`text-[17px]/snug whitespace-pre-line ${before ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-900 dark:text-neutral-100'}`}>{slide.text}</span>}
+                      {slide.kind !== 'media' && <span className="text-[17px]/snug whitespace-pre-line text-neutral-900 dark:text-neutral-100">{slide.text}</span>}
                     </span>
                   </AppButton>
                 );

@@ -168,11 +168,10 @@ test('capture every page', async () => {
     if (p.viewportSize()!.width < 1024) return p.getByRole('button', { name: 'Rensa' }).waitFor();
     await p.getByRole('button', { name: 'Härlig är jorden 1' }).click();
   };
-  // On a phone Avsluta is last in …, which opens a sheet named after the presentation.
+  // On a phone ■ ends it too, at the far right of its bar.
   const stopLive = async (p: Page) => {
     if (p.viewportSize()!.width >= 1024) return endPresentation(p);
-    await p.getByRole('button', { name: 'Mer', exact: true }).click();
-    await p.getByRole('dialog').last().getByRole('button', { name: 'Avsluta presentation' }).click();
+    await p.getByTestId('phone-live').getByRole('button', { name: 'Avsluta presentation' }).click();
     await p.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
   };
   // Settles a page of Inställningar. A phone shows a row's page alone (docs/layout-2-0.md), so an aside in view
@@ -502,7 +501,7 @@ test('capture every page', async () => {
       for (const [name, path, act, after] of pages) {
         if (!wanted(name)) continue;
         await page.goto(host.base + path);
-        await page.getByTestId('me').waitFor();
+        await page.locator('[data-testid="me"]:visible, [data-testid="presentation-bar"]:visible').first().waitFor(); // a presentation's own bar on a computer has no picture
         await page.waitForTimeout(500);
         if (act) {
           await act(page);

@@ -70,15 +70,15 @@ export function LiveOrder({
                 e.preventDefault();
                 setMenu({ item, at: { x: e.clientX, y: e.clientY } });
               }}
-              className={`group flex items-center rounded-lg text-sm scroll-mb-16 ${
+              className={`group flex items-center rounded-full text-sm scroll-mb-16 ${
                 shown ? 'bg-red-500/12 dark:bg-red-500/18' : selected ? 'bg-raised dark:bg-raised-2' : 'hover:bg-raised'
               } ${dragging === i ? 'shadow-lg bg-surface dark:bg-raised' : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''}`}
             >
               {/* The dot's place is always there, so the rows line up whether one is shown or not. */}
-              <span className={`ml-2 size-2 shrink-0 rounded-full ${shown ? 'bg-red-500' : ''}`} data-testid={shown ? 'live-dot' : undefined} />
+              <span className={`ml-3 size-2 shrink-0 rounded-full ${shown ? 'bg-red-500' : ''}`} data-testid={shown ? 'live-dot' : undefined} />
               <AppButton
                 variant="plain"
-                className="flex items-center gap-2.5 px-2.5 py-2.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-neutral-700 dark:text-neutral-200 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
+                className="flex items-center gap-2.5 px-2.5 py-2.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-neutral-700 dark:text-neutral-200 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
                 aria-pressed={selected}
                 aria-current={shown ? 'true' : undefined}
                 onClick={() => onSelect(item.id)}

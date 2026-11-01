@@ -129,7 +129,7 @@ function BrowsePicker({ browse, books, setBrowse, onBack }: { browse: Browse; bo
   const crumb = (label: string, target: Step) => (
     <AppButton
       variant="plain"
-      className={`px-2 py-1 rounded-md cursor-pointer ${step === target ? 'text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10' : 'text-sky-500 hover:text-sky-600 hover:bg-sky-500/10'}`}
+      className={`px-2.5 py-1 rounded-full cursor-pointer ${step === target ? 'text-orange-500 dark:text-orange-400 font-medium bg-orange-500/10' : 'text-sky-500 hover:text-sky-600 hover:bg-sky-500/10'}`}
       onClick={() => setBrowse({ ...browse, step: target })}
     >
       {label}

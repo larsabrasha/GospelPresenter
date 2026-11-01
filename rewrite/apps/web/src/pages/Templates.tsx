@@ -4,6 +4,7 @@ import { useData, useDb } from '../db/react.tsx';
 import { listTemplates } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useSaveFailed, useTrySave } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
@@ -147,7 +148,7 @@ export function Templates() {
             <TrashIcon className="size-4" />
             {t('nav.trash')}
           </AppButton>
-          {!!templates?.length && create}
+          {!!templates?.length && <AddButton label={t('common.create')} onClick={() => setCreating(true)} />}
         </div>
       </PageHeader>
       {!templates && (

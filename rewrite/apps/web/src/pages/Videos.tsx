@@ -71,7 +71,7 @@ export function Videos({ role }: { role: Role }) {
               {t('images.trash')}
             </AppButton>
             {manage && (
-              <ImportFilesButton accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file" onFiles={(files) => void importFiles(files)} />
+              <ImportFilesButton round accept={VIDEO_ACCEPT} busy={imports.busy} testId="video-file" onFiles={(files) => void importFiles(files)} />
             )}
           </div>
         </PageHeader>

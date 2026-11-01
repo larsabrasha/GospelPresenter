@@ -89,7 +89,8 @@ test('a presentation kept offline by its icon has its pictures and its video who
   await preview.evaluate((v: HTMLVideoElement) => v.play());
   await expect.poll(() => preview.evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 10_000 }).toBeGreaterThan(0.3);
 
-  // Lagring på den här enheten lists it under Sparat offline, with its size.
+  // Lagring på den här enheten lists it under Sparat offline, with its size: Mina inställningar, from the start page.
+  await openPresentations(second.page);
   await second.page.getByTestId('me').click();
   await second.page.getByRole('menuitem', { name: 'Mina inställningar' }).click();
   const storage = second.page.getByTestId('storage');

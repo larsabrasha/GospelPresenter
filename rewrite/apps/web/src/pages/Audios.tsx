@@ -58,7 +58,7 @@ export function Audios({ role }: { role: Role }) {
               {t('images.trash')}
             </AppButton>
             {manage && (
-              <ImportFilesButton accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />
+              <ImportFilesButton round accept={AUDIO_ACCEPT} busy={!!progress} testId="audio-file" onFiles={(files) => void importFiles(files)} />
             )}
           </div>
         </PageHeader>

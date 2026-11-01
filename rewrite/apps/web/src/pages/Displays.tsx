@@ -5,6 +5,7 @@ import { listDisplays } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { useLiveSessions, type LiveLink } from '../live/remote.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { CopyField } from '../ui/CopyField.tsx';
@@ -183,7 +184,7 @@ export function Displays({ link }: { link: LiveLink }) {
   return (
     <PageContainer>
       {dialog}
-      <PageHeader title={t('displays.title')}>{!!screens?.length && add('screen')}</PageHeader>
+      <PageHeader title={t('displays.title')}>{!!screens?.length && <AddButton label={t('screens.add')} onClick={() => setCreating('screen')} />}</PageHeader>
       <div className={CARD}>
         {!all && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {screens && !screens.length && (

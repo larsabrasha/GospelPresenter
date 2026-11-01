@@ -27,8 +27,10 @@ test('the cloud shows in the bar only while changes wait past a moment, and the 
   await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
   await page.getByRole('dialog', { name: 'Skapa presentation' }).getByLabel('Namn').press('Enter');
 
+  // The new presentation's bar shows the cloud; the picture's menu is on the start page.
   await expect(cloud).toBeVisible();
   await expect(status).toContainText(/ändringa?r? väntar/);
+  await openPresentations(page);
   await page.getByTestId('me').click();
   await expect(page.getByTestId('sync-state')).toContainText(/ändringa?r? väntar/);
   await expect(page.getByRole('menuitem', { name: 'Synka nu' })).toBeVisible();

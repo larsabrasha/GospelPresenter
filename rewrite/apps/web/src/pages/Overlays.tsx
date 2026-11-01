@@ -4,6 +4,7 @@ import { useBlobUrl, useData, useDb, useShownOverlay } from '../db/react.tsx';
 import { getImage, getOverlay, listImages, listOverlays } from '../db/queries.ts';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { IMAGE_ACCEPT, useMediaImport } from '../media/imports.ts';
 import { AutoSaveField, useSaveFailed, useSavedIndicator, useTrySave } from '../ui/AutoSave.tsx';
@@ -80,7 +81,7 @@ export function Overlays() {
   return (
     <PageContainer>
       {/* Skapa sits in the heading once there is a list; before that, in the empty card. */}
-      <PageHeader title={t('overlays.title')}>{!!overlays?.length && create}</PageHeader>
+      <PageHeader title={t('overlays.title')}>{!!overlays?.length && <AddButton label={t('common.create')} onClick={() => setCreating(true)} />}</PageHeader>
       <div className={CARD}>
         {!overlays && <div className="px-5 py-4 text-neutral-400 text-sm">{t('common.loading')}</div>}
         {overlays && !overlays.length && (

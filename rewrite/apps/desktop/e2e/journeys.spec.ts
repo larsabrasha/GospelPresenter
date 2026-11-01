@@ -98,7 +98,7 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   await outputs.getByLabel('Mobilerna').check();
   // The 2.0 layout on a computer: the live bar instead of the app's, every item's slides in the middle, and the
   // outputs folded to how they are.
-  await expect(page.getByTestId('live-bar')).toBeVisible();
+  await expect(page.getByTestId('presentation-bar')).toBeVisible();
   await expect(page.getByTestId('live-slides').locator('section')).toHaveCount(3);
   await expect(page.getByTestId('live-panel')).toContainText('3 på');
 

@@ -7,19 +7,26 @@ import { PageAlone, PageFill } from '../../ui/PageContainer.tsx';
 import { adminBack, aloneInSettings, href, type Route } from '../../ui/router.ts';
 import { isOpen, MINE, settingsGroups, type SettingsLink } from './settingsLinks.ts';
 
-/** A row of the list: a coloured icon, the name, and a chevron on a phone; the row open is blue on a computer. */
+/** A list row's height, the same on a phone, an iPad and a computer, as iOS 27's inset grouped lists. */
+const ROW = 'min-h-[52px]';
+
+/**
+ * A row of the list: a coloured icon, the name, and a chevron on a phone, in its group's card as iOS 27's inset grouped
+ * lists. On a computer, as iPadOS's sidebar (Filer): no card, the rows straight on the sidebar, the open one a pill in
+ * the app's blue.
+ */
 function Row({ link, route, first }: { link: SettingsLink; route: Route; first: boolean }) {
   const open = isOpen(link, route);
   return (
     <a
       href={href(link.route)}
       aria-current={open && route.page !== 'admin' ? 'page' : undefined}
-      className={`flex items-center gap-3.5 lg:gap-2.5 pl-4 lg:px-2 lg:h-8 lg:rounded-md no-underline text-neutral-900 dark:text-neutral-100 hover:bg-raised-2 lg:hover:bg-raised ${open ? 'lg:bg-sky-600! lg:text-white!' : ''}`}
+      className={`flex items-center gap-3.5 pl-4 lg:rounded-full no-underline text-neutral-900 dark:text-neutral-100 hover:bg-raised lg:hover:bg-black/5 dark:lg:hover:bg-white/10 ${open ? 'lg:bg-sky-500! lg:text-white!' : ''}`}
     >
-      <span className={`shrink-0 size-[30px] lg:size-[22px] rounded-lg lg:rounded-md flex items-center justify-center text-white ${link.colour}`}>
-        <link.icon className="size-[17px] lg:size-3.5" />
+      <span className={`shrink-0 size-[30px] rounded-lg flex items-center justify-center text-white ${link.colour}`}>
+        <link.icon className="size-[17px]" />
       </span>
-      <span className={`flex-1 min-w-0 flex items-center gap-2 min-h-[50px] lg:min-h-0 pr-3.5 lg:pr-0 text-[17px] lg:text-[13px] ${first ? '' : 'max-lg:border-t-[0.5px] max-lg:border-separator'}`}>
+      <span className={`flex-1 min-w-0 flex items-center gap-2 ${ROW} pr-3.5 text-[17px] ${first ? '' : 'max-lg:border-t-[0.5px] max-lg:border-separator'}`}>
         <span className="flex-1 truncate">{t(link.label)}</span>
         <ChevronRightIcon className="size-4 text-neutral-400 dark:text-neutral-600 lg:hidden" />
       </span>
@@ -27,28 +34,30 @@ function Row({ link, route, first }: { link: SettingsLink; route: Route; first: 
   );
 }
 
-/** The list: Mina inställningar as a profile cell at the top, then the groups (settingsLinks.ts). */
+/** The list: Mina inställningar as a profile cell at the top, then the groups (settingsLinks.ts), the same sizes at every width. */
 function SettingsList({ me, host, route }: { me: Me; host: boolean; route: Route }) {
   const mine = isOpen(MINE, route);
   return (
-    <nav className="flex flex-col gap-[22px] lg:gap-4" aria-label={t('nav.adminMenu')}>
+    <nav className="flex flex-col gap-[22px]" aria-label={t('nav.adminMenu')}>
       <a
         href={href(MINE.route)}
         aria-current={mine ? 'page' : undefined}
         aria-label={t('nav.settings')}
-        className={`flex items-center gap-3.5 lg:gap-2.5 p-3 lg:p-2 rounded-[22px] lg:rounded-[10px] no-underline text-neutral-900 dark:text-neutral-100 ${mine ? 'bg-surface lg:bg-sky-600 lg:text-white' : 'bg-surface lg:bg-raised'}`}
+        className={`flex items-center gap-3.5 p-3 rounded-[22px] lg:rounded-full no-underline ${mine ? 'bg-surface text-neutral-900 dark:text-neutral-100 lg:bg-sky-500 lg:text-white' : 'bg-surface lg:bg-transparent lg:hover:bg-black/5 dark:lg:hover:bg-white/10 text-neutral-900 dark:text-neutral-100'}`}
       >
-        <Avatar name={me.name} className="size-14 lg:size-10 text-xl lg:text-[15px]" />
+        <Avatar name={me.name} className="size-14 text-xl" />
         <span className="flex-1 min-w-0 flex flex-col">
-          <span className="text-xl lg:text-sm font-semibold truncate">{me.name}</span>
-          <span className={`text-[13px] lg:text-xs truncate ${mine ? 'lg:text-white/80' : ''} text-neutral-500 dark:text-neutral-400`}>{t('nav.settings')}</span>
+          <span className="text-xl font-semibold truncate">{me.name}</span>
+          <span className={`text-[13px] truncate text-neutral-500 dark:text-neutral-400 ${mine ? 'lg:text-white/80' : ''}`}>{t('nav.settings')}</span>
         </span>
         <ChevronRightIcon className="size-4 text-neutral-400 dark:text-neutral-600 lg:hidden" />
       </a>
       {settingsGroups(me, host).map((g) => (
-        <section key={g.title ?? 'about'} className="flex flex-col gap-1.5 lg:gap-0.5" aria-label={g.title ? t(g.title) : undefined}>
-          {g.title && <h2 className="px-4 lg:px-2 lg:pb-1 text-[13px]/4 lg:text-[11px]/4 font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{t(g.title)}</h2>}
-          <div className="flex flex-col max-lg:rounded-[22px] max-lg:overflow-hidden max-lg:bg-surface lg:gap-0.5">
+        <section key={g.title ?? 'about'} className="flex flex-col gap-1.5" aria-label={g.title ? t(g.title) : undefined}>
+          {g.title && (
+            <h2 className="px-4 text-[13px]/4 font-semibold uppercase tracking-wide lg:text-[17px]/6 lg:font-normal lg:normal-case lg:tracking-normal text-neutral-500 dark:text-neutral-400">{t(g.title)}</h2>
+          )}
+          <div className="flex flex-col max-lg:rounded-[22px] max-lg:overflow-hidden max-lg:bg-surface">
             {g.links.map((l, i) => (
               <Row key={l.label} link={l} route={route} first={i === 0} />
             ))}
@@ -77,7 +86,7 @@ export function SettingsLayout({ me, host, route, children }: { me: Me; host: bo
     );
   return (
     <div className="flex flex-1 min-h-0">
-      <aside className={`lg:w-64 shrink-0 overflow-y-auto bg-ground lg:bg-surface lg:border-r-[0.5px] lg:border-separator px-4 pt-4 pb-12 lg:px-3 lg:py-4 ${atList ? 'max-lg:flex-1' : 'max-lg:hidden'}`}>
+      <aside className={`lg:w-80 shrink-0 overflow-y-auto bg-ground lg:bg-raised dark:lg:bg-surface lg:border-r-[0.5px] lg:border-separator px-4 pt-4 pb-12 lg:py-4 ${atList ? 'max-lg:flex-1' : 'max-lg:hidden'}`}>
         <SettingsList me={me} host={host} route={route} />
       </aside>
       <main className={`flex-1 min-w-0 overflow-hidden flex flex-col relative bg-ground ${atList ? 'max-lg:hidden' : ''}`}>

@@ -39,7 +39,7 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await create.getByRole('button', { name: 'Skapa', exact: true }).click();
   await expect(page.getByText('Du redigerar en mall')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Söndag', exact: true })).toBeVisible();
-  await expect(page.getByTestId('schedule')).toHaveText('Söndag 11:00Kyrkan');
+  await expect(page.getByTestId('schedule')).toHaveText('Söndag 11:00 · Kyrkan');
   await expect(page.getByRole('button', { name: 'Starta presentation' })).toHaveCount(0);
   await addSongs(page, ['Härlig är jorden']);
   await page.getByRole('button', { name: 'Alternativ' }).click();

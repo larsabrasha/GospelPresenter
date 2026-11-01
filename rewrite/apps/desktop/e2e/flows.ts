@@ -39,10 +39,10 @@ export async function dropFiles(target: Locator, files: { name: string; mimeType
 export async function adminMenu(page: Page) {
   const menu = page.getByRole('navigation', { name: 'Administration' });
   if (await menu.isVisible()) return menu;
-  const bar = page.getByTestId('live-bar');
+  const bar = page.getByTestId('presentation-bar');
   if (await bar.isVisible()) {
-    await bar.getByRole('button', { name: 'Mer', exact: true }).click();
-    await page.getByRole('link', { name: 'Inställningar', exact: true }).click();
+    await bar.getByRole('button', { name: 'Alternativ', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Inställningar', exact: true }).click();
   } else {
     await page.getByTestId('me').click();
     await page.getByRole('menuitem', { name: 'Inställningar', exact: true }).click();
@@ -212,8 +212,8 @@ export async function pair(host: Page, device: Page, name: string, as?: string) 
 export async function remoteSwitch(page: Page) {
   const toggle = page.getByLabel('Tillåt fjärrstyrning');
   if (await toggle.isVisible()) return toggle;
-  await page.getByTestId('live-bar').getByRole('button', { name: 'Mer', exact: true }).click();
-  await page.getByRole('button', { name: 'Fjärrstyrning…' }).click();
+  await page.getByTestId('presentation-bar').getByRole('button', { name: 'Alternativ', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Fjärrstyrning…' }).click();
   const section = page.getByRole('button', { name: 'Fjärrstyrning', exact: true });
   if ((await section.getAttribute('aria-expanded')) === 'false') await section.click();
   return toggle;
@@ -221,7 +221,7 @@ export async function remoteSwitch(page: Page) {
 
 /** Avsluta in the live bar, and its question answered: the presentation stops. */
 export async function endPresentation(page: Page) {
-  await page.getByTestId('live-bar').getByRole('button', { name: 'Avsluta presentation' }).click();
+  await page.getByTestId('presentation-bar').getByRole('button', { name: 'Avsluta presentation' }).click();
   await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
 }
 

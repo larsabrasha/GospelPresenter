@@ -7,6 +7,7 @@ import { t } from './i18n.ts';
 import { requestNewPresentation } from './pages/Presentations.tsx';
 import { signOut, SyncWarnings } from './Shell.tsx';
 import { AppButton } from './ui/AppButton.tsx';
+import { ROUND_ADD } from './ui/AddButton.tsx';
 import { Dropdown } from './ui/Dropdown.tsx';
 import { CheckIcon, ChevronLeftIcon, CloudOffIcon, LogoIcon, PlusIcon } from './ui/icons.tsx';
 import { href } from './ui/router.ts';
@@ -62,13 +63,18 @@ function SyncStatus({ sync }: { sync: { problem: boolean; text: string } | null 
       data-testid="status"
       aria-label={`${sync.text} · ${t('status.syncNow')}`}
       title={`${sync.text} · ${t('status.syncNow')}`}
-      className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold cursor-pointer"
+      className="flex items-center gap-1.5 h-8 px-3 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 text-xs font-semibold cursor-pointer"
       onClick={() => void db.syncNow()}
     >
       <CloudOffIcon className="size-4 shrink-0" />
       <span className="max-sm:sr-only truncate max-w-48">{sync.text}</span>
     </AppButton>
   );
+}
+
+/** The sync's cloud alone, for a bar without the picture (a presentation's on a computer): only while something is wrong. */
+export function SyncCloud() {
+  return <SyncStatus sync={useSync()} />;
 }
 
 /** The user's picture: their initials in a coloured circle, until there are pictures (docs/not-done-yet.md). */
@@ -94,7 +100,7 @@ function useSwitchOrgs(me: Me): SwitchOrg[] {
   return me.role === 'superAdmin' || orgs.length > 1 ? orgs : [];
 }
 
-const ROW = 'flex items-center gap-3 w-full min-h-11 sm:min-h-9 px-4 py-2 text-left text-[15px] sm:text-sm text-neutral-800 dark:text-neutral-100 hover:bg-raised-2 focus:bg-raised-2 focus:outline-none cursor-pointer no-underline';
+const ROW = 'flex items-center gap-3 w-full min-h-11 px-4 py-2 text-left text-[15px] text-neutral-800 dark:text-neutral-100 hover:bg-raised-2 focus:bg-raised-2 focus:outline-none cursor-pointer no-underline';
 const DIVIDER = 'h-2 sm:h-px sm:mx-3 sm:my-1 bg-black/5 dark:bg-black/25 sm:bg-separator sm:dark:bg-separator';
 
 /** A choice in the menu with a grey line under it, named by its first line alone. */
@@ -214,7 +220,7 @@ function BarEnd({ me, extra }: { me: Me; extra?: ReactNode }) {
 }
 
 /** The bar's way back to the start page, as the live bar's "‹ Presentationer". */
-function BackToPresentations() {
+export function BackToPresentations() {
   return (
     <a
       href={href({ page: 'presentations' })}
@@ -260,10 +266,9 @@ export function TopBar({ me, back, create, warnings }: { me: Me; back: boolean; 
                 aria-label={t('presentations.new')}
                 title={`${t('presentations.new')} (N)`}
                 onClick={requestNewPresentation}
-                className="flex items-center justify-center gap-1.5 cursor-pointer max-sm:size-11 max-sm:rounded-full max-sm:bg-surface max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.12)] dark:max-sm:shadow-[0_8px_28px_rgba(0,0,0,0.55)] sm:h-8 sm:px-3 sm:rounded-lg sm:bg-sky-600 sm:text-white sm:text-[13px] sm:font-semibold sm:hover:bg-sky-700"
+                className={ROUND_ADD}
               >
-                <PlusIcon className="size-5 sm:size-3.5" />
-                <span className="max-sm:hidden">{t('presentations.new')}</span>
+                <PlusIcon className="size-5" strokeWidth={2.25} />
               </AppButton>
             )
           }

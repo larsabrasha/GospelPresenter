@@ -118,7 +118,6 @@ export function ItemPane({
           ) : (
             <span />
           )}
-          {canStart && <StartButton onStart={onStart} className="hidden lg:flex" />}
         </div>
         <div className="flex-1 flex flex-col gap-3 px-3 pt-16 lg:pt-0 pb-24 lg:pb-3">
           {!items.length && (

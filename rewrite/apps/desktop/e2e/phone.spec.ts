@@ -187,9 +187,11 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   await page.getByRole('dialog', { name: 'Söndag' }).getByRole('button', { name: 'Stäng' }).click();
   await page.setViewportSize(PHONE);
 
-  // Avsluta presentation is last in …, and asks first.
+  // Utgångar is first in …; ending is ■ at the far right of the bar, and asks first.
   await live.getByRole('button', { name: 'Mer', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Söndag' }).getByRole('button', { name: 'Avsluta presentation' }).click();
+  await expect(page.getByRole('dialog', { name: 'Söndag' }).getByRole('button').nth(1)).toHaveText('Utgångar');
+  await page.getByRole('dialog', { name: 'Söndag' }).getByRole('button', { name: 'Stäng' }).click();
+  await live.getByRole('button', { name: 'Avsluta presentation' }).click();
   await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
   await expect(live).toBeHidden();
   await expect(menu).toBeVisible();

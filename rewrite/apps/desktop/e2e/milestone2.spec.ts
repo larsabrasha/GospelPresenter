@@ -360,7 +360,7 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await details.getByLabel('Plats').fill('Stora salen');
   await details.getByLabel('Beskrivning').fill('Med nattvard');
   await details.getByRole('button', { name: 'Spara' }).click();
-  await expect(page.getByTestId('schedule')).toHaveText('2026-11-08 10:00Stora salen');
+  await expect(page.getByTestId('schedule')).toHaveText('2026-11-08 10:00 · Stora salen');
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Redigera detaljer' }).click();
   await expect(details.getByLabel('Beskrivning')).toHaveValue('Med nattvard');
