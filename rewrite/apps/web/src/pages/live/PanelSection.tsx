@@ -36,7 +36,7 @@ export function PanelSection({ title, hint, open: initiallyOpen, badge, children
           i
         </AppButton>
       </div>
-      {info && <p className="mt-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-neutral-600 dark:text-neutral-300 text-xs leading-relaxed">{hint}</p>}
+      {info && <p className="mt-2 px-3 py-2 rounded-lg bg-neutral-100 dark:bg-raised/50 text-neutral-600 dark:text-neutral-300 text-xs leading-relaxed">{hint}</p>}
       <div id={id} inert={!open} className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
         <div className="overflow-hidden min-h-0">
           <div className="flex flex-col gap-3 p-1 pt-3">{children}</div>

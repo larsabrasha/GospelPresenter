@@ -9,10 +9,16 @@ export const SWITCH =
   'before:absolute before:top-0.5 before:left-0.5 before:size-4 before:rounded-full before:bg-white before:shadow before:transition-all checked:before:left-4.5 ' +
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1';
 
+/** A checkbox drawn as iOS's switch, for the 2.0 lists (docs/layout-2-0.md): green when on, a 51×31 pt track. */
+export const IOS_SWITCH =
+  'relative shrink-0 appearance-none w-[51px] h-[31px] p-0 m-0 border-0 rounded-full cursor-pointer bg-raised-2 checked:bg-green-500 transition-colors disabled:cursor-default disabled:opacity-50 ' +
+  'before:absolute before:top-0.5 before:left-0.5 before:size-[27px] before:rounded-full before:bg-white before:shadow before:transition-all checked:before:left-[22px] ' +
+  'focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1';
+
 /** The row a switch sits in, ringed in sky while on. */
 function rowClass(on: boolean, disabled = false): string {
   return `flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm text-neutral-600 dark:text-neutral-300 ${
-    on ? 'bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500' : 'bg-neutral-100 dark:bg-neutral-700/50'
+    on ? 'bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500' : 'bg-neutral-100 dark:bg-raised/50'
   } ${disabled ? 'cursor-default opacity-60' : 'cursor-pointer'}`;
 }
 

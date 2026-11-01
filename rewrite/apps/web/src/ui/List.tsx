@@ -4,7 +4,7 @@ import type { HTMLAttributes, ReactNode } from 'react';
 // caption above (Components/Presentations/PresentationSection.razor, PresentationRow.razor).
 
 /** The card the rows sit in; also the card for a block of content on a page. */
-export const CARD = 'bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 overflow-hidden';
+export const CARD = 'bg-neutral-50 dark:bg-surface dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-separator overflow-hidden';
 
 export function ListCard({ children, label, className }: { children: ReactNode; label?: string; className?: string }) {
   return (
@@ -45,11 +45,11 @@ export function ListLinkRow({
   nav?: HTMLAttributes<HTMLAnchorElement>;
 }) {
   return (
-    <li className="flex items-center border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+    <li className="flex items-center border-b border-separator last:border-b-0">
       <a
         {...nav}
         href={href}
-        className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
+        className="flex-1 min-w-0 flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-raised/50 no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500"
       >
         <div className="flex-1 min-w-0">
           <div className="truncate">{title}</div>

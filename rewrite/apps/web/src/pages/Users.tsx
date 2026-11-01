@@ -197,9 +197,9 @@ export function Users({ me }: { me: Me }) {
         <ul aria-label={t('users.title')}>
           {Array.isArray(users) &&
             users.map((u) => (
-              <li key={u.id} className="border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
-                <a href={href({ page: 'user', id: u.id })} className="flex items-center gap-3 px-7 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer">
-                  <span className="size-8 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0 flex items-center justify-center text-neutral-500 dark:text-neutral-400">
+              <li key={u.id} className="border-b border-separator last:border-b-0">
+                <a href={href({ page: 'user', id: u.id })} className="flex items-center gap-3 px-7 py-3 hover:bg-raised cursor-pointer">
+                  <span className="size-8 rounded-full bg-neutral-300 dark:bg-raised-2 shrink-0 flex items-center justify-center text-neutral-500 dark:text-neutral-400">
                     <UserIcon className="size-4" />
                   </span>
                   <div className="flex-1 min-w-0">

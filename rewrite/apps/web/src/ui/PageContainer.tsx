@@ -47,7 +47,7 @@ export function DetailHeader({ backHref, onBack, title, saved, className }: { ba
           {...(backHref ? { href: backHref } : { onClick: onBack })}
           aria-label={t('common.back')}
           title={t('common.back')}
-          className="absolute left-0 cursor-pointer p-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          className="absolute left-0 cursor-pointer p-2.5 bg-surface text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
         >
           <ChevronLeftIcon className="size-5" />
         </AppButton>

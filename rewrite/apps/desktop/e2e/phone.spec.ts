@@ -1,8 +1,9 @@
-// The presentation on a phone (390×844), as the current app's: the running order in a drawer
-// from the left, the live panel as a floating box that folds, and Lägg till's song preview over the add dialog.
+// The presentation on a phone (390×844): editing, as the current app's, with the running order in a drawer from the
+// left and Lägg till's song preview over the add dialog; presenting, the 2.0 layout (docs/layout-2-0.md): the picture,
+// ‹ Rensa ›, and the running order with every part's text.
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, pickItem, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -22,7 +23,7 @@ async function onScreen(l: Locator) {
   return box;
 }
 
-test('on a phone the running order is a drawer, Lägg till previews a song over the dialog, and the live panel floats and folds', async () => {
+test('on a phone the running order is a drawer and Lägg till previews a song over the dialog; presenting shows the picture, ‹ Rensa › and every part', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -31,6 +32,7 @@ test('on a phone the running order is a drawer, Lägg till previews a song over 
     ['Chorus', 'A två'],
   ]);
   await createSong(page, 'Sång B', [['Verse 1', 'B ett']]);
+  await createSong(page, 'Sång C', [['Verse 1', 'C ett']]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
   await page.setViewportSize(PHONE);
@@ -86,46 +88,68 @@ test('on a phone the running order is a drawer, Lägg till previews a song over 
   await picker.getByRole('button', { name: 'Stäng' }).click();
   await expect(order.getByRole('listitem')).toHaveText([/Sång A/, /Sång B/]);
 
-  // Live: the panel floats at the bottom right, open; its caption folds it to a small picture and opens it again.
+  // Presenting: one column, the picture with ‹ Rensa › under it, and every part of every item with its text.
   await page.mouse.click(370, 400);
   await expect(order).toBeHidden();
   await start.click();
-  // Presenting keeps the running order, in the drawer, closed when it starts; Sång B, added last, is selected.
-  await expect(order).toBeHidden();
-  await menu.click();
-  await pickItem(page, 'Sång A');
-  await expect(order).toBeHidden();
-  await page.getByRole('button', { name: 'Sång A 1' }).click();
-  const panel = page.getByTestId('live-panel');
-  const fold = panel.getByRole('button', { name: 'Fäll in eller ut live-vyn' });
-  const open = await onScreen(panel);
-  expect(open.x + open.width).toBeGreaterThan(PHONE.width - 20);
-  await expect(fold).toHaveAttribute('aria-expanded', 'true');
-  await expect(panel.getByRole('button', { name: 'Rensa' })).toBeVisible();
-  await fold.click();
-  await expect(fold).toHaveAttribute('aria-expanded', 'false');
-  // Folded, the content is clipped away and inert.
-  await expect(panel.getByRole('button', { name: 'Rensa' })).not.toBeInViewport();
-  await expect(panel.getByRole('button', { name: 'Avsluta' })).not.toBeInViewport();
-  const content = page.locator(`[id="${await fold.getAttribute('aria-controls')}"]`);
-  await expect(content).toHaveAttribute('inert');
-  // The fold is a 300 ms transition: wait for it to end before measuring.
-  await expect.poll(async () => (await panel.boundingBox())!.height).toBeLessThan(100);
-  const folded = await onScreen(panel);
-  expect(folded.y + folded.height).toBeGreaterThan(PHONE.height - 30);
-  await fold.click();
-  await expect(panel.getByRole('button', { name: 'Avsluta' })).toBeInViewport();
+  const live = page.getByTestId('phone-live');
+  const picture = page.getByTestId('phone-live-picture');
+  const liveOrder = page.getByTestId('live-order');
+  await expect(live).toBeVisible();
+  // The title sits in the very middle of the bar, however wide the buttons beside it.
+  const title = (await live.getByRole('button', { name: 'Om presentationen' }).boundingBox())!;
+  expect(Math.abs(title.x + title.width / 2 - PHONE.width / 2)).toBeLessThan(1);
+  await onScreen(picture);
+  await onScreen(page.getByRole('button', { name: 'Rensa' }));
+  await expect(liveOrder.locator('section')).toHaveCount(2);
+  await expect(liveOrder.getByRole('button', { name: /A två/ })).toBeVisible();
 
-  // At desktop size the same panel is the column at the right, with nothing to fold, and the editor has no menu button.
+  // A tap on a part shows it: VISAS on it, NÄSTA on the next, the picture on the outputs.
+  await liveOrder.getByRole('button', { name: /A ett/ }).click();
+  await expect(picture).toContainText('A ett');
+  await expect(liveOrder.getByRole('button', { name: /A ett/ })).toContainText('VISAS');
+  await expect(liveOrder.getByRole('button', { name: /A två/ })).toContainText('NÄSTA');
+  await page.getByRole('button', { name: 'Nästa bild' }).click();
+  await expect(picture).toContainText('A två');
+
+  // Rensa blacks the outputs and turns into Visa igen; the bar says RENSAD instead of LIVE.
+  await page.getByRole('button', { name: 'Rensa' }).click();
+  await expect(page.getByRole('button', { name: 'Visa igen' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(live.getByRole('button', { name: 'Om presentationen' })).toContainText('RENSAD');
+  await page.getByRole('button', { name: 'Visa igen' }).click();
+  await expect(live.getByRole('button', { name: 'Om presentationen' })).toContainText('LIVE');
+
+  // Lägg till while presenting adds right after the item shown, not at the end; nothing changes on the outputs.
+  await live.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await picker.getByRole('list', { name: 'Sånger' }).getByRole('button', { name: /Sång C/ }).click();
+  await page.getByRole('dialog', { name: 'Sång C' }).getByRole('button', { name: 'Lägg till Sång C' }).click();
+  await expect(page.getByRole('dialog', { name: 'Sång C' })).toBeHidden();
+  await picker.getByRole('button', { name: 'Stäng' }).click();
+  await expect(liveOrder.locator('section')).toHaveCount(3);
+  expect(await liveOrder.locator('section').evaluateAll((all) => all.map((x) => x.getAttribute('aria-label')))).toEqual(['Sång A', 'Sång C', 'Sång B']);
+  await expect(picture).toContainText('A två');
+
+  // At desktop size the editor and the live column are back; on the phone again, the one column.
   await page.setViewportSize({ width: 1280, height: 800 });
-  await expect(fold).toBeHidden();
+  await expect(live).toBeHidden();
+  await expect(page.getByTestId('live-panel')).toBeVisible();
   await page.setViewportSize(PHONE);
-  await fold.click();
-  await page.setViewportSize({ width: 1280, height: 800 });
-  // Folded on the phone, it is open at desktop size.
-  await expect(panel.getByRole('button', { name: 'Rensa' })).toBeInViewport();
-  await expect(content).not.toHaveAttribute('inert');
-  await panel.getByRole('button', { name: 'Avsluta' }).click();
-  await expect(order).toBeVisible();
-  await expect(menu).toBeHidden();
+  await expect(live).toBeVisible();
+
+  // A sheet is pulled down by its bar to close it, as on iOS.
+  await live.getByRole('button', { name: 'Mer', exact: true }).click();
+  const more = page.getByRole('dialog', { name: 'Söndag' });
+  const bar = (await more.getByRole('heading', { name: 'Söndag' }).boundingBox())!;
+  await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bar.x + bar.width / 2, bar.y + 400, { steps: 8 });
+  await page.mouse.up();
+  await expect(more).toBeHidden();
+
+  // Avsluta presentation is last in …, and asks first.
+  await live.getByRole('button', { name: 'Mer', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Söndag' }).getByRole('button', { name: 'Avsluta presentation' }).click();
+  await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
+  await expect(live).toBeHidden();
+  await expect(menu).toBeVisible();
 });

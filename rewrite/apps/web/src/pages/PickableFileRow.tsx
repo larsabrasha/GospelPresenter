@@ -20,7 +20,7 @@ export function PickableFileRow({ nav, picked, name, icon, onToggle, onRemove, c
         onToggle();
       }}
       className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
-        picked ? 'ring-sky-500 bg-sky-50 dark:bg-sky-900/20' : 'ring-transparent hover:bg-neutral-100 dark:hover:bg-neutral-700'
+        picked ? 'ring-sky-500 bg-sky-50 dark:bg-sky-900/20' : 'ring-transparent hover:bg-raised'
       }`}
     >
       {picked ? (

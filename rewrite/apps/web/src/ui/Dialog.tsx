@@ -10,7 +10,7 @@ function CloseButton({ onClick }: { onClick: () => void }) {
     <AppButton
       variant="plain"
       data-close
-      className="absolute top-3 right-3 z-10 size-8 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer text-neutral-500"
+      className="absolute top-3 right-3 z-10 size-8 flex items-center justify-center rounded-full bg-raised hover:bg-raised-2 cursor-pointer text-neutral-500"
       title={t('common.close')}
       aria-label={t('common.close')}
       onClick={onClick}
@@ -76,7 +76,7 @@ function DialogFrame({
     >
       <div
         ref={box}
-        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 ${page ? 'h-full flex flex-col overflow-hidden outline-none max-sm:rounded-none' : 'overflow-auto'} ${className}`}
+        className={`relative w-full max-h-full rounded-2xl shadow-2xl bg-surface text-neutral-900 dark:text-neutral-100 ${page ? 'h-full flex flex-col overflow-hidden outline-none max-sm:rounded-none' : 'overflow-auto'} ${className}`}
         tabIndex={page ? -1 : undefined}
         role="dialog"
         aria-modal="true"
@@ -166,7 +166,7 @@ export function PageDialog({ title, onClose, children }: { title: string; onClos
     <DialogFrame titleId={titleId} onClose={onClose} className="max-w-4xl sm:h-[min(48rem,100%)]" page>
       {(close) => (
         <>
-          <div className="relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-neutral-200 dark:border-neutral-700">
+          <div className="relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-separator">
             <h2 id={titleId} className="font-semibold text-lg/7">
               {title}
             </h2>

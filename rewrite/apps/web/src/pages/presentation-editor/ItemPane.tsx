@@ -83,7 +83,7 @@ export function ItemPane({
   const [hint, setHint] = useState(() => ({ after: selected?.id ?? null, ...randomHint() }));
   if (hint.after !== (selected?.id ?? null)) setHint({ after: selected?.id ?? null, ...randomHint() });
   return (
-    <div className="flex-1 min-w-0 flex flex-col relative bg-neutral-100 dark:bg-neutral-900">
+    <div className="flex-1 min-w-0 flex flex-col relative bg-ground">
       {/* Keyed by the item: a new one starts at the top of its slides (Sidebar.razor scrolls `main` to the top). */}
       <div key={selected?.id ?? ''} className="flex-1 min-h-0 flex flex-col overflow-y-auto">
         {/* Below `lg` the title floats over the slides, which fade out under it (PresentationHeader.razor). */}
@@ -170,7 +170,7 @@ export function ItemPane({
       <div className="absolute bottom-0 left-0 right-0 h-24 bg-linear-to-t from-neutral-100 dark:from-neutral-900 to-transparent lg:hidden z-20 pointer-events-none" />
       <AppButton
         variant="plain"
-        className="absolute bottom-3 left-3 z-30 lg:hidden cursor-pointer p-4 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+        className="absolute bottom-3 left-3 z-30 lg:hidden cursor-pointer p-4 bg-surface text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
         title={t('nav.menu')}
         aria-label={t('nav.menu')}
         onClick={onShowMenu}

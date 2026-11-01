@@ -93,7 +93,7 @@ export function DropZone({
     >
       {children}
       {dragging && (
-        <div className="absolute inset-0 z-20 overflow-hidden rounded-xl border-2 border-dashed border-sky-500 bg-white/85 dark:bg-neutral-900/85 pointer-events-none">
+        <div className="absolute inset-0 z-20 overflow-hidden rounded-xl border-2 border-dashed border-sky-500 bg-white/85 dark:bg-ground/85 pointer-events-none">
           {/* Sticky, so the hint stays in view when the zone is taller than the window. */}
           <div className="sticky top-0 h-screen max-h-full flex flex-col items-center justify-center gap-2 px-4 text-center">
             {!compact && <ArrowDownTrayIcon className="size-10 text-sky-500" strokeWidth={1.5} />}

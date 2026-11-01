@@ -28,7 +28,7 @@ function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; na
   const url = useBlobUrl(hash);
   if (!url)
     return (
-      <div className="w-full sm:max-w-lg sm:mx-auto bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-sm space-y-3">
+      <div className="w-full sm:max-w-lg sm:mx-auto bg-surface rounded-xl p-4 shadow-sm space-y-3">
         <p className="text-sm font-medium truncate">{name}</p>
         <p className="text-sm text-neutral-400">{t('presentation.audioFetching')}</p>
       </div>
@@ -234,7 +234,7 @@ export function SelectedItem({
                   aria-label={t('overlays.itemOverlay')}
                   value={selected.overlayId ?? ''}
                   onChange={(e) => failing(db.mutate('setItemOverlay', { itemId: selected.id, overlayId: e.target.value || null }))}
-                  className="appearance-none py-1.5 pl-3 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  className="appearance-none py-1.5 pl-3 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
                 >
                   <option value="">{t('overlays.itemNone')}</option>
                   {overlays.map((o) => (

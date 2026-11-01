@@ -92,7 +92,7 @@ export function Audios({ role }: { role: Role }) {
             {shown.map((a) => (
               <li
                 key={a.id}
-                className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 last:rounded-b-xl hover:bg-neutral-100 dark:hover:bg-neutral-700/50"
+                className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl hover:bg-neutral-100 dark:hover:bg-raised/50"
                 aria-label={a.fileName}
               >
                 <SpeakerWaveIcon className="size-5 text-neutral-400 shrink-0" />

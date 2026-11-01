@@ -27,7 +27,7 @@ const SongRow = memo(function SongRow({ song: s, chosen, query, onPick }: { song
         aria-pressed={chosen}
         onClick={() => onPick(s.id)}
         className={`w-full text-left px-3 h-[52px] mb-1 flex flex-col justify-center rounded-lg cursor-pointer text-sm ${
-          chosen ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600'
+          chosen ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-raised/50 hover:bg-raised-2'
         }`}
       >
         <span className="block truncate w-full">
@@ -237,7 +237,7 @@ export function SongTab({
       {/* On a phone the preview covers the add dialog, a sheet over the dimmed page: the old dialog's transform made its `fixed inset-0` the dialog's box (SongTab.razor). */}
       {fullScreen && shownPreview && selected && (
         <div
-          className="md:hidden absolute inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800"
+          className="md:hidden absolute inset-0 z-50 flex flex-col bg-surface"
           role="dialog"
           aria-modal="true"
           aria-label={shownPreview.song.name}
@@ -248,7 +248,7 @@ export function SongTab({
             setFullScreen(false);
           }}
         >
-          <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-neutral-200 dark:border-neutral-700">
+          <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-separator">
             <AppButton variant="icon" autoFocus aria-label={t('common.close')} title={t('common.close')} onClick={() => setFullScreen(false)}>
               <CloseIcon className="size-5" />
             </AppButton>
@@ -275,7 +275,7 @@ export function SongTab({
               slides={songSlides(shownPreview.song, shownPreview.parts, shownPreview.labels, shownPreview.arrangements, chosen)}
             />
           </div>
-          <div className="shrink-0 flex items-center justify-end gap-4 px-4 py-3 border-t-[0.5px] border-neutral-200 dark:border-neutral-700">
+          <div className="shrink-0 flex items-center justify-end gap-4 px-4 py-3 border-t-[0.5px] border-separator">
             <AppButton aria-label={t('presentation.addSong', { name: selected.name })} onClick={() => void add()} className="min-w-0 inline-flex items-center gap-1">
               <span className="shrink-0">{t('presentation.add')}</span> <span className="font-bold truncate">{selected.name}</span>
             </AppButton>

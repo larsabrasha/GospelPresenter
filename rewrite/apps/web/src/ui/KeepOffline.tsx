@@ -158,7 +158,7 @@ export function KeepOfflineButton({ presentation, className = '' }: { presentati
         e.stopPropagation();
         keep.set(!keep.kept);
       }}
-      className={`size-8 shrink-0 flex items-center justify-center rounded-full transition ${disabled ? 'cursor-default' : 'cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-700'} ${
+      className={`size-8 shrink-0 flex items-center justify-center rounded-full transition ${disabled ? 'cursor-default' : 'cursor-pointer hover:bg-raised'} ${
         keep.unavailable ? 'opacity-40' : ''
       } ${className}`}
     >

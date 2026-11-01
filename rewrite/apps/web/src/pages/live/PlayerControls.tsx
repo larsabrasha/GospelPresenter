@@ -37,7 +37,7 @@ export function PlayerControls({ kind, playing, position, duration, onToggle, on
         variant="plain"
         aria-label={playing ? t(labels.pause) : t(labels.play)}
         onClick={onToggle}
-        className="size-10 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-700 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 transition shrink-0"
+        className="size-10 flex items-center justify-center rounded-full bg-raised cursor-pointer hover:bg-raised-2 transition shrink-0"
       >
         {playing ? <PauseIcon className="size-5" /> : <PlayIcon className="size-5" />}
       </AppButton>
@@ -64,7 +64,7 @@ export function PlayerControls({ kind, playing, position, duration, onToggle, on
             onSeek(Math.min(duration, Math.max(0, position + by)));
           }}
         >
-          <div className="w-full h-1.5 rounded-full bg-neutral-200 dark:bg-neutral-600 overflow-hidden">
+          <div className="w-full h-1.5 rounded-full bg-neutral-200 dark:bg-raised-2 overflow-hidden">
             <div className="h-full bg-sky-500 rounded-full transition-none" style={{ width: percent }} />
           </div>
           <div className="absolute size-3.5 -ml-[7px] rounded-full bg-sky-500 shadow opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity" style={{ left: percent }} />

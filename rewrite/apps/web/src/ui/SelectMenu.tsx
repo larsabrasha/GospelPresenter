@@ -120,7 +120,7 @@ export function SelectMenu({
           aria-label={label}
           // Keeps focus on the button while a choice is clicked.
           onMouseDown={(e) => e.preventDefault()}
-          className={`absolute top-full mt-1 z-[130] bg-white dark:bg-neutral-700 rounded-2xl shadow-lg border-[0.5px] border-neutral-200 dark:border-neutral-600 overflow-hidden ${listClassName ?? ''}`}
+          className={`absolute top-full mt-1 z-[130] bg-white dark:bg-raised rounded-2xl shadow-lg border-[0.5px] border-neutral-200 dark:border-neutral-600 overflow-hidden ${listClassName ?? ''}`}
         >
           {choices.map((c, i) => {
             const chosen = i === chosenAt;
@@ -128,7 +128,7 @@ export function SelectMenu({
               i === active
                 ? chosen
                   ? 'bg-sky-100 dark:bg-sky-900/50'
-                  : 'bg-neutral-100 dark:bg-neutral-600'
+                  : 'bg-neutral-100 dark:bg-raised-2'
                 : chosen
                   ? 'bg-sky-50 dark:bg-sky-900/30'
                   : '';

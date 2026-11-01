@@ -78,7 +78,7 @@ export function ArrangementCard({
   });
 
   return (
-    <li className="bg-neutral-50 dark:bg-neutral-800 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-4 space-y-3" role="group" aria-label={title}>
+    <li className="bg-neutral-50 dark:bg-surface rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-separator p-4 space-y-3" role="group" aria-label={title}>
       {dialog}
       {named && (
         <div className="flex gap-4">
@@ -112,7 +112,7 @@ export function ArrangementCard({
                 e.preventDefault();
                 refocus.current = move(v, e.key === 'ArrowUp' ? v - 1 : v + 1) ?? null;
               }}
-              className={`flex items-center gap-1.5 bg-white dark:bg-neutral-700 rounded-lg shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 px-2 py-1.5 cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+              className={`flex items-center gap-1.5 bg-white dark:bg-raised rounded-lg shadow-sm border-t-[0.5px] border-white dark:border-separator px-2 py-1.5 cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
                 dragging === v ? 'shadow-lg' : ''
               }`}
             >

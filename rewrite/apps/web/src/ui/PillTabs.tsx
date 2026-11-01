@@ -22,7 +22,7 @@ export function PillTabs({ children, className, label, role = 'group' }: { child
     };
   }, []);
   return (
-    <div className={`relative bg-neutral-100 dark:bg-neutral-700 rounded-full overflow-hidden md:inline-flex ${className ?? ''}`}>
+    <div className={`relative bg-raised rounded-full overflow-hidden md:inline-flex ${className ?? ''}`}>
       <div ref={scroller} role={role} aria-label={label} className="flex gap-1 overflow-x-auto p-1 [scrollbar-width:none]">
         {children}
       </div>

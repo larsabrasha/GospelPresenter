@@ -14,7 +14,7 @@ function toastItem(x: ToastData, leaving: boolean) {
   return (
     <div
       key={x.id}
-      className={`${leaving ? 'toast-item-out' : 'toast-item'} flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white ring-1 ring-neutral-200 dark:ring-neutral-700 text-sm`}
+      className={`${leaving ? 'toast-item-out' : 'toast-item'} flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg bg-surface text-neutral-900 dark:text-white ring-1 ring-neutral-200 dark:ring-separator text-sm`}
     >
       {x.kind === 'warning' ? (
         <WarningSolidIcon className="size-5 shrink-0 text-amber-500 dark:text-amber-400" />

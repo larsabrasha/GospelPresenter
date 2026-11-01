@@ -57,7 +57,7 @@ function OverlayThumb({ overlay }: { overlay: Pick<Overlay, 'id'> }) {
   return url ? (
     <img src={url} alt="" draggable={false} className="w-16 h-9 object-cover rounded border border-neutral-200 dark:border-neutral-600 shrink-0" />
   ) : (
-    <div className="w-16 h-9 rounded border border-neutral-200 dark:border-neutral-600 bg-neutral-200 dark:bg-neutral-700 shrink-0 flex items-center justify-center">
+    <div className="w-16 h-9 rounded border border-neutral-200 dark:border-neutral-600 bg-neutral-200 dark:bg-raised shrink-0 flex items-center justify-center">
       <PhotoOutlineIcon className="size-4 text-neutral-400" strokeWidth={1.5} />
     </div>
   );
@@ -90,8 +90,8 @@ export function Overlays() {
         )}
         <ul aria-label={t('overlays.title')}>
           {overlays?.map((o) => (
-            <li key={o.id} className="border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
-              <a href={href({ page: 'overlay', id: o.id })} className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700/50 no-underline text-inherit">
+            <li key={o.id} className="border-b border-separator last:border-b-0">
+              <a href={href({ page: 'overlay', id: o.id })} className="flex items-center gap-3 px-5 py-3 hover:bg-neutral-100 dark:hover:bg-raised/50 no-underline text-inherit">
                 <OverlayThumb overlay={o} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{o.title}</div>
@@ -116,7 +116,7 @@ function ImagePicker({ onPick, onClose }: { onPick: (image: LibraryImage) => voi
       <ul className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1 items-center empty:hidden" aria-label={t('images.title')}>
         {images?.map((image) => (
           <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0">
-            <AppButton variant="plain" onClick={() => onPick(image)} className="flex flex-col items-center w-full min-w-0 cursor-pointer rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 p-1">
+            <AppButton variant="plain" onClick={() => onPick(image)} className="flex flex-col items-center w-full min-w-0 cursor-pointer rounded-lg hover:bg-raised p-1">
               <ImageThumb image={image} />
               <span className="block text-xs text-neutral-500 dark:text-neutral-400 truncate mt-1 text-center w-full" title={image.fileName}>
                 {image.fileName}

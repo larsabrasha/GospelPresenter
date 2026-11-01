@@ -52,7 +52,7 @@ export function LivePanel({
   const remotePolicy = useData(orgRemoteControl, []);
   return (
     <aside
-      className="absolute bottom-3 right-3 z-30 w-72 max-w-[calc(100%-1.5rem)] max-h-[calc(100dvh-7rem)] flex flex-col overflow-hidden rounded-2xl shadow-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-sm lg:static lg:max-w-none lg:max-h-none lg:shrink-0 lg:rounded-none lg:bg-white lg:dark:bg-neutral-800 lg:backdrop-blur-none"
+      className="absolute bottom-3 right-3 z-30 w-72 max-w-[calc(100%-1.5rem)] max-h-[calc(100dvh-7rem)] flex flex-col overflow-hidden rounded-2xl shadow-xl bg-surface/90 backdrop-blur-sm lg:static lg:max-w-none lg:max-h-none lg:shrink-0 lg:rounded-none lg:bg-white lg:dark:bg-surface lg:backdrop-blur-none"
       data-testid="live-panel"
     >
       <div className="p-4 flex flex-col gap-3 min-h-0 lg:h-full">

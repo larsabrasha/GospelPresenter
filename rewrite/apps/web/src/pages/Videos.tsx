@@ -25,7 +25,7 @@ const trashedAt = () => Date.now();
 function Thumb({ video }: { video: LibraryVideo }) {
   const url = useBlobUrl(video.thumbHash);
   return (
-    <span className="relative w-16 aspect-video shrink-0 rounded bg-neutral-200 dark:bg-neutral-700 overflow-hidden flex items-center justify-center">
+    <span className="relative w-16 aspect-video shrink-0 rounded bg-neutral-200 dark:bg-raised overflow-hidden flex items-center justify-center">
       {url ? <img src={url} alt="" className="absolute inset-0 size-full object-contain" draggable={false} /> : <VideoIcon className="size-4 text-neutral-400" />}
     </span>
   );
@@ -105,7 +105,7 @@ export function Videos({ role }: { role: Role }) {
             {shown.map((v) => (
               <li
                 key={v.id}
-                className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 last:rounded-b-xl hover:bg-neutral-100 dark:hover:bg-neutral-700/50"
+                className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0 last:rounded-b-xl hover:bg-neutral-100 dark:hover:bg-raised/50"
                 aria-label={v.fileName}
               >
                 <Thumb video={v} />

@@ -125,7 +125,7 @@ export function AddItemDialog({ toItemId, ...props }: Omit<TabProps, 'active'> &
     <Modal title={t('presentation.addTitle')} onClose={close} className="max-w-4xl">
       <div className="flex-1 min-h-0 flex flex-col">
         {editingSongId && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-white dark:bg-neutral-800 px-4 py-3 md:static md:inset-auto md:z-auto md:p-0 md:flex-1 md:min-h-0">
+          <div className="fixed inset-0 z-50 flex flex-col bg-surface px-4 py-3 md:static md:inset-auto md:z-auto md:p-0 md:flex-1 md:min-h-0">
             {editing?.isNew ? (
               <SongEditor
                 id={editing.id}

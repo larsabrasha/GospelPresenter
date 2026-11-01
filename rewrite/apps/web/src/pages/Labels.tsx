@@ -120,7 +120,7 @@ export function Labels() {
         )}
         <ul aria-label={t('labels.title')}>
           {labels?.map((l, i) => (
-            <li key={l.id} aria-label={l.text} className="flex items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+            <li key={l.id} aria-label={l.text} className="flex items-center gap-3 px-7 py-3 border-b border-separator last:border-b-0">
               <span className="min-w-0 truncate rounded-full px-3 py-1 text-sm font-semibold text-white" style={{ backgroundColor: l.color }}>
                 {l.text}
               </span>

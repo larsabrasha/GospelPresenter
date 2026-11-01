@@ -14,7 +14,7 @@ import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
 import { acceptHere, copy, forgetInvite, freshInvite, inviteUrl, timeLeft } from './Users.tsx';
 
-const CARD = 'bg-neutral-50 dark:bg-neutral-800 dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-neutral-700 p-5 space-y-4';
+const CARD = 'bg-neutral-50 dark:bg-surface dark:text-neutral-100 rounded-xl shadow-sm border-t-[0.5px] border-white dark:border-separator p-5 space-y-4';
 const ERROR = 'text-sm text-red-500 dark:text-red-400';
 
 const providerName = (l: LoginMethod) => t(`userDetail.provider.${l.provider}`);
@@ -240,7 +240,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
             {logins.map((l) => (
               <li
                 key={`${l.provider}:${l.id}`}
-                className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600"
+                className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-raised rounded-xl border border-neutral-200 dark:border-neutral-600"
               >
                 <div className="min-w-0">
                   <div className="font-medium text-sm">{providerName(l)}</div>
@@ -283,7 +283,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
             {invite && (
               <div
                 data-testid="invite"
-                className={`p-4 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
+                className={`p-4 bg-white dark:bg-raised rounded-xl border border-neutral-200 dark:border-neutral-600 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

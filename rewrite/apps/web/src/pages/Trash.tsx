@@ -191,7 +191,7 @@ export function Trash({ kind: initialKind, role }: { kind: TrashKind | null; rol
                 // A presentation's date as the Swedish short date, "2026-11-01" (Trash.razor).
                 const detail = e.template ? templateDetails(e.template) : e.detail;
                 return (
-                  <li key={key(e)} className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0" aria-label={e.name}>
+                  <li key={key(e)} className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0" aria-label={e.name}>
                     <div className="shrink-0 text-neutral-400 dark:text-neutral-500" title={t(`trash.one.${e.kind}`)}>
                       <KindIcon kind={e.kind} />
                     </div>

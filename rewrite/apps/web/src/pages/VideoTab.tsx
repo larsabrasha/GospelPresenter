@@ -29,7 +29,7 @@ export function formatDuration(ms: number): string {
 function VideoThumb({ video }: { video: LibraryVideo }) {
   const url = useBlobUrl(video.thumbHash);
   return (
-    <span className="relative w-20 aspect-video shrink-0 rounded bg-neutral-200 dark:bg-neutral-700 overflow-hidden flex items-center justify-center">
+    <span className="relative w-20 aspect-video shrink-0 rounded bg-neutral-200 dark:bg-raised overflow-hidden flex items-center justify-center">
       {url ? <img src={url} alt="" className="absolute inset-0 size-full object-contain" draggable={false} /> : <VideoIcon className="size-5 text-neutral-400" />}
     </span>
   );

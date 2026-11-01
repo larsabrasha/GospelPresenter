@@ -82,7 +82,7 @@ export function SongHistory({ id }: { id: string }) {
                     aria-pressed={selected}
                     onClick={() => setChosen(v.id)}
                     className={`w-full text-left px-3 h-[52px] flex flex-col justify-center rounded-lg cursor-pointer text-sm ${
-                      selected ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600'
+                      selected ? 'bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30' : 'bg-neutral-50 dark:bg-raised/50 hover:bg-raised-2'
                     }`}
                   >
                     <span className="truncate w-full dark:text-neutral-100">{v.name}</span>

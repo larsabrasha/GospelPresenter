@@ -28,7 +28,7 @@ export function ItemTitle({ item, editing, setEditing }: { item: PresentationIte
   return (
     <input
       autoFocus
-      className="pointer-events-auto min-w-0 flex-1 text-xl font-semibold px-2 py-1 -mx-2 rounded-lg border border-sky-500 bg-transparent dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
+      className="pointer-events-auto min-w-0 flex-1 text-xl font-semibold px-2 py-1 -mx-2 rounded-lg border border-sky-500 bg-transparent dark:bg-raised focus:outline-none focus:ring-2 focus:ring-sky-500"
       maxLength={200}
       aria-label={t('presentation.rename')}
       defaultValue={item.title}

@@ -1,5 +1,8 @@
 # Look
 
+Version 2.0 leaves this look for live, the start page, its bar and Inställningar: [The 2.0 layout](layout-2-0.md).
+The rest of this file holds until a page is changed.
+
 The web app is to look as the current Blazor app does (its `main` branch, not the pictures in `docs/public`),
 on every screen size, light and dark. It uses Tailwind v4 (`@tailwindcss/vite`), set up as the current app's
 `tailwind-input.css` (`apps/web/src/app.css`). Dark mode is the current app's: the class `.dark` on `<html>`,

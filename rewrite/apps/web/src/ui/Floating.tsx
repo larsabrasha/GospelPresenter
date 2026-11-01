@@ -6,7 +6,7 @@ import { ChevronDownIcon } from './icons.tsx';
 
 const LABEL =
   'pointer-events-none absolute left-4 top-1 text-xs text-neutral-500 dark:text-neutral-400 transition-all peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-sm peer-focus:top-1 peer-focus:text-xs';
-const BOX = 'rounded-lg border dark:bg-neutral-700 dark:scheme-dark focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-500';
+const BOX = 'rounded-lg border dark:bg-raised dark:scheme-dark focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-500';
 
 export function FloatingInput({
   label,

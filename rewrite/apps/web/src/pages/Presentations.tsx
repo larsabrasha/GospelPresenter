@@ -56,7 +56,7 @@ function CreatePresentationDialog({ template, onClose }: { template: Presentatio
 }
 
 const PICK =
-  'flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-left text-inherit cursor-pointer transition-colors';
+  'flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-neutral-200 dark:border-neutral-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-neutral-50 dark:hover:bg-raised text-left text-inherit cursor-pointer transition-colors';
 
 /** The first step of Skapa when there are templates: a blank presentation, or one of the last used templates (Dashboard.razor). */
 function TemplatePicker({ templates, onPick, onClose }: { templates: Presentation[]; onPick: (template: Presentation | null) => void; onClose: () => void }) {
@@ -64,7 +64,7 @@ function TemplatePicker({ templates, onPick, onClose }: { templates: Presentatio
     <Dialog title={t('presentations.createTitle')} onClose={onClose}>
       <AppButton
         variant="plain"
-        className="absolute top-4 right-4 size-8 flex items-center justify-center rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+        className="absolute top-4 right-4 size-8 flex items-center justify-center rounded-full hover:bg-raised cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
         title={t('common.close')}
         aria-label={t('common.close')}
         onClick={onClose}

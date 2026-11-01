@@ -152,7 +152,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             ]}
             onChoose={(v) => saving(db.mutate('updateSongPart', { id: p.id, labelText: labelChoices.find((l) => l.id === v)?.text ?? null }))}
             className="flex-1 max-w-[50%]"
-            buttonClassName="w-full flex items-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 px-3 py-2.5 text-sm text-left cursor-pointer focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
+            buttonClassName="w-full flex items-center gap-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 px-3 py-2.5 text-sm text-left cursor-pointer focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none"
             listClassName="left-0 w-full max-h-60 overflow-y-auto"
             face={
               <>

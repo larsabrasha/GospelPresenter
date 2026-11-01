@@ -43,7 +43,7 @@ function CodeBoxes({ onComplete }: { onComplete: (code: string) => void }) {
           ref={(el) => {
             boxes.current[i] = el;
           }}
-          className="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          className="w-12 h-14 text-center text-2xl font-bold font-mono rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
           inputMode="numeric"
           autoComplete="one-time-code"
           aria-label={t('pairScreen.digit', { n: i + 1 })}
@@ -175,9 +175,9 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
             <span className="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t('pairScreen.or')}</span>
-            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
           </div>
           <div className="space-y-4">
             <h3 className="font-medium text-sm/5 text-neutral-800 dark:text-neutral-100">{t('pairScreen.manual')}</h3>

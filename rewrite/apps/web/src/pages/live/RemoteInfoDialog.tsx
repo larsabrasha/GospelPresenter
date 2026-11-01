@@ -45,9 +45,9 @@ export function RemoteInfoDialog({ url: path, name, onClose }: { url: string; na
         <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center">{t('remote.scanHint')}</p>
       </div>
       <div className="mt-8! flex items-center gap-3">
-        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
         <span className="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t('remote.or')}</span>
-        <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+        <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
       </div>
       <Fold title={t('remote.copyLink')}>
         <div className="pt-3">
@@ -58,8 +58,8 @@ export function RemoteInfoDialog({ url: path, name, onClose }: { url: string; na
         <div className="pt-3 space-y-2">
           <p className="text-sm text-neutral-500 dark:text-neutral-400">{t('remote.openAppHint')}</p>
           {/* A small picture of the other app's start page, with its "Ta kontroll" card. */}
-          <div className="rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-white dark:bg-neutral-900 shadow-sm pointer-events-none select-none" aria-hidden="true">
-            <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
+          <div className="rounded-lg border border-separator overflow-hidden bg-white dark:bg-ground shadow-sm pointer-events-none select-none" aria-hidden="true">
+            <div className="flex items-center gap-1 px-2 py-1.5 bg-neutral-100 dark:bg-surface border-b border-separator">
               <span className="size-1.5 rounded-full bg-red-400" />
               <span className="size-1.5 rounded-full bg-yellow-400" />
               <span className="size-1.5 rounded-full bg-green-400" />

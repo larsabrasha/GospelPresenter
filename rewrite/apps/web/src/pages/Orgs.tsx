@@ -101,8 +101,8 @@ export function Orgs() {
         <ul aria-label={t('orgs.title')}>
           {Array.isArray(orgs) &&
             orgs.map((o) => (
-              <li key={o.id} className="border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
-                <a href={href({ page: 'org', id: o.id })} className="flex items-center gap-3 px-7 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer">
+              <li key={o.id} className="border-b border-separator last:border-b-0">
+                <a href={href({ page: 'org', id: o.id })} className="flex items-center gap-3 px-7 py-3 hover:bg-raised cursor-pointer">
                   <Avatar name={o.name} />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{o.name}</div>
@@ -221,7 +221,7 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
         {!org.users.length && <p className="px-7 pb-4 text-sm text-neutral-400">{t('org.noMembers')}</p>}
         <ul aria-label={t('org.membersTitle', { n: org.users.length })}>
           {org.users.map((u) => (
-            <li key={u.id} className="flex items-center gap-3 px-7 py-3 border-t border-neutral-200 dark:border-neutral-700">
+            <li key={u.id} className="flex items-center gap-3 px-7 py-3 border-t border-separator">
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{u.name}</div>
                 {u.email && <div className="text-xs text-neutral-400 dark:text-neutral-500 truncate">{u.email}</div>}

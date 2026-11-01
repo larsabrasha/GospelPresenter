@@ -15,6 +15,7 @@ import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { LivePanel } from '../live/LivePanel.tsx';
+import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
 import { StageView } from '../StageView.tsx';
 import { EditTemplateDialog } from '../Templates.tsx';
@@ -268,13 +269,13 @@ export function PresentationEditor({
   if (!presentation || presentation.deletedAt !== null || presentation.isTemplate !== template)
     return (
       <section className="flex-1 min-h-0 flex">
-        <aside className="hidden lg:block w-[300px] shrink-0 bg-white dark:bg-neutral-800">
+        <aside className="hidden lg:block w-[300px] shrink-0 bg-surface">
           <p className="text-sm text-center text-neutral-500 pt-10">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>
         </aside>
-        <div className="flex-1 bg-neutral-100 dark:bg-neutral-900 lg:hidden">
+        <div className="flex-1 bg-ground lg:hidden">
           <p className="text-sm text-center text-neutral-500 pt-10">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>
         </div>
-        <div className="hidden lg:block flex-1 bg-neutral-100 dark:bg-neutral-900" />
+        <div className="hidden lg:block flex-1 bg-ground" />
       </section>
     );
 
@@ -309,6 +310,8 @@ export function PresentationEditor({
   const selectedArrangements = selectedSong ? sortedArrangements(data.arrangements, selectedSong.id) : [];
   const selectedSlides = selected ? slides.get(selected.id) : undefined;
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
+  // Presenting on a phone or an iPad held upright: one column with sheets instead of the editor (docs/layout-2-0.md).
+  const phone = !!presenting && !wide;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -318,53 +321,73 @@ export function PresentationEditor({
       {presenting && stage && <StageView items={items} slides={slides} theme={theme} overlays={overlays} live={live} audio={presenting.audio} video={presenting.video} onLeave={() => setStage(false)} />}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
-        <SideMenu
-          presentation={presentation}
-          menuVisible={menuVisible}
-          onHideMenu={() => setMenuVisible(false)}
-          onEditDetails={() => setDetails(true)}
-          onSaveAsTemplate={!template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined}
-          onTrash={() => void trash()}
-          ticking={ticking}
-          onTicking={setTicking}
-          media={!!presenting && !!owner}
-        >
-          <RunningOrder
+        {phone && presenting && (
+          <PhoneLive
+            id={id}
+            presentation={presentation}
             items={items}
             slides={slides}
+            theme={theme}
             overlays={overlays}
-            selectedId={selectedId}
-            liveItemId={liveItemId}
-            ticking={ticking}
-            onDoneTicking={() => setTicking(false)}
-            onRemoveTicked={(chosen) => void removeItems(chosen)}
-            onSelect={(itemId) => {
-              setSelectedId(itemId);
-              setRenaming(false);
-              setMenuVisible(false);
-            }}
-            onRemove={(item) => void removeItem(item)}
-            onAdd={() => setAdding('item')}
+            overlay={overlay}
+            live={live}
+            pointer={pointer}
+            presenting={presenting}
+            onStage={() => setStage(true)}
+            onDetails={() => setDetails(true)}
           />
-        </SideMenu>
-        <ItemPane
-          items={items}
-          selected={selected}
-          renaming={renaming}
-          setRenaming={setRenaming}
-          selectedSong={selectedSong}
-          selectedArrangements={selectedArrangements}
-          selectedSlides={selectedSlides}
-          overlays={overlays}
-          theme={theme}
-          canStart={!template && pointer.presentationId === null}
-          // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
-          onStart={() => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false })}
-          onShowMenu={() => setMenuVisible(true)}
-          onAddImages={() => setAdding('images')}
-          shown={presenting ? { live, pointer, audio: presenting.audio, video: presenting.video } : undefined}
-        />
-        {presenting && (
+        )}
+        {!phone && (
+          <>
+            <SideMenu
+              presentation={presentation}
+              menuVisible={menuVisible}
+              onHideMenu={() => setMenuVisible(false)}
+              onEditDetails={() => setDetails(true)}
+              onSaveAsTemplate={!template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined}
+              onTrash={() => void trash()}
+              ticking={ticking}
+              onTicking={setTicking}
+              media={!!presenting && !!owner}
+            >
+              <RunningOrder
+                items={items}
+                slides={slides}
+                overlays={overlays}
+                selectedId={selectedId}
+                liveItemId={liveItemId}
+                ticking={ticking}
+                onDoneTicking={() => setTicking(false)}
+                onRemoveTicked={(chosen) => void removeItems(chosen)}
+                onSelect={(itemId) => {
+                  setSelectedId(itemId);
+                  setRenaming(false);
+                  setMenuVisible(false);
+                }}
+                onRemove={(item) => void removeItem(item)}
+                onAdd={() => setAdding('item')}
+              />
+            </SideMenu>
+            <ItemPane
+              items={items}
+              selected={selected}
+              renaming={renaming}
+              setRenaming={setRenaming}
+              selectedSong={selectedSong}
+              selectedArrangements={selectedArrangements}
+              selectedSlides={selectedSlides}
+              overlays={overlays}
+              theme={theme}
+              canStart={!template && pointer.presentationId === null}
+              // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
+              onStart={() => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false })}
+              onShowMenu={() => setMenuVisible(true)}
+              onAddImages={() => setAdding('images')}
+              shown={presenting ? { live, pointer, audio: presenting.audio, video: presenting.video } : undefined}
+            />
+          </>
+        )}
+        {!phone && presenting && (
           <LivePanel
             id={id}
             owner={owner}
@@ -382,7 +405,7 @@ export function PresentationEditor({
             onStage={() => setStage(true)}
           />
         )}
-        {adding && (
+        {!phone && adding && (
           <AddItemDialog
             presentationId={id}
             afterItemId={selectedId}

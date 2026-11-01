@@ -101,8 +101,8 @@ export function RunningOrder({
               data-sort-row
               data-item-id={item.id}
               style={rowStyle(i)}
-              className={`flex items-center mx-2 rounded-lg text-sm group scroll-mb-16 ${isSelected ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'} ${
-                dragging === i ? `shadow-lg ${isSelected ? '' : 'bg-white dark:bg-neutral-700'}` : ''
+              className={`flex items-center mx-2 rounded-lg text-sm group scroll-mb-16 ${isSelected ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-raised'} ${
+                dragging === i ? `shadow-lg ${isSelected ? '' : 'bg-white dark:bg-raised'}` : ''
               }`}
             >
               {/* The live dot's place is always there, so the rows line up whether one is live or not. */}
@@ -187,7 +187,7 @@ export function RunningOrder({
           );
         })}
       </ol>
-      <div className="sticky bottom-0 p-3 bg-white dark:bg-neutral-800">
+      <div className="sticky bottom-0 p-3 bg-surface">
         {ticking && ticked.size > 0 ? (
           <AppButton
             variant="plain"

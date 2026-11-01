@@ -17,7 +17,7 @@ export function ArrangementPills({ arrangements, chosen, onChoose, className }: 
           variant="plain"
           aria-pressed={a.id === chosen}
           onClick={() => onChoose(a.id)}
-          className={`${a.id === chosen ? 'bg-sky-500 text-white' : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-300 dark:hover:bg-neutral-600'} rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors`}
+          className={`${a.id === chosen ? 'bg-sky-500 text-white' : 'bg-neutral-200 dark:bg-raised text-neutral-700 dark:text-neutral-200 hover:bg-neutral-300 dark:hover:bg-raised-2'} rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors`}
         >
           {a.name ?? t('song.arrangement')}
         </AppButton>

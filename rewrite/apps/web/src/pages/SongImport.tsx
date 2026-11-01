@@ -145,7 +145,7 @@ export function useSongImport(library: Song[] | undefined) {
           <p className="text-sm text-neutral-600 dark:text-neutral-300">
             {stage === 'reading' ? t('songs.import.reading', { n: readCount.done, m: readCount.total }) : t('songs.import.saving')}
           </p>
-          <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+          <div className="w-full h-2 rounded-full bg-neutral-200 dark:bg-raised overflow-hidden">
             {stage === 'reading' ? (
               <div className="h-2 rounded-full bg-sky-500 transition-[width]" style={{ width: `${(readCount.done / Math.max(readCount.total, 1)) * 100}%` }} />
             ) : (
@@ -173,7 +173,7 @@ export function useSongImport(library: Song[] | undefined) {
           </AppButton>
         ))}
       </div>
-      <ul className="max-h-[50vh] overflow-y-auto rounded-lg border-[0.5px] border-neutral-200 dark:border-neutral-700 divide-y-[0.5px] divide-neutral-200 dark:divide-neutral-700 text-sm" aria-label={t('songs.import.dupTitle')}>
+      <ul className="max-h-[50vh] overflow-y-auto rounded-lg border-[0.5px] border-separator divide-y-[0.5px] divide-separator text-sm" aria-label={t('songs.import.dupTitle')}>
         {plan.plan.duplicates.map((d, i) => (
           <DuplicateRow key={d.index} duplicate={d} choice={plan.choices[i]!} onChoose={(c) => choose(i, c)} shown={shownText.has(i)} onToggle={() => toggleText(i)} />
         ))}
@@ -195,7 +195,7 @@ function DuplicateRow({ duplicate: d, choice, onChoose, shown, onToggle }: { dup
   const text = (title: string, body: string) => (
     <div className="min-w-0">
       <div className="text-xs font-medium text-neutral-400 dark:text-neutral-500 mb-1">{title}</div>
-      <pre className="whitespace-pre-wrap font-sans text-sm max-h-60 overflow-y-auto rounded-lg bg-neutral-50 dark:bg-neutral-900/50 p-3">{body}</pre>
+      <pre className="whitespace-pre-wrap font-sans text-sm max-h-60 overflow-y-auto rounded-lg bg-neutral-50 dark:bg-ground/50 p-3">{body}</pre>
     </div>
   );
   return (

@@ -16,7 +16,7 @@ export function VideoPlayer({ control, itemId, name, type, codec }: { control: V
   const mine = state?.itemId === itemId ? state : null;
   const playing = !!mine?.playing;
   return (
-    <div className="w-full sm:max-w-lg bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-sm text-neutral-900 dark:text-neutral-100" role="group" aria-label={name} data-testid="video-player" data-playing={playing}>
+    <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 shadow-sm text-neutral-900 dark:text-neutral-100" role="group" aria-label={name} data-testid="video-player" data-playing={playing}>
       <p className="text-sm font-medium truncate mb-3">{name}</p>
       {/* A controller only drives: whether it could play the video says nothing of the presenting computer. */}
       {!(control instanceof RemoteVideo) && !canPlayVideo(type, codec) && (

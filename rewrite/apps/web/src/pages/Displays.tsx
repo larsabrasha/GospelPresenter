@@ -97,9 +97,9 @@ function LinkDialog({ title, url, download, renew, onClose }: { title: string; u
       {screen && (
         <>
           <div className="mt-8! flex items-center gap-3">
-            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
             <span className="text-xs uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{t('screens.or')}</span>
-            <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
+            <div className="h-px flex-1 bg-neutral-200 dark:bg-raised" />
           </div>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">{t('screens.linkHint')}</p>
         </>
@@ -114,7 +114,7 @@ function LinkDialog({ title, url, download, renew, onClose }: { title: string; u
       )}
       <CopyField value={url} label={t('displays.link')} copyLabel={t('displays.copy')} onCopy={() => void copyLink(url, () => toast(t('displays.copied')))} />
       {renew && (
-        <div className="mt-8! pt-4 border-t border-neutral-200 dark:border-neutral-700 space-y-3">
+        <div className="mt-8! pt-4 border-t border-separator space-y-3">
           <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">{t('displays.newCodeText')}</p>
           <AppButton variant="danger" className="text-xs" onClick={renew}>
             {t('displays.newCode')}
@@ -177,7 +177,7 @@ export function Displays({ link }: { link: LiveLink }) {
       {kind === 'screen' ? t('screens.add') : t('displays.create')}
     </AppButton>
   );
-  const ROW = 'flex flex-wrap items-center gap-3 px-7 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0';
+  const ROW = 'flex flex-wrap items-center gap-3 px-7 py-3 border-b border-separator last:border-b-0';
   const SMALL = 'text-xs flex items-center gap-1.5';
 
   return (

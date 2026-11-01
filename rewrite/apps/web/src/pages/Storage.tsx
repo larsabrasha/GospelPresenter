@@ -149,7 +149,7 @@ function DeviceStorage() {
             const p = byId.get(o.presentationId);
             const byHand = !!pinned?.has(o.presentationId);
             return (
-              <li key={o.presentationId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 px-3 py-2 text-sm">
+              <li key={o.presentationId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-neutral-100 dark:bg-raised/50 px-3 py-2 text-sm">
                 <span className="flex-1 min-w-0">
                   <span className="block truncate">{p?.name ?? o.presentationId}</span>
                   <span className="block text-xs text-neutral-500 dark:text-neutral-400">

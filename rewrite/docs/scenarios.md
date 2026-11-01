@@ -13,6 +13,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Prepare on a laptop while the church computer is off; present it there on Sunday | `journeys.spec.ts`: "prepared on a laptop" |
 | Present on the projector (Extern skärm), and Avsluta closes it | `milestone6.spec.ts`: "Extern skärm is a switch" |
 | Keep presenting through a reload; only Avsluta stops | `editor.spec.ts`: "a reload while presenting" |
+| Present from a phone: the picture, ‹ Rensa ›, every part's text, and a song added after what is shown | `phone.spec.ts`: "on a phone the running order is a drawer" |
 | Change the running order while live | `editor.spec.ts`: "presenting keeps the running order" |
 | A TV in the hall as a saved screen | `screens.spec.ts`: "a saved screen is online" |
 | A borrowed TV as a temporary screen, by code or QR | `screens.spec.ts`: "a TV shows a code", `screens.spec.ts`: "a TV that opens the QR link" |

@@ -21,7 +21,7 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted, stage }: { id
   const chosen: LiveSessionInfo | undefined = candidates.find((s) => s.id === picked) ?? (candidates.length === 1 ? candidates[0] : undefined);
   // Why there is nothing to control (Presentation.razor): grey text, and what can still be done under it.
   const notReady = (text: string, extra?: ReactNode) => (
-    <section className="flex-1 min-h-0 flex flex-col bg-neutral-100 dark:bg-neutral-900">
+    <section className="flex-1 min-h-0 flex flex-col bg-ground">
       <RemoteBanner />
       <div className="flex-1 flex items-center justify-center text-center px-6 py-16">
         <div className="space-y-2">
@@ -36,7 +36,7 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted, stage }: { id
   if (!chosen && candidates.length > 1) {
     // Several sessions show it: one Primary button per session, the text above them not centred (Presentation.razor).
     return (
-      <section className="flex-1 min-h-0 flex flex-col bg-neutral-100 dark:bg-neutral-900">
+      <section className="flex-1 min-h-0 flex flex-col bg-ground">
         <RemoteBanner />
         <div className="flex-1 flex items-center justify-center px-6 py-16">
           <div className="w-full max-w-sm space-y-3">

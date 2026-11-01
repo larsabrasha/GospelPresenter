@@ -26,7 +26,7 @@ export function ImageThumb({ image, className }: { image: Pick<LibraryImage, 'th
   return url ? (
     <img src={url} alt={image.fileName} draggable={false} className={className ?? 'block max-w-full max-h-32 rounded-lg'} />
   ) : (
-    <div className="w-32 max-w-full aspect-video rounded-lg bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-xs text-neutral-400">{t('images.fetching')}</div>
+    <div className="w-32 max-w-full aspect-video rounded-lg bg-neutral-200 dark:bg-raised flex items-center justify-center text-xs text-neutral-400">{t('images.fetching')}</div>
   );
 }
 

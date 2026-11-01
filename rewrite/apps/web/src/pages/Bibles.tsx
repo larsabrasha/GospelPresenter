@@ -103,7 +103,7 @@ export function Bibles() {
           {busy && (
             <div className="space-y-2" role="status">
               <div className="text-sm text-neutral-600 dark:text-neutral-300">{t('bibles.processing')}</div>
-              <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-neutral-200 dark:bg-raised rounded-full h-2 overflow-hidden">
                 <div className="bg-sky-500 h-2 rounded-full w-1/3 animate-pulse" />
               </div>
             </div>
@@ -127,7 +127,7 @@ export function Bibles() {
           )}
           <ul aria-label={t('bibles.title')}>
             {bibles?.map((b) => (
-              <li key={b.id} className="flex items-center gap-3 px-5 py-3 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+              <li key={b.id} className="flex items-center gap-3 px-5 py-3 border-b border-separator last:border-b-0">
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{b.name}</div>
                   <div className="text-xs text-neutral-400 truncate">{t('bibles.row', { abbreviation: b.abbreviation, n: b.verseCount })}</div>

@@ -64,7 +64,7 @@ function Choices<T extends string>({ id, title, options, current, onChoose }: { 
               aria-checked={selected}
               onClick={() => onChoose(value)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left cursor-pointer transition ${
-                selected ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/30 dark:border-sky-400' : 'border-neutral-300 dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-700'
+                selected ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/30 dark:border-sky-400' : 'border-neutral-300 dark:border-neutral-600 hover:bg-raised'
               }`}
             >
               <Icon className="w-5 h-5 shrink-0" />

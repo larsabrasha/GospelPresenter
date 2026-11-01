@@ -11,6 +11,32 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * The 2.0 colours (docs/layout-2-0.md), iOS's grouped scale: the ground; a surface on it (cards, panels,
+ * dialogs, the bar, a list's rows); raised on a surface (fields, pills, secondary buttons, rows inside a card),
+ * raised-2 a step further (hover); hairline separators. A sheet is drawn a step lighter in dark mode, as iOS
+ * lifts what floats: its own colour, its rows one step above it. Light mode's ground is a step darker than iOS's
+ * #f2f2f7, so a white row stands out on it.
+ */
+@theme {
+  --color-ground: #ebebf0;
+  --color-surface: #ffffff;
+  --color-raised: #f2f2f7;
+  --color-raised-2: #e5e5ea;
+  --color-separator: rgb(60 60 67 / 0.18);
+  --color-sheet: #f2f2f7;
+  --color-sheet-cell: #ffffff;
+}
+.dark {
+  --color-ground: #000000;
+  --color-surface: #1c1c1e;
+  --color-raised: #2c2c2e;
+  --color-raised-2: #3a3a3c;
+  --color-separator: rgb(84 84 88 / 0.6);
+  --color-sheet: #1c1c1e;
+  --color-sheet-cell: #2c2c2e;
+}
+
 @layer base {
   h1 { @apply text-3xl/16; }
   h2 { @apply text-2xl/12; }
@@ -20,7 +46,7 @@
   h6 { @apply text-sm/4; }
 
   /* The shell: the page never scrolls, its content does (Layout/MainLayout.razor). */
-  html { @apply h-dvh overscroll-none overflow-hidden bg-neutral-100 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100; }
+  html { @apply h-dvh overscroll-none overflow-hidden bg-ground text-neutral-900 dark:text-neutral-100; }
   html.dark { color-scheme: dark; }
   body { @apply flex flex-col h-full; }
   #root { @apply flex flex-col flex-1 min-h-0 overflow-auto; }

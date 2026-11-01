@@ -49,7 +49,7 @@ export function SideMenu({
         data-testid="menu-backdrop"
       />
       <aside
-        className={`w-[300px] duration-200 ease-in-out shrink-0 h-full flex flex-col overflow-y-auto bg-white dark:bg-neutral-800 absolute inset-y-0 left-0 z-[110] shadow-xl lg:relative lg:inset-auto lg:z-10 lg:visible lg:translate-x-0 ${
+        className={`w-[300px] duration-200 ease-in-out shrink-0 h-full flex flex-col overflow-y-auto bg-surface absolute inset-y-0 left-0 z-[110] shadow-xl lg:relative lg:inset-auto lg:z-10 lg:visible lg:translate-x-0 ${
           menuVisible ? 'visible translate-x-0' : 'invisible -translate-x-full'
         }`}
       >
@@ -63,7 +63,7 @@ export function SideMenu({
               className="shrink-0"
               menuClassName="w-56"
               button={{
-                className: 'p-2.5 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300',
+                className: 'p-2.5 rounded-full hover:bg-raised cursor-pointer text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300',
                 title: t('presentation.options'),
                 'aria-label': t('presentation.options'),
               }}

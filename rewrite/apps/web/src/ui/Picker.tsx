@@ -44,7 +44,7 @@ export function SearchField({
         placeholder={placeholder ?? label}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full ${compact ? 'py-2 text-sm' : 'py-2.5'} pl-10 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
+        className={`w-full ${compact ? 'py-2 text-sm' : 'py-2.5'} pl-10 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500 [&::-webkit-search-cancel-button]:appearance-none ${value ? 'pr-9' : 'pr-4'}`}
       />
       {value && (
         <AppButton variant="icon" aria-label={t('common.clear')} onClick={onClear ?? (() => onChange(''))} className="absolute right-2.5 top-1/2 -translate-y-1/2 size-6!">

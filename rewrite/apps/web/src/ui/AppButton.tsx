@@ -18,21 +18,21 @@ function buttonClasses(variant: ButtonVariant = 'primary', filled = false): stri
     case 'secondary':
       return `${PILL} text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-900/30 hover:bg-sky-100 dark:hover:bg-sky-900/50`;
     case 'neutral':
-      return `${PILL} text-neutral-600 dark:text-neutral-400 bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600`;
+      return `${PILL} text-neutral-600 dark:text-neutral-400 bg-neutral-200 dark:bg-raised hover:bg-neutral-300 dark:hover:bg-raised-2`;
     case 'cancel':
-      return `${PILL} text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-600`;
+      return `${PILL} text-neutral-500 dark:text-neutral-400 hover:bg-raised-2`;
     case 'danger':
       return filled
         ? `${PILL} bg-red-500 text-white hover:bg-red-600`
         : `${PILL} text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-950/60`;
     case 'icon':
-      return 'size-8 flex items-center justify-center rounded-full cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300';
+      return 'size-8 flex items-center justify-center rounded-full cursor-pointer hover:bg-raised-2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300';
     case 'dangerIcon':
       return 'size-8 flex items-center justify-center rounded-full cursor-pointer text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/60 disabled:opacity-50 disabled:cursor-default';
     case 'pillActive':
-      return `${TAB} bg-white dark:bg-neutral-600 dark:text-white shadow font-medium`;
+      return `${TAB} bg-white dark:bg-raised-2 dark:text-white shadow font-medium`;
     case 'pill':
-      return `${TAB} hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-500 dark:text-neutral-400`;
+      return `${TAB} hover:bg-raised-2 text-neutral-500 dark:text-neutral-400`;
     case 'plain':
       return '';
   }

@@ -240,7 +240,7 @@ function AccountMenu({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
       menuClassName="w-60"
       button={{ className: 'block cursor-pointer rounded-full', 'data-testid': 'me', 'aria-label': who, title: who }}
       trigger={
-        <span className="size-8 rounded-full bg-neutral-300 dark:bg-neutral-600 shrink-0 flex items-center justify-center text-neutral-500 dark:text-neutral-400">
+        <span className="size-8 rounded-full bg-neutral-300 dark:bg-raised-2 shrink-0 flex items-center justify-center text-neutral-500 dark:text-neutral-400">
           <UserIcon className="size-4" />
         </span>
       }
@@ -284,7 +284,7 @@ function OrgSwitcher({ me, orgs }: { me: Me; orgs: SwitchOrg[] }) {
       className="max-sm:hidden"
       menuClassName="right-0 w-64"
       button={{
-        className: 'flex items-center gap-1.5 rounded-full text-xs bg-neutral-100 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200 px-3 py-1.5 cursor-pointer max-w-56',
+        className: 'flex items-center gap-1.5 rounded-full text-xs bg-raised text-neutral-700 dark:text-neutral-200 px-3 py-1.5 cursor-pointer max-w-56',
         'aria-label': t('orgs.switcher', { name: me.orgName }),
         'data-testid': 'org-switcher',
       }}
@@ -309,7 +309,7 @@ export function TopBar({ me, back, warnings }: { me: Me; back: boolean; warnings
   const orgs = useSwitchOrgs(me);
   return (
     <>
-      <nav className="relative flex items-center justify-between px-4 h-12 shrink-0 border-b-[0.5px] border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800">
+      <nav className="relative flex items-center justify-between px-4 h-12 shrink-0 border-b-[0.5px] border-separator bg-surface">
         {back ? (
           <a
             href={href({ page: 'presentations' })}
@@ -333,7 +333,7 @@ export function TopBar({ me, back, warnings }: { me: Me; back: boolean; warnings
         )}
         <div className="flex items-center gap-3 sm:gap-6">
           <SyncStatus />
-          <AppButton variant="icon" href={href({ page: 'songs' })} title={t('nav.admin')} aria-label={t('nav.admin')} className="bg-neutral-100 dark:bg-neutral-700">
+          <AppButton variant="icon" href={href({ page: 'songs' })} title={t('nav.admin')} aria-label={t('nav.admin')} className="bg-raised">
             <CogIcon className="size-4" />
           </AppButton>
           <OrgSwitcher me={me} orgs={orgs} />
@@ -405,7 +405,7 @@ export function AdminLayout({ me, host, route, children }: { me: Me; host: boole
         href={href(l.route)}
         aria-current={active ? 'page' : undefined}
         onClick={() => setMenuVisible(false)}
-        className={`flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm no-underline ${active ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'}`}
+        className={`flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg text-sm no-underline ${active ? 'bg-sky-500 text-white' : 'text-neutral-600 dark:text-neutral-300 hover:bg-raised'}`}
       >
         <l.icon className="w-4 h-4 shrink-0" />
         {t(l.label)}
@@ -419,12 +419,12 @@ export function AdminLayout({ me, host, route, children }: { me: Me; host: boole
         onClick={() => setMenuVisible(false)}
       />
       <aside
-        className={`w-[300px] lg:w-56 shrink-0 bg-white dark:bg-neutral-800 overflow-y-auto duration-200 ease-in-out absolute inset-y-0 left-0 z-[110] shadow-xl lg:relative lg:inset-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 lg:border-r-[0.5px] lg:border-neutral-200 lg:dark:border-neutral-700 ${menuVisible ? 'visible translate-x-0' : 'invisible -translate-x-full'}`}
+        className={`w-[300px] lg:w-56 shrink-0 bg-surface overflow-y-auto duration-200 ease-in-out absolute inset-y-0 left-0 z-[110] shadow-xl lg:relative lg:inset-auto lg:z-0 lg:shadow-none lg:visible lg:translate-x-0 lg:border-r-[0.5px] lg:border-neutral-200 lg:dark:border-separator ${menuVisible ? 'visible translate-x-0' : 'invisible -translate-x-full'}`}
       >
         <nav className="flex flex-col min-h-full py-3" aria-label={t('nav.adminMenu')}>
           {adminLinks(me, host).map((group, i) => (
             <div key={i} className="flex flex-col">
-              {i > 0 && <div className="my-3 mx-4 h-px bg-neutral-200 dark:bg-neutral-700" />}
+              {i > 0 && <div className="my-3 mx-4 h-px bg-neutral-200 dark:bg-raised" />}
               {group.map(entry)}
             </div>
           ))}
@@ -437,7 +437,7 @@ export function AdminLayout({ me, host, route, children }: { me: Me; host: boole
         <div className="flex items-center absolute bottom-0 left-0 right-0 justify-between p-3 z-10 pointer-events-none lg:hidden">
           <AppButton
             variant="plain"
-            className="pointer-events-auto cursor-pointer p-4 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+            className="pointer-events-auto cursor-pointer p-4 bg-surface text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
             title={t('nav.menu')}
             aria-label={t('nav.menu')}
             onClick={() => setMenuVisible(true)}

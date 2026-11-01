@@ -107,15 +107,15 @@ export function ShortcutHelp() {
         {describe(registered.map((g) => g.group)).map((group) => (
           <section key={group.title} className="space-y-1" aria-label={group.title}>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{group.title}</h3>
-            <ul className="rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+            <ul className="rounded-xl border border-separator overflow-hidden">
               {group.lines.map((line) => (
-                <li key={line.text} className="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0">
+                <li key={line.text} className="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-separator last:border-b-0">
                   <span className="text-sm min-w-0">{line.text}</span>
                   <span className="shrink-0 flex flex-wrap justify-end gap-1">
                     {line.keys.map((k) => (
                       <kbd
                         key={k}
-                        className="px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-700 border-b-2 border-neutral-300 dark:border-neutral-600 text-xs font-sans font-medium text-neutral-700 dark:text-neutral-200 whitespace-nowrap"
+                        className="px-2 py-1 rounded-md bg-raised border-b-2 border-neutral-300 dark:border-neutral-600 text-xs font-sans font-medium text-neutral-700 dark:text-neutral-200 whitespace-nowrap"
                       >
                         {keyLabel(k)}
                       </kbd>

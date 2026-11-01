@@ -68,6 +68,7 @@ The rest is in `docs/`, one file per topic; read the one your task touches.
 | [cloudflare.md](docs/cloudflare.md) | The Worker serving the web app, and the trial on a real Cloudflare account with its measurements |
 | [performance.md](docs/performance.md) | How fast the most used flows are, measured before and after, and what made them so |
 | [scenarios.md](docs/scenarios.md) | What a church does with the app, most common first, and the e2e tests that run each scenario, whole Sundays included |
+| [layout-2-0.md](docs/layout-2-0.md) | Version 2.0's layout, decided from a mockup: live on a phone and in columns, the start page and its bar, and Inställningar; where it leaves the current look |
 | [look.md](docs/look.md) | How the web app follows the current Blazor app's look, page by page, the autosave, the output window switch, dragging, and the screenshot scripts |
 | [next-steps.md](docs/next-steps.md) | Where to pick up, in order |
 | [not-done-yet.md](docs/not-done-yet.md) | The smaller gaps, per area |

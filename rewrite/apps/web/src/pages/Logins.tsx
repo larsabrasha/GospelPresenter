@@ -138,7 +138,7 @@ export function Logins({ error: initialError }: { error: string | null }) {
         )}
         <ul className="space-y-3 empty:hidden" aria-label={t('logins.title')}>
           {logins?.map((l) => (
-            <li key={`${l.provider}:${l.id}`} className="flex items-center gap-3 p-3 bg-white dark:bg-neutral-700 rounded-xl border border-neutral-200 dark:border-neutral-600">
+            <li key={`${l.provider}:${l.id}`} className="flex items-center gap-3 p-3 bg-white dark:bg-raised rounded-xl border border-neutral-200 dark:border-neutral-600">
               <div className="flex-1 min-w-0">
                 <div className="text-sm truncate">
                   <span className="font-medium">{label(l)}</span> <span className="text-neutral-500 dark:text-neutral-400">{l.provider === 'google' ? t('logins.google') : t('logins.passkey')}</span>

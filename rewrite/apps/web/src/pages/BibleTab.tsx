@@ -50,7 +50,7 @@ const bookName = (code: string) => (language() === 'sv' ? swedishBookName(code) 
 const before = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
 /** A book, chapter or verse to pick (AddItem/Bible/BibleBookPicker.razor and the rest). */
-const CELL = 'rounded-lg bg-neutral-50 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
+const CELL = 'rounded-lg bg-neutral-50 dark:bg-raised/50 hover:bg-raised-2 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
 /** A picked verse: tinted sky (BibleVersePicker.razor). */
 const CELL_PICKED = 'rounded-lg bg-sky-500/15 dark:bg-sky-500/20 ring-1 ring-inset ring-sky-500/30 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500';
 
@@ -72,7 +72,7 @@ function BookPicker({ books, onPick }: { books: BibleBookText[]; onPick: (b: Bib
           (g) =>
             !!g.books.length && (
               <section key={g.title} className="flex flex-col gap-1">
-                <h3 className="text-xs/4 font-semibold text-neutral-400 uppercase tracking-wide px-3 mb-1 sticky top-0 bg-white dark:bg-neutral-800 py-2 z-10">{g.title}</h3>
+                <h3 className="text-xs/4 font-semibold text-neutral-400 uppercase tracking-wide px-3 mb-1 sticky top-0 bg-surface py-2 z-10">{g.title}</h3>
                 {g.books.map((b) => (
                   <AppButton key={b.code} variant="plain" {...list.item(index++)} className={`${CELL} px-3 py-2 text-left`} onClick={() => onPick(b)}>
                     {bookName(b.code)}
@@ -175,7 +175,7 @@ function BrowsePicker({ browse, books, setBrowse, onBack }: { browse: Browse; bo
           aria-label={t('common.back')}
           title={t('common.back')}
           onClick={onBack}
-          className="mb-2 -ml-1 cursor-pointer p-2.5 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
+          className="mb-2 -ml-1 cursor-pointer p-2.5 bg-surface text-neutral-700 dark:text-neutral-200 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.4)]"
         >
           <ChevronLeftIcon className="size-5" />
         </AppButton>
@@ -342,7 +342,7 @@ export function BibleTab({
               setBibleId(e.target.value);
               setBrowse(null);
             }}
-            className="appearance-none h-full py-2.5 pl-4 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-700 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="appearance-none h-full py-2.5 pl-4 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
           >
             {bibles.map((b) => (
               <option key={b.id} value={b.id}>
@@ -370,7 +370,7 @@ export function BibleTab({
             <div className="md:flex-1 md:min-h-0 md:overflow-y-auto">
               <ol className="flex flex-col gap-1.5 text-sm" aria-label={t('bible.results')}>
                 {shown.map((v) => (
-                  <li key={`${v.b}${v.c}:${v.v}`} className="px-3 py-2 rounded-lg bg-neutral-50 dark:bg-neutral-700/50">
+                  <li key={`${v.b}${v.c}:${v.v}`} className="px-3 py-2 rounded-lg bg-neutral-50 dark:bg-raised/50">
                     <span className="text-sky-500 font-semibold whitespace-nowrap">
                       {bookName(v.b)} {v.c}:{v.v}
                     </span>{' '}

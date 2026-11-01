@@ -10,7 +10,7 @@ export function SimpleInput({ icon, className, type = 'text', ...rest }: InputHT
   const shown = icon ?? (type === 'date' ? <CalendarIcon className="size-4" /> : type === 'time' ? <ClockIcon className="size-4" /> : null);
   return (
     <div
-      className={`flex items-center gap-1.5 h-9 rounded-full bg-neutral-100 dark:bg-neutral-700 text-sm focus-within:ring-2 focus-within:ring-sky-500 ${shown ? 'pl-3 pr-4' : 'px-4'} ${className ?? ''}`}
+      className={`flex items-center gap-1.5 h-9 rounded-full bg-raised text-sm focus-within:ring-2 focus-within:ring-sky-500 ${shown ? 'pl-3 pr-4' : 'px-4'} ${className ?? ''}`}
     >
       {shown && <span className="flex items-center shrink-0 pointer-events-none text-neutral-400 dark:text-neutral-500">{shown}</span>}
       <input
@@ -28,7 +28,7 @@ export function SimpleSelect({ className, children, ...rest }: SelectHTMLAttribu
     <div className={`relative ${className ?? ''}`}>
       <select
         {...rest}
-        className="appearance-none h-9 pl-4 pr-8 rounded-full bg-neutral-100 dark:bg-neutral-700 text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+        className="appearance-none h-9 pl-4 pr-8 rounded-full bg-raised text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
       >
         {children}
       </select>
