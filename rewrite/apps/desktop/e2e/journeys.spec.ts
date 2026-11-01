@@ -3,7 +3,7 @@
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, testPort, type Desktop } from './apps.ts';
-import { addSongs, closeAdmin, createPresentation, createSong, createUser, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
+import { addSongs, closeAdmin, createPresentation, createSong, createUser, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -96,6 +96,11 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   const outputs = page.getByRole('list', { name: 'Utgångar' });
   await outputs.getByLabel('Kyrksal').check();
   await outputs.getByLabel('Mobilerna').check();
+  // The 2.0 layout on a computer: the live bar instead of the app's, every item's slides in the middle, and the
+  // outputs folded to how they are.
+  await expect(page.getByTestId('live-bar')).toBeVisible();
+  await expect(page.getByTestId('live-slides').locator('section')).toHaveCount(3);
+  await expect(page.getByTestId('live-panel')).toContainText('3 på');
 
   /** What each of the three shows: the projector, the TV and the phone. */
   const showsText = async (text: string) => {
@@ -122,7 +127,7 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   // Black, then Avsluta: the projector closes, the TV draws black, the phone waits again.
   await page.keyboard.press('b');
   await expect(phone.getByTestId('watch-waiting')).toBeVisible({ timeout: 5_000 });
-  await Promise.all([projector.waitForEvent('close'), page.getByRole('button', { name: 'Avsluta presentation' }).click()]);
+  await Promise.all([projector.waitForEvent('close'), endPresentation(page)]);
   await expect(tv.getByTestId('display-black')).toBeVisible({ timeout: 5_000 });
   await expect(phone.getByTestId('watch-waiting')).toBeVisible();
 

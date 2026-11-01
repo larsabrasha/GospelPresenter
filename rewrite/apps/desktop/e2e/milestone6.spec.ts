@@ -1,7 +1,7 @@
 // Milestone 6: the rest of live, in slices. Stage view (spec 04 section 3).
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, endPresentation, openAdmin, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -138,7 +138,7 @@ test('Extern skärm is a switch: on opens the output, off closes it, closing the
   await expect(page.getByRole('checkbox', { name: 'Extern skärm' })).toBeChecked();
 
   // Avsluta presentation closes it, as the current app does (Live.razor).
-  await Promise.all([third.waitForEvent('close'), page.getByRole('button', { name: 'Avsluta presentation' }).click()]);
+  await Promise.all([third.waitForEvent('close'), endPresentation(page)]);
   await expect.poll(windowCount).toBe(1);
 });
 
@@ -170,7 +170,7 @@ test('a presentation is presented on its own page, as the current app: the addre
   // Avsluta stays on the page, which is the editor again.
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
   await page.getByRole('link', { name: /Söndag/ }).click();
-  await page.getByRole('button', { name: 'Avsluta presentation' }).click();
+  await endPresentation(page);
   await expect(page).toHaveURL(liveUrl);
   await expect(page.getByTestId('live-panel')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Starta presentation' })).toBeVisible();

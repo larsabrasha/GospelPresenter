@@ -4,7 +4,7 @@
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { highlight, makeZip, PROTOCOL_VERSION, SCHEMA_VERSION, searchSongs, utf8Encode } from '@gp/core';
-import { addSongs, allowRemote, createPresentation, createSong, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
+import { addSongs, allowRemote, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pair, pickItem, setUpHost } from './flows.ts';
 import { toneWav } from './wav.ts';
 
 let host: Desktop | undefined;
@@ -551,7 +551,7 @@ async function measureFlows(page: Page, runs: number): Promise<Flows> {
     return timeKeyPress(page, 'ArrowRight', (label) => window.gpArm(() => document.querySelector(`[aria-label="${label}"]`)?.getAttribute('aria-pressed') === 'true'), name);
   });
   // Ended, so the start page links to the editor again.
-  await page.getByRole('button', { name: 'Avsluta presentation' }).click();
+  await endPresentation(page);
   await expect(page.getByRole('heading', { name: 'Perf 30', exact: true })).toBeVisible();
   return f;
 }

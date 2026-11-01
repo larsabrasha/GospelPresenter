@@ -9,7 +9,7 @@ import { outputWindow } from '../../../live/outputWindow.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronLeftIcon, CloseIcon, DesktopIcon, EllipsisIcon, InformationCircleIcon, PlusIcon, RemoteIcon, SquaresOverlapIcon, StopIcon } from '../../../ui/icons.tsx';
+import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronLeftIcon, CloseIcon, DesktopIcon, EllipsisIcon, GripIcon, InformationCircleIcon, PencilIcon, PlusIcon, RemoteIcon, SquaresOverlapIcon, StopIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
 import { GROUP, Sheet } from '../../../ui/Sheet.tsx';
 import { SlideView } from '../../../ui/SlideView.tsx';
@@ -230,12 +230,18 @@ export function PhoneLive({
       {open && typeof open === 'object' && (
         <Sheet title={open.item.title} onClose={() => setOpen(null)}>
           <div className={GROUP}>
-            <MenuRow onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>{t('live.addAfter')}</MenuRow>
-            <MenuRow onClick={() => (setOpen(null), setEditing(true))}>{t('live.move')}</MenuRow>
+            <MenuRow icon={<PlusIcon className="size-5" />} onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>
+              {t('live.addAfter')}
+            </MenuRow>
+            <MenuRow icon={<GripIcon className="size-5" />} onClick={() => (setOpen(null), setEditing(true))}>
+              {t('live.move')}
+            </MenuRow>
             {open.item.type === 'song' && (
-              <MenuRow onClick={() => (setOpen(null), navigate({ page: 'song', id: open.item.sourceId }))}>{t('live.editSong')}</MenuRow>
+              <MenuRow icon={<PencilIcon className="size-5" />} onClick={() => (setOpen(null), navigate({ page: 'song', id: open.item.sourceId }))}>
+                {t('live.editSong')}
+              </MenuRow>
             )}
-            <MenuRow onClick={() => void remove(open.item)} danger disabled={open.item.id === pointer.itemId}>
+            <MenuRow icon={<TrashIcon className="size-5" />} onClick={() => void remove(open.item)} danger disabled={open.item.id === pointer.itemId}>
               {open.item.id === pointer.itemId ? t('live.shownCannotRemove') : t('common.delete')}
             </MenuRow>
           </div>

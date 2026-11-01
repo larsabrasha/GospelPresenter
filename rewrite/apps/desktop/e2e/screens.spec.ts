@@ -3,7 +3,7 @@
 // Played by Playwright's Chromium beside the desktop app.
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, pickItem, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, endPresentation, openAdmin, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -102,7 +102,7 @@ test('a saved screen whose session ended draws black, and its name again once it
   await page.getByRole('list', { name: 'Utgångar' }).getByLabel('Kyrksal').check();
   await expect(screen.getByTestId('slide-text')).toHaveText('A ett', { timeout: 5_000 });
 
-  await page.getByRole('button', { name: 'Avsluta presentation' }).click();
+  await endPresentation(page);
 
   await expect(screen.getByTestId('display-black')).toBeVisible({ timeout: 5_000 });
   await expect(screen.getByTestId('display-idle')).toHaveCount(0);

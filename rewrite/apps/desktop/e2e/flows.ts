@@ -32,10 +32,16 @@ export async function dropFiles(target: Locator, files: { name: string; mimeType
   await target.dispatchEvent('drop', { dataTransfer: data });
 }
 
-/** The admin menu at the side, opened with the cog in the bar unless an admin page is open already. */
+/**
+ * The admin menu at the side, opened with the cog in the bar unless an admin page is open already; while
+ * presenting, from the live bar's ….
+ */
 export async function adminMenu(page: Page) {
   const menu = page.getByRole('navigation', { name: 'Administration' });
-  if (!(await menu.isVisible())) await page.getByRole('link', { name: 'Inställningar', exact: true }).click();
+  if (await menu.isVisible()) return menu;
+  const bar = page.getByTestId('live-bar');
+  if (await bar.isVisible()) await bar.getByRole('button', { name: 'Mer', exact: true }).click();
+  await page.getByRole('link', { name: 'Inställningar', exact: true }).click();
   return menu;
 }
 
@@ -199,9 +205,19 @@ export async function pair(host: Page, device: Page, name: string, as?: string) 
  * LivePanel.razor's.
  */
 export async function remoteSwitch(page: Page) {
+  const toggle = page.getByLabel('Tillåt fjärrstyrning');
+  if (await toggle.isVisible()) return toggle;
+  await page.getByTestId('live-bar').getByRole('button', { name: 'Mer', exact: true }).click();
+  await page.getByRole('button', { name: 'Fjärrstyrning…' }).click();
   const section = page.getByRole('button', { name: 'Fjärrstyrning', exact: true });
   if ((await section.getAttribute('aria-expanded')) === 'false') await section.click();
-  return page.getByLabel('Tillåt fjärrstyrning');
+  return toggle;
+}
+
+/** Avsluta in the live bar, and its question answered: the presentation stops. */
+export async function endPresentation(page: Page) {
+  await page.getByTestId('live-bar').getByRole('button', { name: 'Avsluta presentation' }).click();
+  await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
 }
 
 /**

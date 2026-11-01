@@ -2,7 +2,7 @@
 // nothing is selected, the last selected item again on return, and Markera to remove several items.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, openPresentations, pickItem, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pickItem, setUpHost } from './flows.ts';
 import { solidPng } from './png.ts';
 
 let host: Desktop | undefined;
@@ -116,7 +116,7 @@ test('a reload while presenting goes on presenting the same slide; only Avsluta 
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
 
   // Avsluta ends it, and a reload after that does not start it again.
-  await Promise.all([output.waitForEvent('close'), page.getByRole('button', { name: 'Avsluta presentation' }).click()]);
+  await Promise.all([output.waitForEvent('close'), endPresentation(page)]);
   await expect(page.getByTestId('live-panel')).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('button', { name: 'Starta presentation' })).toBeVisible();

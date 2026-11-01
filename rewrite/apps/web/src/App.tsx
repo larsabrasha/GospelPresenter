@@ -44,6 +44,7 @@ import { PageDialog } from './ui/Dialog.tsx';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
 import { PageContainer } from './ui/PageContainer.tsx';
 import { closeAdmin, isAdminPage, useRoute, type Route } from './ui/router.ts';
+import { useLivePointer } from './live/useLive.ts';
 import { ToastProvider } from './ui/Toast.tsx';
 
 /**
@@ -58,6 +59,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const audio = useMemo(() => new AudioEngine((itemId) => audioUrlOfItem(db, itemId)), [db]);
   // So does a video item's, and its picture's clock, which the outputs follow (TODO.md "Video on the outputs").
   const video = useMemo(() => new VideoEngine(), []);
+  const pointer = useLivePointer(live);
   // This window owns whatever it presents, on every page (LIVE-R49).
   useLiveOwner(live, link, db, sessionId, audio, video);
   // And counts the songs it shows for the CCLI report (SONG-R48).
@@ -133,13 +135,15 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const adminOpen = isAdminPage(route);
   const [under, setUnder] = useState<Route>(adminOpen ? { page: 'presentations' } : route);
   if (!adminOpen && route !== under) setUnder(route);
+  // A presentation shown here, or driven from here, has a bar of its own (docs/layout-2-0.md).
+  const liveHere = under.page === 'presentation' && (!!under.remote || pointer.presentationId === under.id);
   return (
     <ToastProvider>
       <ShortcutHelp />
       <UnexpectedError />
       {/* Out of reach under the admin dialog, for the keyboard and screen readers too. */}
       <div className="contents" inert={adminOpen} aria-hidden={adminOpen || undefined}>
-        <TopBar me={me} back={under.page === 'presentation'} warnings={!adminOpen} />
+        {!liveHere && <TopBar me={me} back={under.page === 'presentation'} warnings={!adminOpen} />}
         {under.page === 'presentations' ? (
           <Presentations link={link} ownSessionId={sessionId} />
         ) : under.page === 'settings' ? (

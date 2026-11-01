@@ -94,5 +94,8 @@ From the 2.0 layout (docs/layout-2-0.md), what is built so far is live on a phon
 following rule, Lägg till's place, Utgångar as a list of switches, …, an item's … (with Redigera sången) and
 Avsluta; Redigera (moved by ≡, removed by the minus); the sheets are pulled down to close; the colours are the theme's (`app.css`). Not yet:
 undoing an addition or a removal (a removed item is deleted at once, so the item's … asks first, as the editor
-does); the columns on a
-computer and an iPad lying down; the start page and its bar; Inställningar as a list.
+does); on a computer, the left column as the doc has it (the red dot, the row's … and a right click, Delete):
+it is still the editor's running order, which drags and removes; the touch sizes of an iPad lying down; the start
+page and its bar; Inställningar as a list. Built on a computer: the live bar (the centred title with its popover,
+Scenläge, … with Fjärrstyrning and Inställningar, Avsluta asking first), the whole order's slides in the middle,
+and the live column with ‹ Rensa ›, the next slide, the overlays and the outputs folded to their state.

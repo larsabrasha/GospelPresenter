@@ -7,7 +7,7 @@ import { mkdirSync } from 'node:fs';
 import { chromium, expect, test, type Browser, type Page } from '@playwright/test';
 import { sampleDblZip } from '../../../packages/core/test/bible-fixtures.ts';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, remoteSwitch, setUpHost, signOut } from './flows.ts';
+import { addSongs, createPresentation, createSong, endPresentation, openAdmin, remoteSwitch, setUpHost, signOut } from './flows.ts';
 import { solidPng } from './png.ts';
 import { toneWav } from './wav.ts';
 
@@ -179,7 +179,7 @@ test('capture every page', async () => {
       await expect(fold).toHaveAttribute('aria-expanded', 'true');
     }
   };
-  const stopLive = (p: Page) => p.getByRole('button', { name: 'Avsluta presentation' }).click();
+  const stopLive = (p: Page) => endPresentation(p);
   // On a phone the admin menu covers the page at first; tap the dimmed page to close it.
   const closeAdminMenu = async (p: Page) => {
     if (p.viewportSize()!.width < 1024 && (await p.locator('aside:visible').count())) await p.mouse.click(370, 400);

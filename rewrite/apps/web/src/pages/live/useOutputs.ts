@@ -12,6 +12,8 @@ import { useToast } from '../../ui/Toast.tsx';
 /** A saved screen or a public output, as the outputs show it while presenting. */
 interface OutputRow {
   display: Display;
+  /** This window has chosen it; it may still be offline. */
+  chosen: boolean;
   /** This window sends to it. */
   sending: boolean;
   /** A saved screen whose page is not open: it cannot be switched on (LIVE-A21). */
@@ -50,6 +52,7 @@ export function useOutputs(link: LiveLink, sessionId: string) {
       const offline = d.kind === 'screen' && !online.includes(d.id);
       return {
         display: d,
+        chosen: chosen.includes(d.id),
         sending: chosen.includes(d.id) && !elsewhere && !offline,
         offline,
         elsewhere: elsewhere ? (elsewhere.presentationName ?? '') : null,

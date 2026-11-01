@@ -1,5 +1,5 @@
 import { can, sortedArrangements, type PresentationItem, type Role } from '@gp/core';
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useData, useDb, useShownOverlay } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
@@ -14,6 +14,8 @@ import type { AudioControl } from '../../live/audio.ts';
 import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
+import { LiveBar } from '../live/desktop/LiveBar.tsx';
+import { LiveSlides } from '../live/desktop/LiveSlides.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
 import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
@@ -161,9 +163,9 @@ export function PresentationEditor({
   const owner = presenting?.owner ?? null;
   const [stageOpen, setStage] = useState(openInStage);
   const stage = !!presenting && stageOpen;
-  const [folded, setFolded] = useState(false);
   const wide = useWide();
-  const panelId = useId();
+  // An item chosen at the left while presenting on a computer scrolls the slides to it, each choice anew.
+  const [reveal, setReveal] = useState<{ id: string; n: number } | null>(null);
   const overlay = useShownOverlay(pointer.overlayId);
   // The address says whether the stage view is open (`?stage=true`, as Presentation.razor), so a reload or a copied link opens it again.
   useEffect(() => {
@@ -310,6 +312,11 @@ export function PresentationEditor({
   const selectedArrangements = selectedSong ? sortedArrangements(data.arrangements, selectedSong.id) : [];
   const selectedSlides = selected ? slides.get(selected.id) : undefined;
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
+  const at = steps.findIndex((x) => x.itemId === pointer.itemId && x.partIndex === pointer.partIndex);
+  const nextStep = at === -1 ? null : (steps[at + 1] ?? null);
+  const nextItem = nextStep ? items.find((i) => i.id === nextStep.itemId) : undefined;
+  const nextSlide = nextStep ? slides.get(nextStep.itemId)?.slides[nextStep.partIndex] : undefined;
+  const next = nextItem && nextSlide ? { slide: nextSlide, title: nextStep!.itemId === pointer.itemId ? (nextSlide.label?.text ?? String(nextStep!.partIndex + 1)) : nextItem.title } : null;
   // Presenting on a phone or an iPad held upright: one column with sheets instead of the editor (docs/layout-2-0.md).
   const phone = !!presenting && !wide;
 
@@ -318,6 +325,9 @@ export function PresentationEditor({
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
       {presenting && !owner && <RemoteBanner />}
       {presenting && <LiveKeys />}
+      {presenting && !phone && (
+        <LiveBar id={id} presentation={presentation} pointer={pointer} live={live} owner={owner} onStage={() => setStage(true)} onDetails={() => setDetails(true)} />
+      )}
       {presenting && stage && <StageView items={items} slides={slides} theme={theme} overlays={overlays} live={live} audio={presenting.audio} video={presenting.video} onLeave={() => setStage(false)} />}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
@@ -363,46 +373,56 @@ export function PresentationEditor({
                   setSelectedId(itemId);
                   setRenaming(false);
                   setMenuVisible(false);
+                  setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 }));
                 }}
                 onRemove={(item) => void removeItem(item)}
                 onAdd={() => setAdding('item')}
               />
             </SideMenu>
-            <ItemPane
-              items={items}
-              selected={selected}
-              renaming={renaming}
-              setRenaming={setRenaming}
-              selectedSong={selectedSong}
-              selectedArrangements={selectedArrangements}
-              selectedSlides={selectedSlides}
-              overlays={overlays}
-              theme={theme}
-              canStart={!template && pointer.presentationId === null}
-              // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
-              onStart={() => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false })}
-              onShowMenu={() => setMenuVisible(true)}
-              onAddImages={() => setAdding('images')}
-              shown={presenting ? { live, pointer, audio: presenting.audio, video: presenting.video } : undefined}
-            />
+            {presenting ? (
+              <LiveSlides
+                items={items}
+                slides={slides}
+                theme={theme}
+                pointer={pointer}
+                audio={presenting.audio}
+                video={presenting.video}
+                reveal={reveal}
+                onShow={(itemId, partIndex) => live.set({ itemId, partIndex, black: false })}
+              />
+            ) : (
+              <ItemPane
+                items={items}
+                selected={selected}
+                renaming={renaming}
+                setRenaming={setRenaming}
+                selectedSong={selectedSong}
+                selectedArrangements={selectedArrangements}
+                selectedSlides={selectedSlides}
+                overlays={overlays}
+                theme={theme}
+                canStart={!template && pointer.presentationId === null}
+                // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
+                onStart={() => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false })}
+                onShowMenu={() => setMenuVisible(true)}
+                onAddImages={() => setAdding('images')}
+              />
+            )}
           </>
         )}
         {!phone && presenting && (
           <LivePanel
-            id={id}
             owner={owner}
             link={presenting.link}
             live={live}
             pointer={pointer}
             current={current}
+            next={next}
             overlay={overlay}
             theme={theme}
             overlays={overlays}
-            name={presentation.name}
-            collapsed={folded && !wide}
-            panelId={panelId}
-            onToggle={() => setFolded((f) => !f)}
-            onStage={() => setStage(true)}
+            canStep={{ back: at > 0, forward: at === -1 ? steps.length > 0 : at < steps.length - 1 }}
+            onStep={step}
           />
         )}
         {!phone && adding && (
