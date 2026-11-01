@@ -20,6 +20,7 @@ SYNC_ADAPTERS=node pnpm --filter @gp/server test        # server tests on one ad
 GP_E2E_WORKERS=1 pnpm e2e              # e2e workers (default: half the CPU cores); GP_E2E_VISIBLE=1 shows windows
 pnpm --filter @gp/desktop start        # the desktop host on 127.0.0.1:47800 (Google client: docs/sign-in-and-pairing.md)
 GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start   # on the LAN, over https (docs/lan-https-and-addresses.md)
+GP_DEV_PAIR=1 GP_LAN=1 GP_TLS=self-signed pnpm --filter @gp/desktop start   # the same, devices in without a code (development only)
 GP_CAPTURE=/tmp/new pnpm --filter @gp/desktop exec playwright test capture   # pictures of every page
 GP_CAPTURE_ONLY=setup,login pnpm …     # only the named pictures (docs/look.md, last paragraph)
 ```

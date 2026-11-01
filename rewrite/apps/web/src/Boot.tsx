@@ -30,15 +30,17 @@ function signedIn(r: SignInResponse) {
 export type BootFor = { invite: string } | { signedIn: true } | { error: string | null };
 
 type Screen = 'loading' | 'offline' | 'pair' | 'repair' | 'setup' | 'signin' | 'invite' | 'handoff';
+/** The screen, how one signs in here, and whether a development host pairs without a code. */
+type View = { screen: Screen; state?: AuthState; dev?: boolean };
 
 /** Which screen comes first: pairing, then an invite, a web sign-in coming back, setup or sign-in; and how one signs in here. */
-async function firstScreen(boot: BootFor): Promise<{ screen: Screen; state?: AuthState }> {
+async function firstScreen(boot: BootFor): Promise<View> {
   try {
     const pair = await api<PairStatus>('GET', '/api/pair/status');
     const host = !pair.error && pair.body.required;
     if (host && !pair.body.paired) {
       saveDeviceToken(null); // a token the host no longer knows
-      return { screen: 'pair' };
+      return { screen: 'pair', dev: pair.body.dev };
     }
     if ('signedIn' in boot) return { screen: 'handoff' };
     const state = (await api<AuthState>('GET', '/api/auth/state')).body ?? undefined;
@@ -49,7 +51,7 @@ async function firstScreen(boot: BootFor): Promise<{ screen: Screen; state?: Aut
       return { screen: 'loading' };
     }
     // A device paired with a desktop host signs in by pairing again; only the host's own window signs in itself.
-    if (host && !pair.body.host) return { screen: 'repair' };
+    if (host && !pair.body.host) return { screen: 'repair', dev: pair.body.dev };
     return { screen: state?.setupRequired ? 'setup' : 'signin', state };
   } catch {
     return { screen: 'offline' };
@@ -82,7 +84,7 @@ function Handoff() {
  * answers an unpaired device), then an invite, first-run setup or sign-in.
  */
 export function Boot({ boot }: { boot: BootFor }) {
-  const [view, setView] = useState<{ screen: Screen; state?: AuthState }>({ screen: 'loading' });
+  const [view, setView] = useState<View>({ screen: 'loading' });
   useEffect(() => {
     void firstScreen(boot).then(setView);
   }, [boot]);
@@ -107,7 +109,7 @@ export function Boot({ boot }: { boot: BootFor }) {
       );
     case 'pair':
     case 'repair':
-      return <Pair paired={screen === 'repair'} onSignedIn={signedIn} />;
+      return <Pair paired={screen === 'repair'} dev={!!view.dev} onSignedIn={signedIn} />;
     case 'invite':
       return <Invite token={(boot as { invite: string }).invite} methods={methods} onSignedIn={signedIn} />;
     case 'handoff':

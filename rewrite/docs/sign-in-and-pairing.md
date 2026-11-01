@@ -101,6 +101,12 @@ a device signs in to a host, also after its session ends. Enheter also disconnec
 stops it and ends the session its pairing made. `pnpm --filter @gp/desktop serve` has no pairing
 unless `GP_LAN=1`.
 
+**For development only, `GP_DEV_PAIR=1`** lets a device in without a code: `/api/pair/status` says `dev`,
+and the pairing page asks `/api/pair/dev` at once, which pairs the device as the first organisation's
+first admin (a SuperAdmin before an Admin). Anyone on the network then gets in as that admin, so it is
+never on by itself; without it the route does not exist. Before setup there is no admin, and the page
+shows the code form.
+
 **Configuration of passkeys.** An explicit RP ID and the exact origins ceremonies may come from;
 without both, passkeys are off and `/api/auth/state` says so. Node: `startNodeServer({ passkeys: { rpId,
 origins } })`, and `GP_PASSKEY_RP_ID`, `GP_PASSKEY_ORIGINS` (comma-separated) for `serve`. The Worker:

@@ -2,7 +2,7 @@
 // and Workers (D1 + Durable Objects in workerd), with a fake Google in this
 // process. Security first: every way a request should be refused is tried.
 // Pairing is Node-only (the desktop host) and has its own describe block at the end.
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
 import { PROTOCOL_VERSION, SCHEMA_VERSION, type AuthState, type LoginMethod, type Me, type PairClaimResponse, type PairStatus, type SignInResponse, type UserRow } from '@gp/core';
 import { SyncClient, httpTransport, socketProtocols } from '@gp/sync/client';
@@ -446,7 +446,7 @@ describe.each(adapters)('%s adapter', (adapterName) => {
   });
 
   it('a server that is not a desktop host requires no pairing', async () => {
-    expect((await api<PairStatus>(h, 'GET', '/api/pair/status')).body).toEqual({ required: false, paired: false, host: false });
+    expect((await api<PairStatus>(h, 'GET', '/api/pair/status')).body).toEqual({ required: false, paired: false, host: false, dev: false });
   });
 });
 
@@ -567,8 +567,8 @@ describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing,
   });
 
   it('an unpaired device is refused everywhere but the pairing itself, also with a valid session token', async () => {
-    expect((await req<PairStatus>('GET', '/api/pair/status')).body).toEqual({ required: true, paired: false, host: false });
-    expect((await req<PairStatus>('GET', '/api/pair/status', { device: HOST })).body).toEqual({ required: true, paired: true, host: true });
+    expect((await req<PairStatus>('GET', '/api/pair/status')).body).toEqual({ required: true, paired: false, host: false, dev: false });
+    expect((await req<PairStatus>('GET', '/api/pair/status', { device: HOST })).body).toEqual({ required: true, paired: true, host: true, dev: false });
     for (const device of [undefined, 'gppd_forged', 'gphost_' + 'x'.repeat(43)]) {
       expect(await req('GET', '/api/auth/state', { device })).toEqual({ status: 403, body: { error: 'device-not-paired' } });
       expect((await req('POST', '/api/auth/google/begin', { device, body: { app: { deviceName: 'x', callbackScheme: 'gospelpresenter' } } })).status).toBe(403);
@@ -676,5 +676,55 @@ describe.each(['better-sqlite3', 'node:sqlite'] as const)('desktop host pairing,
     const forCy = await req<{ code: string }>('POST', '/api/pair/code', { device: HOST, token: admin.token, body: { userId: created.body.id } });
     expect((await req('DELETE', `/api/users/${created.body.id}`, { device: HOST, token: admin.token })).status).toBe(200);
     expect((await req('POST', '/api/pair/claim', { body: { code: forCy.body.code, name: 'Cy again' } })).body).toEqual({ error: 'pair-code-invalid' });
+  });
+
+  it('without GP_DEV_PAIR, a device cannot pair without a code', async () => {
+    const r = await fetch(`${host.url}/api/pair/dev`, { method: 'POST', body: JSON.stringify({ name: 'iPhone' }) });
+
+    expect(r.status).toBe(404);
+  });
+});
+
+describe('a development host (GP_DEV_PAIR=1)', () => {
+  const HOST = 'gphost_' + 'd'.repeat(43);
+  let server: RunningServer;
+  let dataDir: string;
+  const host: Harness = { name: 'node', url: '', mediaKeys: async () => [], close: async () => {} };
+  const req = <T = unknown>(method: string, path: string, opts: { token?: string; device?: string; body?: unknown } = {}) =>
+    api<T>(host, method, path, { token: opts.token, body: opts.body, headers: opts.device ? { 'x-gp-device': opts.device } : {} });
+
+  beforeEach(async () => {
+    dataDir = mkdtempSync(join(tmpdir(), 'gp-devpair-'));
+    server = await startNodeServer({
+      dataDir,
+      driver: 'node:sqlite',
+      pairing: { hostToken: HOST, dev: true },
+      setupToken: SETUP_TOKEN,
+      // Setup needs a way to sign in; the admin never does here.
+      passkeys: { rpId: 'localhost', origins: ['http://localhost:47800'] },
+      log: () => undefined,
+    });
+    host.url = server.url;
+  });
+  afterEach(async () => {
+    await server?.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  });
+
+  it('pairs a device that asks, without a code, as the first admin', async () => {
+    const setup = await req('POST', '/api/auth/setup', { device: HOST, body: { setupToken: SETUP_TOKEN, name: 'Anna', orgName: 'Kyrkan' } });
+    expect(setup.status).toBe(200);
+
+    const paired = await req<PairClaimResponse>('POST', '/api/pair/dev', { body: { name: 'iPhone' } });
+
+    expect(paired.status).toBe(200);
+    expect((await req<PairStatus>('GET', '/api/pair/status', { device: paired.body.device })).body).toEqual({ required: true, paired: true, host: false, dev: true });
+    expect((await req<Me>('GET', '/api/auth/me', { device: paired.body.device, token: paired.body.session.token })).body).toMatchObject({ name: 'Anna', role: 'superAdmin' });
+  });
+
+  it('refuses while the host is not set up, as there is no admin to pair as', async () => {
+    const r = await req('POST', '/api/pair/dev', { body: { name: 'iPhone' } });
+
+    expect(r).toEqual({ status: 400, body: { error: 'pair-code-invalid' } });
   });
 });

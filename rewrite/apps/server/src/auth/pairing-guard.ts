@@ -10,6 +10,8 @@ import { credentials } from './caller.ts';
 export interface Pairing {
   /** Held by the host's main process, which adds it to its own window's requests; never stored. */
   hostToken: string;
+  /** For development only (`GP_DEV_PAIR=1`): `/api/pair/dev` pairs any device that asks, as the first admin. */
+  dev?: boolean;
 }
 
 export async function deviceOf(req: Request, accounts: Accounts, pairing: Pairing): Promise<'host' | 'paired' | null> {
@@ -26,7 +28,7 @@ export async function deviceOf(req: Request, accounts: Accounts, pairing: Pairin
  */
 const ANONYMOUS_PREFIXES = ['/api/watch/', '/api/display/', '/api/screen/', '/api/play/'];
 /** Paths an unpaired device may reach: the pairing itself. Everything outside the API is the static app. */
-const OPEN_PATHS = new Set(['/api/pair/status', '/api/pair/claim']);
+const OPEN_PATHS = new Set(['/api/pair/status', '/api/pair/claim', '/api/pair/dev']);
 /**
  * The host's own sign-in, which runs in the system browser of the host's
  * machine (spec 01 device sign-in): Google, or a passkey ceremony. That

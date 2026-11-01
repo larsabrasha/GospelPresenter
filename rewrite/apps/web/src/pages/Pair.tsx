@@ -17,12 +17,21 @@ import { AUTH_SUBMIT, AUTH_TEXT, AuthCard, FormError } from './AuthCard.tsx';
 /** A code from the host's QR code (`#pair={code}`). */
 const codeFromLink = () => /^#pair=(\d{6})$/.exec(location.hash)?.[1] ?? '';
 
-export function Pair({ paired, onSignedIn }: { paired: boolean; onSignedIn: (r: SignInResponse) => void }) {
+export function Pair({ paired, dev, onSignedIn }: { paired: boolean; dev: boolean; onSignedIn: (r: SignInResponse) => void }) {
   const [code, setCode] = useState(codeFromLink);
   // Out of the address once read, so the code is not kept in the history.
   useEffect(() => {
     if (codeFromLink()) history.replaceState(null, '', location.pathname + location.search);
   }, []);
+  // A development host (GP_DEV_PAIR=1) pairs without a code; if it refuses (not set up yet), the form stays.
+  useEffect(() => {
+    if (!dev) return;
+    void api<PairClaimResponse>('POST', '/api/pair/dev', { name: deviceName() }).then((r) => {
+      if (r.error) return;
+      saveDeviceToken(r.body.device);
+      onSignedIn(r.body.session);
+    }, () => undefined);
+  }, [dev, onSignedIn]);
   const [name, setName] = useState(deviceName());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

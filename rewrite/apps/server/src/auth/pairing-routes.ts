@@ -1,7 +1,7 @@
 // Pairing a device with a desktop host: the status anyone may ask for, and,
 // on a host, claiming a code, making codes and managing paired devices.
 import type { Context, Hono } from 'hono';
-import { ACCOUNT_LIMITS, inviteRefusal, pairClaimRequest, pairCodeRequest, type PairClaimResponse, type PairStatus } from '@gp/core';
+import { ACCOUNT_LIMITS, inviteRefusal, pairClaimRequest, pairCodeRequest, pairDevRequest, type PairClaimResponse, type PairStatus } from '@gp/core';
 import { newDigits } from '../crypto.ts';
 import { THROTTLE } from '../global/index.ts';
 import type { Caller } from './caller.ts';
@@ -11,12 +11,22 @@ import { deviceOf } from './pairing-guard.ts';
 export function pairingRoutes(app: Hono, kit: AuthKit) {
   const { deps, accounts, tooMany, signedIn, withCaller, target, actor } = kit;
 
+  /** The first organisation's first admin, a SuperAdmin before an Admin. */
+  async function firstAdmin(): Promise<{ userId: string; orgId: string } | null> {
+    for (const org of await accounts.members.listOrgs()) {
+      const admins = (await accounts.members.listUsers(org.id)).filter((u) => u.role !== 'user');
+      const admin = admins.find((u) => u.role === 'superAdmin') ?? admins[0];
+      if (admin) return { userId: admin.id, orgId: org.id };
+    }
+    return null;
+  }
+
   // -------------------------------------------------------------- pairing
 
   const pairing = deps.pairing;
   app.get('/api/pair/status', async (c) => {
     const device = pairing ? await deviceOf(c.req.raw, accounts, pairing) : null;
-    return c.json({ required: !!pairing, paired: !!device, host: device === 'host' } satisfies PairStatus);
+    return c.json({ required: !!pairing, paired: !!device, host: device === 'host', dev: !!pairing?.dev } satisfies PairStatus);
   });
 
   if (pairing) {
@@ -40,6 +50,25 @@ export function pairingRoutes(app: Hono, kit: AuthKit) {
       }
       return c.json({ device: claimed.token, session } satisfies PairClaimResponse);
     });
+
+    /**
+     * For development only (`GP_DEV_PAIR=1`): a device pairs without a code, as the first organisation's first
+     * admin. The route does not exist otherwise; a host that is not set up has no admin, and refuses.
+     */
+    if (pairing.dev) {
+      app.post('/api/pair/dev', async (c) => {
+        const a = await body(c, pairDevRequest);
+        if (!a) return fail(c, 400, 'invalid-request');
+        const admin = await firstAdmin();
+        if (!admin) return fail(c, 400, 'pair-code-invalid');
+        const code = newDigits(6);
+        await accounts.pairing.newPairCode(code, ACCOUNT_LIMITS.pairCodeTtlMs, admin.userId, admin.orgId);
+        const claimed = (await accounts.pairing.claimPairCode(code, a.name, 1))!;
+        const session = await signedIn(claimed.userId, claimed.orgId, a.name, claimed.deviceId);
+        if (!session) return fail(c, 400, 'pair-code-invalid');
+        return c.json({ device: claimed.token, session } satisfies PairClaimResponse);
+      });
+    }
 
     /** Only the host's own window, signed in with ManageUsers: whoever pairs a device is at the host. */
     const atHost = (fn: (c: Context, caller: Caller) => Promise<Response>) =>

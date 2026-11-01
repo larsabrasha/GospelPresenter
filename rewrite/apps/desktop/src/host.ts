@@ -99,7 +99,8 @@ export async function startHost(opts: {
     port: opts.port ?? 0,
     webRoot: opts.webRoot,
     // Off only for the localhost development server (serve.ts); never on the LAN.
-    pairing: opts.hostToken || onLan() ? { hostToken: opts.hostToken ?? `gphost_${randomBytes(32).toString('base64url')}` } : undefined,
+    // GP_DEV_PAIR=1 lets any device in without a code, as the first admin: for development only.
+    pairing: opts.hostToken || onLan() ? { hostToken: opts.hostToken ?? `gphost_${randomBytes(32).toString('base64url')}`, dev: process.env.GP_DEV_PAIR === '1' } : undefined,
     setupToken: process.env.GP_SETUP_TOKEN || undefined,
     // Comma-separated addresses or CIDR blocks of reverse proxies (docs/lan-https-and-addresses.md, "Behind a reverse proxy").
     trustedProxies: process.env.GP_TRUSTED_PROXIES?.split(','),

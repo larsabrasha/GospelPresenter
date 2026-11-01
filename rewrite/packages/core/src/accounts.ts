@@ -196,6 +196,7 @@ export interface OrgRow {
 export const pairCodeRequest = z.object({ userId: z.string().min(1).max(200).optional() });
 
 export const pairClaimRequest = z.object({ code: z.string().regex(/^\d{6}$/), name: z.string().trim().min(1).max(200) });
+export const pairDevRequest = pairClaimRequest.pick({ name: true });
 
 /** The signed-in user, as `GET /auth/me` answers, read fresh from the server's tables. */
 export interface Me {
@@ -262,6 +263,8 @@ export interface PairStatus {
   paired: boolean;
   /** The request came from the host's own window. */
   host: boolean;
+  /** A development host lets a device in without a code (`GP_DEV_PAIR=1`): it asks `/api/pair/dev`. */
+  dev: boolean;
 }
 
 export interface PairedDevice {
