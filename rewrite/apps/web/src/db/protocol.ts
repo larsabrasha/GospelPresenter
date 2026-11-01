@@ -46,6 +46,10 @@ export type DbCall =
   | { op: 'addImage'; image: ImageImport }
   /** Adds an audio file to the library, as it was picked (MEDIA-R5): kept here, uploaded before `addAudio` is pushed. */
   | { op: 'addAudio'; audio: AudioImport }
+  /** Adds a file to a song's material (spec 02 "Song material"): kept here, uploaded before `addSongFile` is pushed. */
+  | { op: 'addSongFile'; file: SongFileImport }
+  /** A song's file, opened: this device's copy, else fetched now, checked by its hash and kept as cache. */
+  | { op: 'openMedia'; hash: string }
   /** Records a video already uploaded (TODO.md "Video"): its still is kept here, the video only named; then `addVideo`. */
   | { op: 'addVideo'; video: VideoImport }
   /** Adds a rendered slide deck as an item (D29): keep its pages' blobs here, then `addSlides`, uploaded before it is pushed. */
@@ -111,6 +115,16 @@ export interface SlidesImport {
   fileName: string;
   contentType: 'image/jpeg' | 'image/webp';
   pages: { full: Uint8Array; thumb: Uint8Array }[];
+}
+
+/** A PDF or an audio file picked for a song's material, as it was picked. */
+export interface SongFileImport {
+  id: string;
+  songId: string;
+  title: string;
+  /** What its bytes say it is, not what the browser guessed. */
+  contentType: 'application/pdf' | AudioImport['contentType'];
+  bytes: Uint8Array;
 }
 
 export interface AudioImport {

@@ -1,7 +1,7 @@
 // Keeping presentations offline (TODO.md "Video, and which files a device fetches"): a device keeps every
 // file of a presentation it was told to, its videos whole too, whatever its date, and fetches what is
-// added to it later without the presentation being opened. Its icon says how far it has come, in the list
-// and in the editor. "Spara kommande presentationer offline" under Mina inställningar does the same for
+// added to it later without the presentation being opened. Its icon in the list says how far it has come; in
+// a presentation, a quiet line at the foot of the left column, which opens Spara offline's dialog. "Spara kommande presentationer offline" under Mina inställningar does the same for
 // the coming seven days.
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
@@ -79,9 +79,14 @@ test('a presentation kept offline by its icon has its pictures and its video who
   host = undefined;
   await expect(second.page.getByTestId('status')).toContainText('Offline', { timeout: 10_000 });
   await second.page.getByRole('link', { name: 'Konsert' }).click();
-  await expect(second.page.getByTestId('keep-offline')).toHaveAttribute('data-state', 'kept');
+  await expect(second.page.getByTestId('offline-status')).toHaveText('Sparad offline');
+  await second.page.getByTestId('offline-status').click();
+  const dialog = second.page.getByRole('dialog', { name: 'Spara offline' });
+  await expect(dialog.getByRole('checkbox', { name: 'Spara på den här enheten' })).toBeChecked();
+  await expect(dialog).toContainText('Allt finns på den här enheten.');
+  await dialog.getByRole('button', { name: 'Stäng' }).first().click();
   await pickItem(second.page, 'Affisch.png');
-  const shown = second.page.getByTestId('slide-image').first();
+  const shown = second.page.getByRole('region', { name: 'Affisch.png' }).getByTestId('slide-image').first();
   await expect.poll(() => shown.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1200);
   await pickItem(second.page, 'Dop.mp4');
   const preview = second.page.getByTestId('video-preview');
@@ -104,7 +109,7 @@ test('a presentation kept offline by its icon has its pictures and its video who
   await storage.getByRole('button', { name: 'Rensa cache' }).click();
   await expect(storage.getByTestId('storage-cache')).toHaveText('0 B');
   await expect(storage.getByTestId('storage-total')).not.toContainText(' 0 B');
-  await expect(storage.getByTestId('storage-limit')).toHaveText('2,1 GB');
+  await expect(storage.getByTestId('storage-limit').locator('option:checked')).toHaveText('2 GB (standard)');
 
   // Back in the list the icon is a cloud again.
   await openPresentations(second.page);

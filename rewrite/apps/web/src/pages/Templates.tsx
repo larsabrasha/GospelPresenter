@@ -11,7 +11,7 @@ import { afterWrite } from '../ui/debounce.ts';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { SimpleInput, SimpleSelect } from '../ui/SimpleInput.tsx';
-import { PlusIcon, TemplatesPicture, TrashIcon } from '../ui/icons.tsx';
+import { TemplatesPicture, TrashIcon } from '../ui/icons.tsx';
 import { CARD, ListCard, ListLinkRow } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -133,12 +133,6 @@ export function EditTemplateDialog({ template, onClose }: { template: Presentati
 export function Templates() {
   const templates = useData(listTemplates, []);
   const [creating, setCreating] = useState(false);
-  const create = (
-    <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
-      <PlusIcon className="size-4" />
-      {t('common.create')}
-    </AppButton>
-  );
   return (
     <PageContainer>
       <PageHeader title={t('nav.templates')}>
@@ -148,7 +142,7 @@ export function Templates() {
             <TrashIcon className="size-4" />
             {t('nav.trash')}
           </AppButton>
-          {!!templates?.length && <AddButton label={t('common.create')} onClick={() => setCreating(true)} />}
+          <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
         </div>
       </PageHeader>
       {!templates && (
@@ -158,9 +152,7 @@ export function Templates() {
       )}
       {templates && !templates.length && (
         <div className={CARD}>
-          <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} text={t('templates.description')}>
-            {create}
-          </EmptyPicture>
+          <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} text={t('templates.description')} />
         </div>
       )}
       {!!templates?.length && (

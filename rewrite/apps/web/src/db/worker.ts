@@ -5,7 +5,7 @@ import SQLiteESMFactory from '@journeyapps/wa-sqlite/dist/wa-sqlite.mjs';
 import wasmUrl from '@journeyapps/wa-sqlite/dist/wa-sqlite.wasm?url';
 import * as SQLite from '@journeyapps/wa-sqlite';
 import { OPFSCoopSyncVFS } from '@journeyapps/wa-sqlite/src/examples/OPFSCoopSyncVFS.js';
-import { bibleId, importBibleZip, recordMediaBlobSql, verseCount, type MutatorName } from '@gp/core';
+import { bibleId, importBibleZip, recordMediaBlobSql, sha256HexBytes, sniffMedia, verseCount, type MutatorName } from '@gp/core';
 import {
   authHeaders,
   BibleTextUploads,
@@ -14,7 +14,6 @@ import {
   MediaUploads,
   socketProtocols,
   storeBibleText,
-  storeMediaBlob,
   DEFAULT_MEDIA_POLICY,
   dropBible,
   fetchBibleText,
@@ -31,8 +30,9 @@ import {
 } from '@gp/sync/client';
 import { keepVideos } from './videoFiles.ts';
 import { waSqliteConnection } from '@gp/sync/wa-sqlite-api';
-import type { AudioImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport, VideoImport } from './protocol.ts';
+import type { BibleImportResult, DbCall, DbMessage, DbStatus, Session } from './protocol.ts';
 import { dbFileName, serveReads, shareChannelName, type MediaBytes } from './share.ts';
+import { mediaAdds } from './mediaAdds.ts';
 
 /** The backstop poll (SYNC-R43): pokes are never load-bearing. */
 const POLL_MS = 5 * 60_000;
@@ -245,73 +245,27 @@ function syncVideoFiles() {
     });
 }
 
-/** Keeps the picture's blobs here and records it in the library, online or not. */
-function addImage(img: ImageImport): Promise<void> {
-  return serialStore(async () => {
-    const fullHash = await storeMediaBlob(client!, img.full, img.contentType);
-    const thumbHash = await storeMediaBlob(client!, img.thumb, img.contentType);
-    await client!.mutate('addImage', {
-      id: img.id,
-      fileName: img.fileName,
-      contentType: img.contentType,
-      fullHash,
-      thumbHash,
-      width: img.width,
-      height: img.height,
-      createdAt: Date.now(),
-    });
-    void client!.requestSync().then(reportStatus);
-  });
-}
-
-/** Keeps the audio file here and records it in the library, online or not. */
-function addAudio(a: AudioImport): Promise<void> {
-  return serialStore(async () => {
-    const hash = await storeMediaBlob(client!, a.bytes, a.contentType);
-    await client!.mutate('addAudio', { id: a.id, fileName: a.fileName, contentType: a.contentType, hash, size: a.bytes.length, createdAt: Date.now() });
-    void client!.requestSync().then(reportStatus);
-  });
-}
-
 /**
- * Records a video the page has uploaded: its still is kept here (uploaded before the add is pushed), the
- * video only named, without its bytes, so `addVideo` finds it here as it does on the server. No device
- * keeps a video: it streams from the server.
+ * A song's file when it is opened: this device's copy, else the server's, checked against its hash and kept here
+ * as cache (the budget lets it go when nothing wants it). A host's own window keeps none: the server's, as it is.
  */
-function addVideo(v: VideoImport): Promise<void> {
-  return serialStore(async () => {
-    const stillHash = await storeMediaBlob(client!, v.still, v.stillType);
-    const thumbHash = await storeMediaBlob(client!, v.thumb, v.stillType);
-    await client!.localWrite([recordMediaBlobSql(v.hash, v.contentType, v.size, null, Date.now())]);
-    await client!.mutate('addVideo', {
-      id: v.id,
-      fileName: v.fileName,
-      contentType: v.contentType,
-      codec: v.codec,
-      hash: v.hash,
-      size: v.size,
-      duration: v.duration,
-      width: v.width,
-      height: v.height,
-      stillHash,
-      thumbHash,
-      createdAt: Date.now(),
-    });
-    void client!.requestSync().then(reportStatus);
-  });
+async function openMedia(hash: string): Promise<MediaBytes | null> {
+  if (session?.hostWindow) return fetchMediaHere(hash);
+  const [r] = await client!.query('SELECT content_type, bytes FROM media_blobs WHERE hash = ? AND bytes IS NOT NULL', [hash]);
+  if (r) return { contentType: String(r.content_type), bytes: new Uint8Array(r.bytes as ArrayLike<number>) };
+  let bytes: Uint8Array | null = null;
+  try {
+    bytes = await downloadBlob(hash);
+  } catch {
+    return null;
+  }
+  const type = bytes && (await sha256HexBytes(bytes)) === hash ? (sniffMedia(bytes)?.type ?? null) : null;
+  if (!bytes || !type) return null;
+  await serialStore(() => client!.localWrite([recordMediaBlobSql(hash, type, bytes.length, bytes, Date.now())]));
+  return { contentType: type, bytes };
 }
 
-/** Keeps every page's blobs here and adds the deck as an item, online or not. */
-function addSlides(s: SlidesImport): Promise<void> {
-  return serialStore(async () => {
-    const pages: { full: string; thumb: string }[] = [];
-    for (const page of s.pages) {
-      pages.push({ full: await storeMediaBlob(client!, page.full, s.contentType), thumb: await storeMediaBlob(client!, page.thumb, s.contentType) });
-    }
-    await client!.mutate('addSlides', { itemId: s.itemId, presentationId: s.presentationId, fileName: s.fileName, pages, afterItemId: s.afterItemId });
-    void client!.requestSync().then(reportStatus);
-  });
-}
+const adds = mediaAdds({ client: () => client!, serialStore, added: () => void client!.requestSync().then(reportStatus) });
 
 let bibleSyncQueued = false;
 /**
@@ -438,13 +392,17 @@ async function handle(call: DbCall): Promise<unknown> {
     case 'importBible':
       return importBible(call.data);
     case 'addImage':
-      return addImage(call.image);
+      return adds.addImage(call.image);
     case 'addAudio':
-      return addAudio(call.audio);
+      return adds.addAudio(call.audio);
+    case 'addSongFile':
+      return adds.addSongFile(call.file);
+    case 'openMedia':
+      return openMedia(call.hash);
     case 'addSlides':
-      return addSlides(call.slides);
+      return adds.addSlides(call.slides);
     case 'addVideo':
-      return addVideo(call.video);
+      return adds.addVideo(call.video);
     case 'present':
       presenting = call.presentationId;
       syncMediaBlobs();

@@ -96,34 +96,16 @@ test('a second computer takes control of what the host presents (LIVE-A22, A23, 
   await expect(secondApp.page.getByTestId('remote-state')).toHaveText('Ingen aktiv presentation just nu', { timeout: 5_000 });
 });
 
-test('a remote link with ?stage=true opens straight in the stage view, and the address follows the stage view (Presentation.razor)', async () => {
-  const { owner: hostApp, other: secondApp } = await hostWithSecond();
-  const page = hostApp.page;
-  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
-  await createPresentation(page, 'Söndag');
-  await addSongs(page, ['Sång A']);
-  await page.getByRole('button', { name: 'Starta presentation' }).click();
-  await page.getByRole('button', { name: 'Sång A 1' }).click();
-  await (await remoteSwitch(page)).check();
-  const info = page.getByRole('dialog', { name: 'Fjärrstyr presentationen' });
-  await info.getByRole('button', { name: 'Kopiera länken' }).click();
-  const link = new URL(await info.getByLabel('Länk för fjärrstyrning').inputValue());
-  await info.getByRole('button', { name: 'Stäng' }).click();
-  const remote = secondApp.page;
-  await openPresentations(remote);
-  await expect(remote.getByRole('link', { name: 'Söndag' })).toBeVisible({ timeout: 5_000 });
+test('a controller with nothing to control can go back to the presentations', async () => {
+  host = await launch();
+  await setUpHost(host);
+  const page = host.page;
+  await page.goto(new URL('/presentations/none?remote=true', page.url()).href);
+  await expect(page.getByTestId('remote-state')).toHaveText('Ingen aktiv presentation just nu', { timeout: 5_000 });
 
-  await remote.goto(new URL(`${link.pathname}${link.search}&stage=true`, remote.url()).href);
+  await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
 
-  const stage = remote.getByTestId('stage-view');
-  await expect(stage).toBeVisible({ timeout: 5_000 });
-  await expect(remote.getByText('Fjärrstyrningsläge – du styr en aktiv presentation')).toBeAttached();
-  await stage.getByRole('button', { name: 'Lämna scenläge' }).click();
-  await expect(stage).toHaveCount(0);
-  expect(new URL(remote.url()).searchParams.get('stage')).toBeNull();
-  await remote.getByRole('button', { name: 'Scenläge' }).click();
-  await expect(stage).toBeVisible();
-  expect(new URL(remote.url()).searchParams.get('stage')).toBe('true');
+  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
 });
 
 test('when the presenting computer drops out, the session freezes and someone else may end it (LIVE-R50)', async () => {
@@ -212,8 +194,8 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
   await addSongs(page, ['Sång A']);
 
   // Anna, an admin, lets everyone take control.
-  await openAdmin(page, 'Församlingen');
-  await expect(page.getByRole('heading', { name: 'Församlingens inställningar' })).toBeVisible();
+  await openAdmin(page, 'Organisationen');
+  await expect(page.getByRole('heading', { name: 'Organisationens inställningar' })).toBeVisible();
   await expect(page.getByRole('radio', { name: /^Presentatören väljer/ })).toHaveAttribute('aria-checked', 'true');
   await page.getByRole('radio', { name: /^Alltid/ }).click();
   await expect(page.getByRole('radio', { name: /^Alltid/ })).toHaveAttribute('aria-checked', 'true');
@@ -223,7 +205,7 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
   await page.getByRole('link', { name: 'Söndag' }).click();
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   await remoteSwitch(page);
-  await expect(page.getByText('Alla i församlingen kan fjärrstyra presentationen.')).toBeVisible();
+  await expect(page.getByText('Alla i organisationen kan fjärrstyra presentationen.')).toBeVisible();
   await expect(page.getByLabel('Tillåt fjärrstyrning')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Visa info om fjärrstyrning' })).toBeEnabled();
   await openPresentations(secondApp.page);
@@ -231,7 +213,7 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
   await expect(card.getByRole('link', { name: 'Ta kontroll' })).toBeVisible({ timeout: 5_000 });
 
   // "Aldrig", set while she presents: the card goes on Bo's computer without a reload.
-  await openAdmin(page, 'Församlingen');
+  await openAdmin(page, 'Organisationen');
   await page.getByRole('radio', { name: /^Aldrig/ }).click();
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0, { timeout: 5_000 });
 });

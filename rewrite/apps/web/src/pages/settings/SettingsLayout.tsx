@@ -7,8 +7,8 @@ import { PageAlone, PageFill } from '../../ui/PageContainer.tsx';
 import { adminBack, aloneInSettings, href, type Route } from '../../ui/router.ts';
 import { isOpen, MINE, settingsGroups, type SettingsLink } from './settingsLinks.ts';
 
-/** A list row's height, the same on a phone, an iPad and a computer, as iOS 27's inset grouped lists. */
-const ROW = 'min-h-[52px]';
+/** A list row's height: 52 pt as iOS 27's inset grouped lists; in a computer's sidebar as macOS's, 44 pt for a finger. */
+const ROW = 'min-h-[52px] lg:min-h-9 lg:touch:min-h-11';
 
 /**
  * A row of the list: a coloured icon, the name, and a chevron on a phone, in its group's card as iOS 27's inset grouped
@@ -21,12 +21,12 @@ function Row({ link, route, first }: { link: SettingsLink; route: Route; first: 
     <a
       href={href(link.route)}
       aria-current={open && route.page !== 'admin' ? 'page' : undefined}
-      className={`flex items-center gap-3.5 pl-4 lg:rounded-full no-underline text-neutral-900 dark:text-neutral-100 hover:bg-raised lg:hover:bg-black/5 dark:lg:hover:bg-white/10 ${open ? 'lg:bg-sky-500! lg:text-white!' : ''}`}
+      className={`flex items-center gap-3.5 lg:gap-3 pl-4 lg:pl-3 lg:rounded-full no-underline text-neutral-900 dark:text-neutral-100 hover:bg-raised lg:hover:bg-black/5 dark:lg:hover:bg-white/10 ${open ? 'lg:bg-sky-500! lg:text-white!' : ''}`}
     >
-      <span className={`shrink-0 size-[30px] rounded-lg flex items-center justify-center text-white ${link.colour}`}>
-        <link.icon className="size-[17px]" />
+      <span className={`shrink-0 size-[30px] lg:size-6 rounded-lg lg:rounded-md flex items-center justify-center text-white ${link.colour}`}>
+        <link.icon className="size-[17px] lg:size-3.5" />
       </span>
-      <span className={`flex-1 min-w-0 flex items-center gap-2 ${ROW} pr-3.5 text-[17px] ${first ? '' : 'max-lg:border-t-[0.5px] max-lg:border-separator'}`}>
+      <span className={`flex-1 min-w-0 flex items-center gap-2 ${ROW} pr-3.5 text-[17px] lg:text-[15px] ${first ? '' : 'max-lg:border-t-[0.5px] max-lg:border-separator'}`}>
         <span className="flex-1 truncate">{t(link.label)}</span>
         <ChevronRightIcon className="size-4 text-neutral-400 dark:text-neutral-600 lg:hidden" />
       </span>
@@ -38,24 +38,24 @@ function Row({ link, route, first }: { link: SettingsLink; route: Route; first: 
 function SettingsList({ me, host, route }: { me: Me; host: boolean; route: Route }) {
   const mine = isOpen(MINE, route);
   return (
-    <nav className="flex flex-col gap-[22px]" aria-label={t('nav.adminMenu')}>
+    <nav className="flex flex-col gap-[22px] lg:gap-4" aria-label={t('nav.adminMenu')}>
       <a
         href={href(MINE.route)}
         aria-current={mine ? 'page' : undefined}
         aria-label={t('nav.settings')}
-        className={`flex items-center gap-3.5 p-3 rounded-[22px] lg:rounded-full no-underline ${mine ? 'bg-surface text-neutral-900 dark:text-neutral-100 lg:bg-sky-500 lg:text-white' : 'bg-surface lg:bg-transparent lg:hover:bg-black/5 dark:lg:hover:bg-white/10 text-neutral-900 dark:text-neutral-100'}`}
+        className={`flex items-center gap-3.5 lg:gap-3 p-3 lg:p-2 rounded-[22px] lg:rounded-full no-underline ${mine ? 'bg-surface text-neutral-900 dark:text-neutral-100 lg:bg-sky-500 lg:text-white' : 'bg-surface lg:bg-transparent lg:hover:bg-black/5 dark:lg:hover:bg-white/10 text-neutral-900 dark:text-neutral-100'}`}
       >
-        <Avatar name={me.name} className="size-14 text-xl" />
+        <Avatar name={me.name} className="size-14 text-xl lg:size-10 lg:text-base" />
         <span className="flex-1 min-w-0 flex flex-col">
-          <span className="text-xl font-semibold truncate">{me.name}</span>
-          <span className={`text-[13px] truncate text-neutral-500 dark:text-neutral-400 ${mine ? 'lg:text-white/80' : ''}`}>{t('nav.settings')}</span>
+          <span className="text-xl lg:text-[15px] font-semibold truncate">{me.name}</span>
+          <span className={`text-[13px] truncate text-neutral-500 dark:text-neutral-400 ${mine ? 'lg:text-white/80 dark:lg:text-white/80' : ''}`}>{t('nav.settings')}</span>
         </span>
         <ChevronRightIcon className="size-4 text-neutral-400 dark:text-neutral-600 lg:hidden" />
       </a>
       {settingsGroups(me, host).map((g) => (
-        <section key={g.title ?? 'about'} className="flex flex-col gap-1.5" aria-label={g.title ? t(g.title) : undefined}>
+        <section key={g.title ?? 'about'} className="flex flex-col gap-1.5 lg:gap-0.5" aria-label={g.title ? t(g.title) : undefined}>
           {g.title && (
-            <h2 className="px-4 text-[13px]/4 font-semibold uppercase tracking-wide lg:text-[17px]/6 lg:font-normal lg:normal-case lg:tracking-normal text-neutral-500 dark:text-neutral-400">{t(g.title)}</h2>
+            <h2 className="px-4 lg:px-3 text-[13px]/4 font-semibold uppercase tracking-wide lg:text-[13px]/5 lg:normal-case lg:tracking-normal text-neutral-500 dark:text-neutral-400">{t(g.title)}</h2>
           )}
           <div className="flex flex-col max-lg:rounded-[22px] max-lg:overflow-hidden max-lg:bg-surface">
             {g.links.map((l, i) => (

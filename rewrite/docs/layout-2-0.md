@@ -22,7 +22,8 @@ changes the view and acts. What is used all the time is always in view, what is 
 and what is set once lives in a menu. A page that lists something adds to it with a round + in its heading row, tinted in the app's blue
 (`ui/AddButton.tsx`): the start page, Sånger, Användare and the other pages of Inställningar, importing pictures,
 audio and video too. Only live has its + floating at the bottom right, as its bar is full and the list is all there
-is. A selected row is the app's blue (`sky-500`), and a list's rows are 52 pt high at every width.
+is. A selected row is the app's blue (`sky-500`), and a list's rows are 52 pt high, except in Inställningar's sidebar on a computer: 36 pt as macOS's
+(44 pt on an iPad lying down), the icons and texts smaller with them (Lars, 2026-11-01).
 
 ## The layout follows the width
 
@@ -33,17 +34,25 @@ whole row.
 
 ## Live, one column (phone, iPad upright)
 
+A presentation has one view, the same before and while it is presented (Lars, 2026-11-01); there is no editor
+apart from it. Before it is presented the picture, Rensa and the live column are not there, a part
+tapped shows nothing, and ▶ starts it.
+
 - **The bar:** back (to the start page; the presentation keeps running), the title with a line under it
   (`● LIVE · 10:00 · Kyrksalen`; LIVE until Avsluta, also while Rensa has blacked the outputs), and at the right
   one glass button in two parts: … and ■, which ends the presentation (asking first). Start and stop are always an
   icon at the far right of the bar, on a phone and a computer (Lars, 2026-11-01).
   The title never wraps: one line each, a fixed height, the place cut with "…" first. A tap on it opens
   **Om presentationen**: time, place, the whole description, and Redigera.
-- **…** holds Utgångar first, then Om presentationen, Scenläge, Overlays and Fjärrstyrning.
+- **…** holds Utgångar first, then Om presentationen, Overlays and Fjärrstyrning. There is no Scenläge: the live view is it
+  on a phone and a tablet (Lars, 2026-11-01).
 - **The description** sits at the top of the running order, three lines with Visa mer to unfold the rest, so it is
   plain to see; on a computer the same at the top of the left column.
 - **The picture** that is shown, with **‹ Rensa ›** right under it (Rensa only blacks the outputs, and
-  rests while they are black: a part tapped or an arrow shows one again, as ProPresenter's Clear; no "Visa igen"). An audio or video item adds a player line between them:
+  rests while they are black: a part tapped or an arrow shows one again, as ProPresenter's Clear; no "Visa igen").
+  Meanwhile no part is marked as shown, not VISAS, nor the item's dot; only the bar's LIVE stays. The part last
+  shown keeps a thin grey border, no words, and NÄSTA stays on the one after it: what → (or a pedal) shows next
+  (Lars, 2026-11-01). An audio or video item adds a player line between them:
   pause, the time and how far it is.
 - **The running order** fills the rest, with no heading row; Lägg till is a round glass + floating at the bottom right, as iOS 27's Notes and Reminders put
   "new" (no Redigera, as iOS 27's lists have none; Klar takes the +'s place while moving). Every part of
@@ -64,24 +73,31 @@ whole row.
 
 ## Live, columns (computer, iPad lying down)
 
+Editing sits in the middle, before and while presenting: a section's heading renames the item (a click on its
+title, or F2), opens its song (Redigera) or edits its pictures, and under it are the item's warnings, its player,
+its arrangement and its overlay. Markera at the top of the left column ticks items to remove together. On a phone
+an item's … holds the same: Byt namn, Redigera sång, Redigera bilder, the arrangement and the overlay.
+
 - **The bar** is the presentation's own, the same before and while it is presented, so its name stays in one place
   (the left column has none): "‹ Presentationer" at the left; in the middle the name, LIVE while presented, and when
-  and where, which open a popover with the description and Redigera; at the right the presentation's … (Redigera
-  detaljer, Spara som mall, Markera, Fjärrstyrning, Inställningar, and to the trash when not presented), Scenläge
-  while presented, and at the far right ▶ to start or ■ to end, which asks first. The cloud shows there while the
+  and where, which open the presentation's menu (Redigera detaljer, Spara som mall, and to the trash when not
+  presented); at the right round icons for Fjärrstyrning (while presented) and Inställningar, no … (Lars,
+  2026-11-01), and at the far right ▶ to start or ■ to end, which asks first. The cloud shows there while the
   sync has a problem. A template has no ▶.
 - **Left:** the items, one row each, the shown one marked by a red dot left of its name and a tint across the
   whole row. Dragged straight away with the mouse (after 4 px, so a click still selects), Delete removes, and a
   right click or the row's … gives Lägg till efter, Flytta upp, Flytta ned and Ta bort. A click scrolls the middle
   to the item. A move, removal or addition shows a line with Ångra.
 - **Middle:** the whole order as sections with sticky headings, the parts as a grid of slides; a click shows one.
+- **No Scenläge.** The stage view is gone (Lars, 2026-11-01): the live view does it on a phone and a tablet, and a
+  clicker's keys (→ ← Space PageDown PageUp, B and .) work on the live page.
 - **Right:** the picture, ‹ Rensa ›, the next slide, the overlays as switches (one shown at a time, drawn on the
   picture too), and the outputs folded to one line that says how they are ("3 på · 12 tittare", a green dot) and
   turns orange with what is wrong ("Kyrksal är offline"); a click unfolds the switches and Anslut tillfällig skärm.
 
 ## The start page and the bar
 
-The bar has only + (Ny presentation) and the user's picture. The cog and the cloud go: the picture's menu holds the
+The bar has only the user's picture (+ for Ny presentation is in the page's heading row, as on every page that lists something). The cog and the cloud go: the picture's menu holds the
 name and role, Mina inställningar, Inställningar, Byt organisation, the sync's state and Logga ut. The cloud shows
 in the bar only when the sync has a problem (pending changes, offline), with a dot on the picture; the menu says
 what and offers Synka nu. The page keeps Visas nu at the top, then Idag, Kommande and Senast ändrade, each row with
@@ -91,7 +107,7 @@ its time, place and number of items, and Papperskorg last. On a computer the gro
 
 On a phone a list as iOS's Settings: Mina inställningar as a profile cell at the top, then Bibliotek (Sånger,
 Biblar, Bilder, Ljud, Videor), Presentation (Overlays, Mallar, Etiketter), Visning (Skärmar, Teman, CCLI-rapport),
-Församlingen (Användare, Församlingen, Organisationer) and Om Gospel Presenter, each with a coloured icon; a row
+Organisationen (Användare, Organisationen, Organisationer) and Om Gospel Presenter, each with a coloured icon; a row
 opens its page full width with "‹ Inställningar". On a computer as macOS's System Settings: the same list at the
 left, the page at the right. It stays a dialog over the page the user is on (filling the screen on a phone); the
 list replaces the dialog's side menu.

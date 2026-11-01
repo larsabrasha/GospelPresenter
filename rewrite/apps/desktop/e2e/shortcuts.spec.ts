@@ -17,7 +17,7 @@ async function openHelp(page: Page) {
   return help;
 }
 
-test('? lists the keys of the page, the dialog or the stage view on screen, and closes again', async () => {
+test('? lists the keys of the page or the dialog on screen, and closes again', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -56,18 +56,13 @@ test('? lists the keys of the page, the dialog or the stage view on screen, and 
   await page.keyboard.press('Escape');
   await expect(add).toHaveCount(0);
 
-  // The live page, and the stage view, whose keys replace the live page's; Esc closes the help, not the stage view.
+  // The live page's keys, a clicker's among them; Esc closes the help.
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   help = await openHelp(page);
   await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Live', 'Presentation', 'Överallt']);
   await expect(help.getByRole('listitem').filter({ hasText: 'Nästa slide' }).locator('kbd')).toHaveText(['→', 'Space', 'PageDown']);
-  await page.keyboard.press('?');
-  await page.getByRole('button', { name: 'Scenläge' }).click();
-  const stage = page.getByTestId('stage-view');
-  await stage.getByRole('dialog', { name: 'Välj', exact: true }).getByRole('button', { name: 'Sång A' }).click();
-  help = await openHelp(page);
-  await expect(help.getByRole('heading')).toHaveText(['Kortkommandon', 'Scenläge', 'Överallt']);
+  await expect(help.getByRole('listitem').filter({ hasText: 'Svart' }).locator('kbd')).toHaveText(['B', '.']);
   await page.keyboard.press('Escape');
   await expect(help).toHaveCount(0);
-  await expect(stage).toBeVisible();
+  await expect(page.getByTestId('live-panel')).toBeVisible();
 });

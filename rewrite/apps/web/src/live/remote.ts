@@ -19,7 +19,7 @@ import { newId } from '../ids.ts';
 // commands reach the owner through the server. The owner's outputs never
 // wait for the network: they follow its own LiveChannel.
 
-/** What the live page and the stage view drive: the window's own LiveChannel, or a session elsewhere. */
+/** What the live page drives: the window's own LiveChannel, or a session elsewhere. */
 export interface LiveControl {
   readonly pointer: LivePointer;
   set(change: LivePointerChange): void;

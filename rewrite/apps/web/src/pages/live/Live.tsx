@@ -21,7 +21,6 @@ export function Live({
   sessionId,
   remote,
   session,
-  stage,
 }: {
   id: string;
   role: Role;
@@ -32,11 +31,9 @@ export function Live({
   sessionId: string;
   remote?: boolean;
   session?: string | null;
-  /** Opened in the stage view (`?stage=true`). */
-  stage?: boolean;
 }) {
   const pointer = useLivePointer(live);
-  if (remote) return <RemoteLive id={id} role={role} link={link} ownSessionId={sessionId} wanted={session ?? null} stage={!!stage} />;
+  if (remote) return <RemoteLive id={id} role={role} link={link} ownSessionId={sessionId} wanted={session ?? null} />;
   const presenting = pointer.presentationId === id ? { audio, video, owner: { sessionId }, link } : undefined;
-  return <PresentationEditor id={id} role={role} live={live} presenting={presenting} stage={stage} />;
+  return <PresentationEditor id={id} role={role} live={live} presenting={presenting} />;
 }

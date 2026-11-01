@@ -5,19 +5,14 @@ import { isMac, isTextEntry } from './shortcuts.ts';
 
 // The keyboard help (KeyboardShortcuts.razor, ShortcutHelpDialog.razor): `?` opens a dialog that lists the
 // keys of what is on screen, one group per page or dialog, the topmost first, then "Överallt". A group
-// that `blocks` (a dialog, the stage view) hides the groups under it, whose keys are off while it is open.
+// that `blocks` (a dialog) hides the groups under it, whose keys are off while it is open.
 
 /** One line: the keys that do it, each as `Ctrl+1`, `Alt+ArrowDown` or a bare key, and what it does. */
 type ShortcutLine = { keys: string[]; text: string };
 export type ShortcutGroup = { title: string; lines: ShortcutLine[]; blocks?: boolean };
 
 let groups: { id: number; group: ShortcutGroup }[] = [];
-let shownNow = false;
 
-/** Whether the help dialog is open: the stage view, which listens before any dialog, leaves the keys to it then. */
-export function helpOpen(): boolean {
-  return shownNow;
-}
 let nextId = 0;
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());
@@ -76,8 +71,7 @@ export function ShortcutHelp() {
   );
   const onKey = useEffectEvent((e: KeyboardEvent) => {
     if (open && e.key === 'Escape') {
-      // Focus may be outside the box (it has no field), or in a dialog under it, which must stay open; nor may
-      // the stage view, listening on the window after this, take it as leaving.
+      // Focus may be outside the box (it has no field), or in a dialog under it, which must stay open.
       e.preventDefault();
       e.stopImmediatePropagation();
       setOpen(false);
@@ -93,12 +87,6 @@ export function ShortcutHelp() {
     addEventListener('keydown', onKey, true);
     return () => removeEventListener('keydown', onKey, true);
   }, []);
-  useEffect(() => {
-    shownNow = open;
-    return () => {
-      shownNow = false;
-    };
-  }, [open]);
   if (!open) return null;
   return (
     <Dialog title={t('shortcuts.title')} onClose={() => setOpen(false)} maxWidthClass="max-w-lg" showClose>

@@ -262,15 +262,15 @@ export async function presentationOfflineState(client: Query, presentationId: st
 }
 
 /** The mutations that name blobs the device must upload first. */
-const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSlides']);
+const BLOB_ADDS: ReadonlySet<string> = new Set(['addImage', 'addAudio', 'addVideo', 'addSlides', 'addSongFile']);
 
 /**
- * The blobs a queued add names: a picture's two, an audio file's one, a video's three, or two per page of a
- * slide deck. A video's own blob has no bytes here: it was uploaded before the add, so it is only kept named.
+ * The blobs a queued add names: a picture's two, an audio file's or a song's PDF's one, a video's three, or two per
+ * page of a slide deck. A video's own blob has no bytes here: it was uploaded before the add, so it is only kept named.
  */
 function blobsOf(m: PendingMutation): Set<string> {
   const a = JSON.parse(m.args) as { fullHash?: unknown; thumbHash?: unknown; hash?: unknown; stillHash?: unknown; pages?: unknown };
-  if (m.name === 'addAudio') return new Set([String(a.hash)]);
+  if (m.name === 'addAudio' || m.name === 'addSongFile') return new Set([String(a.hash)]);
   if (m.name === 'addVideo') return new Set([String(a.hash), String(a.stillHash), String(a.thumbHash)]);
   if (m.name === 'addSlides') {
     const pages = Array.isArray(a.pages) ? (a.pages as { full?: unknown; thumb?: unknown }[]) : [];

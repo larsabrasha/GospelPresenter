@@ -172,7 +172,8 @@ export function PageDialog({ title, onClose, children }: { title: string; onClos
             </h2>
             <CloseButton onClick={close} />
           </div>
-          {children}
+          {/* A step lighter in dark mode than the page under it (app.css `.elevated`), as iOS draws what floats. */}
+          <div className="elevated flex-1 min-h-0 flex flex-col">{children}</div>
         </>
       )}
     </DialogFrame>

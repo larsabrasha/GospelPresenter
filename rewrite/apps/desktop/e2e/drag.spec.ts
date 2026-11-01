@@ -1,9 +1,9 @@
-// Dragging by touch, as on a tablet: the running order's handle and an arrangement's chips
-// (Sidebar.razor and SongArrangementEditor.razor, SortableJS with a 150 ms hold on touch).
-// The mouse and the keyboard are tested in milestone2.spec.ts.
+// Dragging by touch, as on a tablet: an arrangement's chips (SongArrangementEditor.razor, SortableJS with a 150 ms
+// hold on touch). The running order's handle by touch is tested in live-order.spec.ts; the mouse and the keyboard
+// in milestone2.spec.ts.
 import { expect, test, type CDPSession, type Locator, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { createSong, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -26,7 +26,7 @@ async function touchDrag(cdp: CDPSession, page: Page, from: Locator, to: Locator
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
-test('by touch, a held handle or chip drags; a quick swipe does not', async () => {
+test('by touch, a held chip drags; a quick swipe does not', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -48,12 +48,4 @@ test('by touch, a held handle or chip drags; a quick swipe does not', async () =
   await page.waitForTimeout(300); // nothing may happen: time for a move to show
   await expect(chips).toHaveText([/Chorus/, /Verse 1/, /Verse 2/]);
 
-  // The running order's handle, held, moves the item.
-  await createSong(page, 'Sång B', [['Verse 1', 'B ett']]);
-  await createPresentation(page, 'Söndag');
-  await addSongs(page, ['Sång A', 'Sång B']);
-  const order = page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem');
-  await expect(order).toHaveText([/Sång A/, /Sång B/]);
-  await touchDrag(cdp, page, order.nth(0).getByTestId('drag-handle'), order.nth(1), 300);
-  await expect(order).toHaveText([/Sång B/, /Sång A/]);
 });

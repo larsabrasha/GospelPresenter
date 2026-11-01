@@ -121,16 +121,4 @@ test('live: audio plays on the presenting computer, keeps playing while slides c
   await player.getByRole('button', { name: 'Tona ut' }).click();
   await expect(player).toHaveAttribute('data-playing', 'false', { timeout: 8_000 });
   await expect(player.getByTestId('audio-time')).toHaveText('0:00');
-
-  // Stage view: picking the audio item blacks the screen and plays (LIVE-A29).
-  await page.getByRole('button', { name: 'Scenläge' }).click();
-  const stage = page.getByTestId('stage-view');
-  await stage.getByRole('button', { name: 'Sång A', exact: true }).click(); // the bar names the selected item and opens the picker
-  await stage.getByRole('dialog', { name: 'Välj', exact: true }).getByRole('button', { name: 'Preludium.wav' }).click();
-  await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await expect(stage.getByText('Ljud spelas')).toBeVisible();
-  // The audio item is the item now, and its player is there to pause it without leaving the view.
-  await expect(stage.getByRole('button', { name: 'Preludium.wav', exact: true })).toBeVisible();
-  await stage.getByTestId('audio-player').getByRole('button', { name: 'Pausa' }).click();
-  await expect(stage.getByTestId('audio-player')).toHaveAttribute('data-playing', 'false');
 });

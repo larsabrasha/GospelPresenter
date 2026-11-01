@@ -2,7 +2,7 @@
 // migrations that bring an older database up to date.
 
 /** Bumped whenever a synced table changes shape; part of the pull cookie's scope. */
-export const SCHEMA_VERSION = 16;
+export const SCHEMA_VERSION = 17;
 
 /**
  * The first version `orgDdl` makes. The migrations from milestone 1 on were
@@ -30,6 +30,13 @@ const songVersionsDdl = [
   'CREATE INDEX IF NOT EXISTS song_versions_by_song ON song_versions (song_id, created_at)',
 ];
 
+const songMaterialsDdl = [
+  `CREATE TABLE IF NOT EXISTS song_materials (id TEXT PRIMARY KEY NOT NULL, song_id TEXT NOT NULL REFERENCES songs(id),
+     kind TEXT NOT NULL, title TEXT NOT NULL, url TEXT, hash TEXT, content_type TEXT, size INTEGER, sort INTEGER NOT NULL,
+     created_at INTEGER NOT NULL)`,
+  'CREATE INDEX IF NOT EXISTS song_materials_by_song ON song_materials (song_id, sort)',
+];
+
 const ccliEntriesDdl = `CREATE TABLE IF NOT EXISTS ccli_entries (id TEXT PRIMARY KEY NOT NULL, song_id TEXT NOT NULL, song_name TEXT NOT NULL,
      ccli TEXT NOT NULL, presentation_id TEXT NOT NULL, presentation_name TEXT NOT NULL, date TEXT NOT NULL, reported_at INTEGER)`;
 
@@ -54,6 +61,7 @@ export const orgDdl: string[] = [
   `CREATE TABLE IF NOT EXISTS song_arrangements (id TEXT PRIMARY KEY NOT NULL,
      song_id TEXT NOT NULL REFERENCES songs(id), name TEXT, part_ids TEXT NOT NULL, sort INTEGER NOT NULL)`,
   ...songVersionsDdl,
+  ...songMaterialsDdl,
   ccliEntriesDdl,
   `CREATE TABLE IF NOT EXISTS presentations (id TEXT PRIMARY KEY NOT NULL, name TEXT NOT NULL, event_date TEXT,
      deleted_at INTEGER, theme_id TEXT, is_template INTEGER NOT NULL DEFAULT 0, weekday INTEGER, time TEXT,
@@ -97,6 +105,8 @@ export const orgMigrations: Record<number, string[]> = {
   15: songVersionsDdl,
   // The CCLI report (SONG-R48–R52).
   16: [ccliEntriesDdl],
+  // Sheet music and links on a song (spec 02 "Song material").
+  17: songMaterialsDdl,
 };
 
 /** Where a database records its schema version. One made before versions were recorded has no row. */

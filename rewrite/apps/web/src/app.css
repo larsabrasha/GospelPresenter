@@ -29,6 +29,16 @@
   --color-sheet: #f2f2f7;
   --color-sheet-cell: #ffffff;
 }
+/*
+ * What floats over the page, a dialog of pages, is drawn a step lighter in dark mode, as iOS's elevated colours:
+ * its ground is the page's surface, its cards a step above.
+ */
+.dark .elevated {
+  --color-ground: #1c1c1e;
+  --color-surface: #2c2c2e;
+  --color-raised: #3a3a3c;
+  --color-raised-2: #48484a;
+}
 .dark {
   --color-ground: #000000;
   --color-surface: #1c1c1e;
@@ -52,6 +62,8 @@
   html.dark { color-scheme: dark; }
   body { @apply flex flex-col h-full; }
   #root { @apply flex flex-col flex-1 min-h-0 overflow-auto; }
+  /* A box that scrolls up and down keeps the scrollbar's room, so nothing moves when the bar comes or goes. */
+  #root, .overflow-y-auto { scrollbar-gutter: stable; }
 }
 
 /* Dialogs fade in, as the current app's dialog.animated. */

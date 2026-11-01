@@ -12,13 +12,14 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('the start page bar holds + and the picture, whose menu tells the sync and opens both settings', async () => {
+test('the start page bar holds the picture, whose menu tells the sync and opens both settings; + is in the heading row', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
 
   const bar = page.getByRole('navigation').first();
-  await expect(bar.getByRole('button', { name: 'Ny presentation' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Ny presentation' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Ny presentation' })).toBeVisible();
   await expect(bar.getByRole('link', { name: 'Inställningar' })).toHaveCount(0); // no cog
   await expect(page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
   await expect(page.getByRole('button', { name: /Synka nu/ })).toHaveCount(0); // the cloud shows only when something is wrong

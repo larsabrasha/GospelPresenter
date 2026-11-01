@@ -11,7 +11,7 @@ import { usePlayerState } from './usePlayerState.ts';
 // never changes what is shown (LIVE-R6). A controller drives it by command
 // and sees a muted mirror.
 
-/** What the live page and the stage view drive: the engine here, or a session's audio elsewhere. */
+/** What the live page drives: the engine here, or a session's audio elsewhere. */
 export interface AudioControl {
   /** The session's audio now, the position brought up to date. */
   state(): LiveAudio | null;

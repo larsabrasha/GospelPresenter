@@ -25,9 +25,9 @@ export type Route =
   /**
    * A presentation in its editor, which is also where it is presented, as Presentation.razor: presenting
    * when this window's session shows it; with `remote` driving a session elsewhere (spec 04 §2), `session`
-   * naming which. `stage` opens the stage view (`?stage=true`), so a phone's link or a reload lands there.
+   * naming which. An old link's `?stage=true` is left out: the stage view is gone (Lars, 2026-11-01).
    */
-  | { page: 'presentation'; id: string; remote?: boolean; session?: string | null; stage?: boolean }
+  | { page: 'presentation'; id: string; remote?: boolean; session?: string | null }
   /** The templates page, under the admin menu (spec 03 screen 3). */
   | { page: 'templates' }
   /** A template in the presentation editor (`/templates/{id}`, spec 03 screen 2). */
@@ -125,10 +125,9 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   if (first === 'songs' && id) return { page: 'song', id };
   // `/live/{id}` was the address while presenting until 2026-10-30, with `remote=1`; its links still open.
   if ((first === 'presentations' || first === 'live') && id) {
-    const stage = query.get('stage') === 'true' ? { stage: true } : {};
     const remote = query.get('remote');
-    if (remote !== 'true' && remote !== '1') return { page: 'presentation', id, ...stage };
-    return { page: 'presentation', id, remote: true, session: query.get('session'), ...stage };
+    if (remote !== 'true' && remote !== '1') return { page: 'presentation', id };
+    return { page: 'presentation', id, remote: true, session: query.get('session') };
   }
   if (first === 'templates' && id) return { page: 'template', id };
   if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decode(hash.slice(1)) };
@@ -182,7 +181,6 @@ export function href(r: Route): string {
       const q = new URLSearchParams();
       if (r.remote) q.set('remote', 'true');
       if (r.remote && r.session) q.set('session', r.session);
-      if (r.stage) q.set('stage', 'true');
       return q.size ? `/presentations/${encodeURIComponent(r.id)}?${q}` : `/presentations/${encodeURIComponent(r.id)}`;
     }
     case 'overlay':

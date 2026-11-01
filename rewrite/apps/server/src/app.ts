@@ -216,7 +216,7 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     if (!bytes.length) return c.json({ error: 'empty' }, 400);
     if (bytes.length > MEDIA_LIMITS.audioBytes) return c.json({ error: 'too-large' }, 413);
     if ((await sha256HexBytes(bytes)) !== hash) return c.json({ error: 'hash-mismatch' }, 400);
-    // The signature, not the type the client claims, decides what is kept (MEDIA-A6): a stored picture or a sound.
+    // The signature, not the type the client claims, decides what is kept (MEDIA-A6): a stored picture, a sound or a PDF.
     const kind = sniffMedia(bytes);
     if (!kind) return c.json({ error: 'invalid-image' }, 400);
     if (bytes.length > kind.maxBytes) return c.json({ error: 'too-large' }, 413);
@@ -248,6 +248,12 @@ export function syncRoutes(resolve: (c: Context) => Promise<{ caller: Caller; or
     c.header('cache-control', 'private, max-age=31536000, immutable'); // content-addressed (D28)
     c.header('content-type', String(known[0]!.content_type));
     c.header('x-content-type-options', 'nosniff');
+    // A song's PDF is read by the app, never shown at this address: a browser that is sent here downloads it, and
+    // anything in it runs nowhere (spec 02 "Song material").
+    if (known[0]!.content_type === 'application/pdf') {
+      c.header('content-disposition', 'attachment');
+      c.header('content-security-policy', 'sandbox');
+    }
     c.header('etag', `"${hash}"`);
     return c.body(bytes as Uint8Array<ArrayBuffer>);
   });

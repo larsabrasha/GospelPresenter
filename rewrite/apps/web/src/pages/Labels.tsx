@@ -9,7 +9,7 @@ import { useTrySave } from '../ui/AutoSave.tsx';
 import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
-import { ChevronDownIcon, ChevronUpIcon, LabelsPicture, PencilIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { ChevronDownIcon, ChevronUpIcon, LabelsPicture, PencilIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { useToast } from '../ui/Toast.tsx';
@@ -101,23 +101,16 @@ export function Labels() {
 
   const move = (l: Label, toIndex: number) => void trySave(db.mutate('moveLabel', { id: l.id, toIndex }));
   const remove = (l: Label) => void ask(deleteAsk(t('labels.deleteConfirm', { text: l.text }), l.text, () => trySave(db.mutate('deleteLabel', { id: l.id }))));
-  const create = (
-    <AppButton onClick={() => setEditing('new')} className="flex items-center gap-1.5">
-      <PlusIcon className="size-4" />
-      {t('common.create')}
-    </AppButton>
-  );
-
   return (
     <PageContainer>
       {dialog}
-      <PageHeader title={t('labels.title')}>{!!labels?.length && <AddButton label={t('common.create')} onClick={() => setEditing('new')} />}</PageHeader>
+      <PageHeader title={t('labels.title')}>
+        <AddButton label={t('common.create')} onClick={() => setEditing('new')} />
+      </PageHeader>
       <div className={CARD}>
         {!labels && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {labels && !labels.length && (
-          <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')} text={t('labels.text')}>
-            {create}
-          </EmptyPicture>
+          <EmptyPicture picture={<LabelsPicture className={PICTURE} />} title={t('labels.empty')} text={t('labels.text')} />
         )}
         <ul aria-label={t('labels.title')}>
           {labels?.map((l, i) => (

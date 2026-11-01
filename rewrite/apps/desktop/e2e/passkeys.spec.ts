@@ -39,7 +39,7 @@ test('desktop host: set up with a passkey, link Google from the session; either 
 
   // D19 with a passkey: the system browser makes it, at localhost (never 127.0.0.1, which cannot be an RP ID).
   await page.getByLabel('Ditt namn').fill('Anna');
-  await page.getByLabel('Församlingens eller organisationens namn').fill('Lilla Kyrkan');
+  await page.getByLabel('Organisationens namn').fill('Lilla Kyrkan');
   await page.getByRole('button', { name: 'Kom igång' }).click();
   await page.getByRole('button', { name: 'Skapa passkey' }).click();
   await expect(page.getByRole('heading', { name: 'Fortsätt i webbläsaren' })).toBeVisible();
@@ -163,7 +163,7 @@ test('in a browser: setup with a passkey in the page, a second passkey from anot
   await page.getByLabel('Ditt namn').fill('Bo');
   await page.getByRole('button', { name: 'Kom igång' }).click();
   await expect(error).toHaveText('Organisationens namn måste fyllas i.');
-  await page.getByLabel('Församlingens eller organisationens namn').fill('Stora Kyrkan');
+  await page.getByLabel('Organisationens namn').fill('Stora Kyrkan');
   await page.getByRole('button', { name: 'Kom igång' }).click();
   await expect(error).toHaveText('Installationskoden måste fyllas i.');
   await page.getByLabel('Installationskod').fill(s.setupToken);

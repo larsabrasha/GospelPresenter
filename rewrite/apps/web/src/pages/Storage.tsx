@@ -5,6 +5,7 @@ import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
 import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
+import { ChevronDownIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -18,8 +19,10 @@ export const CACHE_LIMIT_CHANGED = 'gp:cache-limit';
 const GIB = 1024 * 1024 * 1024;
 /** The limit until one is chosen (MEDIA-R14): 2 GiB. */
 const DEFAULT_CACHE_LIMIT = 2 * GIB;
-/** The smallest limit the slider offers, and its step. */
+/** The smallest limit a device may have. */
 const LIMIT_STEP = 128 * 1024 * 1024;
+/** The limits the menu offers, as iOS offers a few fixed choices rather than a slider (Lars, 2026-11-01). */
+const LIMITS = [0.5, 1, 2, 5, 10, 20, 50, 100].map((n) => n * GIB);
 
 /** The cache limit this device has chosen, in bytes. */
 export function cacheLimitSetting(): number {
@@ -56,8 +59,15 @@ export function formatBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
+/** A limit in the menu: "512 MB", "2 GB" (the binary sizes the limits are, named as people know them). */
+function limitLabel(bytes: number): string {
+  const [n, unit] = bytes < GIB ? [bytes / (1024 * 1024), 'MB'] : [bytes / GIB, 'GB'];
+  const size = `${n.toLocaleString(locale(), { maximumFractionDigits: 2 })} ${unit}`;
+  return bytes === DEFAULT_CACHE_LIMIT ? t('storage.limitDefault', { size }) : size;
+}
+
 /**
- * The slider's range: from LIMIT_STEP to the room the cache could have. In the desktop app the disk's
+ * The largest limit the menu offers: the room the cache could have. In the desktop app the disk's
  * free room (`fs.statfs`), in a browser the share it grants (`navigator.storage.estimate()`), as a page
  * cannot see the disk; in both plus what the cache holds now. Never below the chosen limit.
  */
@@ -176,27 +186,31 @@ function DeviceStorage() {
           </span>
         </h3>
         <p className="text-xs text-neutral-500 dark:text-neutral-400">{t('storage.cacheText')}</p>
-        <label className="block text-sm">
-          <span className="flex justify-between gap-2">
-            <span>{t('storage.limit')}</span>
-            <span className="tabular-nums" data-testid="storage-limit">
-              {formatBytes(limit)}
-            </span>
+        <label className="flex items-center justify-between gap-3 text-sm">
+          <span>{t('storage.limit')}</span>
+          <span className="relative shrink-0">
+            {/* The limits that fit in the room the cache could have, and the one chosen, which an earlier slider may have left between them. */}
+            <select
+              value={limit}
+              disabled={!max}
+              data-testid="storage-limit"
+              onChange={(e) => {
+                const bytes = Number(e.target.value);
+                setLimit(bytes);
+                setCacheLimitSetting(bytes);
+              }}
+              className="appearance-none h-9 pl-4 pr-8 rounded-full tabular-nums bg-raised dark:bg-raised-2 text-neutral-900 dark:text-neutral-100 cursor-pointer disabled:cursor-default focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              {[...new Set([...LIMITS.filter((l) => l <= (max ?? limit)), limit])]
+                .toSorted((a, b) => a - b)
+                .map((l) => (
+                  <option key={l} value={l}>
+                    {limitLabel(l)}
+                  </option>
+                ))}
+            </select>
+            <ChevronDownIcon className="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
           </span>
-          <input
-            type="range"
-            className="w-full accent-sky-500 cursor-pointer disabled:cursor-default"
-            min={LIMIT_STEP}
-            max={max ?? limit}
-            step={LIMIT_STEP}
-            value={limit}
-            disabled={!max}
-            aria-valuetext={formatBytes(limit)}
-            onChange={(e) => setLimit(Number(e.target.value))}
-            onPointerUp={() => setCacheLimitSetting(limit)}
-            onKeyUp={() => setCacheLimitSetting(limit)}
-            onBlur={() => setCacheLimitSetting(limit)}
-          />
         </label>
         <AppButton
           variant="secondary"

@@ -1,4 +1,4 @@
-// Milestone 6: the rest of live, in slices. Stage view (spec 04 section 3).
+// Milestone 6: the rest of live, in slices: a clicker's keys, Extern skärm, and where a presentation is presented.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, endPresentation, openAdmin, setUpHost } from './flows.ts';
@@ -9,7 +9,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('stage view: the picker opens by itself, next stays within the item, and the output follows', async () => {
+test("a clicker's keys drive the live page: next and previous across items, and B or . black the output", async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -23,79 +23,26 @@ test('stage view: the picker opens by itself, next stays within the item, and th
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
   await output.getByTestId('output').waitFor();
-
-  await page.getByRole('button', { name: 'Scenläge' }).click();
-  const stage = page.getByTestId('stage-view');
-  // Nothing selected and a running order: the item picker is open. Picking puts the first part live.
-  await stage.getByRole('dialog', { name: 'Välj', exact: true }).getByRole('button', { name: 'Sång A' }).click();
-  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
-  await expect(stage.getByText('LIVE')).toHaveCount(1);
-  await expect(stage.getByRole('button', { name: 'Nästa' })).toBeVisible();
-
-  // Next goes to part 2; on the last part it does nothing and does not enter the next item (LIVE-R41).
-  await page.keyboard.press('ArrowRight');
-  await expect(output.getByTestId('slide-text')).toHaveText('A två');
-  await expect(stage.getByRole('button', { name: 'Nästa' })).toHaveCount(0);
-  await page.keyboard.press('ArrowRight');
-  await expect(output.getByTestId('slide-text')).toHaveText('A två');
-  // The preview has no credits, and the part label shows on the stage only.
-  await expect(stage.getByTestId('slide-credits')).toHaveCount(0);
-  await expect(stage.getByText('Chorus').first()).toBeVisible();
-  // As StageView.razor: the current part's label in capitals, every tile in the strip with its label, 110 px high.
-  await expect(stage.getByTestId('stage-current-label')).toHaveCSS('text-transform', 'uppercase');
-  const strip = stage.getByRole('list', { name: 'Delar' });
-  await expect(strip.getByRole('button', { name: 'Sång A 1' })).toContainText('Verse 1');
-  await expect(strip.getByRole('button', { name: 'Sång A 2' })).toContainText('Chorus');
-  expect(Math.abs((await strip.getByRole('button', { name: 'Sång A 1' }).locator('span').first().boundingBox())!.height - 110)).toBeLessThan(1);
-  // The current slide sized from the window as ComputeScales: 58 % of the width side by side, or the height left.
-  const view = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
-  const expected = Math.min((view.w - 48) * 0.58, ((view.h - 240) * 16) / 9, 1728);
-  expect(Math.abs((await stage.getByTestId('stage-current').boundingBox())!.width - expected)).toBeLessThan(1);
-
-  // Rensa blacks the output and hides itself; picking a part brings it back.
-  await stage.getByRole('button', { name: 'Rensa' }).click();
-  await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await expect(stage.getByRole('button', { name: 'Rensa' })).toBeHidden();
-  await stage.getByRole('button', { name: 'Sång A 1' }).click();
+  await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
 
-  // The keys of a pedal or clicker (spec 04 §10): `b` blanks as Rensa does, and again does not show it back;
-  // `.` and `B` blank too; Enter is next.
-  await page.keyboard.press('b');
-  await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await expect(stage.getByRole('button', { name: 'Rensa' })).toBeHidden();
-  await page.keyboard.press('b');
-  await page.keyboard.press('Enter');
+  // → PageDown and Space step on, into the next item; ← PageUp step back (the stage view is gone, Lars 2026-11-01).
+  await page.keyboard.press('PageDown');
   await expect(output.getByTestId('slide-text')).toHaveText('A två');
+  await page.keyboard.press(' ');
+  await expect(output.getByTestId('slide-text')).toHaveText('B ett');
+  await page.keyboard.press('PageUp');
+  await expect(output.getByTestId('slide-text')).toHaveText('A två');
+
+  // B and . (a clicker's blank key) black the output, as Rensa; → goes on from the part last shown.
   await page.keyboard.press('B');
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
-  await page.keyboard.press('ArrowLeft');
-  await expect(output.getByTestId('slide-text')).toHaveText('A ett');
+  await page.keyboard.press('ArrowRight');
+  await expect(output.getByTestId('slide-text')).toHaveText('B ett');
   await page.keyboard.press('.');
   await expect(output.getByTestId('slide-text')).toHaveCount(0);
-
-  // Esc closes an open sheet first, and only then the stage view.
-  await stage.getByRole('button', { name: 'Sång A', exact: true }).click();
-  await expect(stage.getByRole('dialog', { name: 'Välj', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(stage.getByRole('dialog', { name: 'Välj', exact: true })).toHaveCount(0);
-  await expect(stage).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(stage).toHaveCount(0);
-  await page.getByRole('button', { name: 'Scenläge' }).click();
-
-  // Enter on a button reached from the keyboard presses it rather than stepping.
-  const leave = stage.getByRole('button', { name: 'Lämna scenläge' });
-  await leave.focus();
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Shift+Tab');
-  await expect(leave).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(stage).toHaveCount(0);
-  await page.getByRole('button', { name: 'Scenläge' }).click();
-
-  await stage.getByRole('button', { name: 'Lämna scenläge' }).click();
-  await expect(stage).toHaveCount(0);
+  await page.keyboard.press('ArrowLeft');
+  await expect(output.getByTestId('slide-text')).toHaveText('A två');
 
   // The tests take no focus and no screen: the operator window and the output exist but were never shown.
   const windows = await host.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => ({ visible: w.isVisible(), fullScreen: w.isFullScreen() })));

@@ -29,7 +29,7 @@ export interface VideoState extends VideoRef {
 
 export type { VideoCommand } from '@gp/core';
 
-/** What the live page and the stage view drive: the engine in the presenting window. */
+/** What the live page drives: the engine in the presenting window. */
 export interface VideoControl {
   state(): VideoState | null;
   subscribe(fn: () => void): () => void;

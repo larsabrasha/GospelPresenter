@@ -24,8 +24,7 @@ column (`Sidebar.razor`; an item is dragged by its handle at the right, and the 
 Ta bort), the slides as rounded tiles (`SlideGrid.razor`, `ui/SlideTile.tsx`), the green
 Starta presentation, the add modal with its pill tabs and round search (`AddItemModal.razor`, `ui/Picker.tsx`),
 the live page's panel at the right (`LivePanel.razor`: Nu visas, Utgångar, Overlays, fjärrstyrning as
-switches in `ui/Toggle.tsx`, Scenläge, the red Avsluta) and the dark stage view with its bottom sheets
-(`StageView.razor`). Live is the editor presenting, as `Presentation.razor` (Lars, 2026-10-30): `/presentations/{id}`
+switches in `ui/Toggle.tsx`, the red Avsluta); the old dark stage view (`StageView.razor`) is not in 2.0. Live is the editor presenting, as `Presentation.razor` (Lars, 2026-10-30): `/presentations/{id}`
 presents in place (Starta presentation and Avsluta stay on the page; a reload goes on presenting; `/live/{id}`
 from before opens it too) with the running order, so items are added, removed and moved while live; the main area shows the
 selected item's slides, a click shows one live, and the item shown live is selected as the slides step on.
@@ -66,7 +65,7 @@ The keyboard help (`ui/ShortcutHelp.tsx`, `KeyboardShortcuts.razor` and `Shortcu
 a text field opens "Kortkommandon", with the old dialog's look and texts: the group of what is on screen, then
 "Överallt" with `?`; `?`, Esc or × closes it. Groups: Startsidan (n, ↓, ↵), Presentation (a, F2, Del, ↑ ↓, and the
 new Alt+↑ ↓), Lägg till (⌘/Ctrl+1–5, ⌘/Ctrl+↵, ↓; it hides the editor's group, whose keys are off behind it), and
-the new Live (→ Space PageDown, ← PageUp, ↓, ↑, B) and Scenläge (its pedal keys; it hides Live's). The old
+the new Live (→ Space PageDown, ← PageUp, ↓, ↑, B and a clicker's `.`). The old
 editor's → and ↵ through the slides are not listed: the new editor has no such keys. Keys with ⌘ and ⌥ on a Mac,
 Ctrl+ and Alt+ elsewhere. Tested in `apps/web/test/shortcutHelp.test.ts` and `e2e/shortcuts.spec.ts`.
 
@@ -131,7 +130,7 @@ reaches each chip). Tested in e2e: the mouse and the keys (`milestone2.spec.ts`)
 touch input (`drag.spec.ts`); not on a real tablet or in Safari.
 
 The move went in steps, and is finished: 1 the frame, the components and the start page; 2 the presentation
-(editor, live, stage view, Lägg till); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`,
+(editor, live, Lägg till); 3 songs; 4 the admin pages; 5 sign-in, setup, pairing, `/display`,
 `/watch` and the output. Everything is Tailwind, except the slide itself: `apps/web/src/styles.css` keeps the
 1920×1080 canvas's rules (`ui/SlideView.tsx`, and a verse number, also on `/watch`), in the CSS layer `slide`
 below Tailwind's utilities. They are plain CSS on purpose: their sizes are the canvas's own pixels from spec 04

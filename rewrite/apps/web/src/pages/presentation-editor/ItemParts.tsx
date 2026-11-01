@@ -1,7 +1,6 @@
-import type { LibraryVideo, LivePointer, Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
+import type { LibraryVideo, Overlay, PresentationItem, Song, SongArrangement, Theme } from '@gp/core';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AudioEngine, type AudioControl } from '../../live/audio.ts';
-import type { LiveControl } from '../../live/remote.ts';
 import { AudioPlayer } from '../live/AudioPlayer.tsx';
 import { VideoPlayer } from '../live/VideoPlayer.tsx';
 import type { VideoControl } from '../../live/video.ts';
@@ -18,7 +17,7 @@ import { useSortable } from '../../ui/sortable.ts';
 import { tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useToast } from '../../ui/Toast.tsx';
-import { ArrangementPills, SlideGrid } from './SlideGrid.tsx';
+import { ArrangementPills } from './SlideGrid.tsx';
 
 /**
  * An audio item in the editor: the player of the live page (AudioPlayer.razor), on a preview of its
@@ -28,7 +27,7 @@ function AudioPreview({ itemId, hash, name }: { itemId: string; hash: string; na
   const url = useBlobUrl(hash);
   if (!url)
     return (
-      <div className="w-full sm:max-w-lg sm:mx-auto bg-surface rounded-xl p-4 shadow-sm space-y-3">
+      <div className="w-full sm:max-w-lg bg-surface rounded-xl p-4 shadow-sm space-y-3">
         <p className="text-sm font-medium truncate">{name}</p>
         <p className="text-sm text-neutral-400">{t('presentation.audioFetching')}</p>
       </div>
@@ -40,7 +39,7 @@ function PreviewPlayer({ url, itemId, name }: { url: string; itemId: string; nam
   const [engine] = useState(() => new AudioEngine(async () => url));
   useEffect(() => () => engine.stop(), [engine]);
   return (
-    <div className="w-full sm:max-w-lg sm:mx-auto">
+    <div className="w-full sm:max-w-lg">
       <AudioPlayer control={engine} itemId={itemId} name={name} testId="audio-preview" />
     </div>
   );
@@ -63,7 +62,7 @@ function VideoPreview({ video }: { video: LibraryVideo }) {
     };
   }, [video.hash, playable]);
   return (
-    <div className="w-full sm:max-w-lg sm:mx-auto space-y-2">
+    <div className="w-full sm:max-w-lg space-y-2">
       {!playable && <ItemWarning>{t('videos.cannotPlay', { codec: codecName(video.codec) })}</ItemWarning>}
       {playable ? (
         <video
@@ -83,10 +82,7 @@ function VideoPreview({ video }: { video: LibraryVideo }) {
   );
 }
 
-/** While presenting: the session a clicked slide is shown in, its audio, and its video. */
-export type Shown = { live: LiveControl; pointer: LivePointer; audio: AudioControl; video?: VideoControl };
-
-/** A warning about the selected item, in the main area, with an action at its end when there is one. */
+/** A warning about an item, under its heading, with an action at its end when there is one. */
 function ItemWarning({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
@@ -102,7 +98,7 @@ function ItemWarning({ children, action }: { children: ReactNode; action?: React
  * dragged to a new place, each with a red ✕ that removes it after a question, and a dashed tile
  * that adds more. Removing the last removes the item.
  */
-function ImageItemEditor({ item, slides, theme, onAddImages }: { item: PresentationItem; slides: ItemSlides['slides']; theme: Theme; onAddImages: () => void }) {
+export function ImageItemEditor({ item, slides, theme, onAddImages }: { item: PresentationItem; slides: ItemSlides['slides']; theme: Theme; onAddImages: () => void }) {
   const db = useDb();
   const saveFailed = useSaveFailed();
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
@@ -143,47 +139,21 @@ function ImageItemEditor({ item, slides, theme, onAddImages }: { item: Presentat
   );
 }
 
-/**
- * The selected item in the main area: its warnings, the audio player, the
- * arrangement and overlay pickers, and its slides; an image item's pictures to
- * reorder, remove and add to while `editingImages`.
- */
-export function SelectedItem({
-  selected,
-  selectedSong,
-  selectedArrangements,
-  selectedSlides,
-  overlays,
-  theme,
-  editingImages,
-  onAddImages,
-  shown,
-}: {
-  shown?: Shown;
-  editingImages: boolean;
-  onAddImages: () => void;
-  selected: PresentationItem;
-  selectedSong: Song | undefined;
-  selectedArrangements: SongArrangement[];
-  selectedSlides: ItemSlides | undefined;
-  overlays: Overlay[];
-  theme: Theme;
-}) {
+/** What is wrong with an item, under its heading: a song in the trash offers Återställ. */
+export function ItemWarnings({ item, set, songName }: { item: PresentationItem; set: ItemSlides | undefined; songName: string | undefined }) {
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
-  const saveFailed = useSaveFailed();
-  const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
   return (
     <>
-      {selectedSlides?.problem === 'song-trashed' && (
+      {set?.problem === 'song-trashed' && (
         <ItemWarning
           action={
             <AppButton
               variant="secondary"
               onClick={async () => {
-                if (!(await trySave(db.mutate('restoreSong', { id: selected.sourceId })))) return;
-                toast(t('presentation.songRestored', { name: selectedSong?.name ?? selected.title }));
+                if (!(await trySave(db.mutate('restoreSong', { id: item.sourceId })))) return;
+                toast(t('presentation.songRestored', { name: songName ?? item.title }));
               }}
             >
               {t('common.restore')}
@@ -193,76 +163,79 @@ export function SelectedItem({
           {t('presentation.songTrashed')}
         </ItemWarning>
       )}
-      {selectedSlides?.problem === 'song-missing' && <ItemWarning>{t('presentation.songMissing')}</ItemWarning>}
-      {selectedSlides?.problem === 'image-missing' && <ItemWarning>{t('presentation.imageMissing')}</ItemWarning>}
-      {selectedSlides?.problem === 'audio-missing' && <ItemWarning>{t('presentation.audioMissing')}</ItemWarning>}
-      {selectedSlides?.problem === 'video-missing' && <ItemWarning>{t('presentation.videoMissing')}</ItemWarning>}
-      {selectedSlides?.video &&
-        (shown ? (
-          // While presenting, the window's own video: its sound plays here, the outputs follow its picture.
-          shown.video && (
-            <div className="w-full sm:max-w-lg sm:mx-auto">
-              <VideoPlayer control={shown.video} itemId={selected.id} name={selectedSlides.video.fileName} type={selectedSlides.video.contentType} codec={selectedSlides.video.codec} />
-            </div>
-          )
-        ) : (
-          <VideoPreview key={selected.id} video={selectedSlides.video} />
-        ))}
-      {selectedSlides?.audio &&
-        (shown ? (
-          // While presenting, the session's own player: what plays on the presenting computer (AudioPlayer.razor).
-          <div className="w-full sm:max-w-lg sm:mx-auto">
-            <AudioPlayer control={shown.audio} itemId={selected.id} name={selectedSlides.audio.fileName} />
-          </div>
-        ) : (
-          <AudioPreview key={selected.id} itemId={selected.id} hash={selectedSlides.audio.hash} name={selectedSlides.audio.fileName} />
-        ))}
-      {(selectedSong?.deletedAt === null || !!overlays.length) && (
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-1 empty:hidden">
-          {selectedSong?.deletedAt === null && (
-            <ArrangementPills
-              arrangements={selectedArrangements}
-              chosen={selected.arrangementId ?? selectedArrangements[0]?.id ?? null}
-              onChoose={(arrangementId) => failing(db.mutate('setItemArrangement', { itemId: selected.id, arrangementId }))}
-            />
-          )}
-          {!!overlays.length && (
-            <label className="flex flex-wrap items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400" title={t('overlays.itemHint')}>
-              {t('overlays.itemOverlay')}
-              <span className="relative">
-                <select
-                  aria-label={t('overlays.itemOverlay')}
-                  value={selected.overlayId ?? ''}
-                  onChange={(e) => failing(db.mutate('setItemOverlay', { itemId: selected.id, overlayId: e.target.value || null }))}
-                  className="appearance-none py-1.5 pl-3 pr-8 rounded-full border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-raised text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                >
-                  <option value="">{t('overlays.itemNone')}</option>
-                  {overlays.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.title}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDownIcon className="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-              </span>
-              <span className="text-xs text-neutral-400 dark:text-neutral-500">{t('overlays.itemHint')}</span>
-            </label>
-          )}
-        </div>
-      )}
-      {selectedSlides && selected.type === 'image' && editingImages ? (
-        <ImageItemEditor item={selected} slides={selectedSlides.slides} theme={theme} onAddImages={onAddImages} />
-      ) : (
-        selectedSlides && (
-          <SlideGrid
-            theme={theme}
-            label={selected.title}
-            slides={selectedSlides.slides}
-            overlayId={selected.overlayId}
-            shown={shown && { pointer: shown.pointer, itemId: selected.id, onShow: (partIndex) => shown.live.set({ itemId: selected.id, partIndex, black: false }) }}
-          />
-        )
-      )}
+      {set?.problem === 'song-missing' && <ItemWarning>{t('presentation.songMissing')}</ItemWarning>}
+      {set?.problem === 'image-missing' && <ItemWarning>{t('presentation.imageMissing')}</ItemWarning>}
+      {set?.problem === 'audio-missing' && <ItemWarning>{t('presentation.audioMissing')}</ItemWarning>}
+      {set?.problem === 'video-missing' && <ItemWarning>{t('presentation.videoMissing')}</ItemWarning>}
     </>
+  );
+}
+
+/** While presenting: the session's audio and video, which an item's players drive. */
+export type Players = { audio: AudioControl; video?: VideoControl };
+
+/**
+ * An audio or video item's player: while presenting the session's own (what plays on the presenting computer, the
+ * outputs following its picture), the video only on the item shown; before, a preview of its own.
+ */
+export function ItemMedia({ item, set, players, shownId }: { item: PresentationItem; set: ItemSlides | undefined; players?: Players; shownId: string | null }) {
+  if (set?.audio)
+    return players ? (
+      <div className="w-full sm:max-w-lg">
+        <AudioPlayer control={players.audio} itemId={item.id} name={set.audio.fileName} />
+      </div>
+    ) : (
+      <AudioPreview key={item.id} itemId={item.id} hash={set.audio.hash} name={set.audio.fileName} />
+    );
+  if (set?.video) {
+    if (!players) return <VideoPreview key={item.id} video={set.video} />;
+    if (!players.video || item.id !== shownId) return null;
+    return (
+      <div className="w-full sm:max-w-lg">
+        <VideoPlayer control={players.video} itemId={item.id} name={set.video.fileName} type={set.video.contentType} codec={set.video.codec} />
+      </div>
+    );
+  }
+  return null;
+}
+
+/** A song item's arrangement, when it has two or more, and the overlay any item carries, when there are overlays. */
+export function ItemSettings({ item, song, arrangements, overlays }: { item: PresentationItem; song: Song | undefined; arrangements: SongArrangement[]; overlays: Overlay[] }) {
+  const db = useDb();
+  const saveFailed = useSaveFailed();
+  const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
+  const pills = song?.deletedAt === null && arrangements.length > 1;
+  if (!pills && !overlays.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+      {pills && (
+        <ArrangementPills
+          arrangements={arrangements}
+          chosen={item.arrangementId ?? arrangements[0]?.id ?? null}
+          onChoose={(arrangementId) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId }))}
+        />
+      )}
+      {!!overlays.length && (
+        <label className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400" title={t('overlays.itemHint')}>
+          {t('overlays.itemOverlay')}
+          <span className="relative">
+            <select
+              aria-label={t('overlays.itemOverlay')}
+              value={item.overlayId ?? ''}
+              onChange={(e) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: e.target.value || null }))}
+              className="appearance-none h-7 pl-3 pr-8 rounded-full text-[13px] bg-raised dark:bg-raised-2 text-neutral-900 dark:text-neutral-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500"
+            >
+              <option value="">{t('overlays.itemNone')}</option>
+              {overlays.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.title}
+                </option>
+              ))}
+            </select>
+            <ChevronDownIcon className="size-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+          </span>
+        </label>
+      )}
+    </div>
   );
 }

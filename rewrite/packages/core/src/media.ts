@@ -11,6 +11,8 @@ export const MEDIA_LIMITS = {
   blobBytes: 10 * 1024 * 1024,
   /** An audio file, stored as it is (MEDIA-R5): 20 MiB. */
   audioBytes: 20 * 1024 * 1024,
+  /** A song's sheet music, a PDF stored as it is (spec 02 "Song material"): 20 MiB. */
+  pdfBytes: 20 * 1024 * 1024,
   fileName: 200,
   images: 1000,
   audios: 500,
@@ -50,10 +52,16 @@ export function sniffAudio(bytes: Uint8Array): AudioType | null {
   return null;
 }
 
-/** A blob the server takes: a stored picture (up to 10 MiB) or an audio file (up to 20 MiB). */
+/** Whether the bytes are a PDF, by its `%PDF-` header: a song's sheet music. */
+export function isPdf(bytes: Uint8Array): boolean {
+  return bytes.length >= 5 && [...'%PDF-'].every((c, i) => bytes[i] === c.charCodeAt(0));
+}
+
+/** A blob the server takes: a stored picture (up to 10 MiB), an audio file or a PDF (each up to 20 MiB). */
 export function sniffMedia(bytes: Uint8Array): { type: string; maxBytes: number } | null {
   const image = sniffStoredImage(bytes);
   if (image) return { type: image, maxBytes: MEDIA_LIMITS.blobBytes };
+  if (isPdf(bytes)) return { type: 'application/pdf', maxBytes: MEDIA_LIMITS.pdfBytes };
   const audio = sniffAudio(bytes);
   return audio ? { type: audio, maxBytes: MEDIA_LIMITS.audioBytes } : null;
 }
@@ -148,9 +156,10 @@ export const ITEM_IMAGES_SQL = `SELECT p.presentation_id, p.source_id AS image_i
   UNION ALL
   SELECT p.presentation_id, j.value AS image_id FROM presentation_items p, json_each(p.content, '$.images') j WHERE p.type = 'image' AND p.content IS NOT NULL`;
 
-/** The blobs no image, audio file, video or slide deck names, older than the grace period: what a clean-up may remove. */
+/** The blobs no image, audio file, video, slide deck or song's sheet music names, older than the grace period: what a clean-up may remove. */
 export const ORPHAN_BLOBS_SQL = `SELECT hash FROM media_blobs
   WHERE received_at < ?
+    AND hash NOT IN (SELECT hash FROM song_materials WHERE hash IS NOT NULL)
     AND hash NOT IN (SELECT full_hash FROM images)
     AND hash NOT IN (SELECT thumb_hash FROM images)
     AND hash NOT IN (SELECT hash FROM audios)

@@ -170,7 +170,7 @@ Not available on `/templates/{id}` (template mode never shows live controls).
      toggle is replaced by "Alla i församlingen kan fjärrstyra presentationen." and the info button is
      always enabled.)
   6. Hidden `<audio>` elements for the session's audio (operator only).
-  7. **Scenläge** button → stage mode (§3).
+  7. (The old app's **Scenläge** button; gone in 2.0, §3.)
   8. **Avsluta presentation** (red) — or, when stopping is not allowed (controller of a device-owned
      session), the text "Bara datorn som presenterar kan stoppa presentationen."
 - **Stop** (`Presentation.razor:774-809`): closes Presentation-API connections and tells all live
@@ -187,7 +187,7 @@ Not available on `/templates/{id}` (template mode never shows live controls).
 ### 1b. Audio during live
 - Selecting an Audio item shows one player per audio part (file name, play/pause, seek bar,
   current/total time, **Tona ut** (fade-out) button). Selecting it does **not** change the projected
-  slide (stage mode blacks the screen instead, §3).
+  slide.
 - The selected audio becomes the session's audio and keeps playing while the operator moves on to
   other items; it is replaced only when another audio item is selected
   (`Presentation.razor:1385-1402`). Starting one part pauses and rewinds the other parts of the same
@@ -207,7 +207,7 @@ each saved display id that still exists (screens only if online; public outputs 
 to any session, open `windowCount` live windows, and turn the external display on if it was on
 (`GospelPresenter/GospelPresenter.Shared/State/LiveOutputsState.cs:128-192`, `:471-513`).
 
-### 2. Remote control mode — `/presentations/{id}?remote=true[&session={sessionId}][&stage=true]`
+### 2. Remote control mode — `/presentations/{id}?remote=true[&session={sessionId}]`
 Entry points: dashboard card **Ta kontroll** (one card "Visas just nu" + presentation name or "Aktiv
 presentation" per remote-enabled session in the user's active org, excluding the viewer's own tab
 session; `GospelPresenter/GospelPresenter.Shared/Components/Dashboard.razor:34-56`, `:241-253`), or the
@@ -233,20 +233,10 @@ QR/link from §9.
   visas på skärmen." (`Presentation.razor:492-559`).
 - Template mode ignores `remote`.
 
-### 3. Stage mode — `?stage=true` (own or remote session)
-Full-screen dark overlay for a worship leader/foot pedal. Only shown while the session is active
-(and the controller is ready). Contents (`GospelPresenter/GospelPresenter.Shared/Components/Presentations/StageView.razor`):
-- Top bar: **Lämna scenläge**, centred current item title (or "Välj") opening an item picker sheet
-  (list with type icons; "Presentationen är tom" when empty), **Overlays** button with a blue dot when
-  one is active (overlay sheet with toggles).
-- "Nu visas": live preview **without credits**; song part label pill top-right (hidden while black);
-  **Rensa** below (invisible while black). Audio item: preview with "Ljud spelas".
-- "Nästa": the next part of the selected item, clickable; empty placeholder on the last slide.
-- Slide strip of all parts; live one has red outline + LIVE badge; auto-scrolls to centre the live part.
-- Picking an item: Audio → screen goes black; otherwise its first part goes live immediately.
-- On entry with nothing selected and a non-empty running order the item picker opens automatically.
-- The selection follows the live slide (only here; LIVE-R41). Wake lock held while open.
-- Editing shortcuts of the page are suppressed in stage mode.
+### 3. Stage mode — removed in 2.0
+The old app's stage view (`StageView.razor`, `?stage=true`) is gone from 2.0 (Lars, 2026-11-01): the live page does
+the same on a phone and a tablet, and the band follows rather than drives. It may come back if a church needs it. An
+old link with `?stage=true` opens the presentation as usual. A clicker's keys work on the live page (shortcuts below).
 
 ### 4. Live window / projector — `/live?session=&windowId=&role=&index=&title=` (anonymous)
 - Black page; the slide is scaled to `min(vw/1920, vh/1080)` and centred (letterbox/pillarbox in
@@ -337,10 +327,9 @@ Live-updates on start/stop/presence. (Connected-users page belongs to the *Admin
 | Sidebar | ↑/↓, Home/End | change selected item (not live) | `ListNavigation.cs` |
 | Slide grid | arrows (all four step one tile), Home/End | move focus only | `SlideGrid.razor:394-403` |
 | Slide grid | Enter (focused tile) | put slide live | `SlideGrid.razor:366-369` |
-| Stage mode | → ↓ PageDown Space Enter | next part (first part if nothing of this item is live) | `utils.js:1160-1165`, `StageView.razor:494-499` |
-| Stage mode | ← ↑ PageUp | previous part (no-op at 0) | same |
-| Stage mode | `.` `b` `B` | black screen, as Rensa: only blanks; picking a part shows it again (decided 2026-10-27; it toggled before) | same |
-| Stage mode | Esc | close open sheet, else exit stage mode | same |
+| Live page (2.0) | → Space PageDown | next part, into the next item too | `pages/presentation-editor/PresentationEditor.tsx` |
+| Live page (2.0) | ← PageUp | previous part | same |
+| Live page (2.0) | `b` `B` `.` | black screen, as Rensa: only blanks; a part or an arrow shows one again (decided 2026-10-27; `.` is a clicker's blank key, from the old stage mode) | same |
 Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default action prevented.
 `?` (global help) lists the page's shortcuts (*Navigation/Shortcuts* area).
 
@@ -488,8 +477,7 @@ Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default
 ### Keyboard
 - **LIVE-R40** Arrow keys in the slide grid never put a slide live; only Enter/click does.
   `SlideGrid.razor:365-371`; `GospelPresenter/GospelPresenter.UnitTests/Components/KeyboardNavigationTests.cs:175`
-- **LIVE-R41** Stage-mode next on the last part does nothing; prev on part 0 does nothing; next with no
-  part of the selected item live goes to part 0. `StageView.razor:486-513`
+- **LIVE-R41** (Stage mode's stepping; the stage view is gone in 2.0, §3.)
 
 ### Lifetimes and timeouts
 - **LIVE-R42** Session idle eviction: a session untouched for `Settings:SessionTimeoutMinutes` (default

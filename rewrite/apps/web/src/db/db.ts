@@ -1,6 +1,6 @@
 import type { BibleBookText, MutatorArgs, MutatorName } from '@gp/core';
 import type { StorageReport } from '@gp/sync/client';
-import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport } from './protocol.ts';
+import type { AudioImport, VideoImport, BibleImportResult, DbCall, DbMessage, DbStatus, ImageImport, Session, SlidesImport, SongFileImport } from './protocol.ts';
 import type { MediaBytes, ReadDb } from './share.ts';
 import { locale } from '../i18n.ts';
 
@@ -72,6 +72,17 @@ export class Db implements ReadDb {
   addAudio(audio: AudioImport): Promise<void> {
     this.lastWriteAt = Date.now();
     return this.call({ op: 'addAudio', audio });
+  }
+
+  /** Keeps a song's file (a PDF or a recording) here and adds it to the song's material, online or not. */
+  addSongFile(file: SongFileImport): Promise<void> {
+    this.lastWriteAt = Date.now();
+    return this.call({ op: 'addSongFile', file });
+  }
+
+  /** A song's file, opened: from this device, else fetched now and kept as cache; null when it cannot be had. */
+  openMedia(hash: string): Promise<MediaBytes | null> {
+    return this.call({ op: 'openMedia', hash });
   }
 
   /** Records an uploaded video in the library; its still is kept here and uploaded before the add is pushed. */

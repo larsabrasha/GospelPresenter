@@ -1,4 +1,4 @@
-import { can, sortedArrangements, type PresentationItem, type Role } from '@gp/core';
+import { can, type PresentationItem, type Role } from '@gp/core';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useData, useDb, useShownOverlay } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
@@ -23,13 +23,13 @@ import { LiveSlides } from '../live/desktop/LiveSlides.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
 import { PhoneLive } from '../live/phone/PhoneLive.tsx';
 import { RemoteBanner } from '../live/RemoteBanner.tsx';
-import { StageView } from '../StageView.tsx';
 import { EditTemplateDialog } from '../Templates.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { AddItemDialog } from './AddItemDialog.tsx';
 import { DetailsDialog } from './DetailsDialog.tsx';
-import { ItemPane } from './ItemPane.tsx';
-import { RunningOrder } from './RunningOrder.tsx';
+import { OfflineDialog } from './OfflineStatus.tsx';
+import { PresentationMaterials } from '../song-materials/PresentationMaterials.tsx';
+import { isHostWindow } from '../../hostWindow.ts';
 import { SaveAsTemplateDialog } from './SaveAsTemplateDialog.tsx';
 import { SideMenu } from './SideMenu.tsx';
 
@@ -79,7 +79,7 @@ const LIVE_KEYS: ShortcutGroup = {
     { keys: ['ArrowLeft', 'PageUp'], text: t('shortcuts.previousSlide') },
     { keys: ['ArrowDown'], text: t('shortcuts.nextItem') },
     { keys: ['ArrowUp'], text: t('shortcuts.previousItem') },
-    { keys: ['B'], text: t('shortcuts.black') },
+    { keys: ['B', '.'], text: t('shortcuts.black') },
   ],
 };
 
@@ -94,15 +94,12 @@ export function PresentationEditor({
   live,
   template = false,
   presenting,
-  stage: openInStage = false,
 }: {
   id: string;
   role: Role;
   live: LiveControl;
   template?: boolean;
   presenting?: Presenting;
-  /** The address asks for the stage view (`?stage=true`): it opens while presenting. */
-  stage?: boolean;
 }) {
   const db = useDb();
   const trySave = useTrySave();
@@ -145,31 +142,30 @@ export function PresentationEditor({
   // While presenting: the item "Lägg till efter" named, and the last item added, which the next addition follows (liveList.ts).
   const [chosenAfter, setChosenAfter] = useState<string | null>(null);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  // What was added before presenting does not decide where an addition goes while presenting.
+  const [wasPresenting, setWasPresenting] = useState(!!presenting);
+  if (wasPresenting !== !!presenting) {
+    setWasPresenting(!!presenting);
+    setLastAddedId(null);
+  }
   const [details, setDetails] = useState(false);
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  // Below `lg` the running order is a drawer from the left, open when the page opens (Presentation.razor);
-  // closed when presenting starts, where the old app stayed on the page with the drawer as it was.
-  const [menuVisible, setMenuVisible] = useState(!presenting);
+  // Spara offline…: its dialog, from the menu or the line at the foot of the left column.
+  const [keepingOffline, setKeepingOffline] = useState(false);
+  // Noter och länkar…: the songs' sheet music, recordings and links, for the band.
+  const [showingMaterials, setShowingMaterials] = useState(false);
+  // The item whose title is being renamed (F2, or a click on it).
+  const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const items = data?.items ?? [];
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
-  // Presenting: the stage view, and the live panel that below `lg` floats and folds (LivePanel.razor's Collapsible).
+  // Presenting: this window's own session, or none while controlling one elsewhere.
   const owner = presenting?.owner ?? null;
-  const [stageOpen, setStage] = useState(openInStage);
-  const stage = !!presenting && stageOpen;
   const wide = useWide();
-  // An item chosen at the left while presenting on a computer scrolls the slides to it, each choice anew.
+  // An item chosen at the left on a computer scrolls the slides to it, each choice anew.
   const [reveal, setReveal] = useState<{ id: string; n: number } | null>(null);
   const overlay = useShownOverlay(pointer.overlayId);
-  // The address says whether the stage view is open (`?stage=true`, as Presentation.razor), so a reload or a copied link opens it again.
-  useEffect(() => {
-    const url = new URL(location.href);
-    if (stage) url.searchParams.set('stage', 'true');
-    else url.searchParams.delete('stage');
-    if (url.href !== location.href) history.replaceState(history.state, '', url);
-  }, [stage]);
   // The item shown live is the one selected, as a slide stepped into the next item takes the selection along.
   const [followed, setFollowed] = useState(liveItemId);
   if (presenting && liveItemId !== followed) {
@@ -224,14 +220,13 @@ export function PresentationEditor({
   // fields; never behind a dialog (PRES-R37), never a held key repeating (ui/shortcuts.ts).
   useShortcutGroup(KEYS);
   usePageKeys((e) => {
-    // The stage view has its own keys.
-    if (ticking || stage) return;
-    // While presenting, as ProPresenter: → Space PageDown the next slide, ← PageUp the previous; `b`
-    // blanks, as Rensa (a slide shows again). ↑ ↓ below also show the item's first slide.
+    if (ticking) return;
+    // While presenting, as ProPresenter: → Space PageDown the next slide, ← PageUp the previous; `b` and `.` (a
+    // clicker's blank key) black, as Rensa (a slide shows again). ↑ ↓ below also show the item's first slide.
     const forward = () => step(1);
     const back = () => step(-1);
     const black = () => live.set({ black: true });
-    const liveKeys: Record<string, () => void> = { ArrowRight: forward, PageDown: forward, ' ': forward, ArrowLeft: back, PageUp: back, b: black, B: black };
+    const liveKeys: Record<string, () => void> = { ArrowRight: forward, PageDown: forward, ' ': forward, ArrowLeft: back, PageUp: back, b: black, B: black, '.': black };
     const liveKey = presenting && !e.altKey && !e.ctrlKey && !e.metaKey ? liveKeys[e.key] : undefined;
     if (liveKey) {
       e.preventDefault();
@@ -247,7 +242,7 @@ export function PresentationEditor({
     }
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === 'a') setAdding('item');
-    else if (e.key === 'F2' && selected) setRenaming(true);
+    else if (e.key === 'F2' && selected) setRenamingId(selected.id);
     // The item shown cannot be removed while presenting (docs/layout-2-0.md).
     else if (e.key === 'Delete' && selected && !(presenting && selected.id === liveItemId)) void removeItem(selected);
     else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length && !e.shiftKey) {
@@ -256,7 +251,6 @@ export function PresentationEditor({
       const next = at === -1 ? (e.key === 'ArrowDown' ? 0 : items.length - 1) : Math.min(items.length - 1, Math.max(0, at + (e.key === 'ArrowDown' ? 1 : -1)));
       const item = items[next]!;
       setSelectedId(item.id);
-      setMenuVisible(false);
       if (presenting && data?.slides.get(item.id)?.slides.length && item.id !== pointer.itemId) live.set({ itemId: item.id, partIndex: 0, black: false });
     } else return;
     e.preventDefault();
@@ -267,18 +261,12 @@ export function PresentationEditor({
   // A template's id under /presentations, or the other way round, is not found either: said in the side menu (Sidebar.razor).
   if (!presentation || presentation.deletedAt !== null || presentation.isTemplate !== template)
     return (
-      <section className="flex-1 min-h-0 flex relative">
-        {/* The app's bar is narrow-only here: on a computer the way back is this. */}
-        <div className="hidden lg:flex absolute top-3 left-4 z-10">
+      <section className="flex-1 min-h-0 flex flex-col bg-ground">
+        {/* The app's bar is not on a presentation's page: the way back is this. */}
+        <nav className="flex items-center px-4 h-14 sm:h-12 shrink-0 sm:border-b-[0.5px] sm:border-separator sm:bg-surface">
           <BackToPresentations />
-        </div>
-        <aside className="hidden lg:block w-[300px] shrink-0 bg-surface pt-8">
-          <p className="text-sm text-center text-neutral-500 pt-10">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>
-        </aside>
-        <div className="flex-1 bg-ground lg:hidden">
-          <p className="text-sm text-center text-neutral-500 pt-10">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>
-        </div>
-        <div className="hidden lg:block flex-1 bg-ground" />
+        </nav>
+        <p className="text-sm text-center text-neutral-500 pt-10">{t(template ? 'templates.notFound' : 'presentation.notFound')}</p>
       </section>
     );
 
@@ -309,24 +297,22 @@ export function PresentationEditor({
     navigate({ page: template ? 'templates' : 'presentations' });
   };
 
-  // A row chosen in the running order; on a computer while presenting, the slides scroll to it, each choice anew.
+  // A row chosen in the running order; on a computer the slides scroll to it, each choice anew.
   const select = (itemId: string) => {
     setSelectedId(itemId);
-    setRenaming(false);
-    setMenuVisible(false);
+    setRenamingId(null);
     setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 }));
   };
-  const selectedSong = selected?.type === 'song' ? songs.get(selected.sourceId) : undefined;
-  const selectedArrangements = selectedSong ? sortedArrangements(data.arrangements, selectedSong.id) : [];
-  const selectedSlides = selected ? slides.get(selected.id) : undefined;
   const current = pointer.itemId ? (slides.get(pointer.itemId)?.slides[pointer.partIndex] ?? null) : null;
   const at = steps.findIndex((x) => x.itemId === pointer.itemId && x.partIndex === pointer.partIndex);
-  // Presenting on a phone or an iPad held upright: one column with sheets instead of the editor (docs/layout-2-0.md).
-  const phone = !!presenting && !wide;
+  // A phone or an iPad held upright: one column with sheets, before and while presenting (docs/layout-2-0.md).
+  const phone = !wide;
   // Starta presentation stays on the page, which turns to presenting (Presentation.razor's StartPresentation).
   const startable = !template && pointer.presentationId === null;
   const start = () => live.set({ presentationId: id, itemId: null, partIndex: 0, black: false });
   const saveAsTemplate = !template && can(role, 'ManageTemplates') ? () => setSavingAsTemplate(true) : undefined;
+  // A host's own window keeps nothing (its server has it all), and a template is never presented.
+  const keepOffline = !template && !isHostWindow() ? () => setKeepingOffline(true) : undefined;
 
   return (
     <div className="flex-1 min-h-0 flex flex-col">
@@ -340,108 +326,78 @@ export function PresentationEditor({
           owner={owner}
           canStart={startable}
           onStart={start}
-          onStage={() => setStage(true)}
           onDetails={() => setDetails(true)}
           onSaveAsTemplate={saveAsTemplate}
+          onKeepOffline={keepOffline}
+          onMaterials={template ? undefined : () => setShowingMaterials(true)}
           onTrash={() => void trash()}
-          ticking={ticking}
-          onTicking={setTicking}
-          className={presenting ? '' : 'max-lg:hidden'}
         />
       )}
       {template && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
       {presenting && !owner && <RemoteBanner />}
       {presenting && <LiveKeys />}
-      {presenting && stage && <StageView items={items} slides={slides} theme={theme} overlays={overlays} live={live} audio={presenting.audio} video={presenting.video} onLeave={() => setStage(false)} />}
       <section className="flex-1 min-h-0 flex relative">
         {dialog}
-        {phone && presenting && (
+        {phone && (
           <PhoneLive
             id={id}
             presentation={presentation}
             items={items}
             slides={slides}
             theme={theme}
+            songs={songs}
+            arrangements={data.arrangements}
             overlays={overlays}
             overlay={overlay}
             live={live}
             pointer={pointer}
             presenting={presenting}
-            onStage={() => setStage(true)}
-            onDetails={() => setDetails(true)}
+            canStart={startable}
+            onStart={start}
+              onDetails={() => setDetails(true)}
+            onSaveAsTemplate={saveAsTemplate}
+            onKeepOffline={keepOffline}
+            onMaterials={template ? undefined : () => setShowingMaterials(true)}
+            onTrash={() => void trash()}
           />
         )}
         {!phone && (
           <>
-            <SideMenu
-              presentation={presentation}
-              menuVisible={menuVisible}
-              onHideMenu={() => setMenuVisible(false)}
-              onEditDetails={() => setDetails(true)}
-              onSaveAsTemplate={saveAsTemplate}
-              onTrash={() => void trash()}
-              ticking={ticking}
-              onTicking={setTicking}
-              media={!!presenting && !!owner}
-              presenting={!!presenting}
-            >
-              {presenting && !ticking ? (
-                <LiveOrder
-                  items={items}
-                  slides={slides}
-                  selectedId={selectedId}
-                  shownId={liveItemId}
-                  onSelect={select}
-                  onAddAfter={(itemId) => {
-                    setChosenAfter(itemId);
-                    setAdding('item');
-                  }}
-                  onRemove={(item) => void removeItem(item)}
-                />
-              ) : (
-                <RunningOrder
-                  items={items}
-                  slides={slides}
-                  overlays={overlays}
-                  selectedId={selectedId}
-                  liveItemId={liveItemId}
-                  ticking={ticking}
-                  onDoneTicking={() => setTicking(false)}
-                  onRemoveTicked={(chosen) => void removeItems(chosen)}
-                  onSelect={select}
-                  onRemove={(item) => void removeItem(item)}
-                  onAdd={() => setAdding('item')}
-                />
-              )}
-            </SideMenu>
-            {presenting ? (
-              <LiveSlides
+            <SideMenu presentation={presentation} ticking={ticking} onTicking={setTicking} media={!!presenting && !!owner} onOffline={() => setKeepingOffline(true)}>
+              <LiveOrder
                 items={items}
                 slides={slides}
-                theme={theme}
-                pointer={pointer}
-                audio={presenting.audio}
-                video={presenting.video}
-                reveal={reveal}
-                onShow={(itemId, partIndex) => live.set({ itemId, partIndex, black: false })}
+                selectedId={selectedId}
+                shownId={pointer.black ? null : liveItemId}
+                onSelect={select}
+                onAddAfter={(itemId) => {
+                  setChosenAfter(itemId);
+                  setAdding('item');
+                }}
+                onRemove={(item) => void removeItem(item)}
+                ticking={ticking}
+                onDoneTicking={() => setTicking(false)}
+                onRemoveTicked={(chosen) => void removeItems(chosen)}
               />
-            ) : (
-              <ItemPane
-                items={items}
-                selected={selected}
-                renaming={renaming}
-                setRenaming={setRenaming}
-                selectedSong={selectedSong}
-                selectedArrangements={selectedArrangements}
-                selectedSlides={selectedSlides}
-                overlays={overlays}
-                theme={theme}
-                canStart={startable}
-                onStart={start}
-                onShowMenu={() => setMenuVisible(true)}
-                onAddImages={() => setAdding('images')}
-              />
-            )}
+            </SideMenu>
+            <LiveSlides
+              items={items}
+              slides={slides}
+              theme={theme}
+              songs={songs}
+              arrangements={data.arrangements}
+              overlays={overlays}
+              pointer={pointer}
+              players={presenting && { audio: presenting.audio, video: presenting.video }}
+              renamingId={renamingId}
+              onRenaming={setRenamingId}
+              reveal={reveal}
+              onShow={(itemId, partIndex) => live.set({ itemId, partIndex, black: false })}
+              onAddImages={(itemId) => {
+                setSelectedId(itemId);
+                setAdding('images');
+              }}
+            />
           </>
         )}
         {!phone && presenting && (
@@ -462,7 +418,7 @@ export function PresentationEditor({
           <AddItemDialog
             presentationId={id}
             // While presenting, after what is shown or the last addition still ahead, unless "Lägg till efter" named the place.
-            afterItemId={presenting ? addAfter({ order: items.map((i) => i.id), shownId: liveItemId, lastAddedId, chosenId: chosenAfter, selectedId }) : selectedId}
+            afterItemId={presenting ? addAfter({ order: items.map((i) => i.id), shownId: liveItemId, lastAddedId, chosenId: chosenAfter, selectedId }) : (chosenAfter ?? selectedId)}
             theme={theme}
             toItemId={adding === 'images' ? (selectedId ?? undefined) : undefined}
             onAdded={(itemId) => {
@@ -482,6 +438,8 @@ export function PresentationEditor({
             <DetailsDialog presentation={presentation} onClose={() => setDetails(false)} />
           ))}
         {savingAsTemplate && <SaveAsTemplateDialog presentation={presentation} items={items} onClose={() => setSavingAsTemplate(false)} />}
+        {keepingOffline && <OfflineDialog presentation={presentation} onClose={() => setKeepingOffline(false)} />}
+        {showingMaterials && <PresentationMaterials items={items} onClose={() => setShowingMaterials(false)} />}
       </section>
     </div>
   );

@@ -11,9 +11,10 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | --- | --- |
 | Prepare and present a service: song, reading and picture on the projector, a TV and the phones at once; CCLI afterwards | `journeys.spec.ts`: "a Sunday" |
 | Prepare on a laptop while the church computer is off; present it there on Sunday | `journeys.spec.ts`: "prepared on a laptop" |
+| Give the band sheet music, a recording and a Spotify link on a song, gathered under Sunday's presentation | `song-materials.spec.ts`: "a song carries sheet music and links" |
 | Present on the projector (Extern skärm), and Avsluta closes it | `milestone6.spec.ts`: "Extern skärm is a switch" |
 | Keep presenting through a reload; only Avsluta stops | `editor.spec.ts`: "a reload while presenting" |
-| Present from a phone: the picture, ‹ Rensa ›, every part's text, and a song added after what is shown | `phone.spec.ts`: "on a phone the running order is a drawer" |
+| Present from a phone: the picture, ‹ Rensa ›, every part's text, and a song added after what is shown | `phone.spec.ts`: "on a phone the presentation is one column before and while presenting" |
 | Change the running order while live | `editor.spec.ts`: "presenting keeps the running order" |
 | Change the running order while live on a computer: drag a row, its menu, Lägg till efter, Delete | `live-order.spec.ts`: "presenting on a computer" |
 | Present from an iPad lying down, by touch | `live-order.spec.ts`: "on an iPad lying down" |
@@ -23,7 +24,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Overlays (the collection, a welcome) | `overlays.spec.ts`: "an item carries its overlay" |
 | Audio and video during the service | `audio.spec.ts`: "live: audio plays", `video.spec.ts`: "live: the output window plays the video" |
 | Someone else drives from a second computer or a phone | `remote.spec.ts`: "a second computer takes control", `remote.spec.ts`: "a phone on the LAN" |
-| The stage view | `milestone6.spec.ts`: "stage view" |
+| A clicker: next, previous and black from its keys | `milestone6.spec.ts`: "a clicker's keys" |
 | The presenting computer drops out mid-service | `remote.spec.ts`: "when the presenting computer drops out" |
 | The CCLI report | `ccli.spec.ts`: "a song with a CCLI number" |
 

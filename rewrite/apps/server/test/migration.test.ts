@@ -108,7 +108,7 @@ describe.each<NodeDriver>(['better-sqlite3', 'node:sqlite'])('server, %s', (driv
 
     expect(columnsOf(f.query)).toEqual(columnsOf(fresh.query));
     expect(indexesOf(f.query)).toEqual(indexesOf(fresh.query));
-    expect(indexesOf(f.query)).toHaveLength(orgIndexes.length + 1); // and song_versions_by_song, from 15
+    expect(indexesOf(f.query)).toHaveLength(orgIndexes.length + 2); // and song_versions_by_song, from 15, and song_materials_by_song, from 17
     f.close();
     fresh.close();
   });

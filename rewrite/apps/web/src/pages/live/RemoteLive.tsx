@@ -4,6 +4,7 @@ import { t } from '../../i18n.ts';
 import { RemoteAudio } from '../../live/audio.ts';
 import { RemoteVideo } from '../../live/video.ts';
 import { RemoteControl, useLiveSessions, type LiveLink } from '../../live/remote.ts';
+import { BackToPresentations } from '../../TopBar.tsx';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 import { PresentationEditor } from '../presentation-editor/PresentationEditor.tsx';
@@ -14,15 +15,14 @@ import { RemoteBanner } from './RemoteBanner.tsx';
  * candidate, or a picker; then the same page, writing to that session. Its
  * own outputs and the remote toggle are the owner's, so they are not here.
  */
-export function RemoteLive({ id, role, link, ownSessionId, wanted, stage }: { id: string; role: Role; link: LiveLink; ownSessionId: string; wanted: string | null; stage: boolean }) {
+export function RemoteLive({ id, role, link, ownSessionId, wanted }: { id: string; role: Role; link: LiveLink; ownSessionId: string; wanted: string | null }) {
   const { sessions, connected } = useLiveSessions(link);
   const [picked, setPicked] = useState<string | null>(wanted);
   const candidates = sessions.filter((s) => s.presentationId === id && s.id !== ownSessionId);
   const chosen: LiveSessionInfo | undefined = candidates.find((s) => s.id === picked) ?? (candidates.length === 1 ? candidates[0] : undefined);
   // Why there is nothing to control (Presentation.razor): grey text, and what can still be done under it.
   const notReady = (text: string, extra?: ReactNode) => (
-    <section className="flex-1 min-h-0 flex flex-col bg-ground">
-      <RemoteBanner />
+    <Waiting>
       <div className="flex-1 flex items-center justify-center text-center px-6 py-16">
         <div className="space-y-2">
           <p className="text-neutral-400 dark:text-neutral-500 text-sm" data-testid="remote-state">
@@ -31,13 +31,12 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted, stage }: { id
           {extra}
         </div>
       </div>
-    </section>
+    </Waiting>
   );
   if (!chosen && candidates.length > 1) {
     // Several sessions show it: one Primary button per session, the text above them not centred (Presentation.razor).
     return (
-      <section className="flex-1 min-h-0 flex flex-col bg-ground">
-        <RemoteBanner />
+      <Waiting>
         <div className="flex-1 flex items-center justify-center px-6 py-16">
           <div className="w-full max-w-sm space-y-3">
             <p className="text-sm text-neutral-500 dark:text-neutral-400" data-testid="remote-state">
@@ -50,7 +49,7 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted, stage }: { id
             ))}
           </div>
         </div>
-      </section>
+      </Waiting>
     );
   }
   if (!chosen) return notReady(connected ? t('remote.none') : t('remote.connecting'));
@@ -67,14 +66,27 @@ export function RemoteLive({ id, role, link, ownSessionId, wanted, stage }: { id
     );
   }
   if (!chosen.remote) return notReady(t('remote.off'));
-  return <ControlledLive key={chosen.id} id={id} role={role} link={link} sessionId={chosen.id} stage={stage} />;
+  return <ControlledLive key={chosen.id} id={id} role={role} link={link} sessionId={chosen.id} />;
 }
 
-function ControlledLive({ id, role, link, sessionId, stage }: { id: string; role: Role; link: LiveLink; sessionId: string; stage: boolean }) {
+/** Nothing to control yet: the presentation's bar is not there, so this page has its own way back. */
+function Waiting({ children }: { children: ReactNode }) {
+  return (
+    <section className="flex-1 min-h-0 flex flex-col bg-ground">
+      <nav className="flex items-center px-4 h-14 sm:h-12 shrink-0 sm:border-b-[0.5px] sm:border-separator sm:bg-surface">
+        <BackToPresentations />
+      </nav>
+      <RemoteBanner />
+      {children}
+    </section>
+  );
+}
+
+function ControlledLive({ id, role, link, sessionId }: { id: string; role: Role; link: LiveLink; sessionId: string }) {
   const toast = useToast();
   const control = useMemo(() => new RemoteControl(link, sessionId, () => toast(t('remote.unconfirmed'), 'warning')), [link, sessionId, toast]);
   const audio = useMemo(() => new RemoteAudio(link, sessionId), [link, sessionId]);
   const video = useMemo(() => new RemoteVideo(link, sessionId), [link, sessionId]);
   useEffect(() => () => control.dispose(), [control]);
-  return <PresentationEditor id={id} role={role} live={control} presenting={{ audio, video, owner: null, link }} stage={stage} />;
+  return <PresentationEditor id={id} role={role} live={control} presenting={{ audio, video, owner: null, link }} />;
 }

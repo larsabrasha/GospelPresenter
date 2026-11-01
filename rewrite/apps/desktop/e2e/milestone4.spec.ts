@@ -103,7 +103,7 @@ test('a Bible reading, imported from a zip, is shown on the output in the chosen
   await expect(output.getByTestId('slide-text')).toContainText('1\u00a0Yahweh is my shepherd');
 
   // Back to the default theme: the output follows at once (THEME-R6), and black stays black.
-  await chooseTheme(page, 'Följer församlingens standard');
+  await chooseTheme(page, 'Följer organisationens standard');
   await expect(stage).toHaveAttribute('data-theme', 'midnight');
   await expect(stage).toHaveCSS('background-color', 'rgb(11, 27, 58)');
   await page.getByRole('button', { name: 'Rensa' }).click();

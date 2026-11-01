@@ -23,6 +23,16 @@ import {
   importSongs,
 } from './songs.ts';
 import { restoreSongVersionArgs, restoreSongVersion } from './history.ts';
+import {
+  addSongFileArgs,
+  addSongFile,
+  addSongLinkArgs,
+  addSongLink,
+  renameSongMaterialArgs,
+  renameSongMaterial,
+  removeSongMaterialArgs,
+  removeSongMaterial,
+} from './song-materials.ts';
 import { setCcliCollectionArgs, setCcliCollection, recordCcliUseArgs, recordCcliUse, setCcliReportedArgs, setCcliReported } from './ccli.ts';
 import { createLabelArgs, createLabel, updateLabelArgs, updateLabel, deleteLabelArgs, deleteLabel, moveLabelArgs, moveLabel } from './labels.ts';
 import {
@@ -187,6 +197,10 @@ export const mutators = {
   addSongPart: m(addSongPartArgs, addSongPart),
   importSongs: m(importSongsArgs, importSongs),
   restoreSongVersion: m(restoreSongVersionArgs, restoreSongVersion),
+  addSongFile: m(addSongFileArgs, addSongFile),
+  addSongLink: m(addSongLinkArgs, addSongLink),
+  renameSongMaterial: m(renameSongMaterialArgs, renameSongMaterial),
+  removeSongMaterial: m(removeSongMaterialArgs, removeSongMaterial),
   setCcliCollection: m(setCcliCollectionArgs, setCcliCollection),
   recordCcliUse: m(recordCcliUseArgs, recordCcliUse),
   setCcliReported: m(setCcliReportedArgs, setCcliReported),

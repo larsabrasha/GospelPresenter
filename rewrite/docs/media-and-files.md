@@ -69,8 +69,7 @@ for media, which the player needs. One file per item: spec 03's item with severa
 
 **Live** (spec 04 §1b, `apps/web/src/live/audio.ts`). The presenting window has one audio engine: the item it
 plays is the session's audio, and it keeps playing while the operator moves on, on any page, until another
-audio item plays or the presentation ends. Playing never changes what is shown (LIVE-R6); in stage view, picking
-an audio item blacks the screen and plays it, and the preview says "Ljud spelas". Each audio item on the live page
+audio item plays or the presentation ends. Playing never changes what is shown (LIVE-R6). Each audio item on the live page
 has play and pause, a seek bar (muted while it moves, until 150 ms after), the time, and Tona ut (5 s, ease-out
 cubic, then pause, rewind and the volume back). Audio plays only on the presenting computer. The owner reports
 its audio with its live state; a controller sees a mirror, its position carried on from when the report arrived,
@@ -136,6 +135,20 @@ counts the still. On the desktop host the video is on the server's disk once, an
 cache in Electron's profile from keeping a second copy (that `immutable` would have done so for video was not
 measured; `no-store` rules it out).
 
+## A song's material
+
+Sheet music, recordings and links on a song, for the band (spec 02 "Song material", Lars 2026-11-01): the
+`song_materials` rows sync; a PDF or an audio file is one blob, uploaded before its `addSongFile` is pushed, as an
+audio file's is (`apps/web/src/db/mediaAdds.ts`, `MediaUploads`). The server takes a PDF by its `%PDF-` header
+(`isPdf`, `sniffMedia`), up to 20 MiB, and serves it with `Content-Disposition: attachment` and
+`Content-Security-Policy: sandbox`, so a browser sent to its address downloads it and nothing in it runs. No device
+fetches a song's file by itself: opening it does (`openMedia` in the worker: this device's copy, else the server's,
+checked against its hash and kept as cache within the budget). A host's own window reads the server's. The viewer
+(`pages/song-materials/MaterialViewer.tsx`) draws a PDF with pdf.js, loaded on first use as for slide decks.
+Tested in `apps/server/test/song-materials.test.ts` and `e2e/song-materials.spec.ts`. Not done: a song's files are
+not kept offline with a presentation, and a photo of a sheet is not taken (it would be fitted to 1920×1080; save it as
+a PDF first).
+
 ## Slide decks
 
 A slide deck (D29) is a presentation item of type
@@ -178,8 +191,10 @@ afterwards as cache.
 
 **Kept offline**, on a device that keeps its data (OPFS in a browser, the desktop app): every file of the
 presentation, whatever its date, its videos whole too, including what is added to it later. It is a choice the device
-makes for each presentation by its icon (a cloud with an arrow, a ring that fills while its files come, a sky check
-once all is here), after the title in the start page's list and in the editor's side menu (`ui/KeepOffline.tsx`;
+makes for each presentation by its icon after the title in the start page's list (a cloud with an arrow, a ring that
+fills while its files come, a sky check once all is here), or by "Spara offline…" in the presentation's menu, a
+dialog that says what keeping does and has the switch; while kept, a quiet line at the foot of the left column ("Sparad
+offline", or a ring that fills) opens the same dialog (`ui/KeepOffline.tsx`, `presentation-editor/OfflineStatus.tsx`;
 the local table `pinned_presentations`), or for every presentation dated from today to seven days ahead with "Spara
 kommande presentationer offline" under Mina inställningar ("Presentationer de närmaste sju dagarna hämtas till den
 här enheten, även video.", off at first, kept in the browser as the theme is). Once a date has passed, its files are
@@ -194,7 +209,7 @@ oldest dropped first, videos too. What is kept offline is outside the limit and 
 
 **Lagring på den här enheten** under Mina inställningar (`pages/Storage.tsx`, `storageReport`): how much the app's
 files use here; Sparat offline, each presentation kept offline with its date and size and "Sluta spara" for one kept
-by hand; Cache, its size, the limit as a slider whose range follows the free room on the disk (desktop app,
+by hand; Cache, its size, the limit as a menu of fixed sizes (512 MB to 100 GB, 2 GB marked standard; Lars, 2026-11-01) up to the free room on the disk (desktop app,
 `fs.statfs`) or what the browser grants (`navigator.storage.estimate()`), and "Rensa cache", which never drops a
 file waiting to be uploaded, one the presentation shown now needs, or a thumbnail. A file is counted once however
 many presentations use it. On a desktop host's own window it says the files are the server's.

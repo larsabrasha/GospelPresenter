@@ -13,8 +13,7 @@ carrying it.
 
 **During live.** The live pointer carries `overlayId`, so the overlay travels with the slide in the same message
 and every output draws it above the slide (text top left, 40 px, 60 % white; the picture over the whole stage,
-contained). The live page has Overlays (collapsed, a dot while one is on) with a toggle each, at most one on; the
-stage view has the same behind its Overlays button. The rules are one pure function, `applyLiveChange` in
+contained). The live page has Overlays (collapsed, a dot while one is on) with a toggle each, at most one on. The rules are one pure function, `applyLiveChange` in
 `packages/core/src/live.ts`, which the presenting window runs for its own clicks and for a controller's commands:
 
 - An item that carries an overlay switches it on when it goes live and off when it leaves, if it is still the one
@@ -50,7 +49,7 @@ sound, and showing the picture again resumes it where it was; a video paused by 
 2026-10-31). A reloaded presenting window resumes it where it was, from the state it kept beside the pointer in the
 tab (Lars, 2026-10-31). A controller's player sends play, pause and seek to the presenting window (`video` messages,
 relayed like audio commands) and mirrors what it reports (`RemoteVideo`). The player (`VideoPlayer`) under the item's slide on
-the live page, and under the slide in the stage view, has play, pause, a seek bar and the time. When the item before
+the live page has play, pause, a seek bar and the time. When the item before
 a video item goes live, a second element buffers the video, and the output window buffers it too, so it starts at
 once.
 
@@ -75,8 +74,7 @@ Tested in `apps/server/test/video.test.ts` (three adapters: the stamped moment, 
 to a public output and no video), `apps/web/test/video.test.ts` (`follow`, `expectedPosition`) and
 `apps/desktop/e2e/video.spec.ts` (the output window plays in step with the operator window, the next video buffers,
 a paired screen in Playwright's Chromium follows and pauses with it, and an HEVC video shows its still there while
-the output plays it; black pauses and resumes it; a reload resumes it; a controller plays, pauses and moves it, and
-the stage view drives it), and `apps/server/test/live.test.ts` (a video command reaches the owner only). How close
+the output plays it; black pauses and resumes it; a reload resumes it; a controller plays, pauses and moves it), and `apps/server/test/live.test.ts` (a video command reaches the owner only). How close
 the sound and the output's picture stay on a real projector is not measured.
 
 ## Paired screens
@@ -173,12 +171,11 @@ sockets are now tagged `poke` in the Durable Object, so a poke never goes to a l
 presentationer"). On the live page, "Tillåt fjärrstyrning" (it stays on for the window, LIVE-R39) has a QR code
 button beside it, grey while off; under "Alltid" a line says everyone may take control in place of the switch,
 and under "Aldrig" the section is gone. The QR code button opens the "Fjärrstyr presentationen" dialog
-(`RemoteControlInfoDialog.razor`): the link, `/presentations/{id}?remote=true&session={id}` (with `&stage=true` it opens in
-the stage view, as `Presentation.razor`; the address follows the stage view, so a reload keeps it), as a QR code, and folded under it the link to copy and how to take
+(`RemoteControlInfoDialog.razor`): the link, `/presentations/{id}?remote=true&session={id}`, as a QR code, and folded under it the link to copy and how to take
 control from the app. The first time it is switched on on a live page, the dialog opens by itself. On a desktop
 host the link has its LAN address. Under Presentationer every other
 window of the organisation sees "Visas just nu · {name}" with "Ta kontroll" for each session that allows it
-(LIVE-A27). The controller's live page has the amber banner, the same grid, the black screen and the stage view,
+(LIVE-A27). The controller's live page has the amber banner, the same grid and the black screen,
 no "Extern skärm", and "Bara datorn som presenterar kan stoppa presentationen." instead of Avsluta. With
 several candidates it asks which; otherwise it says "Ingen aktiv presentation just nu", "Fjärrstyrning är inte
 aktiverad av presentatören" or that the presenting computer lost contact. Tested in `apps/server/test/live.test.ts`

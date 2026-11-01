@@ -93,7 +93,7 @@ export function useKeepOffline(presentation: Pick<Presentation, 'id' | 'eventDat
 }
 
 /** Cloud with an arrow down (Heroicons' cloud-arrow-down): not kept here, a click keeps it. */
-function CloudArrowDownIcon({ className }: { className?: string }) {
+export function CloudArrowDownIcon({ className }: { className?: string }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className} aria-hidden="true">
       <path
@@ -106,7 +106,7 @@ function CloudArrowDownIcon({ className }: { className?: string }) {
 }
 
 /** A ring that fills as the files come, as Spotify's download button does. */
-function ProgressRing({ share, className }: { share: number; className?: string }) {
+export function ProgressRing({ share, className }: { share: number; className?: string }) {
   const r = 9;
   const length = 2 * Math.PI * r;
   return (
@@ -158,7 +158,7 @@ export function KeepOfflineButton({ presentation, className = '' }: { presentati
         e.stopPropagation();
         keep.set(!keep.kept);
       }}
-      className={`size-8 shrink-0 flex items-center justify-center rounded-full transition ${disabled ? 'cursor-default' : 'cursor-pointer hover:bg-raised'} ${
+      className={`size-8 justify-center rounded-full shrink-0 flex items-center transition ${disabled ? 'cursor-default' : 'cursor-pointer hover:bg-raised'} ${
         keep.unavailable ? 'opacity-40' : ''
       } ${className}`}
     >
@@ -167,7 +167,7 @@ export function KeepOfflineButton({ presentation, className = '' }: { presentati
       ) : keep.state === 'fetching' ? (
         <ProgressRing share={keep.share} className="size-5" />
       ) : (
-        <CloudArrowDownIcon className="size-5 text-neutral-400 dark:text-neutral-500" />
+        <CloudArrowDownIcon className="size-5 shrink-0 text-neutral-400 dark:text-neutral-500" />
       )}
     </AppButton>
   );

@@ -196,7 +196,7 @@ test('Videor lists the videos with length, size and codec, imports from the page
   await expect(page.getByRole('list', { name: 'Papperskorg' }).getByRole('listitem')).toHaveText([/Dop\.mp4.*Video/]);
 });
 
-test('live: a controller plays, pauses and moves the video on the presenting computer, and the stage view drives it too', async () => {
+test('live: a controller plays, pauses and moves the video on the presenting computer', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -230,12 +230,6 @@ test('live: a controller plays, pauses and moves the video on the presenting com
     await expect.poll(async () => Number(await player.getByRole('slider').getAttribute('aria-valuenow')), { timeout: 5_000 }).toBeGreaterThanOrEqual(at + 4);
     await mirror.getByRole('button', { name: 'Pausa video' }).click();
     await expect(player).toHaveAttribute('data-playing', 'false', { timeout: 5_000 });
-
-    // The stage view on the presenting computer has the same player.
-    await page.getByRole('button', { name: 'Scenläge' }).click();
-    const stage = page.getByTestId('stage-view');
-    await stage.getByTestId('video-player').getByRole('button', { name: 'Spela video' }).click();
-    await expect(stage.getByTestId('video-player')).toHaveAttribute('data-playing', 'true');
   } finally {
     await second.app.close();
   }

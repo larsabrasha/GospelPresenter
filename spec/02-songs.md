@@ -70,6 +70,15 @@ Paths in citations are relative to `GospelPresenter/` (the solution folder) unle
 library at display time (`GospelPresenter.Shared/Services/LiveSlideBuilder.cs:175-191`,
 `GospelPresenter.Shared/Pages/Presentation.razor:1333-1350`).
 
+**Song material** (2.0, Lars 2026-11-01; not in the old app): sheet music, recordings and links on a song, for the
+band. A piece is a file (`kind` 'file': a PDF, or an audio file to practise with, up to 20 MiB each, kept as picked,
+its blob named by its SHA-256) or a link (`kind` 'link': an http or https address, Spotify, YouTube or any), with a
+title and its place among the song's (`sort`); at most 30 per song. Everyone signed in sees them; whoever may edit
+songs (ManageSongs) adds, renames and removes. They are not part of the song's history: a change keeps no version.
+Purging the song removes them. A device fetches a file when it is opened, never by itself. Table `song_materials`
+(`packages/core/src/schema.ts`), mutators `addSongFile`, `addSongLink`, `renameSongMaterial`, `removeSongMaterial`
+(`packages/core/src/mutators/song-materials.ts`).
+
 Lifecycle of a song: created (manual / import / sync push) → edited (each edit may add a history
 version) → trashed (`DeletedAt` set) → restored, or purged permanently (manually, "empty trash", or
 automatically after 30 days) → gone (parts, arrangements, versions cascade).
@@ -147,7 +156,15 @@ save. Body = `SongEditor` (also used inside the add-item modal, see below):
      arrangement after "Vill du ta bort arrangemanget?".
    - **Skapa arrangemang** shown while fewer than 10 arrangements; creates an unnamed arrangement
      containing every part once, in current part order.
-4. Footer: **Historik** button → `/admin/songs/{id}/history`; **Ta bort sång** (danger) → confirm
+4. **Noter och länkar** (2.0): the song's material as one list, a coloured icon each (PDF red, recording violet,
+   link sky), its title and under it the kind and size, or where a link points; **Ladda upp fil** (a PDF or an audio
+   file, several at once; the title is the file's name) and **Lägg till länk** (the address, and a name that is the
+   link's source when left blank). A file opens in the viewer: a PDF's pages drawn by pdf.js, sharp at every zoom
+   (Mindre, Större), a recording's player; **Dela** (the device's share sheet, where there is one), **Öppna i
+   webbläsaren** (not in the desktop app), **Ladda ner**. A link opens where it points. A row's … renames or removes
+   it, removing after a question. A presentation's menu has **Noter och länkar…**: its songs' material in the running
+   order, read only.
+5. Footer: **Historik** button → `/admin/songs/{id}/history`; **Ta bort sång** (danger) → confirm
    "Vill du flytta {name} till papperskorgen? Sången raderas permanent efter 30 dagar." → soft
    delete → navigate to `/admin/songs`.
 

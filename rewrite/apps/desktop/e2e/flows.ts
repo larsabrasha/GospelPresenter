@@ -33,16 +33,16 @@ export async function dropFiles(target: Locator, files: { name: string; mimeType
 }
 
 /**
- * Inställningar's list, opened from the picture's menu in the bar unless Inställningar is open already; while
- * presenting, from the live bar's ….
+ * Inställningar's list, opened from the picture's menu in the bar unless Inställningar is open already; in a
+ * presentation, from its bar's cog.
  */
 export async function adminMenu(page: Page) {
   const menu = page.getByRole('navigation', { name: 'Administration' });
   if (await menu.isVisible()) return menu;
   const bar = page.getByTestId('presentation-bar');
   if (await bar.isVisible()) {
-    await bar.getByRole('button', { name: 'Alternativ', exact: true }).click();
-    await page.getByRole('menuitem', { name: 'Inställningar', exact: true }).click();
+    await closeRemoteSheet(page);
+    await bar.getByRole('link', { name: 'Inställningar', exact: true }).click();
   } else {
     await page.getByTestId('me').click();
     await page.getByRole('menuitem', { name: 'Inställningar', exact: true }).click();
@@ -146,7 +146,7 @@ export async function setUpHost(d: Desktop, who = { name: 'Anna', org: 'Lilla Ky
   await expect(page.getByRole('heading', { name: 'Välkommen!' })).toBeVisible();
   await expect(page.getByLabel('Installationskod')).toHaveCount(0); // the host hands it over
   await page.getByLabel('Ditt namn').fill(who.name);
-  await page.getByLabel('Församlingens eller organisationens namn').fill(who.org);
+  await page.getByLabel('Organisationens namn').fill(who.org);
   await page.getByRole('button', { name: 'Kom igång' }).click();
   // The host offers a passkey and Google; this is the Google way.
   await page.getByRole('button', { name: 'Logga in med Google' }).click();
@@ -212,15 +212,22 @@ export async function pair(host: Page, device: Page, name: string, as?: string) 
 export async function remoteSwitch(page: Page) {
   const toggle = page.getByLabel('Tillåt fjärrstyrning');
   if (await toggle.isVisible()) return toggle;
-  await page.getByTestId('presentation-bar').getByRole('button', { name: 'Alternativ', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Fjärrstyrning…' }).click();
-  const section = page.getByRole('button', { name: 'Fjärrstyrning', exact: true });
+  await page.getByTestId('presentation-bar').getByRole('button', { name: 'Fjärrstyrning', exact: true }).click();
+  const section = page.getByRole('dialog', { name: 'Fjärrstyrning' }).getByRole('button', { name: 'Fjärrstyrning', exact: true });
   if ((await section.getAttribute('aria-expanded')) === 'false') await section.click();
   return toggle;
 }
 
+/** Closes the Fjärrstyrning sheet, if it is open: it covers the page as iOS's form sheet does. */
+async function closeRemoteSheet(page: Page) {
+  const sheet = page.getByRole('dialog', { name: 'Fjärrstyrning', exact: true });
+  if (await sheet.isVisible()) await sheet.getByRole('button', { name: 'Stäng', exact: true }).click();
+  await expect(sheet).toHaveCount(0);
+}
+
 /** Avsluta in the live bar, and its question answered: the presentation stops. */
 export async function endPresentation(page: Page) {
+  await closeRemoteSheet(page);
   await page.getByTestId('presentation-bar').getByRole('button', { name: 'Avsluta presentation' }).click();
   await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
 }
@@ -232,4 +239,5 @@ export async function endPresentation(page: Page) {
 export async function allowRemote(page: Page) {
   await (await remoteSwitch(page)).check();
   await page.getByRole('dialog', { name: 'Fjärrstyr presentationen' }).getByRole('button', { name: 'Stäng' }).click();
+  await closeRemoteSheet(page);
 }

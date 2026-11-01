@@ -72,7 +72,12 @@ export function SongTab({
   useFocusWhenShown(search, active);
   const shown = found ?? NONE;
   // Typing selects the first hit, also when the library loads after the typing; never a hit of an earlier search.
-  const selected = shown.find((s) => s.id === selectedId) ?? (query.trim() && shownQuery === query ? (shown[0] ?? null) : null);
+  const answered = !query.trim() || shownQuery === query;
+  const fresh = shown.find((s) => s.id === selectedId) ?? (query.trim() && answered ? (shown[0] ?? null) : null);
+  // While a key's search is under way the song before it stays selected, so the preview does not blink empty.
+  const [held, setHeld] = useState<Song | null>(null);
+  if (answered && held !== fresh) setHeld(fresh);
+  const selected = answered ? fresh : (fresh ?? held);
   const effectiveId = selected?.id ?? null;
   // A long list is drawn in steps: 3 000 rows at once (a cleared search, after an add) held up the running order 300 ms.
   const rows = useStepped(shown);

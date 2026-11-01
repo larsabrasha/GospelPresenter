@@ -1,5 +1,5 @@
 import type { Presentation } from '@gp/core';
-import { useRef, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { orgRemoteControl } from '../../../db/queries.ts';
 import { useData } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
@@ -7,43 +7,27 @@ import { outputWindow } from '../../../live/outputWindow.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronLeftIcon, EllipsisIcon, PlayIcon, StopIcon } from '../../../ui/icons.tsx';
-import { MENU_ITEM } from '../../../ui/Dropdown.tsx';
+import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, QrCodeOutlineIcon, StopIcon } from '../../../ui/icons.tsx';
 import { href } from '../../../ui/router.ts';
-import { useDismiss } from '../../../ui/useDismiss.ts';
+import { Sheet } from '../../../ui/Sheet.tsx';
 import { templateDetails } from '../../templates.ts';
 import { eventLine } from '../../presentation-editor/eventDate.ts';
 import { PresentationMenu } from '../../presentation-editor/PresentationMenu.tsx';
 import { RemotePanel } from '../RemotePanel.tsx';
 import { SyncCloud } from '../../../TopBar.tsx';
 
-type Open = null | 'about' | 'remote';
-
-/**
- * A small panel under a button of the bar, as macOS draws a popover. A press outside it closes it and still
- * reaches what was pressed; a press on the bar is the bar's (its buttons open, switch or close the popover), and one
- * in a dialog the popover opened is the popover's.
- * Escape closes it, and only it.
- */
-function Popover({ onClose, className, children }: { onClose: () => void; className: string; children: ReactNode }) {
-  const panel = useRef<HTMLDivElement>(null);
-  // A press on the bar is the bar's; a dialog opened from the popover is drawn elsewhere in the page, but belongs to it.
-  useDismiss(panel, onClose, (target) => !!target.closest('[data-testid="presentation-bar"], [role="dialog"]'));
-  return (
-    <div ref={panel} className={`absolute z-[131] top-12 touch:top-16 rounded-xl bg-surface dark:bg-raised shadow-2xl ring-[0.5px] ring-separator text-sm ${className}`}>
-      {children}
-    </div>
-  );
-}
+type Open = null | 'remote';
 
 // Round, as every button of the 2.0 layout.
 const BAR_BUTTON = 'h-8 touch:h-11 touch:min-w-11 justify-center px-3.5 rounded-full flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer';
+const ROUND = 'size-8 touch:size-11 px-0!';
 
 /**
  * A presentation's bar on a computer or an iPad lying down, the same before and while it is presented
  * (docs/layout-2-0.md): "‹ Presentationer" at the left; in the middle its name, LIVE while presented, and when and
- * where, which open the details; at the right the presentation's round …, Scenläge while presented, and at the far
- * right Starta presentation or Avsluta presentation (which asks first), icon and words. A template has no Starta.
+ * where, which open the presentation's menu; at the right round icons for Fjärrstyrning (while presented) and
+ * Inställningar, and at the far right Starta presentation or Avsluta presentation (which asks first), icon and words.
+ * A template has no Starta.
  */
 export function PresentationBar({
   id,
@@ -53,12 +37,11 @@ export function PresentationBar({
   owner,
   canStart,
   onStart,
-  onStage,
   onDetails,
   onSaveAsTemplate,
+  onKeepOffline,
+  onMaterials,
   onTrash,
-  ticking,
-  onTicking,
   className,
 }: {
   id: string;
@@ -69,12 +52,11 @@ export function PresentationBar({
   owner: { sessionId: string } | null;
   canStart: boolean;
   onStart: () => void;
-  onStage: () => void;
   onDetails: () => void;
   onSaveAsTemplate?: () => void;
+  onKeepOffline?: () => void;
+  onMaterials?: () => void;
   onTrash: () => void;
-  ticking: boolean;
-  onTicking: (on: boolean) => void;
   className?: string;
 }) {
   const [open, setOpen] = useState<Open>(null);
@@ -99,61 +81,51 @@ export function PresentationBar({
       </a>
       {/* The page's heading, for screen readers; the button shows the name. */}
       <h1 className="sr-only">{presentation.name}</h1>
-      <AppButton
-        variant="plain"
-        aria-label={t('live.about')}
-        aria-expanded={open === 'about'}
-        onClick={() => setOpen(open === 'about' ? null : 'about')}
-        className={`min-w-0 px-4 py-1 touch:min-h-11 justify-center rounded-full flex flex-col items-center cursor-pointer ${open === 'about' ? 'bg-raised dark:bg-raised-2' : ''}`}
-      >
-        <span className="max-w-full flex items-center gap-2 whitespace-nowrap">
-          <span className="text-[15px] font-semibold truncate">{presentation.name}</span>
-          {/* LIVE until Avsluta, also while Rensa has blacked the outputs: the presentation is still running. */}
-          {presenting && (
-            <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-red-500/15 text-red-500">
-              <span className="size-1.5 rounded-full bg-red-500" />
-              {t('live.badge')}
+      {/* The name opens the presentation's menu, as a title menu on iPadOS and macOS. */}
+      <PresentationMenu
+        presentation={presentation}
+        presenting={presenting}
+        onEditDetails={onDetails}
+        onSaveAsTemplate={onSaveAsTemplate}
+        onKeepOffline={onKeepOffline}
+        onMaterials={onMaterials}
+        onTrash={onTrash}
+        className="min-w-0 justify-self-center"
+        menuClassName="left-1/2! right-auto! -translate-x-1/2"
+        button={{ className: 'min-w-0 max-w-full px-4 py-1 touch:min-h-11 justify-center rounded-full flex flex-col items-center cursor-pointer hover:bg-raised dark:hover:bg-raised-2 aria-expanded:bg-raised dark:aria-expanded:bg-raised-2' }}
+        trigger={
+          <>
+            <span className="max-w-full flex items-center gap-2 whitespace-nowrap">
+              <span className="text-[15px] font-semibold truncate">{presentation.name}</span>
+              {/* LIVE until Avsluta, also while Rensa has blacked the outputs: the presentation is still running. */}
+              {presenting && (
+                <span className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-red-500/15 text-red-500">
+                  <span className="size-1.5 rounded-full bg-red-500" />
+                  {t('live.badge')}
+                </span>
+              )}
+              <ChevronDownIcon className="size-3 shrink-0 text-neutral-500" />
             </span>
-          )}
-          <ChevronDownIcon className="size-3 shrink-0 text-neutral-500" />
-        </span>
-        {when && (
-          <span className="max-w-full truncate text-xs text-neutral-500 dark:text-neutral-400" data-testid="schedule">
-            {when}
-          </span>
-        )}
-      </AppButton>
+            {when && (
+              <span className="max-w-full truncate text-xs text-neutral-500 dark:text-neutral-400" data-testid="schedule">
+                {when}
+              </span>
+            )}
+          </>
+        }
+      />
       <div className="justify-self-end flex items-center gap-2">
         <SyncCloud />
-        <PresentationMenu
-          presentation={presentation}
-          presenting={presenting}
-          onEditDetails={onDetails}
-          onSaveAsTemplate={onSaveAsTemplate}
-          onTrash={onTrash}
-          ticking={ticking}
-          onTicking={onTicking}
-          button={{ className: `${BAR_BUTTON} size-8 touch:size-11 px-0! bg-raised dark:bg-raised-2` }}
-          trigger={<EllipsisIcon className="size-4" />}
-          extra={
-            <>
-              {remote && (
-                <AppButton variant="plain" role="menuitem" className={MENU_ITEM} onClick={() => setOpen('remote')}>
-                  {t('live.remote')}…
-                </AppButton>
-              )}
-              <a href={href({ page: 'admin' })} role="menuitem" className={MENU_ITEM}>
-                {t('nav.admin')}
-              </a>
-            </>
-          }
-        />
-        {presenting && (
-          <AppButton variant="plain" onClick={onStage} className={`${BAR_BUTTON} bg-raised dark:bg-raised-2`}>
-            <ArrowsPointingOutIcon className="size-4" />
-            {t('live.stage')}
+        {/* What is not the presentation's own, round icons: remote control while presenting. */}
+        {remote && (
+          <AppButton variant="plain" onClick={() => setOpen('remote')} aria-label={t('live.remote')} title={t('live.remote')} aria-haspopup="dialog" className={`${BAR_BUTTON} ${ROUND} bg-raised dark:bg-raised-2`}>
+            <QrCodeOutlineIcon className="size-4" />
           </AppButton>
         )}
+        {/* Inställningar next to start and stop. */}
+        <AppButton variant="plain" href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`${BAR_BUTTON} ${ROUND} bg-raised dark:bg-raised-2`}>
+          <CogIcon className="size-4" />
+        </AppButton>
         {/* Start and stop at the far right, an icon and its words on a computer: ▶ before, ■ while presented (only
             this window's session ends). */}
         {!presenting && canStart && (
@@ -169,21 +141,11 @@ export function PresentationBar({
           </AppButton>
         )}
       </div>
-      {open === 'about' && (
-        <Popover onClose={close} className="left-1/2 -translate-x-1/2 w-96 p-4 flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[15px] font-semibold truncate">{presentation.name}</span>
-            <AppButton variant="plain" onClick={() => (close(), onDetails())} className="h-7 touch:h-11 px-3 rounded-full bg-raised dark:bg-raised-2 text-[13px] font-semibold cursor-pointer">
-              {t('live.editDetails')}
-            </AppButton>
-          </div>
-          {presentation.description ? <p className="text-[13px]/relaxed whitespace-pre-line">{presentation.description}</p> : when && <p className="text-[13px]">{when}</p>}
-        </Popover>
-      )}
+      {/* Fjärrstyrning in a sheet of its own, centred as iPadOS's form sheet, as on a phone. */}
       {open === 'remote' && remote && owner && (
-        <Popover onClose={close} className="right-4 w-80 p-4">
+        <Sheet title={t('live.remote')} onClose={close}>
           <RemotePanel id={id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} />
-        </Popover>
+        </Sheet>
       )}
     </div>
   );

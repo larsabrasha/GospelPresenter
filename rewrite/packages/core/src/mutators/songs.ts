@@ -1,6 +1,6 @@
 import { and, asc, count, eq, isNull, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
-import { songArrangements, songParts, songs, songVersions } from '../schema.ts';
+import { songArrangements, songMaterials, songParts, songs, songVersions } from '../schema.ts';
 import { keepSongVersion, keepVersionOfPart } from './history.ts';
 import { ensureLabel } from './labels.ts';
 import { parsePartIds } from '../slides.ts';
@@ -50,6 +50,7 @@ export async function restoreSong(tx: Tx, a: z.output<typeof restoreSongArgs>, c
 
 /** Deletes a song with its parts, arrangements and history. Presentation items that use it stay, and say the song is gone. */
 export async function deleteSongRows(tx: Tx, songId: string) {
+  await tx.delete(songMaterials).where(eq(songMaterials.songId, songId));
   await tx.delete(songVersions).where(eq(songVersions.songId, songId));
   await tx.delete(songArrangements).where(eq(songArrangements.songId, songId));
   await tx.delete(songParts).where(eq(songParts.songId, songId));

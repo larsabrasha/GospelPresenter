@@ -1,15 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import type { Me } from '@gp/core';
 import { api } from './auth/api.ts';
 import { switchOrg } from './auth/orgs.ts';
 import { useDb, useDbStatus } from './db/react.tsx';
 import { t } from './i18n.ts';
-import { requestNewPresentation } from './pages/Presentations.tsx';
 import { signOut, SyncWarnings } from './Shell.tsx';
 import { AppButton } from './ui/AppButton.tsx';
-import { ROUND_ADD } from './ui/AddButton.tsx';
 import { Dropdown } from './ui/Dropdown.tsx';
-import { CheckIcon, ChevronLeftIcon, CloudOffIcon, LogoIcon, PlusIcon } from './ui/icons.tsx';
+import { CheckIcon, ChevronLeftIcon, CloudOffIcon, LogoIcon } from './ui/icons.tsx';
 import { href } from './ui/router.ts';
 import { initials, PENDING_GRACE_MS, syncState } from './ui/syncState.ts';
 import { useToast } from './ui/Toast.tsx';
@@ -207,13 +205,12 @@ function ProfileMenu({ me, sync }: { me: Me; sync: { problem: boolean; text: str
   );
 }
 
-/** The bar's right end: the cloud while the sync has a problem, `extra`, and the picture's menu. */
-function BarEnd({ me, extra }: { me: Me; extra?: ReactNode }) {
+/** The bar's right end: the cloud while the sync has a problem, and the picture's menu. */
+function BarEnd({ me }: { me: Me }) {
   const sync = useSync();
   return (
     <div className="flex items-center gap-2.5">
       <SyncStatus sync={sync} />
-      {extra}
       <ProfileMenu me={me} sync={sync} />
     </div>
   );
@@ -235,44 +232,25 @@ export function BackToPresentations() {
 }
 
 /**
- * The bar at the top: the logo on the start page (from the `sm` width; a phone shows the page's large title alone),
- * or in a presentation the way back; at the right + (Ny presentation) on the start page and the picture. The warnings
- * under it, unless Inställningar covers it and shows them itself.
+ * The bar at the top: the logo (from the `sm` width; a phone shows the page's large title alone); at the right the
+ * picture (the start page's + is in its heading row). A presentation has a bar of its own. The warnings under it,
+ * unless Inställningar covers it and shows them itself.
  */
-export function TopBar({ me, back, create, warnings }: { me: Me; back: boolean; create: boolean; warnings: boolean }) {
+export function TopBar({ me, warnings }: { me: Me; warnings: boolean }) {
   return (
     <>
       <nav className="relative flex items-center justify-between gap-3 px-4 h-14 sm:h-12 shrink-0 sm:border-b-[0.5px] sm:border-separator sm:bg-surface">
-        {back ? (
-          <BackToPresentations />
-        ) : (
-          <div className="max-sm:hidden flex items-center gap-3">
-            <a href={href({ page: 'presentations' })} className="flex items-center gap-2 text-sky-500 hover:text-sky-600 no-underline">
-              <LogoIcon className="size-6" />
-              <span className="text-sm font-semibold uppercase tracking-wide whitespace-nowrap">
-                <span className="text-sky-500">Gospel</span> <span className="text-sky-400">Presenter</span>
-              </span>
-            </a>
-            <span className="inline-flex items-center rounded-full bg-orange-500 px-2.5 shrink-0 py-0.5 text-xs font-semibold text-white">{t('app.beta')}</span>
-          </div>
-        )}
+        <div className="max-sm:hidden flex items-center gap-3">
+          <a href={href({ page: 'presentations' })} className="flex items-center gap-2 text-sky-500 hover:text-sky-600 no-underline">
+            <LogoIcon className="size-6" />
+            <span className="text-sm font-semibold uppercase tracking-wide whitespace-nowrap">
+              <span className="text-sky-500">Gospel</span> <span className="text-sky-400">Presenter</span>
+            </span>
+          </a>
+          <span className="inline-flex items-center rounded-full bg-orange-500 px-2.5 shrink-0 py-0.5 text-xs font-semibold text-white">{t('app.beta')}</span>
+        </div>
         <span className="flex-1" />
-        <BarEnd
-          me={me}
-          extra={
-            create && (
-              <AppButton
-                variant="plain"
-                aria-label={t('presentations.new')}
-                title={`${t('presentations.new')} (N)`}
-                onClick={requestNewPresentation}
-                className={ROUND_ADD}
-              >
-                <PlusIcon className="size-5" strokeWidth={2.25} />
-              </AppButton>
-            )
-          }
-        />
+        <BarEnd me={me} />
       </nav>
       {warnings && <SyncWarnings />}
     </>

@@ -1,14 +1,15 @@
 import type { Presentation } from '@gp/core';
-import { useEffect, useState, type HTMLAttributes } from 'react';
+import { useState, type HTMLAttributes } from 'react';
 import { useData, useDb } from '../db/react.tsx';
 import { itemCounts, itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
 import { KeepOfflineButton } from '../ui/KeepOffline.tsx';
 import { locale, t } from '../i18n.ts';
 import { newId } from '../ids.ts';
+import { AddButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
-import { CloseIcon, DocumentIcon, DocumentTextIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { CloseIcon, DocumentIcon, DocumentTextIcon, TrashIcon } from '../ui/icons.tsx';
 import { CARD, ListLinkRow, ListSection } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -89,13 +90,6 @@ function TemplatePicker({ templates, onPick, onClose }: { templates: Presentatio
       </div>
     </Dialog>
   );
-}
-
-const NEW_PRESENTATION = 'gp:new-presentation';
-
-/** + (Ny presentation) in the bar: the start page starts Skapa, as its `n` does. */
-export function requestNewPresentation() {
-  dispatchEvent(new Event(NEW_PRESENTATION));
 }
 
 /** What this window presents, at the top of the start page in red with Öppna (docs/layout-2-0.md). */
@@ -246,29 +240,21 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
   );
   const startCreating = () => (templates?.length ? setPicking(true) : setCreating({ template: null }));
   useShortcutGroup(KEYS);
-  useEffect(() => {
-    const on = () => !picking && !creating && startCreating();
-    addEventListener(NEW_PRESENTATION, on);
-    return () => removeEventListener(NEW_PRESENTATION, on);
-  });
   usePageKeys((e) => {
     if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !picking && !creating) {
       e.preventDefault();
       startCreating();
     }
   });
-  const create = (
-    <AppButton onClick={startCreating} className="flex items-center" title={`${t('presentations.create')} (N)`}>
-      <PlusIcon className="size-4 mr-2" />
-      {t('presentations.create')}
-    </AppButton>
-  );
   const todayCount = groups?.today.length ?? 0;
   const restStart = todayCount + (groups?.upcoming.length ?? 0);
 
   return (
     <PageContainer>
-      <PageHeader title={t('nav.presentations')} large />
+      {/* + in the heading row, as every page that lists something (ui/AddButton.tsx); `n` does the same. */}
+      <PageHeader title={t('nav.presentations')} large>
+        <AddButton label={t('presentations.new')} onClick={startCreating} />
+      </PageHeader>
       {ownLive && <OwnLive p={ownLive} />}
       <LiveNow link={link} ownSessionId={ownSessionId} />
       {picking && templates && (
@@ -292,8 +278,7 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
           <div className="flex flex-col items-center justify-center text-center px-6 py-12 select-none">
             <EmptyPicture />
             <h2 className="text-lg/7 font-semibold text-neutral-500 dark:text-neutral-400 mb-2">{t('presentations.emptyTitle')}</h2>
-            <p className="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed mb-4">{t('presentations.emptyText')}</p>
-            {create}
+            <p className="text-sm text-neutral-400 dark:text-neutral-500 max-w-xs leading-relaxed">{t('presentations.emptyText')}</p>
           </div>
         </div>
       )}

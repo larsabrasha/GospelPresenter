@@ -59,18 +59,20 @@ export function SlideGrid({
     return (
       <ol className="flex flex-wrap gap-3" aria-label={label}>
         {slides.map((s, i) => {
-          const live = pointer.itemId === shown.itemId && pointer.partIndex === i;
+          // After Rensa nothing is shown: the slide last shown is only outlined in grey, where → goes on from.
+          const here = pointer.itemId === shown.itemId && pointer.partIndex === i;
+          const live = here && !pointer.black;
           return (
             <li key={s.key} className={`${size} flex`}>
               <AppButton
                 variant="plain"
                 aria-label={`${label} ${i + 1}`}
                 aria-pressed={live}
-                className={`${tileClass({ selected: live, live: !pointer.black })} w-full p-0`}
+                className={`${tileClass({ selected: live, live: true, rested: here && pointer.black })} w-full p-0`}
                 onClick={() => shown.onShow(i)}
               >
                 <SlideView slide={s} theme={theme} overlay={overlay} credits={false} />
-                {live && !pointer.black && <LiveBadge>{t('stage.live')}</LiveBadge>}
+                {live && <LiveBadge>{t('stage.live')}</LiveBadge>}
               </AppButton>
             </li>
           );

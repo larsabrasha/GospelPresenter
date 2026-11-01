@@ -7,16 +7,16 @@ import type { ItemSlides } from '../../../live/live.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { EllipsisIcon } from '../../../ui/icons.tsx';
 import { SlideView } from '../../../ui/SlideView.tsx';
-import { AudioPlayer } from '../AudioPlayer.tsx';
+import { ItemMedia, ItemWarnings } from '../../presentation-editor/ItemParts.tsx';
 import { Description } from '../../presentation-editor/Description.tsx';
 
 /** How tall a section's sticky heading is: a part under it is out of view. */
 const HEADING = 36;
 
 /**
- * The running order while presenting on a phone (docs/layout-2-0.md): every part of every item with its whole
- * text, each item a section whose heading sticks at the top until the next pushes it away. A tap on a part shows
- * it. The list follows the shown part only when it changed some other way than a tap here, and only when the part
+ * The running order on a phone, before and while presenting (docs/layout-2-0.md): every part of every item with its
+ * whole text, each item a section whose heading sticks at the top until the next pushes it away. While presenting a
+ * tap on a part shows it. The list follows the shown part only when it changed some other way than a tap here, and only when the part
  * is out of view; an item just added is scrolled to and marked.
  */
 export function LiveOrder({
@@ -34,18 +34,21 @@ export function LiveOrder({
   slides: Map<string, ItemSlides>;
   theme: Theme;
   pointer: LivePointer;
-  audio: AudioControl;
+  /** While presenting: the session's audio; before, an audio item plays a preview of its own. */
+  audio?: AudioControl;
   /** The item just added, scrolled to and marked for a moment. */
   addedId: string | null;
   /** The presentation's description, at the top of the list. */
   description: string | null;
-  onPick: (itemId: string, partIndex: number) => void;
+  /** While presenting: a part tapped is shown. */
+  onPick?: (itemId: string, partIndex: number) => void;
   onItemMenu: (item: PresentationItem) => void;
 }) {
   const list = useRef<HTMLDivElement>(null);
   const picked = useRef(false);
   const steps = items.flatMap((item) => (slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex })));
   const at = steps.findIndex((s) => s.itemId === pointer.itemId && s.partIndex === pointer.partIndex);
+  // NÄSTA is what → shows next, after Rensa too: from the part last shown, which keeps a grey border (Lars, 2026-11-01).
   const next = at === -1 ? null : (steps[at + 1] ?? null);
 
   // Once for each part shown, on opening too.
@@ -71,8 +74,7 @@ export function LiveOrder({
   }, [addedId]);
 
   const badge = (itemId: string, partIndex: number) => {
-    if (itemId === pointer.itemId && partIndex === pointer.partIndex)
-      return pointer.black ? { text: t('live.clearedBadge'), className: 'bg-neutral-500 text-white' } : { text: t('live.shownBadge'), className: 'bg-red-600 text-white' };
+    if (!pointer.black && itemId === pointer.itemId && partIndex === pointer.partIndex) return { text: t('live.shownBadge'), className: 'bg-red-600 text-white' };
     if (next && itemId === next.itemId && partIndex === next.partIndex) return { text: t('live.nextBadge'), className: 'bg-sky-500/15 text-sky-500' };
     return null;
   };
@@ -83,7 +85,7 @@ export function LiveOrder({
         {description && <Description key={description} text={description} className="mt-2" />}
         {items.map((item) => {
           const set = slides.get(item.id);
-          const liveHere = item.id === pointer.itemId;
+          const liveHere = !pointer.black && item.id === pointer.itemId;
           return (
             <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5">
               {/* As iOS's grouped lists: the heading close above its rows, the space between the sections above it. */}
@@ -104,21 +106,30 @@ export function LiveOrder({
                   <EllipsisIcon className="size-5" />
                 </AppButton>
               </h3>
-              {set?.audio && <AudioPlayer control={audio} itemId={item.id} name={set.audio.fileName} />}
+              <ItemWarnings item={item} set={set} songName={undefined} />
+              {/* The video plays in the picture while presenting. */}
+              {(set?.audio || (!audio && set?.video)) && <ItemMedia item={item} set={set} players={audio && { audio }} shownId={pointer.itemId} />}
               {set?.slides.map((slide, partIndex) => {
                 const current = liveHere && partIndex === pointer.partIndex;
+                // After Rensa, the part last shown keeps a quiet grey border: where → goes on from.
+                const rested = pointer.black && item.id === pointer.itemId && partIndex === pointer.partIndex;
                 const mark = badge(item.id, partIndex);
                 return (
                   <AppButton
                     key={slide.key}
                     variant="plain"
                     data-current={current}
+                    data-rested={rested || undefined}
                     aria-current={current || undefined}
-                    onClick={() => {
-                      picked.current = true;
-                      onPick(item.id, partIndex);
-                    }}
-                    className={`w-full flex gap-3 px-4 py-3 rounded-2xl text-left cursor-pointer ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? `bg-surface dark:bg-raised ring-2 ${pointer.black ? 'ring-neutral-500' : 'ring-red-500'}` : 'bg-surface'}`}
+                    onClick={
+                      onPick &&
+                      (() => {
+                        picked.current = true;
+                        onPick(item.id, partIndex);
+                      })
+                    }
+                    // The border is always there, clear until the part is shown, so the shown card is no bigger than the rest.
+                    className={`w-full flex gap-3 px-3.5 py-2.5 rounded-2xl border-2 text-left ${onPick ? 'cursor-pointer' : 'cursor-default'} ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? 'bg-surface dark:bg-raised border-red-500' : rested ? 'bg-surface border-neutral-300 dark:border-neutral-600' : 'bg-surface border-transparent'}`}
                   >
                     {slide.kind === 'media' && (
                       <span className="w-24 aspect-video shrink-0 rounded-lg overflow-hidden">

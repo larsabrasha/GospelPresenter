@@ -15,6 +15,7 @@ import { SelectMenu } from '../ui/SelectMenu.tsx';
 import { useToast } from '../ui/Toast.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { ctrlLabel } from '../ui/shortcuts.ts';
+import { SongMaterials } from './song-materials/SongMaterials.tsx';
 import { ArrangementCard } from './ArrangementCard.tsx';
 import { CARD, PILL } from './songEditorLook.ts';
 
@@ -310,6 +311,8 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             )}
           </div>
         </div>
+        {/* Noter och länkar for the band: on the song's page, not in the add dialog. */}
+        {!adding && <SongMaterials songId={id} />}
         {!adding && (
           <div className="flex items-center justify-between">
             {/* Historik is the song page's, not the add dialog's (SongDetail.razor). */}

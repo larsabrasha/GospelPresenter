@@ -52,6 +52,27 @@ export const songArrangements = sqliteTable('song_arrangements', {
 });
 
 /**
+ * Sheet music, recordings and links on a song, for the band (spec 02 "Song material", Lars 2026-11-01): a file
+ * (`kind` 'file', a PDF or an audio file, its blob named by `hash`, fetched when it is opened) or a web address
+ * (`kind` 'link', Spotify, YouTube or any).
+ * `sort` orders a song's material. Not part of the song's versions: a change here keeps none.
+ */
+export const songMaterials = sqliteTable('song_materials', {
+  id: text('id').primaryKey(),
+  songId: text('song_id')
+    .notNull()
+    .references(() => songs.id),
+  kind: text('kind').notNull(),
+  title: text('title').notNull(),
+  url: text('url'),
+  hash: text('hash'),
+  contentType: text('content_type'),
+  size: integer('size'),
+  sort: integer('sort').notNull(),
+  createdAt: integer('created_at').notNull(),
+});
+
+/**
  * A song as it was before a change (spec 02 "Song version", SONG-R20–R23, D9): the whole song, its
  * fields, parts and arrangements, as JSON (`SongSnapshot`). Only the server writes these, when it runs
  * a change to the song; clients read them and restore one. `userId` is whose change it was made before.
@@ -338,6 +359,7 @@ export const schema = {
   songParts,
   songArrangements,
   songVersions,
+  songMaterials,
   ccliEntries,
   presentations,
   presentationItems,
@@ -357,13 +379,14 @@ export const schema = {
 };
 
 /** Synced tables in parent-before-child order. */
-export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos];
+export const syncedTables = [labels, songs, songParts, songArrangements, songVersions, songMaterials, ccliEntries, presentations, presentationItems, bibles, orgSettings, images, displays, audios, overlays, videos];
 
 export type Label = typeof labels.$inferSelect;
 export type Song = typeof songs.$inferSelect;
 export type SongPart = typeof songParts.$inferSelect;
 export type SongArrangement = typeof songArrangements.$inferSelect;
 export type SongVersion = typeof songVersions.$inferSelect;
+export type SongMaterial = typeof songMaterials.$inferSelect;
 export type CcliEntry = typeof ccliEntries.$inferSelect;
 export type Presentation = typeof presentations.$inferSelect;
 export type PresentationItem = typeof presentationItems.$inferSelect;

@@ -39,11 +39,9 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await createSong(page, 'Sång B', [['Verse 1', 'B ett']]);
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A', 'Sång B']);
-  // Sång A carries Kollekt: the editor's tiles show it, and the running order names it.
-  await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: 'Sång A', exact: true }).click();
-  await page.getByRole('combobox', { name: 'Overlay' }).selectOption({ label: 'Kollekt' });
+  // Sång A carries Kollekt, chosen under its heading: its tiles show it.
+  await page.getByRole('region', { name: 'Sång A' }).getByRole('combobox', { name: 'Overlay' }).selectOption({ label: 'Kollekt' });
   await expect(page.getByRole('list', { name: 'Sång A' }).getByTestId('slide-overlay').first()).toHaveText('Swish 123 45');
-  await expect(page.getByRole('list', { name: 'Programpunkter' }).getByText('Kollekt')).toBeVisible();
 
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
@@ -102,15 +100,6 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await expect(output.getByTestId('slide-text')).toHaveText('B ett');
   await expect(cover).toHaveCSS('opacity', '0');
   await expect(overlay).toHaveCount(0);
-
-  // The stage view has the same toggles, with a dot while one is on.
-  await page.getByRole('button', { name: 'Scenläge' }).click();
-  const stage = page.getByTestId('stage-view');
-  await expect(stage.getByTestId('overlay-on')).toHaveCount(0);
-  await stage.getByRole('button', { name: 'Visa/dölj overlays' }).click();
-  await stage.getByRole('dialog', { name: 'Overlays' }).getByLabel('Välkommen').check();
-  await expect(overlay).toHaveText('Välkommen hit');
-  await expect(stage.getByTestId('overlay-on')).toHaveCount(1);
 });
 
 test('a refused overlay save says "Kunde inte spara", in the overlay and on an item', async () => {

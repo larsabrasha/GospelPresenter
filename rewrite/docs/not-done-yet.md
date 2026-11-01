@@ -52,12 +52,11 @@ desktop that restarts starts a new session, and the old one stays frozen until s
 pass. Two operator windows on one machine share their pointer (one BroadcastChannel) and so show as two
 sessions that move together. The 2-second warning is written but not tested.
 
-From spec 04: the stage view (Scenläge, a button on the live page, `pages/StageView.tsx`) is built for the
-operator's own session and a controller's, with the Overlays button; `?stage=true` opens it. Next and previous stay within the selected
-item (LIVE-R41); the page's own step keys, which cross items, are off while it is open. Its keys are a pedal's
-or clicker's, as `utils.js`'s: → ↓ PageDown Space Enter next, ← ↑ PageUp previous, `.` `b` `B` blank (only
-blank, as Rensa), Esc closes an open sheet or else the view; none of them in a text field. It is tested in
-`e2e/milestone6.spec.ts`. The wake lock is requested but not tested.
+From spec 04: the stage view (Scenläge) is removed from 2.0 (Lars, 2026-11-01), to be built again if a church needs
+it; a clicker's keys work on the live page. Sheet music, recordings and links on a song are built (spec 02 "Song
+material"); a music stand for the band (the whole song as it is shown, chords later) is an idea waiting for what
+the musicians need: what they use on Sundays now, whether they want
+chords or notes, and whether notes are shared or their own.
 
 From spec 05 and milestone 4: creating and editing themes (spec 05 and ADR 0001 have no editor yet;
 the Teman page lists the built-ins and sets the default). BIBLE-R16's device-local Bibles (a translation

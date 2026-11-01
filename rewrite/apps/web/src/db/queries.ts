@@ -19,6 +19,7 @@ import {
   type RemoteControlPolicy,
   type Song,
   type SongArrangement,
+  type SongMaterial,
   type SongPart,
   type SongVersion,
   type Theme,
@@ -109,6 +110,24 @@ export async function arrangementsOf(db: ReadDb, songIds: string[]): Promise<Son
   if (!songIds.length) return [];
   const rows = await db.query(`SELECT * FROM song_arrangements WHERE song_id IN (${songIds.map(() => '?').join(', ')}) ORDER BY sort, id`, songIds);
   return rows.map(arrangement);
+}
+
+/** The sheet music, recordings and links of songs, each song's in its order (spec 02 "Song material"). */
+export async function songMaterialsOf(db: ReadDb, songIds: string[]): Promise<SongMaterial[]> {
+  if (!songIds.length) return [];
+  const rows = await db.query(`SELECT * FROM song_materials WHERE song_id IN (${songIds.map(() => '?').join(', ')}) ORDER BY sort, id`, songIds);
+  return rows.map((r) => ({
+    id: String(r.id),
+    songId: String(r.song_id),
+    kind: String(r.kind),
+    title: String(r.title),
+    url: (r.url as string | null) ?? null,
+    hash: (r.hash as string | null) ?? null,
+    contentType: (r.content_type as string | null) ?? null,
+    size: r.size === null || r.size === undefined ? null : Number(r.size),
+    sort: Number(r.sort),
+    createdAt: Number(r.created_at),
+  }));
 }
 
 /** The presentations and templates (not in the trash) that have an item showing the song (D17). */

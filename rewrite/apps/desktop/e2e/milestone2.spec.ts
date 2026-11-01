@@ -325,8 +325,8 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   const order = page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem');
   await expect(order).toHaveText([/Pilgrimsfärd/, /Blott en dag/]);
 
-  // Reorder by the drag handle, then by Alt+↑/↓ on the selected item; the order is saved either way.
-  await dragTo(page, order.nth(1).getByTestId('drag-handle'), order.nth(0), 'above');
+  // Reorder by dragging the row with the mouse, then by Alt+↑/↓ on the selected item; the order is saved either way.
+  await dragTo(page, order.nth(1), order.nth(0), 'above');
   await expect(order).toHaveText([/Blott en dag/, /Pilgrimsfärd/]);
   await page.getByRole('button', { name: 'Pilgrimsfärd', exact: true }).click();
   await page.keyboard.press('Alt+ArrowUp');
@@ -402,7 +402,7 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   // The presentation flags the item and restores the song (D17).
   await openPresentations(page);
   await page.getByRole('link', { name: 'Kväll' }).click();
-  await page.getByRole('button', { name: /^Amazing Grace/ }).click();
+  await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: /^Amazing Grace/ }).click();
   await expect(page.getByText('Sången ligger i papperskorgen och visas inte live.')).toBeVisible();
   await page.getByRole('button', { name: 'Återställ' }).click();
   await expect(page.getByText('Sången ligger i papperskorgen och visas inte live.')).toHaveCount(0);
@@ -445,12 +445,12 @@ test('trash: a song in use is flagged and restored from the presentation; presen
   // The presentation is back, and its item says the song is gone.
   await openPresentations(page);
   await page.getByRole('link', { name: 'Kväll' }).click();
-  await page.getByRole('button', { name: /^Amazing Grace/ }).click();
+  await page.getByRole('list', { name: 'Programpunkter' }).getByRole('button', { name: /^Amazing Grace/ }).click();
   await expect(page.getByText('Sången finns inte längre.')).toBeVisible();
 
-  // The selected item's ⋯ menu removes it, after asking (Sidebar.razor).
+  // The item's ⋯ menu removes it, after asking (Sidebar.razor).
   await page.getByRole('button', { name: 'Fler val för Amazing Grace' }).click();
-  await page.getByRole('menuitem', { name: 'Ta bort' }).click();
+  await page.getByRole('menuitem', { name: 'Radera' }).click();
   await page.getByRole('dialog', { name: 'Radera' }).getByRole('button', { name: 'Radera' }).click();
   await expect(page.getByRole('list', { name: 'Programpunkter' }).getByRole('listitem')).toHaveCount(0);
 });

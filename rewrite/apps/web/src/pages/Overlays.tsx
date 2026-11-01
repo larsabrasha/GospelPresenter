@@ -13,7 +13,7 @@ import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { DropHint, DropZone } from '../ui/DropZone.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
-import { OverlaysPicture, PhotoOutlineIcon, PlusIcon } from '../ui/icons.tsx';
+import { OverlaysPicture, PhotoOutlineIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { DetailHeader, PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -72,22 +72,15 @@ function OverlayThumb({ overlay }: { overlay: Pick<Overlay, 'id'> }) {
 export function Overlays() {
   const overlays = useData(listOverlays, []);
   const [creating, setCreating] = useState(false);
-  const create = (
-    <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
-      <PlusIcon className="size-4" />
-      {t('common.create')}
-    </AppButton>
-  );
   return (
     <PageContainer>
-      {/* Skapa sits in the heading once there is a list; before that, in the empty card. */}
-      <PageHeader title={t('overlays.title')}>{!!overlays?.length && <AddButton label={t('common.create')} onClick={() => setCreating(true)} />}</PageHeader>
+      <PageHeader title={t('overlays.title')}>
+        <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
+      </PageHeader>
       <div className={CARD}>
         {!overlays && <div className="px-5 py-4 text-neutral-400 text-sm">{t('common.loading')}</div>}
         {overlays && !overlays.length && (
-          <EmptyPicture picture={<OverlaysPicture className={PICTURE} />} title={t('overlays.empty')} text={t('overlays.emptyText')}>
-            {create}
-          </EmptyPicture>
+          <EmptyPicture picture={<OverlaysPicture className={PICTURE} />} title={t('overlays.empty')} text={t('overlays.emptyText')} />
         )}
         <ul aria-label={t('overlays.title')}>
           {overlays?.map((o) => (

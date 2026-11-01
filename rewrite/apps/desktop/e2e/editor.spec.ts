@@ -1,5 +1,5 @@
-// The presentation editor as the current app has it (Sidebar.razor, SlideGrid.razor): a quote when
-// nothing is selected, the last selected item again on return, and Markera to remove several items.
+// The presentation editor as the current app has it (Sidebar.razor, SlideGrid.razor): the last selected item again
+// on return, and Markera to remove several items.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, endPresentation, openAdmin, openPresentations, pickItem, setUpHost } from './flows.ts';
@@ -12,7 +12,7 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('a quote with nothing selected, the item selected again on return, and Markera removes a range', async () => {
+test('the item selected again on return, and Markera removes a range', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -27,9 +27,8 @@ test('a quote with nothing selected, the item selected again on return, and Mark
   await page.getByRole('link', { name: /Söndag/ }).click();
   await expect(order.getByRole('button', { name: 'Sång B', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
-  // Markera: tick A, Shift+click C ticks the range, and the three go together after the question.
-  await page.getByRole('button', { name: 'Alternativ' }).click();
-  await page.getByRole('menuitemcheckbox', { name: 'Markera' }).click();
+  // Markera, beside the running order: tick A, Shift+click C ticks the range, and the three go together after the question.
+  await page.getByRole('button', { name: 'Markera', exact: true }).click();
   await expect(page.getByText('Välj objekt att radera')).toBeVisible();
   await order.getByRole('button', { name: 'Sång A' }).click();
   await order.getByRole('button', { name: 'Sång C' }).click({ modifiers: ['Shift'] });
@@ -40,11 +39,6 @@ test('a quote with nothing selected, the item selected again on return, and Mark
   await expect(page.getByRole('status').getByText('3 objekt borttagna')).toBeVisible();
   await expect(order.getByRole('listitem')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Lägg till', exact: true })).toBeVisible();
-
-  // With items and none selected, a quote or a verse stands in the main area.
-  await addSongs(page, ['Sång A']);
-  await page.reload();
-  await expect(page.getByTestId('idle-hint')).not.toBeEmpty();
 });
 
 test('presenting keeps the running order: items are added and removed while live, and the selection follows the live slide', async () => {

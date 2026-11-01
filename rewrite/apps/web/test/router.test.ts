@@ -17,8 +17,6 @@ describe('routes', () => {
       { page: 'presentation', id: 'P1' },
       { page: 'presentation', id: 'P1', remote: true, session: null },
       { page: 'presentation', id: 'P1', remote: true, session: 'S 1' },
-      { page: 'presentation', id: 'P1', stage: true },
-      { page: 'presentation', id: 'P1', remote: true, session: 'S1', stage: true },
       { page: 'trash', kind: null },
       { page: 'trash', kind: 'Song' },
       { page: 'trash', kind: 'Image' },
@@ -64,13 +62,22 @@ describe('routes', () => {
     // A saved screen's link, and a temporary screen's (spec 04 §5, §8).
     expect(href({ page: 'display', id: 'abcdefg', name: 'Kyrksal', token: null })).toBe('/display?id=abcdefg&name=Kyrksal');
     expect(href({ page: 'display', id: null, name: null, token: null })).toBe('/display');
-    // A remote link straight into the stage view, in the current app's words (Presentation.razor).
-    expect(href({ page: 'presentation', id: 'P1', remote: true, session: 'S1', stage: true })).toBe('/presentations/P1?remote=true&session=S1&stage=true');
+  });
+
+  it('opens the presentation from an old link into the stage view, as the stage view is gone', () => {
+    // Arrange
+    const search = '?remote=true&session=S1&stage=true';
+
+    // Act
+    const route = parseRoute('/presentations/P1', search);
+
+    // Assert
+    expect(route).toEqual({ page: 'presentation', id: 'P1', remote: true, session: 'S1' });
   });
 
   it('a /live/ link from before opens the presentation, presenting or controlling as it said', () => {
     expect(read('/live/P1')).toEqual({ page: 'presentation', id: 'P1' });
-    expect(read('/live/P1?remote=1&session=S1&stage=true')).toEqual({ page: 'presentation', id: 'P1', remote: true, session: 'S1', stage: true });
+    expect(read('/live/P1?remote=1&session=S1&stage=true')).toEqual({ page: 'presentation', id: 'P1', remote: true, session: 'S1' });
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {

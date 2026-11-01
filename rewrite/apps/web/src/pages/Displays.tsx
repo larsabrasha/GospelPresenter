@@ -12,7 +12,7 @@ import { CopyField } from '../ui/CopyField.tsx';
 import { deleteAsk, Dialog, DialogButtons, useConfirm } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
-import { ArrowDownTrayIcon, LinkIcon, PlusIcon, PublicOutputsPicture, QrCodeIcon, ScreenIcon, ScreensPicture } from '../ui/icons.tsx';
+import { ArrowDownTrayIcon, LinkIcon, PublicOutputsPicture, QrCodeIcon, ScreenIcon, ScreensPicture } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href } from '../ui/router.ts';
@@ -171,26 +171,19 @@ export function Displays({ link }: { link: LiveLink }) {
     await ask(deleteAsk(t('displays.deleteConfirm', { name: d.name }), d.name, () => trySave(db.mutate('deleteDisplay', { id: d.id }))));
   };
 
-  /** A section's add button: in its heading once the list has something, in the empty card before that. */
-  const add = (kind: Display['kind']) => (
-    <AppButton onClick={() => setCreating(kind)} className="flex items-center gap-1.5">
-      <PlusIcon className="size-4" />
-      {kind === 'screen' ? t('screens.add') : t('displays.create')}
-    </AppButton>
-  );
   const ROW = 'flex flex-wrap items-center gap-3 px-7 py-3 border-b border-separator last:border-b-0';
   const SMALL = 'text-xs flex items-center gap-1.5';
 
   return (
     <PageContainer>
       {dialog}
-      <PageHeader title={t('displays.title')}>{!!screens?.length && <AddButton label={t('screens.add')} onClick={() => setCreating('screen')} />}</PageHeader>
+      <PageHeader title={t('displays.title')}>
+        <AddButton label={t('screens.add')} onClick={() => setCreating('screen')} />
+      </PageHeader>
       <div className={CARD}>
         {!all && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {screens && !screens.length && (
-          <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} text={t('screens.text')}>
-            {add('screen')}
-          </EmptyPicture>
+          <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} text={t('screens.text')} />
         )}
         <ul aria-label={t('screens.title')}>
           {screens?.map((d) => {
@@ -216,14 +209,12 @@ export function Displays({ link }: { link: LiveLink }) {
       </div>
       <div className="flex items-center justify-between px-5 pt-6">
         <h2 className="text-xl/7 font-bold dark:text-neutral-100">{t('displays.public')}</h2>
-        {!!displays?.length && add('public')}
+        <AddButton label={t('displays.create')} onClick={() => setCreating('public')} />
       </div>
       <div className={CARD}>
         {!all && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {displays && !displays.length && (
-          <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} text={t('displays.publicText')}>
-            {add('public')}
-          </EmptyPicture>
+          <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} text={t('displays.publicText')} />
         )}
         <ul aria-label={t('displays.public')}>
           {displays?.map((d) => {

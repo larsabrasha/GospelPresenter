@@ -1,6 +1,6 @@
-// The presentation on a phone (390×844): editing, as the current app's, with the running order in a drawer from the
-// left and Lägg till's song preview over the add dialog; presenting, the 2.0 layout (docs/layout-2-0.md): the picture,
-// ‹ Rensa ›, and the running order with every part's text.
+// The presentation on a phone (390×844), one view before and while presenting (docs/layout-2-0.md): the running
+// order with every part's text and Lägg till's song preview over the add dialog; presenting adds the picture and
+// ‹ Rensa ›.
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, dragTo, setUpHost } from './flows.ts';
@@ -29,7 +29,7 @@ async function onScreen(l: Locator) {
   return box;
 }
 
-test('on a phone the running order is a drawer and Lägg till previews a song over the dialog; presenting shows the picture, ‹ Rensa › and every part', async () => {
+test('on a phone the presentation is one column before and while presenting; Lägg till previews a song over the dialog; presenting adds the picture and ‹ Rensa ›', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
@@ -44,31 +44,17 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   await page.setViewportSize(PHONE);
   await page.reload();
 
-  // The drawer is open when the page opens; choosing an item closes it and shows the slides.
-  const order = page.getByRole('list', { name: 'Programpunkter' });
-  const menu = page.getByRole('button', { name: 'Meny' });
-  await expect(order).toBeVisible();
-  await order.getByRole('button', { name: 'Sång A', exact: true }).click();
-  await expect(order).toBeHidden();
-  await expect(page.getByRole('list', { name: 'Sång A' })).toBeVisible();
-
-  // The round menu button at the bottom left and Starta presentation at the right are side by side, on screen.
-  const start = page.getByRole('button', { name: 'Starta presentation' });
-  const m = await onScreen(menu);
-  const s = await onScreen(start);
-  expect(m.x + m.width).toBeLessThan(s.x);
-  expect(m.y + m.height).toBeGreaterThan(PHONE.height - 100);
-  expect(s.y + s.height).toBeGreaterThan(PHONE.height - 100);
-
-  // The menu button opens the drawer again; a tap on the dimmed page beside it closes it.
-  await menu.click();
-  await expect(order).toBeVisible();
-  await page.mouse.click(370, 400);
-  await expect(order).toBeHidden();
+  // Before presenting: the running order with every part's text, ▶ in the bar, and no picture yet.
+  const live = page.getByTestId('phone-live');
+  const picture = page.getByTestId('phone-live-picture');
+  const liveOrder = page.getByTestId('live-order');
+  const start = live.getByRole('button', { name: 'Starta presentation' });
+  await expect(liveOrder.getByText('A två')).toBeVisible();
+  await expect(picture).toHaveCount(0);
+  await onScreen(start);
 
   // Lägg till: the songs' preview is not beside the list; a tapped song opens it over the dialog.
-  await menu.click();
-  await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
+  await live.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
   await picker.getByRole('list', { name: 'Sånger' }).getByRole('button', { name: /Sång B/ }).click();
   const preview = page.getByRole('dialog', { name: 'Sång B' });
@@ -92,19 +78,17 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   await expect(preview).toBeHidden();
   await expect(picker).toBeVisible();
   await picker.getByRole('button', { name: 'Stäng' }).click();
-  await expect(order.getByRole('listitem')).toHaveText([/Sång A/, /Sång B/]);
+  await expect(liveOrder.locator('section')).toHaveCount(2);
 
   // Presenting: one column, the picture with ‹ Rensa › under it, and every part of every item with its text.
-  await page.mouse.click(370, 400);
-  await expect(order).toBeHidden();
   await start.click();
-  const live = page.getByTestId('phone-live');
-  const picture = page.getByTestId('phone-live-picture');
-  const liveOrder = page.getByTestId('live-order');
   await expect(live).toBeVisible();
-  // The title sits in the very middle of the bar, however wide the buttons beside it.
+  // The title sits in the middle of the room between the back button and the buttons at the right, never under them.
   const title = (await live.getByRole('button', { name: 'Om presentationen' }).boundingBox())!;
-  expect(Math.abs(title.x + title.width / 2 - PHONE.width / 2)).toBeLessThan(1);
+  const back = (await live.getByRole('link', { name: 'Tillbaka till presentationerna' }).boundingBox())!;
+  const right = (await live.getByRole('button', { name: 'Mer', exact: true }).boundingBox())!;
+  expect(title.x).toBeGreaterThanOrEqual(back.x + back.width);
+  expect(title.x + title.width).toBeLessThanOrEqual(right.x);
   await onScreen(picture);
   await onScreen(page.getByRole('button', { name: 'Rensa' }));
   await expect(liveOrder.locator('section')).toHaveCount(2);
@@ -118,13 +102,17 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   await page.getByRole('button', { name: 'Nästa bild' }).click();
   await expect(picture).toContainText('A två');
 
-  // Rensa blacks the outputs and then rests until a part is shown again: a tap on the part marked RENSAD does it. The
-  // bar still says LIVE, as the presentation runs until Avsluta.
+  // Rensa blacks the outputs and then rests until a part is shown again: nothing is marked as shown meanwhile, not
+  // VISAS, nor the item's dot; NÄSTA still says what → shows. The bar still says LIVE, as the presentation runs until Avsluta.
   await page.getByRole('button', { name: 'Rensa' }).click();
   await expect(page.getByRole('button', { name: 'Rensa', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Visa igen' })).toHaveCount(0);
   await expect(live.getByRole('button', { name: 'Om presentationen' })).toContainText('LIVE');
-  await expect(live.getByRole('button', { name: 'Om presentationen' })).not.toContainText('RENSAD');
+  await expect(liveOrder).not.toContainText('VISAS');
+  await expect(liveOrder.getByRole('button', { name: /B ett/ })).toContainText('NÄSTA');
+  await expect(liveOrder.getByLabel('LIVE')).toHaveCount(0);
+  // Only a grey border says where → goes on from.
+  await expect(liveOrder.getByRole('button', { name: /A två/ })).toHaveAttribute('data-rested', 'true');
   await liveOrder.getByRole('button', { name: /A två/ }).click();
   await expect(liveOrder.getByRole('button', { name: /A två/ })).toContainText('VISAS');
   await expect(page.getByRole('button', { name: 'Rensa', exact: true })).toBeEnabled();
@@ -193,6 +181,7 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   await page.getByRole('dialog', { name: 'Söndag' }).getByRole('button', { name: 'Stäng' }).click();
   await live.getByRole('button', { name: 'Avsluta presentation' }).click();
   await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
-  await expect(live).toBeHidden();
-  await expect(menu).toBeVisible();
+  // The same view stays, without the picture, ▶ back in the bar.
+  await expect(picture).toHaveCount(0);
+  await expect(start).toBeVisible();
 });

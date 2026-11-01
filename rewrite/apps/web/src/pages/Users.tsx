@@ -8,7 +8,7 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { FloatingInput, FloatingSelect } from '../ui/Floating.tsx';
-import { PlusIcon, UserIcon, UsersPicture } from '../ui/icons.tsx';
+import { UserIcon, UsersPicture } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -178,22 +178,14 @@ export function Users({ me }: { me: Me }) {
   }, []);
 
   const empty = Array.isArray(users) && !users.length;
-  const create = (
-    <AppButton onClick={() => setCreating(true)} className="flex items-center gap-1.5">
-      <PlusIcon className="size-4" />
-      {t('users.create')}
-    </AppButton>
-  );
   return (
     <PageContainer>
-      <PageHeader title={t('users.title')}>{manage && !empty && <AddButton label={t('users.create')} onClick={() => setCreating(true)} />}</PageHeader>
+      <PageHeader title={t('users.title')}>{manage && <AddButton label={t('users.create')} onClick={() => setCreating(true)} />}</PageHeader>
       {typeof users === 'string' && <p className="px-5 text-sm text-red-500 dark:text-red-400">{users}</p>}
       <div className={CARD}>
         {users === null && <div className="px-7 py-4 text-neutral-400">{t('common.loading')}</div>}
         {empty && (
-          <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} text={t('users.emptyText')}>
-            {manage && create}
-          </EmptyPicture>
+          <EmptyPicture picture={<UsersPicture className={PICTURE} />} title={t('users.empty')} text={t('users.emptyText')} />
         )}
         <ul aria-label={t('users.title')}>
           {Array.isArray(users) &&

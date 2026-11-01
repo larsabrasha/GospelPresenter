@@ -266,18 +266,6 @@ test('capture every page', async () => {
           },
         ] as [string, string, (p: Page) => Promise<unknown>, (p: Page) => Promise<unknown>],
     ),
-    [
-      'stage',
-      `/presentations/${id}`,
-      async (p) => {
-        await goLive(p);
-        await p.getByRole('button', { name: 'Scenläge' }).click();
-      },
-      async (p) => {
-        await p.getByRole('button', { name: 'Lämna scenläge' }).click();
-        await stopLive(p);
-      },
-    ],
     ['trash', '/trash'],
     ['profile-menu', '/', (p) => p.getByTestId('me').click()],
     ['settings', '/settings'],
