@@ -92,7 +92,7 @@ English that is not the current app's was written for the rewrite and has not be
 From the 2.0 layout (docs/layout-2-0.md), what is built so far is live on a phone and an iPad held upright
 (`pages/live/phone/`): the bar, the picture with ‹ Rensa ›, the running order with sticky headings and its
 following rule, Lägg till's place, Utgångar as a list of switches, …, an item's … (with Redigera sången) and
-Avsluta; the sheets are pulled down to close; the colours are the theme's (`app.css`). Not yet: Redigera (moving items there);
+Avsluta; Redigera (moved by ≡, removed by the minus); the sheets are pulled down to close; the colours are the theme's (`app.css`). Not yet:
 undoing an addition or a removal (a removed item is deleted at once, so the item's … asks first, as the editor
 does); the columns on a
 computer and an iPad lying down; the start page and its bar; Inställningar as a list.

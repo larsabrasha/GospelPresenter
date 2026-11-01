@@ -3,7 +3,7 @@
 // ‹ Rensa ›, and the running order with every part's text.
 import { expect, test, type Locator } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, dragTo, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -128,6 +128,16 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   await expect(liveOrder.locator('section')).toHaveCount(3);
   expect(await liveOrder.locator('section').evaluateAll((all) => all.map((x) => x.getAttribute('aria-label')))).toEqual(['Sång A', 'Sång C', 'Sång B']);
   await expect(picture).toContainText('A två');
+
+  // Redigera folds the list to one row per item, moved by ≡; the shown item cannot be removed.
+  await live.getByRole('button', { name: 'Redigera' }).click();
+  const edit = page.getByTestId('live-edit');
+  await expect(edit.getByRole('listitem')).toHaveText([/Sång A/, /Sång C/, /Sång B/]);
+  await expect(edit.getByRole('button', { name: 'Ta bort Sång A' })).toBeDisabled();
+  await dragTo(page, edit.getByTestId('drag-handle').nth(1), edit.getByRole('listitem').nth(2), 'below');
+  await expect(edit.getByRole('listitem')).toHaveText([/Sång A/, /Sång B/, /Sång C/]);
+  await live.getByRole('button', { name: 'Klar' }).click();
+  expect(await liveOrder.locator('section').evaluateAll((all) => all.map((x) => x.getAttribute('aria-label')))).toEqual(['Sång A', 'Sång B', 'Sång C']);
 
   // At desktop size the editor and the live column are back; on the phone again, the one column.
   await page.setViewportSize({ width: 1280, height: 800 });

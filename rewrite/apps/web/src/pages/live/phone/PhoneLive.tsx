@@ -18,6 +18,7 @@ import type { Presenting } from '../../presentation-editor/PresentationEditor.ts
 import { OverlaysPanel } from '../OverlaysPanel.tsx';
 import { RemotePanel } from '../RemotePanel.tsx';
 import { VideoPlayer } from '../VideoPlayer.tsx';
+import { LiveEditList } from './LiveEditList.tsx';
 import { LiveOrder } from './LiveOrder.tsx';
 import { OutputsList } from './OutputsList.tsx';
 
@@ -68,6 +69,7 @@ export function PhoneLive({
   const [adding, setAdding] = useState<{ chosenId: string | null } | null>(null);
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [addedId, setAddedId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const owner = presenting.owner;
 
   const steps = items.flatMap((item) => (slides.get(item.id)?.slides ?? []).map((_, partIndex) => ({ itemId: item.id, partIndex })));
@@ -149,21 +151,37 @@ export function PhoneLive({
 
       <div className="flex items-center justify-between px-5 pt-4 pb-1.5 border-b-[0.5px] border-neutral-300 dark:border-separator shrink-0">
         <h2 className="text-xl font-bold">{t('live.order')}</h2>
-        <AppButton variant="plain" onClick={() => setAdding({ chosenId: null })} className="h-9 px-3.5 rounded-full flex items-center gap-1.5 text-[15px] font-semibold cursor-pointer bg-sky-500/15 text-sky-500">
-          <PlusIcon className="size-4" />
-          {t('live.add')}
-        </AppButton>
+        <span className="flex items-center gap-2">
+          <AppButton
+            variant="plain"
+            aria-pressed={editing}
+            onClick={() => setEditing(!editing)}
+            className={`h-9 px-3.5 rounded-full text-[15px] cursor-pointer ${editing ? 'bg-sky-600 text-white font-bold' : 'bg-raised font-semibold'}`}
+          >
+            {editing ? t('live.editDone') : t('live.edit')}
+          </AppButton>
+          {!editing && (
+            <AppButton variant="plain" onClick={() => setAdding({ chosenId: null })} className="h-9 px-3.5 rounded-full flex items-center gap-1.5 text-[15px] font-semibold cursor-pointer bg-sky-500/15 text-sky-500">
+              <PlusIcon className="size-4" />
+              {t('live.add')}
+            </AppButton>
+          )}
+        </span>
       </div>
-      <LiveOrder
-        items={items}
-        slides={slides}
-        theme={theme}
-        pointer={pointer}
-        audio={presenting.audio}
-        addedId={addedId}
-        onPick={(itemId, partIndex) => live.set({ itemId, partIndex, black: false })}
-        onItemMenu={(item) => setOpen({ item })}
-      />
+      {editing ? (
+        <LiveEditList items={items} shownId={pointer.itemId} onRemove={(item) => void remove(item)} />
+      ) : (
+        <LiveOrder
+          items={items}
+          slides={slides}
+          theme={theme}
+          pointer={pointer}
+          audio={presenting.audio}
+          addedId={addedId}
+          onPick={(itemId, partIndex) => live.set({ itemId, partIndex, black: false })}
+          onItemMenu={(item) => setOpen({ item })}
+        />
+      )}
 
       {open === 'outputs' && owner && (
         <Sheet title={t('live.outputs')} onClose={() => setOpen(null)}>
@@ -213,6 +231,7 @@ export function PhoneLive({
         <Sheet title={open.item.title} onClose={() => setOpen(null)}>
           <div className={GROUP}>
             <MenuRow onClick={() => (setOpen(null), setAdding({ chosenId: open.item.id }))}>{t('live.addAfter')}</MenuRow>
+            <MenuRow onClick={() => (setOpen(null), setEditing(true))}>{t('live.move')}</MenuRow>
             {open.item.type === 'song' && (
               <MenuRow onClick={() => (setOpen(null), navigate({ page: 'song', id: open.item.sourceId }))}>{t('live.editSong')}</MenuRow>
             )}
