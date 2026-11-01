@@ -1,5 +1,5 @@
 import type { LivePointer, Presentation } from '@gp/core';
-import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { orgRemoteControl } from '../../../db/queries.ts';
 import { useData } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
@@ -9,6 +9,7 @@ import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
 import { ArrowsPointingOutIcon, ChevronDownIcon, ChevronLeftIcon, EllipsisIcon } from '../../../ui/icons.tsx';
 import { href } from '../../../ui/router.ts';
+import { useDismiss } from '../../../ui/useDismiss.ts';
 import { RemotePanel } from '../RemotePanel.tsx';
 
 type Open = null | 'about' | 'more' | 'remote';
@@ -21,34 +22,17 @@ type Open = null | 'about' | 'more' | 'remote';
  */
 function Popover({ onClose, className, children }: { onClose: () => void; className: string; children: ReactNode }) {
   const panel = useRef<HTMLDivElement>(null);
-  const closeNow = useEffectEvent(onClose);
-  useEffect(() => {
-    const press = (e: PointerEvent) => {
-      const target = e.target as Element;
-      // A dialog opened from the popover is drawn elsewhere in the page, but belongs to it.
-      if (!panel.current?.contains(target) && !target.closest('[data-testid="live-bar"], [role="dialog"]')) closeNow();
-    };
-    const key = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      closeNow();
-    };
-    document.addEventListener('pointerdown', press, true);
-    document.addEventListener('keydown', key, true);
-    return () => {
-      document.removeEventListener('pointerdown', press, true);
-      document.removeEventListener('keydown', key, true);
-    };
-  }, []);
+  // A press on the bar is the bar's; a dialog opened from the popover is drawn elsewhere in the page, but belongs to it.
+  useDismiss(panel, onClose, (target) => !!target.closest('[data-testid="live-bar"], [role="dialog"]'));
   return (
-    <div ref={panel} className={`absolute z-[131] top-12 rounded-xl bg-surface dark:bg-raised shadow-2xl ring-[0.5px] ring-separator text-sm ${className}`}>
+    <div ref={panel} className={`absolute z-[131] top-12 touch:top-16 rounded-xl bg-surface dark:bg-raised shadow-2xl ring-[0.5px] ring-separator text-sm ${className}`}>
       {children}
     </div>
   );
 }
 
-const MENU_ROW = 'w-full h-8 px-2.5 flex items-center justify-between gap-3 rounded-md text-left cursor-pointer hover:bg-raised dark:hover:bg-raised-2';
-const BAR_BUTTON = 'h-8 px-3 rounded-lg flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer';
+const MENU_ROW = 'w-full h-8 touch:h-11 px-2.5 flex items-center justify-between gap-3 rounded-md text-left cursor-pointer hover:bg-raised dark:hover:bg-raised-2';
+const BAR_BUTTON = 'h-8 touch:h-11 touch:min-w-11 justify-center px-3 rounded-lg flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer';
 
 /**
  * The bar while presenting on a computer or an iPad lying down (docs/layout-2-0.md): "‹ Presentationer" at the
@@ -85,9 +69,9 @@ export function LiveBar({
     outputWindow().turn(false);
   };
   return (
-    <div className="relative shrink-0 h-13 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 border-b-[0.5px] border-separator bg-surface" data-testid="live-bar">
+    <div className="relative shrink-0 h-13 touch:h-15 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 px-4 border-b-[0.5px] border-separator bg-surface" data-testid="live-bar">
       {dialog}
-      <a href={href({ page: 'presentations' })} aria-label={t('nav.backToPresentations')} className="justify-self-start flex items-center gap-1 -ml-1 text-sm font-medium text-sky-500 hover:text-sky-600 no-underline whitespace-nowrap">
+      <a href={href({ page: 'presentations' })} aria-label={t('nav.backToPresentations')} className="justify-self-start flex items-center gap-1 -ml-1 touch:min-h-11 text-sm font-medium text-sky-500 hover:text-sky-600 no-underline whitespace-nowrap">
         <ChevronLeftIcon className="size-5" />
         {t('nav.presentations')}
       </a>
@@ -96,7 +80,7 @@ export function LiveBar({
         aria-label={t('live.about')}
         aria-expanded={open === 'about'}
         onClick={() => setOpen(open === 'about' ? null : 'about')}
-        className={`min-w-0 px-3 py-1 rounded-lg flex flex-col items-center cursor-pointer ${open === 'about' ? 'bg-raised dark:bg-raised-2' : ''}`}
+        className={`min-w-0 px-3 py-1 touch:min-h-11 justify-center rounded-lg flex flex-col items-center cursor-pointer ${open === 'about' ? 'bg-raised dark:bg-raised-2' : ''}`}
       >
         <span className="max-w-full flex items-center gap-2 whitespace-nowrap">
           <span className="text-[15px] font-semibold truncate">{presentation.name}</span>
@@ -126,7 +110,7 @@ export function LiveBar({
         <Popover onClose={close} className="left-1/2 -translate-x-1/2 w-96 p-4 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[15px] font-semibold truncate">{presentation.name}</span>
-            <AppButton variant="plain" onClick={() => (close(), onDetails())} className="h-7 px-3 rounded-lg bg-raised dark:bg-raised-2 text-[13px] font-semibold cursor-pointer">
+            <AppButton variant="plain" onClick={() => (close(), onDetails())} className="h-7 touch:h-11 px-3 rounded-lg bg-raised dark:bg-raised-2 text-[13px] font-semibold cursor-pointer">
               {t('live.editDetails')}
             </AppButton>
           </div>
@@ -141,7 +125,7 @@ export function LiveBar({
               {t('live.remote')}…
             </AppButton>
           )}
-          <a href={href({ page: 'songs' })} onClick={close} className={`${MENU_ROW} no-underline text-inherit`}>
+          <a href={href({ page: 'admin' })} onClick={close} className={`${MENU_ROW} no-underline text-inherit`}>
             {t('nav.admin')}
           </a>
         </Popover>

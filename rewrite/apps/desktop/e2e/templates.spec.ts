@@ -48,7 +48,7 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
 
   // PRES-A3: Skapa on the start page offers the template, and the dialog is prefilled from it.
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Skapa presentation' });
   await expect(picker.getByRole('button', { name: 'Tom presentation' })).toBeVisible();
   await picker.getByRole('button', { name: /Söndag.*Söndag 11:00 · Kyrkan/ }).click();

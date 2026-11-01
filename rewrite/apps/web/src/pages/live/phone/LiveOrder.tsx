@@ -81,8 +81,9 @@ export function LiveOrder({
           const liveHere = item.id === pointer.itemId;
           return (
             <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5">
+              {/* As iOS's grouped lists: the heading close above its rows, the space between the sections above it. */}
               <h3
-                className={`sticky top-0 z-[1] -mx-4 px-5 pt-2.5 pb-1.5 flex items-center justify-between gap-3 text-[13px] font-semibold uppercase tracking-wide backdrop-blur-md bg-ground/90 transition-colors ${item.id === addedId ? 'text-sky-500' : 'text-neutral-500 dark:text-neutral-400'}`}
+                className={`sticky top-0 z-[1] -mx-4 px-5 pt-5 pb-0.5 flex items-center justify-between gap-3 text-[13px]/4 font-semibold uppercase tracking-wide backdrop-blur-md bg-ground/90 transition-colors ${item.id === addedId ? 'text-sky-500' : 'text-neutral-500 dark:text-neutral-400'}`}
               >
                 <span className="flex items-center gap-2 min-w-0">
                   <span className="truncate">{item.title}</span>
@@ -92,7 +93,7 @@ export function LiveOrder({
                   variant="plain"
                   aria-label={t('live.itemMore', { title: item.title })}
                   onClick={() => onItemMenu(item)}
-                  className="-mr-2.5 h-7 w-9 rounded-full flex items-center justify-center cursor-pointer text-neutral-500 dark:text-neutral-400"
+                  className="-mr-2.5 -my-1.5 h-7 w-9 rounded-full flex items-center justify-center cursor-pointer text-neutral-500 dark:text-neutral-400"
                 >
                   <EllipsisIcon className="size-4" />
                 </AppButton>
@@ -112,7 +113,7 @@ export function LiveOrder({
                       picked.current = true;
                       onPick(item.id, partIndex);
                     }}
-                    className={`w-full flex gap-3 px-3 py-2.5 rounded-2xl text-left cursor-pointer ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? `bg-surface dark:bg-raised ring-2 ${pointer.black ? 'ring-neutral-500' : 'ring-red-500'}` : 'bg-surface'}`}
+                    className={`w-full flex gap-3 px-4 py-3 rounded-2xl text-left cursor-pointer ${slide.kind === 'media' ? 'items-center' : 'items-start'} ${current ? `bg-surface dark:bg-raised ring-2 ${pointer.black ? 'ring-neutral-500' : 'ring-red-500'}` : 'bg-surface'}`}
                   >
                     {slide.kind === 'media' && (
                       <span className={`w-24 aspect-video shrink-0 rounded-lg overflow-hidden ${before ? 'opacity-50' : ''}`}>
@@ -124,7 +125,7 @@ export function LiveOrder({
                         <span className="text-[13px] font-semibold text-neutral-500 dark:text-neutral-400 truncate">{partLabel(slide, partIndex)}</span>
                         {mark && <span className={`shrink-0 text-[11px] font-bold tracking-wide px-2 py-0.5 rounded-lg ${mark.className}`}>{mark.text}</span>}
                       </span>
-                      {slide.kind !== 'media' && <span className={`text-[15px]/snug whitespace-pre-line ${before ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-900 dark:text-neutral-100'}`}>{slide.text}</span>}
+                      {slide.kind !== 'media' && <span className={`text-[17px]/snug whitespace-pre-line ${before ? 'text-neutral-400 dark:text-neutral-500' : 'text-neutral-900 dark:text-neutral-100'}`}>{slide.text}</span>}
                     </span>
                   </AppButton>
                 );

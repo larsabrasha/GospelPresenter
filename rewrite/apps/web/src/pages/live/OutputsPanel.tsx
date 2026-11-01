@@ -91,7 +91,7 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
                 aria-label={t('screens.disconnect', { n: x.n })}
                 title={t('screens.disconnectShort')}
                 onClick={x.disconnect}
-                className="cursor-pointer text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400"
+                className="cursor-pointer touch:size-11 touch:-m-3 flex items-center justify-center text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400"
               >
                 <CloseIcon className="size-4" />
               </AppButton>

@@ -29,7 +29,7 @@ const GLASS = 'bg-white/70 dark:bg-surface/60 backdrop-blur-md shadow-[inset_0_0
 /** How long an item just added stays marked. */
 const MARKED_MS = 2600;
 /** A row of a sheet's menu. */
-const ROW = 'w-full min-h-12 px-4 flex items-center justify-between gap-3 text-[17px] text-left cursor-pointer';
+const ROW = 'w-full min-h-12 px-4 flex items-center gap-3.5 text-[17px] text-left cursor-pointer';
 
 /**
  * Presenting on a phone or an iPad held upright (docs/layout-2-0.md): the bar (back, the title that opens the
@@ -125,45 +125,46 @@ export function PhoneLive({
         </div>
       </div>
 
-      <div className="px-4 pt-3 flex flex-col gap-2.5 shrink-0 items-center">
+      <div className="px-4 pt-3 flex flex-col gap-3 shrink-0 items-center">
         <div className={`w-full max-w-[640px] aspect-video rounded-2xl overflow-hidden ring-2 ${pointer.black ? 'ring-neutral-500' : 'ring-red-500'}`} data-testid="phone-live-picture">
           <SlideView slide={current} theme={theme} label={false} overlay={overlay} black={pointer.black} />
         </div>
         {video && pointer.itemId && presenting.video && <VideoPlayer control={presenting.video} itemId={pointer.itemId} name={video.fileName} type={video.contentType} codec={video.codec} />}
-        <div role="toolbar" aria-label={t('live.outputs')} className="w-full max-w-[640px] flex gap-2 h-11.5">
-          <AppButton variant="plain" aria-label={t('live.previous')} disabled={at <= 0} onClick={() => go(at - 1)} className="w-16 rounded-full flex items-center justify-center bg-surface cursor-pointer disabled:opacity-35">
+        {/* As iOS 27's player: round glass arrows, and Rensa a capsule of its own width between them. */}
+        <div role="toolbar" aria-label={t('live.outputs')} className="flex items-center justify-center gap-4 h-11">
+          <AppButton variant="plain" aria-label={t('live.previous')} disabled={at <= 0} onClick={() => go(at - 1)} className={`size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 ${GLASS}`}>
             <ChevronLeftIcon className="size-5" />
           </AppButton>
           <AppButton
             variant="plain"
             aria-pressed={pointer.black}
             onClick={() => live.set({ black: !pointer.black })}
-            className={`flex-1 rounded-full flex items-center justify-center gap-1.5 text-[15px] font-semibold cursor-pointer ${pointer.black ? 'bg-neutral-900 text-white dark:bg-white dark:text-black' : 'bg-surface'}`}
+            className={`h-11 min-w-36 px-6 rounded-full flex items-center justify-center gap-1.5 text-[15px] font-semibold cursor-pointer ${pointer.black ? 'bg-neutral-900 text-white dark:bg-white dark:text-black' : GLASS}`}
           >
             {!pointer.black && <CloseIcon className="size-4" />}
             {pointer.black ? t('live.showAgain') : t('live.clear')}
           </AppButton>
-          <AppButton variant="plain" aria-label={t('live.nextSlide')} disabled={at === -1 ? !steps.length : at >= steps.length - 1} onClick={() => go(at + 1)} className="w-16 rounded-full flex items-center justify-center bg-surface cursor-pointer disabled:opacity-35">
+          <AppButton variant="plain" aria-label={t('live.nextSlide')} disabled={at === -1 ? !steps.length : at >= steps.length - 1} onClick={() => go(at + 1)} className={`size-11 rounded-full flex items-center justify-center cursor-pointer disabled:opacity-35 ${GLASS}`}>
             <ChevronLeftIcon className="size-5 rotate-180" />
           </AppButton>
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-5 pt-4 pb-1.5 border-b-[0.5px] border-neutral-300 dark:border-separator shrink-0">
-        <h2 className="text-xl font-bold">{t('live.order')}</h2>
-        <span className="flex items-center gap-2">
+      {/* A quiet heading, as iOS 27's lists: Redigera as text, Lägg till as a round +, no line under it. */}
+      <div className="flex items-center justify-between pl-5 pr-4 pt-6 pb-1 shrink-0">
+        <h2 className="text-xl/7 font-semibold">{t('live.order')}</h2>
+        <span className="flex items-center gap-1">
           <AppButton
             variant="plain"
             aria-pressed={editing}
             onClick={() => setEditing(!editing)}
-            className={`h-9 px-3.5 rounded-full text-[15px] cursor-pointer ${editing ? 'bg-sky-600 text-white font-bold' : 'bg-raised font-semibold'}`}
+            className={`h-11 px-3 text-[17px] text-sky-500 cursor-pointer ${editing ? 'font-semibold' : ''}`}
           >
             {editing ? t('live.editDone') : t('live.edit')}
           </AppButton>
           {!editing && (
-            <AppButton variant="plain" onClick={() => setAdding({ chosenId: null })} className="h-9 px-3.5 rounded-full flex items-center gap-1.5 text-[15px] font-semibold cursor-pointer bg-sky-500/15 text-sky-500">
-              <PlusIcon className="size-4" />
-              {t('live.add')}
+            <AppButton variant="plain" aria-label={t('live.add')} title={t('live.add')} onClick={() => setAdding({ chosenId: null })} className="size-9 rounded-full flex items-center justify-center cursor-pointer bg-sky-500 text-white">
+              <PlusIcon className="size-5" />
             </AppButton>
           )}
         </span>
@@ -264,11 +265,12 @@ export function PhoneLive({
   );
 }
 
+/** A choice in a sheet's menu, its icon first, as iOS 27 draws them. */
 function MenuRow({ icon, onClick, danger, disabled, children }: { icon?: ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; children: ReactNode }) {
   return (
     <AppButton variant="plain" onClick={onClick} disabled={disabled} className={`${ROW} ${danger ? 'text-red-500' : ''} disabled:text-neutral-400 disabled:cursor-default disabled:text-[15px]`}>
+      {icon && <span className={`shrink-0 flex ${danger || disabled ? '' : 'text-neutral-500 dark:text-neutral-400'}`}>{icon}</span>}
       <span>{children}</span>
-      {icon}
     </AppButton>
   );
 }

@@ -33,29 +33,34 @@ export async function dropFiles(target: Locator, files: { name: string; mimeType
 }
 
 /**
- * The admin menu at the side, opened with the cog in the bar unless an admin page is open already; while
+ * Inställningar's list, opened from the picture's menu in the bar unless Inställningar is open already; while
  * presenting, from the live bar's ….
  */
 export async function adminMenu(page: Page) {
   const menu = page.getByRole('navigation', { name: 'Administration' });
   if (await menu.isVisible()) return menu;
   const bar = page.getByTestId('live-bar');
-  if (await bar.isVisible()) await bar.getByRole('button', { name: 'Mer', exact: true }).click();
-  await page.getByRole('link', { name: 'Inställningar', exact: true }).click();
+  if (await bar.isVisible()) {
+    await bar.getByRole('button', { name: 'Mer', exact: true }).click();
+    await page.getByRole('link', { name: 'Inställningar', exact: true }).click();
+  } else {
+    await page.getByTestId('me').click();
+    await page.getByRole('menuitem', { name: 'Inställningar', exact: true }).click();
+  }
   return menu;
 }
 
-/** Opens a page of the admin menu: Sånger, Bilder, Användare and the rest. */
+/** Opens a page of Inställningar: Sånger, Bilder, Användare and the rest. */
 export async function openAdmin(page: Page, name: string) {
   await (await adminMenu(page)).getByRole('link', { name, exact: true }).click();
 }
 
-/** The admin pages' dialog, over the page the user was on. */
+/** Inställningar's dialog, over the page the user was on. */
 export function adminDialog(page: Page) {
   return page.getByRole('dialog', { name: 'Inställningar' });
 }
 
-/** Closes the admin pages' dialog with Stäng, if it is open: back to the page under it. */
+/** Closes Inställningar with Stäng, if it is open: back to the page under it. */
 export async function closeAdmin(page: Page) {
   const dialog = adminDialog(page);
   if (!(await dialog.isVisible())) return;
@@ -63,7 +68,7 @@ export async function closeAdmin(page: Page) {
   await expect(dialog).toHaveCount(0);
 }
 
-/** The start page, the presentations: the logo in the bar, or in a presentation the way back; under the admin dialog when that is open. */
+/** The start page, the presentations: the logo in the bar, or in a presentation the way back; under Inställningar when that is open. */
 export async function openPresentations(page: Page) {
   await closeAdmin(page);
   await page.getByRole('link', { name: /^(Gospel Presenter|Tillbaka till presentationerna)$/ }).click();
@@ -100,7 +105,7 @@ export async function createSong(page: Page, name: string, parts: [string, strin
 /** Creates a presentation and stays in its editor. */
 export async function createPresentation(page: Page, name: string, date?: string) {
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   await dialog.getByLabel('Namn').fill(name);
   if (date) await dialog.getByLabel('Datum').fill(date);

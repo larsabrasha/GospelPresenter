@@ -10,6 +10,8 @@
 @import "./styles.css" layer(slide);
 
 @custom-variant dark (&:where(.dark, .dark *));
+/* A finger rather than a mouse (an iPad lying down): rows and buttons at least 44 pt, items dragged by ≡ (docs/layout-2-0.md). */
+@custom-variant touch (@media (pointer: coarse));
 
 /*
  * The 2.0 colours (docs/layout-2-0.md), iOS's grouped scale: the ground; a surface on it (cards, panels,

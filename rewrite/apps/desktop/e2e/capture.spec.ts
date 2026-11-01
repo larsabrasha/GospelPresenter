@@ -157,7 +157,7 @@ test('capture every page', async () => {
     await p.getByRole('button', { name: 'Lägg till', exact: true }).click();
     if (key) await p.keyboard.press(key);
   };
-  // On a phone the floating live panel can cover the slide: fold it for the click, then open it again for the picture.
+  // A phone presents in one column (docs/layout-2-0.md), with the picture and every part in view: nothing to click.
   const goLive = async (p: Page) => {
     // Starta presentation stays on the page; the first item selected shows its slides.
     const start = p.getByRole('button', { name: 'Starta presentation' });
@@ -165,22 +165,18 @@ test('capture every page', async () => {
       await pickItem(p);
       await start.click();
     }
-    const slide = p.getByRole('button', { name: 'Härlig är jorden 1' });
-    await slide.waitFor();
-    const fold = p.getByRole('button', { name: 'Fäll in eller ut live-vyn' });
-    const phone = p.viewportSize()!.width < 1024 && (await fold.isVisible());
-    if (phone) {
-      await fold.click();
-      await expect(fold).toHaveAttribute('aria-expanded', 'false');
-    }
-    await slide.click();
-    if (phone) {
-      await fold.click();
-      await expect(fold).toHaveAttribute('aria-expanded', 'true');
-    }
+    if (p.viewportSize()!.width < 1024) return p.getByRole('button', { name: 'Rensa' }).waitFor();
+    await p.getByRole('button', { name: 'Härlig är jorden 1' }).click();
   };
-  const stopLive = (p: Page) => endPresentation(p);
-  // On a phone the admin menu covers the page at first; tap the dimmed page to close it.
+  // On a phone Avsluta is last in …, which opens a sheet named after the presentation.
+  const stopLive = async (p: Page) => {
+    if (p.viewportSize()!.width >= 1024) return endPresentation(p);
+    await p.getByRole('button', { name: 'Mer', exact: true }).click();
+    await p.getByRole('dialog').last().getByRole('button', { name: 'Avsluta presentation' }).click();
+    await p.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
+  };
+  // Settles a page of Inställningar. A phone shows a row's page alone (docs/layout-2-0.md), so an aside in view
+  // there is a menu from before 2.0 that covers the page: a tap on the dimmed page closes it.
   const closeAdminMenu = async (p: Page) => {
     if (p.viewportSize()!.width < 1024 && (await p.locator('aside:visible').count())) await p.mouse.click(370, 400);
     await p.waitForTimeout(400);
@@ -284,6 +280,7 @@ test('capture every page', async () => {
       },
     ],
     ['trash', '/trash'],
+    ['profile-menu', '/', (p) => p.getByTestId('me').click()],
     ['settings', '/settings'],
     ['profile', '/logins'],
     ['admin', '/admin'],

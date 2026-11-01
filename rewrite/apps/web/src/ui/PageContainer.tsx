@@ -8,6 +8,11 @@ const Filled = createContext(false);
 /** Pages in a box of their own width, as the admin dialog: they fill it rather than keep their centred column. */
 export const PageFill = Filled.Provider;
 
+const Alone = createContext(false);
+
+/** A page opened alone in Inställningar (router.ts `aloneInSettings`): its detail header has no way back. */
+export const PageAlone = Alone.Provider;
+
 /**
  * A page's scrolling area and its centred column (Components/PageContainer.razor):
  * 720 px wide from the `sm` size, the full width below it; in a `PageFill`, the full width.
@@ -22,11 +27,11 @@ export function PageContainer({ children, maxWidthClass, className }: { children
   );
 }
 
-/** A page's heading row: its title, and its buttons at the right. */
-export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
+/** A page's heading row: its title, and its buttons at the right. `large` for a phone's large title, as iOS's. */
+export function PageHeader({ title, large, children }: { title: string; large?: boolean; children?: ReactNode }) {
   return (
     <div className="relative flex items-center justify-between px-5">
-      <h1 className="text-xl/7 font-bold dark:text-neutral-100">{title}</h1>
+      <h1 className={`text-xl/7 font-bold dark:text-neutral-100 ${large ? 'max-sm:text-[34px]/tight' : ''}`}>{title}</h1>
       {children}
     </div>
   );
@@ -39,9 +44,10 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
  * button with `onBack`; with neither, the title alone (Profile.razor).
  */
 export function DetailHeader({ backHref, onBack, title, saved, className }: { backHref?: string; onBack?: () => void; title: string; saved?: ReactNode; className?: string }) {
+  const alone = useContext(Alone);
   return (
     <div className={`relative flex items-center justify-center min-h-10 ${className ?? ''}`}>
-      {(backHref || onBack) && (
+      {!alone && (backHref || onBack) && (
         <AppButton
           variant="plain"
           {...(backHref ? { href: backHref } : { onClick: onBack })}

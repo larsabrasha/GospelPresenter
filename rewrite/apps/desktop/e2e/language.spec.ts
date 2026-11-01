@@ -15,7 +15,7 @@ test('English chosen under Mina inställningar shows the app in English, after a
   const page = host.page;
   await setUpHost(host);
   await page.getByTestId('me').click();
-  await page.getByRole('menuitem', { name: 'Mina inställningar' }).click();
+  await page.getByRole('menuitem', { name: 'Mina inställningar', exact: true }).click();
 
   await page.getByRole('radio', { name: 'English' }).click();
 
@@ -24,6 +24,7 @@ test('English chosen under Mina inställningar shows the app in English, after a
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'My settings' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Close', exact: true }).first().click();
   await page.getByTestId('me').click();
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
   await expect(page.getByRole('button', { name: /Sign in with/ }).first()).toBeVisible();

@@ -82,4 +82,5 @@ On a phone a list as iOS's Settings: Mina inställningar as a profile cell at th
 Biblar, Bilder, Ljud, Videor), Presentation (Overlays, Mallar, Etiketter), Visning (Skärmar, Teman, CCLI-rapport),
 Församlingen (Användare, Församlingen, Organisationer) and Om Gospel Presenter, each with a coloured icon; a row
 opens its page full width with "‹ Inställningar". On a computer as macOS's System Settings: the same list at the
-left, the page at the right. This replaces the admin dialog and its side menu.
+left, the page at the right. It stays a dialog over the page the user is on (filling the screen on a phone); the
+list replaces the dialog's side menu.

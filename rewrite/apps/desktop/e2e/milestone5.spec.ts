@@ -118,7 +118,7 @@ test('a picture imported while the host is down is kept, and reaches the host an
   await openAdmin(page, 'Bilder');
   await page.getByTestId('image-file').setInputFiles({ name: 'Kors.png', mimeType: 'image/png', buffer: solidPng(800, 600, [20, 60, 200]) });
   await expect(page.getByTestId('image-card').getByRole('img', { name: 'Kors.png' })).toBeVisible(); // shown at once, from this device
-  await expect(page.getByTestId('status')).toContainText('1 ändringar väntar');
+  await expect(page.getByTestId('status')).toContainText('1 ändring väntar');
 
   // The host comes back on the same port: the blobs are uploaded, then the add is pushed.
   host = await launch({ port, dataDir: hostData });

@@ -9,7 +9,7 @@ import { CAPTION } from '../../ui/Toggle.tsx';
 import { OutputsPanel } from './OutputsPanel.tsx';
 import { OverlaysPanel } from './OverlaysPanel.tsx';
 
-const STEP = 'w-13 h-9 shrink-0 rounded-lg flex items-center justify-center bg-raised cursor-pointer disabled:opacity-35 disabled:cursor-default';
+const STEP = 'w-13 h-9 touch:h-11 shrink-0 rounded-lg flex items-center justify-center bg-raised cursor-pointer disabled:opacity-35 disabled:cursor-default';
 
 /**
  * The live column on a computer or an iPad lying down (docs/layout-2-0.md): what is used during a service and no
@@ -57,7 +57,7 @@ export function LivePanel({
           title={t('live.clear')}
           aria-pressed={pointer.black}
           onClick={() => live.set({ black: !pointer.black })}
-          className={`flex-1 h-9 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold cursor-pointer ${pointer.black ? 'bg-neutral-900 text-white dark:bg-white dark:text-black' : 'bg-raised'}`}
+          className={`flex-1 h-9 touch:h-11 rounded-lg flex items-center justify-center gap-1.5 text-sm font-semibold cursor-pointer ${pointer.black ? 'bg-neutral-900 text-white dark:bg-white dark:text-black' : 'bg-raised'}`}
         >
           {!pointer.black && <CloseIcon className="size-4" />}
           {pointer.black ? t('live.showAgain') : t('live.clear')}

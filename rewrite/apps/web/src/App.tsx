@@ -39,8 +39,10 @@ import { Labels } from './pages/Labels.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { UserDetail } from './pages/UserDetail.tsx';
 import { Users } from './pages/Users.tsx';
-import { AdminLayout, SyncWarnings, TopBar, UnexpectedError } from './Shell.tsx';
+import { SyncWarnings, UnexpectedError } from './Shell.tsx';
 import { PageDialog } from './ui/Dialog.tsx';
+import { TopBar } from './TopBar.tsx';
+import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
 import { ShortcutHelp } from './ui/ShortcutHelp.tsx';
 import { PageContainer } from './ui/PageContainer.tsx';
 import { closeAdmin, isAdminPage, useRoute, type Route } from './ui/router.ts';
@@ -106,7 +108,9 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
   const viewUsers = can(me.role, 'ViewUsers');
   const admin = (
     <>
-      {route.page === 'songs' && <Songs />}
+      {(route.page === 'songs' || route.page === 'admin') && <Songs />}
+      {route.page === 'settings' && <Settings />}
+      {route.page === 'logins' && <Logins error={route.error} />}
       {/* Keyed by the song, so its fields write their pending saves to it before another song's open. */}
       {route.page === 'song' && <SongEditor key={route.id} id={route.id} />}
       {route.page === 'users' && (viewUsers ? <Users me={me} /> : <Refused text={t('users.forbidden')} />)}
@@ -130,7 +134,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings /> : <Refused text={t('orgSettings.forbidden')} />)}
     </>
   );
-  // The admin pages open in a dialog over the page the user was on, which stays as it was (presenting goes
+  // Inställningar opens in a dialog over the page the user was on, which stays as it was (presenting goes
   // on); opened from the address bar, over the start page.
   const adminOpen = isAdminPage(route);
   const [under, setUnder] = useState<Route>(adminOpen ? { page: 'presentations' } : route);
@@ -141,13 +145,11 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
     <ToastProvider>
       <ShortcutHelp />
       <UnexpectedError />
-      {/* Out of reach under the admin dialog, for the keyboard and screen readers too. */}
+      {/* Out of reach under the dialog, for the keyboard and screen readers too. */}
       <div className="contents" inert={adminOpen} aria-hidden={adminOpen || undefined}>
-        {!liveHere && <TopBar me={me} back={under.page === 'presentation'} warnings={!adminOpen} />}
+        {!liveHere && <TopBar me={me} back={under.page === 'presentation'} create={under.page === 'presentations'} warnings={!adminOpen} />}
         {under.page === 'presentations' ? (
           <Presentations link={link} ownSessionId={sessionId} />
-        ) : under.page === 'settings' ? (
-          <Settings />
         ) : under.page === 'presentation' ? (
           <Live key={`${under.id}:${under.remote ? (under.session ?? 'remote') : 'own'}`} id={under.id} role={me.role} live={live} link={link} audio={audio} video={video} sessionId={sessionId} remote={under.remote} session={under.session} stage={under.stage} />
         ) : under.page === 'template' ? (
@@ -157,18 +159,16 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           ) : (
             <Refused text={t('templates.forbidden')} />
           )
-        ) : under.page === 'trash' ? (
-          <Trash key={under.kind ?? 'all'} kind={under.kind} role={me.role} />
         ) : (
-          under.page === 'logins' && <Logins error={under.error} />
+          under.page === 'trash' && <Trash key={under.kind ?? 'all'} kind={under.kind} role={me.role} />
         )}
       </div>
       {adminOpen && (
         <PageDialog title={t('nav.admin')} onClose={() => closeAdmin(under)}>
           <SyncWarnings />
-          <AdminLayout me={me} host={host} route={route}>
+          <SettingsLayout me={me} host={host} route={route}>
             {admin}
-          </AdminLayout>
+          </SettingsLayout>
         </PageDialog>
       )}
     </ToastProvider>

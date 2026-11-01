@@ -4,6 +4,7 @@ import { useData, useDb, useShownOverlay } from '../../db/react.tsx';
 import { arrangementsOf, getPresentation, itemsOf, listOverlays, songsById, themeOf } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { slidesOfItems } from '../../live/live.ts';
+import { addAfter } from '../../live/liveList.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
@@ -15,6 +16,7 @@ import type { VideoControl } from '../../live/video.ts';
 import type { LiveControl, LiveLink } from '../../live/remote.ts';
 import { useLivePointer } from '../../live/useLive.ts';
 import { LiveBar } from '../live/desktop/LiveBar.tsx';
+import { LiveOrder } from '../live/desktop/LiveOrder.tsx';
 import { LiveSlides } from '../live/desktop/LiveSlides.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
 import { PhoneLive } from '../live/phone/PhoneLive.tsx';
@@ -149,6 +151,9 @@ export function PresentationEditor({
   const [ticking, setTicking] = useState(false);
   // The add dialog: open, and whether it adds pictures to the selected image item (Lägg till bilder).
   const [adding, setAdding] = useState<false | 'item' | 'images'>(false);
+  // While presenting: the item "Lägg till efter" named, and the last item added, which the next addition follows (liveList.ts).
+  const [chosenAfter, setChosenAfter] = useState<string | null>(null);
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const [details, setDetails] = useState(false);
   const [savingAsTemplate, setSavingAsTemplate] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -252,7 +257,8 @@ export function PresentationEditor({
     if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === 'a') setAdding('item');
     else if (e.key === 'F2' && selected) setRenaming(true);
-    else if (e.key === 'Delete' && selected) void removeItem(selected);
+    // The item shown cannot be removed while presenting (docs/layout-2-0.md).
+    else if (e.key === 'Delete' && selected && !(presenting && selected.id === liveItemId)) void removeItem(selected);
     else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && items.length && !e.shiftKey) {
       // PRES-R41: no wrap; the first ↓ lands on the first item, the first ↑ on the last.
       const at = items.findIndex((i) => i.id === selected?.id);
@@ -308,6 +314,13 @@ export function PresentationEditor({
     navigate({ page: template ? 'templates' : 'presentations' });
   };
 
+  // A row chosen in the running order; on a computer while presenting, the slides scroll to it, each choice anew.
+  const select = (itemId: string) => {
+    setSelectedId(itemId);
+    setRenaming(false);
+    setMenuVisible(false);
+    setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 }));
+  };
   const selectedSong = selected?.type === 'song' ? songs.get(selected.sourceId) : undefined;
   const selectedArrangements = selectedSong ? sortedArrangements(data.arrangements, selectedSong.id) : [];
   const selectedSlides = selected ? slides.get(selected.id) : undefined;
@@ -360,24 +373,34 @@ export function PresentationEditor({
               onTicking={setTicking}
               media={!!presenting && !!owner}
             >
-              <RunningOrder
-                items={items}
-                slides={slides}
-                overlays={overlays}
-                selectedId={selectedId}
-                liveItemId={liveItemId}
-                ticking={ticking}
-                onDoneTicking={() => setTicking(false)}
-                onRemoveTicked={(chosen) => void removeItems(chosen)}
-                onSelect={(itemId) => {
-                  setSelectedId(itemId);
-                  setRenaming(false);
-                  setMenuVisible(false);
-                  setReveal((r) => ({ id: itemId, n: (r?.n ?? 0) + 1 }));
-                }}
-                onRemove={(item) => void removeItem(item)}
-                onAdd={() => setAdding('item')}
-              />
+              {presenting && !ticking ? (
+                <LiveOrder
+                  items={items}
+                  slides={slides}
+                  selectedId={selectedId}
+                  shownId={liveItemId}
+                  onSelect={select}
+                  onAddAfter={(itemId) => {
+                    setChosenAfter(itemId);
+                    setAdding('item');
+                  }}
+                  onRemove={(item) => void removeItem(item)}
+                />
+              ) : (
+                <RunningOrder
+                  items={items}
+                  slides={slides}
+                  overlays={overlays}
+                  selectedId={selectedId}
+                  liveItemId={liveItemId}
+                  ticking={ticking}
+                  onDoneTicking={() => setTicking(false)}
+                  onRemoveTicked={(chosen) => void removeItems(chosen)}
+                  onSelect={select}
+                  onRemove={(item) => void removeItem(item)}
+                  onAdd={() => setAdding('item')}
+                />
+              )}
             </SideMenu>
             {presenting ? (
               <LiveSlides
@@ -428,11 +451,18 @@ export function PresentationEditor({
         {!phone && adding && (
           <AddItemDialog
             presentationId={id}
-            afterItemId={selectedId}
+            // While presenting, after what is shown or the last addition still ahead, unless "Lägg till efter" named the place.
+            afterItemId={presenting ? addAfter({ order: items.map((i) => i.id), shownId: liveItemId, lastAddedId, chosenId: chosenAfter, selectedId }) : selectedId}
             theme={theme}
             toItemId={adding === 'images' ? (selectedId ?? undefined) : undefined}
-            onAdded={setSelectedId}
-            onClose={() => setAdding(false)}
+            onAdded={(itemId) => {
+              setSelectedId(itemId);
+              setLastAddedId(itemId);
+            }}
+            onClose={() => {
+              setAdding(false);
+              setChosenAfter(null);
+            }}
           />
         )}
         {details &&

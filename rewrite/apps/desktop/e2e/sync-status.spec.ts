@@ -1,6 +1,5 @@
-// The sync icon in the bar (Components/SyncStatusIndicator.razor): a click
-// syncs now, a sync that runs long shows a spinner, and a change the server
-// refused is told in a toast.
+// The sync in the bar (docs/layout-2-0.md): a cloud only while something is wrong, which syncs now; the picture's
+// menu says how it stands; a change the server refused is told in a toast.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { openPresentations, setUpHost } from './flows.ts';
@@ -11,28 +10,31 @@ test.afterEach(async () => {
   host = undefined;
 });
 
-test('a click on the sync icon syncs now, and a sync that runs over 1.5 s shows the spinner', async () => {
+test('the cloud shows in the bar only while changes wait past a moment, and the menu behind the picture says how the sync stands', async () => {
   host = await launch();
   await setUpHost(host);
   const page = host.page;
   const status = page.getByTestId('status');
   await expect(status).toHaveText(/^Synkad$/, { timeout: 5_000 });
-  await expect(status).toHaveAttribute('title', 'Synkad · Synka nu');
-  // Every pull from here on takes 2.5 s.
-  let pulls = 0;
-  await page.route('**/api/sync/pull', async (route) => {
-    pulls++;
-    await new Promise((r) => setTimeout(r, 2500)); // a slow network, not a wait in the test
+  const cloud = page.getByRole('button', { name: /Synka nu/ });
+  await expect(cloud).toHaveCount(0);
+  // Every push from here on takes 4 s.
+  await page.route('**/api/sync/push', async (route) => {
+    await new Promise((r) => setTimeout(r, 4000)); // a slow network, not a wait in the test
     await route.continue();
   });
 
-  await status.click();
+  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Skapa presentation' }).getByLabel('Namn').press('Enter');
 
-  await expect(status).toHaveText(/^Synkar…$/);
-  await expect(status.locator('.animate-spin')).toBeVisible();
-  expect(pulls).toBeGreaterThan(0);
+  await expect(cloud).toBeVisible();
+  await expect(status).toContainText(/ändringa?r? väntar/);
+  await page.getByTestId('me').click();
+  await expect(page.getByTestId('sync-state')).toContainText(/ändringa?r? väntar/);
+  await expect(page.getByRole('menuitem', { name: 'Synka nu' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(status).toHaveText(/^Synkad$/, { timeout: 10_000 });
-  await expect(status.locator('.animate-spin')).toHaveCount(0);
+  await expect(cloud).toHaveCount(0);
 });
 
 test('a change the server refuses is told in a toast, and the bar shows no warning for it', async () => {
@@ -48,7 +50,7 @@ test('a change the server refuses is told in a toast, and the bar shows no warni
   });
 
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   await dialog.getByLabel('Namn').fill('Gudstjänst');
   await dialog.getByLabel('Namn').press('Enter');

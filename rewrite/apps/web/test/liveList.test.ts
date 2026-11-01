@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addAfter, followsShown, outputsState } from '../src/live/liveList.ts';
+import { addAfter, followsShown, itemActions, outputsState } from '../src/live/liveList.ts';
 
 const order = ['welcome', 'song', 'reading', 'sermon', 'blessing'];
 
@@ -120,5 +120,20 @@ describe('outputsState', () => {
     const state = outputsState(false, outputs);
 
     expect(state).toEqual({ kind: 'off' });
+  });
+});
+
+describe('itemActions', () => {
+  it('the first item cannot move up, and the last cannot move down', () => {
+    expect(itemActions(order, 'welcome', null)).toMatchObject({ up: false, down: true });
+    expect(itemActions(order, 'blessing', null)).toMatchObject({ up: true, down: false });
+  });
+
+  it('the shown item can move but not be removed', () => {
+    expect(itemActions(order, 'song', 'song')).toEqual({ up: true, down: true, remove: false });
+  });
+
+  it('an item not shown can be removed', () => {
+    expect(itemActions(order, 'sermon', 'song').remove).toBe(true);
   });
 });

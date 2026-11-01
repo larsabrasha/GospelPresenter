@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { language, setLanguage, t, type Language, type TextKey } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { CheckIcon, ComputerIcon, GlobeIcon, MoonIcon, SunIcon } from '../ui/icons.tsx';
+import { CheckIcon, ChevronRightIcon, ComputerIcon, GlobeIcon, KeyIcon, MoonIcon, SunIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
+import { href } from '../ui/router.ts';
 import { getTheme, setTheme, type ThemeChoice } from '../ui/theme.ts';
 import { useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
@@ -78,9 +79,23 @@ function Choices<T extends string>({ id, title, options, current, onChoose }: { 
   );
 }
 
+/** Konto: the ways to sign in, which the picture's menu held before 2.0. */
+function Account() {
+  return (
+    <div className={CARD}>
+      <h2 className="px-5 pt-4 pb-1 text-sm/5 font-medium">{t('settings.account')}</h2>
+      <a href={href({ page: 'logins', error: null })} className="flex items-center gap-3 px-5 py-3 no-underline text-inherit hover:bg-raised">
+        <KeyIcon className="size-5 shrink-0 text-neutral-400" />
+        <span className="flex-1">{t('logins.title')}</span>
+        <ChevronRightIcon className="size-4 text-neutral-400 dark:text-neutral-600" />
+      </a>
+    </div>
+  );
+}
+
 /**
  * "Mina inställningar" (Pages/Settings.razor): the colour theme and the language of this device, and what it keeps
- * offline. The version is under Om Gospel Presenter. A new language loads the page again in it.
+ * offline, and the ways to sign in. The version is under Om Gospel Presenter. A new language loads the page again in it.
  */
 export function Settings() {
   const [current, setCurrent] = useState(getTheme);
@@ -100,6 +115,7 @@ export function Settings() {
       <Choices id="language-label" title="settings.language" options={LANGUAGES.map((l) => ({ ...l, icon: GlobeIcon }))} current={language()} onChoose={(v) => v !== language() && setLanguage(v)} />
       <KeepComing />
       <StorageSection />
+      <Account />
     </PageContainer>
   );
 }

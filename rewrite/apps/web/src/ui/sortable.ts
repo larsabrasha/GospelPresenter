@@ -9,6 +9,13 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties, type Poin
 /** How long a finger holds still before a drag starts, and how far it may move meanwhile (SortableJS's delay, touchStartThreshold). */
 const TOUCH_DELAY = 150;
 const TOUCH_SLOP = 5;
+/** How far a mouse pressed on a whole row moves before it drags it, so a click still selects (docs/layout-2-0.md). */
+const MOUSE_SLOP = 4;
+
+/** Whether a mouse pressed on a whole row has moved past `MOUSE_SLOP`, and so drags it rather than clicks. */
+export function mouseDragBegins(dx: number, dy: number): boolean {
+  return Math.hypot(dx, dy) > MOUSE_SLOP;
+}
 /** How near the edge of the scrolling box the pointer scrolls it, and how fast (SortableJS's scrollSensitivity, scrollSpeed). */
 const EDGE = 30;
 const SPEED = 10;
@@ -34,6 +41,17 @@ interface Drag {
   step: number;
 }
 
+/** Stops the next click, which a drag's release would otherwise make on what is under the pointer. */
+function swallowClick() {
+  const swallow = (ev: Event) => {
+    ev.stopPropagation();
+    ev.preventDefault();
+  };
+  addEventListener('click', swallow, { capture: true, once: true });
+  // A release outside the row makes no click: the next real one must land.
+  setTimeout(() => removeEventListener('click', swallow, { capture: true }), 0);
+}
+
 function scrollParent(el: HTMLElement): HTMLElement | null {
   for (let p = el.parentElement; p; p = p.parentElement) {
     const { overflowY } = getComputedStyle(p);
@@ -46,7 +64,9 @@ function scrollParent(el: HTMLElement): HTMLElement | null {
  * Drag to reorder the rows of `listRef`'s element: its direct children marked
  * `data-sort-row`, in order. A row's handle gets `handle(i)`; the row gets
  * `rowStyle(i)`. A pointer down on a button or link inside the handle is left
- * to it. Escape cancels a drag.
+ * to it. Escape cancels a drag. A row a mouse drags as a whole gets `wholeRow(i)`
+ * instead: the drag starts once the mouse has moved 4 px, so a click on the row's
+ * buttons still lands, and a finger is left to scroll (it drags by a handle).
  */
 export function useSortable<T extends HTMLElement>(onMove: (from: number, to: number) => void) {
   const listEl = useRef<T | null>(null);
@@ -71,16 +91,16 @@ export function useSortable<T extends HTMLElement>(onMove: (from: number, to: nu
     };
   }, []);
 
-  const start = (e: ReactPointerEvent<HTMLElement>, from: number) => {
+  const start = (e: ReactPointerEvent<HTMLElement>, from: number, whole = false) => {
     const list = listEl.current;
     if (!list || stop.current || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    const control = (e.target as Element).closest('button, a, input, textarea, select');
+    const control = (e.target as Element).closest(whole ? '[data-no-drag]' : 'button, a, input, textarea, select');
     if (control && e.currentTarget.contains(control)) return;
     const rows = [...list.children].filter((c): c is HTMLElement => c instanceof HTMLElement && c.dataset.sortRow !== undefined);
     const rects = rows.map((r) => r.getBoundingClientRect());
     const own = rects[from];
     if (!own) return;
-    if (e.pointerType === 'mouse') e.preventDefault(); // no text selection while dragging
+    if (e.pointerType === 'mouse' && !whole) e.preventDefault(); // no text selection while dragging
 
     const mids = rects.map((r) => r.top + r.height / 2);
     const gap = rects.length > 1 ? rects[1]!.top - rects[0]!.bottom : 0;
@@ -121,7 +141,9 @@ export function useSortable<T extends HTMLElement>(onMove: (from: number, to: nu
       if (ev.pointerId !== pointerId) return;
       y = ev.clientY;
       if (active.current) update();
-      else if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > TOUCH_SLOP) end(false); // a swipe: let it scroll
+      else if (whole) {
+        if (mouseDragBegins(ev.clientX - startX, ev.clientY - startY)) begin();
+      } else if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > TOUCH_SLOP) end(false); // a swipe: let it scroll
     };
     const onPointerUp = (ev: PointerEvent) => {
       if (ev.pointerId === pointerId) end(active.current && to !== from);
@@ -139,6 +161,8 @@ export function useSortable<T extends HTMLElement>(onMove: (from: number, to: nu
       if (active.current) ev.preventDefault(); // a long press on a tablet
     };
     const end = (moved: boolean) => {
+      // The click a whole row's drag ends in is the drag's, not the row's button's.
+      if (whole && active.current) swallowClick();
       clearTimeout(timer);
       cancelAnimationFrame(frame);
       removeEventListener('pointermove', onPointerMove);
@@ -157,7 +181,7 @@ export function useSortable<T extends HTMLElement>(onMove: (from: number, to: nu
     addEventListener('pointercancel', onCancel);
     addEventListener('keydown', onKey, true);
     addEventListener('contextmenu', onContextMenu, true);
-    if (e.pointerType !== 'touch') begin();
+    if (e.pointerType !== 'touch' && !whole) begin();
   };
 
   /** The style that draws row `i` while a drag is on: the dragged row under the pointer, the rows it passed moved aside. */
@@ -176,5 +200,6 @@ export function useSortable<T extends HTMLElement>(onMove: (from: number, to: nu
     dragging: drag?.from ?? null,
     rowStyle,
     handle: (i: number) => ({ onPointerDown: (e: ReactPointerEvent<HTMLElement>) => start(e, i) }),
+    wholeRow: (i: number) => ({ onPointerDown: (e: ReactPointerEvent<HTMLElement>) => e.pointerType !== 'touch' && start(e, i, true) }),
   };
 }

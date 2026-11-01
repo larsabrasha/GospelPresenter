@@ -36,6 +36,15 @@ export function followsShown({ byTap, top, bottom, viewHeight, headingHeight }: 
   return top < headingHeight || bottom > viewHeight;
 }
 
+/**
+ * What an item's menu in the live list offers (docs/layout-2-0.md): moving it up or down while there is room, and
+ * removing it unless it is the one shown.
+ */
+export function itemActions(order: readonly string[], itemId: string, shownId: string | null): { up: boolean; down: boolean; remove: boolean } {
+  const at = order.indexOf(itemId);
+  return { up: at > 0, down: at !== -1 && at < order.length - 1, remove: itemId !== shownId };
+}
+
 /** What the folded outputs say: how many are on and how many watch, or what is wrong. */
 export type OutputsState = { kind: 'off' } | { kind: 'on'; on: number; viewers: number } | { kind: 'offline'; name: string };
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { t } from '../src/i18n.ts';
-import { href, isAdminPage, parseRoute, type Route } from '../src/ui/router.ts';
+import { aloneInSettings, href, isAdminPage, parseRoute, type Route } from '../src/ui/router.ts';
 
 /** Reads an address the way the app does: `useRoute` gives the router the path, the query and the fragment. */
 const read = (address: string) => {
@@ -80,19 +80,42 @@ describe('routes', () => {
       expect(path).not.toMatch(/^\/api/);
     }
     expect(read('/users')).toEqual({ page: 'presentations' });
-    // The admin pages start at the songs, as in the current app (Pages/Admin/Admin.razor).
-    expect(read('/admin')).toEqual({ page: 'songs' });
     expect(read('/admin/nowhere')).toEqual({ page: 'songs' });
   });
 
-  it('every page under /admin opens in the admin dialog', () => {
+  it('/admin is Inställningar\'s list, and links back to it', () => {
+    expect(read('/admin')).toEqual({ page: 'admin' });
+    expect(read('/admin/')).toEqual({ page: 'admin' });
+    expect(href({ page: 'admin' })).toBe('/admin');
+  });
+
+  it('every page under /admin opens as Inställningar', () => {
     for (const path of ['/admin', '/admin/songs/S1', '/admin/users/U1', '/admin/overlays/O1', '/admin/settings', '/admin/about', '/admin/templates', '/songs']) {
       expect(isAdminPage(read(path)), path).toBe(true);
     }
   });
 
-  it('the pages outside /admin open on their own, the template editor among them', () => {
-    for (const path of ['/', '/presentations/P1', '/templates/T1', '/trash', '/settings', '/logins']) {
+  it('a song opened straight from a page outside Inställningar stands alone', () => {
+    expect(aloneInSettings({ page: 'song', id: 'S1' }, 1)).toBe(true);
+  });
+
+  it('a song reached from the list, or from the address bar, keeps the list and its way back', () => {
+    expect(aloneInSettings({ page: 'song', id: 'S1' }, 2)).toBe(false);
+    expect(aloneInSettings({ page: 'song', id: 'S1' }, undefined)).toBe(false);
+  });
+
+  it('a page of the list itself never stands alone, opened first or not', () => {
+    expect(aloneInSettings({ page: 'settings' }, 1)).toBe(false);
+  });
+
+  it('Mina inställningar and its sign-in methods open as Inställningar too, at their own addresses', () => {
+    for (const path of ['/settings', '/logins']) {
+      expect(isAdminPage(read(path)), path).toBe(true);
+    }
+  });
+
+  it('the pages outside Inställningar open on their own, the template editor among them', () => {
+    for (const path of ['/', '/presentations/P1', '/templates/T1', '/trash']) {
       expect(isAdminPage(read(path)), path).toBe(false);
     }
   });

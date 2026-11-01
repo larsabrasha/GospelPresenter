@@ -2,12 +2,13 @@
 
 Where the spec and ADR 0007 leave a choice open, the conservative one, written down:
 
-- **The admin pages open in a dialog over the page the user is on** (Lars, 2026-10-31), not as pages of their own
-  as in the current app: Inställningar can be opened from inside a presentation, which goes on presenting under it.
-  The addresses stay under `/admin/`; a link straight to one opens it over the start page. Only Stäng closes it,
-  not Escape or a press outside, so nothing half done is lost by a slip; it goes back through the admin pages
-  opened since to the page under them. Signing in lands on the start page, not on Sånger, so it does not open
-  the dialog.
+- **Inställningar opens in a dialog over the page the user is on** (Lars, 2026-10-31; kept for the 2.0 layout,
+  2026-11-01), not as pages of its own as in the current app: it can be opened from inside a presentation, which goes
+  on presenting under it. The addresses stay under `/admin/`, and `/admin` alone is the list; a link straight to a
+  page opens it over the start page. Mina inställningar (`/settings`) and its sign-in methods (`/logins`) open in it
+  too, at their own addresses. Only Stäng closes it, not Escape or a press outside, so nothing half done is lost by a
+  slip; it goes back through the pages opened since to the page under them. On a phone the dialog fills the screen.
+  Signing in lands on the start page, not on Sånger, so it does not open the dialog.
 - **Om Gospel Presenter** (`/admin/about`, Lars, 2026-10-31) is new: at the foot of the admin menu, for everyone,
   with the version (the commit) and links to the website and GitHub. Mina inställningar has no Om card any more.
 - **In a presentation the bar has "‹ Presentationer"** in place of the logo and Beta (Lars, 2026-10-31), a way back

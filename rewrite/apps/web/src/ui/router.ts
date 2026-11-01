@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react';
 // app's index.html, so a reload or a pasted link lands on the right page.
 // The server's own paths are all under `/api/`, so no page can collide with
 // one. The presentations are the start page, `/`. Admin pages, the songs among them, live under
-// `/admin/`, as in the current app; `/songs` from before still opens them. They open in a dialog over
-// the page the user was on (`isAdminPage`, `closeAdmin`). Secrets stay in the
+// `/admin/`, as in the current app; `/songs` from before still opens them. They and Mina inställningar
+// open as Inställningar, in place of the page the user was on, which stays as it was under them
+// (`isAdminPage`, `closeAdmin`; docs/layout-2-0.md). Secrets stay in the
 // fragment, which no server sees: an invite is `/invite#{token}`.
 
 /** The kinds the trash holds so far, in the order the filter shows them (spec 03 section 5). */
@@ -14,6 +15,8 @@ export const TRASH_KINDS = ['Presentation', 'Template', 'Song', 'Image', 'Audio'
 export type TrashKind = (typeof TRASH_KINDS)[number];
 
 export type Route =
+  /** Inställningar's list (`/admin`): alone on a phone; on a computer beside the songs. */
+  | { page: 'admin' }
   | { page: 'songs' }
   | { page: 'song'; id: string }
   /** A song's history (`/admin/songs/{id}/history`, SongHistory.razor). */
@@ -111,7 +114,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'displays') return { page: 'displays' };
     if (second === 'settings') return { page: 'orgSettings' };
     if (second === 'about') return { page: 'about' };
-    return { page: 'songs' };
+    return second ? { page: 'songs' } : { page: 'admin' };
   }
   const id = second;
   if (first === 'trash') {
@@ -142,17 +145,35 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
 
 const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'labels', 'ccliReport', 'themes', 'displays', 'about']);
 
-/** The pages under `/admin/` (Layout/AdminLayout.razor), which open in a dialog over the page the user was on. */
-const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings']);
+/** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
+const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins']);
 
 export function isAdminPage(r: Route): boolean {
   return ADMIN_DIALOG_PAGES.has(r.page);
+}
+
+/** Inställningar's detail pages, which a page outside it may open straight (a song from a presentation's item). */
+const DETAIL_PAGES = new Set<Route['page']>(['song', 'songHistory', 'user', 'overlay', 'org']);
+
+/**
+ * Whether `r` was opened straight from a page outside Inställningar (`adminBack` 1, see EntryState): then it stands
+ * alone in the dialog, without the list or a way back, and Stäng is the way out.
+ */
+export function aloneInSettings(r: Route, back: number | undefined): boolean {
+  return DETAIL_PAGES.has(r.page) && back === 1;
+}
+
+/** How many entries back the page under Inställningar is, if this entry knows. */
+export function adminBack(): number | undefined {
+  return (history.state as EntryState | null)?.adminBack;
 }
 
 export function href(r: Route): string {
   switch (r.page) {
     case 'presentations':
       return '/';
+    case 'admin':
+      return '/admin';
     case 'song':
       return `/admin/songs/${encodeURIComponent(r.id)}`;
     case 'songHistory':
@@ -220,7 +241,7 @@ function push(url: string) {
   if (isAdminPage(parseRoute(to.pathname, to.search, to.hash))) {
     if (!isAdminPage(currentRoute())) state = { adminBack: 1 };
     else {
-      const back = (history.state as EntryState | null)?.adminBack;
+      const back = adminBack();
       if (back) state = { adminBack: back + 1 };
     }
   }
@@ -233,11 +254,11 @@ export function navigate(r: Route) {
 }
 
 /**
- * Closes the admin dialog: back through the admin pages to the page under them, as it
+ * Closes Inställningar: back through the admin pages to the page under them, as it
  * was. Opened from the address bar, nothing is behind them: `under` opens instead.
  */
 export function closeAdmin(under: Route) {
-  const back = (history.state as EntryState | null)?.adminBack;
+  const back = adminBack();
   if (back) history.go(-back);
   else navigate(under);
 }

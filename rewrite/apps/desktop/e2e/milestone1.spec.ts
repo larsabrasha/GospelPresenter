@@ -100,7 +100,7 @@ test('the second client keeps working while the host is down, and its edits land
   const part = other.page.getByLabel('Delar 2', { exact: true });
   await part.fill('Ett ögonblick i sänder');
   await part.blur();
-  await expect(other.page.getByTestId('status')).toContainText('ändringar väntar');
+  await expect(other.page.getByTestId('status')).toContainText(/ändringa?r? väntar/);
 
   // The host comes back on the same port with the same data; the second client reconnects and catches up.
   // Its pairing and its session survive the restart; the host's own window is still signed in.

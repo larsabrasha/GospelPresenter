@@ -153,6 +153,12 @@ export async function listPresentations(db: ReadDb): Promise<Presentation[]> {
   return rows.map(presentation);
 }
 
+/** How many items each presentation has, for the start page's rows (docs/layout-2-0.md); one with none is missing. */
+export async function itemCounts(db: ReadDb): Promise<Map<string, number>> {
+  const rows = await db.query<{ id: string; n: number }>('SELECT presentation_id AS id, COUNT(*) AS n FROM presentation_items GROUP BY presentation_id');
+  return new Map(rows.map((r) => [r.id, Number(r.n)]));
+}
+
 /** The templates page's list (spec 03 screen 3), by name: a template has no "last changed" here. */
 /** The templates, last changed first (PresentationService.GetAllTemplateSummariesAsync). */
 export async function listTemplates(db: ReadDb): Promise<Presentation[]> {

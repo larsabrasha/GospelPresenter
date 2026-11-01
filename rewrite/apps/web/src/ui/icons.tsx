@@ -123,18 +123,6 @@ export function UserIcon({ className }: IconProps) {
   );
 }
 
-export function SettingsIcon({ className }: IconProps) {
-  return (
-    <Solid className={className} viewBox="0 0 20 20">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.331 1.652a6.993 6.993 0 0 1 1.929 1.115l1.598-.54a1 1 0 0 1 1.186.447l1.18 2.044a1 1 0 0 1-.205 1.251l-1.267 1.113a7.047 7.047 0 0 1 0 2.228l1.267 1.113a1 1 0 0 1 .206 1.25l-1.18 2.045a1 1 0 0 1-1.187.447l-1.598-.54a6.993 6.993 0 0 1-1.929 1.115l-.33 1.652a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.331-1.652a6.993 6.993 0 0 1-1.929-1.115l-1.598.54a1 1 0 0 1-1.186-.447l-1.18-2.044a1 1 0 0 1 .205-1.251l1.267-1.114a7.05 7.05 0 0 1 0-2.227L1.821 7.773a1 1 0 0 1-.206-1.25l1.18-2.045a1 1 0 0 1 1.187-.447l1.598.54A6.993 6.993 0 0 1 7.51 3.456l.33-1.652ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-      />
-    </Solid>
-  );
-}
-
 export function KeyIcon({ className }: IconProps) {
   return (
     <Solid className={className} viewBox="0 0 20 20">
@@ -142,23 +130,6 @@ export function KeyIcon({ className }: IconProps) {
         fillRule="evenodd"
         clipRule="evenodd"
         d="M8 7a5 5 0 1 1 3.61 4.804l-1.903 1.903A1 1 0 0 1 9 14H8v1a1 1 0 0 1-1 1H6v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2a1 1 0 0 1 .293-.707L8.196 8.39A5.002 5.002 0 0 1 8 7Zm5-3a.75.75 0 0 0 0 1.5A1.5 1.5 0 0 1 14.5 7 .75.75 0 0 0 16 7a3 3 0 0 0-3-3Z"
-      />
-    </Solid>
-  );
-}
-
-export function SignOutIcon({ className }: IconProps) {
-  return (
-    <Solid className={className} viewBox="0 0 20 20">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M3 4.25A2.25 2.25 0 0 1 5.25 2h5.5A2.25 2.25 0 0 1 13 4.25v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 10.75 18h-5.5A2.25 2.25 0 0 1 3 15.75V4.25Z"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M6 10a.75.75 0 0 1 .75-.75h9.546l-1.048-.943a.75.75 0 1 1 1.004-1.114l2.5 2.25a.75.75 0 0 1 0 1.114l-2.5 2.25a.75.75 0 1 1-1.004-1.114l1.048-.943H6.75A.75.75 0 0 1 6 10Z"
       />
     </Solid>
   );
@@ -222,32 +193,10 @@ export function WarningSolidIcon({ className }: IconProps) {
   );
 }
 
-export function CloudCheckIcon({ className }: IconProps) {
-  return (
-    <Outline className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="m9 13.5 2 2 4-4" />
-    </Outline>
-  );
-}
-
 export function CloudOffIcon({ className }: IconProps) {
   return (
     <Outline className={className}>
       <path strokeLinecap="round" strokeLinejoin="round" d="m3 3 18 18M6.75 7.547A8.25 8.25 0 0 0 4.5 18.75h11.69m3.148-1.42a4.5 4.5 0 0 0-2.09-8.28 6.75 6.75 0 0 0-9.815-4.588" />
-    </Outline>
-  );
-}
-
-/** Two arrows in a circle: a sync under way (SyncStatusIndicator.razor's spinner). */
-export function ArrowPathIcon({ className }: IconProps) {
-  return (
-    <Outline className={className}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
-      />
     </Outline>
   );
 }
@@ -484,6 +433,14 @@ export function ChevronLeftIcon({ className }: IconProps) {
   return (
     <Outline className={className} strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+    </Outline>
+  );
+}
+
+export function ChevronRightIcon({ className }: IconProps) {
+  return (
+    <Outline className={className} strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
     </Outline>
   );
 }

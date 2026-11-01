@@ -1,5 +1,5 @@
 // Several organisations (spec 01 `/admin/organizations` and the switcher, ORG-A9–A11, decided on 2026-10-31): the
-// SuperAdmin makes one and lands among its users, each organisation has its own songs, the switcher moves between
+// SuperAdmin makes one and lands among its users, each organisation has its own songs, the picture's Byt organisation moves between
 // them, and deleting one needs its name typed.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
@@ -24,16 +24,17 @@ test('an organisation is made, switched to and from, keeps its own songs, and is
   await dialog.getByRole('button', { name: 'Skapa', exact: true }).click();
 
   // The page loads again in Annexet, among its users, which are none yet.
-  await expect(page.getByTestId('org-switcher')).toHaveAttribute('aria-label', 'Organisation: Annexet');
+  await expect(page.getByTestId('me')).toHaveAttribute('aria-label', 'Anna · Annexet'); // under the dialog
   await expect(page.getByRole('heading', { name: 'Användare', exact: true })).toBeVisible();
   await expect(page.getByText('Inga användare')).toBeVisible();
   await openAdmin(page, 'Sånger');
   await expect(page.getByRole('link', { name: 'Bara hemma' })).toHaveCount(0);
 
   await closeAdmin(page);
-  await page.getByTestId('org-switcher').click();
+  await page.getByTestId('me').click();
+  await page.getByRole('menuitem', { name: 'Byt organisation' }).click();
   await page.getByRole('menuitem', { name: 'Lilla Kyrkan' }).click();
-  await expect(page.getByTestId('org-switcher')).toHaveAttribute('aria-label', 'Organisation: Lilla Kyrkan');
+  await expect(page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
   await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
   await openAdmin(page, 'Sånger');
   await expect(page.getByRole('link', { name: 'Bara hemma' })).toBeVisible();

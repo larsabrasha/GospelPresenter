@@ -1,7 +1,7 @@
 import type { Presentation } from '@gp/core';
-import { useState, type HTMLAttributes } from 'react';
+import { useEffect, useState, type HTMLAttributes } from 'react';
 import { useData, useDb } from '../db/react.tsx';
-import { itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
+import { itemCounts, itemsOf, listPresentations, recentTemplates } from '../db/queries.ts';
 import { KeepOfflineButton } from '../ui/KeepOffline.tsx';
 import { locale, t } from '../i18n.ts';
 import { newId } from '../ids.ts';
@@ -9,7 +9,7 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog } from '../ui/Dialog.tsx';
 import { CloseIcon, DocumentIcon, DocumentTextIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
-import { CARD, ListCard, ListLinkRow, ListSection } from '../ui/List.tsx';
+import { CARD, ListLinkRow, ListSection } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { useRovingList } from '../ui/listNav.ts';
@@ -91,10 +91,38 @@ function TemplatePicker({ templates, onPick, onClose }: { templates: Presentatio
   );
 }
 
+const NEW_PRESENTATION = 'gp:new-presentation';
+
+/** + (Ny presentation) in the bar: the start page starts Skapa, as its `n` does. */
+export function requestNewPresentation() {
+  dispatchEvent(new Event(NEW_PRESENTATION));
+}
+
+/** What this window presents, at the top of the start page in red with Öppna (docs/layout-2-0.md). */
+function OwnLive({ p }: { p: Presentation }) {
+  return (
+    <a
+      href={href({ page: 'presentation', id: p.id })}
+      aria-label={`${t('remote.nowShowing')}: ${p.name}`}
+      className="flex items-center gap-3.5 lg:gap-4 px-4 py-3.5 rounded-[22px] lg:rounded-xl bg-red-500/10 ring-1 ring-inset ring-red-500/35 no-underline text-inherit"
+    >
+      <span className="flex-1 min-w-0 flex flex-col lg:flex-row lg:items-center gap-0.5 lg:gap-4">
+        <span className="flex items-center gap-1.5 text-xs lg:text-[11px] font-bold uppercase tracking-wider text-red-500">
+          <span className="size-[7px] rounded-full bg-red-500" />
+          {t('remote.nowShowing')}
+        </span>
+        <span className="text-[17px] lg:text-[15px] font-semibold truncate">{p.name}</span>
+        <span className="text-[13px] text-neutral-500 dark:text-neutral-400 truncate">{[p.time, p.location].filter(Boolean).join(' · ')}</span>
+      </span>
+      <span className="shrink-0 h-9 lg:h-[30px] px-4 rounded-full lg:rounded-lg flex items-center bg-red-500 text-white text-[15px] lg:text-[13px] font-semibold">{t('presentations.open')}</span>
+    </a>
+  );
+}
+
 /**
  * "Visas just nu" (spec 04 §2, LIVE-A27): a card per session elsewhere in the
  * organisation that allows remote control, with "Ta kontroll". Never this
- * window's own session.
+ * window's own session, which OwnLive shows.
  */
 function LiveNow({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const { sessions } = useLiveSessions(link);
@@ -137,6 +165,7 @@ function Row({
   showDate,
   withYear,
   live,
+  items,
   nav,
 }: {
   p: Presentation;
@@ -144,16 +173,20 @@ function Row({
   showDate: boolean;
   withYear: boolean;
   live: boolean;
+  items: number;
   nav: HTMLAttributes<HTMLAnchorElement>;
 }) {
   const date = showDate && p.eventDate;
-  // "mån 4 maj · 11:00 · Stora salen" (PresentationRow.razor).
-  const subtitle = [date ? dateLabel(date, today, withYear) : null, p.time, p.location].filter(Boolean).join(' · ');
+  const when = [date ? dateLabel(date, today, withYear) : null, p.time].filter(Boolean).join(' · ');
+  const count = items === 1 ? t('presentations.item') : t('presentations.items', { n: items });
+  // "mån 4 maj · 11:00 · Stora salen · 7 inslag" (PresentationRow.razor); on a computer the same as a table's columns.
+  const subtitle = [when, p.location, count].filter(Boolean).join(' · ');
+  const column = 'max-lg:hidden shrink-0 text-[13px] text-neutral-500 dark:text-neutral-400 truncate';
   return (
     <ListLinkRow
       href={href({ page: 'presentation', id: p.id })}
       title={p.name}
-      subtitle={subtitle || null}
+      subtitle={<span className="lg:hidden">{subtitle}</span>}
       subtitleTitle={date ? fullDate(date, withYear) : undefined}
       nav={nav}
       after={<KeepOfflineButton presentation={p} />}
@@ -165,6 +198,11 @@ function Row({
               {t('presentations.live')}
             </span>
           )}
+          <span className={`${column} w-48 text-neutral-700! dark:text-neutral-300!`} title={date ? fullDate(date, withYear) : undefined}>
+            {when}
+          </span>
+          <span className={`${column} w-36`}>{p.location}</span>
+          <span className={`${column} w-20 text-right`}>{count}</span>
         </>
       }
     />
@@ -188,6 +226,7 @@ const KEYS: ShortcutGroup = {
 export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
   const presentations = useData(listPresentations, []);
   const templates = useData(recentTemplates, []);
+  const counts = useData(itemCounts, []);
   const { sessions } = useLiveSessions(link);
   const [picking, setPicking] = useState(false);
   // Skapa: the details dialog, blank (null) or from a template; first the picker when there are templates.
@@ -201,11 +240,17 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
   const navCount = (groups?.today.length ?? 0) + (groups?.upcoming.length ?? 0) + rest.length;
   const list = useRovingList(navCount);
   const livePresentation = sessions.find((s) => s.id === ownSessionId)?.presentationId;
+  const ownLive = presentations?.find((p) => p.id === livePresentation);
   const row = (p: Presentation, index: number, showDate: boolean, withYear: boolean) => (
-    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} nav={list.item(index)} />
+    <Row key={p.id} p={p} today={today} showDate={showDate} withYear={withYear} live={p.id === livePresentation} items={counts?.get(p.id) ?? 0} nav={list.item(index)} />
   );
   const startCreating = () => (templates?.length ? setPicking(true) : setCreating({ template: null }));
   useShortcutGroup(KEYS);
+  useEffect(() => {
+    const on = () => !picking && !creating && startCreating();
+    addEventListener(NEW_PRESENTATION, on);
+    return () => removeEventListener(NEW_PRESENTATION, on);
+  });
   usePageKeys((e) => {
     if (e.key === 'n' && !e.ctrlKey && !e.metaKey && !e.altKey && !picking && !creating) {
       e.preventDefault();
@@ -223,7 +268,8 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
 
   return (
     <PageContainer>
-      <PageHeader title={t('nav.presentations')}>{!!presentations?.length && create}</PageHeader>
+      <PageHeader title={t('nav.presentations')} large />
+      {ownLive && <OwnLive p={ownLive} />}
       <LiveNow link={link} ownSessionId={ownSessionId} />
       {picking && templates && (
         <TemplatePicker
@@ -257,7 +303,7 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
           {groups.upcoming.length > 0 && <ListSection title={t('presentations.upcoming')}>{groups.upcoming.map((p, i) => row(p, todayCount + i, true, false))}</ListSection>}
           {rest.length > 0 && (
             <div className="space-y-2">
-              <ListCard label={t('nav.presentations')}>{rest.map((p, i) => row(p, restStart + i, true, true))}</ListCard>
+              <ListSection title={t('presentations.recent')}>{rest.map((p, i) => row(p, restStart + i, true, true))}</ListSection>
               {rest.length < groups.rest.length && (
                 <div className="flex justify-center pt-2">
                   <AppButton variant="cancel" onClick={() => setRestShown((n) => n + PAGE_SIZE)}>

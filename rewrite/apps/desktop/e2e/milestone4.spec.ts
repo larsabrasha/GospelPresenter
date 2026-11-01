@@ -135,7 +135,7 @@ test('a Bible imported while the host is down is kept, and reaches the host when
   );
   await expect(page.getByText('WEB · 15 verser')).toBeVisible();
   await expect(page.getByText('Tillgänglig offline')).toBeVisible();
-  await expect(page.getByTestId('status')).toContainText('1 ändringar väntar');
+  await expect(page.getByTestId('status')).toContainText('1 ändring väntar');
 
   // The host comes back on the same port: the text is uploaded, then the import pushed.
   host = await launch({ port, dataDir: hostData });

@@ -163,7 +163,7 @@ export function Modal({ title, onClose, children, footer, className }: { title: 
 export function PageDialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const titleId = useId();
   return (
-    <DialogFrame titleId={titleId} onClose={onClose} className="max-w-4xl sm:h-[min(48rem,100%)]" page>
+    <DialogFrame titleId={titleId} onClose={onClose} className="max-w-5xl sm:h-[min(52rem,100%)]" page>
       {(close) => (
         <>
           <div className="relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-separator">

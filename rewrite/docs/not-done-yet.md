@@ -89,13 +89,10 @@ From the language switch (GAPS.md "Engelska"): the server's own pages in the sys
 passkey page, "Du är inloggad", the sign-in error) are Swedish only, as is the desktop host's window title. The
 English that is not the current app's was written for the rewrite and has not been read by an English speaker.
 
-From the 2.0 layout (docs/layout-2-0.md), what is built so far is live on a phone and an iPad held upright
-(`pages/live/phone/`): the bar, the picture with ‹ Rensa ›, the running order with sticky headings and its
-following rule, Lägg till's place, Utgångar as a list of switches, …, an item's … (with Redigera sången) and
-Avsluta; Redigera (moved by ≡, removed by the minus); the sheets are pulled down to close; the colours are the theme's (`app.css`). Not yet:
-undoing an addition or a removal (a removed item is deleted at once, so the item's … asks first, as the editor
-does); on a computer, the left column as the doc has it (the red dot, the row's … and a right click, Delete):
-it is still the editor's running order, which drags and removes; the touch sizes of an iPad lying down; the start
-page and its bar; Inställningar as a list. Built on a computer: the live bar (the centred title with its popover,
-Scenläge, … with Fjärrstyrning and Inställningar, Avsluta asking first), the whole order's slides in the middle,
-and the live column with ‹ Rensa ›, the next slide, the overlays and the outputs folded to their state.
+From the 2.0 layout (docs/layout-2-0.md), all of it is built but these: undoing an addition, a move or a removal
+(the doc's line with Ångra; a removed item is deleted at once, so removing asks first, on a phone and a computer);
+the start page's Visas nu says the presentation's time and place, not the part shown; a user's picture (initials
+stand in for it). Delete removes the selected item on a computer, Backspace (a Mac's delete key) does not.
+The touch sizes of an iPad lying down follow `(pointer: coarse)` (the `touch:` variant in `app.css`), tested with
+Chromium's touch emulation in `live-order.spec.ts`, not on an iPad; they cover the live bar, the left column, ‹ Rensa ›
+and the switches, not the editor.

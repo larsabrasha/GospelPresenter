@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dropIndex } from '../src/ui/sortable.ts';
+import { dropIndex, mouseDragBegins } from '../src/ui/sortable.ts';
 
 // Four rows 40 px high with centres at 20, 60, 100 and 140.
 const mids = [20, 60, 100, 140];
@@ -20,5 +20,15 @@ describe('where a dragged row lands', () => {
   it('stops at the first and the last place when dragged past the ends', () => {
     expect(dropIndex(mids, 2, -500)).toBe(0);
     expect(dropIndex(mids, 1, 5000)).toBe(3);
+  });
+});
+
+describe('a mouse on a whole row', () => {
+  it('clicks while it has moved 4 px or less', () => {
+    expect(mouseDragBegins(3, 2)).toBe(false);
+  });
+
+  it('drags once it has moved further', () => {
+    expect(mouseDragBegins(0, 5)).toBe(true);
   });
 });

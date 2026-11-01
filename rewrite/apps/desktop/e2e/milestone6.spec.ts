@@ -156,9 +156,9 @@ test('a presentation is presented on its own page, as the current app: the addre
   await expect(page.getByRole('link', { name: 'Gospel Presenter' })).toHaveCount(0);
 
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
-  const shown = page.getByRole('link', { name: /Söndag/ });
-  await expect(shown.getByText('Live')).toBeVisible();
-  await shown.click();
+  // Both the row, marked Live, and Visas just nu at the top open it.
+  await expect(page.getByRole('link', { name: /^Söndag/ }).getByText('Live')).toBeVisible();
+  await page.getByRole('link', { name: 'Visas just nu: Söndag' }).click();
   await expect(page).toHaveURL(liveUrl);
   await expect(page.getByRole('button', { name: 'Avsluta' })).toBeVisible();
 
@@ -169,7 +169,7 @@ test('a presentation is presented on its own page, as the current app: the addre
 
   // Avsluta stays on the page, which is the editor again.
   await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
-  await page.getByRole('link', { name: /Söndag/ }).click();
+  await page.getByRole('link', { name: /^Söndag/ }).click();
   await endPresentation(page);
   await expect(page).toHaveURL(liveUrl);
   await expect(page.getByTestId('live-panel')).toHaveCount(0);

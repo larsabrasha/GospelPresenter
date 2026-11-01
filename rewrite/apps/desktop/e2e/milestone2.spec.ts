@@ -243,7 +243,7 @@ test('a refused create says "Kunde inte spara", and the dialog stays to try agai
   const page = host.page;
   await setUpHost(host);
   await openPresentations(page);
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Skapa presentation' });
   const name = dialog.getByLabel('Namn');
 

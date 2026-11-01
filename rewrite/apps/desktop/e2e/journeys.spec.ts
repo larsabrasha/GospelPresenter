@@ -169,7 +169,7 @@ test('prepared on a laptop while the church computer is off, and presented on th
   await picker.getByRole('button', { name: 'Kors.png', exact: true }).click();
   await picker.getByRole('button', { name: 'Lägg till Kors.png' }).click();
   await picker.getByRole('button', { name: 'Stäng' }).click();
-  await expect(laptop.getByTestId('status')).toContainText('ändringar väntar');
+  await expect(laptop.getByTestId('status')).toContainText(/ändringa?r? väntar/);
 
   // Sunday: the church computer starts on the same port, and the laptop's week arrives.
   host = await launch({ port, dataDir: hostData });

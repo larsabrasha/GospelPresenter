@@ -23,10 +23,11 @@ test.afterEach(async () => {
   host = server = browser = undefined;
 });
 
-/** Inloggningsmetoder, in the menu behind the user's picture in the bar. */
+/** Inloggningsmetoder, under Mina inställningar in the menu behind the user's picture in the bar. */
 async function openLogins(page: Page) {
   await page.getByTestId('me').click();
-  await page.getByRole('menuitem', { name: 'Inloggningsmetoder' }).click();
+  await page.getByRole('menuitem', { name: 'Mina inställningar', exact: true }).click();
+  await page.getByRole('link', { name: 'Inloggningsmetoder' }).click();
   await expect(page.getByRole('heading', { name: 'Inloggningsmetoder' })).toBeVisible();
   return page.getByRole('list', { name: 'Inloggningsmetoder' }).getByRole('listitem');
 }

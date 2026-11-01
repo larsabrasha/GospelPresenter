@@ -139,6 +139,17 @@ test('on a phone the running order is a drawer and Lägg till previews a song ov
   await live.getByRole('button', { name: 'Klar' }).click();
   expect(await liveOrder.locator('section').evaluateAll((all) => all.map((x) => x.getAttribute('aria-label')))).toEqual(['Sång A', 'Sång B', 'Sång C']);
 
+  // Redigera sången in an item's … opens the song alone in Inställningar: no list, no way back, only Stäng.
+  await liveOrder.getByRole('button', { name: 'Mer om Sång B' }).click();
+  await page.getByRole('button', { name: 'Redigera sången' }).click();
+  const settings = page.getByRole('dialog', { name: 'Inställningar' });
+  await expect(settings.getByRole('heading', { name: 'Sång B', exact: true })).toBeVisible();
+  await expect(settings.getByRole('navigation', { name: 'Administration' })).toHaveCount(0);
+  await expect(settings.getByRole('link', { name: /Inställningar|Tillbaka/ })).toHaveCount(0);
+  await settings.getByRole('button', { name: 'Stäng', exact: true }).first().click();
+  await expect(settings).toHaveCount(0);
+  await expect(live).toBeVisible();
+
   // At desktop size the editor and the live column are back; on the phone again, the one column.
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(live).toBeHidden();

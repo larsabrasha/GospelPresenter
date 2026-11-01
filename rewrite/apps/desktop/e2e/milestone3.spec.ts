@@ -50,7 +50,7 @@ test('sign-in: Google in the system browser; signing out and in again; a strange
   const google = await fakeGoogle();
   const before = google.tokens.ok;
   host = await launch({ dataDir, port });
-  // It opens where it was, Sånger, in the admin dialog over the start page.
+  // It opens where it was, Sånger, in Inställningar over the start page.
   await adminDialog(host.page).getByRole('button', { name: 'Stäng', exact: true }).first().click();
   await expect(host.page.getByTestId('me')).toHaveAccessibleName('Anna · Lilla Kyrkan');
   await expect(host.page.getByRole('heading', { name: 'Logga in' })).toHaveCount(0);
@@ -103,7 +103,7 @@ test('pairing: a second desktop is refused until it pairs, syncs once paired and
   await device.getByLabel('Delar 2', { exact: true }).fill('Ett ögonblick i sänder');
   await device.getByLabel('Delar 2', { exact: true }).blur();
   await expect(device.getByTestId('sync-warnings')).toContainText('Enheten är inte längre ansluten till värddatorn', { timeout: 10_000 });
-  await expect(device.getByTestId('status')).toContainText('ändringar väntar');
+  await expect(device.getByTestId('status')).toContainText(/ändringa?r? väntar/);
 
   // Paired again as Cia, it is signed in again, and the waiting change lands.
   await device.getByRole('button', { name: 'Anslut igen' }).click();
