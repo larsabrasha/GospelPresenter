@@ -1,5 +1,6 @@
 import type { ReactNode, SelectHTMLAttributes } from 'react';
-import { ChevronDownIcon } from './icons.tsx';
+import { AppButton } from './AppButton.tsx';
+import { ChevronDownIcon, ChevronRightIcon } from './icons.tsx';
 import { CARD } from './List.tsx';
 
 // A page of settings as iOS's Settings and macOS's System Settings lay one out (Lars, 2026-11-02): groups of rows, a
@@ -47,3 +48,15 @@ export function PopUp({ children, ...rest }: SelectHTMLAttributes<HTMLSelectElem
   );
 }
 
+/** A row that opens something: its name, what it holds in grey, and ›. */
+export function OpeningRow({ label, value, onClick, testId }: { label: string; value?: string; onClick: () => void; testId?: string }) {
+  return (
+    <AppButton variant="plain" onClick={onClick} data-testid={testId} className={`${GROUP_ROW} w-full text-left cursor-pointer hover:bg-raised`}>
+      <span className="shrink-0">{label}</span>
+      <span className="flex-1 min-w-0 flex items-center justify-end gap-2 text-stone-500 dark:text-stone-400">
+        {value && <span className="truncate">{value}</span>}
+        <ChevronRightIcon className="size-4 shrink-0 text-stone-400 dark:text-stone-600" />
+      </span>
+    </AppButton>
+  );
+}

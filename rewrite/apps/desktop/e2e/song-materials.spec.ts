@@ -3,7 +3,7 @@
 // fetches it when it is opened.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, openAdmin, pair, setUpHost, createUser } from './flows.ts';
+import { addSongs, createPresentation, createSong, openAdmin, openMaterials, pair, setUpHost, createUser } from './flows.ts';
 
 let host: Desktop | undefined;
 let second: Desktop | undefined;
@@ -36,6 +36,7 @@ test('a song carries sheet music and links; the presentation gathers them for th
   await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
 
   // On the song's page: a PDF, named by its file, and a link, named by where it points.
+  await openMaterials(page);
   await page.getByTestId('song-file').setInputFiles({ name: 'Piano.pdf', mimeType: 'application/pdf', buffer: onePagePdf() });
   const list = page.getByRole('list', { name: 'Noter och länkar' });
   await expect(list.getByRole('button', { name: /^Piano/ })).toContainText('PDF');
@@ -46,6 +47,7 @@ test('a song carries sheet music and links; the presentation gathers them for th
   await expect(list.getByRole('link', { name: /Spotify/ })).toHaveAttribute('href', 'https://open.spotify.com/track/abc');
 
   // A presentation gathers its songs' material, in the running order.
+  await page.getByRole('dialog', { name: 'Noter och länkar' }).getByRole('button', { name: 'Klar' }).click();
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
   await page.getByTestId('presentation-bar').getByRole('button', { name: 'Alternativ' }).click();
@@ -68,8 +70,10 @@ test('another computer fetches a song\'s PDF when it is opened, and not before',
   await setUpHost(host);
   await createUser(host.page, 'Bo', 'bo@kyrkan.se');
   await createSong(host.page, 'Sång A', [['Verse 1', 'A ett']]);
+  await openMaterials(host.page);
   await host.page.getByTestId('song-file').setInputFiles({ name: 'Gitarr.pdf', mimeType: 'application/pdf', buffer: onePagePdf() });
   await expect(host.page.getByRole('list', { name: 'Noter och länkar' }).getByRole('button', { name: /^Gitarr/ })).toBeVisible();
+  await host.page.getByRole('button', { name: 'Klar' }).click();
   second = await launch({ server: host.base });
   await pair(host.page, second.page, 'Andra datorn', 'Bo');
   // Every media request of the second computer, its database worker's too.
@@ -78,6 +82,7 @@ test('another computer fetches a song\'s PDF when it is opened, and not before',
   await expect(second.page.getByTestId('status')).toHaveText(/^Synkad$/, { timeout: 5_000 });
   await openAdmin(second.page, 'Sånger');
   await second.page.getByRole('link', { name: 'Sång A' }).click();
+  await openMaterials(second.page);
   const row = second.page.getByRole('list', { name: 'Noter och länkar' }).getByRole('button', { name: /^Gitarr/ });
   await expect(row).toBeVisible();
   expect(fetched).toEqual([]); // synced and shown, not fetched

@@ -14,7 +14,7 @@ import { Dropdown, MENU_ITEM } from '../../ui/Dropdown.tsx';
 import { FloatingInput } from '../../ui/Floating.tsx';
 import { ArrowTopRightOnSquareIcon, DocumentTextIcon, EllipsisOutlineIcon, LinkIcon, MusicalNoteIcon, PencilIcon, PlusIcon, TrashIcon } from '../../ui/icons.tsx';
 import { GROUP } from '../../ui/Sheet.tsx';
-import { CAPTION, TEXT_ACTION } from '../../ui/Group.tsx';
+import { OpeningRow, TEXT_ACTION } from '../../ui/Group.tsx';
 import { MaterialViewer } from './MaterialViewer.tsx';
 
 /** A row's icon: a PDF's page, a recording's note, a link's chain. */
@@ -103,10 +103,32 @@ function Title({ m }: { m: SongMaterial }) {
 }
 
 /**
- * Noter och länkar on a song's page: the list, Ladda upp fil (a PDF or a recording) and Lägg till länk. The band reads
- * it from the presentations the song is in (PresentationMaterials).
+ * Noter och länkar on a song's page (Lars, 2026-11-02, as iOS's Settings opens a page): one row with how many there
+ * are, opening a sheet with the list, what it is for, and the ways to add.
  */
-export function SongMaterials({ songId }: { songId: string }) {
+export function SongMaterialsRow({ songId }: { songId: string }) {
+  const count = useData((d) => songMaterialsOf(d, [songId]), [songId])?.length ?? 0;
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <OpeningRow label={t('material.title')} value={count ? String(count) : t('material.none')} onClick={() => setOpen(true)} />
+      {open && (
+        <Dialog title={t('material.title')} onClose={() => setOpen(false)} maxWidthClass="max-w-lg">
+          <SongMaterials songId={songId} />
+          <DialogButtons>
+            <AppButton onClick={() => setOpen(false)}>{t('presentation.doneEditingImages')}</AppButton>
+          </DialogButtons>
+        </Dialog>
+      )}
+    </>
+  );
+}
+
+/**
+ * Noter och länkar in its sheet: the list, Ladda upp fil (a PDF or a recording) and Lägg till länk. The band reads it
+ * from the presentations the song is in (PresentationMaterials).
+ */
+function SongMaterials({ songId }: { songId: string }) {
   const db = useDb();
   const materials = useData((d) => songMaterialsOf(d, [songId]), [songId]) ?? [];
   const picker = useRef<HTMLInputElement>(null);
@@ -125,9 +147,8 @@ export function SongMaterials({ songId }: { songId: string }) {
     setBusy(false);
   };
   return (
-    // As a group (Lars, 2026-11-02): a small caption, the list, what it is for in grey, and the actions in sky text.
-    <section className="pt-2 space-y-1.5" aria-label={t('material.title')}>
-      <h2 className={CAPTION}>{t('material.title')}</h2>
+    // The list, what it is for in grey, and the actions in sky text; the sheet's title names it.
+    <section className="space-y-1.5" aria-label={t('material.title')}>
       <MaterialList materials={materials} editable empty={<p className="px-4 text-xs text-stone-500 dark:text-stone-400">{t('material.empty')}</p>} />
       {failures.map((f) => (
         <p key={f} className="px-4 text-sm text-red-500 dark:text-red-400">

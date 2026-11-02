@@ -2,7 +2,7 @@
 // the output window when the operator's database has no shared file.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createPresentation, createSong, dragTo, openAdmin, openOrder, openPresentations, setUpHost } from './flows.ts';
+import { addSongs, createPresentation, createSong, dragTo, openAdmin, openArrangement, openPresentations, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -92,14 +92,14 @@ test('the label and Lägg till del menus work from the keyboard alone', async ()
   await expect(picker).toHaveText('Välj...');
 
   // Lägg till del, the same way: End is the last part, appended to the arrangement.
-  await openOrder(page);
-  const arrangement = page.getByRole('group', { name: 'Ordning' });
+  await openArrangement(page);
+  const arrangement = page.getByRole('group', { name: 'Arrangemang' });
   const add = arrangement.getByRole('combobox', { name: 'Lägg till del' });
   await add.focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
-  await expect(arrangement.getByRole('list', { name: 'Delar i ordningen' }).getByRole('listitem')).toHaveText([/Ett/, /Chorus/, /Chorus/]);
+  await expect(arrangement.getByRole('list', { name: 'Delar i arrangemanget' }).getByRole('listitem')).toHaveText([/Ett/, /Chorus/, /Chorus/]);
   await expect(add).toBeFocused();
 });
 
@@ -256,24 +256,26 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
     ['Verse 2', 'Tidevarv komma'],
   ]);
 
-  // SONG-A9: the first order, made from the line under the parts, holds every part once, in order, and has no name field.
-  await expect(page.getByRole('region', { name: 'Ordning', exact: true }).getByRole('button')).toHaveText('Verse 1 · Chorus · Verse 2');
-  await openOrder(page);
-  const first = page.getByRole('group', { name: 'Ordning' });
-  await expect(first.getByRole('list', { name: 'Delar i ordningen' }).getByRole('listitem')).toHaveText([/Verse 1/, /Chorus/, /Verse 2/]);
+  // SONG-A9: the first arrangement, made from the parts' own order in the Arrangemang sheet, holds every part once, in
+  // order, and has no name field.
+  await expect(page.getByRole('button', { name: /^Arrangemang/ })).toHaveText('ArrangemangVerse 1 · Chorus · Verse 2');
+  await openArrangement(page);
+  const first = page.getByRole('group', { name: 'Arrangemang' });
+  await expect(first.getByRole('list', { name: 'Delar i arrangemanget' }).getByRole('listitem')).toHaveText([/Verse 1/, /Chorus/, /Verse 2/]);
   await expect(first.getByLabel('Namn')).toHaveCount(0);
   await page.getByRole('button', { name: 'Klar' }).click();
 
   // A second one gets names (SONG-A11); edit it to Chorus, Verse 1, Chorus (SONG-A10).
-  await page.getByRole('button', { name: 'Lägg till ordning' }).click();
-  const second = page.getByRole('group', { name: 'Ordning 2' });
+  await page.getByRole('button', { name: /^Arrangemang/ }).click();
+  await page.getByRole('button', { name: 'Lägg till arrangemang' }).click();
+  const second = page.getByRole('group', { name: 'Arrangemang 2' });
   await second.getByLabel('Namn').fill('Kort');
   await second.getByLabel('Namn').blur();
   const kort = page.getByRole('group', { name: 'Kort' });
-  await kort.getByRole('button', { name: 'Ta bort Verse 2 ur ordningen' }).click();
+  await kort.getByRole('button', { name: 'Ta bort Verse 2 ur arrangemanget' }).click();
   await kort.getByRole('combobox', { name: 'Lägg till del' }).click();
   await kort.getByRole('option', { name: '2. Chorus', exact: true }).click();
-  const kortChips = kort.getByRole('list', { name: 'Delar i ordningen' }).getByRole('listitem');
+  const kortChips = kort.getByRole('list', { name: 'Delar i arrangemanget' }).getByRole('listitem');
   await expect(kortChips).toHaveText([/Verse 1/, /Chorus/, /Chorus/]);
   // The chip is dragged, as in the current app: Verse 1 below the first Chorus.
   await dragTo(page, kortChips.nth(0), kortChips.nth(1), 'below');
@@ -287,8 +289,8 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await expect(kortChips).toHaveText([/Chorus/, /Verse 1/, /Chorus/]);
   await expect(kortChips.nth(1)).toBeFocused();
   await page.getByRole('button', { name: 'Klar' }).click();
-  // Both orders under the parts, each with its name over its line, and Lägg till ordning under them.
-  await expect(page.getByRole('region', { name: 'Ordning', exact: true }).getByRole('button')).toHaveText(['Ordning 1Verse 1 · Chorus · Verse 2', 'KortChorus · Verse 1 · Chorus', 'Lägg till ordning']);
+  // The row on the song's page says how many there are.
+  await expect(page.getByRole('button', { name: /^Arrangemang/ })).toHaveText('Arrangemang2 arrangemang');
 
   await createSong(page, 'Blott en dag', [['Verse 1', 'Blott en dag']]);
 
@@ -332,7 +334,7 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await page.getByRole('button', { name: 'Pilgrimsfärd', exact: true }).click();
   const tiles = page.getByRole('list', { name: 'Pilgrimsfärd' }).getByTestId('slide-text');
   await expect(tiles).toHaveText(['Pilgrimsfärd', 'Härlig är jorden', 'Pilgrimsfärd']);
-  await page.getByRole('button', { name: 'Ordning', exact: true }).click();
+  await page.getByRole('button', { name: 'Arrangemang', exact: true }).click();
   await expect(tiles).toHaveText(['Härlig är jorden', 'Pilgrimsfärd', 'Tidevarv komma']);
   await page.getByRole('button', { name: 'Kort', exact: true }).click();
   await expect(tiles).toHaveText(['Pilgrimsfärd', 'Härlig är jorden', 'Pilgrimsfärd']);

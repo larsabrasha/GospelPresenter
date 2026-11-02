@@ -146,11 +146,12 @@ menu and what the chosen one means under it, as macOS's; a user's and an organis
 card around them, their logins or members as a group, and Radera … as a red row of its own.
 A song's page the same way (Lars, 2026-11-02, as Apple would): its facts as one card of rows (Namn, Upphovspersoner,
 Förlag, År, CCLI, none side by side, hairlines between them, each a field whose name moves up as it is typed in); each part as a group, its label over its card with ⋯ for Flytta
-upp, Flytta ned and Ta bort del, the card holding its text alone; Ordning (the word for arrangements, there from the start) as a
-row for each order with its parts in a line, or the parts' own order before there is one, a row opening its order in a
-dialog, with what an order is for in grey under the group; Noter
-och länkar under a small caption; the actions (Lägg till del, Skapa arrangemang, Ladda upp fil, Lägg till länk) in sky
-text with no box; and at the foot Historik as a row and Ta bort sång as a red row.
+upp, Flytta ned and Ta bort del, the card holding its text alone; Lägg till del in sky text; and at the foot one group of rows that open a sheet, as
+iOS's Settings opens a page (Lars, 2026-11-02: less text on the page): Arrangemang with the order in grey, Noter och
+länkar with how many, and Historik; then Ta bort sång as a red row. What an arrangement and sheet music are for is said
+in their sheets. Historik as Mail and Notes: the versions under a heading for each day (Idag, Igår, a date), each row
+its time; the preview beside them when the page's own column has room (576 px), else a version tapped opens on its
+own with ‹ Versioner (and Escape) back.
 Sånger as Music's Låtar and Contacts: the search under the title, the songs in sections by letter with an index along
 the edge from 20 songs, how many in grey under the list, + for Ny sång, and beside it a round, quieter button for
 Importera från ProPresenter…, floating with + in Inställningar; .pro files dropped anywhere on the page import too, and the import's progress shows only while it runs.

@@ -58,7 +58,9 @@ export function Themes({ role }: { role: Role }) {
     <PageContainer>
       {/* What a theme is: the card at the top (settingsLinks.ts `intro`). */}
       <PageHeader title={t('themes.title')} />
-      <ul className="grid gap-4 sm:grid-cols-2" aria-label={t('themes.title')}>
+      {/* Two to a row when its own column has room (Inställningar's is narrow on an iPad held upright). */}
+      <div className="@container">
+      <ul className="grid gap-4 @xl:grid-cols-2" aria-label={t('themes.title')}>
         {listThemes().map((theme) => (
           <li key={theme.id} className={CARD} data-testid={`theme-${theme.id}`}>
             <div className="aspect-video">
@@ -84,6 +86,7 @@ export function Themes({ role }: { role: Role }) {
           </li>
         ))}
       </ul>
+      </div>
     </PageContainer>
   );
 }

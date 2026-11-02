@@ -29,10 +29,11 @@ test('a changed part is kept in the history, shown as slides, and restored', asy
   await expect(page.getByText('Sparad')).toBeVisible();
   await page.getByRole('link', { name: 'Historik' }).click();
 
-  const versions = page.getByRole('list', { name: 'Versioner' });
+  // The versions by day (Idag), each row its time; the preview beside them on a computer.
+  const versions = page.getByRole('region', { name: 'Versioner' });
   const preview = page.getByRole('region', { name: 'Förhandsvisning' });
-  await expect(versions.getByRole('listitem')).toHaveCount(1);
-  await expect(versions.getByRole('button')).toContainText('Idag');
+  await expect(versions.getByTestId('version')).toHaveCount(1);
+  await expect(versions.getByRole('heading', { name: 'Idag' })).toBeVisible();
   await expect(preview).toContainText('Ett');
   await expect(preview).toContainText('Två');
   await expect(preview).toContainText('Verse');
@@ -41,7 +42,7 @@ test('a changed part is kept in the history, shown as slides, and restored', asy
 
   await expect(page.getByLabel('Delar 1', { exact: true })).toHaveValue('Ett');
   await page.getByRole('link', { name: 'Historik' }).click();
-  await expect(versions.getByRole('listitem')).toHaveCount(2);
-  await versions.getByRole('button').first().click();
+  await expect(versions.getByTestId('version')).toHaveCount(2);
+  await versions.getByTestId('version').first().click();
   await expect(preview).toContainText('Ändrad');
 });

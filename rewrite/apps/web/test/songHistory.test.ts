@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SongVersion } from '@gp/core';
-import { versionSlides, versionTime } from '../src/pages/songHistory.ts';
+import { versionDay, versionSlides, versionTime } from '../src/pages/songHistory.ts';
 
 const at = (y: number, m: number, d: number, h: number, min: number) => new Date(y, m - 1, d, h, min).getTime();
 
@@ -17,6 +17,22 @@ describe('when a version is from', () => {
 
   it('gives the date and the time for an older version', () => {
     expect(versionTime(at(2026, 10, 29, 9, 30), now)).toMatch(/^29 okt\.? 2026 09:30$/);
+  });
+});
+
+describe("the heading of a version's day", () => {
+  const now = at(2026, 10, 31, 15, 0);
+
+  it('says Idag for a version from today', () => {
+    expect(versionDay(at(2026, 10, 31, 0, 5), now)).toBe('Idag');
+  });
+
+  it('says Igår for a version from yesterday', () => {
+    expect(versionDay(at(2026, 10, 30, 23, 59), now)).toBe('Igår');
+  });
+
+  it('gives the date for an older version', () => {
+    expect(versionDay(at(2026, 10, 29, 9, 30), now)).toMatch(/^29 okt\.? 2026$/);
   });
 });
 

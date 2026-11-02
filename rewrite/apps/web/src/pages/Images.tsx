@@ -94,7 +94,9 @@ export function Images({ role }: { role: Role }) {
             <EmptySmall icon={<PhotoOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('images.empty')} />
           )}
           {!!images?.length && !shown.length && <CardNote>{t('images.noMatch')}</CardNote>}
-          <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1 p-3 empty:hidden" aria-label={t('images.title')} data-testid="image-grid">
+          {/* Columns by its own width, not the window's: Inställningar's page column is narrow on an iPad held upright. */}
+          <div className="@container">
+          <ul className="grid grid-cols-2 @sm:grid-cols-3 @lg:grid-cols-4 @2xl:grid-cols-5 @4xl:grid-cols-6 gap-1 p-3 empty:hidden" aria-label={t('images.title')} data-testid="image-grid">
             {shown.map((image) => (
               <li key={image.id} className="relative p-2 flex flex-col items-center min-w-0" data-testid="image-card">
                 <div className="relative rounded-lg">
@@ -111,6 +113,7 @@ export function Images({ role }: { role: Role }) {
               </li>
             ))}
           </ul>
+          </div>
         </div>
       </DropZone>
     </PageContainer>

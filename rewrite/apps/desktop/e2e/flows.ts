@@ -88,12 +88,19 @@ export async function newSong(page: Page) {
 }
 
 /**
- * Opens a song's Ordning: its `index`th row under the parts, which makes the first order when the song has none (Lars,
- * 2026-11-02: the line is there from the start). The order's dialog.
+ * Opens a song's `index`th arrangement: the Arrangemang row on its page, then that arrangement's row in the sheet, which
+ * makes the first one when the song has none (Lars, 2026-11-02). The sheet, showing the arrangement.
  */
-export async function openOrder(page: Page, index = 0) {
-  await page.getByRole('region', { name: 'Ordning', exact: true }).getByRole('button').nth(index).click();
+export async function openArrangement(page: Page, index = 0) {
+  await page.getByRole('button', { name: /^Arrangemang/ }).click();
+  await page.getByRole('dialog', { name: 'Arrangemang' }).getByTestId('arrangement-row').nth(index).click();
   return page.getByRole('dialog');
+}
+
+/** Opens a song's Noter och länkar sheet from its row on the song's page. */
+export async function openMaterials(page: Page) {
+  await page.getByRole('button', { name: /^Noter och länkar/ }).click();
+  return page.getByRole('dialog', { name: 'Noter och länkar' });
 }
 
 /** Creates a song with labelled parts and stays in its editor. */
