@@ -114,7 +114,8 @@ export function SettingsLayout({
           <ChevronLeftIcon className="size-5" />
         </a>
       )}
-      <span data-bar-title aria-hidden="true" className={`flex-1 min-w-0 font-semibold text-[17px] truncate transition-opacity ${bar.titleShown ? '' : 'opacity-0'}`}>
+      {/* Keyed by the name: another page's starts as it should be, not fading from the last one's state. */}
+      <span key={bar.title} data-bar-title aria-hidden="true" className={`flex-1 min-w-0 font-semibold text-[17px] truncate transition-opacity ${bar.titleShown ? '' : 'opacity-0'}`}>
         {bar.title}
       </span>
       {/* A detail page's own name and Sparad (DetailHeader) take the title's place. */}

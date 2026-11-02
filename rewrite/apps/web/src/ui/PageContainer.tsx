@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { HeaderFloatProvider, useFloatSlot } from './headerFloat.ts';
 import { useWide } from './useWide.ts';
@@ -83,7 +83,10 @@ export function PageHeader({ title, large, children }: { title: string; large?: 
 function IntroCard({ title, intro }: { title: string; intro: PageIntro }) {
   const heading = useRef<HTMLHeadingElement>(null);
   const { onTitleInView } = intro;
-  useEffect(() => {
+  // Before the first paint: a page opens at its top, its card in view, so the bar's name never shows for the moment
+  // before the observer first answers (it blinked between pages: Lars, 2026-11-02).
+  useLayoutEffect(() => {
+    onTitleInView(true);
     const el = heading.current;
     if (!el || typeof IntersectionObserver === 'undefined') return;
     const seen = new IntersectionObserver(([entry]) => onTitleInView(!!entry?.isIntersecting));

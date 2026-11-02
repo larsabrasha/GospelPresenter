@@ -72,12 +72,12 @@ test("a user's page: rename, change the e-mail and the role, remove a login, mak
   await expect(page.getByText('Inga inloggningsmetoder tillagda.')).toBeVisible();
 
   // A new invite: active for 7 days, accepted here on the host; deleting it brings the empty state back.
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await page.getByRole('button', { name: 'Skapa inbjudningslänk' }).click();
   const invite = page.getByTestId('invite');
   await expect(invite).toContainText('Aktiv');
   await expect(invite).toContainText('Går ut om 7 dagar');
   await expect(invite.getByRole('button', { name: 'Logga in som Eva Berg här' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Skapa', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Skapa inbjudningslänk' })).toHaveCount(0);
   await invite.getByRole('button', { name: 'Radera' }).click();
   await page.getByRole('dialog', { name: 'Ta bort inbjudan' }).getByRole('button', { name: 'Radera' }).click();
   await expect(invite).toHaveCount(0);

@@ -197,7 +197,7 @@ export function PageDialog({
               {title}
             </h2>
             {compactTitle && (
-              <span aria-hidden="true" className={`lg:hidden absolute inset-x-16 text-center font-semibold text-[17px] truncate transition-opacity ${compactTitleShown ? '' : 'opacity-0'}`}>
+              <span key={compactTitle} aria-hidden="true" className={`lg:hidden absolute inset-x-16 text-center font-semibold text-[17px] truncate transition-opacity ${compactTitleShown ? '' : 'opacity-0'}`}>
                 {compactTitle}
               </span>
             )}

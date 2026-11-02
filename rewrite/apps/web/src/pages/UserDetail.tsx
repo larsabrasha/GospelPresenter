@@ -12,10 +12,14 @@ import { KeyPicture, LinkIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
+import { GROUP_ROW, Group } from '../ui/Group.tsx';
 import { acceptHere, copy, forgetInvite, freshInvite, inviteUrl, timeLeft } from './Users.tsx';
 
-const CARD = 'bg-surface dark:text-stone-100 rounded-xl border-[0.5px] border-separator p-5 space-y-4';
 const ERROR = 'text-sm text-red-500 dark:text-red-400';
+/** Radera beside a login or the invite: red text, no box of its own. */
+const RED_TEXT = 'shrink-0 text-sm text-red-600 dark:text-red-400 cursor-pointer hover:underline';
+/** An action at the foot of a group: a row in sky. */
+const ACTION_ROW = `${GROUP_ROW} w-full text-left text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised`;
 
 const providerName = (l: LoginMethod) => t(`userDetail.provider.${l.provider}`);
 
@@ -174,7 +178,8 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
     <PageContainer>
       {dialog}
       <DetailHeader backHref="/admin/users" title={user.name} saved={saved.node} className="px-5" />
-      <div className={CARD}>
+      {/* The fields are boxes of their own, on the page with no card around them (Lars, 2026-11-02: no box in a box). */}
+      <div className="space-y-4">
         {canEdit ? (
           <>
             {/* A blank name is not saved. */}
@@ -231,25 +236,22 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
         </div>
       </div>
 
-      <div className={CARD}>
-        <div className="font-semibold">{t('userDetail.login')}</div>
-        {logins === null && <div className="text-stone-400">{t('common.loading')}</div>}
-        {typeof logins === 'string' && <div className={ERROR}>{logins}</div>}
+      {/* Inloggning as a group of rows, as Mina inställningar (ui/Group.tsx): each login a row, Radera in red text. */}
+      <Group title={t('userDetail.login')}>
+        {logins === null && <div className={`${GROUP_ROW} text-stone-400`}>{t('common.loading')}</div>}
+        {typeof logins === 'string' && <div className={`${GROUP_ROW} ${ERROR}`}>{logins}</div>}
         {Array.isArray(logins) && logins.length > 0 && (
-          <ul aria-label={t('userDetail.login')} className="space-y-4">
+          <ul aria-label={t('userDetail.login')} className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
             {logins.map((l) => (
-              <li
-                key={`${l.provider}:${l.id}`}
-                className="flex items-center justify-between gap-3 p-3 bg-white dark:bg-raised rounded-xl border border-stone-200 dark:border-stone-600"
-              >
+              <li key={`${l.provider}:${l.id}`} className={GROUP_ROW}>
                 <div className="min-w-0">
-                  <div className="font-medium text-sm">{providerName(l)}</div>
+                  <div>{providerName(l)}</div>
                   <div className="text-xs text-stone-500 dark:text-stone-400 font-mono break-all">{l.id}</div>
                 </div>
                 {canEdit && (
                   <AppButton
-                    variant="danger"
-                    className="px-3 py-1.5"
+                    variant="plain"
+                    className={RED_TEXT}
                     aria-label={`${t('common.delete')} ${providerName(l)}`}
                     onClick={() =>
                       void ask({
@@ -271,7 +273,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
         {Array.isArray(logins) && logins.length === 0 && (
           <>
             {!invite && (
-              <div className="flex flex-col items-center text-center py-4 select-none">
+              <div className="flex flex-col items-center text-center p-4 select-none">
                 <KeyPicture className="w-32 h-auto mb-3 text-stone-300 dark:text-stone-600" />
                 <p className="text-sm text-stone-400 dark:text-stone-500 leading-relaxed">
                   {t('userDetail.noLogins')}
@@ -283,7 +285,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
             {invite && (
               <div
                 data-testid="invite"
-                className={`p-4 bg-white dark:bg-raised rounded-xl border border-stone-200 dark:border-stone-600 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
+                className={`p-4 space-y-2 ${invite.expired ? 'opacity-60' : ''}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -299,8 +301,8 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                   </div>
                   {!inviteRefusal(actor, user) && (
                     <AppButton
-                      variant="danger"
-                      className="px-3 py-1.5"
+                      variant="plain"
+                      className={RED_TEXT}
                       onClick={() =>
                         void ask({
                           title: t('userDetail.deleteInvite'),
@@ -361,26 +363,26 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
                 )}
               </div>
             )}
+            {/* The invite's actions as rows in sky, as iOS's actions in a group. */}
             {(!invite || invite.expired) && !inviteRefusal(actor, user) && (
-              <div className="flex justify-center">
-                <AppButton onClick={() => void createInvite()}>{t('userDetail.createInvite')}</AppButton>
-              </div>
+              <AppButton variant="plain" className={ACTION_ROW} onClick={() => void createInvite()}>
+                {t('userDetail.createInvite')}
+              </AppButton>
             )}
             {mail && user.email && !inviteRefusal(actor, user) && (
-              <div className="flex justify-center">
-                <AppButton variant="secondary" loading={mailing} onClick={() => void mailInvite(user.email!)}>
-                  {t('userDetail.mailInvite', { email: user.email })}
-                </AppButton>
-              </div>
+              <AppButton variant="plain" className={ACTION_ROW} loading={mailing} onClick={() => void mailInvite(user.email!)}>
+                {t('userDetail.mailInvite', { email: user.email })}
+              </AppButton>
             )}
           </>
         )}
-      </div>
+      </Group>
 
       {!self && !removeUserRefusal(actor, user) && (
-        <div className="flex flex-col items-end gap-1">
+        <Group footer={deleteError && <span className={ERROR}>{deleteError}</span>}>
           <AppButton
-            variant="danger"
+            variant="plain"
+            className={`${GROUP_ROW} w-full justify-center text-red-600 dark:text-red-400 cursor-pointer hover:bg-raised`}
             onClick={() =>
               void ask({
                 title: t('users.remove'),
@@ -394,8 +396,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
           >
             {t('users.remove')}
           </AppButton>
-          {deleteError && <div className={ERROR}>{deleteError}</div>}
-        </div>
+        </Group>
       )}
     </PageContainer>
   );

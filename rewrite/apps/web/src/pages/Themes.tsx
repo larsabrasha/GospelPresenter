@@ -34,6 +34,8 @@ export function Themes({ role }: { role: Role }) {
   if (saved === undefined)
     return (
       <PageContainer>
+        {/* The intro card while loading too, so the bar's name does not show and go (ui/PageContainer.tsx). */}
+        <PageHeader title={t('themes.title')} />
         <p className="px-7 py-4 text-stone-400">{t('auth.loading')}</p>
       </PageContainer>
     );
