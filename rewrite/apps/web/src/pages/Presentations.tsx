@@ -59,8 +59,12 @@ function CreatePresentationDialog({ template, onClose }: { template: Presentatio
 const PICK =
   'flex items-center gap-3 w-full px-4 py-3 rounded-xl border border-stone-200 dark:border-stone-600 hover:border-sky-500 dark:hover:border-sky-500 hover:bg-stone-50 dark:hover:bg-raised text-left text-inherit cursor-pointer transition-colors';
 
-/** The first step of Skapa when there are templates: a blank presentation, or one of the last used templates (Dashboard.razor). */
-function TemplatePicker({ templates, onPick, onClose }: { templates: Presentation[]; onPick: (template: Presentation | null) => void; onClose: () => void }) {
+/**
+ * The first step of Skapa when there are templates: a blank presentation, or one of the last used templates
+ * (Dashboard.razor). Who may change them has "Hantera mallar" beside the caption, to Mallar (Lars, 2026-11-02); the
+ * first template is made with Spara som mall.
+ */
+function TemplatePicker({ templates, manage, onPick, onClose }: { templates: Presentation[]; manage: boolean; onPick: (template: Presentation | null) => void; onClose: () => void }) {
   return (
     <Dialog title={t('presentations.createTitle')} onClose={onClose}>
       <AppButton
@@ -76,7 +80,14 @@ function TemplatePicker({ templates, onPick, onClose }: { templates: Presentatio
         <DocumentIcon className="size-5 shrink-0 text-stone-400 dark:text-stone-500" />
         <span className="text-sm font-medium">{t('templates.blank')}</span>
       </AppButton>
-      <div className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide pt-2">{t('templates.pickerTitle')}</div>
+      <div className="flex items-baseline justify-between gap-2 pt-2">
+        <span className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide">{t('templates.pickerTitle')}</span>
+        {manage && (
+          <a href={href({ page: 'templates' })} onClick={onClose} className="text-sm text-sky-600 dark:text-sky-400 no-underline hover:underline">
+            {t('templates.manage')}
+          </a>
+        )}
+      </div>
       <div className="flex flex-col gap-2">
         {templates.map((tp) => (
           <AppButton key={tp.id} variant="plain" className={PICK} onClick={() => onPick(tp)}>
@@ -212,7 +223,7 @@ const KEYS: ShortcutGroup = {
   ],
 };
 
-export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessionId: string }) {
+export function Presentations({ link, ownSessionId, manageTemplates }: { link: LiveLink; ownSessionId: string; manageTemplates: boolean }) {
   const presentations = useData(listPresentations, []);
   const templates = useData(recentTemplates, []);
   const counts = useData(itemCounts, []);
@@ -255,6 +266,7 @@ export function Presentations({ link, ownSessionId }: { link: LiveLink; ownSessi
       {picking && templates && (
         <TemplatePicker
           templates={templates}
+          manage={manageTemplates}
           onClose={() => setPicking(false)}
           onPick={(template) => {
             setPicking(false);

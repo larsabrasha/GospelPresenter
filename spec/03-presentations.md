@@ -63,7 +63,7 @@ stored at a fixed key per overlay), `SortOrder` (append order; no reorder UI).
 
 ### Template
 A `Presentation` with `IsTemplate = true`. Has a weekly slot (day/time) and location instead of an
-event date; has items like a presentation. Lifecycle: create (Admin → Templates or "Save as
+event date; has items like a presentation. Lifecycle: create (the templates page or "Save as
 template" from a presentation) → edit at `/templates/{id}` → used to create presentations → trash →
 restore / purge.
 
@@ -107,7 +107,9 @@ trash).
 - **Create flow** (`Dashboard.razor:378-469`):
   - If the org has ≥1 template (10 most recent: `LastUsedAt` desc, then `UpdatedAt` desc), a picker
     dialog "Skapa presentation" shows **Tom presentation** and a "Mallar" list (name + "weekday
-    HH:mm · location"). Otherwise skip straight to the details dialog.
+    HH:mm · location"). Otherwise skip straight to the details dialog. 2.0 (Lars, 2026-11-02): who has
+    ManageTemplates sees **Hantera mallar** beside the "Mallar" caption, which opens the templates page
+    (section 3).
   - Details dialog (`PresentationDetailsDialog`): name (focused; prefilled with template name or
     "Presentation"), date, time, location (placeholder "Plats"), description ("Beskrivning"). No
     theme picker on create. Prefill from template: date = next occurrence of the template's weekday
@@ -147,7 +149,7 @@ nothing.
     presentation name → toast "Sparad som mall".
   - **Markera** — toggles multi-select mode.
   - **Radera presentation** / **Radera mall** (red) — no confirmation; moves to trash, toast
-    "{name} flyttad till papperskorgen", navigates to `/` (template: `/admin/templates`).
+    "{name} flyttad till papperskorgen", navigates to `/` (template: `/templates`, the templates page).
 - Under the name: schedule line (presentation: short date + short time in UI culture; template:
   weekday + `HH:mm`) and location.
 - Item list: icon by type (note, book, photo, speaker, stack), title, a pulsing red dot on the item
@@ -256,7 +258,10 @@ every device, offline too, so there is no "görs i webbappen" state. The modal s
 **{title}**?" with **Avbryt** / **Radera** (bulk removal uses the same buttons). Removal is permanent (no trash for items). Removing a Slides item
 also deletes its deck and page files.
 
-### 3. Templates admin — `/admin/templates` (`S/Pages/Admin/Templates.razor`)
+### 3. Templates — `/templates` (`S/Pages/Admin/Templates.razor`)
+2.0 (Lars, 2026-11-02): a page of its own beside the dashboard, no longer in Inställningar (a template opened from
+there left Inställningar for its editor), reached by **Hantera mallar** in the create picker; a round ‹ goes back to
+`/`, and a template's ‹ back to this page. `/admin/templates` still opens it.
 Policy ManageTemplates (Admin, SuperAdmin). Title "Mallar"; **Papperskorg** → `/trash?kind=Template`
 (always visible; 2.0 (Lars, 2026-11-02): no button here; the one Papperskorg is a row in Inställningar (section 5 of spec 03)); **Skapa** (when list non-empty). States: "Laddar...", empty (SVG, "Inga mallar",
 "Med mallar kan du snabbt skapa presentationer med fördefinierat innehåll.", **Skapa**), list of all
@@ -572,12 +577,13 @@ ManageOrganizationAudios), newest deletion first (tie → id).
   URLs return not found.
 - PRES-A29 Given two browsers on the same presentation, when browser A adds an item, then browser B's
   running order updates and shows "Presentationen har uppdaterats", while B's selection is unchanged.
-- PRES-A30 Given an Admin on `/admin/templates` with no templates, when they click **Skapa**, enter
+- PRES-A30 Given an Admin on `/templates` with no templates, when they click **Skapa**, enter
   "Söndag", Sunday, 11:00, then they land on `/templates/{id}` with banner "Du redigerar en mall" and
   no Start button.
 - PRES-A31 Given a presentation, when an Admin chooses **Spara som mall** and saves name "Påsk", then a
-  toast "Sparad som mall" appears and "Påsk" is listed in `/admin/templates` and in the dashboard picker.
-- PRES-A32 Given a User (no ManageTemplates), then `/admin/templates` is denied and "Spara som mall" is
+  toast "Sparad som mall" appears and "Påsk" is listed in `/templates` and in the dashboard picker, which has
+  **Hantera mallar** to `/templates`; a template's ‹ goes back to `/templates`.
+- PRES-A32 Given a User (no ManageTemplates), then `/templates` is denied, the picker has no **Hantera mallar**, and "Spara som mall" is
   not in the menu.
 - PRES-A33 Given `/admin/overlays`, when the user creates "Kollekt", types text, waits 0.5 s, then
   "Sparad" flashes; reloading shows the text; deleting asks for confirmation and removes it permanently.

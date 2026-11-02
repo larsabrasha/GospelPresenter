@@ -87,11 +87,11 @@ internet. A screen draws the projector's canvas, as the output window does (`Sli
 rendering as `/live`"), and like every output never shows an error or reconnection screen (LIVE-R33). Two kinds:
 
 - **A saved screen** is a row in `displays` of kind `screen` (organisation schema 9, no new column; an older
-  app must update first, since it would list it as a public output). An admin adds it under Skärmar → Skärmar
+  app must update first, since it would list it as a public output). An admin adds it under Fasta utgångar
   ("Lägg till"), and the TV opens its link, `/display?id={code}&name={name}`, as a QR code or text. Its code
   is in the global index with the public outputs' (`watch_codes`), but each answers at its own path only. It is
   online while its page has a stream open (`/api/display/{code}/stream`); the live hub sends every socket which
-  outputs are online, so Skärmar shows Online or Offline and Utgångar can switch it on only then (LIVE-A21). A
+  outputs are online, so Fasta utgångar shows Online or Offline and Utgångar can switch it on only then (LIVE-A21). A
   page that closes switches it off (LIVE-R24, LIVE-A20), once it has not come back for 15 s
   (`SCREEN_GRACE_MS`): a TV whose Wi-Fi blinks reconnects within that and stays on, and Lars chose on
   2026-10-27 that a blink should not count as a closed page. Unbound, it shows its name.
@@ -100,7 +100,7 @@ rendering as `/live`"), and like every output never shows an error or reconnecti
   3 s until paired, getting a new code once the old one has run out. Its id is 32 random bytes, kept in the
   tab (`sessionStorage`), and is its only credential (ADR 0007 decision 5). Since an unpaired screen belongs to
   no organisation, it lives in the global tables (`screens`, `screen_tokens`, global schema 6), and a stream is
-  found by its id at `/api/screen/{id}/stream`. "Anslut tillfällig skärm" under Utgångar pairs it, by the four
+  found by its id at `/api/screen/{id}/stream`. "Anslut tillfällig utgång" under Utgångar pairs it, by the four
   digits typed into four boxes (`POST /api/live/screens/claim`; a wrong code counts against the address with
   the setup token and device pairing codes), or by a QR code of `/display?token={token}`: 32 random bytes,
   single use, 10 minutes, renewed every 8 minutes while the dialog is open and dropped when it closes. The TV
@@ -183,7 +183,7 @@ aktiverad av presentatören" or that the presenting computer lost contact. Teste
 
 ## Public outputs
 
-An admin makes a public output under Skärmar (`/admin/displays`): a synced row in `displays` with a name and
+An admin makes a public output under Följ med (`/admin/public-outputs`): a synced row in `displays` with a name and
 a 7-character code from `abcdefghjkmnpqrstuvwxyz23456789` (LIVE-R30; at most 50 per organisation). Anyone
 opens `/watch/{code}`, signed in or not, on a phone or a tablet. Since a viewer has nothing but the code, the
 server keeps a global index of codes (`watch_codes`, global schema version 5), which it brings up to date after

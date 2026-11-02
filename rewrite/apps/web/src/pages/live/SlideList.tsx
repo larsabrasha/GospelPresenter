@@ -42,6 +42,7 @@ export function SlideList({
   onItemMenu,
   onAddImages,
   footer,
+  template = false,
 }: {
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
@@ -64,6 +65,8 @@ export function SlideList({
   onAddImages?: (itemId: string) => void;
   /** Under the last item: on a phone, whether it is kept offline and Fjärrstyrning, as a computer's columns have them. */
   footer?: ReactNode;
+  /** A template's editor: the empty list says the template is empty. */
+  template?: boolean;
 }) {
   const wide = useWide();
   const box = useRef<HTMLDivElement>(null);
@@ -88,7 +91,7 @@ export function SlideList({
       {!items.length && (
         <div className="h-full flex flex-col items-center justify-center text-center px-6 py-12 select-none">
           <EmptySlidesPicture className="w-48 h-auto mb-6 text-stone-300 dark:text-stone-600" />
-          <h2 className="text-lg/7 font-semibold text-stone-500 dark:text-stone-400 mb-2">{t('presentation.empty')}</h2>
+          <h2 className="text-lg/7 font-semibold text-stone-500 dark:text-stone-400 mb-2">{t(template ? 'templates.emptyTemplate' : 'presentation.empty')}</h2>
           <p className="text-sm text-stone-400 dark:text-stone-500 max-w-xs leading-relaxed">{withBold(t('presentation.emptyText'), '{add}', t('presentation.add'))}</p>
         </div>
       )}

@@ -196,6 +196,7 @@ export function PhoneLive({
         />
       ) : (
         <SlideList
+          template={presentation.isTemplate}
           items={items}
           slides={slides}
           theme={theme}

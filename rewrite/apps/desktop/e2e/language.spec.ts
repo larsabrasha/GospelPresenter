@@ -16,10 +16,10 @@ test('English chosen under Mina inställningar shows the app in English, after a
   await setUpHost(host);
   await openAdmin(page, 'Mina inställningar');
 
-  await page.getByRole('radio', { name: 'English' }).click();
+  await page.getByRole('combobox', { name: 'Språk' }).selectOption({ label: 'English' });
 
   await expect(page.getByRole('heading', { name: 'My settings' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: 'English' })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'My settings' })).toBeVisible();

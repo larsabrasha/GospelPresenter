@@ -46,8 +46,8 @@ async function pairedScreen(page: Page): Promise<Page> {
   const screen = await browser.newPage();
   await screen.goto(`${origin}/display`);
   const code = (await screen.getByTestId('display-pin').textContent({ timeout: 10_000 }))!;
-  await page.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig skärm' });
+  await page.getByRole('button', { name: 'Anslut tillfällig utgång' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig utgång' });
   for (const [i, d] of [...code].entries()) await dialog.getByLabel(`Siffra ${i + 1}`).fill(d);
   await expect(dialog.getByText('Skärmen är ansluten')).toBeVisible();
   await dialog.getByRole('button', { name: 'Stäng' }).click();

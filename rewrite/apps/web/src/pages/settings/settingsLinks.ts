@@ -61,7 +61,6 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
       title: 'settings.group.presentation',
       links: [
         can(me.role, 'ManageOverlays') && { route: { page: 'overlays' }, label: 'overlays.title', icon: SquaresOverlapIcon, colour: 'bg-indigo-500', pages: ['overlays', 'overlay'], intro: 'intro.overlays' },
-        can(me.role, 'ManageTemplates') && { route: { page: 'templates' }, label: 'nav.templates', icon: ViewGridIcon, colour: 'bg-cyan-600', pages: ['templates'], intro: 'intro.templates' },
         can(me.role, 'ManageSongs') && { route: { page: 'labels' }, label: 'nav.labels', icon: TagIcon, colour: 'bg-green-500', pages: ['labels'], intro: 'intro.labels' },
       ],
     },

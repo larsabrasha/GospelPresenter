@@ -5,6 +5,7 @@ import { listDisplays } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { chosenOutputs, REMOTE_CHANGED, setOutput } from '../../live/owner.ts';
 import { useLiveSessions, type LiveLink } from '../../live/remote.ts';
+import { rememberOutput } from '../../live/autoOutputs.ts';
 import { OUTPUT_WINDOW, outputWindow, type OutputDisplay } from '../../live/outputWindow.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useToast } from '../../ui/Toast.tsx';
@@ -92,6 +93,8 @@ export function useOutputs(link: LiveLink, sessionId: string) {
       on: openOwn.includes(x.id),
       turn: (on: boolean) => {
         if (!output.turn(on, x.id)) toast(t('live.outputFailed'));
+        // Left as it is by hand, it comes on by itself the same way next time (live/autoOutputs.ts).
+        else if (x.id !== OUTPUT_WINDOW) rememberOutput(ownDisplays.find((d) => d.id === x.id)?.name ?? '', on);
       },
     })),
     rows,

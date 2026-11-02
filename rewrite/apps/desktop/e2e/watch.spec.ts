@@ -18,12 +18,12 @@ test('a public output follows the presentation in a browser without signing in; 
   const page = host.page;
   await setUpHost(host);
 
-  // Publika utgångar: make one and take its link.
-  await openAdmin(page, 'Publika utgångar');
-  await expect(page.getByText('Inga publika utgångar')).toBeVisible();
-  await page.getByRole('button', { name: 'Skapa publik utgång' }).click();
-  await page.getByRole('dialog', { name: 'Skapa publik utgång' }).getByLabel('Namn').fill('Kyrkkaffet');
-  await page.getByRole('dialog', { name: 'Skapa publik utgång' }).getByRole('button', { name: 'Skapa' }).click();
+  // Följ med: make one and take its link.
+  await openAdmin(page, 'Följ med');
+  await expect(page.getByText('Inga länkar ännu')).toBeVisible();
+  await page.getByRole('button', { name: 'Skapa länk' }).click();
+  await page.getByRole('dialog', { name: 'Skapa länk' }).getByLabel('Namn').fill('Kyrkkaffet');
+  await page.getByRole('dialog', { name: 'Skapa länk' }).getByRole('button', { name: 'Skapa' }).click();
   // The new output's QR code and link open at once (spec 04 §7).
   const shown = page.getByRole('dialog', { name: 'Kyrkkaffet' });
   await expect(shown.getByRole('img', { name: 'QR-kod' })).toHaveAttribute('data-value', /\/watch\/[a-z2-9]{7}$/);
@@ -91,8 +91,8 @@ test('a public output follows the presentation in a browser without signing in; 
   await expect(phone.getByTestId('watch-overlay')).toHaveText('Swish 123 45', { timeout: 5_000 });
   await expect(phone.getByTestId('watch-text')).toHaveText('A två');
 
-  // Publika utgångar says what it sends and to how many.
-  await openAdmin(page, 'Publika utgångar');
+  // Följ med says what it sends and to how many.
+  await openAdmin(page, 'Följ med');
   await expect(row).toContainText('Sänder från Söndag');
   await expect(row).toContainText('1 enhet');
 

@@ -39,26 +39,26 @@ async function tv(url: string): Promise<Page> {
 }
 
 async function typeCode(page: Page, code: string) {
-  const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig skärm' });
+  const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig utgång' });
   for (const [i, d] of [...code].entries()) await dialog.getByLabel(`Siffra ${i + 1}`).fill(d);
 }
 
 test('a saved screen is online while its page is open, shows the slide when switched on, and goes off when the page closes (LIVE-A20, A21)', async () => {
   const page = await presenting();
   const origin = new URL(page.url()).origin;
-  await openAdmin(page, 'Skärmar');
-  await expect(page.getByText('Inga skärmar tillagda')).toBeVisible();
-  // An empty list shows its picture and heading only; the intro card at the top says what screens are.
-  await expect(page.getByText(/^TV-apparater och projektorer som visar presentationen/)).toBeVisible();
+  await openAdmin(page, 'Fasta utgångar');
+  await expect(page.getByText('Inga fasta utgångar')).toBeVisible();
+  // An empty list shows its picture and heading only; the intro card at the top says what fixed outputs are.
+  await expect(page.getByText(/^Projektorer, TV-apparater och datorer som kyrkan har satt upp/)).toBeVisible();
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByLabel('Namn').fill('Kyrksal');
-  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByRole('button', { name: 'Lägg till' }).click();
+  await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByLabel('Namn').fill('Kyrksal');
+  await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByRole('button', { name: 'Lägg till' }).click();
   const shown = page.getByRole('dialog', { name: 'Kyrksal' });
   const url = await shown.getByLabel('Länk').inputValue();
   expect(url).toMatch(new RegExp(`^${origin}/display\\?id=[a-z2-9]{7}&name=Kyrksal$`));
   await expect(shown.getByRole('img', { name: 'QR-kod' })).toHaveAttribute('data-value', url);
   await shown.getByRole('button', { name: 'Stäng' }).click();
-  const row = page.getByRole('list', { name: 'Skärmar' }).getByRole('listitem', { name: 'Kyrksal' });
+  const row = page.getByRole('list', { name: 'Fasta utgångar' }).getByRole('listitem', { name: 'Kyrksal' });
   await expect(row).toContainText('Offline');
   await expect(page.getByText(/^En skärm är en extern enhet/)).toHaveCount(0);
 
@@ -68,7 +68,7 @@ test('a saved screen is online while its page is open, shows the slide when swit
   await expect(screen.getByTestId('display-pin')).toHaveCount(0);
   await expect(row).toContainText('Online', { timeout: 5_000 });
 
-  // Switched on under Utgångar, it shows what the host shows. Back past Skärmar and the admin menu's first page, Sånger.
+  // Switched on under Utgångar, it shows what the host shows. Back past Fasta utgångar and the admin menu's first page, Sånger.
   await page.goBack();
   await page.goBack();
   const outputs = page.getByRole('list', { name: 'Utgångar' });
@@ -89,14 +89,14 @@ test('a saved screen is online while its page is open, shows the slide when swit
 
 test('a saved screen whose session ended draws black, and its name again once its page is opened anew (Display.razor)', async () => {
   const page = await presenting();
-  await openAdmin(page, 'Skärmar');
+  await openAdmin(page, 'Fasta utgångar');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByLabel('Namn').fill('Kyrksal');
-  await page.getByRole('dialog', { name: 'Lägg till skärm' }).getByRole('button', { name: 'Lägg till' }).click();
+  await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByLabel('Namn').fill('Kyrksal');
+  await page.getByRole('dialog', { name: 'Lägg till utgång' }).getByRole('button', { name: 'Lägg till' }).click();
   const url = await page.getByRole('dialog', { name: 'Kyrksal' }).getByLabel('Länk').inputValue();
   await page.getByRole('dialog', { name: 'Kyrksal' }).getByRole('button', { name: 'Stäng' }).click();
   const screen = await tv(url);
-  await expect(page.getByRole('list', { name: 'Skärmar' }).getByRole('listitem', { name: 'Kyrksal' })).toContainText('Online', { timeout: 5_000 });
+  await expect(page.getByRole('list', { name: 'Fasta utgångar' }).getByRole('listitem', { name: 'Kyrksal' })).toContainText('Online', { timeout: 5_000 });
   await page.goBack();
   await page.goBack();
   await page.getByRole('list', { name: 'Utgångar' }).getByLabel('Kyrksal').check();
@@ -110,7 +110,7 @@ test('a saved screen whose session ended draws black, and its name again once it
   await expect(screen.getByTestId('display-idle')).toContainText('Kyrksal');
 });
 
-test('a TV shows a code; typed in "Anslut tillfällig skärm" it shows the session; ✕ gives it a new code (LIVE-A17, A19)', async () => {
+test('a TV shows a code; typed in "Anslut tillfällig utgång" it shows the session; ✕ gives it a new code (LIVE-A17, A19)', async () => {
   const page = await presenting();
   const origin = new URL(page.url()).origin;
   const screen = await tv(`${origin}/display`);
@@ -119,8 +119,8 @@ test('a TV shows a code; typed in "Anslut tillfällig skärm" it shows the sessi
   const code = (await pin.textContent())!;
   await expect(screen.getByText('Ange denna kod i Gospel Presenter för att ansluta denna skärm')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig skärm' });
+  await page.getByRole('button', { name: 'Anslut tillfällig utgång' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig utgång' });
   await expect(dialog.getByLabel('Adress för skärmen')).toHaveValue(`${origin}/display`);
   // A wrong code: the message, and empty boxes.
   await typeCode(page, code === '1000' ? '1001' : '1000');
@@ -132,12 +132,12 @@ test('a TV shows a code; typed in "Anslut tillfällig skärm" it shows the sessi
 
   await expect(screen.getByTestId('output').getByTestId('slide-text')).toHaveText('A ett', { timeout: 5_000 });
   const outputs = page.getByRole('list', { name: 'Utgångar' });
-  await expect(outputs.getByText('Tillfällig skärm (1)')).toBeVisible();
+  await expect(outputs.getByText('Tillfällig utgång (1)')).toBeVisible();
 
   // ✕: the screen is let go and shows a new code.
-  await outputs.getByRole('button', { name: 'Koppla bort tillfällig skärm (1)' }).click();
+  await outputs.getByRole('button', { name: 'Koppla bort tillfällig utgång (1)' }).click();
   await expect(pin).toHaveText(/^\d{4}$/, { timeout: 10_000 });
-  await expect(outputs.getByText('Tillfällig skärm (1)')).toHaveCount(0);
+  await expect(outputs.getByText('Tillfällig utgång (1)')).toHaveCount(0);
 });
 
 test('a temporary screen opened with ?name= shows its name above the code (Display.razor)', async () => {
@@ -157,8 +157,8 @@ test('a temporary screen opened with ?name= shows its name above the code (Displ
 
 test('a TV that opens the QR link pairs at once, and its address becomes /display (LIVE-A18)', async () => {
   const page = await presenting();
-  await page.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig skärm' });
+  await page.getByRole('button', { name: 'Anslut tillfällig utgång' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Anslut tillfällig utgång' });
   const qr = dialog.getByRole('img', { name: 'QR-kod för att ansluta en skärm' });
   await expect(qr).toHaveAttribute('data-value', /\/display\?token=[A-Za-z0-9_-]{43}$/);
   const link = (await qr.getAttribute('data-value'))!;
@@ -193,11 +193,11 @@ test("a paired screen draws the projector's canvas, as the output window: the 19
   await pickItem(page, 'Sång A');
   await page.getByRole('button', { name: 'Sång A 1' }).click();
 
-  await page.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
-  const qr = page.getByRole('dialog', { name: 'Anslut tillfällig skärm' }).getByRole('img', { name: 'QR-kod för att ansluta en skärm' });
+  await page.getByRole('button', { name: 'Anslut tillfällig utgång' }).click();
+  const qr = page.getByRole('dialog', { name: 'Anslut tillfällig utgång' }).getByRole('img', { name: 'QR-kod för att ansluta en skärm' });
   const screen = await tv((await qr.getAttribute('data-value'))!);
   await expect(page.getByText('Skärmen är ansluten')).toBeVisible({ timeout: 10_000 });
-  await page.getByRole('dialog', { name: 'Anslut tillfällig skärm' }).getByRole('button', { name: 'Stäng' }).click();
+  await page.getByRole('dialog', { name: 'Anslut tillfällig utgång' }).getByRole('button', { name: 'Stäng' }).click();
 
   // The song on the stage, with the presentation's theme; not the public output's reflowing view.
   const stage = screen.getByTestId('output').getByTestId('slide-stage');

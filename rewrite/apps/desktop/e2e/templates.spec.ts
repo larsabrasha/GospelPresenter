@@ -1,9 +1,10 @@
 // Templates (spec 03 "Template", screen 3): made on the templates page or from a
 // presentation, edited in the presentation editor under a banner, used to
-// make presentations from the start page, and deleted to their own trash.
+// make presentations from the start page, whose picker leads to the templates
+// page, and deleted to their own trash.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { addSongs, createSong, openAdmin, openPresentations, setUpHost } from './flows.ts';
+import { addSongs, closeAdmin, createSong, openAdmin, openPresentations, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 
@@ -27,8 +28,10 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await setUpHost(host);
   await createSong(page, 'Härlig är jorden', [['Verse 1', 'Härlig är jorden']]);
 
-  // PRES-A30: the templates page, empty, then a template with its weekly slot, opened in the editor.
-  await openAdmin(page, 'Mallar');
+  // PRES-A30: the templates page, empty (by its address: the picker that leads there shows only with templates), then
+  // a template with its weekly slot, opened in the editor.
+  await closeAdmin(page);
+  await page.goto(new URL('/templates', page.url()).href);
   await expect(page.getByRole('heading', { name: 'Inga mallar' })).toBeVisible();
   await page.getByRole('button', { name: 'Skapa', exact: true }).click();
   const create = page.getByRole('dialog', { name: 'Skapa mall' });
@@ -45,12 +48,18 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await expect(page.getByRole('menuitem', { name: 'Spara som mall' })).toHaveCount(0);
   await page.keyboard.press('Escape');
+  // ‹ goes back to Mallar, where the template was opened from, and Mallar's ‹ to the start page.
+  await page.getByRole('link', { name: 'Tillbaka till mallarna' }).click();
+  await expect(page.getByRole('list', { name: 'Mallar' }).getByRole('listitem')).toHaveText([/^Söndag/]);
+  await page.getByRole('link', { name: 'Tillbaka till presentationerna' }).click();
+  await expect(page.getByRole('heading', { name: 'Presentationer', exact: true })).toBeVisible();
 
   // PRES-A3: Skapa on the start page offers the template, and the dialog is prefilled from it.
   await openPresentations(page);
   await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Skapa presentation' });
   await expect(picker.getByRole('button', { name: 'Tom presentation' })).toBeVisible();
+  await expect(picker.getByRole('link', { name: 'Hantera mallar' })).toHaveAttribute('href', '/templates');
   await picker.getByRole('button', { name: /Söndag.*Söndag 11:00 · Kyrkan/ }).click();
   const details = page.getByRole('dialog', { name: 'Skapa presentation' });
   await expect(details.getByLabel('Namn')).toHaveValue('Söndag');
@@ -70,9 +79,12 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await save.getByLabel('Namn').fill('Påsk');
   await save.getByRole('button', { name: 'Spara', exact: true }).click();
   await expect(page.getByRole('status').getByText('Sparad som mall')).toBeVisible();
-  await openAdmin(page, 'Mallar');
+  // Hantera mallar in Skapa's picker opens the templates page.
+  await openPresentations(page);
+  await page.getByRole('button', { name: 'Ny presentation', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Skapa presentation' }).getByRole('link', { name: 'Hantera mallar' }).click();
   const list = page.getByRole('list', { name: 'Mallar' });
-  await expect(list.getByRole('listitem')).toHaveText(['Påsk', 'Söndag']);
+  await expect(list.getByRole('listitem')).toHaveText([/^Påsk/, /^Söndag/]);
 
   // The copy has the song; deleting it goes to the templates' own trash.
   await list.getByRole('link', { name: 'Påsk' }).click();
@@ -80,7 +92,7 @@ test('PRES-A30, A3, A31: a template is made, filled, used for a presentation, sa
   await page.getByRole('button', { name: 'Alternativ' }).click();
   await page.getByRole('menuitem', { name: 'Radera mall' }).click();
   await expect(page.getByRole('status').getByText('Påsk flyttad till papperskorgen')).toBeVisible();
-  await expect(list.getByRole('listitem')).toHaveText(['Söndag']);
-  await page.getByRole('link', { name: 'Papperskorg' }).click();
+  await expect(list.getByRole('listitem')).toHaveText([/^Söndag/]);
+  await openAdmin(page, 'Papperskorg');
   await expect(page.getByRole('listitem', { name: 'Påsk' })).toContainText('Mall · 30 dagar kvar');
 });

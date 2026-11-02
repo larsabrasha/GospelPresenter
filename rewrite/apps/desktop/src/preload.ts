@@ -12,6 +12,11 @@ contextBridge.exposeInMainWorld('gpDesktop', {
     return () => void ipcRenderer.off('outputs-changed', on);
   },
   outputDisplays: () => ipcRenderer.invoke('output-displays') as Promise<{ id: string; name: string }[]>,
+  onOutputClosedHere(cb: (name: string) => void) {
+    const on = (_e: unknown, name: unknown) => typeof name === 'string' && cb(name);
+    ipcRenderer.on('output-closed-here', on);
+    return () => void ipcRenderer.off('output-closed-here', on);
+  },
   onDisplaysChanged(cb: () => void) {
     const on = () => cb();
     ipcRenderer.on('displays-changed', on);

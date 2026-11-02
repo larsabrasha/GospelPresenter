@@ -24,9 +24,9 @@ async function viewer(url: string): Promise<Page> {
   return page;
 }
 
-/** Makes a saved screen (on Skärmar) or a public output (on Publika utgångar) and returns its link. */
+/** Makes a saved screen (on Fasta utgångar) or a public output (on Följ med) and returns its link. */
 async function newOutput(page: Page, kind: 'screen' | 'public', name: string): Promise<string> {
-  const title = kind === 'screen' ? 'Lägg till skärm' : 'Skapa publik utgång';
+  const title = kind === 'screen' ? 'Lägg till utgång' : 'Skapa länk';
   await page.getByRole('button', kind === 'screen' ? { name: 'Lägg till', exact: true } : { name: title }).click();
   await page.getByRole('dialog', { name: title }).getByLabel('Namn').fill(name);
   await page.getByRole('dialog', { name: title }).getByRole('button', { name: kind === 'screen' ? 'Lägg till' : 'Skapa' }).click();
@@ -74,9 +74,9 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   await expect(page.getByText('Sparad')).toBeVisible();
 
   // The church's outputs: a TV in the hall, and a public output for the phones.
-  await openAdmin(page, 'Skärmar');
+  await openAdmin(page, 'Fasta utgångar');
   const tvUrl = await newOutput(page, 'screen', 'Kyrksal');
-  await openAdmin(page, 'Publika utgångar');
+  await openAdmin(page, 'Följ med');
   const watchUrl = await newOutput(page, 'public', 'Mobilerna');
   await closeAdmin(page);
 

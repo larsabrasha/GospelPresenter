@@ -81,7 +81,7 @@ describe('routes', () => {
   });
 
   it('admin pages live under /admin, and no page is under /api', () => {
-    for (const page of ['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'templates', 'themes', 'displays', 'about'] as const) {
+    for (const page of ['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'overlays', 'themes', 'displays', 'about'] as const) {
       const path = href({ page });
       expect(path).toBe(`/admin/${page}`);
       expect(path).not.toMatch(/^\/api/);
@@ -97,7 +97,7 @@ describe('routes', () => {
   });
 
   it('every page under /admin opens as Inställningar', () => {
-    for (const path of ['/admin', '/admin/songs/S1', '/admin/users/U1', '/admin/overlays/O1', '/admin/settings', '/admin/about', '/admin/templates', '/songs']) {
+    for (const path of ['/admin', '/admin/songs/S1', '/admin/users/U1', '/admin/overlays/O1', '/admin/settings', '/admin/about', '/songs']) {
       expect(isAdminPage(read(path)), path).toBe(true);
     }
   });
@@ -128,7 +128,7 @@ describe('routes', () => {
   });
 
   it('the pages outside Inställningar open on their own, the template editor among them', () => {
-    for (const path of ['/', '/presentations/P1', '/templates/T1']) {
+    for (const path of ['/', '/presentations/P1', '/templates', '/templates/T1']) {
       expect(isAdminPage(read(path)), path).toBe(false);
     }
   });
@@ -136,7 +136,18 @@ describe('routes', () => {
   it('a template opens in the editor at /templates/{id}, as in the current app (spec 03 screen 2)', () => {
     expect(href({ page: 'template', id: 'T 1' })).toBe('/templates/T%201');
     expect(read('/templates/T%201')).toEqual({ page: 'template', id: 'T 1' });
-    expect(read('/admin/templates')).toEqual({ page: 'templates' });
+  });
+
+  it('Mallar is a page of its own at /templates, outside Inställningar', () => {
+    expect(href({ page: 'templates' })).toBe('/templates');
+    expect(read('/templates')).toEqual({ page: 'templates' });
+  });
+
+  it("Mallar's address from when it was in Inställningar still opens it, outside Inställningar", () => {
+    const route = read('/admin/templates');
+
+    expect(route).toEqual({ page: 'templates' });
+    expect(isAdminPage(route)).toBe(false);
   });
 
   it('the song addresses from before the admin menu still open them', () => {

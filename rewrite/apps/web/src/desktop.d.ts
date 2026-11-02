@@ -11,6 +11,8 @@ interface Window {
     onOutputsChanged(cb: (open: string[]) => void): () => void;
     /** Every display the main window does not stand on, named by the operating system. */
     outputDisplays(): Promise<{ id: string; name: string }[]>;
+    /** Called with a display's name when the main window was moved onto it and its output closed. Returns an unsubscribe. */
+    onOutputClosedHere(cb: (name: string) => void): () => void;
     /** Called when a display comes or goes, or the main window moves to another. Returns an unsubscribe. */
     onDisplaysChanged(cb: () => void): () => void;
     /** The window's title bar is hidden on a Mac: the page's bar holds the window's buttons and moves the window. */

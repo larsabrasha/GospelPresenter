@@ -194,10 +194,10 @@ test('capture every page', async () => {
       }
     });
   // One screen and one public output, made once, as capture-old-app.mjs makes them in the current app; each on its own
-  // page (Skärmar, Publika utgångar), the screens' left open.
+  // page (Fasta utgångar, Följ med), the fixed outputs' left open.
   const makeOutputs = async (p: Page) => {
     for (const [path, add, name] of [
-      ['/admin/public-outputs', 'Skapa publik utgång', 'Mobiler'],
+      ['/admin/public-outputs', 'Skapa länk', 'Mobiler'],
       ['/admin/displays', 'Lägg till', 'Kyrksalen'],
     ] as const) {
       await p.goto(`${host!.base}${path}`);
@@ -365,17 +365,17 @@ test('capture every page', async () => {
     ['displays-filled', '/admin/displays', (p) => makeOutputs(p)],
     ['displays-link', '/admin/displays', (p) => clickFirst(p, 'Visa länk')],
     ['displays-qr', '/admin/displays', (p) => clickFirst(p, 'Visa QR-kod')],
-    // "Anslut tillfällig skärm" (PairingCodeDialog.razor), and after a TV beside it has been paired.
+    // "Anslut tillfällig utgång" (PairingCodeDialog.razor), and after a TV beside it has been paired.
     [
       'pair-screen',
       `/presentations/${id}`,
       async (p) => {
         await goLive(p);
-        await p.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
+        await p.getByRole('button', { name: 'Anslut tillfällig utgång' }).click();
         await p.getByRole('img', { name: 'QR-kod för att ansluta en skärm' }).waitFor();
       },
       async (p) => {
-        await p.getByRole('dialog', { name: 'Anslut tillfällig skärm' }).getByRole('button', { name: 'Avbryt' }).click();
+        await p.getByRole('dialog', { name: 'Anslut tillfällig utgång' }).getByRole('button', { name: 'Avbryt' }).click();
         await stopLive(p);
       },
     ],
@@ -384,16 +384,16 @@ test('capture every page', async () => {
       `/presentations/${id}`,
       async (p) => {
         await goLive(p);
-        await p.getByRole('button', { name: 'Anslut tillfällig skärm' }).click();
+        await p.getByRole('button', { name: 'Anslut tillfällig utgång' }).click();
         const tv = await beside(`${host!.base}/display`, 'dark', 1440, 900);
         const code = (await tv.getByTestId('display-pin').textContent())!;
         await tv.context().close();
-        const dialog = p.getByRole('dialog', { name: 'Anslut tillfällig skärm' });
+        const dialog = p.getByRole('dialog', { name: 'Anslut tillfällig utgång' });
         for (const [i, d] of [...code].entries()) await dialog.getByLabel(`Siffra ${i + 1}`).fill(d);
         await dialog.getByText('Skärmen är ansluten').waitFor();
       },
       async (p) => {
-        await p.getByRole('dialog', { name: 'Anslut tillfällig skärm' }).getByRole('button', { name: 'Stäng' }).click();
+        await p.getByRole('dialog', { name: 'Anslut tillfällig utgång' }).getByRole('button', { name: 'Stäng' }).click();
         await stopLive(p);
       },
     ],

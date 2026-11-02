@@ -61,7 +61,7 @@ function SettingsList({ me, host, route }: { me: Me; host: boolean; route: Route
         <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600 lg:hidden" />
       </a>
       {settingsGroups(me, host).map((g) => (
-        <section key={g.title ?? 'about'} className="flex flex-col gap-1.5 lg:gap-0.5" aria-label={g.title ? t(g.title) : undefined}>
+        <section key={g.title ?? g.links[0]?.label} className="flex flex-col gap-1.5 lg:gap-0.5" aria-label={g.title ? t(g.title) : undefined}>
           {g.title && (
             <h2 className="px-4 lg:px-3 text-[13px]/4 font-semibold uppercase tracking-wide lg:text-[13px]/5 lg:normal-case lg:tracking-normal text-stone-500 dark:text-stone-400">{t(g.title)}</h2>
           )}

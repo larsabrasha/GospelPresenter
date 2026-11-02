@@ -96,7 +96,12 @@ overlay.
   and where, which open the presentation's menu (Redigera detaljer… and Noter och länkar, Spara som mall…, and to the trash
   when not presented, each group apart); at the right round icons for Fjärrstyrning (while presented) and Inställningar, no … (Lars,
   2026-11-01), and at the far right ▶ to start or ■ to end, which asks first. The cloud shows there while the
-  sync has a problem. A template has no ▶.
+  sync has a problem. A template has no ▶, and its ‹ goes back to Mallar.
+- **Mallar** (`/templates`) is a page of its own beside the start page, not in Inställningar (Lars, 2026-11-02: a
+  template opened from there left Inställningar for its editor, which felt out of place): reached by "Hantera mallar"
+  beside the templates' caption in Skapa presentation, for who may change them; a round ‹ back to the start page, the
+  templates as rows, + to make one. The first template is made with Spara som mall, since the picker shows only when
+  there are templates.
 - **Left:** the items, one row each, the shown one marked by a red dot in the room left of the row (Lars, 2026-11-02) and a tint across the
   whole row. Dragged straight away with the mouse (after 4 px, so a click still selects), Delete removes, and a
   right click or the row's … gives Redigera (a song's), Lägg till efter, Flytta upp, Flytta ned, Markera and Ta bort; in
@@ -107,7 +112,7 @@ overlay.
   clicker's keys (→ ← Space PageDown PageUp, B and .) work on the live page.
 - **Right:** the picture, ‹ Rensa ›, the next slide, the overlays as switches (one shown at a time, drawn on the
   picture too), and the outputs folded to one line that says how they are ("3 på · 12 tittare", a green dot) and
-  turns orange with what is wrong ("Kyrksal är offline"); a click unfolds the switches and Anslut tillfällig skärm.
+  turns orange with what is wrong ("Kyrksal är offline"); a click unfolds the switches and Anslut tillfällig utgång.
 
 ## The start page and the bar
 
@@ -122,12 +127,17 @@ Inställningar's list (Lars, 2026-11-02); no list or page has its own.
 ## Inställningar
 
 On a phone a list as iOS's Settings: Mina inställningar as a profile cell at the top, then Bibliotek (Sånger,
-Biblar, Bilder, Ljud, Videor), Presentation (Overlays, Mallar, Etiketter), Visning (Skärmar, Publika utgångar, Teman, CCLI-rapport),
+Biblar, Bilder, Ljud, Videor), Presentation (Overlays, Etiketter), Visning (Fasta utgångar, Följ med, Teman, CCLI-rapport),
 Organisationen (Användare, Organisationen, Organisationer) and Om Gospel Presenter, each with a coloured icon; a row
 opens its page full width, with a round ‹ alone at the left of the dialog's bar (one step up) and the page's name in
-its middle (Lars, 2026-11-02); Skärmar and Publika utgångar are pages of their own, each with its floating + (Lars,
-2026-11-02). Overlays, Mallar, Etiketter, Skärmar, Publika utgångar, Teman, CCLI-rapport, Enheter and Organisationen
+its middle (Lars, 2026-11-02); Fasta utgångar (the church's projectors, TVs and computers) and Följ med (links
+and QR codes anyone opens in a browser) are pages of their own, each with its floating + (Lars, 2026-11-02: Utgångar
+is the word for all that shows, so neither page is "Skärmar" nor "Publika utgångar"). Overlays, Etiketter,
+Fasta utgångar, Följ med, Teman, CCLI-rapport, Enheter and Organisationen
 open with a card as iOS's Settings has: the row's icon, the page's name and what it is for; the bar names the page
 once the card has scrolled away. On a computer as macOS's System Settings: the same list at the
 left, the page at the right. It stays a dialog over the page the user is on (filling the screen on a phone); the
-list replaces the dialog's side menu.
+list replaces the dialog's side menu. Mina inställningar is grouped rows as iOS's Settings (`ui/Group.tsx`; Lars,
+2026-11-02: no box around each choice): Färgtema as three small window pictures side by side, the chosen one ringed
+(macOS's Appearance, iOS's Display & Brightness); Språk as a row with a pop-up menu; Den här enheten with its switches;
+the storage (Lagring, Sparat offline, Cache) and Konto, each a group.

@@ -20,8 +20,12 @@ describe('settingsGroups', () => {
     expect(labels('admin', true)).toContain('nav.devices');
   });
 
-  it('a user sees no page they may not open, such as Mallar', () => {
-    expect(labels('user')).not.toContain('nav.templates');
+  it('a user sees no page they may not open, such as Organisationer', () => {
+    expect(labels('user')).not.toContain('nav.orgs');
+  });
+
+  it('Mallar is not in the list for anyone: it is a page of its own, reached from Skapa presentation', () => {
+    expect(labels('superAdmin')).not.toContain('nav.templates');
   });
 });
 

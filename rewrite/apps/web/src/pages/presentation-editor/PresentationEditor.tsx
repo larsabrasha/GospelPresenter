@@ -8,7 +8,7 @@ import { addAfter } from '../../live/liveList.ts';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
-import { href, navigate } from '../../ui/router.ts';
+import { backToTemplates, href, navigate } from '../../ui/router.ts';
 import { songPage } from '../live/songPage.ts';
 import { usePageKeys } from '../../ui/shortcuts.ts';
 import { useShortcutGroup, type ShortcutGroup } from '../../ui/ShortcutHelp.tsx';
@@ -20,6 +20,7 @@ import { PresentationBar } from '../live/PresentationBar.tsx';
 import { useWide } from '../../ui/useWide.ts';
 import { BackToPresentations } from '../../TopBar.tsx';
 import { RunningOrder } from '../live/RunningOrder.tsx';
+import { useAutoOutputs } from '../live/useAutoOutputs.ts';
 import { SlideList } from '../live/SlideList.tsx';
 import { LivePanel } from '../live/LivePanel.tsx';
 import { PhoneLive } from '../live/phone/PhoneLive.tsx';
@@ -170,6 +171,9 @@ export function PresentationEditor({
     setFollowed(liveItemId);
     if (liveItemId) setSelectedId(liveItemId);
   }
+  useAutoOutputs(!!owner);
+  // An output closed because the app's window was moved onto its display says so, so a dark projector is no surprise.
+  useEffect(() => window.gpDesktop?.onOutputClosedHere((name) => toast(t('live.outputClosedHere', { name }))), [toast]);
   // The screen stays awake while this computer presents (Presentation.razor's wake lock), and takes it again when the page shows.
   useEffect(() => {
     if (!owner || !('wakeLock' in navigator)) return;
@@ -271,7 +275,8 @@ export function PresentationEditor({
     // To the trash without a dialog, with a toast that says where it went (PRES-R29).
     if (!(await trySave(db.mutate(template ? 'trashTemplate' : 'trashPresentation', { id, at: Date.now() })))) return;
     toast(t('presentation.trashed', { name: presentation.name }));
-    navigate({ page: template ? 'templates' : 'presentations' });
+    if (template) backToTemplates();
+    else navigate({ page: 'presentations' });
   };
 
   // A row chosen in the running order; on a computer the slides scroll to it, each choice anew.
@@ -355,6 +360,7 @@ export function PresentationEditor({
               />
             </SideMenu>
             <SlideList
+              template={template}
               items={items}
               slides={slides}
               theme={theme}

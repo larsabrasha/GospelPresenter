@@ -5,7 +5,7 @@ import type { LiveControl } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, StopIcon } from '../../ui/icons.tsx';
-import { href } from '../../ui/router.ts';
+import { backToTemplates, href } from '../../ui/router.ts';
 import { templateDetails } from '../templates.ts';
 import { PresentationMenu } from '../presentation-editor/PresentationMenu.tsx';
 import { SyncCloud } from '../../TopBar.tsx';
@@ -69,7 +69,18 @@ export function PresentationBar({
     >
       {dialog}
       {/* Back as iOS 27's: a round ‹ alone (Lars, 2026-11-02). */}
-      <a href={href({ page: 'presentations' })} aria-label={t('nav.backToPresentations')} title={t('nav.backToPresentations')} className={`justify-self-start ${ROUND_BACK}`}>
+      {/* A template's goes back to Mallar, where templates are kept. */}
+      <a
+        href={href({ page: presentation.isTemplate ? 'templates' : 'presentations' })}
+        onClick={(e) => {
+          if (!presentation.isTemplate) return;
+          e.preventDefault();
+          backToTemplates();
+        }}
+        aria-label={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
+        title={t(presentation.isTemplate ? 'nav.backToTemplates' : 'nav.backToPresentations')}
+        className={`justify-self-start ${ROUND_BACK}`}
+      >
         <ChevronLeftIcon className="size-5" />
       </a>
       {/* The page's heading, for screen readers; the button shows the name. */}

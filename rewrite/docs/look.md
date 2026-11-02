@@ -91,7 +91,7 @@ Sign-in, setup, the invite and pairing (step 5) are `Login.razor`, `Setup.razor`
 (`pages/AuthCard.tsx`): the logo and the two-blue name, the fields as floating fields and the wide sky Kom igång;
 the sign-in page in the middle of the screen over the slowly moving blue blobs (`animated-bg` in `app.css`), the
 Google button white with its G; an invite that cannot be used as the old envelope picture without the logo.
-Anslut till värddatorn has no counterpart and is drawn as setup. Anslut tillfällig skärm is
+Anslut till värddatorn has no counterpart and is drawn as setup. Anslut tillfällig utgång is
 `PairingCodeDialog.razor`: the QR code in its white frame, "eller", the numbered steps, the grey address field
 and the four large digit boxes, and the green tick when a screen is paired. `/display` is `Display.razor`'s
 black page (the code huge in mono, the logo and name at the foot); `/watch` is `PublicWatchPage.razor`'s
@@ -114,7 +114,10 @@ for each display the app's window is not on, named as macOS names it ("EPSON PJ"
 stands on an external display), several on at once, each fullscreen on its display (`apps/desktop/src/outputs.ts`);
 with no other display, and in a browser, one "Utgångsfönster" in a window of its own (Lars, 2026-11-02). On opens
 the output, off closes it, and each shows whether its window is open, so closing the window some other way turns it
-off; Avsluta closes them all. In the desktop app the main process reports where outputs are open
+off; Avsluta closes them all. The app's window moved onto a display with an output closes that output, with a toast
+that says so. "Slå på utgångar automatiskt" under Mina inställningar (the desktop app only, on at first) turns them
+on as a presentation starts and as a display is plugged in while it runs, each as it was last left by hand (by the
+display's name; one never switched comes on), and closes the output of a display unplugged (`live/autoOutputs.ts`). In the desktop app the main process reports where outputs are open
 (`outputs-changed`) and when the displays change (`displays-changed`), and a reloaded page asks (`outputs-open`); in a browser the popup is checked every 0.5 s, since a page has no event for it, and a reloaded
 page shows it off until it is switched on again, which takes the open popup back by its name. Unlike the
 current app the row is always there (with one display the output is a window) and a browser opens a popup,

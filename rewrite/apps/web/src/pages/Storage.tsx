@@ -5,8 +5,7 @@ import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
 import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { ChevronDownIcon } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
+import { GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
 // "Lagring på den här enheten" under Mina inställningar (TODO.md "Video, and which files a device
@@ -108,13 +107,14 @@ function useStorageReport(): (StorageReport & { budget: number }) | null {
   return report;
 }
 
-/** "Lagring på den här enheten". A desktop host's own window keeps no files, and says so. */
+/** "Lagring på den här enheten", as grouped rows (ui/Group.tsx). A desktop host's own window keeps no files, and says so. */
 export function StorageSection() {
   if (isHostWindow())
     return (
-      <div className={`${CARD} p-5`} data-testid="storage">
-        <h2 className="block text-sm/5 font-medium mb-1">{t('storage.title')}</h2>
-        <p className="text-xs text-stone-500 dark:text-stone-400">{t('storage.host')}</p>
+      <div data-testid="storage">
+        <Group title={t('storage.title')}>
+          <p className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400">{t('storage.host')}</p>
+        </Group>
       </div>
     );
   return <DeviceStorage />;
@@ -137,83 +137,82 @@ function DeviceStorage() {
   const persistent = status?.storage === 'opfs';
   const byId = new Map((presentations ?? []).map((p) => [p.id, p]));
   return (
-    <div className={`${CARD} p-5 space-y-4`} data-testid="storage">
-      <div>
-        <h2 className="block text-sm/5 font-medium mb-1">{t('storage.title')}</h2>
-        <p className="text-sm" data-testid="storage-total">
+    <div className="space-y-6" data-testid="storage">
+      <Group title={t('storage.title')} footer={!!status && !persistent && <span className="text-amber-700 dark:text-amber-300">{t('storage.memory')}</span>}>
+        <p className={GROUP_ROW} data-testid="storage-total">
           {report ? t('storage.used', { size: formatBytes(report.total) }) : t('storage.loading')}
         </p>
-        {!!status && !persistent && <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">{t('storage.memory')}</p>}
-      </div>
+      </Group>
 
-      <section aria-labelledby="storage-offline">
-        <h3 id="storage-offline" className="flex items-baseline justify-between gap-2 text-sm font-medium">
-          <span>{t('storage.offline')}</span>
-          <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums" data-testid="storage-offline-total">
-            {formatBytes(report?.offlineTotal ?? 0)}
-          </span>
-        </h3>
-        {report && !report.offline.length && <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">{t('storage.offlineNone')}</p>}
-        <ul className="mt-2 flex flex-col gap-1" aria-label={t('storage.offline')}>
-          {report?.offline.map((o) => {
-            const p = byId.get(o.presentationId);
-            const byHand = !!pinned?.has(o.presentationId);
-            return (
-              <li key={o.presentationId} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-stone-100 dark:bg-raised/50 px-3 py-2 text-sm">
-                <span className="flex-1 min-w-0">
-                  <span className="block truncate">{p?.name ?? o.presentationId}</span>
-                  <span className="block text-xs text-stone-500 dark:text-stone-400">
-                    {[p?.eventDate, formatBytes(o.bytes)].filter(Boolean).join(' · ')}
-                    {!byHand && ` · ${t('storage.byComing')}`}
+      <Group title={t('storage.offline')}>
+        {report && !report.offline.length && <p className={`${GROUP_ROW} text-stone-500 dark:text-stone-400`}>{t('storage.offlineNone')}</p>}
+        {!!report?.offline.length && (
+          <div className={GROUP_ROW}>
+            <span>{t('storage.offlineTotal')}</span>
+            <span className="tabular-nums text-stone-500 dark:text-stone-400" data-testid="storage-offline-total">
+              {formatBytes(report.offlineTotal)}
+            </span>
+          </div>
+        )}
+        {!!report?.offline.length && (
+          <ul className="flex flex-col [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator" aria-label={t('storage.offline')}>
+            {report.offline.map((o) => {
+              const p = byId.get(o.presentationId);
+              const byHand = !!pinned?.has(o.presentationId);
+              return (
+                <li key={o.presentationId} className={GROUP_ROW}>
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate">{p?.name ?? o.presentationId}</span>
+                    <span className="block text-xs text-stone-500 dark:text-stone-400">
+                      {[p?.eventDate, formatBytes(o.bytes)].filter(Boolean).join(' · ')}
+                      {!byHand && ` · ${t('storage.byComing')}`}
+                    </span>
                   </span>
-                </span>
-                {byHand && (
-                  <AppButton variant="secondary" onClick={() => void db.setPinned(o.presentationId, false)}>
-                    {t('storage.stopKeeping')}
-                  </AppButton>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+                  {byHand && (
+                    <AppButton variant="plain" className="shrink-0 text-sky-600 dark:text-sky-400 cursor-pointer hover:underline" onClick={() => void db.setPinned(o.presentationId, false)}>
+                      {t('storage.stopKeeping')}
+                    </AppButton>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Group>
 
-      <section aria-labelledby="storage-cache" className="space-y-2">
-        <h3 id="storage-cache" className="flex items-baseline justify-between gap-2 text-sm font-medium">
-          <span>{t('storage.cache')}</span>
-          <span className="text-xs text-stone-500 dark:text-stone-400 tabular-nums" data-testid="storage-cache">
+      <Group title={t('storage.cache')} footer={t('storage.cacheText')}>
+        <div className={GROUP_ROW}>
+          <span>{t('storage.cacheUsed')}</span>
+          <span className="tabular-nums text-stone-500 dark:text-stone-400" data-testid="storage-cache">
             {formatBytes(cache)}
           </span>
-        </h3>
-        <p className="text-xs text-stone-500 dark:text-stone-400">{t('storage.cacheText')}</p>
-        <label className="flex items-center justify-between gap-3 text-sm">
+        </div>
+        <label className={GROUP_ROW}>
           <span>{t('storage.limit')}</span>
-          <span className="relative shrink-0">
-            {/* The limits that fit in the room the cache could have, and the one chosen, which an earlier slider may have left between them. */}
-            <select
-              value={limit}
-              disabled={!max}
-              data-testid="storage-limit"
-              onChange={(e) => {
-                const bytes = Number(e.target.value);
-                setLimit(bytes);
-                setCacheLimitSetting(bytes);
-              }}
-              className="appearance-none h-9 pl-4 pr-8 rounded-full tabular-nums bg-raised dark:bg-raised-2 text-stone-900 dark:text-stone-100 cursor-pointer disabled:cursor-default focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              {[...new Set([...LIMITS.filter((l) => l <= (max ?? limit)), limit])]
-                .toSorted((a, b) => a - b)
-                .map((l) => (
-                  <option key={l} value={l}>
-                    {limitLabel(l)}
-                  </option>
-                ))}
-            </select>
-            <ChevronDownIcon className="size-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-          </span>
+          {/* The limits that fit in the room the cache could have, and the one chosen, which an earlier slider may have left between them. */}
+          <PopUp
+            value={limit}
+            disabled={!max}
+            data-testid="storage-limit"
+            onChange={(e) => {
+              const bytes = Number(e.target.value);
+              setLimit(bytes);
+              setCacheLimitSetting(bytes);
+            }}
+          >
+            {[...new Set([...LIMITS.filter((l) => l <= (max ?? limit)), limit])]
+              .toSorted((a, b) => a - b)
+              .map((l) => (
+                <option key={l} value={l}>
+                  {limitLabel(l)}
+                </option>
+              ))}
+          </PopUp>
         </label>
+        {/* Rensa cache as a row in sky, as iOS's actions in a group. */}
         <AppButton
-          variant="secondary"
+          variant="plain"
+          className={`${GROUP_ROW} w-full text-left text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised disabled:text-stone-400 dark:disabled:text-stone-500 disabled:cursor-default disabled:hover:bg-transparent`}
           disabled={!cache || clearing}
           onClick={async () => {
             setClearing(true);
@@ -227,7 +226,7 @@ function DeviceStorage() {
         >
           {t('storage.clear')}
         </AppButton>
-      </section>
+      </Group>
     </div>
   );
 }

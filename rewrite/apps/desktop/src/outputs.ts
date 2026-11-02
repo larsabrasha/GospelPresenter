@@ -83,9 +83,22 @@ export function outputWindows({
     for (const [at, win] of open) if ((target === undefined || at === target) && !win.isDestroyed()) win.close();
   }
 
-  /** Tells the page when the displays change: one plugged in or out, or the main window moved to another. */
+  /**
+   * Tells the page when the displays change: one plugged in or out, or the main window moved to another. A display
+   * never has both the main window and an output (Lars, 2026-11-02): the main window moved onto a display with an
+   * output closes that output, which would cover it and which its list no longer shows; the page says so in a toast.
+   */
   function watchDisplays(win: BrowserWindow) {
-    const tell = () => send('displays-changed', null);
+    const tell = () => {
+      if (!hidden && !win.isDestroyed()) {
+        const here = screen.getDisplayMatching(win.getBounds());
+        if (open.has(String(here.id))) {
+          hide(String(here.id));
+          send('output-closed-here', here.label);
+        }
+      }
+      send('displays-changed', null);
+    };
     screen.on('display-added', tell);
     screen.on('display-removed', tell);
     screen.on('display-metrics-changed', tell);

@@ -144,7 +144,9 @@ Not available on `/templates/{id}` (template mode never shows live controls).
   3. **Utgångar** (hidden in remote mode) with hint text. Rows:
      - **Extern skärm** toggle — shown when the host has a second display (desktop), the browser has
        the Presentation API, or the projector is currently on. 2.0 (Lars, 2026-11-02): one switch for each display
-       the app's window is not on, named by the operating system, several on at once; with none, "Utgångsfönster". On opens the projector window, off closes
+       the app's window is not on, named by the operating system, several on at once; with none, "Utgångsfönster".
+       "Slå på utgångar automatiskt" (Mina inställningar, desktop app, on at first) switches them on as the
+       presentation starts and as a display is plugged in, each as last left by hand, and closes an unplugged one's. On opens the projector window, off closes
        it; the toggle shows whether the window is open, so closing it some other way (its close button,
        the OS) turns it off. Unplugging the display does not close the window, so the toggle stays on.
        (Rewrite, 2026-10-28: always shown; with one display it opens a window, and in a browser a popup

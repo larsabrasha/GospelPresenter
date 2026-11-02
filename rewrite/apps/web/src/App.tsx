@@ -125,7 +125,6 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'videos' && (can(me.role, 'ViewVideos') ? <Videos role={me.role} /> : <Refused text={t('videos.forbidden')} />)}
       {route.page === 'overlays' && (can(me.role, 'ManageOverlays') ? <Overlays /> : <Refused text={t('overlays.forbidden')} />)}
       {route.page === 'overlay' && (can(me.role, 'ManageOverlays') ? <OverlayEditor key={route.id} id={route.id} /> : <Refused text={t('overlays.forbidden')} />)}
-      {route.page === 'templates' && (can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />)}
       {route.page === 'orgs' && (can(me.role, 'ManageOrganizations') ? <Orgs /> : <Refused text={t('orgs.forbidden')} />)}
       {route.page === 'org' && (can(me.role, 'ManageOrganizations') ? <OrgDetail key={route.id} id={route.id} me={me} /> : <Refused text={t('orgs.forbidden')} />)}
       {route.page === 'ccliReport' && (can(me.role, 'ViewCcliReport') ? <CcliReport role={me.role} /> : <Refused text={t('ccli.forbidden')} />)}
@@ -159,9 +158,11 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
           <TopBar me={me} warnings={!adminOpen} />
         )}
         {under.page === 'presentations' ? (
-          <Presentations link={link} ownSessionId={sessionId} />
+          <Presentations link={link} ownSessionId={sessionId} manageTemplates={can(me.role, 'ManageTemplates')} />
         ) : under.page === 'presentation' ? (
           <Live key={`${under.id}:${under.remote ? (under.session ?? 'remote') : 'own'}`} id={under.id} role={me.role} live={live} link={link} audio={audio} video={video} sessionId={sessionId} remote={under.remote} session={under.session} />
+        ) : under.page === 'templates' ? (
+          can(me.role, 'ManageTemplates') ? <Templates /> : <Refused text={t('templates.forbidden')} />
         ) : under.page === 'template' ? (
           // Editing a template is for admins (D24): a user who has the link is told so.
           can(me.role, 'ManageTemplates') ? (

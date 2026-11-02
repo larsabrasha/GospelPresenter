@@ -11,11 +11,12 @@ import { afterWrite } from '../ui/debounce.ts';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { EmptyPicture, PICTURE } from '../ui/Empty.tsx';
 import { SimpleInput, SimpleSelect } from '../ui/SimpleInput.tsx';
-import { TemplatesPicture } from '../ui/icons.tsx';
+import { ChevronLeftIcon, TemplatesPicture } from '../ui/icons.tsx';
 import { CARD, ListCard, ListLinkRow } from '../ui/List.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
-import { WEEKDAYS, weekdayName } from './templates.ts';
+import { templateDetails, WEEKDAYS, weekdayName } from './templates.ts';
+import { ROUND_BACK } from '../ui/glass.ts';
 import { PresentationNameField } from './presentation-editor/PresentationNameField.tsx';
 
 interface TemplateFields {
@@ -126,34 +127,34 @@ export function EditTemplateDialog({ template, onClose }: { template: Presentati
 }
 
 /**
- * Mallar (spec 03 screen 3, `/admin/templates`): the templates, each opening
- * in the editor; Skapa and the way to their trash. For those who manage
- * templates only (PRES-R4).
+ * Mallar (spec 03 screen 3, `/templates`): a page of its own beside the start page, opened from "Hantera mallar" in
+ * Skapa presentation (Lars, 2026-11-02: a template opened from Inställningar felt out of place), with a round ‹ back
+ * to the start page. The templates, each opening in the editor, and Skapa. For those who manage templates only (PRES-R4).
  */
 export function Templates() {
   const templates = useData(listTemplates, []);
   const [creating, setCreating] = useState(false);
   return (
     <PageContainer>
-      <PageHeader title={t('nav.templates')}>
-        <div className="flex items-center gap-2">
+      <a href={href({ page: 'presentations' })} aria-label={t('nav.backToPresentations')} title={t('nav.backToPresentations')} className={`self-start ml-2 ${ROUND_BACK}`}>
+        <ChevronLeftIcon className="size-5" />
+      </a>
+      <div className="space-y-1">
+        <PageHeader title={t('nav.templates')} large>
           <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
-        </div>
-      </PageHeader>
+        </PageHeader>
+        <p className="px-5 text-sm text-stone-500 dark:text-stone-400">{t('intro.templates')}</p>
+      </div>
       {!templates && (
         <div className={CARD}>
           <div className="px-5 py-4 text-stone-400 text-sm">{t('common.loading')}</div>
         </div>
       )}
-      {templates && !templates.length && (
-        <div className={CARD}>
-          <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} />
-        </div>
-      )}
+      {templates && !templates.length && <EmptyPicture picture={<TemplatesPicture className={PICTURE} />} title={t('templates.empty')} />}
       {!!templates?.length && (
         <ListCard label={t('nav.templates')}>
           {templates.map((tp) => (
-            <ListLinkRow key={tp.id} href={href({ page: 'template', id: tp.id })} title={<span className="font-medium">{tp.name}</span>} />
+            <ListLinkRow key={tp.id} href={href({ page: 'template', id: tp.id })} title={<span className="font-medium">{tp.name}</span>} subtitle={templateDetails(tp) || undefined} />
           ))}
         </ListCard>
       )}

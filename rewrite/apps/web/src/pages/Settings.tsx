@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { language, setLanguage, t, type Language, type TextKey } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { CheckIcon, ChevronRightIcon, ComputerIcon, GlobeIcon, KeyIcon, MoonIcon, SunIcon } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
+import { ChevronRightIcon, KeyIcon } from '../ui/icons.tsx';
+import { GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href } from '../ui/router.ts';
 import { getTheme, setTheme, type ThemeChoice } from '../ui/theme.ts';
 import { useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
 import { setKeepComingSetting, useKeepComing } from '../ui/KeepOffline.tsx';
+import { autoOutputsSetting, setAutoOutputsSetting } from '../live/autoOutputs.ts';
 import { SWITCH } from '../ui/Toggle.tsx';
 import { StorageSection } from './Storage.tsx';
 
@@ -23,22 +24,50 @@ function KeepComing() {
   if (isHostWindow()) return null;
   const unavailable = !!status && status.storage !== 'opfs';
   return (
-    <div className={`${CARD} p-5`}>
-      <label className={`flex items-start justify-between gap-4 ${unavailable ? 'cursor-default' : 'cursor-pointer'}`}>
-        <span>
-          <span className="block text-sm/5 font-medium">{t('settings.keepComing')}</span>
-          <span className="block text-xs text-stone-500 dark:text-stone-400 mt-1">{t(unavailable ? 'settings.keepComingUnavailable' : 'settings.keepComingDescription')}</span>
-        </span>
-        <input type="checkbox" role="switch" className={`${SWITCH} mt-0.5`} checked={on && !unavailable} disabled={unavailable} onChange={(e) => setKeepComingSetting(e.target.checked)} />
-      </label>
-    </div>
+    <SwitchRow
+      title={t('settings.keepComing')}
+      description={t(unavailable ? 'settings.keepComingUnavailable' : 'settings.keepComingDescription')}
+      checked={on && !unavailable}
+      disabled={unavailable}
+      onChange={setKeepComingSetting}
+    />
   );
 }
 
-const THEMES: { value: ThemeChoice; label: TextKey; icon: typeof SunIcon }[] = [
-  { value: 'system', label: 'settings.themeSystem', icon: ComputerIcon },
-  { value: 'light', label: 'settings.themeLight', icon: SunIcon },
-  { value: 'dark', label: 'settings.themeDark', icon: MoonIcon },
+/** Slå på utgångar automatiskt (live/autoOutputs.ts): in the desktop app only, where an output goes to a display. */
+function AutoOutputs() {
+  const [on, setOn] = useState(autoOutputsSetting);
+  if (!window.gpDesktop) return null;
+  return (
+    <SwitchRow
+      title={t('settings.autoOutputs')}
+      description={t('settings.autoOutputsDescription')}
+      checked={on}
+      onChange={(v) => {
+        setAutoOutputsSetting(v);
+        setOn(v);
+      }}
+    />
+  );
+}
+
+/** A setting of this device that is on or off: a row of its group, with what it does in grey under its name. */
+function SwitchRow({ title, description, checked, disabled, onChange }: { title: string; description: string; checked: boolean; disabled?: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <label className={`${GROUP_ROW} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}>
+      <span>
+        <span className="block">{title}</span>
+        <span className="block text-xs text-stone-500 dark:text-stone-400 mt-0.5">{description}</span>
+      </span>
+      <input type="checkbox" role="switch" className={SWITCH} checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+    </label>
+  );
+}
+
+const THEMES: { value: ThemeChoice; label: TextKey }[] = [
+  { value: 'system', label: 'settings.themeSystem' },
+  { value: 'light', label: 'settings.themeLight' },
+  { value: 'dark', label: 'settings.themeDark' },
 ];
 
 const LANGUAGES: { value: Language; label: TextKey }[] = [
@@ -46,76 +75,124 @@ const LANGUAGES: { value: Language; label: TextKey }[] = [
   { value: 'en', label: 'settings.languageEn' },
 ];
 
-/** One setting's options as a column of bordered rows, the chosen one sky-blue with a check (Settings.razor). */
-function Choices<T extends string>({ id, title, options, current, onChoose }: { id: string; title: TextKey; options: { value: T; label: TextKey; icon: typeof SunIcon }[]; current: T; onChoose: (v: T) => void }) {
+/** A small window in a theme's colours: a bar, a sidebar and two lines of text. */
+function WindowPicture({ dark }: { dark: boolean }) {
+  const [ground, bar, line] = dark ? ['bg-stone-800', 'bg-stone-700', 'bg-stone-500'] : ['bg-stone-50', 'bg-stone-200', 'bg-stone-300'];
   return (
-    <div className={`${CARD} p-5`}>
-      <h2 id={id} className="block text-sm/5 font-medium mb-1">
-        {t(title)}
-      </h2>
-      <p className="text-xs text-stone-500 dark:text-stone-400 mb-2">{t('settings.themeDescription')}</p>
-      <div className="flex flex-col gap-2" role="radiogroup" aria-labelledby={id}>
-        {options.map(({ value, label, icon: Icon }) => {
-          const selected = value === current;
-          return (
-            <AppButton
-              key={value}
-              variant="plain"
-              role="radio"
-              aria-checked={selected}
-              onClick={() => onChoose(value)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left cursor-pointer transition ${
-                selected ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/30 dark:border-sky-400' : 'border-stone-300 dark:border-stone-600 hover:bg-raised'
-              }`}
+    <span className={`absolute inset-0 flex flex-col ${ground}`}>
+      <span className={`h-2.5 shrink-0 ${bar}`} />
+      <span className="flex-1 flex">
+        <span className={`w-1/4 ${bar}`} />
+        <span className="flex-1 p-2 space-y-1.5">
+          <span className={`block h-1 w-3/4 rounded-full ${line}`} />
+          <span className={`block h-1 w-1/2 rounded-full ${line}`} />
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Färgtema as macOS's Appearance and iOS's Display & Brightness show it: a small picture of each, side by side, the
+ * chosen one ringed in sky; System half light, half dark.
+ */
+function ThemePicker() {
+  const [current, setCurrent] = useState(getTheme);
+  return (
+    <div role="radiogroup" aria-label={t('settings.theme')} className="flex justify-around gap-2 px-4 py-4">
+      {THEMES.map(({ value, label }) => {
+        const selected = value === current;
+        return (
+          <AppButton
+            key={value}
+            variant="plain"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => {
+              setTheme(value);
+              setCurrent(value);
+            }}
+            className="flex flex-col items-center gap-2 cursor-pointer group"
+          >
+            <span
+              className={`relative block w-20 h-13 rounded-lg overflow-hidden border border-stone-300 dark:border-stone-600 ring-offset-2 ring-offset-surface ${selected ? 'ring-2 ring-sky-500' : 'group-hover:ring-2 group-hover:ring-stone-300 dark:group-hover:ring-stone-600'}`}
             >
-              <Icon className="w-5 h-5 shrink-0" />
-              <span>{t(label)}</span>
-              {selected && <CheckIcon className="w-5 h-5 ml-auto text-sky-500" />}
-            </AppButton>
-          );
-        })}
-      </div>
+              <WindowPicture dark={value === 'dark'} />
+              {value === 'system' && (
+                <span className="absolute inset-0 [clip-path:polygon(100%_0,100%_100%,0_100%)]">
+                  <WindowPicture dark />
+                </span>
+              )}
+            </span>
+            <span className={`text-xs ${selected ? 'font-semibold text-sky-600 dark:text-sky-400' : 'text-stone-600 dark:text-stone-300'}`}>{t(label)}</span>
+          </AppButton>
+        );
+      })}
     </div>
+  );
+}
+
+/** Språk as a row with a pop-up menu, as macOS's: two languages need no more. A new language loads the page again. */
+function LanguageRow() {
+  return (
+    <label className={GROUP_ROW}>
+      <span>{t('settings.language')}</span>
+      <PopUp value={language()} onChange={(e) => e.target.value !== language() && setLanguage(e.target.value as Language)}>
+        {LANGUAGES.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {t(label)}
+          </option>
+        ))}
+      </PopUp>
+    </label>
   );
 }
 
 /** Konto: the ways to sign in, which the picture's menu held before 2.0. */
 function Account() {
   return (
-    <div className={CARD}>
-      <h2 className="px-5 pt-4 pb-1 text-sm/5 font-medium">{t('settings.account')}</h2>
-      <a href={href({ page: 'logins', error: null })} className="flex items-center gap-3 px-5 py-3 no-underline text-inherit hover:bg-raised">
-        <KeyIcon className="size-5 shrink-0 text-stone-400" />
-        <span className="flex-1">{t('logins.title')}</span>
+    <Group title={t('settings.account')}>
+      <a href={href({ page: 'logins', error: null })} className={`${GROUP_ROW} no-underline text-inherit hover:bg-raised`}>
+        <span className="flex items-center gap-3">
+          <KeyIcon className="size-5 shrink-0 text-stone-400" />
+          {t('logins.title')}
+        </span>
         <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600" />
       </a>
-    </div>
+    </Group>
   );
 }
 
 /**
- * "Mina inställningar" (Pages/Settings.razor): the colour theme and the language of this device, and what it keeps
- * offline, and the ways to sign in. The version is under Om Gospel Presenter. A new language loads the page again in it.
+ * "Mina inställningar" (Pages/Settings.razor), as grouped rows (ui/Group.tsx): the colour theme and the language of
+ * this device, what it keeps offline and does with its displays, its storage, and the ways to sign in. The version is
+ * under Om Gospel Presenter.
  */
 export function Settings() {
-  const [current, setCurrent] = useState(getTheme);
   return (
     <PageContainer>
       <PageHeader title={t('nav.settings')} />
-      <Choices
-        id="theme-label"
-        title="settings.theme"
-        options={THEMES}
-        current={current}
-        onChoose={(v) => {
-          setTheme(v);
-          setCurrent(v);
-        }}
-      />
-      <Choices id="language-label" title="settings.language" options={LANGUAGES.map((l) => ({ ...l, icon: GlobeIcon }))} current={language()} onChoose={(v) => v !== language() && setLanguage(v)} />
-      <KeepComing />
-      <StorageSection />
-      <Account />
+      <div className="space-y-6">
+        <Group title={t('settings.theme')}>
+          <ThemePicker />
+        </Group>
+        <Group footer={t('settings.themeDescription')}>
+          <LanguageRow />
+        </Group>
+        <DeviceGroup />
+        <StorageSection />
+        <Account />
+      </div>
     </PageContainer>
+  );
+}
+
+/** Den här enheten: its switches; every device has one of them, the host's window the second. */
+function DeviceGroup() {
+  return (
+    <Group title={t('settings.thisDevice')}>
+      <KeepComing />
+      <AutoOutputs />
+    </Group>
   );
 }

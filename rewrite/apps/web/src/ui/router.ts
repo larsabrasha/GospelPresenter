@@ -108,6 +108,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'audios') return { page: 'audios' };
     if (second === 'videos') return { page: 'videos' };
     if (second === 'overlays') return third ? { page: 'overlay', id: third } : { page: 'overlays' };
+    // Mallar was a page of Inställningar until 2026-11-02; its old address still opens it.
     if (second === 'templates') return { page: 'templates' };
     if (second === 'labels') return { page: 'labels' };
     if (second === 'ccli-report') return { page: 'ccliReport' };
@@ -132,7 +133,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (remote !== 'true' && remote !== '1') return { page: 'presentation', id };
     return { page: 'presentation', id, remote: true, session: query.get('session') };
   }
-  if (first === 'templates' && id) return { page: 'template', id };
+  if (first === 'templates') return id ? { page: 'template', id } : { page: 'templates' };
   if (first === 'invite' && hash.length > 1) return { page: 'invite', token: decode(hash.slice(1)) };
   if (first === 'signed-in') return { page: 'signedIn' };
   if (first === 'signin') return { page: 'signIn', error: query.get('error') };
@@ -145,7 +146,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
 
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
 const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins', 'trash']);
@@ -235,6 +236,8 @@ const NAVIGATED = 'gp:navigate';
  */
 interface EntryState {
   adminBack?: number;
+  /** A template's editor opened from Mallar, which is one entry back. */
+  fromTemplates?: boolean;
 }
 
 /** A new entry for `url`, counting the admin pages opened since the page under them. */
@@ -247,7 +250,7 @@ function push(url: string) {
       const back = adminBack();
       if (back) state = { adminBack: back + 1 };
     }
-  }
+  } else if (parseRoute(to.pathname).page === 'template' && currentRoute().page === 'templates') state = { fromTemplates: true };
   history.pushState(state, '', url);
   dispatchEvent(new Event(NAVIGATED));
 }
@@ -264,6 +267,18 @@ export function closeAdmin(under: Route) {
   const back = adminBack();
   if (back) history.go(-back);
   else navigate(under);
+}
+
+/**
+ * A template's ‹: back to Mallar, which it was opened from (Lars, 2026-11-02). Opened some other way (a link), Mallar
+ * takes its entry.
+ */
+export function backToTemplates() {
+  if ((history.state as EntryState | null)?.fromTemplates) history.back();
+  else {
+    history.replaceState(null, '', href({ page: 'templates' }));
+    dispatchEvent(new Event(NAVIGATED));
+  }
 }
 
 /** Paths the server answers itself: a link to one is a real navigation, not a page of the app. */
