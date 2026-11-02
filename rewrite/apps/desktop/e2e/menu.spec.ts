@@ -25,7 +25,7 @@ test('the menu bar steps through the slides and blacks the output as the keys do
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A']);
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');

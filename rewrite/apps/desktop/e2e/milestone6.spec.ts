@@ -1,4 +1,4 @@
-// Milestone 6: the rest of live, in slices: a clicker's keys, Extern skärm, and where a presentation is presented.
+// Milestone 6: the rest of live, in slices: a clicker's keys, the output window, and where a presentation is presented.
 import { expect, test } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
 import { addSongs, createPresentation, createSong, endPresentation, openAdmin, setUpHost } from './flows.ts';
@@ -21,7 +21,7 @@ test("a clicker's keys drive the live page: next and previous across items, and 
   await createPresentation(page, 'Söndag');
   await addSongs(page, ['Sång A', 'Sång B']);
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(output.getByTestId('slide-text')).toHaveText('A ett');
@@ -49,13 +49,13 @@ test("a clicker's keys drive the live page: next and previous across items, and 
   if (process.env.GP_E2E_VISIBLE !== '1') expect(windows).toEqual([{ visible: false, fullScreen: false }, { visible: false, fullScreen: false }]);
 });
 
-test('Extern skärm is a switch: on opens the output, off closes it, closing the window turns it off, and Avsluta closes it', async () => {
+test('the output window is a switch: on opens the output, off closes it, closing the window turns it off, and Avsluta closes it', async () => {
   host = await launch();
   const page = host.page;
   await setUpHost(host);
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const external = page.getByRole('checkbox', { name: 'Extern skärm' });
+  const external = page.getByRole('checkbox', { name: 'Utgångsfönster' });
   const windowCount = () => host!.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
   await expect(external).not.toBeChecked();
 
@@ -82,7 +82,7 @@ test('Extern skärm is a switch: on opens the output, off closes it, closing the
   const [third] = await Promise.all([host.app.waitForEvent('window'), external.check()]);
   await third.getByTestId('output').waitFor();
   await page.reload();
-  await expect(page.getByRole('checkbox', { name: 'Extern skärm' })).toBeChecked();
+  await expect(page.getByRole('checkbox', { name: 'Utgångsfönster' })).toBeChecked();
 
   // Avsluta presentation closes it, as the current app does (Live.razor).
   await Promise.all([third.waitForEvent('close'), endPresentation(page)]);

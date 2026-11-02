@@ -15,11 +15,12 @@ import { statfs } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { app, BrowserWindow, ipcMain, screen, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
 import type { GoogleConfig } from '@gp/server';
 import { mailConfigFrom } from '@gp/server/node';
 import { lanUrls, pageUrl, startHost } from './host.ts';
 import { setAppMenu } from './menu.ts';
+import { outputWindows } from './outputs.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 /**
@@ -83,8 +84,8 @@ const webPreferences = {
 };
 
 let base = '';
-let output: BrowserWindow | null = null;
 let mainWindow: BrowserWindow | null = null;
+const outputs = outputWindows({ hidden, webPreferences, main: () => mainWindow, guard: (win) => guardWindow(win), url: () => pageUrl(base, 'output'), log: (entry) => log(entry) });
 /** The one sign-in that may be waiting for its callback (spec 06): until when. */
 let signInUntil = 0;
 
@@ -134,41 +135,6 @@ function passkeyBase(serverBase: string): string {
   return u.origin;
 }
 
-/** Tells the main window whether the output window is open, for the Extern skärm switch. */
-function outputChanged(open: boolean) {
-  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('output-changed', open);
-}
-
-/** The output goes fullscreen on the first non-primary display, or into a window when there is one display. */
-function openOutput() {
-  if (output && !output.isDestroyed()) {
-    outputChanged(true);
-    return hidden ? undefined : output.focus();
-  }
-  const primary = screen.getPrimaryDisplay();
-  const external = hidden ? undefined : screen.getAllDisplays().find((d) => d.id !== primary.id);
-  output = new BrowserWindow({
-    title: 'Gospel Presenter – output',
-    backgroundColor: '#000000',
-    show: false,
-    ...(external ? { ...external.bounds, fullscreen: true } : { width: 960, height: 540 }),
-    autoHideMenuBar: true,
-    webPreferences,
-  });
-  const opened = output;
-  guardWindow(opened);
-  if (!hidden) opened.once('ready-to-show', () => opened.show());
-  // However it closes (the switch, the window's own close button, the OS), the switch hears of it.
-  opened.on('closed', () => {
-    if (output === opened) output = null;
-    outputChanged(false);
-    log({ event: 'output-closed' });
-  });
-  void opened.loadURL(pageUrl(base, 'output'));
-  outputChanged(true);
-  log({ event: 'output-opened', external: !!external });
-}
-
 /**
  * Keeps a window on the app (Electron's security checklist): a link out (Om Gospel Presenter's) opens in the system
  * browser, and the page never navigates to another origin, where the preload's door would be open to it.
@@ -181,11 +147,6 @@ function guardWindow(win: BrowserWindow) {
   win.webContents.on('will-navigate', (e, url) => {
     if (new URL(url).origin !== new URL(base).origin) e.preventDefault();
   });
-}
-
-/** Closes the output window, if it is open. Its `closed` event tells the main window. */
-function closeOutput() {
-  if (output && !output.isDestroyed()) output.close();
 }
 
 /** Only the server this window was loaded from: no request leaves for the internet. */
@@ -240,9 +201,10 @@ app.whenReady().then(async () => {
     actAsHostDevice(new URL(base).origin, hostToken);
   }
   lockNetwork(new URL(base).origin);
-  ipcMain.on('open-output', openOutput);
-  ipcMain.on('close-output', closeOutput);
-  ipcMain.handle('output-open', () => !!output && !output.isDestroyed());
+  ipcMain.on('open-output', (_e, target: unknown) => typeof target === 'string' && outputs.show(target));
+  ipcMain.on('close-output', (_e, target: unknown) => outputs.hide(typeof target === 'string' ? target : undefined));
+  ipcMain.handle('outputs-open', () => outputs.openTargets());
+  ipcMain.handle('output-displays', () => outputs.displays());
   ipcMain.on('is-host', (e) => (e.returnValue = !process.env.GP_SERVER));
   ipcMain.on('device-name', (e) => (e.returnValue = hostname()));
   // Only on the host, and only if no user existed at start: the window that sets the host up gets the token.
@@ -280,6 +242,7 @@ app.whenReady().then(async () => {
   });
   mainWindow = main;
   guardWindow(main);
+  outputs.watchDisplays(main);
   await main.loadURL(pageUrl(base));
   main.on('closed', () => app.quit());
   log({ event: 'ready', base, host: !process.env.GP_SERVER, lan: port ? lanUrls(port, tlsPort) : [], electron: process.versions.electron });

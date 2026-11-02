@@ -16,7 +16,7 @@ import { RemoteInfo } from './RemoteInfo.tsx';
  * "Alltid" there is no toggle: a line says so, and the link is always there.
  * The window's own toggle is kept meanwhile, for when the policy changes back.
  */
-export function RemotePanel({ id, sessionId, name, always }: { id: string; sessionId: string; name: string | undefined; always: boolean }) {
+function RemotePanel({ id, sessionId, name, always }: { id: string; sessionId: string; name: string | undefined; always: boolean }) {
   const [toggle, setToggle] = useState(remoteAllowed);
   const on = always || toggle;
   return (

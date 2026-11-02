@@ -1,64 +1,47 @@
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { t } from '../../i18n.ts';
 import type { LiveLink } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
-import { outputsState } from '../../live/liveList.ts';
-import { ChevronDownIcon, CloseIcon, DesktopIcon, PlusIcon, QrCodeIcon } from '../../ui/icons.tsx';
+import { CloseIcon, DesktopIcon, PlusIcon, QrCodeIcon } from '../../ui/icons.tsx';
 import { ToggleRow } from '../../ui/Toggle.tsx';
 import { viewersText } from '../Displays.tsx';
 import { PairScreenDialog } from '../PairScreen.tsx';
+import { GROUP_LIST, PanelGroup } from './PanelGroup.tsx';
 import { useOutputs } from './useOutputs.ts';
+import { OUTPUT_WINDOW } from '../../live/outputWindow.ts';
 
 /**
- * Utgångar (spec 04 §1) in the live column, folded to one line that says how they are and turns orange with an
- * output gone (docs/layout-2-0.md); open at first, so the outputs to switch on are in view. Public outputs,
- * each with how many watch; saved screens, which can be switched on only
- * while their page is open (LIVE-A21); and temporary screens paired from
- * here, with ✕ to let one go. Taking an output from another presentation
- * asks first (LIVE-R23).
+ * Utgångar (spec 04 §1) in the live column, a group as iOS's Settings has (Lars, 2026-11-02): this computer's own, one
+ * row for each display the app's window is not on, named as the operating system names it (or one for a window of its
+ * own); public outputs, each with how many watch; saved screens, which can be switched on only while their page is
+ * open (LIVE-A21), an output gone saying so on its row; temporary screens paired from here, with ✕ to let one go; and
+ * last "Anslut tillfällig skärm" as a row of its own. Taking an output from another presentation asks first
+ * (LIVE-R23).
  */
-export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: string }) {
-  const { dialog, externalOn, turnExternal, rows, temporary } = useOutputs(link, sessionId);
+export function OutputsPanel({ link, sessionId, bare }: { link: LiveLink; sessionId: string; bare?: boolean }) {
+  const { dialog, own, rows, temporary } = useOutputs(link, sessionId);
   const [pairing, setPairing] = useState(false);
-  const [open, setOpen] = useState(true);
-  const id = useId();
-  const state = outputsState(
-    externalOn,
-    rows.map((r) => ({ name: r.display.name, chosen: r.chosen, sending: r.sending, offline: r.offline, viewers: r.viewers })),
-  );
-  const summary =
-    state.kind === 'offline'
-      ? t('live.outputGone', { name: state.name })
-      : state.kind === 'on'
-        ? state.viewers
-          ? t('live.outputsOnWatching', { n: state.on, viewers: state.viewers })
-          : t('live.outputsOn', { n: state.on })
-        : t('live.outputsNone');
-  const tone = state.kind === 'offline' ? 'text-orange-500' : state.kind === 'on' ? 'text-green-600 dark:text-green-400' : 'text-stone-500 dark:text-stone-400';
   return (
-    <section className={`rounded-xl bg-raised ${state.kind === 'offline' ? 'ring-[1.5px] ring-orange-500' : ''}`}>
+    <>
       {dialog}
-      <AppButton
-        variant="plain"
-        aria-expanded={open}
-        aria-controls={id}
-        title={t('live.outputsHint')}
-        onClick={() => setOpen(!open)}
-        className="w-full min-h-11 px-3 py-2 flex items-center gap-2.5 text-left cursor-pointer"
-      >
-        <span className={`size-2.5 shrink-0 rounded-full ${state.kind === 'offline' ? 'bg-orange-500' : state.kind === 'on' ? 'bg-green-500' : 'bg-stone-400'}`} />
-        <span className="flex-1 min-w-0 flex flex-col">
-          <span className="text-sm font-semibold">{t('live.outputs')}</span>
-          <span className={`text-xs truncate ${tone}`}>{summary}</span>
-        </span>
-        <ChevronDownIcon className={`size-3.5 shrink-0 text-stone-500 transition-transform ${open ? '' : '-rotate-90'}`} />
-      </AppButton>
-      <div id={id} hidden={!open} className="px-3 pb-3 flex flex-col gap-3">
-        <ToggleRow label={t('live.output')} checked={externalOn} onChange={turnExternal} icon={<DesktopIcon className="size-4 shrink-0" />} />
-        <ul className="flex flex-col gap-3" aria-label={t('live.outputs')}>
-          {rows.map(({ display: d, sending, offline, elsewhere, viewers, toggle }) => (
+      <PanelGroup title={t('live.outputs')} hint={t('live.outputsHint')} bare={bare}>
+        {own.map((x) => (
+          <ToggleRow
+            key={x.id}
+            cell
+            label={x.name}
+            checked={x.on}
+            onChange={x.turn}
+            icon={<DesktopIcon className={`size-4 shrink-0 ${x.on ? 'text-green-500' : 'text-stone-500 dark:text-stone-400'}`} />}
+            // With no other display, where the window goes: a desktop has none to put it on, a browser leaves it to the user.
+            sub={x.id === OUTPUT_WINDOW ? t(window.gpDesktop ? 'live.noOtherScreen' : 'live.dragWindow') : undefined}
+          />
+        ))}
+        <ul className={GROUP_LIST} aria-label={t('live.outputs')}>
+          {rows.map(({ display: d, chosen, sending, offline, elsewhere, viewers, toggle }) => (
             <li key={d.id}>
               <ToggleRow
+                cell
                 label={d.name}
                 checked={sending}
                 disabled={offline}
@@ -71,7 +54,9 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
                     <DesktopIcon off={offline} className={`size-4 shrink-0 ${sending ? 'text-green-500' : offline ? 'text-stone-300 dark:text-stone-500' : 'text-stone-500 dark:text-stone-400'}`} />
                   )
                 }
-                sub={elsewhere !== null && !offline ? t('displays.sending', { name: elsewhere }) : undefined}
+                // An output gone says so on its own row, in orange while it is one chosen for this presentation.
+                sub={offline ? t('screens.offline') : elsewhere !== null ? t('displays.sending', { name: elsewhere }) : undefined}
+                warn={offline && chosen}
                 extra={
                   d.kind === 'public' &&
                   sending &&
@@ -81,9 +66,9 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
             </li>
           ))}
           {temporary.map((x) => (
-            <li key={x.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-sky-100 dark:bg-sky-900/30 ring-1 ring-sky-500" aria-label={t('screens.temporary', { n: x.n })}>
-              <span className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300">
-                <DesktopIcon className="size-4 shrink-0" />
+            <li key={x.id} className="flex items-center justify-between gap-2 px-3 min-h-11 py-1.5" aria-label={t('screens.temporary', { n: x.n })}>
+              <span className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200">
+                <DesktopIcon className="size-4 shrink-0 text-green-500" />
                 {t('screens.temporary', { n: x.n })}
               </span>
               <AppButton
@@ -98,12 +83,13 @@ export function OutputsPanel({ link, sessionId }: { link: LiveLink; sessionId: s
             </li>
           ))}
         </ul>
-        <AppButton variant="secondary" onClick={() => setPairing(true)} className="self-start flex items-center gap-1.5">
-          <PlusIcon className="size-4" />
+        {/* A row at the foot of the group, in grey: seldom needed, so it stays out of the way (Lars, 2026-11-02). */}
+        <AppButton variant="plain" onClick={() => setPairing(true)} className="w-full min-h-11 px-3 flex items-center gap-2 text-left text-sm text-stone-500 dark:text-stone-400 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 hover:text-stone-700 dark:hover:text-stone-200">
+          <PlusIcon className="size-4 shrink-0" />
           {t('pairScreen.title')}
         </AppButton>
-        {pairing && <PairScreenDialog sessionId={sessionId} onClose={() => setPairing(false)} />}
-      </div>
-    </section>
+      </PanelGroup>
+      {pairing && <PairScreenDialog sessionId={sessionId} onClose={() => setPairing(false)} />}
+    </>
   );
 }

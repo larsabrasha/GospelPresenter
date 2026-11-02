@@ -132,7 +132,8 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
       {route.page === 'labels' && <Labels />}
       {route.page === 'songHistory' && <SongHistory key={route.id} id={route.id} />}
       {route.page === 'themes' && <Themes role={me.role} />}
-      {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays link={link} /> : <Refused text={t('displays.forbidden')} />)}
+      {route.page === 'displays' && (can(me.role, 'ManageRemoteDisplays') ? <Displays key="screen" link={link} kind="screen" /> : <Refused text={t('displays.forbidden')} />)}
+      {route.page === 'publicOutputs' && (can(me.role, 'ManageRemoteDisplays') ? <Displays key="public" link={link} kind="public" /> : <Refused text={t('displays.forbidden')} />)}
       {route.page === 'about' && <About />}
       {route.page === 'trash' && <Trash key={route.kind ?? 'all'} kind={route.kind} role={me.role} />}
       {route.page === 'orgSettings' && (can(me.role, 'ManageOrganizationSettings') ? <OrgSettings /> : <Refused text={t('orgSettings.forbidden')} />)}

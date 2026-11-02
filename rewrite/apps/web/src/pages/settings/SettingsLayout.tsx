@@ -10,7 +10,10 @@ import { PageAlone, PageBackInBar, PageBarSlot, PageFill, PageIntroProvider } fr
 import { adminBack, aloneInSettings, href, type Route } from '../../ui/router.ts';
 import { isOpen, MINE, settingsGroups, type SettingsLink } from './settingsLinks.ts';
 
-/** A list row's height: 52 pt as iOS 27's inset grouped lists; in a computer's sidebar as macOS's, 44 pt for a finger. */
+/**
+ * A list row's height: 52 pt as iOS 27's inset grouped lists; in a computer's sidebar the running order's pill (36 px,
+ * 44 for a finger), so the two lists match (Lars, 2026-11-02).
+ */
 const ROW = 'min-h-[52px] lg:min-h-9 lg:touch:min-h-11';
 
 /**
@@ -24,7 +27,9 @@ function Row({ link, route, first }: { link: SettingsLink; route: Route; first: 
     <a
       href={href(link.route)}
       aria-current={open && route.page !== 'admin' ? 'page' : undefined}
-      className={`flex items-center gap-3.5 lg:gap-3 pl-4 lg:pl-3 lg:rounded-full no-underline text-stone-900 dark:text-stone-100 hover:bg-raised lg:hover:bg-black/5 dark:lg:hover:bg-white/10 ${open ? 'lg:bg-sky-500! lg:text-white!' : ''}`}
+      // From `lg` the row is the hover's room, edge to edge with the next, and its pill (`before`) is drawn 2 px in from
+      // top and bottom: the rows stand apart, and the pointer never falls between them (Lars, 2026-11-02).
+      className={`relative isolate flex items-center gap-3.5 lg:gap-3 pl-4 lg:pl-3 lg:py-0.5 lg:rounded-full no-underline text-stone-900 dark:text-stone-100 hover:bg-raised lg:hover:bg-transparent lg:before:absolute lg:before:inset-x-0 lg:before:inset-y-0.5 lg:before:-z-10 lg:before:rounded-full lg:hover:before:bg-black/5 dark:lg:hover:before:bg-white/10 ${open ? 'lg:before:bg-sky-500! lg:text-white!' : ''}`}
     >
       <span className={`shrink-0 size-[30px] lg:size-6 rounded-lg lg:rounded-md flex items-center justify-center text-white ${link.colour}`}>
         <link.icon className="size-[17px] lg:size-3.5" />

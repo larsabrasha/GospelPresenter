@@ -89,17 +89,13 @@ test('a presentation kept offline by its line has its pictures and its video who
   await expect(dialog.getByRole('checkbox', { name: 'Spara på den här enheten' })).toBeChecked();
   await expect(dialog).toContainText('Allt finns på den här enheten.');
   await dialog.getByRole('button', { name: 'Stäng' }).first().click();
-  // On a phone the same line is at the foot of the view. The title opens the computer's menu, and … holds only what
-  // the title's menu does not: no Spara offline in either.
+  // On a phone the same line is at the foot of the list. The title opens the computer's menu, with no Spara offline.
   await second.page.setViewportSize({ width: 390, height: 844 });
   const phone = second.page.getByTestId('phone-live');
   await expect(second.page.getByTestId('phone-live').getByTestId('offline-status')).toHaveText('Sparad offline');
   await phone.getByRole('button', { name: 'Alternativ' }).click();
   await expect(phone.getByRole('menuitem')).toHaveText(['Redigera detaljer…', 'Noter och länkar', 'Radera presentation']);
   await second.page.keyboard.press('Escape');
-  await phone.getByRole('button', { name: 'Mer', exact: true }).click();
-  await expect(second.page.getByRole('dialog', { name: 'Konsert' }).getByRole('button', { name: /Noter och länkar|Spara offline|Radera/ })).toHaveCount(0);
-  await second.page.getByRole('dialog', { name: 'Konsert' }).getByRole('button', { name: 'Stäng' }).click();
   await second.page.setViewportSize({ width: 1280, height: 800 });
   await pickItem(second.page, 'Affisch.png');
   const shown = second.page.getByRole('region', { name: 'Affisch.png' }).getByTestId('slide-image').first();

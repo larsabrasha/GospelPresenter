@@ -8,18 +8,20 @@ function fakePopup(): PopupLike {
 }
 
 /** The desktop preload's output API, with the main process played by the test. */
-function fakeDesktop(openAtStart = false) {
-  let changed: (open: boolean) => void = () => {};
+function fakeDesktop(openAtStart: string[] = []) {
+  let changed: (open: string[]) => void = () => {};
   const desktop = {
     openOutput: vi.fn(),
     closeOutput: vi.fn(),
-    outputOpen: () => Promise.resolve(openAtStart),
-    onOutputChanged(cb: (open: boolean) => void) {
+    outputsOpen: () => Promise.resolve(openAtStart),
+    onOutputsChanged(cb: (open: string[]) => void) {
       changed = cb;
       return () => {};
     },
+    outputDisplays: () => Promise.resolve([]),
+    onDisplaysChanged: () => () => {},
   };
-  return { desktop: desktop as unknown as NonNullable<Window['gpDesktop']>, mock: desktop, closedByMain: () => changed(false) };
+  return { desktop: desktop as unknown as NonNullable<Window['gpDesktop']>, mock: desktop, reported: (open: string[]) => changed(open) };
 }
 
 describe('the output window in a browser', () => {
@@ -71,34 +73,67 @@ describe('the output window in a browser', () => {
   });
 });
 
-describe('the output window in the desktop app', () => {
-  it('asks the main process to open and to close it', () => {
+describe('the output windows in the desktop app', () => {
+  it('asks the main process to open and to close the one on a display', () => {
     const { desktop, mock } = fakeDesktop();
     const output = new OutputWindow(desktopHost(desktop));
 
-    output.turn(true);
-    output.turn(false);
+    output.turn(true, 'projector');
+    output.turn(false, 'projector');
 
-    expect(mock.openOutput).toHaveBeenCalledOnce();
-    expect(mock.closeOutput).toHaveBeenCalledOnce();
+    expect(mock.openOutput).toHaveBeenCalledWith('projector');
+    expect(mock.closeOutput).toHaveBeenCalledWith('projector');
   });
 
-  it('turns off by itself when the main process reports the window closed', () => {
-    const { desktop, closedByMain } = fakeDesktop();
+  it('keeps one output on each display, so two can be on at once', () => {
+    const { desktop } = fakeDesktop();
     const output = new OutputWindow(desktopHost(desktop));
-    output.turn(true);
 
-    closedByMain();
+    output.turn(true, 'projector');
+    output.turn(true, 'tv');
+
+    expect(output.openTargets()).toEqual(['projector', 'tv']);
+  });
+
+  it('turns one off without the other', () => {
+    const { desktop } = fakeDesktop();
+    const output = new OutputWindow(desktopHost(desktop));
+    output.turn(true, 'projector');
+    output.turn(true, 'tv');
+
+    output.turn(false, 'projector');
+
+    expect(output.openTargets()).toEqual(['tv']);
+  });
+
+  it('turns every output off with no display named, as ending the presentation does', () => {
+    const { desktop, mock } = fakeDesktop();
+    const output = new OutputWindow(desktopHost(desktop));
+    output.turn(true, 'projector');
+    output.turn(true, 'tv');
+
+    output.turn(false);
+
+    expect(output.isOpen()).toBe(false);
+    expect(mock.closeOutput).toHaveBeenCalledWith(undefined);
+  });
+
+  it('follows what the main process reports, as a window closed by hand', () => {
+    const { desktop, reported } = fakeDesktop();
+    const output = new OutputWindow(desktopHost(desktop));
+    output.turn(true, 'projector');
+
+    reported([]);
 
     expect(output.isOpen()).toBe(false);
   });
 
-  it('is on at start when the window is already open, as after a reload', async () => {
-    const { desktop } = fakeDesktop(true);
+  it('is on at start where windows are already open, as after a reload', async () => {
+    const { desktop } = fakeDesktop(['projector']);
 
     const output = new OutputWindow(desktopHost(desktop));
     await Promise.resolve();
 
-    expect(output.isOpen()).toBe(true);
+    expect(output.openTargets()).toEqual(['projector']);
   });
 });

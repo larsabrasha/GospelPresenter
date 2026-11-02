@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addAfter, followsShown, itemActions, outputsState, slideMarks } from '../src/live/liveList.ts';
+import { addAfter, followsShown, itemActions, slideMarks } from '../src/live/liveList.ts';
 
 const order = ['welcome', 'song', 'reading', 'sermon', 'blessing'];
 
@@ -86,40 +86,6 @@ describe('followsShown', () => {
     const follows = followsShown(row);
 
     expect(follows).toBe(true);
-  });
-});
-
-describe('outputsState', () => {
-  const screen = { name: 'Kyrksal', chosen: false, sending: false, offline: false };
-
-  it('says nothing is on when no output is', () => {
-    const state = outputsState(false, [screen]);
-
-    expect(state).toEqual({ kind: 'off' });
-  });
-
-  it('counts the outputs on, the output window too, and the viewers of the public ones', () => {
-    const outputs = [{ ...screen, chosen: true, sending: true }, { name: 'Mobilerna', chosen: true, sending: true, offline: false, viewers: 12 }];
-
-    const state = outputsState(true, outputs);
-
-    expect(state).toEqual({ kind: 'on', on: 3, viewers: 12 });
-  });
-
-  it('names a chosen output that has gone offline, before counting the rest', () => {
-    const outputs = [{ ...screen, chosen: true, offline: true }, { name: 'Mobilerna', chosen: true, sending: true, offline: false, viewers: 4 }];
-
-    const state = outputsState(true, outputs);
-
-    expect(state).toEqual({ kind: 'offline', name: 'Kyrksal' });
-  });
-
-  it('does not warn of a screen that is offline but not chosen', () => {
-    const outputs = [{ ...screen, offline: true }];
-
-    const state = outputsState(false, outputs);
-
-    expect(state).toEqual({ kind: 'off' });
   });
 });
 

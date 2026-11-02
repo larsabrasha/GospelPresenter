@@ -71,6 +71,30 @@ function SyncStatus({ sync }: { sync: { problem: boolean; text: string } | null 
   );
 }
 
+/**
+ * The sync's line at the foot of a presentation's column (on a phone, of its list), only while something waits or is
+ * wrong, in amber, in the place of whether it is kept offline (`fallback`, OfflineStatus); silent while all is well, as
+ * Notes is (Lars, 2026-11-02). Merely offline with nothing waiting, the fallback stays: then "Sparad offline" is what
+ * matters, and the bar's cloud says offline. A click syncs now.
+ */
+export function SyncLine({ className = 'w-full', fallback = null }: { className?: string; fallback?: ReactNode }) {
+  const db = useDb();
+  const sync = useSync();
+  if (!sync?.problem || (fallback && sync.text === t('status.offline'))) return fallback;
+  return (
+    <AppButton
+      variant="plain"
+      data-testid="sync-line"
+      title={t('status.syncNow')}
+      onClick={() => void db.syncNow()}
+      className={`${className} flex items-center gap-2 px-2 py-1.5 touch:py-2.5 rounded-lg text-xs touch:text-[13px] text-left hover:bg-raised cursor-pointer text-amber-600 dark:text-amber-400`}
+    >
+      <CloudOffIcon className="size-4 shrink-0" />
+      <span className="truncate">{sync.text}</span>
+    </AppButton>
+  );
+}
+
 /** The sync's cloud alone, for a bar without the picture (a presentation's on a computer): only while something is wrong. */
 export function SyncCloud() {
   return <SyncStatus sync={useSync()} />;

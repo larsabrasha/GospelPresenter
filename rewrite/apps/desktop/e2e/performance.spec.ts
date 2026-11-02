@@ -665,7 +665,7 @@ test('a slide step reaches the output window and a paired screen at once, measur
   await page.getByRole('button', { name: 'Starta presentation' }).click();
   await page.getByRole('button', { name: 'Sång A 1', exact: true }).click();
   await page.getByRole('list', { name: 'Utgångar' }).getByLabel('Kyrksal').check();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await expect(output.getByTestId('slide-text')).toHaveText('Del 1', { timeout: 10_000 });
   await expect(screen.getByTestId('slide-text')).toHaveText('Del 1', { timeout: 10_000 });
   await page.getByRole('button', { name: 'Sång A 1', exact: true }).focus();

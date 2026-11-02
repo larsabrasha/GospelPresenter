@@ -1,5 +1,6 @@
 import type { Presentation } from '@gp/core';
 import type { ReactNode } from 'react';
+import { SyncLine } from '../../TopBar.tsx';
 import { MediaReadiness } from '../../ui/MediaReadiness.tsx';
 import { useKeepOffline } from '../../ui/KeepOffline.tsx';
 import { Description } from './Description.tsx';
@@ -33,9 +34,11 @@ export function SideMenu({
         </div>
       )}
       {children}
-      {/* Whether this device has the files, while it presents or keeps the presentation: a line only when one is missing. */}
+      {/* The sync, whether it is kept offline, and whether this device has the files while it presents or keeps the
+          presentation (a line only when one is missing). */}
       <div className="shrink-0 px-2 py-1 empty:hidden">
-        <OfflineStatus presentation={presentation} onOpen={onOffline} />
+        {/* One line, one thing at a time: a sync that waits or fails, else whether it is kept offline. */}
+        <SyncLine fallback={<OfflineStatus presentation={presentation} onOpen={onOffline} />} />
         {(media || keep.kept) && <MediaReadiness presentationId={presentation.id} audio />}
       </div>
     </aside>

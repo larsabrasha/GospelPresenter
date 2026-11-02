@@ -12,7 +12,7 @@ tests (`packages/architecture/test/scenarios.test.ts`) check that every one exis
 | Prepare and present a service: song, reading and picture on the projector, a TV and the phones at once; CCLI afterwards | `journeys.spec.ts`: "a Sunday" |
 | Prepare on a laptop while the church computer is off; present it there on Sunday | `journeys.spec.ts`: "prepared on a laptop" |
 | Give the band sheet music, a recording and a Spotify link on a song, gathered under Sunday's presentation | `song-materials.spec.ts`: "a song carries sheet music and links" |
-| Present on the projector (Extern skärm), and Avsluta closes it | `milestone6.spec.ts`: "Extern skärm is a switch" |
+| Present on the projector (its own switch under Utgångar), and Avsluta closes it | `milestone6.spec.ts`: "the output window is a switch" |
 | Keep presenting through a reload; only Avsluta stops | `editor.spec.ts`: "a reload while presenting" |
 | Present from a phone: the picture, ‹ Rensa ›, every part's text, and a song added after what is shown | `phone.spec.ts`: "on a phone the presentation is one column before and while presenting" |
 | Change the running order while live | `editor.spec.ts`: "presenting keeps the running order" |

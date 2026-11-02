@@ -103,7 +103,7 @@ test('live: the output window plays the video in step with the operator window, 
   await addVideo(page, 'Dop.mp4', 'h264-long.mp4');
 
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
 
   const screen = await pairedScreen(page);
@@ -165,7 +165,7 @@ test('live: a paired screen that cannot play HEVC shows the still, while the out
   // An iPhone's video ("Hög effektivitet"): this Mac's app plays HEVC; Playwright's Chromium, the TV here, does not.
   await addVideo(page, 'IMG_0001.mp4', 'hevc.mp4');
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   const screen = await pairedScreen(page);
 

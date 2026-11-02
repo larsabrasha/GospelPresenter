@@ -77,7 +77,7 @@ test('a picture is imported, added to a presentation and shown on the output; tr
 
   // Live: the picture fills the output, at 1920 px (MEDIA-A2), over the theme's background.
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Logotyp.png 1' }).click();
   const shown = output.getByTestId('slide-image');

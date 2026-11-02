@@ -193,6 +193,22 @@ test('capture every page', async () => {
         if ((y === 'auto' || y === 'scroll') && el.scrollHeight > el.clientHeight) el.scrollTop = el.scrollHeight;
       }
     });
+  // One screen and one public output, made once, as capture-old-app.mjs makes them in the current app; each on its own
+  // page (Skärmar, Publika utgångar), the screens' left open.
+  const makeOutputs = async (p: Page) => {
+    for (const [path, add, name] of [
+      ['/admin/public-outputs', 'Skapa publik utgång', 'Mobiler'],
+      ['/admin/displays', 'Lägg till', 'Kyrksalen'],
+    ] as const) {
+      await p.goto(`${host!.base}${path}`);
+      await closeAdminMenu(p);
+      if (await p.getByRole('listitem', { name }).count()) continue;
+      await p.getByRole('button', { name: add, exact: true }).first().click();
+      await p.getByRole('dialog').last().getByLabel('Namn').fill(name);
+      await p.getByRole('dialog').last().getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
+      await p.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
+    }
+  };
   const pages: [string, string, ((p: Page) => Promise<unknown>)?, ((p: Page) => Promise<unknown>)?][] = [
     ['home', '/'],
     ['presentation', presentation],
@@ -211,17 +227,17 @@ test('capture every page', async () => {
     ['add-audio', presentation, (p) => openAdd(p, 'Control+4')],
     ['presentation-menu', presentation, (p) => p.getByRole('button', { name: 'Alternativ' }).click()],
     ['live', `/presentations/${id}`, goLive, stopLive],
-    // Extern skärm switched on: the output window is open and the row is ringed.
+    // Utgångsfönster switched on: the output window is open and the row is ringed.
     [
       'live-external',
       `/presentations/${id}`,
       async (p) => {
         await goLive(p);
-        const [output] = await Promise.all([host!.app.waitForEvent('window'), p.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+        const [output] = await Promise.all([host!.app.waitForEvent('window'), p.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
         await output.getByTestId('output').waitFor();
       },
       async (p) => {
-        await p.getByRole('checkbox', { name: 'Extern skärm' }).uncheck();
+        await p.getByRole('checkbox', { name: 'Utgångsfönster' }).uncheck();
         await stopLive(p);
       },
     ],
@@ -231,7 +247,7 @@ test('capture every page', async () => {
       async (p) => {
         await goLive(p);
         await p.getByRole('button', { name: 'Rensa' }).click();
-        await p.getByRole('button', { name: /^Utgångar/ }).scrollIntoViewIfNeeded();
+        await p.getByRole('heading', { name: 'Utgångar', exact: true }).scrollIntoViewIfNeeded();
       },
       stopLive,
     ],
@@ -240,9 +256,7 @@ test('capture every page', async () => {
       `/presentations/${id}`,
       async (p) => {
         await goLive(p);
-        await p.getByRole('button', { name: 'Overlays', exact: true }).click();
-        for (const hint of await p.getByRole('button', { name: /^Förklaring: / }).all()) await hint.click();
-        await p.getByRole('button', { name: /^Utgångar/ }).scrollIntoViewIfNeeded();
+        await p.getByRole('heading', { name: 'Utgångar', exact: true }).scrollIntoViewIfNeeded();
       },
       stopLive,
     ],
@@ -345,24 +359,10 @@ test('capture every page', async () => {
       },
     ],
     ['displays-add', '/admin/displays', (p) => clickFirst(p, 'Lägg till')],
-    // One screen and one public output, made once, as capture-old-app.mjs makes them in the current app.
-    [
-      'displays-filled',
-      '/admin/displays',
-      async (p) => {
-        await closeAdminMenu(p);
-        for (const [add, name] of [
-          ['Lägg till', 'Kyrksalen'],
-          ['Skapa publik utgång', 'Mobiler'],
-        ] as const) {
-          if (await p.getByRole('listitem', { name }).count()) continue;
-          await p.getByRole('button', { name: add, exact: true }).first().click();
-          await p.getByRole('dialog').last().getByLabel('Namn').fill(name);
-          await p.getByRole('dialog').last().getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
-          await p.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
-        }
-      },
-    ],
+    ['public-outputs', '/admin/public-outputs', closeAdminMenu],
+    // One screen and one public output, made once, as capture-old-app.mjs makes them in the current app; each on its
+    // own page, the screen's shown.
+    ['displays-filled', '/admin/displays', (p) => makeOutputs(p)],
     ['displays-link', '/admin/displays', (p) => clickFirst(p, 'Visa länk')],
     ['displays-qr', '/admin/displays', (p) => clickFirst(p, 'Visa QR-kod')],
     // "Anslut tillfällig skärm" (PairingCodeDialog.razor), and after a TV beside it has been paired.
@@ -402,23 +402,16 @@ test('capture every page', async () => {
   let links: { screen: string; watch: string } | undefined;
   const outputLinks = async () => {
     if (links) return links;
-    await page.goto(`${host!.base}/admin/displays`);
+    await makeOutputs(page);
+    await page.goto(`${host!.base}/admin/public-outputs`);
     await closeAdminMenu(page);
-    for (const [add, name] of [
-      ['Lägg till', 'Kyrksalen'],
-      ['Skapa publik utgång', 'Mobiler'],
-    ] as const) {
-      if (await page.getByRole('listitem', { name }).count()) continue;
-      await page.getByRole('button', { name: add, exact: true }).first().click();
-      await page.getByRole('dialog').last().getByLabel('Namn').fill(name);
-      await page.getByRole('dialog').last().getByRole('button', { name: add === 'Lägg till' ? 'Lägg till' : 'Skapa' }).click();
-      await page.getByRole('dialog', { name }).getByRole('button', { name: 'Stäng' }).click();
-    }
-    await page.getByRole('button', { name: 'Visa länk', exact: true }).first().click();
-    const screen = await page.getByRole('dialog').last().getByLabel('Länk').inputValue();
-    await page.getByRole('dialog').last().getByRole('button', { name: 'Stäng' }).click();
     await page.getByRole('listitem', { name: 'Mobiler' }).getByRole('button', { name: 'Visa QR-kod' }).click();
     const watch = await page.getByRole('dialog').last().getByLabel('Länk').inputValue();
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Stäng' }).click();
+    await page.goto(`${host!.base}/admin/displays`);
+    await closeAdminMenu(page);
+    await page.getByRole('button', { name: 'Visa länk', exact: true }).first().click();
+    const screen = await page.getByRole('dialog').last().getByLabel('Länk').inputValue();
     await page.getByRole('dialog').last().getByRole('button', { name: 'Stäng' }).click();
     return (links = { screen, watch });
   };
@@ -443,7 +436,6 @@ test('capture every page', async () => {
       await expect(toggle).toBeEnabled({ timeout: 10_000 });
       await toggle.check();
     }
-    await page.getByRole('button', { name: 'Overlays', exact: true }).click();
     await page.getByRole('list', { name: 'Overlays' }).getByLabel('Välkommen').check();
   };
   const besideLive: [string, (theme: string, width: number, height: number) => Promise<Page>][] = [
@@ -472,7 +464,7 @@ test('capture every page', async () => {
       'output',
       async (_theme, width, height) => {
         await liveWithOverlay();
-        const [output] = await Promise.all([host!.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+        const [output] = await Promise.all([host!.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
         await output.setViewportSize({ width, height });
         await output.getByTestId('slide-overlay').waitFor();
         return output;

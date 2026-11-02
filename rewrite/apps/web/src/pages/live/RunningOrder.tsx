@@ -155,63 +155,70 @@ export function RunningOrder({
                 e.preventDefault();
                 setMenu({ item, at: { x: e.clientX, y: e.clientY } });
               }}
-              className={`group relative flex items-center pl-1 pr-1.5 touch:pr-0 rounded-full text-sm scroll-mb-16 ${
-                // Chosen as Inställningar's list marks its row (Lars, 2026-11-02): blue, its words white.
-                selected ? 'bg-sky-500 text-white [&_*]:text-white!' : shown ? 'bg-red-500/12 dark:bg-red-500/18' : 'hover:bg-black/5 dark:hover:bg-white/10'
-              } ${dragging === i ? `shadow-lg ${selected ? '' : 'bg-surface dark:bg-raised'}` : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-sky-500`}
+              // The row is the hover's room, edge to edge with the next; its pill is drawn 2 px in from top and bottom, so
+              // the rows stand apart and the pointer still never falls between them (Lars, 2026-11-02): the row's button
+              // reaches over those 2 px (its `before`), and the pointer is a hand all the way.
+              className="group relative py-0.5 text-sm scroll-mb-16 cursor-pointer"
             >
               {/* Centred in the 20px room left of the row. */}
               {shown && <span className="absolute -left-3.5 top-1/2 -translate-y-1/2 size-2 rounded-full bg-red-500" data-testid="live-dot" />}
-              {ticking ? (
-                <AppButton
-                  variant="plain"
-                  className="flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200"
-                  aria-pressed={ticked.has(item.id)}
-                  disabled={shown}
-                  onClick={(e) => tick(item.id, e.shiftKey)}
-                >
-                  <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
-                  <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
-                  <span className="truncate">{item.title}</span>
-                </AppButton>
-              ) : (
-                <>
-                <AppButton
-                  variant="plain"
-                  className="flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-full focus:outline-none"
-                  aria-pressed={selected}
-                  aria-current={shown ? 'true' : undefined}
-                  onClick={() => onSelect(item.id)}
-                >
-                  <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
-                  <span className="truncate">{item.title}</span>
-                  {problem && problem !== 'no-parts' && (
-                    <span className="text-amber-500">
-                      <WarningIcon className="size-4" />
-                      <span className="sr-only">⚠</span>
-                    </span>
-                  )}
-                </AppButton>
-                <AppButton
-                  variant="plain"
-                  data-no-drag
-                  aria-label={t('presentation.itemOptions', { title: item.title })}
-                  title={t('presentation.options')}
-                  className="shrink-0 size-7 touch:size-11 flex items-center justify-center rounded-full cursor-pointer text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/8 dark:hover:bg-white/12 aria-expanded:bg-black/8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 touch:opacity-100 aria-expanded:opacity-100"
-                  aria-expanded={menu?.item.id === item.id}
-                  onClick={(e) => {
-                    const box = e.currentTarget.getBoundingClientRect();
-                    setMenu({ item, at: { x: box.left, y: box.bottom + 4 } });
-                  }}
-                >
-                  <EllipsisOutlineIcon className="size-4" />
-                </AppButton>
-                </>
-              )}
-              {/* A finger drags by ≡ (a mouse drags the whole row); in select mode, where a row ticks, everyone does, as
-                  iOS's edit mode has its grips. Alt+↑/↓ moves the selected item from the keyboard. */}
-              <div {...handle(i)} data-no-drag data-testid="drag-handle" title={t('live.moveItem', { title: item.title })} className={`${ticking ? 'flex cursor-grab' : 'hidden touch:flex'} items-center justify-center size-11 shrink-0 touch-none text-stone-400 dark:text-stone-500`}>
-                <MenuIcon className="size-4" />
+              <div
+                className={`flex items-center pl-1 pr-1.5 touch:pr-0 rounded-full ${
+                  // Chosen as Inställningar's list marks its row (Lars, 2026-11-02): blue, its words white.
+                  selected ? 'bg-sky-500 text-white [&_*]:text-white!' : shown ? 'bg-red-500/12 dark:bg-red-500/18' : 'group-hover:bg-black/5 dark:group-hover:bg-white/10'
+                } ${dragging === i ? `shadow-lg ${selected ? '' : 'bg-surface dark:bg-raised'}` : ''} ${menu?.item.id === item.id ? 'ring-2 ring-inset ring-sky-500' : ''} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-sky-500`}
+              >
+                {ticking ? (
+                  <AppButton
+                    variant="plain"
+                    className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200"
+                    aria-pressed={ticked.has(item.id)}
+                    disabled={shown}
+                    onClick={(e) => tick(item.id, e.shiftKey)}
+                  >
+                    <CheckboxIcon checked={ticked.has(item.id)} filled className={ticked.has(item.id) ? 'size-5 shrink-0 text-sky-500' : `size-5 shrink-0 text-stone-300 dark:text-stone-500 ${shown ? 'opacity-40' : ''}`} />
+                    <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
+                    <span className="truncate">{item.title}</span>
+                  </AppButton>
+                ) : (
+                  <>
+                  <AppButton
+                    variant="plain"
+                    className="relative before:absolute before:inset-x-0 before:-inset-y-0.5 flex items-center gap-2.5 px-2.5 min-h-9 py-1.5 touch:min-h-11 grow min-w-0 cursor-pointer text-left text-stone-700 dark:text-stone-200 rounded-full focus:outline-none"
+                    aria-pressed={selected}
+                    aria-current={shown ? 'true' : undefined}
+                    onClick={() => onSelect(item.id)}
+                  >
+                    <ItemIcon type={item.type} className="size-4 shrink-0 text-stone-400" />
+                    <span className="truncate">{item.title}</span>
+                    {problem && problem !== 'no-parts' && (
+                      <span className="text-amber-500">
+                        <WarningIcon className="size-4" />
+                        <span className="sr-only">⚠</span>
+                      </span>
+                    )}
+                  </AppButton>
+                  <AppButton
+                    variant="plain"
+                    data-no-drag
+                    aria-label={t('presentation.itemOptions', { title: item.title })}
+                    title={t('presentation.options')}
+                    className="shrink-0 size-7 touch:size-11 flex items-center justify-center rounded-full cursor-pointer text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-black/8 dark:hover:bg-white/12 aria-expanded:bg-black/8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 touch:opacity-100 aria-expanded:opacity-100"
+                    aria-expanded={menu?.item.id === item.id}
+                    onClick={(e) => {
+                      const box = e.currentTarget.getBoundingClientRect();
+                      setMenu({ item, at: { x: box.left, y: box.bottom + 4 } });
+                    }}
+                  >
+                    <EllipsisOutlineIcon className="size-4" />
+                  </AppButton>
+                  </>
+                )}
+                {/* A finger drags by ≡ (a mouse drags the whole row); in select mode, where a row ticks, everyone does, as
+                    iOS's edit mode has its grips. Alt+↑/↓ moves the selected item from the keyboard. */}
+                <div {...handle(i)} data-no-drag data-testid="drag-handle" title={t('live.moveItem', { title: item.title })} className={`${ticking ? 'flex cursor-grab' : 'hidden touch:flex'} items-center justify-center size-11 shrink-0 touch-none text-stone-400 dark:text-stone-500`}>
+                  <MenuIcon className="size-4" />
+                </div>
               </div>
             </li>
           );

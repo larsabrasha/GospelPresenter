@@ -41,6 +41,7 @@ export function SlideList({
   onShow,
   onItemMenu,
   onAddImages,
+  footer,
 }: {
   items: PresentationItem[];
   slides: Map<string, ItemSlides>;
@@ -61,6 +62,8 @@ export function SlideList({
   onItemMenu?: (item: PresentationItem) => void;
   /** "Lägg till bilder" on an image item edited in place: the add dialog's picture tab, adding to it. */
   onAddImages?: (itemId: string) => void;
+  /** Under the last item: on a phone, whether it is kept offline and Fjärrstyrning, as a computer's columns have them. */
+  footer?: ReactNode;
 }) {
   const wide = useWide();
   const box = useRef<HTMLDivElement>(null);
@@ -162,6 +165,7 @@ export function SlideList({
           </section>
         );
       })}
+      {footer && <div className="flex flex-col items-center gap-1 pt-4 empty:hidden">{footer}</div>}
     </div>
   );
 }

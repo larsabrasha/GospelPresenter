@@ -40,11 +40,13 @@ export function LivePanel({
   onStep: (delta: number) => void;
 }) {
   const remotePolicy = useData(orgRemoteControl, []);
+  // As wide at the right as at the left whatever the scrollbar, as the left column (app.css `--beside-scrollbar`).
   return (
-    <aside className="w-[340px] shrink-0 overflow-y-auto flex flex-col gap-5 p-4 pt-5 bg-surface border-l-[0.5px] border-separator" data-testid="live-panel">
+    <aside className="w-[340px] shrink-0 overflow-y-auto flex flex-col gap-5 pl-5 pr-(--beside-scrollbar) pb-4 pt-5 bg-surface border-l-[0.5px] border-separator" data-testid="live-panel">
       <LivePicture slide={current} theme={theme} overlay={overlay} black={pointer.black} canStep={canStep} onStep={onStep} onClear={() => live.set({ black: true })} />
-      {!!overlays.length && <OverlaysPanel overlays={overlays} pointer={pointer} live={live} />}
+      {/* Utgångar first: whether anything shows is what matters most while presenting (Lars, 2026-11-02). */}
       {owner ? <OutputsPanel link={link} sessionId={owner.sessionId} /> : <p className="text-xs text-stone-500 dark:text-stone-400 text-center">{t('remote.onlyOwnerStops')}</p>}
+      {!!overlays.length && <OverlaysPanel overlays={overlays} pointer={pointer} live={live} />}
       {owner && remotePolicy && remotePolicy !== 'never' && (
         <div className="mt-auto -mx-2 -mb-2">
           <RemoteStatus id={presentation.id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} />

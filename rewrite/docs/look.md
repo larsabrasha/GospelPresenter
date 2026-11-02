@@ -109,10 +109,13 @@ a build knows it only from `GP_COMMIT`, for a release build to set, so local and
 is centred in a box that is not 16:9, by whole pixels so tiles do not move; text taller than the screen scrolls
 on `/watch`, not on the output window or a paired screen.
 
-Extern skärm under Utgångar is a switch, as there (`live/outputWindow.ts`): on opens the output window, off
-closes it, and it shows whether the window is open, so closing the window some other way turns it off. In the
-desktop app the main process reports each open and close (`output-changed`), and a reloaded page asks
-(`output-open`); in a browser the popup is checked every 0.5 s, since a page has no event for it, and a reloaded
+This computer's own outputs under Utgångar are switches, as there (`live/outputWindow.ts`): in the desktop app one
+for each display the app's window is not on, named as macOS names it ("EPSON PJ", the laptop's own when the app
+stands on an external display), several on at once, each fullscreen on its display (`apps/desktop/src/outputs.ts`);
+with no other display, and in a browser, one "Utgångsfönster" in a window of its own (Lars, 2026-11-02). On opens
+the output, off closes it, and each shows whether its window is open, so closing the window some other way turns it
+off; Avsluta closes them all. In the desktop app the main process reports where outputs are open
+(`outputs-changed`) and when the displays change (`displays-changed`), and a reloaded page asks (`outputs-open`); in a browser the popup is checked every 0.5 s, since a page has no event for it, and a reloaded
 page shows it off until it is switched on again, which takes the open popup back by its name. Unlike the
 current app the row is always there (with one display the output is a window) and a browser opens a popup,
 not a Presentation-API receiver; there is no Esc in the output window, and Avsluta presentation closes it, as the current app's `Live.razor` does (Lars, 2026-10-29). A click in it asks for full screen, it keeps the screen awake, and it is named after the presentation.

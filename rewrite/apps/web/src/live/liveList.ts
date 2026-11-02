@@ -45,22 +45,6 @@ export function itemActions(order: readonly string[], itemId: string, shownId: s
   return { up: at > 0, down: at !== -1 && at < order.length - 1, remove: itemId !== shownId };
 }
 
-/** What the folded outputs say: how many are on and how many watch, or what is wrong. */
-export type OutputsState = { kind: 'off' } | { kind: 'on'; on: number; viewers: number } | { kind: 'offline'; name: string };
-
-/**
- * The outputs folded to one line: an output chosen but gone (a saved screen whose page closed) first, as that is
- * what needs doing; else how many are on, the output window counted, and how many watch the public ones.
- */
-export function outputsState(externalOn: boolean, outputs: readonly { name: string; chosen: boolean; sending: boolean; offline: boolean; viewers?: number }[]): OutputsState {
-  const gone = outputs.find((o) => o.chosen && o.offline);
-  if (gone) return { kind: 'offline', name: gone.name };
-  const on = outputs.filter((o) => o.sending);
-  const count = on.length + (externalOn ? 1 : 0);
-  if (!count) return { kind: 'off' };
-  return { kind: 'on', on: count, viewers: on.reduce((n, o) => n + (o.viewers ?? 0), 0) };
-}
-
 /** How a slide is marked while presenting: shown now, or the one → shows next. */
 export type SlideMarkKind = 'shown' | 'next';
 

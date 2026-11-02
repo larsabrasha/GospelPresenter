@@ -176,7 +176,7 @@ control from the app. The first time it is switched on on a live page, the dialo
 host the link has its LAN address. Under Presentationer every other
 window of the organisation sees "Visas just nu · {name}" with "Ta kontroll" for each session that allows it
 (LIVE-A27). The controller's live page has the amber banner, the same grid and the black screen,
-no "Extern skärm", and "Bara datorn som presenterar kan stoppa presentationen." instead of Avsluta. With
+no switches for this computer's own outputs, and "Bara datorn som presenterar kan stoppa presentationen." instead of Avsluta. With
 several candidates it asks which; otherwise it says "Ingen aktiv presentation just nu", "Fjärrstyrning är inte
 aktiverad av presentatören" or that the presenting computer lost contact. Tested in `apps/server/test/live.test.ts`
 (three adapters) and `apps/desktop/e2e/remote.spec.ts` (two desktops).

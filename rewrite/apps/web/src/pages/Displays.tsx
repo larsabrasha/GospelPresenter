@@ -140,7 +140,11 @@ export async function copyLink(url: string, done: () => void) {
  * Skärmar (spec 04 §7): the organisation's saved screens, online or not, and
  * its public outputs, what each sends and how many watch. Admins only.
  */
-export function Displays({ link }: { link: LiveLink }) {
+/**
+ * Skärmar (`kind` screen) or Publika utgångar (public), each a page of its own in Inställningar (Lars, 2026-11-02):
+ * its list, and its + floating at the bottom right.
+ */
+export function Displays({ link, kind }: { link: LiveLink; kind: Display['kind'] }) {
   const db = useDb();
   const trySave = useTrySave();
   const toast = useToast();
@@ -177,68 +181,68 @@ export function Displays({ link }: { link: LiveLink }) {
   return (
     <PageContainer>
       {dialog}
-      <PageHeader title={t('displays.title')}>
-        <AddButton label={t('screens.add')} onClick={() => setCreating('screen')} />
+      <PageHeader title={kind === 'screen' ? t('displays.title') : t('displays.public')}>
+        <AddButton label={kind === 'screen' ? t('screens.add') : t('displays.create')} onClick={() => setCreating(kind)} />
       </PageHeader>
-      <div className={CARD}>
-        {!all && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
-        {screens && !screens.length && (
-          <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} />
-        )}
-        <ul aria-label={t('screens.title')}>
-          {screens?.map((d) => {
-            const on = online.includes(d.id);
-            return (
-              <li key={d.id} className={ROW} aria-label={d.name}>
-                <ScreenIcon className={`size-5 ${on ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`} offline={!on} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{d.name}</div>
-                </div>
-                <div className={`text-xs ${on ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{on ? t('screens.online') : t('screens.offline')}</div>
-                <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
-                  <LinkIcon className="size-3.5" />
-                  {t('screens.showLink')}
-                </AppButton>
-                <AppButton variant="danger" className="text-xs" onClick={() => void remove(d)}>
-                  {t('displays.delete')}
-                </AppButton>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-      <div className="flex items-center justify-between px-5 pt-6">
-        <h2 className="text-xl/7 font-bold dark:text-stone-100">{t('displays.public')}</h2>
-        <AddButton label={t('displays.create')} onClick={() => setCreating('public')} />
-      </div>
-      <div className={CARD}>
-        {!all && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
-        {displays && !displays.length && (
-          <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} />
-        )}
-        <ul aria-label={t('displays.public')}>
-          {displays?.map((d) => {
-            const { sending, viewers } = status(d);
-            return (
-              <li key={d.id} className={ROW} aria-label={d.name}>
-                <QrCodeIcon className={`size-5 ${sending ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{d.name}</div>
-                  {sending && <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{t('displays.sending', { name: sending })}</div>}
-                </div>
-                <div className={`text-xs ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{viewersText(viewers)}</div>
-                <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
-                  <QrCodeIcon className="size-3.5" />
-                  {t('displays.showQr')}
-                </AppButton>
-                <AppButton variant="danger" className="text-xs" onClick={() => void remove(d)}>
-                  {t('displays.delete')}
-                </AppButton>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      {kind === 'screen' && (
+        <div className={CARD}>
+          {!all && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+          {screens && !screens.length && (
+            <EmptyPicture picture={<ScreensPicture className={PICTURE} />} title={t('screens.empty')} />
+          )}
+          <ul aria-label={t('screens.title')}>
+            {screens?.map((d) => {
+              const on = online.includes(d.id);
+              return (
+                <li key={d.id} className={ROW} aria-label={d.name}>
+                  <ScreenIcon className={`size-5 ${on ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`} offline={!on} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{d.name}</div>
+                  </div>
+                  <div className={`text-xs ${on ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{on ? t('screens.online') : t('screens.offline')}</div>
+                  <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
+                    <LinkIcon className="size-3.5" />
+                    {t('screens.showLink')}
+                  </AppButton>
+                  <AppButton variant="danger" className="text-xs" onClick={() => void remove(d)}>
+                    {t('displays.delete')}
+                  </AppButton>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+      {kind === 'public' && (
+        <div className={CARD}>
+          {!all && <div className="px-7 py-4 text-stone-400">{t('common.loading')}</div>}
+          {displays && !displays.length && (
+            <EmptyPicture picture={<PublicOutputsPicture className={PICTURE} />} title={t('displays.empty')} />
+          )}
+          <ul aria-label={t('displays.public')}>
+            {displays?.map((d) => {
+              const { sending, viewers } = status(d);
+              return (
+                <li key={d.id} className={ROW} aria-label={d.name}>
+                  <QrCodeIcon className={`size-5 ${sending ? 'text-green-500' : 'text-stone-300 dark:text-stone-600'}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{d.name}</div>
+                    {sending && <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{t('displays.sending', { name: sending })}</div>}
+                  </div>
+                  <div className={`text-xs ${viewers > 0 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500'}`}>{viewersText(viewers)}</div>
+                  <AppButton variant="neutral" className={SMALL} onClick={() => setShowing(d)}>
+                    <QrCodeIcon className="size-3.5" />
+                    {t('displays.showQr')}
+                  </AppButton>
+                  <AppButton variant="danger" className="text-xs" onClick={() => void remove(d)}>
+                    {t('displays.delete')}
+                  </AppButton>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
       {creating && (
         <CreateDialog
           kind={creating}

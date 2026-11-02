@@ -12,6 +12,7 @@ import {
   InformationCircleIcon,
   MusicalNoteIcon,
   PhotoIcon,
+  QrCodeIcon,
   SpeakerWaveIcon,
   SquaresOverlapIcon,
   TagIcon,
@@ -68,6 +69,7 @@ export function settingsGroups(me: Pick<Me, 'role'>, host: boolean): SettingsGro
       title: 'settings.group.display',
       links: [
         can(me.role, 'ManageRemoteDisplays') && { route: { page: 'displays' }, label: 'nav.displays', icon: DesktopIcon, colour: 'bg-sky-500', pages: ['displays'], intro: 'intro.displays' },
+        can(me.role, 'ManageRemoteDisplays') && { route: { page: 'publicOutputs' }, label: 'displays.public', icon: QrCodeIcon, colour: 'bg-teal-500', pages: ['publicOutputs'], intro: 'intro.publicOutputs' },
         { route: { page: 'themes' }, label: 'nav.themes', icon: BarsIcon, colour: 'bg-stone-500', pages: ['themes'], intro: 'themes.text' },
         can(me.role, 'ViewCcliReport') && { route: { page: 'ccliReport' }, label: 'nav.ccliReport', icon: CcliReportIcon, colour: 'bg-cyan-500', pages: ['ccliReport'], intro: 'intro.ccliReport' },
       ],

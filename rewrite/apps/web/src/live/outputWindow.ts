@@ -1,65 +1,91 @@
 /**
- * The output window behind the live panel's Extern skärm switch
- * (LivePanel.razor): on opens it, off closes it, and the switch shows whether
- * it is open, so it turns off when the window is closed some other way.
+ * The output windows behind the live panel's switches (LivePanel.razor): on opens one, off closes it, and each switch
+ * shows whether its window is open, so it turns off when the window is closed some other way. The desktop app opens
+ * one on each display the main window is not on (Lars, 2026-11-02); a browser, and a computer with one display, one
+ * in a window of its own (`OUTPUT_WINDOW`).
  */
 
-/** What can open and close the output, and tell when it closed by itself. */
+/** The output in a window of its own. */
+export const OUTPUT_WINDOW = 'window';
+
+/** A display an output may go to, named by the operating system ("EPSON PJ"); the name may be empty. */
+export interface OutputDisplay {
+  id: string;
+  name: string;
+}
+
+/** What can open and close the outputs, and tell when one closed by itself. */
 export interface OutputHost {
-  /** Opens the output; false when it could not be opened. */
-  open(): boolean;
-  close(): void;
-  /** Starts telling `changed` whenever the output opens or closes on its own. */
-  watch(changed: (open: boolean) => void): void;
+  /** Opens the output on `target`; false when it could not be opened. */
+  open(target: string): boolean;
+  /** Closes the output on `target`, or every output with none. */
+  close(target?: string): void;
+  /** Starts telling `changed` where outputs are open whenever one opens or closes on its own. */
+  watch(changed: (open: string[]) => void): void;
+  /** The displays an output may go to; none where only a window of its own can be had. */
+  displays(): Promise<OutputDisplay[]>;
+  /** Starts telling `changed` when the displays change; returns how to stop. */
+  watchDisplays(changed: () => void): () => void;
 }
 
 export class OutputWindow {
-  private open = false;
+  private open: readonly string[] = [];
   private listeners = new Set<() => void>();
 
   constructor(private host: OutputHost) {
     host.watch((open) => this.set(open));
   }
 
-  isOpen = (): boolean => this.open;
+  /** Whether any output is open. */
+  isOpen = (): boolean => this.open.length > 0;
+
+  /** Where outputs are open; the same array until that changes, for useSyncExternalStore. */
+  openTargets = (): readonly string[] => this.open;
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => void this.listeners.delete(listener);
   };
 
-  /** Turns the output on or off; false when it could not be opened. */
-  turn(on: boolean): boolean {
+  displays = (): Promise<OutputDisplay[]> => this.host.displays();
+
+  watchDisplays = (changed: () => void): (() => void) => this.host.watchDisplays(changed);
+
+  /** Turns the output on `target` on or off, every output off with none; false when it could not be opened. */
+  turn(on: boolean, target?: string): boolean {
     if (!on) {
-      this.host.close();
-      this.set(false);
+      this.host.close(target);
+      this.set(target === undefined ? [] : this.open.filter((x) => x !== target));
       return true;
     }
-    const opened = this.host.open();
-    this.set(opened);
+    const to = target ?? OUTPUT_WINDOW;
+    const opened = this.host.open(to);
+    if (opened && !this.open.includes(to)) this.set([...this.open, to]);
     return opened;
   }
 
-  private set(open: boolean) {
-    if (open === this.open) return;
+  private set(open: readonly string[]) {
+    if (open.length === this.open.length && open.every((x) => this.open.includes(x))) return;
     this.open = open;
     for (const listener of this.listeners) listener();
   }
 }
 
-/** The desktop app: a native window the main process opens, closes and reports on. */
+/** The desktop app: native windows the main process opens, closes and reports on, one per display. */
 export function desktopHost(desktop: NonNullable<Window['gpDesktop']>): OutputHost {
   return {
-    open() {
-      desktop.openOutput();
+    open(target) {
+      desktop.openOutput(target);
       return true;
     },
-    close: () => desktop.closeOutput(),
+    close: (target) => desktop.closeOutput(target),
     watch(changed) {
-      desktop.onOutputChanged(changed);
-      // A reloaded page adopts a window that is still open.
-      void desktop.outputOpen().then(changed);
+      desktop.onOutputsChanged(changed);
+      // A reloaded page adopts the windows that are still open.
+      void desktop.outputsOpen().then(changed);
     },
+    displays: () => desktop.outputDisplays(),
+    watchDisplays: (changed) => desktop.onDisplaysChanged(changed),
   };
 }
 
@@ -80,7 +106,7 @@ export const POPUP_POLL_MS = 500;
 export function browserHost(openPopup: () => PopupLike | null): OutputHost {
   let popup: PopupLike | null = null;
   let timer: ReturnType<typeof setInterval> | undefined;
-  let report: (open: boolean) => void = () => {};
+  let report: (open: string[]) => void = () => {};
   const stop = () => {
     clearInterval(timer);
     timer = undefined;
@@ -95,7 +121,7 @@ export function browserHost(openPopup: () => PopupLike | null): OutputHost {
       timer = setInterval(() => {
         if (!watched.closed) return;
         stop();
-        report(false);
+        report([]);
       }, POPUP_POLL_MS);
       return true;
     },
@@ -106,6 +132,9 @@ export function browserHost(openPopup: () => PopupLike | null): OutputHost {
     watch(changed) {
       report = changed;
     },
+    // A browser may not place a window on another display: the one popup.
+    displays: () => Promise.resolve([]),
+    watchDisplays: () => () => {},
   };
 }
 

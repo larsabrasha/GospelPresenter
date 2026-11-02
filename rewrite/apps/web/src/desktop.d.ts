@@ -1,14 +1,18 @@
 // What the desktop app's preload gives a page (apps/desktop/src/preload.ts). Absent in a browser.
 interface Window {
   gpDesktop?: {
-    /** Opens the output window, or brings it forward if it is open. */
-    openOutput(): void;
-    /** Closes the output window, if it is open. */
-    closeOutput(): void;
-    /** Whether the output window is open now. */
-    outputOpen(): Promise<boolean>;
-    /** Called whenever the output window opens or closes, however it closed. Returns an unsubscribe. */
-    onOutputChanged(cb: (open: boolean) => void): () => void;
+    /** Opens the output on a display (its id) or in a window of its own ('window'), or brings it forward. */
+    openOutput(target: string): void;
+    /** Closes the output on `target`, or every output with none. */
+    closeOutput(target?: string): void;
+    /** Where an output is open now. */
+    outputsOpen(): Promise<string[]>;
+    /** Called whenever an output opens or closes, however it closed, with where they are open. Returns an unsubscribe. */
+    onOutputsChanged(cb: (open: string[]) => void): () => void;
+    /** Every display the main window does not stand on, named by the operating system. */
+    outputDisplays(): Promise<{ id: string; name: string }[]>;
+    /** Called when a display comes or goes, or the main window moves to another. Returns an unsubscribe. */
+    onDisplaysChanged(cb: () => void): () => void;
     /** The window's title bar is hidden on a Mac: the page's bar holds the window's buttons and moves the window. */
     macFrame?: boolean;
     /** A choice in the menu bar the page has no key for (Inställningar…). Returns an unsubscribe. */

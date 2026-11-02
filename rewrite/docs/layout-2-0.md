@@ -122,10 +122,11 @@ Inställningar's list (Lars, 2026-11-02); no list or page has its own.
 ## Inställningar
 
 On a phone a list as iOS's Settings: Mina inställningar as a profile cell at the top, then Bibliotek (Sånger,
-Biblar, Bilder, Ljud, Videor), Presentation (Overlays, Mallar, Etiketter), Visning (Skärmar, Teman, CCLI-rapport),
+Biblar, Bilder, Ljud, Videor), Presentation (Overlays, Mallar, Etiketter), Visning (Skärmar, Publika utgångar, Teman, CCLI-rapport),
 Organisationen (Användare, Organisationen, Organisationer) and Om Gospel Presenter, each with a coloured icon; a row
 opens its page full width, with a round ‹ alone at the left of the dialog's bar (one step up) and the page's name in
-its middle (Lars, 2026-11-02). Overlays, Mallar, Etiketter, Skärmar, Teman, CCLI-rapport, Enheter and Organisationen
+its middle (Lars, 2026-11-02); Skärmar and Publika utgångar are pages of their own, each with its floating + (Lars,
+2026-11-02). Overlays, Mallar, Etiketter, Skärmar, Publika utgångar, Teman, CCLI-rapport, Enheter and Organisationen
 open with a card as iOS's Settings has: the row's icon, the page's name and what it is for; the bar names the page
 once the card has scrolled away. On a computer as macOS's System Settings: the same list at the
 left, the page at the right. It stays a dialog over the page the user is on (filling the screen on a phone); the

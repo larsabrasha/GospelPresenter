@@ -86,7 +86,7 @@ test('on a phone the presentation is one column before and while presenting; Lä
   // The title sits in the middle of the room between the back button and the buttons at the right, never under them.
   const title = (await live.getByRole('button', { name: 'Alternativ' }).boundingBox())!;
   const back = (await live.getByRole('link', { name: 'Tillbaka till presentationerna' }).boundingBox())!;
-  const right = (await live.getByRole('button', { name: 'Mer', exact: true }).boundingBox())!;
+  const right = (await live.getByRole('link', { name: 'Inställningar', exact: true }).boundingBox())!;
   expect(title.x).toBeGreaterThanOrEqual(back.x + back.width);
   expect(title.x + title.width).toBeLessThanOrEqual(right.x);
   await onScreen(picture);
@@ -169,10 +169,10 @@ test('on a phone the presentation is one column before and while presenting; Lä
   expect(lying.y).toBeLessThan(order.y + order.height / 2);
   await page.setViewportSize(PHONE);
 
-  // A sheet is pulled down by its bar to close it, as on iOS.
-  await live.getByRole('button', { name: 'Mer', exact: true }).click();
-  const more = await settled(page.getByRole('dialog', { name: 'Söndag' }));
-  const bar = (await more.getByRole('heading', { name: 'Söndag' }).boundingBox())!;
+  // A sheet is pulled down by its bar to close it, as on iOS: Utgångar's, from its button under ‹ Rensa ›.
+  await live.getByRole('button', { name: /^Utgångar/ }).click();
+  const more = await settled(page.getByRole('dialog', { name: 'Utgångar' }));
+  const bar = (await more.getByRole('heading', { name: 'Utgångar' }).boundingBox())!;
   await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
   await page.mouse.down();
   await page.mouse.move(bar.x + bar.width / 2, bar.y + 400, { steps: 8 });
@@ -181,16 +181,17 @@ test('on a phone the presentation is one column before and while presenting; Lä
 
   // On an iPad held upright the same sheet is centred, as iPadOS's form sheet.
   await page.setViewportSize({ width: 820, height: 1180 });
-  await live.getByRole('button', { name: 'Mer', exact: true }).click();
-  const centred = (await (await settled(page.getByRole('dialog', { name: 'Söndag' }))).boundingBox())!;
+  await live.getByRole('button', { name: /^Utgångar/ }).click();
+  const centred = (await (await settled(page.getByRole('dialog', { name: 'Utgångar' }))).boundingBox())!;
   expect(Math.abs(centred.y + centred.height / 2 - 590)).toBeLessThan(10);
-  await page.getByRole('dialog', { name: 'Söndag' }).getByRole('button', { name: 'Stäng' }).click();
+  await page.getByRole('dialog', { name: 'Utgångar' }).getByRole('button', { name: 'Stäng' }).click();
   await page.setViewportSize(PHONE);
 
-  // Utgångar is first in …; ending is ■ at the far right of the bar, and asks first.
-  await live.getByRole('button', { name: 'Mer', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'Söndag' }).getByRole('button').nth(1)).toHaveText('Utgångar');
-  await page.getByRole('dialog', { name: 'Söndag' }).getByRole('button', { name: 'Stäng' }).click();
+  // Its sheet holds the computer's group: this phone's external screen among the switches. Ending is ■ at the far
+  // right of the bar, and asks first.
+  await live.getByRole('button', { name: /^Utgångar/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Utgångar' }).getByLabel('Utgångsfönster')).toBeVisible();
+  await page.getByRole('dialog', { name: 'Utgångar' }).getByRole('button', { name: 'Stäng' }).click();
   await live.getByRole('button', { name: 'Avsluta presentation' }).click();
   await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
   // The same view stays, without the picture, ▶ back in the bar.

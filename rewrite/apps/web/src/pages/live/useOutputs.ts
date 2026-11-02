@@ -5,7 +5,7 @@ import { listDisplays } from '../../db/queries.ts';
 import { t } from '../../i18n.ts';
 import { chosenOutputs, REMOTE_CHANGED, setOutput } from '../../live/owner.ts';
 import { useLiveSessions, type LiveLink } from '../../live/remote.ts';
-import { outputWindow } from '../../live/outputWindow.ts';
+import { OUTPUT_WINDOW, outputWindow, type OutputDisplay } from '../../live/outputWindow.ts';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useToast } from '../../ui/Toast.tsx';
 
@@ -27,7 +27,8 @@ interface OutputRow {
 }
 
 /**
- * Utgångar (spec 04 §1), for whichever way they are drawn: the output window, the saved screens then the public
+ * Utgångar (spec 04 §1), for whichever way they are drawn: this computer's own (`own`: one on each display the app's
+ * window is not on, named by the operating system, or a window of its own with no other display), the saved screens then the public
  * outputs (each in the order they were made, LivePanel.razor), and the temporary screens paired from here.
  * `dialog` must be rendered: it is where taking an output over asks.
  */
@@ -37,7 +38,19 @@ export function useOutputs(link: LiveLink, sessionId: string) {
   const { dialog, ask } = useConfirm();
   const [chosen, setChosen] = useState(chosenOutputs);
   const output = outputWindow();
-  const externalOn = useSyncExternalStore(output.subscribe, output.isOpen);
+  const openOwn = useSyncExternalStore(output.subscribe, output.openTargets);
+  const [ownDisplays, setDisplays] = useState<OutputDisplay[]>([]);
+  // The displays come and go, and change as the app's window moves to another.
+  useEffect(() => {
+    let current = true;
+    const load = () => void output.displays().then((d) => current && setDisplays(d));
+    load();
+    const stop = output.watchDisplays(load);
+    return () => {
+      current = false;
+      stop();
+    };
+  }, [output]);
   const toast = useToast();
   useEffect(() => {
     const on = () => setChosen(chosenOutputs());
@@ -73,11 +86,14 @@ export function useOutputs(link: LiveLink, sessionId: string) {
     });
   return {
     dialog,
-    externalOn,
-    /** Opens or closes the output window; says so when the browser would not open it. */
-    turnExternal: (on: boolean) => {
-      if (!output.turn(on)) toast(t('live.outputFailed'));
-    },
+    /** This computer's own outputs, each switched on its own; turning one on says so when the browser would not open it. */
+    own: (ownDisplays.length ? ownDisplays.map((d) => ({ id: d.id, name: d.name || t('live.otherScreen') })) : [{ id: OUTPUT_WINDOW, name: t('live.outputWindow') }]).map((x) => ({
+      ...x,
+      on: openOwn.includes(x.id),
+      turn: (on: boolean) => {
+        if (!output.turn(on, x.id)) toast(t('live.outputFailed'));
+      },
+    })),
     rows,
     temporary: screens.filter((x) => chosen.includes(x.id)).map((x) => ({ id: x.id, n: x.n, disconnect: () => setOutput(x.id, false) })),
   };

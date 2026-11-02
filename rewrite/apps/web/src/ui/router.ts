@@ -50,6 +50,8 @@ export type Route =
   | { page: 'org'; id: string }
   | { page: 'overlay'; id: string }
   | { page: 'displays' }
+  /** Publika utgångar, apart from Skärmar (Lars, 2026-11-02). */
+  | { page: 'publicOutputs' }
   /** A public output (spec 04 §6): anonymous, no database. */
   | { page: 'watch'; code: string }
   /**
@@ -112,6 +114,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
     if (second === 'organizations') return third ? { page: 'org', id: third } : { page: 'orgs' };
     if (second === 'themes') return { page: 'themes' };
     if (second === 'displays') return { page: 'displays' };
+    if (second === 'public-outputs') return { page: 'publicOutputs' };
     if (second === 'settings') return { page: 'orgSettings' };
     if (second === 'about') return { page: 'about' };
     return second ? { page: 'songs' } : { page: 'admin' };
@@ -142,7 +145,7 @@ export function parseRoute(path: string, search = '', hash = ''): Route {
   return { page: 'presentations' };
 }
 
-const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'labels', 'ccliReport', 'themes', 'displays', 'about']);
+const ADMIN_PAGES = new Set<Route['page']>(['songs', 'users', 'devices', 'bibles', 'images', 'audios', 'videos', 'overlays', 'templates', 'labels', 'ccliReport', 'themes', 'displays', 'publicOutputs', 'about']);
 
 /** Inställningar's pages: those under `/admin/` and Mina inställningar, which open over the page the user was on. */
 const ADMIN_DIALOG_PAGES = new Set<Route['page']>([...ADMIN_PAGES, 'admin', 'orgs', 'org', 'song', 'songHistory', 'user', 'overlay', 'orgSettings', 'settings', 'logins', 'trash']);
@@ -210,6 +213,8 @@ export function href(r: Route): string {
       return '/admin/settings';
     case 'ccliReport':
       return '/admin/ccli-report';
+    case 'publicOutputs':
+      return '/admin/public-outputs';
     case 'orgs':
       return '/admin/organizations';
     case 'org':

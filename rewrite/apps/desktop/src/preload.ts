@@ -3,13 +3,19 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 contextBridge.exposeInMainWorld('gpDesktop', {
-  openOutput: () => ipcRenderer.send('open-output'),
-  closeOutput: () => ipcRenderer.send('close-output'),
-  outputOpen: () => ipcRenderer.invoke('output-open') as Promise<boolean>,
-  onOutputChanged(cb: (open: boolean) => void) {
-    const on = (_e: unknown, open: unknown) => typeof open === 'boolean' && cb(open);
-    ipcRenderer.on('output-changed', on);
-    return () => void ipcRenderer.off('output-changed', on);
+  openOutput: (target: string) => ipcRenderer.send('open-output', target),
+  closeOutput: (target?: string) => ipcRenderer.send('close-output', target),
+  outputsOpen: () => ipcRenderer.invoke('outputs-open') as Promise<string[]>,
+  onOutputsChanged(cb: (open: string[]) => void) {
+    const on = (_e: unknown, open: unknown) => Array.isArray(open) && cb(open.filter((x): x is string => typeof x === 'string'));
+    ipcRenderer.on('outputs-changed', on);
+    return () => void ipcRenderer.off('outputs-changed', on);
+  },
+  outputDisplays: () => ipcRenderer.invoke('output-displays') as Promise<{ id: string; name: string }[]>,
+  onDisplaysChanged(cb: () => void) {
+    const on = () => cb();
+    ipcRenderer.on('displays-changed', on);
+    return () => void ipcRenderer.off('displays-changed', on);
   },
   isHost: Boolean(ipcRenderer.sendSync('is-host')),
   /** The window's title bar is hidden on a Mac: the page's bar holds the window's buttons and moves the window. */

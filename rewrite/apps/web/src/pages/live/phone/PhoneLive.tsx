@@ -8,7 +8,7 @@ import type { ItemSlides } from '../../../live/live.ts';
 import type { LiveControl } from '../../../live/remote.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
 import { useConfirm } from '../../../ui/Dialog.tsx';
-import { CheckSquareIcon, CogIcon, DesktopIcon, PencilIcon, PlusIcon, RemoteIcon, SquaresOverlapIcon, TrashIcon } from '../../../ui/icons.tsx';
+import { CheckSquareIcon, PencilIcon, PlusIcon, TrashIcon } from '../../../ui/icons.tsx';
 import { href, navigate } from '../../../ui/router.ts';
 import { GROUP, Sheet, useSheetDismiss } from '../../../ui/Sheet.tsx';
 import { FLOATING_PRIMARY } from '../../../ui/glass.ts';
@@ -18,16 +18,18 @@ import { AddItemDialog } from '../../presentation-editor/AddItemDialog.tsx';
 import { ImageItemEditor, ItemSettings } from '../../presentation-editor/ItemParts.tsx';
 import { OfflineStatus } from '../../presentation-editor/OfflineStatus.tsx';
 import { PresentationBar } from '../PresentationBar.tsx';
+import { SyncLine } from '../../../TopBar.tsx';
 import { RunningOrder } from '../RunningOrder.tsx';
 import { SlideList } from '../SlideList.tsx';
 import type { Presenting } from '../../presentation-editor/PresentationEditor.tsx';
 import { RemoteBanner } from '../RemoteBanner.tsx';
 import { OverlaysPanel } from '../OverlaysPanel.tsx';
-import { RemotePanel } from '../RemotePanel.tsx';
+import { RemoteStatus } from '../RemotePanel.tsx';
+import { OutputsPanel } from '../OutputsPanel.tsx';
 import { VideoPlayer } from '../VideoPlayer.tsx';
-import { OutputsList } from './OutputsList.tsx';
+import { OutputsGlyph, OverlaysGlyph } from './LiveGlyphs.tsx';
 
-type Open = null | 'outputs' | 'more' | 'overlays' | 'remote' | { item: PresentationItem } | { images: PresentationItem };
+type Open = null | 'outputs' | 'overlays' | { item: PresentationItem } | { images: PresentationItem };
 
 /** How long an item just added stays marked. */
 const MARKED_MS = 2600;
@@ -122,7 +124,7 @@ export function PhoneLive({
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-ground text-stone-900 dark:text-stone-100 pt-[env(safe-area-inset-top)]" data-testid="phone-live">
       {dialog}
-      {/* The same bar as on a computer (PresentationBar), its … opening the sheet with the rest. */}
+      {/* The same bar as on a computer (PresentationBar), its cog to Inställningar. */}
       <PresentationBar
         presentation={presentation}
         live={live}
@@ -134,7 +136,6 @@ export function PhoneLive({
         onSaveAsTemplate={onSaveAsTemplate}
         onMaterials={onMaterials}
         onTrash={onTrash}
-        onMore={() => setOpen('more')}
       />
 
       {presentation.isTemplate && <div className="bg-sky-500 text-white text-center py-1.5 text-sm font-medium shrink-0">{t('templates.banner')}</div>}
@@ -157,6 +158,8 @@ export function PhoneLive({
           onStep={(delta) => go(at + delta)}
           onClear={() => live.set({ black: true })}
           testId="phone-live-picture"
+          leading={owner && <OutputsGlyph link={presenting.link} sessionId={owner.sessionId} onClick={() => setOpen('outputs')} />}
+          trailing={!!overlays.length && <OverlaysGlyph pointer={pointer} onClick={() => setOpen('overlays')} />}
         >
           {video && pointer.itemId && presenting.video && <VideoPlayer control={presenting.video} itemId={pointer.itemId} name={video.fileName} type={video.contentType} codec={video.codec} />}
         </LivePicture>
@@ -167,13 +170,6 @@ export function PhoneLive({
           Notes and Reminders put "new", far enough from the edges that its shadow is not cut. Moving is reached from an
           item's … (Ändra ordning); Klar takes the +'s place. */}
       <div className="h-3 shrink-0 landscape:hidden" />
-      {/* Whether it is kept offline, at the foot of the view in the middle, level with the +, as Mail's "Uppdaterad
-          nyss" (Lars, 2026-11-02); lying down, under the running order. */}
-      {onKeepOffline && !editing && (
-        <div className="absolute z-10 left-0 right-0 landscape:right-[45%] bottom-[max(1.75rem,env(safe-area-inset-bottom))] h-14 flex items-center justify-center pointer-events-none">
-          <OfflineStatus presentation={presentation} onOpen={onKeepOffline} className="w-auto pointer-events-auto" />
-        </div>
-      )}
       {/* In select mode its own Klar and removal take the foot (RunningOrder). */}
       {!editing && (
         <AppButton variant="plain" aria-label={t('live.add')} title={t('live.add')} onClick={() => setAdding({ chosenId: null })} className={`absolute z-10 right-7 landscape:right-[calc(45%+0.75rem)] bottom-[max(1.75rem,env(safe-area-inset-bottom))] size-14 rounded-full flex items-center justify-center cursor-pointer ${FLOATING_PRIMARY}`}>
@@ -212,53 +208,28 @@ export function PhoneLive({
           markedId={addedId}
           onShow={presenting ? (itemId, partIndex) => live.set({ itemId, partIndex, black: false }) : undefined}
           onItemMenu={(item) => setOpen({ item })}
+          // Whether it is kept offline and Fjärrstyrning at the foot of the list (Lars, 2026-11-02), as a computer has
+          // them at the foot of its columns.
+          footer={
+            <>
+              <SyncLine className="w-auto" fallback={onKeepOffline && <OfflineStatus presentation={presentation} onOpen={onKeepOffline} className="w-auto" />} />
+              {owner && remotePolicy && remotePolicy !== 'never' && (
+                <RemoteStatus id={id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} />
+              )}
+            </>
+          }
         />
       )}
       </div>
 
       {open === 'outputs' && presenting && owner && (
         <Sheet title={t('live.outputs')} onClose={() => setOpen(null)}>
-          <OutputsList link={presenting.link} sessionId={owner.sessionId} />
+          <OutputsPanel link={presenting.link} sessionId={owner.sessionId} bare />
         </Sheet>
       )}
       {open === 'overlays' && presenting && (
         <Sheet title={t('overlays.title')} onClose={() => setOpen(null)}>
           <OverlaysPanel overlays={overlays} pointer={pointer} live={live} bare />
-        </Sheet>
-      )}
-      {open === 'remote' && owner && remotePolicy && remotePolicy !== 'never' && (
-        <Sheet title={t('live.remote')} onClose={() => setOpen(null)}>
-          <RemotePanel id={id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} />
-        </Sheet>
-      )}
-      {open === 'more' && (
-        <Sheet title={presentation.name} onClose={() => setOpen(null)}>
-          {/* What is shown, then the app. The presentation's own (details, Noter och länkar, Spara som mall, to the
-              trash) is the title's menu, as on a computer. */}
-          <div className="flex flex-col gap-5">
-            <MenuGroup>
-              {owner && (
-                <MenuRow icon={<DesktopIcon className="size-5" />} onClick={() => setOpen('outputs')}>
-                  {t('live.outputs')}
-                </MenuRow>
-              )}
-              {presenting && !!overlays.length && (
-                <MenuRow icon={<SquaresOverlapIcon className="size-5" />} onClick={() => setOpen('overlays')}>
-                  {t('overlays.title')}
-                </MenuRow>
-              )}
-              {owner && remotePolicy && remotePolicy !== 'never' && (
-                <MenuRow icon={<RemoteIcon className="size-5" />} onClick={() => setOpen('remote')}>
-                  {t('live.remote')}
-                </MenuRow>
-              )}
-            </MenuGroup>
-            <MenuGroup>
-              <MenuRow icon={<CogIcon className="size-5" />} onClick={() => (setOpen(null), navigate({ page: 'admin' }))}>
-                {t('nav.admin')}
-              </MenuRow>
-            </MenuGroup>
-          </div>
         </Sheet>
       )}
       {open && typeof open === 'object' && 'images' in open && (

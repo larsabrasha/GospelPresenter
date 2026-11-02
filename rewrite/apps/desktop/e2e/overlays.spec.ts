@@ -50,7 +50,7 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await expect(page.getByRole('list', { name: 'Sång A' }).getByTestId('slide-overlay').first()).toHaveText('Swish 123 45');
 
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   const overlay = output.getByTestId('slide-overlay');
 
@@ -70,7 +70,6 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await pickItem(page, /^Sång A/); // its row names its overlay too
   await page.getByRole('button', { name: 'Sång A 1' }).click();
   await expect(overlay).toHaveText('Swish 123 45');
-  await page.getByRole('button', { name: 'Overlays', exact: true }).click();
   const toggles = page.getByRole('list', { name: 'Overlays' });
   await toggles.getByLabel('Kollekt').uncheck();
   await expect(overlay).toHaveCount(0);

@@ -4,22 +4,23 @@ import { outputWindow } from '../../live/outputWindow.ts';
 import type { LiveControl } from '../../live/remote.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
-import { ChevronDownIcon, ChevronLeftIcon, CogIcon, EllipsisIcon, PlayIcon, StopIcon } from '../../ui/icons.tsx';
+import { ChevronDownIcon, ChevronLeftIcon, CogIcon, PlayIcon, StopIcon } from '../../ui/icons.tsx';
 import { href } from '../../ui/router.ts';
 import { templateDetails } from '../templates.ts';
 import { PresentationMenu } from '../presentation-editor/PresentationMenu.tsx';
 import { SyncCloud } from '../../TopBar.tsx';
 import { GREEN_SHADOW, LIFTED, RED_SHADOW, ROUND_BACK } from '../../ui/glass.ts';
 
-// Round, as every button of the 2.0 layout; on a phone an icon alone, its words for screen readers.
-const BAR_BUTTON = 'h-9 touch:h-11 touch:min-w-11 justify-center px-3.5 max-lg:px-0 max-lg:size-11 rounded-full flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer';
+// Round, as every button of the 2.0 layout; on a phone an icon alone, its words for screen readers. 36 px to a mouse
+// and 44 to a finger at every width, as the ‹ beside them (Lars, 2026-11-02).
+const BAR_BUTTON = 'h-9 touch:h-11 touch:min-w-11 justify-center px-3.5 max-lg:px-0 max-lg:size-9 max-lg:touch:size-11 rounded-full flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer';
 const ROUND = 'size-9 touch:size-11 px-0!';
 
 /**
  * A presentation's bar, one on a computer and a phone, before and while it is presented (docs/layout-2-0.md; Lars,
  * 2026-11-02: one bar, told apart by width): a round ‹ at the left; in the middle its name, LIVE while following
  * another's session, and when and where, which open the presentation's menu; at the right Inställningar as a round
- * icon (on a phone `onMore`'s … in its place, whose sheet has it), and at the far right Starta presentation or Avsluta
+ * icon, and at the far right Starta presentation or Avsluta
  * presentation (which asks first), icon and words on a computer, the icon alone on a phone. A template has no Starta.
  */
 export function PresentationBar({
@@ -33,7 +34,6 @@ export function PresentationBar({
   onSaveAsTemplate,
   onMaterials,
   onTrash,
-  onMore,
 }: {
   presentation: Presentation;
   live: LiveControl;
@@ -46,8 +46,6 @@ export function PresentationBar({
   onSaveAsTemplate?: () => void;
   onMaterials?: () => void;
   onTrash: () => void;
-  /** On a phone: … with the rest (the outputs, the overlays, Fjärrstyrning, Inställningar) in a sheet. */
-  onMore?: () => void;
 }) {
   const { dialog, ask } = useConfirm();
   // "2026-11-01 10:00 · Stora salen"; a phone has no room for the date, so it is a part of its own that hides there.
@@ -112,16 +110,10 @@ export function PresentationBar({
       />
       <div className="justify-self-end flex items-center gap-3">
         <SyncCloud />
-        {/* Inställningar next to start and stop; on a phone … in its place, the rest in its sheet. */}
-        {onMore ? (
-          <AppButton variant="plain" onClick={onMore} aria-label={t('live.more')} title={t('live.more')} className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`}>
-            <EllipsisIcon className="size-5" />
-          </AppButton>
-        ) : (
-          <AppButton variant="plain" href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`}>
-            <CogIcon className="size-4" />
-          </AppButton>
-        )}
+        {/* Inställningar next to start and stop, on a phone too. */}
+        <AppButton variant="plain" href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`}>
+          <CogIcon className="size-4" />
+        </AppButton>
         {/* Start and stop at the far right: ▶ before, ■ while presented (only this window's session ends). */}
         {!presenting && canStart && (
           <AppButton variant="plain" onClick={onStart} className={`${BAR_BUTTON} bg-emerald-500 text-white hover:bg-emerald-600 ${GREEN_SHADOW}`}>

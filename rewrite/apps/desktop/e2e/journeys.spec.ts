@@ -24,7 +24,7 @@ async function viewer(url: string): Promise<Page> {
   return page;
 }
 
-/** Makes a saved screen or a public output under Skärmar and returns its link. */
+/** Makes a saved screen (on Skärmar) or a public output (on Publika utgångar) and returns its link. */
 async function newOutput(page: Page, kind: 'screen' | 'public', name: string): Promise<string> {
   const title = kind === 'screen' ? 'Lägg till skärm' : 'Skapa publik utgång';
   await page.getByRole('button', kind === 'screen' ? { name: 'Lägg till', exact: true } : { name: title }).click();
@@ -76,6 +76,7 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   // The church's outputs: a TV in the hall, and a public output for the phones.
   await openAdmin(page, 'Skärmar');
   const tvUrl = await newOutput(page, 'screen', 'Kyrksal');
+  await openAdmin(page, 'Publika utgångar');
   const watchUrl = await newOutput(page, 'public', 'Mobilerna');
   await closeAdmin(page);
 
@@ -91,16 +92,16 @@ test('a Sunday: a song, a reading and a picture are presented on the projector, 
   const phone = await viewer(watchUrl);
   await expect(phone.getByTestId('watch-waiting')).toBeVisible();
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [projector] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [projector] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await projector.getByTestId('output').waitFor();
   const outputs = page.getByRole('list', { name: 'Utgångar' });
   await outputs.getByLabel('Kyrksal').check();
   await outputs.getByLabel('Mobilerna').check();
   // The 2.0 layout on a computer: the live bar instead of the app's, every item's slides in the middle, and the
-  // outputs folded to how they are.
+  // outputs a group of switches, three on.
   await expect(page.getByTestId('presentation-bar')).toBeVisible();
   await expect(page.getByTestId('live-slides').locator('section')).toHaveCount(3);
-  await expect(page.getByTestId('live-panel')).toContainText('3 på');
+  await expect(page.getByTestId('live-panel').getByRole('checkbox', { checked: true })).toHaveCount(3);
 
   /** What each of the three shows: the projector, the TV and the phone. */
   const showsText = async (text: string) => {
@@ -181,7 +182,7 @@ test('prepared on a laptop while the church computer is off, and presented on th
 
   // Presented on the projector: the song, then the picture, whose bytes came from the laptop.
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [projector] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [projector] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await projector.getByTestId('output').waitFor();
   await pickItem(page, 'Psalm 1');
   await page.getByRole('button', { name: 'Psalm 1 1' }).click();

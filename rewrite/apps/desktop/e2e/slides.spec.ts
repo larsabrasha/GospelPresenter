@@ -55,7 +55,7 @@ test('a three-page PDF becomes a slide deck item whose pages show on the output;
 
   // Live: each page is one slide, its picture at 1920×1080 filling the output.
   await page.getByRole('button', { name: 'Starta presentation' }).click();
-  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Extern skärm' }).check()]);
+  const [output] = await Promise.all([host.app.waitForEvent('window'), page.getByRole('checkbox', { name: 'Utgångsfönster' }).check()]);
   await output.getByTestId('output').waitFor();
   await page.getByRole('button', { name: 'Predikan.pdf 1' }).click();
   const shown = output.getByTestId('slide-image');
