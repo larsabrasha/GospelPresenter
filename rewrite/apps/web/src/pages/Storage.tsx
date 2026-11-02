@@ -5,7 +5,7 @@ import { useData, useDb, useDbStatus } from '../db/react.tsx';
 import { isHostWindow } from '../hostWindow.ts';
 import { locale, t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
-import { GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
+import { ACTION_ROW, GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
 // "Lagring på den här enheten" under Mina inställningar (TODO.md "Video, and which files a device
@@ -212,7 +212,7 @@ function DeviceStorage() {
         {/* Rensa cache as a row in sky, as iOS's actions in a group. */}
         <AppButton
           variant="plain"
-          className={`${GROUP_ROW} w-full text-left text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised disabled:text-stone-400 dark:disabled:text-stone-500 disabled:cursor-default disabled:hover:bg-transparent`}
+          className={ACTION_ROW}
           disabled={!cache || clearing}
           onClick={async () => {
             setClearing(true);

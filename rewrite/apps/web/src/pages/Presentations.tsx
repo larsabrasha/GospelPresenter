@@ -81,7 +81,7 @@ function TemplatePicker({ templates, manage, onPick, onClose }: { templates: Pre
         <span className="text-sm font-medium">{t('templates.blank')}</span>
       </AppButton>
       <div className="flex items-baseline justify-between gap-2 pt-2">
-        <span className="text-xs font-medium text-stone-400 dark:text-stone-500 uppercase tracking-wide">{t('templates.pickerTitle')}</span>
+        <span className="text-sm font-semibold text-stone-500 dark:text-stone-400">{t('templates.pickerTitle')}</span>
         {manage && (
           <a href={href({ page: 'templates' })} onClick={onClose} className="text-sm text-sky-600 dark:text-sky-400 no-underline hover:underline">
             {t('templates.manage')}

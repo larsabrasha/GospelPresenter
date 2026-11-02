@@ -14,7 +14,7 @@ import { isOpen, MINE, settingsGroups, type SettingsLink } from './settingsLinks
  * A list row's height: 52 pt as iOS 27's inset grouped lists; in a computer's sidebar the running order's pill (36 px,
  * 44 for a finger), so the two lists match (Lars, 2026-11-02).
  */
-const ROW = 'min-h-[52px] lg:min-h-9 lg:touch:min-h-11';
+const ROW = 'min-h-[52px] split:min-h-9 split:touch:min-h-11';
 
 /**
  * A row of the list: a coloured icon, the name, and a chevron on a phone, in its group's card as iOS 27's inset grouped
@@ -29,14 +29,14 @@ function Row({ link, route, first }: { link: SettingsLink; route: Route; first: 
       aria-current={open && route.page !== 'admin' ? 'page' : undefined}
       // From `lg` the row is the hover's room, edge to edge with the next, and its pill (`before`) is drawn 2 px in from
       // top and bottom: the rows stand apart, and the pointer never falls between them (Lars, 2026-11-02).
-      className={`relative isolate flex items-center gap-3.5 lg:gap-3 pl-4 lg:pl-3 lg:py-0.5 lg:rounded-full no-underline text-stone-900 dark:text-stone-100 hover:bg-raised lg:hover:bg-transparent lg:before:absolute lg:before:inset-x-0 lg:before:inset-y-0.5 lg:before:-z-10 lg:before:rounded-full lg:hover:before:bg-black/5 dark:lg:hover:before:bg-white/10 ${open ? 'lg:before:bg-sky-500! lg:text-white!' : ''}`}
+      className={`relative isolate flex items-center gap-3.5 split:gap-3 pl-4 split:pl-3 split:py-0.5 split:rounded-full no-underline text-stone-900 dark:text-stone-100 hover:bg-raised split:hover:bg-transparent split:before:absolute split:before:inset-x-0 split:before:inset-y-0.5 split:before:-z-10 split:before:rounded-full split:hover:before:bg-black/5 dark:split:hover:before:bg-white/10 ${open ? 'split:before:bg-sky-500! split:text-white!' : ''}`}
     >
-      <span className={`shrink-0 size-[30px] lg:size-6 rounded-lg lg:rounded-md flex items-center justify-center text-white ${link.colour}`}>
-        <link.icon className="size-[17px] lg:size-3.5" />
+      <span className={`shrink-0 size-[30px] split:size-6 rounded-lg split:rounded-md flex items-center justify-center text-white ${link.colour}`}>
+        <link.icon className="size-[17px] split:size-3.5" />
       </span>
-      <span className={`flex-1 min-w-0 flex items-center gap-2 ${ROW} pr-3.5 text-[17px] lg:text-[15px] ${first ? '' : 'max-lg:border-t-[0.5px] max-lg:border-separator'}`}>
+      <span className={`flex-1 min-w-0 flex items-center gap-2 ${ROW} pr-3.5 text-[17px] split:text-[15px] ${first ? '' : 'max-split:border-t-[0.5px] max-split:border-separator'}`}>
         <span className="flex-1 truncate">{t(link.label)}</span>
-        <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600 lg:hidden" />
+        <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600 split:hidden" />
       </span>
     </a>
   );
@@ -46,26 +46,26 @@ function Row({ link, route, first }: { link: SettingsLink; route: Route; first: 
 function SettingsList({ me, host, route }: { me: Me; host: boolean; route: Route }) {
   const mine = isOpen(MINE, route);
   return (
-    <nav className="flex flex-col gap-[22px] lg:gap-4" aria-label={t('nav.adminMenu')}>
+    <nav className="flex flex-col gap-[22px] split:gap-4" aria-label={t('nav.adminMenu')}>
       <a
         href={href(MINE.route)}
         aria-current={mine ? 'page' : undefined}
         aria-label={t('nav.settings')}
-        className={`flex items-center gap-3.5 lg:gap-3 p-3 lg:p-2 rounded-[22px] lg:rounded-full no-underline ${mine ? 'bg-surface text-stone-900 dark:text-stone-100 lg:bg-sky-500 lg:text-white' : 'bg-surface lg:bg-transparent lg:hover:bg-black/5 dark:lg:hover:bg-white/10 text-stone-900 dark:text-stone-100'}`}
+        className={`flex items-center gap-3.5 split:gap-3 p-3 split:p-2 rounded-[22px] split:rounded-full no-underline ${mine ? 'bg-surface text-stone-900 dark:text-stone-100 split:bg-sky-500 split:text-white' : 'bg-surface split:bg-transparent split:hover:bg-black/5 dark:split:hover:bg-white/10 text-stone-900 dark:text-stone-100'}`}
       >
-        <Avatar name={me.name} className="size-14 text-xl lg:size-10 lg:text-base" />
+        <Avatar name={me.name} className="size-14 text-xl split:size-10 split:text-base" />
         <span className="flex-1 min-w-0 flex flex-col">
-          <span className="text-xl lg:text-[15px] font-semibold truncate">{me.name}</span>
-          <span className={`text-[13px] truncate text-stone-500 dark:text-stone-400 ${mine ? 'lg:text-white/80 dark:lg:text-white/80' : ''}`}>{t('nav.settings')}</span>
+          <span className="text-xl split:text-[15px] font-semibold truncate">{me.name}</span>
+          <span className={`text-[13px] truncate text-stone-500 dark:text-stone-400 ${mine ? 'split:text-white/80 dark:split:text-white/80' : ''}`}>{t('nav.settings')}</span>
         </span>
-        <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600 lg:hidden" />
+        <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600 split:hidden" />
       </a>
       {settingsGroups(me, host).map((g) => (
-        <section key={g.title ?? g.links[0]?.label} className="flex flex-col gap-1.5 lg:gap-0.5" aria-label={g.title ? t(g.title) : undefined}>
+        <section key={g.title ?? g.links[0]?.label} className="flex flex-col gap-1.5 split:gap-0.5" aria-label={g.title ? t(g.title) : undefined}>
           {g.title && (
-            <h2 className="px-4 lg:px-3 text-[13px]/4 font-semibold uppercase tracking-wide lg:text-[13px]/5 lg:normal-case lg:tracking-normal text-stone-500 dark:text-stone-400">{t(g.title)}</h2>
+            <h2 className="px-4 split:px-3 text-sm/5 font-semibold split:text-[13px]/5 text-stone-500 dark:text-stone-400">{t(g.title)}</h2>
           )}
-          <div className="flex flex-col max-lg:rounded-[22px] max-lg:overflow-hidden max-lg:bg-surface">
+          <div className="flex flex-col max-split:rounded-[22px] max-split:overflow-hidden max-split:bg-surface">
             {g.links.map((l, i) => (
               <Row key={l.label} link={l} route={route} first={i === 0} />
             ))}
@@ -108,7 +108,7 @@ export function SettingsLayout({
   const intro = link?.intro ? { icon: link.icon, colour: link.colour, text: t(link.intro), onTitleInView: onIntroTitle } : null;
   // The content column's bar from `lg`: ‹ one step up where there is a step (the list is beside it), the name, Stäng.
   const contentBar = (
-    <div data-bar className="hidden lg:flex items-center gap-3 h-14 shrink-0 px-5 border-b-[0.5px] border-separator">
+    <div data-bar className="hidden split:flex items-center gap-3 h-14 shrink-0 px-5 border-b-[0.5px] border-separator">
       {bar.back && bar.back.href !== href({ page: 'admin' }) && (
         <a href={bar.back.href} aria-label={bar.back.label} title={bar.back.label} className={`-ml-1 ${ROUND_BACK}`}>
           <ChevronLeftIcon className="size-5" />
@@ -142,10 +142,10 @@ export function SettingsLayout({
     );
   return (
     <div className="flex flex-1 min-h-0">
-      <aside className={`lg:w-80 shrink-0 overflow-y-auto bg-ground lg:bg-sidebar lg:border-r-[0.5px] lg:border-separator px-4 pt-4 pb-12 lg:py-4 ${atList ? 'max-lg:flex-1' : 'max-lg:hidden'}`}>
+      <aside className={`split:w-80 shrink-0 overflow-y-auto bg-ground split:bg-sidebar split:border-r-[0.5px] split:border-separator px-4 pt-4 pb-12 split:py-4 ${atList ? 'max-split:flex-1' : 'max-split:hidden'}`}>
         <SettingsList me={me} host={host} route={route} />
       </aside>
-      <main className={`flex-1 min-w-0 overflow-hidden flex flex-col relative bg-ground ${atList ? 'max-lg:hidden' : ''}`}>
+      <main className={`flex-1 min-w-0 overflow-hidden flex flex-col relative bg-ground ${atList ? 'max-split:hidden' : ''}`}>
         {contentBar}
         <PageBackInBar value>
           <PageBarSlot value={slot}>

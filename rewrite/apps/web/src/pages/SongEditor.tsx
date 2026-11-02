@@ -8,7 +8,9 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField, useSaveFailed, useSavedIndicator } from '../ui/AutoSave.tsx';
 import { afterWrite } from '../ui/debounce.ts';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { ChevronDownIcon, ChevronUpIcon, ClockIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, ClockIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { DANGER_ROW, GROUP_ROW, Group, TEXT_ACTION } from '../ui/Group.tsx';
+import { MoreMenu } from '../ui/MoreMenu.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { isAddKey } from '../ui/Picker.tsx';
 import { SelectMenu } from '../ui/SelectMenu.tsx';
@@ -16,7 +18,7 @@ import { useToast } from '../ui/Toast.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { ctrlLabel } from '../ui/shortcuts.ts';
 import { SongMaterials } from './song-materials/SongMaterials.tsx';
-import { ArrangementCard } from './ArrangementCard.tsx';
+import { SongOrder } from './SongOrder.tsx';
 import { CARD, PILL } from './songEditorLook.ts';
 
 // The song editor's look is Components/SongEditor.razor and the parts it is made of:
@@ -133,10 +135,10 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
   const partRow = (p: SongPart, i: number) => {
     const label = p.labelId ? labelChoices.find((l) => l.id === p.labelId) : undefined;
     return (
-      // One card per part, no box in it (Lars, 2026-11-02): its label, order and removal in a row at the top, the text
-      // written straight into the card under it.
-      <li key={p.id} data-part-id={p.id} className={`${CARD} overflow-hidden`}>
-        <div className="flex items-center gap-1 px-2 py-1.5 border-b-[0.5px] border-separator">
+      // A part as a group (Lars, 2026-11-02, as Apple would): its label over the card, with ⋯ for moving and removing it,
+      // and the card holding its text alone.
+      <li key={p.id} data-part-id={p.id} className="space-y-1">
+        <div className="flex items-center gap-1 px-2">
           <SelectMenu
             label={t('song.label')}
             value={p.labelId ?? ''}
@@ -171,32 +173,16 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
             }
           />
           <div className="flex-1" />
-          <div className="flex items-center gap-1">
-            <AppButton
-              variant="icon"
-              className="p-1.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 disabled:cursor-default"
-              aria-label={t('common.moveUp')}
-              title={t('common.moveUp')}
-              disabled={i === 0}
-              onClick={() => failing(db.mutate('moveSongPart', { id: p.id, toIndex: i - 1 }))}
-            >
-              <ChevronUpIcon className="size-4" />
-            </AppButton>
-            <AppButton
-              variant="icon"
-              className="p-1.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 disabled:cursor-default"
-              aria-label={t('common.moveDown')}
-              title={t('common.moveDown')}
-              disabled={i === parts.length - 1}
-              onClick={() => failing(db.mutate('moveSongPart', { id: p.id, toIndex: i + 1 }))}
-            >
-              <ChevronDownIcon className="size-4" />
-            </AppButton>
-            <AppButton variant="dangerIcon" className="p-1.5" aria-label={t('song.removePart')} title={t('song.removePart')} onClick={() => void removePart(p)}>
-              <TrashIcon className="size-4" />
-            </AppButton>
-          </div>
+          <MoreMenu
+            name={label?.text ?? `${t('song.parts')} ${i + 1}`}
+            choices={[
+              { label: t('common.moveUp'), icon: <ChevronUpIcon className="size-4" />, disabled: i === 0, onChoose: () => failing(db.mutate('moveSongPart', { id: p.id, toIndex: i - 1 })) },
+              { label: t('common.moveDown'), icon: <ChevronDownIcon className="size-4" />, disabled: i === parts.length - 1, onChoose: () => failing(db.mutate('moveSongPart', { id: p.id, toIndex: i + 1 })) },
+              { label: t('song.removePart'), icon: <TrashIcon className="size-4" />, danger: true, onChoose: () => void removePart(p) },
+            ]}
+          />
         </div>
+        <div className={`${CARD} overflow-hidden`}>
         <AutoSaveField
           label={`${t('song.parts')} ${i + 1}`}
           value={p.content}
@@ -207,6 +193,7 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           onSave={(content) => db.mutate('updateSongPart', { id: p.id, content })}
           onSaved={saved.show}
         />
+        </div>
       </li>
     );
   };
@@ -238,46 +225,36 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
         <DetailHeader {...back} title={song.name} saved={saved.node} className="px-5" />
       )}
       <div className="space-y-4" onInput={() => (typed.current = true)}>
-        {/* The fields have boxes of their own, so no card around them (Lars, 2026-11-02). */}
-        <div className="space-y-4">
+        {/* The song's facts as one card of rows, none side by side, each a field whose name moves up as it is typed in
+            (Lars, 2026-11-02). */}
+        <Group>
           {/* A blank name is not saved (spec 02). */}
           <div data-song-name>
-            <AutoSaveField label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
+            <AutoSaveField bare label={t('song.name')} maxLength={200} value={song.name} onSave={(v) => (v.trim() ? update({ name: v }) : undefined)} onSaved={saved.show} />
           </div>
-          <div className="flex gap-4">
-            <AutoSaveField label={t('song.author')} maxLength={200} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} className="flex-1" />
-            <AutoSaveField
-              label={t('song.publisher')}
-              maxLength={200}
-              value={song.publisher ?? ''}
-              onSave={(v) => update({ publisher: v })}
-              onSaved={saved.show}
-              className="flex-1"
-            />
-          </div>
-          <div className="flex gap-4">
-            <AutoSaveField
-              label={t('song.year')}
-              type="number"
-              min={0}
-              max={9999}
-              value={song.year === null ? '' : String(song.year)}
-              onSave={(v) => {
-                const year = v.trim() === '' ? null : Number(v);
-                return year === null || (Number.isInteger(year) && year >= 0 && year <= 9999) ? update({ year }) : undefined;
-              }}
-              onSaved={saved.show}
-              className="flex-1"
-            />
-            <AutoSaveField label={t('song.ccli')} maxLength={20} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} onSaved={saved.show} className="flex-1" />
-          </div>
-        </div>
+          <AutoSaveField bare label={t('song.author')} maxLength={200} value={song.author ?? ''} onSave={(v) => update({ author: v })} onSaved={saved.show} />
+          <AutoSaveField bare label={t('song.publisher')} maxLength={200} value={song.publisher ?? ''} onSave={(v) => update({ publisher: v })} onSaved={saved.show} />
+          <AutoSaveField
+            bare
+            label={t('song.year')}
+            type="number"
+            min={0}
+            max={9999}
+            value={song.year === null ? '' : String(song.year)}
+            onSave={(v) => {
+              const year = v.trim() === '' ? null : Number(v);
+              return year === null || (Number.isInteger(year) && year >= 0 && year <= 9999) ? update({ year }) : undefined;
+            }}
+            onSaved={saved.show}
+          />
+          <AutoSaveField bare label={t('song.ccli')} maxLength={20} value={song.ccli ?? ''} onSave={(v) => update({ ccli: v })} onSaved={saved.show} />
+        </Group>
         {/* The current app shows no heading over the parts; this one is for screen readers. */}
         <h2 className="sr-only">{t('song.parts')}</h2>
         <ol className="space-y-4">{parts.map(partRow)}</ol>
         <AppButton
-          variant="secondary"
-          className="flex items-center gap-1.5 self-start"
+          variant="plain"
+          className={`${TEXT_ACTION} -mt-2`}
           disabled={parts.length >= LIMITS.partsPerSong}
           onClick={() => {
             const partId = newId();
@@ -288,40 +265,27 @@ export function SongEditor({ id, onBack, adding }: { id: string; onBack?: () => 
           <PlusIcon className="size-4" />
           {t('song.addPart')}
         </AppButton>
-        <div className="pt-4">
-          <h2 className="text-lg font-bold text-stone-800 dark:text-stone-100 pb-3">{t('song.arrangements')}</h2>
-          <div className="space-y-4">
-            {arrangements.length > 0 && (
-              <ol className="space-y-4">
-                {arrangements.map((a, i) => (
-                  <ArrangementCard key={a.id} arrangement={a} index={i} named={arrangements.length >= 2} parts={parts} labels={labels} saving={saving} showSaved={saved.show} />
-                ))}
-              </ol>
-            )}
-            {arrangements.length < LIMITS.arrangementsPerSong && (
-              <AppButton
-                variant="secondary"
-                className="flex items-center gap-1.5 self-start"
-                onClick={() => saving(db.mutate('createArrangement', { id: newId(), songId: id, partIds: parts.map((p) => p.id) }))}
-              >
-                <PlusIcon className="size-4" />
-                {t('song.createArrangement')}
-              </AppButton>
-            )}
-          </div>
-        </div>
+        <SongOrder songId={id} arrangements={arrangements} parts={parts} labels={labels} saving={saving} showSaved={saved.show} />
         {/* Noter och länkar for the band, once the song is made. */}
         {!adding && <SongMaterials songId={id} />}
+        {/* Historik as a row that opens, Ta bort sång as a red row of its own, as iOS ends a page. */}
         {!adding && (
-          <div className="flex items-center justify-between">
-            <AppButton variant="neutral" href={href({ page: 'songHistory', id })} className="flex items-center gap-1.5">
-              <ClockIcon className="size-4" strokeWidth={2} />
-              {t('song.history')}
-            </AppButton>
-            <AppButton variant="danger" onClick={() => void trash()}>
+          <Group>
+            <a href={href({ page: 'songHistory', id })} className={`${GROUP_ROW} no-underline text-inherit hover:bg-raised`}>
+              <span className="flex items-center gap-3">
+                <ClockIcon className="size-4 text-stone-400" strokeWidth={2} />
+                {t('song.history')}
+              </span>
+              <ChevronRightIcon className="size-4 text-stone-400 dark:text-stone-600" />
+            </a>
+          </Group>
+        )}
+        {!adding && (
+          <Group>
+            <AppButton variant="plain" className={DANGER_ROW} onClick={() => void trash()}>
               {t('song.trash')}
             </AppButton>
-          </div>
+          </Group>
         )}
       </div>
     </Frame>

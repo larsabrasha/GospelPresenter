@@ -104,7 +104,7 @@ export function SlideList({
           <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5 lg:gap-2 max-lg:mb-2 lg:pb-3">
             {/* As iOS's grouped lists on a phone: the heading close above its rows, the space between sections above it. */}
             <h3
-              className={`sticky top-0 z-[2] -mx-4 lg:-mx-6 px-5 lg:px-6 pt-5 lg:pt-3.5 pb-0.5 lg:pb-2 lg:min-h-[44px] flex items-center gap-2 lg:gap-2.5 text-[13px]/4 font-semibold uppercase tracking-wide bg-ground/90 backdrop-blur-md transition-colors ${item.id === markedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
+              className={`sticky top-0 z-[2] -mx-4 lg:-mx-6 px-5 lg:px-6 pt-5 lg:pt-3.5 pb-0.5 lg:pb-2 lg:min-h-[44px] flex items-center gap-2 lg:gap-2.5 text-sm/5 font-semibold bg-ground/90 backdrop-blur-md transition-colors ${item.id === markedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
             >
               {/* The item's name, not renamed here: that confused (Lars, 2026-11-02). */}
               <span className="min-w-0 truncate">{item.title}</span>

@@ -72,7 +72,7 @@ function BookPicker({ books, onPick }: { books: BibleBookText[]; onPick: (b: Bib
           (g) =>
             !!g.books.length && (
               <section key={g.title} className="flex flex-col gap-1">
-                <h3 className="text-xs/4 font-semibold text-stone-400 uppercase tracking-wide px-3 mb-1 sticky top-0 bg-surface py-2 z-10">{g.title}</h3>
+                <h3 className="text-sm/5 font-semibold text-stone-400 px-3 mb-1 sticky top-0 bg-surface py-2 z-10">{g.title}</h3>
                 {g.books.map((b) => (
                   <AppButton key={b.code} variant="plain" {...list.item(index++)} className={`${CELL} px-3 py-2 text-left`} onClick={() => onPick(b)}>
                     {bookName(b.code)}

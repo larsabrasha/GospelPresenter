@@ -94,7 +94,7 @@ export function ShortcutHelp() {
       <div className="max-h-[60vh] overflow-y-auto space-y-5 -mx-1 px-1">
         {describe(registered.map((g) => g.group)).map((group) => (
           <section key={group.title} className="space-y-1" aria-label={group.title}>
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">{group.title}</h3>
+            <h3 className="text-sm font-semibold text-stone-500 dark:text-stone-400">{group.title}</h3>
             <ul className="rounded-xl border border-separator overflow-hidden">
               {group.lines.map((line) => (
                 <li key={line.text} className="flex items-center justify-between gap-4 px-4 py-2.5 border-b border-separator last:border-b-0">

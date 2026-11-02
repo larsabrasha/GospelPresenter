@@ -12,6 +12,7 @@ import { EmptySmall } from '../ui/Empty.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { ViewGridIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
+import { DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
 import { DetailHeader, PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { href, navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
@@ -200,7 +201,8 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
   return (
     <PageContainer>
       <DetailHeader backHref={href({ page: 'orgs' })} title={org.name} saved={saved.node} className="px-5" />
-      <div className={`${CARD} p-5`}>
+      {/* The field with no card around it, the members as a group of rows (Lars, 2026-11-02: no box in a box). */}
+      <div>
         <AutoSaveField
           label={t('org.name')}
           maxLength={200}
@@ -214,26 +216,25 @@ export function OrgDetail({ id, me }: { id: string; me: Me }) {
           onSaved={saved.show}
         />
       </div>
-      <div className={`${CARD} overflow-hidden`}>
-        <h2 className="px-7 pt-4 pb-2 font-semibold">{t('org.membersTitle', { n: org.users.length })}</h2>
-        {!org.users.length && <p className="px-7 pb-4 text-sm text-stone-400">{t('org.noMembers')}</p>}
-        <ul aria-label={t('org.membersTitle', { n: org.users.length })}>
+      <Group title={t('org.membersTitle', { n: org.users.length })}>
+        {!org.users.length && <p className={`${GROUP_ROW} text-stone-400`}>{t('org.noMembers')}</p>}
+        <ul aria-label={t('org.membersTitle', { n: org.users.length })} className="flex flex-col empty:hidden [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator">
           {org.users.map((u) => (
-            <li key={u.id} className="flex items-center gap-3 px-7 py-3 border-t border-separator">
+            <li key={u.id} className={GROUP_ROW}>
               <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{u.name}</div>
+                <div className="truncate">{u.name}</div>
                 {u.email && <div className="text-xs text-stone-400 dark:text-stone-500 truncate">{u.email}</div>}
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_BADGE[u.role]}`}>{t(`role.${u.role}`)}</span>
             </li>
           ))}
         </ul>
-      </div>
-      <div className="flex justify-end">
-        <AppButton variant="danger" onClick={() => setDeleting(true)}>
+      </Group>
+      <Group>
+        <AppButton variant="plain" className={DANGER_ROW} onClick={() => setDeleting(true)}>
           {t('org.delete')}
         </AppButton>
-      </div>
+      </Group>
       {deleting && <DeleteOrgDialog org={org} me={me} onClose={() => setDeleting(false)} />}
     </PageContainer>
   );

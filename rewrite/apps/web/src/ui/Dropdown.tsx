@@ -32,16 +32,18 @@ export function Dropdown({
   }, [open]);
 
   // A menu that would run off the bottom opens upward when there is more room
-  // above, and is cut to fit and scrolls otherwise (utils.js positionDropdown).
+  // above, and is cut to fit and scrolls otherwise (utils.js positionDropdown). The bottom is the window's, or a
+  // clipping box's around it: Inställningar's dialog cut the floating +'s menu off (Lars, 2026-11-02).
   useLayoutEffect(() => {
     const menu = menuRef.current;
     if (!open || !menu) return;
     const margin = 8;
+    const room = visibleRoom(menu);
     const rect = menu.getBoundingClientRect();
-    if (rect.bottom <= window.innerHeight - margin) return;
+    if (rect.bottom <= room.bottom - margin) return;
     const parent = menu.parentElement!.getBoundingClientRect();
-    const above = parent.top;
-    const below = window.innerHeight - parent.bottom;
+    const above = parent.top - room.top;
+    const below = room.bottom - parent.bottom;
     if (above > below) {
       Object.assign(menu.style, { top: 'auto', bottom: '100%', marginTop: '0', marginBottom: '0.25rem' });
       if (rect.height > above - margin) Object.assign(menu.style, { maxHeight: `${above - margin}px`, overflowY: 'auto' });
@@ -120,6 +122,19 @@ export function Dropdown({
       )}
     </div>
   );
+}
+
+/** The part of the window `el` can be seen in: the window, cut by every box around it that clips what overflows it. */
+function visibleRoom(el: HTMLElement): { top: number; bottom: number } {
+  let top = 0;
+  let bottom = window.innerHeight;
+  for (let box = el.parentElement; box; box = box.parentElement) {
+    if (!/hidden|auto|scroll|clip/.test(getComputedStyle(box).overflowY)) continue;
+    const r = box.getBoundingClientRect();
+    top = Math.max(top, r.top);
+    bottom = Math.min(bottom, r.bottom);
+  }
+  return { top, bottom };
 }
 
 /** The choices the arrows move between, a ticked one included. */

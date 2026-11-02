@@ -82,10 +82,24 @@ export async function signOut(page: Page) {
   await page.getByRole('menuitem', { name: 'Logga ut' }).click();
 }
 
+/** Sånger's + (Ny sång). */
+export async function newSong(page: Page) {
+  await page.getByRole('button', { name: 'Ny sång', exact: true }).click();
+}
+
+/**
+ * Opens a song's Ordning: its `index`th row under the parts, which makes the first order when the song has none (Lars,
+ * 2026-11-02: the line is there from the start). The order's dialog.
+ */
+export async function openOrder(page: Page, index = 0) {
+  await page.getByRole('region', { name: 'Ordning', exact: true }).getByRole('button').nth(index).click();
+  return page.getByRole('dialog');
+}
+
 /** Creates a song with labelled parts and stays in its editor. */
 export async function createSong(page: Page, name: string, parts: [string, string][]) {
   await openAdmin(page, 'Sånger');
-  await page.getByRole('button', { name: 'Skapa', exact: true }).click();
+  await newSong(page);
   const dialog = page.getByRole('dialog', { name: 'Skapa sång' });
   await dialog.getByLabel('Namn').fill(name);
   await dialog.getByLabel('Namn').press('Enter');

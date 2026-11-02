@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 export function PanelGroup({ title, hint, bare, children }: { title: string; hint: string; bare?: boolean; children: ReactNode }) {
   return (
     <section aria-label={title}>
-      <h2 hidden={bare} className="px-3 pb-1.5 text-[13px]/4 font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400" title={hint}>
+      <h2 hidden={bare} className="px-3 pb-1.5 text-sm/5 font-semibold text-stone-500 dark:text-stone-400" title={hint}>
         {title}
       </h2>
       <div className="rounded-xl bg-raised overflow-hidden flex flex-col [&>*+*]:border-t-[0.5px] [&>*+*]:border-separator">{children}</div>

@@ -16,13 +16,9 @@ import { LIFTED, ROUND_BACK } from './ui/glass.ts';
 // The bar at the top of the start page and the pages outside a presentation (docs/layout-2-0.md, "The start page and
 // the bar"): + and the user's picture, whose menu holds the rest. The cloud shows only when the sync has a problem.
 
-/** How many refused changes this page has told of; the worker's list only grows, and outlives a remount of the bar. */
-let rejectionsToasted = 0;
-
 /** How the sync stands (ui/syncState.ts), with changes that have waited past the grace counted as a problem. */
 function useSync() {
   const s = useDbStatus();
-  const toast = useToast();
   const pending = (s?.pending ?? 0) > 0;
   const [pendingLong, setPendingLong] = useState(false);
   useEffect(() => {
@@ -33,13 +29,6 @@ function useSync() {
       setPendingLong(false);
     };
   }, [pending]);
-  // A change the server refused is told in a toast.
-  const rejected = s?.rejected.length ?? 0;
-  useEffect(() => {
-    if (rejected <= rejectionsToasted) return;
-    rejectionsToasted = rejected;
-    toast(t('status.rejected'), 'warning');
-  }, [rejected, toast]);
   return s ? syncState(s, pendingLong) : null;
 }
 

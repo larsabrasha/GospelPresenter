@@ -153,3 +153,7 @@ current app's from `node scripts/capture-old-app.mjs <url> <dir>` with that app 
 used as it is), runs the current app in mock mode on a free port, takes its pictures into `<dir>/old`, stops it
 (also on Ctrl-C), takes the new app's into `<dir>/new`, and lists the names found on one side only. Three pages
 took 71 s, 4 s of it starting the current app after an earlier build.
+
+**Captions in sentence case** (Lars, 2026-11-02, as iOS 26): the grey caption over a group or a list ("Idag",
+"Kommande", "Ordning", "Utgångar") is written as a sentence, semibold and grey, never in capitals. Capitals stay
+only in the logo and in status badges (LIVE, VISAS JUST NU, STANDARD).

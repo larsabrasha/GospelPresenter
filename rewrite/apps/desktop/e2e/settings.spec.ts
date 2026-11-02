@@ -85,7 +85,7 @@ test('neither Escape nor a press outside closes Inställningar', async () => {
   await openAdmin(page, 'Sånger');
   const settings = adminDialog(page);
 
-  await settings.getByRole('heading', { name: 'Importera ProPresenter-sånger' }).click();
+  await settings.getByText('Inga sånger i biblioteket ännu').click();
   await page.keyboard.press('Escape');
   await page.mouse.click(2, 2);
 

@@ -3,9 +3,7 @@ import type { RemoteControlPolicy } from '@gp/core';
 import { orgRemoteControl } from '../db/queries.ts';
 import { useData, useDb } from '../db/react.tsx';
 import { t, type TextKey } from '../i18n.ts';
-import { AppButton } from '../ui/AppButton.tsx';
-import { CheckIcon } from '../ui/icons.tsx';
-import { CARD } from '../ui/List.tsx';
+import { GROUP_ROW, Group, PopUp } from '../ui/Group.tsx';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { useToast } from '../ui/Toast.tsx';
 
@@ -48,39 +46,24 @@ export function OrgSettings() {
     }
   };
 
+  // As macOS's System Settings has a choice of a few: a row with a pop-up menu, what the chosen one means under it
+  // (Lars, 2026-11-02: not three boxes in a box).
+  const chosen = POLICIES.find((p) => p.value === current) ?? POLICIES[1]!;
   return (
     <PageContainer>
       <PageHeader title={t('orgSettings.title')} />
-      <div className={`${CARD} p-5`}>
-        <h2 id="remote-label" className="block text-sm/5 font-medium mb-1">
-          {t('orgSettings.remote')}
-        </h2>
-        <p className="text-xs text-stone-500 dark:text-stone-400 mb-2">{t('orgSettings.remoteDescription')}</p>
-        <div className="flex flex-col gap-2" role="radiogroup" aria-labelledby="remote-label">
-          {POLICIES.map(({ value, label, description }) => {
-            const selected = value === current;
-            return (
-              <AppButton
-                key={value}
-                variant="plain"
-                role="radio"
-                aria-checked={selected}
-                disabled={saving !== null}
-                onClick={() => void choose(value)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left cursor-pointer transition ${
-                  selected ? 'border-sky-500 bg-sky-50 dark:bg-sky-900/30 dark:border-sky-400' : 'border-stone-300 dark:border-stone-600 hover:bg-raised'
-                }`}
-              >
-                <span className="flex-1 min-w-0">
-                  <span className="block">{t(label)}</span>
-                  <span className="block text-xs text-stone-500 dark:text-stone-400 mt-0.5">{t(description)}</span>
-                </span>
-                {selected && <CheckIcon className="w-5 h-5 shrink-0 text-sky-500" />}
-              </AppButton>
-            );
-          })}
-        </div>
-      </div>
+      <Group footer={t(chosen.description)}>
+        <label className={GROUP_ROW}>
+          <span>{t('orgSettings.remote')}</span>
+          <PopUp value={current} disabled={saving !== null} onChange={(e) => void choose(e.target.value as RemoteControlPolicy)}>
+            {POLICIES.map(({ value, label }) => (
+              <option key={value} value={value}>
+                {t(label)}
+              </option>
+            ))}
+          </PopUp>
+        </label>
+      </Group>
     </PageContainer>
   );
 }

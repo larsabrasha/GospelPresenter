@@ -5,10 +5,11 @@ import { t } from '../i18n.ts';
 import { AppButton } from '../ui/AppButton.tsx';
 import { AutoSaveField } from '../ui/AutoSave.tsx';
 import { deleteAsk, useConfirm } from '../ui/Dialog.tsx';
-import { CloseIcon, GripIcon, PlusIcon, TrashIcon } from '../ui/icons.tsx';
+import { CloseIcon, GripIcon, PlusIcon } from '../ui/icons.tsx';
 import { SelectMenu } from '../ui/SelectMenu.tsx';
 import { useSortable } from '../ui/sortable.ts';
-import { PILL } from './songEditorLook.ts';
+import { CARD, PILL } from './songEditorLook.ts';
+import { DANGER_ROW, Group, TEXT_ACTION } from '../ui/Group.tsx';
 
 // An arrangement in the song editor (Components/SongArrangementEditor.razor).
 
@@ -29,10 +30,19 @@ function PartPill({ part, labels }: { part: SongPart; labels: Map<string, Label>
   );
 }
 
-/** One arrangement: a list of part chips to reorder, remove and append to (spec 02 "Arrangemang"). */
+/** An arrangement's parts as the line under a song's parts reads them: "Verse 1 · Chorus · Verse 2 · Chorus". */
+export function orderLine(partIds: string[], parts: SongPart[], labels: Map<string, Label>): string {
+  const byId = new Map(parts.map((p) => [p.id, p]));
+  return partIds.flatMap((id) => (byId.has(id) ? [partName(byId.get(id)!, labels)] : [])).join(' · ');
+}
+
+/**
+ * One Ordning (spec 02 "Arrangemang"; Lars, 2026-11-02: the word is Ordning), in its dialog: its name when the song has
+ * two or more, its parts as rows to drag, remove and append to, and Ta bort ordning as a red row.
+ */
 export function ArrangementCard({
   arrangement,
-  index,
+  title,
   named,
   parts,
   labels,
@@ -40,7 +50,7 @@ export function ArrangementCard({
   showSaved,
 }: {
   arrangement: SongArrangement;
-  index: number;
+  title: string;
   named: boolean;
   parts: SongPart[];
   labels: Map<string, Label>;
@@ -55,7 +65,6 @@ export function ArrangementCard({
   // the stored list, so they are counted with those ids in.
   const ids = parsePartIds(arrangement.partIds);
   const visible = ids.flatMap((id, i) => (byId.has(id) ? [i] : []));
-  const title = arrangement.name ?? `${t('song.arrangement')} ${index + 1}`;
   // The chip moved from the keyboard, by its place in the stored list, to focus again once it is there.
   const refocus = useRef<{ partId: string; index: number } | null>(null);
 
@@ -78,22 +87,19 @@ export function ArrangementCard({
   });
 
   return (
-    <li className="bg-surface rounded-xl border-[0.5px] border-separator p-4 space-y-3" role="group" aria-label={title}>
+    <div className="space-y-3" role="group" aria-label={title}>
       {dialog}
       {named && (
-        <div className="flex gap-4">
-          <AutoSaveField
-            label={t('song.name')}
-            maxLength={100}
-            value={arrangement.name ?? ''}
-            onSave={(name) => db.mutate('updateArrangement', { id: arrangement.id, name })}
-            onSaved={showSaved}
-            className="flex-1"
-          />
-          <div className="flex-1" />
-        </div>
+        <AutoSaveField
+          label={t('song.name')}
+          maxLength={100}
+          value={arrangement.name ?? ''}
+          onSave={(name) => db.mutate('updateArrangement', { id: arrangement.id, name })}
+          onSaved={showSaved}
+        />
       )}
-      <ol ref={listRef} className="flex flex-col gap-1 max-w-[50%]" aria-label={t('song.arrangementParts')}>
+      <div className={`${CARD} overflow-hidden flex flex-col`}>
+        <ol ref={listRef} className="flex flex-col empty:hidden [&>li+li]:border-t-[0.5px] [&>li+li]:border-separator" aria-label={t('song.arrangementParts')}>
         {visible.map((i, v) => {
           const id = ids[i]!;
           const part = byId.get(id)!;
@@ -112,7 +118,7 @@ export function ArrangementCard({
                 e.preventDefault();
                 refocus.current = move(v, e.key === 'ArrowUp' ? v - 1 : v + 1) ?? null;
               }}
-              className={`flex items-center gap-1.5 bg-raised rounded-lg px-2 py-1.5 cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+              className={`flex items-center gap-2 bg-surface px-4 min-h-11 cursor-grab active:cursor-grabbing select-none [-webkit-touch-callout:none] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
                 dragging === v ? 'shadow-lg' : ''
               }`}
             >
@@ -130,37 +136,34 @@ export function ArrangementCard({
             </li>
           );
         })}
-      </ol>
-      <div className="flex items-center justify-between">
+        </ol>
+      </div>
+      <div>
         {/* A list of actions: picking a part appends it, so nothing stays chosen. */}
         <SelectMenu
           label={t('song.addPart')}
           choices={parts.map((p, i) => ({ value: p.id, label: `${i + 1}. ${partName(p, labels)}`, content: <PartPill part={p} labels={labels} /> }))}
           onChoose={(partId) => saving(db.mutate('appendArrangementPart', { id: arrangement.id, partId }))}
-          buttonClassName="flex items-center gap-1.5 text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 cursor-pointer transition-colors rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+          buttonClassName={`${TEXT_ACTION} rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500`}
           listClassName="left-0 w-48 max-h-60 overflow-y-auto"
           face={
             <>
-              <span className="flex items-center justify-center size-6 rounded-lg border border-dashed border-stone-300 dark:border-stone-500">
-                <PlusIcon className="size-3.5" />
-              </span>
+              <PlusIcon className="size-4" />
               {t('song.addPart')}
             </>
           }
         />
-        <AppButton
-          variant="dangerIcon"
-          className="p-1.5"
-          aria-label={t('song.removeArrangement')}
-          title={t('song.removeArrangement')}
-          onClick={async () => {
-            await ask(deleteAsk(t('song.removeArrangementConfirm'), undefined, async () => saving(db.mutate('removeArrangement', { id: arrangement.id }))));
-          }}
-        >
-          <TrashIcon className="size-4" />
-        </AppButton>
       </div>
-    </li>
+      <Group>
+        <AppButton
+          variant="plain"
+          className={DANGER_ROW}
+          onClick={() => void ask(deleteAsk(t('song.removeArrangementConfirm'), undefined, async () => saving(db.mutate('removeArrangement', { id: arrangement.id }))))}
+        >
+          {t('song.removeArrangement')}
+        </AppButton>
+      </Group>
+    </div>
   );
 }
 

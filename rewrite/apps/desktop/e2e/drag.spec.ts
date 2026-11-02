@@ -3,7 +3,7 @@
 // in milestone2.spec.ts.
 import { expect, test, type CDPSession, type Locator, type Page } from '@playwright/test';
 import { launch, type Desktop } from './apps.ts';
-import { createSong, setUpHost } from './flows.ts';
+import { createSong, openOrder, setUpHost } from './flows.ts';
 
 let host: Desktop | undefined;
 test.afterEach(async () => {
@@ -38,8 +38,8 @@ test('by touch, a held chip drags; a quick swipe does not', async () => {
   const cdp = await page.context().newCDPSession(page);
 
   // A chip: held, it moves below the next one; swiped at once, nothing moves.
-  await page.getByRole('button', { name: 'Skapa arrangemang' }).click();
-  const chips = page.getByRole('group', { name: 'Arrangemang 1' }).getByRole('list', { name: 'Delar i arrangemanget' }).getByRole('listitem');
+  await openOrder(page);
+  const chips = page.getByRole('group', { name: 'Ordning' }).getByRole('list', { name: 'Delar i ordningen' }).getByRole('listitem');
   await expect(chips).toHaveText([/Verse 1/, /Chorus/, /Verse 2/]);
   await chips.nth(0).evaluate((e) => e.scrollIntoView({ block: 'center' })); // away from the edge that scrolls
   await touchDrag(cdp, page, chips.nth(0), chips.nth(1), 300);

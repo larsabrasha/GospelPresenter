@@ -223,7 +223,7 @@ test('Skapa in Lägg till opens a new song named as the search: Lägg till adds 
   await expect(picker).toHaveCount(0);
 
   await openAdmin(page, 'Sånger');
-  await expect(page.getByText('Alla sånger (2)')).toBeVisible();
+  await expect(page.getByText('2 sånger', { exact: true })).toBeVisible();
   // Thrown away, not trashed.
   await page.getByRole('link', { name: 'Papperskorg' }).click();
   await expect(page.getByText('Papperskorgen är tom.')).toBeVisible();

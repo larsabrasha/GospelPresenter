@@ -296,7 +296,7 @@ test('the add dialog\'s song list with 3 000 songs: a keystroke and a scroll ste
   const page = host.page;
   await seedSongs(page, 3000);
   await openAdmin(page, 'Sånger');
-  await expect(page.getByText('Alla sånger (3000)')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('3000 sånger', { exact: true })).toBeVisible({ timeout: 30_000 });
   await createPresentation(page, 'Söndag');
   await page.getByRole('button', { name: 'Lägg till', exact: true }).click();
   const picker = page.getByRole('dialog', { name: 'Lägg till' });
@@ -571,13 +571,13 @@ test('the most used flows with 3 000 songs, 50 presentations and a whole Bible, 
   await seedSongs(page, 3000);
   await seedPresentations(page, 50, 30);
   await openAdmin(page, 'Sånger');
-  await expect(page.getByText('Alla sånger (3000)')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText('3000 sånger', { exact: true })).toBeVisible({ timeout: 60_000 });
   // Sånger, reloaded: the window's start with 3 000 songs.
   const songsReload = async () =>
     median(3, async () => {
       await page.reload({ waitUntil: 'commit' });
       return page.evaluate(async () => {
-        while (!document.body?.textContent?.includes('Alla sånger (3000)')) await new Promise((r) => setTimeout(r, 5));
+        while (!document.body?.textContent?.includes('3000 sånger')) await new Promise((r) => setTimeout(r, 5));
         return performance.now();
       });
     });

@@ -185,19 +185,19 @@ export function PageDialog({
     <DialogFrame titleId={titleId} onClose={onClose} className="max-w-5xl sm:h-[min(52rem,100%)]" page>
       {(close) => (
         <>
-          <div className={`elevated relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-separator bg-ground ${split ? 'lg:hidden' : ''}`}>
+          <div className={`elevated relative flex items-center h-14 shrink-0 px-5 border-b-[0.5px] border-separator bg-ground ${split ? 'split:hidden' : ''}`}>
             {/* Below `lg` as iOS 26's bar: a round ‹ alone at the left, and the page's own name in the middle
                 (`compactTitle`); the dialog keeps `title` as its name for screen readers. */}
             {back && (
-              <a href={back.href} aria-label={back.label} title={back.label} className="lg:hidden -ml-2 size-8 flex items-center justify-center rounded-full bg-raised hover:bg-raised-2 text-stone-600 dark:text-stone-300">
+              <a href={back.href} aria-label={back.label} title={back.label} className="split:hidden -ml-2 size-8 flex items-center justify-center rounded-full bg-raised hover:bg-raised-2 text-stone-600 dark:text-stone-300">
                 <ChevronLeftIcon className="size-5" />
               </a>
             )}
-            <h2 id={titleId} className={`font-semibold text-lg/7 ${compactTitle ? 'max-lg:sr-only' : ''}`}>
+            <h2 id={titleId} className={`font-semibold text-lg/7 ${compactTitle ? 'max-split:sr-only' : ''}`}>
               {title}
             </h2>
             {compactTitle && (
-              <span key={compactTitle} aria-hidden="true" className={`lg:hidden absolute inset-x-16 text-center font-semibold text-[17px] truncate transition-opacity ${compactTitleShown ? '' : 'opacity-0'}`}>
+              <span key={compactTitle} aria-hidden="true" className={`split:hidden absolute inset-x-16 text-center font-semibold text-[17px] truncate transition-opacity ${compactTitleShown ? '' : 'opacity-0'}`}>
                 {compactTitle}
               </span>
             )}

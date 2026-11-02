@@ -12,14 +12,13 @@ import { KeyPicture, LinkIcon } from '../ui/icons.tsx';
 import { DetailHeader, PageContainer } from '../ui/PageContainer.tsx';
 import { navigate } from '../ui/router.ts';
 import { useToast } from '../ui/Toast.tsx';
-import { GROUP_ROW, Group } from '../ui/Group.tsx';
+import { ACTION_ROW, DANGER_ROW, GROUP_ROW, Group } from '../ui/Group.tsx';
 import { acceptHere, copy, forgetInvite, freshInvite, inviteUrl, timeLeft } from './Users.tsx';
 
 const ERROR = 'text-sm text-red-500 dark:text-red-400';
 /** Radera beside a login or the invite: red text, no box of its own. */
 const RED_TEXT = 'shrink-0 text-sm text-red-600 dark:text-red-400 cursor-pointer hover:underline';
-/** An action at the foot of a group: a row in sky. */
-const ACTION_ROW = `${GROUP_ROW} w-full text-left text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised`;
+
 
 const providerName = (l: LoginMethod) => t(`userDetail.provider.${l.provider}`);
 
@@ -382,7 +381,7 @@ export function UserDetail({ id, me, host }: { id: string; me: Me; host: boolean
         <Group footer={deleteError && <span className={ERROR}>{deleteError}</span>}>
           <AppButton
             variant="plain"
-            className={`${GROUP_ROW} w-full justify-center text-red-600 dark:text-red-400 cursor-pointer hover:bg-raised`}
+            className={DANGER_ROW}
             onClick={() =>
               void ask({
                 title: t('users.remove'),

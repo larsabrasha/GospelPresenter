@@ -99,7 +99,7 @@ function LinkDialog({ title, url, download, renew, onClose }: { title: string; u
         <>
           <div className="mt-8! flex items-center gap-3">
             <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
-            <span className="text-xs uppercase tracking-widest text-stone-400 dark:text-stone-500">{t('screens.or')}</span>
+            <span className="text-sm text-stone-400 dark:text-stone-500">{t('screens.or')}</span>
             <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
           </div>
           <p className="text-sm text-stone-500 dark:text-stone-400 leading-relaxed">{t('screens.linkHint')}</p>

@@ -7,7 +7,7 @@ import type { SlideMarkKind } from '../../live/liveList.ts';
 import { SlideMark, tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 
-/** Arrangement pills, shown when a song has two or more (spec 02); unnamed ones read "Arrangemang". */
+/** Arrangement pills, shown when a song has two or more (spec 02); unnamed ones read "Ordning". */
 export function ArrangementPills({ arrangements, chosen, onChoose, className }: { arrangements: SongArrangement[]; chosen: string | null; onChoose: (id: string) => void; className?: string }) {
   if (arrangements.length < 2) return null;
   return (

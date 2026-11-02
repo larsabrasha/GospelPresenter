@@ -74,5 +74,5 @@ export function ToggleRow({
   );
 }
 
-/** A small grey caption in capitals, as "NU VISAS" over the live preview. */
-export const CAPTION = 'text-[10px] uppercase tracking-widest text-stone-400 dark:text-stone-500 font-semibold';
+/** A small grey caption, as "Nu visas" over the live preview; in sentence case, never capitals (Lars, 2026-11-02). */
+export const CAPTION = 'text-xs text-stone-400 dark:text-stone-500 font-semibold';

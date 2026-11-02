@@ -14,11 +14,11 @@ export function ListCard({ children, label, className }: { children: ReactNode; 
   );
 }
 
-/** A captioned list: "IDAG", then its rows. */
+/** A captioned list: "Idag", then its rows; the caption in sentence case, as iOS 26 writes it (Lars, 2026-11-02). */
 export function ListSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-xs/4 font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 px-5">{title}</h2>
+      <h2 className="text-sm/5 font-semibold text-stone-500 dark:text-stone-400 px-5">{title}</h2>
       <ListCard label={title}>{children}</ListCard>
     </section>
   );

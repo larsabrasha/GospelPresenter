@@ -9,10 +9,23 @@ import { CARD } from './List.tsx';
 /** A row of a group: its name at the left, its value or control at the right. */
 export const GROUP_ROW = 'flex items-center justify-between gap-3 px-4 min-h-11 py-2 text-sm';
 
+/** An action as a row of a group, in sky, as iOS's ("Rensa cache", "Skapa inbjudningslänk"). */
+export const ACTION_ROW = `${GROUP_ROW} w-full text-left text-sky-600 dark:text-sky-400 cursor-pointer hover:bg-raised disabled:text-stone-400 dark:disabled:text-stone-500 disabled:cursor-default disabled:hover:bg-transparent`;
+
+/** A destructive action as a group of its own, red and centred, as iOS's "Radera …". */
+export const DANGER_ROW = `${GROUP_ROW} w-full justify-center text-red-600 dark:text-red-400 cursor-pointer hover:bg-raised`;
+
+/** A group's small grey caption, over its card. */
+export const CAPTION = 'px-4 text-sm/5 font-semibold text-stone-500 dark:text-stone-400';
+
+/** An action under a group, in sky text with its icon, no box of its own ("Lägg till del", "Ladda upp fil"). */
+export const TEXT_ACTION =
+  'self-start flex items-center gap-1.5 px-4 min-h-11 text-sm text-sky-600 dark:text-sky-400 cursor-pointer hover:underline disabled:text-stone-400 dark:disabled:text-stone-500 disabled:cursor-default disabled:no-underline';
+
 export function Group({ title, footer, children }: { title?: string; footer?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={title} className="space-y-1.5">
-      {title && <h2 className="px-4 text-xs/4 font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">{title}</h2>}
+      {title && <h2 className={CAPTION}>{title}</h2>}
       <div className={`${CARD} flex flex-col [&>*+*]:border-t-[0.5px] [&>*+*]:border-separator`}>{children}</div>
       {footer && <div className="px-4 text-xs text-stone-500 dark:text-stone-400">{footer}</div>}
     </section>
@@ -33,3 +46,4 @@ export function PopUp({ children, ...rest }: SelectHTMLAttributes<HTMLSelectElem
     </span>
   );
 }
+

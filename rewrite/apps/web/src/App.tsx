@@ -39,7 +39,7 @@ import { Labels } from './pages/Labels.tsx';
 import { Trash } from './pages/Trash.tsx';
 import { UserDetail } from './pages/UserDetail.tsx';
 import { Users } from './pages/Users.tsx';
-import { SyncWarnings, UnexpectedError } from './Shell.tsx';
+import { RejectedChanges, SyncWarnings, UnexpectedError } from './Shell.tsx';
 import { PageDialog } from './ui/Dialog.tsx';
 import { TopBar } from './TopBar.tsx';
 import { SettingsLayout } from './pages/settings/SettingsLayout.tsx';
@@ -149,6 +149,7 @@ export function App({ me: initial, live, link, sessionId }: { me: Me; live: Live
     <ToastProvider>
       <ShortcutHelp />
       <UnexpectedError />
+      <RejectedChanges />
       {/* Out of reach under the dialog, for the keyboard and screen readers too. */}
       <div className="contents" inert={adminOpen} aria-hidden={adminOpen || undefined}>
         {/* A presentation has its own bar (PresentationBar, PhoneLive); the warnings stay under it. */}

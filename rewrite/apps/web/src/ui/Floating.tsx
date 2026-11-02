@@ -12,14 +12,23 @@ export function FloatingInput({
   label,
   hideLabel,
   hasError,
+  bare,
   className,
   inputClassName,
   id,
   ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { label: string; hideLabel?: boolean; hasError?: boolean; inputClassName?: string }) {
+}: InputHTMLAttributes<HTMLInputElement> & {
+  label: string;
+  hideLabel?: boolean;
+  hasError?: boolean;
+  /** A row of a card of fields (ui/Group.tsx): no box of its own, its name still moving up as it is typed in. */
+  bare?: boolean;
+  inputClassName?: string;
+}) {
   const own = useId();
   const inputId = id ?? own;
   const border = hasError ? 'border-red-500' : 'border-stone-200 dark:border-stone-600';
+  const box = bare ? 'bg-transparent outline-none dark:scheme-dark' : `${BOX} ${border}`;
   return (
     <div className={`relative ${className ?? ''}`}>
       <input
@@ -27,7 +36,7 @@ export function FloatingInput({
         id={inputId}
         placeholder={hideLabel ? label : ' '}
         aria-label={hideLabel ? label : undefined}
-        className={`peer w-full h-12 px-4 ${hideLabel ? 'py-0' : 'pt-4 pb-0 placeholder-transparent'} ${BOX} ${border} disabled:opacity-50 disabled:cursor-default ${inputClassName ?? ''}`}
+        className={`peer w-full h-12 px-4 ${hideLabel ? 'py-0' : 'pt-4 pb-0 placeholder-transparent'} ${box} disabled:opacity-50 disabled:cursor-default ${inputClassName ?? ''}`}
       />
       {!hideLabel && (
         <label htmlFor={inputId} className={LABEL}>

@@ -12,6 +12,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 /* A finger rather than a mouse (an iPad lying down): rows and buttons at least 44 pt, items dragged by ≡ (docs/layout-2-0.md). */
 @custom-variant touch (@media (pointer: coarse));
+/* Inställningar in two columns, list and page, as iPadOS's Settings: from an iPad held upright, not a phone lying down
+   (Lars, 2026-11-02). useSplit in ui/useWide.ts asks the same. */
+@custom-variant split (@media (width >= 680px) and (height >= 500px));
+@custom-variant max-split (@media not ((width >= 680px) and (height >= 500px)));
 
 /*
  * The 2.0 colours (docs/layout-2-0.md), all from Tailwind's warm grey, stone, as the text's are (Lars, 2026-11-02:

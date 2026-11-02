@@ -1,18 +1,21 @@
-import { useState } from 'react';
+import type { Song } from '@gp/core';
+import { useMemo, useState } from 'react';
 import { useDb, useSongSearch } from '../db/react.tsx';
 import { t } from '../i18n.ts';
 import { newId } from '../ids.ts';
 import { FIRST_PART_LABEL } from './songEditorLook.ts';
-import { AddButton } from '../ui/AddButton.tsx';
+import { AddButton, RoundButton } from '../ui/AddButton.tsx';
 import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { FloatingInput } from '../ui/Floating.tsx';
 import { Highlight } from '../ui/Highlight.tsx';
 import { EmptySmall } from '../ui/Empty.tsx';
-import { MusicalNoteOutlineIcon } from '../ui/icons.tsx';
+import { ArrowDownTrayIcon, MusicalNoteOutlineIcon } from '../ui/icons.tsx';
 import { DropZone } from '../ui/DropZone.tsx';
-import { CARD, ListLinkRow } from '../ui/List.tsx';
+import { ListCard, ListLinkRow } from '../ui/List.tsx';
+import { CAPTION } from '../ui/Group.tsx';
+import { byLetter } from './songLetters.ts';
 import { PageContainer, PageHeader } from '../ui/PageContainer.tsx';
 import { SearchField } from '../ui/Picker.tsx';
 import { href, navigate } from '../ui/router.ts';
@@ -59,52 +62,82 @@ function CreateSongDialog({ initial = '', onClose, onCreated }: { initial?: stri
   );
 }
 
-/** The song library (spec 02, `/admin/songs`; Pages/Admin/Songs.razor). */
+/** From how many songs the list has an index along its edge to jump by letter. */
+const INDEX_FROM = 20;
+
+/**
+ * The song library (spec 02, `/admin/songs`; Pages/Admin/Songs.razor), as Music's Låtar and Contacts (Lars,
+ * 2026-11-02): the search under the title, the songs in sections by letter with an index along the edge when the list
+ * is long, how many in grey under it, + for Ny sång and beside it a round button for the ProPresenter import. Dropped
+ * .pro files import anywhere on the page.
+ */
 export function Songs() {
   const [query, setQuery] = useState('');
   const { songs, shown, shownQuery } = useSongSearch(query);
   const [creating, setCreating] = useState(false);
   const songImport = useSongImport(songs);
+  const searching = !!shownQuery.trim();
+  const sections = useMemo(() => (shown && !searching ? byLetter(shown) : null), [shown, searching]);
+  const row = (s: Song) => (
+    <ListLinkRow
+      key={s.id}
+      href={href({ page: 'song', id: s.id })}
+      title={<Highlight text={s.name} query={shownQuery} />}
+      subtitle={s.author ? <Highlight text={s.author} query={shownQuery} /> : undefined}
+    />
+  );
 
   return (
     <PageContainer>
       {/* The whole page takes dropped .pro files (spec 02). */}
-      <DropZone className="flex flex-col space-y-5" label={t('songs.import.drop')} accept=".pro" enabled={!songImport.busy} onFiles={(files) => void songImport.files(files)}>
-        {/* Always here, also with no songs (the current app hides it then, with the import below to start from). */}
+      <DropZone className="flex flex-col space-y-4" label={t('songs.import.drop')} accept=".pro" enabled={!songImport.busy} onFiles={(files) => void songImport.files(files)}>
         <PageHeader title={t('nav.songs')}>
-          <AddButton label={t('common.create')} onClick={() => setCreating(true)} />
+          {/* The import floats beside +, quieter than it (Lars, 2026-11-02). */}
+          <RoundButton
+            text={songImport.busy ? t('songs.import.busy') : t('songs.import.short')}
+            title={t('songs.import.menu')}
+            icon={<ArrowDownTrayIcon className="size-5" />}
+            disabled={songImport.busy}
+            onClick={songImport.pick}
+          />
+          <AddButton label={t('songs.new')} onClick={() => setCreating(true)} />
         </PageHeader>
+        {songImport.input}
         {creating && <CreateSongDialog onClose={() => setCreating(false)} onCreated={(id) => navigate({ page: 'song', id })} />}
-        {songImport.card}
+        {songImport.status}
         {songImport.dialog}
-        <div className={CARD}>
-          <div className="px-5 pt-4 pb-2 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base/6 font-semibold">{t('songs.all', { n: songs?.length ?? 0 })}</h2>
-            </div>
-            {!!songs?.length && <SearchField value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} compact />}
-          </div>
-          {songs && !songs.length && (
-            <EmptySmall icon={<MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('songs.emptyTitle')} />
-          )}
-          {!!songs?.length && shown && !shown.length && <p className="px-5 py-4 text-stone-400 text-sm">{t('songs.noHits')}</p>}
-          {!!shown?.length && (
-            <ul aria-label={t('nav.songs')}>
-              {shown.map((s) => (
-                <ListLinkRow
-                  key={s.id}
-                  href={href({ page: 'song', id: s.id })}
-                  title={
-                    <span className="font-medium">
-                      <Highlight text={s.name} query={shownQuery} />
-                    </span>
-                  }
-                  subtitle={s.author ? <Highlight text={s.author} query={shownQuery} /> : ' '}
-                />
+        {!!songs?.length && <SearchField value={query} onChange={setQuery} label={t('songs.search')} placeholder={t('songs.searchPlaceholder')} />}
+        {songs && !songs.length && <EmptySmall icon={<MusicalNoteOutlineIcon className="size-12 mb-3 text-stone-300 dark:text-stone-600" />} title={t('songs.emptyTitle')} />}
+        {!!songs?.length && shown && !shown.length && <p className="px-5 text-stone-400 text-sm">{t('songs.noHits')}</p>}
+        {searching && !!shown?.length && <ListCard label={t('nav.songs')}>{shown.map(row)}</ListCard>}
+        {sections && !!sections.length && (
+          <div className="flex gap-1">
+            <ul className="flex-1 min-w-0 space-y-4" aria-label={t('nav.songs')}>
+              {sections.map((section) => (
+                <li key={section.letter} id={`songs-${section.letter}`} className="space-y-1.5 scroll-mt-4">
+                  <h2 className={CAPTION}>{section.letter}</h2>
+                  <ListCard>{section.songs.map(row)}</ListCard>
+                </li>
               ))}
             </ul>
-          )}
-        </div>
+            {/* The index along the edge, as Contacts': a tap jumps to the letter. */}
+            {shown!.length >= INDEX_FROM && (
+              <nav aria-label={t('songs.index')} className="sticky top-2 self-start flex flex-col items-center py-1">
+                {sections.map((section) => (
+                  <AppButton
+                    key={section.letter}
+                    variant="plain"
+                    onClick={() => document.getElementById(`songs-${section.letter}`)?.scrollIntoView({ block: 'start' })}
+                    className="w-5 text-[11px]/4 font-semibold text-sky-600 dark:text-sky-400 cursor-pointer hover:underline"
+                  >
+                    {section.letter}
+                  </AppButton>
+                ))}
+              </nav>
+            )}
+          </div>
+        )}
+        {!!shown?.length && <p className="text-center text-sm text-stone-500 dark:text-stone-400">{t(shown.length === 1 ? 'songs.count.one' : 'songs.count.many', { n: shown.length })}</p>}
       </DropZone>
     </PageContainer>
   );

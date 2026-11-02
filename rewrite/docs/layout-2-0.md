@@ -135,9 +135,22 @@ and QR codes anyone opens in a browser) are pages of their own, each with its fl
 is the word for all that shows, so neither page is "Skärmar" nor "Publika utgångar"). Overlays, Etiketter,
 Fasta utgångar, Följ med, Teman, CCLI-rapport, Enheter and Organisationen
 open with a card as iOS's Settings has: the row's icon, the page's name and what it is for; the bar names the page
-once the card has scrolled away. On a computer as macOS's System Settings: the same list at the
+once the card has scrolled away. On a computer, and on an iPad held upright (from 680 px wide and 500 high,
+the `split` variant; Lars, 2026-11-02), as macOS's and iPadOS's Settings: the same list at the
 left, the page at the right. It stays a dialog over the page the user is on (filling the screen on a phone); the
 list replaces the dialog's side menu. Mina inställningar is grouped rows as iOS's Settings (`ui/Group.tsx`; Lars,
 2026-11-02: no box around each choice): Färgtema as three small window pictures side by side, the chosen one ringed
 (macOS's Appearance, iOS's Display & Brightness); Språk as a row with a pop-up menu; Den här enheten with its switches;
-the storage (Lagring, Sparat offline, Cache) and Konto, each a group.
+the storage (Lagring, Sparat offline, Cache) and Konto, each a group. The other pages of settings follow it: Organisationens inställningar's remote control is a row with a pop-up
+menu and what the chosen one means under it, as macOS's; a user's and an organisation's page have their fields with no
+card around them, their logins or members as a group, and Radera … as a red row of its own.
+A song's page the same way (Lars, 2026-11-02, as Apple would): its facts as one card of rows (Namn, Upphovspersoner,
+Förlag, År, CCLI, none side by side, hairlines between them, each a field whose name moves up as it is typed in); each part as a group, its label over its card with ⋯ for Flytta
+upp, Flytta ned and Ta bort del, the card holding its text alone; Ordning (the word for arrangements, there from the start) as a
+row for each order with its parts in a line, or the parts' own order before there is one, a row opening its order in a
+dialog, with what an order is for in grey under the group; Noter
+och länkar under a small caption; the actions (Lägg till del, Skapa arrangemang, Ladda upp fil, Lägg till länk) in sky
+text with no box; and at the foot Historik as a row and Ta bort sång as a red row.
+Sånger as Music's Låtar and Contacts: the search under the title, the songs in sections by letter with an index along
+the edge from 20 songs, how many in grey under the list, + for Ny sång, and beside it a round, quieter button for
+Importera från ProPresenter…, floating with + in Inställningar; .pro files dropped anywhere on the page import too, and the import's progress shows only while it runs.

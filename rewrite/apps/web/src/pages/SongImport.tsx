@@ -1,5 +1,5 @@
 import { isProPresenterFile, parseProPresenter, type Song } from '@gp/core';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { songPartsOf } from '../db/queries.ts';
 import { useDb } from '../db/react.tsx';
 import { t } from '../i18n.ts';
@@ -8,8 +8,6 @@ import { AppButton } from '../ui/AppButton.tsx';
 import { useTrySave } from '../ui/AutoSave.tsx';
 import { Dialog, DialogButtons } from '../ui/Dialog.tsx';
 import { SimpleSelect } from '../ui/SimpleInput.tsx';
-import { DropHint } from '../ui/DropZone.tsx';
-import { ArrowDownTrayIcon } from '../ui/icons.tsx';
 import { CARD } from '../ui/List.tsx';
 import {
   choicesFor,
@@ -32,8 +30,8 @@ type Stage = 'reading' | 'asking' | 'saving' | null;
 /**
  * The ProPresenter import of Sånger (spec 02 "Import card", SONG-R35–R44; Songs.razor): the files are
  * read here; when the library or the import has some of the names already, the duplicate dialog asks
- * for each, showing whether the text is the same; the songs are written in one `importSongs` mutation. `files` takes chosen or dropped files; `card` and `dialog` go
- * into the page.
+ * for each, showing whether the text is the same; the songs are written in one `importSongs` mutation. `files` takes
+ * dropped files and `pick` opens the picker; `input`, `status` and `dialog` go into the page.
  */
 export function useSongImport(library: Song[] | undefined) {
   const db = useDb();
@@ -115,31 +113,27 @@ export function useSongImport(library: Song[] | undefined) {
     });
 
   const busy = stage !== null;
-  const card = (
-    <div className={`${CARD} p-5 space-y-3`}>
-      <div>
-        <h2 className="text-base/6 font-semibold">{t('songs.import.title')}</h2>
-        <p className="text-sm text-stone-500 dark:text-stone-400">{t('songs.import.text')}</p>
-      </div>
-      <div className="flex items-center gap-3">
-        <AppButton asLabel disabled={busy} className="inline-flex items-center gap-1.5">
-          <ArrowDownTrayIcon className="size-4 shrink-0" />
-          {busy ? t('songs.import.busy') : t('songs.import.choose')}
-          <input
-            type="file"
-            accept=".pro"
-            multiple
-            hidden
-            disabled={busy}
-            data-testid="pro-file"
-            onChange={(e) => {
-              void files([...(e.target.files ?? [])]);
-              e.target.value = '';
-            }}
-          />
-        </AppButton>
-        <DropHint text={t('songs.import.dropHint')} />
-      </div>
+  // The file picker, out of sight: Importera från ProPresenter… in Sånger's + menu opens it (Lars, 2026-11-02: no card
+  // for a thing done once).
+  const picker = useRef<HTMLInputElement>(null);
+  const input = (
+    <input
+      ref={picker}
+      type="file"
+      accept=".pro"
+      multiple
+      hidden
+      disabled={busy}
+      data-testid="pro-file"
+      onChange={(e) => {
+        void files([...(e.target.files ?? [])]);
+        e.target.value = '';
+      }}
+    />
+  );
+  // How the import goes, only while it runs or has something to say.
+  const status = (stage === 'reading' || stage === 'saving' || message) && (
+    <div className={`${CARD} p-4 space-y-2`}>
       {(stage === 'reading' || stage === 'saving') && (
         <div className="space-y-2" role="status">
           <p className="text-sm text-stone-600 dark:text-stone-300">
@@ -161,6 +155,7 @@ export function useSongImport(library: Song[] | undefined) {
       )}
     </div>
   );
+  const pick = () => picker.current?.click();
 
   const dialog = plan && (
     <Dialog title={t('songs.import.dupTitle')} onClose={cancel} maxWidthClass="max-w-3xl">
@@ -187,7 +182,7 @@ export function useSongImport(library: Song[] | undefined) {
     </Dialog>
   );
 
-  return { files, card, dialog, busy };
+  return { files, pick, input, status, dialog, busy };
 }
 
 /** One song of the duplicate dialog: its name, whether its text is the same, its choice, and both texts when shown. */

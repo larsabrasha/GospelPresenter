@@ -7,6 +7,7 @@ import { t } from './i18n.ts';
 import { AppButton } from './ui/AppButton.tsx';
 import { WarningIcon } from './ui/icons.tsx';
 import { isHostWindow } from './hostWindow.ts';
+import { useToast } from './ui/Toast.tsx';
 
 // What the signed-in app's frame shares (Layout/MainLayout.razor): signing out, the warnings under the bar, and the
 // bar for an error nothing caught. The bar is TopBar.tsx; Inställningar's frame pages/settings/SettingsLayout.tsx.
@@ -74,6 +75,24 @@ export function SyncWarnings() {
       ))}
     </div>
   );
+}
+
+/** How many refused changes this page has told of; the worker's list only grows. */
+let rejectionsToasted = 0;
+
+/**
+ * A change the server refused, told in a toast. Mounted once at the root, on every page: in the bar it missed a
+ * refusal that came while a page without the bar showed, such as a refused new presentation's "not found".
+ */
+export function RejectedChanges() {
+  const toast = useToast();
+  const rejected = useDbStatus()?.rejected.length ?? 0;
+  useEffect(() => {
+    if (rejected <= rejectionsToasted) return;
+    rejectionsToasted = rejected;
+    toast(t('status.rejected'), 'warning');
+  }, [rejected, toast]);
+  return null;
 }
 
 /**

@@ -22,7 +22,7 @@ export function PresentationMaterials({ items, onClose }: { items: PresentationI
         {!withMaterial.length && <p className="text-sm text-stone-500 dark:text-stone-400">{t('material.presentationEmpty')}</p>}
         {withMaterial.map((s) => (
           <section key={s.sourceId} aria-label={s.title} className="space-y-2">
-            <h3 className="px-4 text-[13px] font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">{s.title}</h3>
+            <h3 className="px-4 text-sm font-semibold text-stone-500 dark:text-stone-400">{s.title}</h3>
             <MaterialList materials={materials.filter((m) => m.songId === s.sourceId)} editable={false} />
           </section>
         ))}

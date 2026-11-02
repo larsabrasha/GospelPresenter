@@ -99,7 +99,7 @@ export function AutoSaveField({
   rows?: number;
   /** Shows a multiline field's label in the box, as other fields do; a part's text has none. */
   showLabel?: boolean;
-  /** A multiline field written straight into its card, without a box of its own. */
+  /** Written straight into its card, without a box of its own: a part's text, or a row of a card of fields. */
   bare?: boolean;
   className?: string;
   /** The field's limits (AppConstraints): its length, and for a number its type and range. */
@@ -210,7 +210,7 @@ export function AutoSaveField({
   const field = multiline ? (
     <FloatingTextarea label={showLabel ? label : ''} aria-label={showLabel ? undefined : label} bare={bare} rows={rows} maxLength={maxLength} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   ) : (
-    <FloatingInput label={label} type={type} min={min} max={max} maxLength={maxLength} hasError={hasError} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
+    <FloatingInput label={label} bare={bare} type={type} min={min} max={max} maxLength={maxLength} hasError={hasError} value={shown} onFocus={onFocus} onChange={onChange} onBlur={onBlur} className={className} />
   );
   if (clash === null) return field;
   return (

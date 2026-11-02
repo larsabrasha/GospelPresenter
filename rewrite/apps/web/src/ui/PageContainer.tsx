@@ -1,7 +1,7 @@
 import { createContext, useContext, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { HeaderFloatProvider, useFloatSlot } from './headerFloat.ts';
-import { useWide } from './useWide.ts';
+import { useSplit } from './useWide.ts';
 import { t } from '../i18n.ts';
 import { AppButton } from './AppButton.tsx';
 import { ChevronLeftIcon } from './icons.tsx';
@@ -97,14 +97,14 @@ function IntroCard({ title, intro }: { title: string; intro: PageIntro }) {
     };
   }, [onTitleInView]);
   return (
-    <div className="flex flex-col gap-2 p-5 rounded-[22px] lg:rounded-xl bg-surface border-[0.5px] border-separator">
-      <span className={`size-14 lg:size-11 rounded-2xl lg:rounded-xl flex items-center justify-center text-white ${intro.colour}`}>
-        <intro.icon className="size-8 lg:size-6" />
+    <div className="flex flex-col gap-2 p-5 rounded-[22px] split:rounded-xl bg-surface border-[0.5px] border-separator">
+      <span className={`size-14 split:size-11 rounded-2xl split:rounded-xl flex items-center justify-center text-white ${intro.colour}`}>
+        <intro.icon className="size-8 split:size-6" />
       </span>
-      <h1 ref={heading} className="mt-1 text-[22px]/7 lg:text-xl/7 font-bold dark:text-stone-100">
+      <h1 ref={heading} className="mt-1 text-[22px]/7 split:text-xl/7 font-bold dark:text-stone-100">
         {title}
       </h1>
-      <p className="text-[15px]/snug lg:text-sm/snug text-stone-500 dark:text-stone-400 max-w-2xl">{intro.text}</p>
+      <p className="text-[15px]/snug split:text-sm/snug text-stone-500 dark:text-stone-400 max-w-2xl">{intro.text}</p>
     </div>
   );
 }
@@ -120,7 +120,7 @@ export function DetailHeader({ backHref, onBack, title, saved, className }: { ba
   const inBar = useContext(BackInBar);
   const slot = useContext(BarSlot);
   // From `lg` the bar is shown, below it the page's own header: one or the other, never both.
-  const wide = useWide();
+  const wide = useSplit();
   const toBar = inBar && !!slot && wide;
   return (
     <>

@@ -190,9 +190,10 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
   // Anna, an admin, lets everyone take control.
   await openAdmin(page, 'Organisationen');
   await expect(page.getByRole('heading', { name: 'Organisationens inställningar' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: /^Presentatören väljer/ })).toHaveAttribute('aria-checked', 'true');
-  await page.getByRole('radio', { name: /^Alltid/ }).click();
-  await expect(page.getByRole('radio', { name: /^Alltid/ })).toHaveAttribute('aria-checked', 'true');
+  const policy = page.getByRole('combobox', { name: 'Fjärrstyrning av presentationer' });
+  await expect(policy).toHaveValue('presenter');
+  await policy.selectOption({ label: 'Alltid' });
+  await expect(page.getByText('Alla i organisationen kan ta kontroll över en pågående presentation.')).toBeVisible();
 
   // She presents without switching anything on; Bo may take control.
   await openPresentations(page);
@@ -211,6 +212,6 @@ test('the organisation\'s remote control policy: "Alltid" needs no switch, "Aldr
 
   // "Aldrig", set while she presents: the card goes on Bo's computer without a reload.
   await openAdmin(page, 'Organisationen');
-  await page.getByRole('radio', { name: /^Aldrig/ }).click();
+  await page.getByRole('combobox', { name: 'Fjärrstyrning av presentationer' }).selectOption({ label: 'Aldrig' });
   await expect(secondApp.page.getByText('Visas just nu')).toHaveCount(0, { timeout: 5_000 });
 });

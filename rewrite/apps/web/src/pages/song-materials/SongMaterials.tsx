@@ -14,6 +14,7 @@ import { Dropdown, MENU_ITEM } from '../../ui/Dropdown.tsx';
 import { FloatingInput } from '../../ui/Floating.tsx';
 import { ArrowTopRightOnSquareIcon, DocumentTextIcon, EllipsisOutlineIcon, LinkIcon, MusicalNoteIcon, PencilIcon, PlusIcon, TrashIcon } from '../../ui/icons.tsx';
 import { GROUP } from '../../ui/Sheet.tsx';
+import { CAPTION, TEXT_ACTION } from '../../ui/Group.tsx';
 import { MaterialViewer } from './MaterialViewer.tsx';
 
 /** A row's icon: a PDF's page, a recording's note, a link's chain. */
@@ -124,20 +125,21 @@ export function SongMaterials({ songId }: { songId: string }) {
     setBusy(false);
   };
   return (
-    <section className="pt-4 space-y-3" aria-label={t('material.title')}>
-      <h2 className="text-lg font-bold text-stone-800 dark:text-stone-100">{t('material.title')}</h2>
-      <MaterialList materials={materials} editable empty={<p className="text-sm text-stone-500 dark:text-stone-400">{t('material.empty')}</p>} />
+    // As a group (Lars, 2026-11-02): a small caption, the list, what it is for in grey, and the actions in sky text.
+    <section className="pt-2 space-y-1.5" aria-label={t('material.title')}>
+      <h2 className={CAPTION}>{t('material.title')}</h2>
+      <MaterialList materials={materials} editable empty={<p className="px-4 text-xs text-stone-500 dark:text-stone-400">{t('material.empty')}</p>} />
       {failures.map((f) => (
-        <p key={f} className="text-sm text-red-500 dark:text-red-400">
+        <p key={f} className="px-4 text-sm text-red-500 dark:text-red-400">
           {f}
         </p>
       ))}
-      <div className="flex flex-wrap gap-2">
-        <AppButton variant="secondary" className="flex items-center gap-1.5" disabled={busy} onClick={() => picker.current?.click()}>
+      <div className="flex flex-wrap">
+        <AppButton variant="plain" className={TEXT_ACTION} disabled={busy} onClick={() => picker.current?.click()}>
           <PlusIcon className="size-4" />
           {busy ? t('material.uploading') : t('material.uploadFile')}
         </AppButton>
-        <AppButton variant="secondary" className="flex items-center gap-1.5" onClick={() => setLinking(true)}>
+        <AppButton variant="plain" className={TEXT_ACTION} onClick={() => setLinking(true)}>
           <LinkIcon className="size-4" />
           {t('material.addLink')}
         </AppButton>

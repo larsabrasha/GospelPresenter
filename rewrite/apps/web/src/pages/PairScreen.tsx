@@ -176,7 +176,7 @@ export function PairScreenDialog({ sessionId, onClose }: { sessionId: string; on
           </div>
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
-            <span className="text-xs uppercase tracking-widest text-stone-400 dark:text-stone-500">{t('pairScreen.or')}</span>
+            <span className="text-sm text-stone-400 dark:text-stone-500">{t('pairScreen.or')}</span>
             <div className="h-px flex-1 bg-stone-200 dark:bg-raised" />
           </div>
           <div className="space-y-4">
