@@ -33,7 +33,8 @@ export type LivePointerChange = Partial<Omit<LivePointer, 'rev'>>;
  *
  * - A change that names `overlayId` is a manual toggle: it sets the overlay,
  *   and showing one ends the black screen, as selecting a slide does (LIVE-R11).
- * - The black screen ("Rensa") and stopping switch the overlay off.
+ * - The black screen ("Rensa") and stopping switch the overlay off; a slide shown again after the black screen
+ *   switches on the overlay its item carries, as entering the item does (Lars, 2026-11-02).
  * - Moving to another item switches off the overlay the item left carries,
  *   if that is still the one shown, and switches on the one the new item
  *   carries. A manual choice made meanwhile stays until the item changes;
@@ -52,9 +53,21 @@ export function applyLiveChange(prev: LivePointer, change: LivePointerChange, ov
   };
   if (change.overlayId !== undefined) return { ...next, black: change.overlayId ? false : next.black };
   if (!next.presentationId || next.black) return { ...next, overlayId: null };
+  if (prev.black) return { ...next, overlayId: next.itemId ? overlayOf(next.itemId) : null };
   if (next.itemId === prev.itemId) return next;
   const left = prev.itemId ? overlayOf(prev.itemId) : null;
   const entered = next.itemId ? overlayOf(next.itemId) : null;
   const kept = left && prev.overlayId === left ? null : prev.overlayId;
   return { ...next, overlayId: entered ?? kept };
+}
+
+/**
+ * The overlay to show when the shown item's own overlay is changed while it is live (Lars, 2026-11-02: it takes effect
+ * at once): the new one, if the outputs show the item's old one or none of their own choosing; else nothing to change
+ * (undefined), as when the screen is black, nothing is shown, the item's overlay was not known before, or a manual
+ * choice stands.
+ */
+export function followItemOverlay(p: LivePointer, before: string | null | undefined, after: string | null | undefined): string | null | undefined {
+  if (!p.presentationId || !p.itemId || p.black || before === undefined || before === after) return undefined;
+  return p.overlayId === before ? (after ?? null) : undefined;
 }

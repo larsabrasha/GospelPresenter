@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
+import { followItemOverlay, toCanvas, toPublicSlide, type LiveVideoState, type Canvas, type LivePointer, type LiveSessionInfo, type PublicSlide } from '@gp/core';
 import { deviceName } from '../auth/session.ts';
 import { getOverlay, getPresentation, getVideo, itemsOf, listDisplays, shownOverlay, themeOf } from '../db/queries.ts';
 import type { ReadDb } from '../db/share.ts';
@@ -159,7 +159,13 @@ export function useLiveOwner(live: LiveChannel, link: LiveLink, db: ReadDb, sess
     const loadOverlays = async (presentationId: string | null) => {
       const mine = ++loading;
       const items = presentationId ? await itemsOf(db, presentationId) : [];
-      if (mine === loading) live.itemOverlays = new Map(items.map((i) => [i.id, i.overlayId]));
+      if (mine !== loading) return;
+      const before = live.itemOverlays;
+      live.itemOverlays = new Map(items.map((i) => [i.id, i.overlayId]));
+      // The shown item's own overlay changed (its … or sheet): the outputs follow at once, unless a manual choice stands.
+      const p = live.pointer;
+      const next = p.itemId ? followItemOverlay(p, before.get(p.itemId), live.itemOverlays.get(p.itemId)) : undefined;
+      if (next !== undefined) live.set({ overlayId: next });
     };
     // A video item that goes live plays here, from its start; the next item's video buffers meanwhile (TODO.md "Video").
     let videoTurn = 0;

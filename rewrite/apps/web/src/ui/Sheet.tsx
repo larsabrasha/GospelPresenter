@@ -68,7 +68,7 @@ export function Sheet({ title, onClose, leading, children }: { title: string; on
         aria-labelledby={titleId}
         // No room kept for a scrollbar (app.css keeps it in every box that scrolls): a sheet is short, and its rows
         // stand as far from the right edge as from the left (Lars, 2026-11-02).
-        className="sheet-in w-full max-w-lg m-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-2 max-h-[85svh] overflow-y-auto [scrollbar-gutter:auto] rounded-[2.25rem] bg-sheet text-stone-900 dark:text-stone-100 shadow-2xl pb-5"
+        className="sheet-in w-full max-w-lg m-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] sm:mb-2 max-h-[85svh] overflow-y-auto [scrollbar-gutter:auto] rounded-[2.25rem] bg-sheet text-stone-900 dark:text-stone-100 shadow-2xl pb-4"
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === 'Escape') dismiss();

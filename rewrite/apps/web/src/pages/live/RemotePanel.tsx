@@ -47,7 +47,7 @@ function RemotePanel({ id, sessionId, name, always }: { id: string; sessionId: s
  * A quiet line at the foot of the live column on a computer, as the offline line at the foot of the left one: whether
  * remote control is on, and a click opens Fjärrstyrning's sheet with its switch (Lars, 2026-11-02).
  */
-export function RemoteStatus({ id, sessionId, name, always }: { id: string; sessionId: string; name: string | undefined; always: boolean }) {
+export function RemoteStatus({ id, sessionId, name, always, className = 'w-full' }: { id: string; sessionId: string; name: string | undefined; always: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   // Read anew as the sheet closes: the switch in it keeps the window's choice (live/owner.ts).
   const on = always || remoteAllowed();
@@ -58,7 +58,7 @@ export function RemoteStatus({ id, sessionId, name, always }: { id: string; sess
         onClick={() => setOpen(true)}
         data-testid="remote-status"
         data-state={on ? 'on' : 'off'}
-        className="w-full flex items-center gap-2 px-2 py-1.5 touch:py-2.5 rounded-lg text-xs touch:text-[13px] text-left text-stone-500 dark:text-stone-400 hover:bg-raised cursor-pointer"
+        className={`${className} flex items-center gap-2 px-2 py-1.5 touch:py-2.5 rounded-lg text-xs touch:text-[13px] text-left text-stone-500 dark:text-stone-400 hover:bg-raised cursor-pointer`}
       >
         <RemoteIcon className={`size-4 shrink-0 ${on ? 'text-green-500' : ''}`} />
         {on ? t('remote.statusOn') : t('remote.statusOff')}

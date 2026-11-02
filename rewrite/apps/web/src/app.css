@@ -26,13 +26,14 @@
  * lifts what floats: its own colour, its rows one step above it.
  */
 @theme {
-  --color-ground: var(--color-stone-50);
+  /* stone-100, not 50: white cards stand out from it, as on iOS's grouped grey (Lars, 2026-11-02: too little contrast). */
+  --color-ground: var(--color-stone-100);
   --color-surface: #ffffff;
   --color-raised: var(--color-stone-100);
   --color-raised-2: var(--color-stone-200);
   /* A hairline of the scale's darkest, see-through, so it reads the same on every surface. */
   --color-separator: color-mix(in oklab, var(--color-stone-950) 10%, transparent);
-  --color-sidebar: var(--color-stone-100);
+  --color-sidebar: color-mix(in oklab, var(--color-stone-100), var(--color-stone-200));
   --color-sheet: var(--color-stone-100);
   --color-sheet-cell: #ffffff;
 }

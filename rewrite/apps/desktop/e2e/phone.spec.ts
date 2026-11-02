@@ -169,10 +169,10 @@ test('on a phone the presentation is one column before and while presenting; Lä
   expect(lying.y).toBeLessThan(order.y + order.height / 2);
   await page.setViewportSize(PHONE);
 
-  // A sheet is pulled down by its bar to close it, as on iOS: Utgångar's, from its button under ‹ Rensa ›.
-  await live.getByRole('button', { name: /^Utgångar/ }).click();
-  const more = await settled(page.getByRole('dialog', { name: 'Utgångar' }));
-  const bar = (await more.getByRole('heading', { name: 'Utgångar' }).boundingBox())!;
+  // A sheet is pulled down by its bar to close it, as on iOS: Visning's (outputs and overlays), from its button under ‹ Rensa ›.
+  await live.getByRole('button', { name: 'Visning' }).click();
+  const more = await settled(page.getByRole('dialog', { name: 'Visning' }));
+  const bar = (await more.getByRole('heading', { name: 'Visning' }).boundingBox())!;
   await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
   await page.mouse.down();
   await page.mouse.move(bar.x + bar.width / 2, bar.y + 400, { steps: 8 });
@@ -181,17 +181,17 @@ test('on a phone the presentation is one column before and while presenting; Lä
 
   // On an iPad held upright the same sheet is centred, as iPadOS's form sheet.
   await page.setViewportSize({ width: 820, height: 1180 });
-  await live.getByRole('button', { name: /^Utgångar/ }).click();
-  const centred = (await (await settled(page.getByRole('dialog', { name: 'Utgångar' }))).boundingBox())!;
+  await live.getByRole('button', { name: 'Visning' }).click();
+  const centred = (await (await settled(page.getByRole('dialog', { name: 'Visning' }))).boundingBox())!;
   expect(Math.abs(centred.y + centred.height / 2 - 590)).toBeLessThan(10);
-  await page.getByRole('dialog', { name: 'Utgångar' }).getByRole('button', { name: 'Stäng' }).click();
+  await page.getByRole('dialog', { name: 'Visning' }).getByRole('button', { name: 'Stäng' }).click();
   await page.setViewportSize(PHONE);
 
-  // Its sheet holds the computer's group: this phone's external screen among the switches. Ending is ■ at the far
+  // Its sheet holds the computer's Utgångar group: this phone's external screen among the switches. Ending is ■ at the far
   // right of the bar, and asks first.
-  await live.getByRole('button', { name: /^Utgångar/ }).click();
-  await expect(page.getByRole('dialog', { name: 'Utgångar' }).getByLabel('Utgångsfönster')).toBeVisible();
-  await page.getByRole('dialog', { name: 'Utgångar' }).getByRole('button', { name: 'Stäng' }).click();
+  await live.getByRole('button', { name: 'Visning' }).click();
+  await expect(page.getByRole('dialog', { name: 'Visning' }).getByLabel('Utgångsfönster')).toBeVisible();
+  await page.getByRole('dialog', { name: 'Visning' }).getByRole('button', { name: 'Stäng' }).click();
   await live.getByRole('button', { name: 'Avsluta presentation' }).click();
   await page.getByRole('dialog', { name: 'Avsluta presentation' }).getByRole('button', { name: 'Avsluta presentation' }).click();
   // The same view stays, without the picture, ▶ back in the bar.

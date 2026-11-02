@@ -18,6 +18,7 @@ import {
   labelDefaults,
   labelId,
   applyLiveChange,
+  followItemOverlay,
   mutators,
   newer,
   orgDdl,
@@ -316,6 +317,31 @@ describe('mutator arguments', () => {
   });
 });
 
+describe("the shown item's overlay changed while it is live", () => {
+  const shown = (change: Partial<LivePointer>): LivePointer => ({ presentationId: 'P1', itemId: 'A', partIndex: 0, black: false, overlayId: null, rev: 1, ...change });
+
+  it("switches to the item's new overlay when its old one was showing", () => {
+    expect(followItemOverlay(shown({ overlayId: 'O' }), 'O', 'P')).toBe('P');
+  });
+
+  it('switches it on when the item had none and none was showing', () => {
+    expect(followItemOverlay(shown({}), null, 'O')).toBe('O');
+  });
+
+  it('switches it off when the item no longer carries one', () => {
+    expect(followItemOverlay(shown({ overlayId: 'O' }), 'O', null)).toBeNull();
+  });
+
+  it('leaves a manual choice that is not the item\'s own', () => {
+    expect(followItemOverlay(shown({ overlayId: 'M' }), 'O', 'P')).toBeUndefined();
+  });
+
+  it('changes nothing while the screen is black, or when the item was not known before', () => {
+    expect(followItemOverlay(shown({ black: true }), null, 'O')).toBeUndefined();
+    expect(followItemOverlay(shown({}), undefined, 'O')).toBeUndefined();
+  });
+});
+
 describe('live pointer', () => {
   // TODO.md "Overlays": A carries overlay O, B carries none, C carries O too. P is another overlay.
   const carried: Record<string, string | null> = { A: 'O', B: null, C: 'O' };
@@ -345,8 +371,10 @@ describe('live pointer', () => {
 
   it('Rensa and stopping switch the overlay off; showing one ends the black screen', () => {
     expect(applyLiveChange(at({ itemId: 'A', overlayId: 'O' }), { black: true }, overlayOf)).toMatchObject({ black: true, overlayId: null });
-    // Back from black on the same item: the overlay stays off, as after a manual off.
-    expect(apply(at({ itemId: 'A', black: true }), { partIndex: 1, black: false })).toBeNull();
+    // Back from black on the same item: its own overlay comes back, as on entering it (Lars, 2026-11-02).
+    expect(apply(at({ itemId: 'A', black: true }), { partIndex: 1, black: false })).toBe('O');
+    // On an item with none, there is none.
+    expect(apply(at({ itemId: 'B', black: true }), { partIndex: 0, black: false })).toBeNull();
     expect(apply(at({ itemId: 'A', overlayId: 'O' }), { presentationId: null, itemId: null })).toBeNull();
     expect(applyLiveChange(at({ itemId: 'B', black: true }), { overlayId: 'P' }, overlayOf)).toMatchObject({ black: false, overlayId: 'P' });
   });

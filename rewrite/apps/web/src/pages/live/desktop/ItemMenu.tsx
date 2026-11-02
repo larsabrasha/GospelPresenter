@@ -1,4 +1,4 @@
-import type { Overlay, PresentationItem } from '@gp/core';
+import type { Overlay, PresentationItem, SongArrangement } from '@gp/core';
 import { useDb } from '../../../db/react.tsx';
 import { t } from '../../../i18n.ts';
 import { AppButton } from '../../../ui/AppButton.tsx';
@@ -7,18 +7,47 @@ import { afterWrite } from '../../../ui/debounce.ts';
 import { Dropdown, MENU_ITEM } from '../../../ui/Dropdown.tsx';
 import { CheckIcon, EllipsisIcon, PencilIcon } from '../../../ui/icons.tsx';
 
+/** A group of choices in the menu, the chosen one ticked: an arrangement, an overlay. */
+function ChoiceGroup({ label, choices, chosen, divided, onChoose }: { label: string; choices: { id: string; title: string }[]; chosen: string; divided: boolean; onChoose: (id: string) => void }) {
+  return (
+    <div role="group" aria-label={label} className={divided ? 'border-t-[0.5px] border-separator' : ''}>
+      <p className="px-4 pt-2 pb-1 text-xs font-semibold text-stone-500 dark:text-stone-400">{label}</p>
+      {choices.map((c) => (
+        <AppButton
+          key={c.id}
+          variant="plain"
+          role="menuitemradio"
+          aria-checked={chosen === c.id}
+          data-choice={c.id}
+          className={MENU_ITEM}
+          // Read from the row, so what is chosen is what the row names.
+          onClick={(e) => onChoose(e.currentTarget.dataset.choice ?? '')}
+        >
+          <span className="size-4 shrink-0">{chosen === c.id && <CheckIcon className="size-4 text-sky-500" />}</span>
+          <span className="truncate">{c.title}</span>
+        </AppButton>
+      ))}
+    </div>
+  );
+}
+
 /**
- * An item's … on its heading in the middle column (Lars, 2026-11-02): Redigera, and the overlay it carries, quieter
- * than a button and a select under every heading. The overlay chosen shows beside the heading (OverlayChip).
+ * An item's … on its heading in the middle column (Lars, 2026-11-02): Redigera; a song's arrangement, when it has two
+ * or more, chosen here rather than in plain sight (it is chosen when the song is added; here to change it); and the
+ * overlay it carries, quieter than a button and a select under every heading. The overlay chosen shows beside the
+ * heading (OverlayChip).
  */
 export function ItemMenu({
   item,
   overlays,
+  arrangements = [],
   editHref,
   onEditImages,
 }: {
   item: PresentationItem;
   overlays: Overlay[];
+  /** A song's arrangements, in their order; a choice only with two or more. */
+  arrangements?: SongArrangement[];
   /** A song's page, opened alone in Inställningar. */
   editHref?: string;
   /** A picture item's order and removal, in place. */
@@ -26,9 +55,9 @@ export function ItemMenu({
 }) {
   const db = useDb();
   const saveFailed = useSaveFailed();
-  const choose = (overlayId: string | null) => afterWrite(db.mutate('setItemOverlay', { itemId: item.id, overlayId }), () => {}, saveFailed);
-  if (!editHref && !onEditImages && !overlays.length) return null;
-  const choices = [{ id: '', title: t('overlays.itemNone') }, ...overlays.map((o) => ({ id: o.id, title: o.title }))];
+  const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
+  const arranging = arrangements.length > 1;
+  if (!editHref && !onEditImages && !overlays.length && !arranging) return null;
   return (
     <Dropdown
       // Beside the heading's words rather than at the far right (Lars, 2026-11-02), its menu opening from there.
@@ -49,25 +78,23 @@ export function ItemMenu({
           {t('presentation.editImages')}
         </AppButton>
       )}
+      {arranging && (
+        <ChoiceGroup
+          label={t('song.arrangements')}
+          choices={arrangements.map((a, i) => ({ id: a.id, title: a.name ?? `${t('song.arrangement')} ${i + 1}` }))}
+          chosen={item.arrangementId ?? arrangements[0]!.id}
+          divided={!!editHref || !!onEditImages}
+          onChoose={(arrangementId) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId }))}
+        />
+      )}
       {!!overlays.length && (
-        <div role="group" aria-label={t('overlays.itemOverlay')} className={editHref || onEditImages ? 'border-t-[0.5px] border-separator' : ''}>
-          <p className="px-4 pt-2 pb-1 text-xs font-semibold text-stone-500 dark:text-stone-400">{t('overlays.itemOverlay')}</p>
-          {choices.map((c) => (
-            <AppButton
-              key={c.id}
-              variant="plain"
-              role="menuitemradio"
-              aria-checked={(item.overlayId ?? '') === c.id}
-              data-overlay={c.id}
-              className={MENU_ITEM}
-              // Read from the row, so what is chosen is what the row names.
-              onClick={(e) => choose(e.currentTarget.dataset.overlay || null)}
-            >
-              <span className="size-4 shrink-0">{(item.overlayId ?? '') === c.id && <CheckIcon className="size-4 text-sky-500" />}</span>
-              <span className="truncate">{c.title}</span>
-            </AppButton>
-          ))}
-        </div>
+        <ChoiceGroup
+          label={t('overlays.itemOverlay')}
+          choices={[{ id: '', title: t('overlays.itemNone') }, ...overlays.map((o) => ({ id: o.id, title: o.title }))]}
+          chosen={item.overlayId ?? ''}
+          divided={!!editHref || !!onEditImages || arranging}
+          onChoose={(overlayId) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: overlayId || null }))}
+        />
       )}
     </Dropdown>
   );

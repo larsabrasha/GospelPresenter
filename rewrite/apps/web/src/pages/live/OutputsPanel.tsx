@@ -6,7 +6,7 @@ import { CloseIcon, DesktopIcon, PlusIcon, QrCodeIcon } from '../../ui/icons.tsx
 import { ToggleRow } from '../../ui/Toggle.tsx';
 import { viewersText } from '../Displays.tsx';
 import { PairScreenDialog } from '../PairScreen.tsx';
-import { GROUP_LIST, PanelGroup } from './PanelGroup.tsx';
+import { GROUP_LIST, PanelGroup, SHEET_LIST } from './PanelGroup.tsx';
 import { useOutputs } from './useOutputs.ts';
 import { OUTPUT_WINDOW } from '../../live/outputWindow.ts';
 
@@ -18,13 +18,13 @@ import { OUTPUT_WINDOW } from '../../live/outputWindow.ts';
  * last "Anslut tillfällig skärm" as a row of its own. Taking an output from another presentation asks first
  * (LIVE-R23).
  */
-export function OutputsPanel({ link, sessionId, bare }: { link: LiveLink; sessionId: string; bare?: boolean }) {
+export function OutputsPanel({ link, sessionId, sheet }: { link: LiveLink; sessionId: string; sheet?: boolean }) {
   const { dialog, own, rows, temporary } = useOutputs(link, sessionId);
   const [pairing, setPairing] = useState(false);
   return (
     <>
       {dialog}
-      <PanelGroup title={t('live.outputs')} hint={t('live.outputsHint')} bare={bare}>
+      <PanelGroup title={t('live.outputs')} hint={t('live.outputsHint')} sheet={sheet}>
         {own.map((x) => (
           <ToggleRow
             key={x.id}
@@ -37,7 +37,7 @@ export function OutputsPanel({ link, sessionId, bare }: { link: LiveLink; sessio
             sub={x.id === OUTPUT_WINDOW ? t(window.gpDesktop ? 'live.noOtherScreen' : 'live.dragWindow') : undefined}
           />
         ))}
-        <ul className={GROUP_LIST} aria-label={t('live.outputs')}>
+        <ul className={sheet ? SHEET_LIST : GROUP_LIST} aria-label={t('live.outputs')}>
           {rows.map(({ display: d, chosen, sending, offline, elsewhere, viewers, toggle }) => (
             <li key={d.id}>
               <ToggleRow
@@ -66,8 +66,8 @@ export function OutputsPanel({ link, sessionId, bare }: { link: LiveLink; sessio
             </li>
           ))}
           {temporary.map((x) => (
-            <li key={x.id} className="flex items-center justify-between gap-2 px-3 min-h-11 py-1.5" aria-label={t('screens.temporary', { n: x.n })}>
-              <span className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200">
+            <li key={x.id} className={`flex items-center justify-between gap-2 py-1.5 ${sheet ? 'px-4 min-h-12' : 'px-3 min-h-11'}`} aria-label={t('screens.temporary', { n: x.n })}>
+              <span className={`flex items-center gap-2 ${sheet ? 'text-[17px] text-stone-900 dark:text-stone-100' : 'text-sm text-stone-700 dark:text-stone-200'}`}>
                 <DesktopIcon className="size-4 shrink-0 text-green-500" />
                 {t('screens.temporary', { n: x.n })}
               </span>
@@ -84,7 +84,7 @@ export function OutputsPanel({ link, sessionId, bare }: { link: LiveLink; sessio
           ))}
         </ul>
         {/* A row at the foot of the group, in grey: seldom needed, so it stays out of the way (Lars, 2026-11-02). */}
-        <AppButton variant="plain" onClick={() => setPairing(true)} className="w-full min-h-11 px-3 flex items-center gap-2 text-left text-sm text-stone-500 dark:text-stone-400 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 hover:text-stone-700 dark:hover:text-stone-200">
+        <AppButton variant="plain" onClick={() => setPairing(true)} className={`w-full flex items-center gap-2 text-left cursor-pointer ${sheet ? 'min-h-12 px-4 text-[17px] text-sky-600 dark:text-sky-400' : 'min-h-11 px-3 text-sm text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'} hover:bg-black/5 dark:hover:bg-white/5`}>
           <PlusIcon className="size-4 shrink-0" />
           {t('pairScreen.title')}
         </AppButton>

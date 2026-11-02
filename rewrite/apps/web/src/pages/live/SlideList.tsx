@@ -9,7 +9,7 @@ import { href } from '../../ui/router.ts';
 import { SlideMark } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useWide } from '../../ui/useWide.ts';
-import { ImageItemEditor, ItemMedia, ItemSettings, ItemWarnings, type Players } from '../presentation-editor/ItemParts.tsx';
+import { ImageItemEditor, ItemMedia, ItemWarnings, type Players } from '../presentation-editor/ItemParts.tsx';
 import { SlideGrid } from '../presentation-editor/SlideGrid.tsx';
 import { ItemMenu, OverlayChip } from './desktop/ItemMenu.tsx';
 import { useFollowShown } from './followShown.ts';
@@ -85,7 +85,9 @@ export function SlideList({
   return (
     <div
       ref={box}
-      className={`${wide ? 'elevated' : ''} relative flex-1 min-w-0 min-h-0 overflow-y-auto px-4 lg:px-6 pb-24 lg:pb-12 max-lg:landscape:pt-3 bg-ground`}
+      // A column, so the footer (a phone's offline and Fjärrstyrning lines) stands at the foot of the page when the
+      // items are few, and after them when they are many; never floating over them (Lars, 2026-11-02).
+      className={`${wide ? 'elevated' : ''} relative flex-1 min-w-0 min-h-0 overflow-y-auto flex flex-col px-4 lg:px-6 pb-24 lg:pb-12 max-lg:landscape:pt-3 bg-ground`}
       data-testid={wide ? 'live-slides' : 'live-order'}
     >
       {!items.length && (
@@ -102,9 +104,11 @@ export function SlideList({
         const editing = !onItemMenu && item.type === 'image' && editingImages === item.id;
         return (
           <section key={item.id} data-item={item.id} aria-label={item.title} className="flex flex-col gap-1.5 lg:gap-2 max-lg:mb-2 lg:pb-3">
-            {/* As iOS's grouped lists on a phone: the heading close above its rows, the space between sections above it. */}
+            {/* As iOS's grouped lists on a phone: the heading close above its rows, the space between sections above it. It
+                sticks a pixel above the top, a pixel taller, so no sliver of a row's red frame shows above it where the
+                scroll lands between pixels (Lars, 2026-11-02). */}
             <h3
-              className={`sticky top-0 z-[2] -mx-4 lg:-mx-6 px-5 lg:px-6 pt-5 lg:pt-3.5 pb-0.5 lg:pb-2 lg:min-h-[44px] flex items-center gap-2 lg:gap-2.5 text-sm/5 font-semibold bg-ground/90 backdrop-blur-md transition-colors ${item.id === markedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
+              className={`sticky -top-px z-[2] -mx-4 lg:-mx-6 px-5 lg:px-6 pt-[calc(1.25rem+1px)] lg:pt-[calc(0.875rem+1px)] pb-0.5 lg:pb-2 lg:min-h-[44px] flex items-center gap-2 lg:gap-2.5 text-sm/5 font-semibold bg-ground transition-colors ${item.id === markedId ? 'text-sky-500' : 'text-stone-500 dark:text-stone-400'}`}
             >
               {/* The item's name, not renamed here: that confused (Lars, 2026-11-02). */}
               <span className="min-w-0 truncate">{item.title}</span>
@@ -129,6 +133,7 @@ export function SlideList({
                 <ItemMenu
                   item={item}
                   overlays={overlays}
+                  arrangements={song && song.deletedAt === null ? sortedArrangements(arrangements, song.id) : []}
                   // A song opens alone in Inställningar, and Stäng comes back here, also while presenting.
                   editHref={page && href(page)}
                   onEditImages={item.type === 'image' ? () => setEditingImages(item.id) : undefined}
@@ -137,10 +142,6 @@ export function SlideList({
             </h3>
             <ItemWarnings item={item} set={set} songName={song?.name} />
             <ItemMedia item={item} set={set} players={players} shownId={pointer.itemId} />
-            {/* A phone has the arrangement and the overlay in the item's sheet. */}
-            <div className="max-lg:hidden empty:hidden">
-              <ItemSettings item={item} song={song} arrangements={song ? sortedArrangements(arrangements, song.id) : []} overlays={overlays} withoutOverlay />
-            </div>
             {set && editing ? (
               <ImageItemEditor item={item} slides={set.slides} theme={theme} onAddImages={() => onAddImages?.(item.id)} />
             ) : !set?.slides.length ? null : wide ? (
@@ -168,7 +169,7 @@ export function SlideList({
           </section>
         );
       })}
-      {footer && <div className="flex flex-col items-center gap-1 pt-4 empty:hidden">{footer}</div>}
+      {footer && <div className="mt-auto flex flex-col items-center gap-1 pt-4 empty:hidden">{footer}</div>}
     </div>
   );
 }

@@ -330,13 +330,19 @@ test('arrangements: made in the song, chosen per item, and shown live in their o
   await page.reload();
   await expect(order).toHaveText([/Blott en dag/, /Pilgrimsfärd/]);
 
-  // Look at the first item: Kort, three slides; the default arrangement shows its own order.
+  // Look at the first item: Kort, chosen when it was added, three slides. Not in plain sight among the slides, the
+  // arrangement is changed in the item's … (Lars, 2026-11-02); the first, unnamed, shows the parts' own order.
   await page.getByRole('button', { name: 'Pilgrimsfärd', exact: true }).click();
   const tiles = page.getByRole('list', { name: 'Pilgrimsfärd' }).getByTestId('slide-text');
   await expect(tiles).toHaveText(['Pilgrimsfärd', 'Härlig är jorden', 'Pilgrimsfärd']);
-  await page.getByRole('button', { name: 'Arrangemang', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Kort', exact: true })).toHaveCount(0);
+  const itemMenu = page.getByTestId('live-slides').getByRole('button', { name: 'Fler val för Pilgrimsfärd' });
+  await itemMenu.click();
+  await page.getByRole('menuitemradio', { name: 'Arrangemang 1' }).click();
   await expect(tiles).toHaveText(['Härlig är jorden', 'Pilgrimsfärd', 'Tidevarv komma']);
-  await page.getByRole('button', { name: 'Kort', exact: true }).click();
+  await itemMenu.click();
+  await expect(page.getByRole('menuitemradio', { name: 'Arrangemang 1' })).toHaveAttribute('aria-checked', 'true');
+  await page.getByRole('menuitemradio', { name: 'Kort' }).click();
   await expect(tiles).toHaveText(['Pilgrimsfärd', 'Härlig är jorden', 'Pilgrimsfärd']);
 
   // The date, time, place and description change after create; the side menu and the start page show them.

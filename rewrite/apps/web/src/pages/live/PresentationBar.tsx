@@ -15,6 +15,8 @@ import { GREEN_SHADOW, LIFTED, RED_SHADOW, ROUND_BACK } from '../../ui/glass.ts'
 // and 44 to a finger at every width, as the ‹ beside them (Lars, 2026-11-02).
 const BAR_BUTTON = 'h-9 touch:h-11 touch:min-w-11 justify-center px-3.5 max-lg:px-0 max-lg:size-9 max-lg:touch:size-11 rounded-full flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer';
 const ROUND = 'size-9 touch:size-11 px-0!';
+/** The soft fade under a phone's bar, over what scrolls beneath it. */
+const FADE = 'max-lg:after:absolute max-lg:after:inset-x-0 max-lg:after:top-full max-lg:after:h-5 max-lg:after:bg-linear-to-b max-lg:after:from-ground max-lg:after:to-transparent max-lg:after:pointer-events-none';
 
 /**
  * A presentation's bar, one on a computer and a phone, before and while it is presented (docs/layout-2-0.md; Lars,
@@ -61,9 +63,10 @@ export function PresentationBar({
   };
   return (
     // On a phone it floats over the slides, with a soft fade from the page's colour under it rather than an edge, as
-    // iOS 26's bars (Lars, 2026-11-02).
+    // iOS 26's bars (Lars, 2026-11-02); not while presenting, when the picture stands still under it and the fade only
+    // dimmed its red frame.
     <div
-      className="relative z-20 shrink-0 h-15 lg:h-13 lg:touch:h-15 grid grid-cols-[auto_minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 lg:gap-4 px-4 bg-ground lg:border-b-[0.5px] lg:border-separator max-lg:after:absolute max-lg:after:inset-x-0 max-lg:after:top-full max-lg:after:h-5 max-lg:after:bg-linear-to-b max-lg:after:from-ground max-lg:after:to-transparent max-lg:after:pointer-events-none"
+      className={`relative z-20 shrink-0 h-15 lg:h-13 lg:touch:h-15 grid grid-cols-[auto_minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 lg:gap-4 px-4 bg-ground lg:border-b-[0.5px] lg:border-separator ${presenting ? '' : FADE}`}
       data-testid="presentation-bar"
       data-window-bar
     >
@@ -123,19 +126,19 @@ export function PresentationBar({
         <SyncCloud />
         {/* Inställningar next to start and stop, on a phone too. */}
         <AppButton variant="plain" href={href({ page: 'admin' })} aria-label={t('nav.admin')} title={t('nav.admin')} className={`${BAR_BUTTON} ${ROUND} ${LIFTED}`}>
-          <CogIcon className="size-4" />
+          <CogIcon className="size-5" />
         </AppButton>
         {/* Start and stop at the far right: ▶ before, ■ while presented (only this window's session ends). */}
         {!presenting && canStart && (
           <AppButton variant="plain" onClick={onStart} className={`${BAR_BUTTON} bg-emerald-500 text-white hover:bg-emerald-600 ${GREEN_SHADOW}`}>
-            <PlayIcon className="size-4" />
+            <PlayIcon className="size-5" />
             <span className="max-lg:sr-only">{t('presentation.start')}</span>
           </AppButton>
         )}
         {presenting && owner && (
           // Filled red as the question's own Avsluta presentation (Lars, 2026-11-02), as ▶ is filled green.
           <AppButton variant="plain" onClick={() => void end()} className={`${BAR_BUTTON} bg-red-500 text-white hover:bg-red-600 ${RED_SHADOW}`}>
-            <StopIcon className="size-4" />
+            <StopIcon className="size-5" />
             <span className="max-lg:sr-only">{t('live.end')}</span>
           </AppButton>
         )}

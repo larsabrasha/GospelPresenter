@@ -646,7 +646,9 @@ ManageOrganizationAudios), newest deletion first (tie → id).
 10. Overlay images are stored as uploaded (no compression), contrary to the "Images and media" rule.
 11. Overlays have `SortOrder` but no reorder UI; should they be reorderable?
 12. `UpdatedBy` is never updated after creation; is "last edited by" a wanted feature?
-13. No UI to change a song item's arrangement after adding (MCP only). Wanted?
+13. No UI to change a song item's arrangement after adding (MCP only). Wanted? 2.0 (Lars, 2026-11-02): chosen when the song is
+    added; changed in the item's … (a phone: its sheet), out of sight among the slides; an unnamed one reads
+    "Arrangemang 2" by its place.
 14. Mobile rename of items is effectively impossible (PRES-E8).
 15. Single-verse selection in browse mode requires a double pick (PRES-E4) — likely unintended.
 16. Song items reference the live song; the item title does not follow library renames (PRES-R36).

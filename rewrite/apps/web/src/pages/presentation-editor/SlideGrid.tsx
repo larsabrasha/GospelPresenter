@@ -7,12 +7,12 @@ import type { SlideMarkKind } from '../../live/liveList.ts';
 import { SlideMark, tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 
-/** Arrangement pills, shown when a song has two or more (spec 02); unnamed ones read "Ordning". */
+/** Arrangement pills, shown when a song has two or more (spec 02); unnamed ones read "Arrangemang 2", by their place. */
 export function ArrangementPills({ arrangements, chosen, onChoose, className }: { arrangements: SongArrangement[]; chosen: string | null; onChoose: (id: string) => void; className?: string }) {
   if (arrangements.length < 2) return null;
   return (
     <div className={`flex flex-wrap gap-1.5 ${className ?? ''}`} role="group" aria-label={t('song.arrangements')}>
-      {arrangements.map((a) => (
+      {arrangements.map((a, i) => (
         <AppButton
           key={a.id}
           variant="plain"
@@ -20,7 +20,7 @@ export function ArrangementPills({ arrangements, chosen, onChoose, className }: 
           onClick={() => onChoose(a.id)}
           className={`${a.id === chosen ? 'bg-sky-500 text-white' : 'bg-stone-200 dark:bg-raised text-stone-700 dark:text-stone-200 hover:bg-stone-300 dark:hover:bg-raised-2'} rounded-full px-3 py-1 text-xs font-medium cursor-pointer transition-colors`}
         >
-          {a.name ?? t('song.arrangement')}
+          {a.name ?? `${t('song.arrangement')} ${i + 1}`}
         </AppButton>
       ))}
     </div>

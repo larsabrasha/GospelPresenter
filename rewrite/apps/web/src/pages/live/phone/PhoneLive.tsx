@@ -27,9 +27,9 @@ import { OverlaysPanel } from '../OverlaysPanel.tsx';
 import { RemoteStatus } from '../RemotePanel.tsx';
 import { OutputsPanel } from '../OutputsPanel.tsx';
 import { VideoPlayer } from '../VideoPlayer.tsx';
-import { OutputsGlyph, OverlaysGlyph } from './LiveGlyphs.tsx';
+import { DisplayGlyph } from './LiveGlyphs.tsx';
 
-type Open = null | 'outputs' | 'overlays' | { item: PresentationItem } | { images: PresentationItem };
+type Open = null | 'display' | { item: PresentationItem } | { images: PresentationItem };
 
 /** How long an item just added stays marked. */
 const MARKED_MS = 2600;
@@ -145,7 +145,7 @@ export function PhoneLive({
       <div className="flex-1 min-h-0 flex flex-col landscape:flex-row-reverse">
       {/* Above the running order, so the buttons' shadows fall over it rather than being cut by its sticky headings. */}
       {presenting && (
-      <div className="relative z-[2] px-4 pt-2 shrink-0 landscape:w-[45%] landscape:pt-3">
+      <div className="relative z-[2] px-4 pt-3 shrink-0 landscape:w-[45%] landscape:pt-3">
         {/* At most a fifth of the screen high, so a small phone keeps room for the running order (Lars, 2026-11-02);
             lying down, as wide as its column. */}
         <LivePicture
@@ -158,8 +158,10 @@ export function PhoneLive({
           onStep={(delta) => go(at + delta)}
           onClear={() => live.set({ black: true })}
           testId="phone-live-picture"
-          leading={owner && <OutputsGlyph link={presenting.link} sessionId={owner.sessionId} onClick={() => setOpen('outputs')} />}
-          trailing={!!overlays.length && <OverlaysGlyph pointer={pointer} onClick={() => setOpen('overlays')} />}
+          // At the right end of ‹ Rensa ›'s row (LivePicture).
+          trailing={
+            (owner || !!overlays.length) && <DisplayGlyph link={owner ? presenting.link : null} sessionId={owner?.sessionId ?? ''} pointer={pointer} onClick={() => setOpen('display')} />
+          }
         >
           {video && pointer.itemId && presenting.video && <VideoPlayer control={presenting.video} itemId={pointer.itemId} name={video.fileName} type={video.contentType} codec={video.codec} />}
         </LivePicture>
@@ -215,7 +217,7 @@ export function PhoneLive({
             <>
               <SyncLine className="w-auto" fallback={onKeepOffline && <OfflineStatus presentation={presentation} onOpen={onKeepOffline} className="w-auto" />} />
               {owner && remotePolicy && remotePolicy !== 'never' && (
-                <RemoteStatus id={id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} />
+                <RemoteStatus id={id} sessionId={owner.sessionId} name={presentation.name} always={remotePolicy === 'always'} className="w-auto" />
               )}
             </>
           }
@@ -223,14 +225,11 @@ export function PhoneLive({
       )}
       </div>
 
-      {open === 'outputs' && presenting && owner && (
-        <Sheet title={t('live.outputs')} onClose={() => setOpen(null)}>
-          <OutputsPanel link={presenting.link} sessionId={owner.sessionId} bare />
-        </Sheet>
-      )}
-      {open === 'overlays' && presenting && (
-        <Sheet title={t('overlays.title')} onClose={() => setOpen(null)}>
-          <OverlaysPanel overlays={overlays} pointer={pointer} live={live} bare />
+      {/* Visning: the outputs and the overlays in one sheet, each its group (Lars, 2026-11-02). */}
+      {open === 'display' && presenting && (
+        <Sheet title={t('live.display')} onClose={() => setOpen(null)}>
+          {owner && <OutputsPanel link={presenting.link} sessionId={owner.sessionId} sheet />}
+          <OverlaysPanel overlays={overlays} pointer={pointer} live={live} sheet />
         </Sheet>
       )}
       {open && typeof open === 'object' && 'images' in open && (
@@ -262,14 +261,14 @@ export function PhoneLive({
                 </MenuRow>
               )}
             </MenuGroup>
-            <div className="px-2 empty:hidden">
-              <ItemSettings
-                item={open.item}
-                song={songs.get(open.item.sourceId)}
-                arrangements={open.item.type === 'song' ? sortedArrangements(arrangements, open.item.sourceId) : []}
-                overlays={overlays}
-              />
-            </div>
+            {/* The arrangement and the overlay as rows of a card, as the rows above (ItemSettings); the item as it is
+                now, not as it was when the sheet opened, so a choice shows at once. */}
+            <ItemSettings
+              item={items.find((i) => i.id === open.item.id) ?? open.item}
+              song={songs.get(open.item.sourceId)}
+              arrangements={open.item.type === 'song' ? sortedArrangements(arrangements, open.item.sourceId) : []}
+              overlays={overlays}
+            />
             <MenuGroup>
               <MenuRow icon={<TrashIcon className="size-5" />} onClick={() => void remove(open.item)} danger disabled={!!presenting && open.item.id === pointer.itemId}>
                 {presenting && open.item.id === pointer.itemId ? t('live.shownCannotRemove') : t('common.delete')}

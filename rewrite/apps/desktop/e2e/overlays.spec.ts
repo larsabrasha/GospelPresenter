@@ -105,6 +105,15 @@ test('an item carries its overlay while live; a manual toggle lasts until the it
   await expect(output.getByTestId('slide-text')).toHaveText('B ett');
   await expect(cover).toHaveCSS('opacity', '0');
   await expect(overlay).toHaveCount(0);
+
+  // The shown item's own overlay, changed in its …, shows at once, and goes at once when it is set to none.
+  const menuB = page.getByRole('region', { name: 'Sång B' }).getByRole('button', { name: 'Fler val för Sång B' });
+  await menuB.click();
+  await page.getByRole('menuitemradio', { name: 'Kollekt' }).click();
+  await expect(overlay).toHaveText('Swish 123 45');
+  await menuB.click();
+  await page.getByRole('menuitemradio', { name: 'Ingen' }).click();
+  await expect(overlay).toHaveCount(0);
 });
 
 test('a refused overlay save says "Kunde inte spara", in the overlay and on an item', async () => {
@@ -130,7 +139,7 @@ test('a refused overlay save says "Kunde inte spara", in the overlay and on an i
   await expect(failed).toHaveCount(0, { timeout: 6000 });
   await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
   const choice = page.getByRole('menuitemradio').nth(1);
-  await choice.evaluate((el) => (el as HTMLElement).setAttribute('data-overlay', 'no-such-overlay'));
+  await choice.evaluate((el) => (el as HTMLElement).setAttribute('data-choice', 'no-such-overlay'));
   await choice.click();
   await expect(failed).toBeVisible();
   await page.getByRole('region', { name: 'Sång A' }).getByRole('button', { name: 'Fler val för Sång A' }).click();
@@ -176,4 +185,25 @@ test('an overlay saves as you type, takes a dropped picture into Bilder, and goe
 
   await openAdmin(page, 'Bilder');
   await expect(page.getByTestId('image-card').getByRole('img', { name: 'Swish.png' })).toBeVisible();
+});
+
+test("on a phone an item's overlay is a row of its sheet, the chosen one in grey, and it shows by the item's heading", async () => {
+  host = await launch();
+  const page = host.page;
+  await setUpHost(host);
+  await createOverlay(page, 'Kollekt', 'Swish 123 45');
+  await createSong(page, 'Sång A', [['Verse 1', 'A ett']]);
+  await createPresentation(page, 'Söndag');
+  await addSongs(page, ['Sång A']);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  const order = page.getByTestId('live-order');
+  await order.getByRole('button', { name: 'Mer om Sång A' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Sång A' });
+
+  await sheet.getByRole('combobox', { name: 'Overlay' }).selectOption({ label: 'Kollekt' });
+
+  await expect(sheet.getByRole('combobox', { name: 'Overlay' }).locator('option:checked')).toHaveText('Kollekt');
+  await sheet.getByRole('button', { name: 'Stäng' }).click();
+  await expect(order.getByRole('region', { name: 'Sång A' })).toContainText('Kollekt');
 });

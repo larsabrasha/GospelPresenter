@@ -385,6 +385,10 @@ Stage keys are ignored while focus is in INPUT/TEXTAREA/contenteditable; default
   `GospelPresenter/GospelPresenter.Shared/Components/Presentations/OverlayView.razor:11-27`
 - **LIVE-R16** An overlay stays when slides change and when the screen is blacked (it is under the
   black layer). Stop does not clear it explicitly. `LiveDisplay.razor:12-25`
+  2.0: Rensa switches the overlay off, and a slide shown again after it switches on the overlay its item carries, as
+  entering the item does (Lars, 2026-11-02: a song marked to always show its overlay shows it again at once).
+  The shown item's own overlay, changed while it is live, takes effect at once: the new one shows if the outputs show
+  the item's old one or none, a manual choice of another staying (Lars, 2026-11-02).
 
 ### Rendering
 - **LIVE-R17** Fixed 1920×1080 canvas, uniformly scaled; padding 80 px left/right/top, 144 px bottom;

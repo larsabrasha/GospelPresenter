@@ -11,13 +11,13 @@ import type { ItemSlides } from '../../live/live.ts';
 import { AppButton } from '../../ui/AppButton.tsx';
 import { useSaveFailed, useTrySave } from '../../ui/AutoSave.tsx';
 import { afterWrite } from '../../ui/debounce.ts';
-import { ChevronDownIcon, CloseIcon, PlusIcon, WarningIcon } from '../../ui/icons.tsx';
+import { ChevronUpDownIcon, CloseIcon, PlusIcon, WarningIcon } from '../../ui/icons.tsx';
+import { GROUP } from '../../ui/Sheet.tsx';
 import { useConfirm } from '../../ui/Dialog.tsx';
 import { useSortable } from '../../ui/sortable.ts';
 import { tileClass } from '../../ui/SlideTile.tsx';
 import { SlideView } from '../../ui/SlideView.tsx';
 import { useToast } from '../../ui/Toast.tsx';
-import { ArrangementPills } from './SlideGrid.tsx';
 
 /**
  * An audio item in the editor: the player of the live page (AudioPlayer.razor), on a preview of its
@@ -199,56 +199,60 @@ export function ItemMedia({ item, set, players, shownId }: { item: PresentationI
   return null;
 }
 
-/** A song item's arrangement, when it has two or more, and the overlay any item carries, when there are overlays. */
-export function ItemSettings({
-  item,
-  song,
-  arrangements,
-  overlays,
-  withoutOverlay,
-}: {
-  item: PresentationItem;
-  song: Song | undefined;
-  arrangements: SongArrangement[];
-  overlays: Overlay[];
-  /** On a computer the overlay is chosen in the heading's … (ItemMenu). */
-  withoutOverlay?: boolean;
-}) {
+/**
+ * A choice in a phone's item sheet, as iOS's Settings has one: a row of the sheet's card, its name at the left and the
+ * chosen value in grey at the right with ⌃⌄, the whole row opening the menu (Lars, 2026-11-02).
+ */
+function SheetChoice({ label, title, value, choices, onChoose }: { label: string; title?: string; value: string; choices: { id: string; title: string }[]; onChoose: (id: string) => void }) {
+  return (
+    <label className="relative w-full min-h-12 px-4 flex items-center justify-between gap-3 text-[17px] cursor-pointer" title={title}>
+      <span className="shrink-0">{label}</span>
+      <span className="flex items-center gap-1 min-w-0 text-stone-500 dark:text-stone-400">
+        <span className="truncate">{choices.find((c) => c.id === value)?.title}</span>
+        <ChevronUpDownIcon className="size-4 shrink-0" />
+      </span>
+      {/* The menu itself, unseen over the whole row, so a tap anywhere on it opens the system's menu. */}
+      <select aria-label={label} value={value} onChange={(e) => onChoose(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer">
+        {choices.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.title}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * A song item's arrangement, when it has two or more, and the overlay any item carries, when there are overlays, in a
+ * phone's item sheet (on a computer they are in the heading's …, ItemMenu). Out of sight in the slides: the arrangement
+ * is chosen when the song is added, and here only changed (Lars, 2026-11-02).
+ */
+export function ItemSettings({ item, song, arrangements, overlays }: { item: PresentationItem; song: Song | undefined; arrangements: SongArrangement[]; overlays: Overlay[] }) {
   const db = useDb();
   const saveFailed = useSaveFailed();
   const failing = (write: Promise<void>) => afterWrite(write, () => {}, saveFailed);
-  const pills = song?.deletedAt === null && arrangements.length > 1;
-  const overlay = !withoutOverlay && !!overlays.length;
-  if (!pills && !overlay) return null;
+  const arranging = song?.deletedAt === null && arrangements.length > 1;
+  const overlay = !!overlays.length;
+  if (!arranging && !overlay) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-      {pills && (
-        <ArrangementPills
-          arrangements={arrangements}
-          chosen={item.arrangementId ?? arrangements[0]?.id ?? null}
+    <div className={GROUP}>
+      {arranging && (
+        <SheetChoice
+          label={t('song.arrangements')}
+          value={item.arrangementId ?? arrangements[0]!.id}
+          choices={arrangements.map((a, i) => ({ id: a.id, title: a.name ?? `${t('song.arrangement')} ${i + 1}` }))}
           onChoose={(arrangementId) => failing(db.mutate('setItemArrangement', { itemId: item.id, arrangementId }))}
         />
       )}
       {overlay && (
-        <label className="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400" title={t('overlays.itemHint')}>
-          {t('overlays.itemOverlay')}
-          <span className="relative">
-            <select
-              aria-label={t('overlays.itemOverlay')}
-              value={item.overlayId ?? ''}
-              onChange={(e) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: e.target.value || null }))}
-              className="appearance-none h-7 pl-3 pr-8 rounded-full text-[13px] bg-raised dark:bg-raised-2 text-stone-900 dark:text-stone-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              <option value="">{t('overlays.itemNone')}</option>
-              {overlays.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.title}
-                </option>
-              ))}
-            </select>
-            <ChevronDownIcon className="size-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-          </span>
-        </label>
+        <SheetChoice
+          label={t('overlays.itemOverlay')}
+          title={t('overlays.itemHint')}
+          value={item.overlayId ?? ''}
+          choices={[{ id: '', title: t('overlays.itemNone') }, ...overlays.map((o) => ({ id: o.id, title: o.title }))]}
+          onChoose={(overlayId) => failing(db.mutate('setItemOverlay', { itemId: item.id, overlayId: overlayId || null }))}
+        />
       )}
     </div>
   );
