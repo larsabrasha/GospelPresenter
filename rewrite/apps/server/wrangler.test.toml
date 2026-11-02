@@ -1,0 +1,39 @@
+# The test environment on Cloudflare (docs/cloudflare.md, "The test environment"):
+# `wrangler deploy --config wrangler.test.toml` after `pnpm build`, as .github/workflows/rewrite-test.yml does.
+# Sign-in by passkey only: no Google client, no mail. The setup token is a secret
+# (`wrangler secret put SETUP_TOKEN --config wrangler.test.toml`), kept across deploys.
+name = "gp-test"
+main = "src/worker.ts"
+compatibility_date = "2026-08-01"
+workers_dev = true
+preview_urls = false
+
+[define]
+GP_TEST_ISSUER = "false"
+
+[vars]
+PASSKEY_RP_ID = "gp-test.lars-arvidsson.workers.dev"
+PASSKEY_ORIGINS = "https://gp-test.lars-arvidsson.workers.dev"
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "none"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gp-test-global"
+database_id = "9a0b4169-5e01-4e91-a9f2-bf785dc6019e"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "gp-test-media"
+
+[[durable_objects.bindings]]
+name = "ORG"
+class_name = "OrgDurableObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["OrgDurableObject"]

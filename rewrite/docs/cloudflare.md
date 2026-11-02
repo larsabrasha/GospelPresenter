@@ -9,6 +9,16 @@ every time. `html_handling = "none"`, because the default redirects `/index.html
 keeps `/index.html` under that name: a kept redirect would break a navigation offline.
 `apps/server/test/static.test.ts` checks this on Node and in local workerd (Miniflare's assets).
 
+**The test environment (2026-11-02).** `https://gp-test.lars-arvidsson.workers.dev`: Worker `gp-test`, D1
+`gp-test-global` (WEUR) and R2 `gp-test-media`, named in `apps/server/wrangler.test.toml`. It runs the repo's
+Worker as it is, with no debug routes, and signs in by passkey only (Lars, 2026-11-02): no Google client and no
+mail, so `/api/auth/state` says `google: false, mail: false`. The setup token is the Worker's secret
+`SETUP_TOKEN`, set at the first deploy; a deploy keeps it. `.github/workflows/rewrite-test.yml` builds the web
+app and deploys on a push to main that touches `rewrite/`, or for any branch by hand (workflow_dispatch). It
+needs the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. By hand, from `apps/server`
+after `pnpm build`: `wrangler deploy --config wrangler.test.toml`. Its D1 and its objects migrate on their first
+request after a deploy, as the trial's did.
+
 **A trial on a real account (2026-10-28).** With Lars's go-ahead the Worker ran on
 `https://gp-trial-gospel.lars-arvidsson.workers.dev`, with D1 `gp-trial-global` (region WEUR) and R2
 `gp-trial-media`. It is kept for Lars to try, and deleted afterwards. The repo's `wrangler.toml` was not used:
